@@ -16,11 +16,6 @@ use l2_game::{Assets, Game};
 use l2_kingdom::tables::{Tables, Weather};
 use l2_kingdom::{Kingdom, Options};
 
-/// **The thumb up clicks on the press
-/// 150 frames later.**
-///
-/// A player, twice: *"no sound on clicking the yes/no on save, and it is still
-/// on mousedown instead of mouseup"*. Both halves are the binary's:
 /// `g_saveLoadWidgets`' records are `Widget_Test` **kind 4**, which plays
 /// `Sound_RestartSlot(1)` and calls the handler on the press
 /// `FUN_004342F3`, is only `DAT_005CD41C = 100` — `SaveLoad_Tick` sets
@@ -65,9 +60,6 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     use l2_game::screens::saveload::{CONFIRM, LIST};
 
     let own = Saves::new("screens");
-    // Four saves that sort before the one this test makes, all of a different
-    // game
-    // the digest says so.
     let decoy = furnished(0xDEC0);
     let decoys = ["a decoy", "b decoy", "c decoy", "d decoy"];
     for n in decoys {
@@ -88,17 +80,6 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     let before = digest(&game.kingdom);
     assert_ne!(digest(&decoy.kingdom), before);
 
-    // Save: type a name, then press the tick. Nothing here reaches into the
-    // screen's fields; it is clicks and keys.
-    //
-    // **`Event::Text`, not `Event::KeyDown`.** They are `WM_CHAR` and
-    // `WM_KEYDOWN` and the field reads the first
-    // does — `Key::Char` is folded to upper case for the hotkey matchers
-    // field fed from it could never produce a lower-case letter at all. This
-    // test drove the old hand-rolled field through the hotkey message and is
-// the reason that distinction is now enforced. The
-    // space in the middle is deliberate: a space is a character here, not a
-    // confirm, and driving it proves the field takes it.
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
     let mut typed: Vec<Event> = typed_name.chars().map(Event::Text).collect();
     typed.push(click_widget(CONFIRM));
@@ -110,20 +91,10 @@ fn the_save_screen_writes_a_file_and_the_load_screen_reads_it_back() {
     expected.push(file(name));
     assert_eq!(own.files(), expected, "the file is on disk, and nothing else was written");
 
-    // Now change the world, and load it back.
     let mut game2 = furnished(0xDEAD);
     game2.prefs.tip_screens = false;
     assert_ne!(digest(&game2.kingdom), before);
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Load));
-    // **Row 4, and it is a literal.** The directory holds exactly the five
-    // files asserted above
-    // so the list this screen opened on has `screen test` fifth — the middle
-    // column of the second line, which exercises both halves of the geometry.
-    //
-    // It used to be found by taking a *second* `saves::list()` after the
-    // screen had opened. That answered for the directory as it stood at that
-    // statement, not as the screen had read it, and in a directory shared with
-    // other tests those were sometimes different lists.
     const ROW: usize = 4;
     let r = SaveLoadScreen::row_rect(ROW);
     drive(
@@ -166,11 +137,6 @@ fn the_cancel_cross_closes_without_writing_anything() {
 
     let own = Saves::new("cancel");
     let (mut game, assets) = bare();
-    // **A name that would be written if the cross confirmed**, typed the way
-    // the field reads it. This used to type through `Event::KeyDown`, which the
-    // field ignores, and then look for `CANCELLED` — a name the file-name field
-    // would have lower-cased — so a cross that saved could not have turned it
-    // red twice over. An empty directory of its own is the whole assertion now.
     let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
     let mut events: Vec<Event> = "CANCELLED".chars().map(Event::Text).collect();
     events.push(click_widget(CANCEL));
@@ -185,9 +151,6 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     let (mut game, assets) = bare();
     let mut screen = SaveLoadScreen::new(Mode::Save);
     let mut ctx = Ctx { game: &mut game, assets: &assets };
-    // The name field cannot hold a separator — `Key::Char` never carries one —
-    // so the refusal is reached the way a player would reach it: an empty name.
-    // Enter arms `SaveLoad_Tick`'s latch
     let mut t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
     for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
         t = l2_game::Screen::update(&mut screen, &mut ctx);
@@ -198,10 +161,6 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
 }
 
 
-/// **The save the player actually makes: from the menu bar, over the campaign
-/// map.** A player: *"it says saving game please wait, then stays on that
-/// screen … the new save isn't there"*.
-///
 /// Every other test on this screen builds a `Machine` whose *only* screen is
 /// the box, so nothing is under it and [`Machine::update`] reaches the box on
 /// every frame. In the game the box is pushed over screen `0x24`, and
@@ -219,9 +178,6 @@ fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
     let (mut game, assets) = bare();
     game.prefs.tip_screens = false;
     let mut m = Machine::new(ScreenId::Campaign);
-    // **The player has been sitting on the map**, so the AI realms have taken
-    // their `AI_RunTurnStep` steps and `players_turn_open` is set — the state
-    // `turn::tick_ai_frame` leaves behind and the state a real save is made in.
     for _ in 0..400 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         m.update(&mut ctx);
@@ -231,7 +187,6 @@ fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
         let ctx = Ctx { game: &mut game, assets: &assets };
         menubar::titles(&ctx)
     };
-    // File, then its third item — `MENUS[0].items[2]` is `Item::Save`.
     let row = menubar::item_rect(&titles, 0, 2);
     drive(
         &mut m,
@@ -254,8 +209,6 @@ fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the box is gone");
 }
 
-/// **The same save with the tips on — the setting the player actually has.**
-///
 /// `main.rs` turns nothing off, so `g_optTipScreens` is set and
 /// `Tip_Update` (`0x00476AA7`) runs every frame. Its last rung, the invasion
 /// tip, is the **one arm with no `g_screenId` test**, so it fires over the save
@@ -281,7 +234,6 @@ fn a_tip_over_the_save_box_pauses_the_count_and_the_save_still_lands() {
     events.push(release_widget(CONFIRM));
     drive(&mut m, &mut game, &assets, &events);
 
-    // Half the wait, then the invasion tip's flag: `Tip_Update`'s last rung.
     for _ in 0..(WORK_FRAMES / 2) {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         m.update(&mut ctx);
@@ -295,7 +247,6 @@ fn a_tip_over_the_save_box_pauses_the_count_and_the_save_still_lands() {
     }
     assert!(own.files().is_empty(), "the tip pauses SaveLoad_Tick, as 0x27 does");
 
-    // The player reads it and clicks it away, and the count goes on.
     drive(&mut m, &mut game, &assets, &[Event::Click { x: 320, y: 240 }]);
     for _ in 0..=WORK_FRAMES {
         let mut ctx = Ctx { game: &mut game, assets: &assets };

@@ -12,12 +12,7 @@ use l2_kingdom::movement::{self, Routing};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::campaign;
 
-/// **The report, closed.** Three hundred men into a neutral county of a
-/// thousand contented people is thirty per cent of it, and the county says so:
 /// `County_GreetArmy`'s 20…49 % rung, `L2.eng` 133, in the envoy's panel.
-///
-/// Ablation: delete `crate::arrival::post(game, &moved.posted)` in
-/// `turn::tick_units_only` and no letter comes.
 #[test]
 fn marching_into_a_neutral_county_opens_its_greeting_in_the_countys_own_words() {
     let (mut g, a, mut m) = world(0);
@@ -35,13 +30,6 @@ fn marching_into_a_neutral_county_opens_its_greeting_in_the_countys_own_words() 
     );
 }
 
-/// **The same letter inside a turn.** An order given in the same breath as End
-/// Turn walks inside the turn machine — `turn::run_phase_tick`'s sweep, not the
-/// idle frame's — and the county greets it all the same.
-///
-/// Ablation: delete `crate::arrival::post` in `run_phase_tick` and no letter
-/// comes; delete the one in `tick_units_only` instead and it still does, which
-/// is what shows this test is on the turn's door.
 #[test]
 fn an_army_walking_inside_a_turn_is_greeted_too() {
     let (mut g, a, mut m) = world(0);
@@ -58,7 +46,6 @@ fn an_army_walking_inside_a_turn_is_greeted_too() {
     assert_eq!((r.to, r.group, r.category, r.county), (1, 133, 2, 2));
 }
 
-/// **Your own county says nothing**, and neither does anything else on the way.
 #[test]
 fn walking_into_your_own_county_says_nothing() {
     let (mut g, a, mut m) = world(1);
@@ -73,9 +60,6 @@ fn walking_into_your_own_county_says_nothing() {
 /// **A lord writes to the county he is marching on, and not to the one he
 /// marches through.** The Countess's lord 3 crosses the player's county 2 on
 /// his way to county 1: one letter, at the second border, taunt 9 of group 170.
-///
-/// Ablation: delete `unit.dest_county != county` in
-/// `l2_kingdom::arrival::enter_county` and the letter arrives at county 2.
 #[test]
 fn a_lord_marching_on_your_county_writes_to_you_and_passing_through_does_not() {
     let (mut g, a, mut m) = world(1);
@@ -97,10 +81,6 @@ fn a_lord_marching_on_your_county_writes_to_you_and_passing_through_does_not() {
     assert_eq!(until_still(&mut m, &mut g, &a), None, "and nothing more on the way");
 }
 
-/// **Your invasion is written, and you do not see it** — the letter is to the
-/// lord, `Msg_Enqueue` keeps it out of your ring, and posting it still turns
-/// your realm's voice rotation, which is the simulation's.
-///
 /// Ablation: delete the rotation's increment in `enter_county` and the last
 /// assertion goes red.
 #[test]
@@ -114,15 +94,11 @@ fn marching_on_a_lords_county_writes_to_him_turns_your_rotation_and_shows_you_no
     assert_eq!(g.kingdom.realms[1].voice_rotation, 1, "the letter was posted, to realm 2");
 }
 
-// ---------------------------------------------------------- taking the county
 
 /// **Taking a county opens the capture letter**, category `0x0D` — the one the
 /// capture films are wired to. A neutral county of happiness 10 greets the army
 /// with a welcome and then surrenders its town without a fight; the player held
 /// one county at a peak of one, so it is `L2.eng` 117.
-///
-/// Ablation: delete the `out.posted.push(Posted::Capture(..))` in
-/// `l2_kingdom::units_tick` and the second letter.
 #[test]
 fn taking_a_neutral_town_opens_the_capture_letter_after_the_greeting() {
     let (mut g, a, mut m) = world(0);
@@ -173,9 +149,6 @@ fn a_lord_taking_your_county_sends_his_taunt_and_then_word_of_your_loss() {
 /// thousand beat a neutral county's hundred-man militia in a battle nobody is
 /// asked about, and the player hears of it: `L2.eng` 116, from
 /// `Battle_ReturnToCampaign`'s `County_ChangeOwner`.
-///
-/// Ablation: delete `crate::arrival::post_captures` in `turn::record` and no
-/// letter comes.
 #[test]
 fn a_lord_winning_a_neutral_county_in_battle_is_reported_to_you() {
     let (mut g, a, mut m) = world(0);
@@ -193,7 +166,6 @@ fn a_lord_winning_a_neutral_county_in_battle_is_reported_to_you() {
     );
 }
 
-// ------------------------------------------------------ with the player's game
 
 /// **The words are the player's own `L2.eng`**, and our transcription agrees
 /// with it string for string — which is what makes it a fallback

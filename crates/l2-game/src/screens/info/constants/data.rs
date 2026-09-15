@@ -39,8 +39,6 @@ pub(super) const TILE_WORDS: [(usize, &str); 49] = [
     (42, "Partially restored, this field is on the way to returning to its former state."),
     (43, "Almost reclaimed, this field will very shortly be ready for use."),
     (52, "Click on an icon to alter field usage."),
-    // The four size bands and the destroyed one, per site — `SITE_INFO`'s base
-    // plus `SITE_BAND_*`.
     (53, "A small mine."),
     (54, "A medium mine."),
     (55, "A large mine."),
@@ -69,7 +67,6 @@ pub(super) const TILE_WORDS: [(usize, &str); 49] = [
     (87, "A destroyed blacksmiths."),
 ];
 
-/// Group 77, indices 0 … 28.
 pub(super) const REPORT_WORDS: [&str; 29] = [
     "from",
     "to be sown, yielding",
@@ -102,7 +99,6 @@ pub(super) const REPORT_WORDS: [&str; 29] = [
     "Overall change",
 ];
 
-/// Group 22, indices 0 … 6.
 pub(super) const FERTILITY_WORDS: [&str; 7] = [
     "Infertile - almost no production.",
     "Very poor fertility - mainly weeds.",

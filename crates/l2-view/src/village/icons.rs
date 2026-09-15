@@ -12,8 +12,6 @@ fn ceil_div(a: i32, b: i32) -> i32 {
     a / b + i32::from(a % b != 0)
 }
 
-/// How many icons a cluster shows, and in which of the two "wrong" states.
-///
 /// `Village_RebuildIcons` (`0x0045161E`), exactly. The second number is
 /// **negative for a shortfall** and positive for a surplus, which is how one
 /// integer carries both and how the caller knows which frame to use.
@@ -25,9 +23,6 @@ pub fn icon_counts(workers: i32, wanted: i32, useful: i32, pop_band: i32) -> (i3
         -ceil_div(wanted - workers, pop_band)
     } else if useful < workers {
         let mut n = (workers - useful) / pop_band;
-        // The original rounds up only when the ceiling is zero — a job the
-        // county cannot do at all, where every worker is surplus and the part
-        // icon still has to appear.
         if useful == 0 && workers % pop_band != 0 {
             n += 1;
         }
@@ -42,8 +37,6 @@ pub fn icon_counts(workers: i32, wanted: i32, useful: i32, pop_band: i32) -> (i3
     (normal, other)
 }
 
-/// One cluster's twenty-five icon values, 0 for an empty slot.
-///
 /// `FUN_004518A5` and the two fillers under it. `value` is the cluster's own
 /// icon from [`ICON_VALUE`]; `main` and `other` come from [`icon_counts`].
 pub fn cluster_icons(cluster: usize, value: u8, main: i32, other: i32) -> [u8; ICONS_PER_CLUSTER] {
@@ -97,8 +90,6 @@ pub(super) fn fill_two(
         }
         return;
     }
-    // Too many of either to scatter: fill from the front with one state and
-    // back-fill the empty tail with the other.
     for slot in icons.iter_mut().take(main.clamp(0, ICONS_PER_CLUSTER as i32) as usize) {
         *slot = main_value;
     }

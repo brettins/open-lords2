@@ -1,14 +1,7 @@
-//! **Supply transports** — one county sending grain and cattle to another.
-//!
 //! `Transport_Spawn` (`0x004292AF`) puts a `kind == 4` unit on the map with the
 //! cargo in its troop counters; phase 3 walks it (`crate::units_tick`); and
 //! `Transport_Deliver` (`0x004296B5`) unloads it into the destination county
 //! and destroys it.
-//!
-//! # The cargo is in the troop counters
-//!
-//! A transport is an army record with different fields meaning different
-//! things, which is `docs/armies.md`'s whole point about `g_units`:
 //!
 //! | field | on an army | on a transport |
 //! |---|---|---|
@@ -23,34 +16,15 @@
 //! sack, and `Ui_DrawCount(troops[2], 0x46)` beside frame `0x26`, the cattle —
 //! and group 8's noun `0x44` is *"Grain"* and `0x46` is *"Cow."*/*"Cows."*
 //! **[V]**
-//!
-//! # Two behaviours worth reproducing on purpose
-//!
-//! **A shipment with nowhere to stand is lost in silence.** `Transport_Spawn`
-//! looks for a free tile with `County_FindFreeRoadTile` and then
-//! `County_FindFreeOpenTile`; if neither answers it spawns nothing **and
-//! deducts nothing**, and the screen that sent it has already closed.
-//! no message. [`Sent::Nowhere`] is that outcome, and it is a returned value
-//!
-//!
-//! **`troops[1]` is loaded and never unloaded.** `Transport_Spawn` copies the
-//! record's dead sheep word into it and `Transport_Deliver` adds `troops[0]`
-//! and `troops[2]` back and not `troops[1]`. Harmless — the word is always zero
-//! — and reproduced, because it is the cut subsystem's last live wire and
-//! deleting it would delete the evidence. `docs/bugs.md` D20.
 
 use crate::county::County;
 use crate::map::CampaignMap;
 use crate::unit::{Unit, UnitKind, Units};
 use crate::MAX_COUNTIES;
 
-/// What one dispatch did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sent {
-    /// The unit's slot. The cargo has been deducted from the source county.
     Unit(usize),
-    /// **No free tile within three of the county's anchor**, or no free unit
-    /// slot. Nothing spawned, nothing deducted, nothing said.
     Nowhere,
 }
 
@@ -87,12 +61,9 @@ pub fn spawn(
     let mut unit = Unit::new(UnitKind::Transport, owner, x, y);
     unit.needs_destination = false;
     unit.county = from;
-    // **`u.morale = county`** — the original reuses the morale byte as the
-    // source id on a transport, and `docs/armies.md` §2 says so.
     unit.morale = from as i32;
     unit.cargo_county = to;
     unit.troops[0] = grain;
-    // `troops[1]` takes the record's dead sheep word, which is always zero.
     unit.troops[1] = 0;
     unit.troops[2] = cattle;
     unit.men = grain + cattle;
@@ -104,12 +75,6 @@ pub fn spawn(
 }
 
 /// `Transport_Deliver` (`0x004296B5`) — unload into the destination county.
-///
-/// Returns what was added, `(grain, cattle)`. The caller destroys the unit;
-/// this does not, because the unit array is walked by its own phase and a
-/// function that removed an entry mid-walk would be the wrong shape.
-///
-/// **`troops[1]` is not added back.** See the module docs.
 pub fn deliver(counties: &mut [County; MAX_COUNTIES], unit: &Unit) -> (i32, i32) {
     let (grain, cattle) = (unit.troops[0], unit.troops[2]);
     if let Some(c) = counties.get_mut(unit.cargo_county as usize) {

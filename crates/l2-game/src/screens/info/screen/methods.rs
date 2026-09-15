@@ -21,13 +21,10 @@ impl InfoScreen {
         self.target
     }
 
-    /// The garrison this panel's tile would show, if its castle holds one.
-    ///
     /// `FUN_00438ACC` is `g_pickedTileUnit = g_counties[g_pickedTileCounty]
     /// .garrisonUnit`, and `TileInfo_DrawCastle` is what decides the widget
     /// exists at all: a **castle tile** whose county has a garrison. Any owner.
     pub fn garrison(&self, ctx: &Ctx) -> Option<usize> {
-        // **[`InfoScreen::castle_tile`], not `terrain > CASTLE_PLOT`.**
         // `DAT_00568474` is written by `TileInfo_DrawCastle`, which runs for
         // the whole `0x0C < graphic < 0x1A` range — the bare plot included —
         // so the widget the press arm answers and the widget the painter draws
@@ -40,22 +37,6 @@ impl InfoScreen {
 
     /// **`Map_ResolvePick` (`0x0046D5FE`)'s `_g_pickedTileFlags`** — the plane-0
     /// byte every predicate below tests, with the two tiles the pick *blanks*:
-    ///
-    /// ```c
-    /// if ((flags & 0x80) != 0 && g_pickedTileGraphic == 0x14) _g_pickedTileFlags = 0;
-    /// if ((flags & 0x10) != 0 && g_pickedTileGraphic == 0)    _g_pickedTileFlags = 0;
-    /// ```
-    ///
-    /// A **bare castle plot** and an **empty dwelling plot** therefore reach
-    /// `TileInfo_Draw` with no bits at all and take its scrubland
-    /// fall-through — not the castle arm and not the village arm. The panel
-    /// used to draw the castle arm on a bare plot; every county that starts
-    /// castleless showed *"Castle."* over open ground.
-    ///
-    /// **Not reproduced:** the same function's anchor walk for a 2×2 block
-    /// (`local_8`, from `part & 0x0F`), which re-reads the flags from the
-    /// block's north-west tile. Every tile of a town or castle block carries
-    /// the same flags and graphic, so it changes no word on this panel.
     pub fn picked_flags(&self, ctx: &Ctx) -> u8 {
         use l2_kingdom::map::{flags, terrain};
         let Target::Tile(tile) = self.target else { return 0 };
@@ -71,10 +52,6 @@ impl InfoScreen {
     }
 
     /// **`TileInfo_Draw` (`0x0041C208`)'s flag ladder**, in its order:
-    /// `0x01`, `0x04`, `0x10`, `0x08`, `0x20`, `0x40`, `0x80`, then the
-    /// scrubland fall-through. The five arms this returns that no other method
-    /// covers are [`TILE_LADDER`]'s; the last four defer to the predicates that
-    /// already carry the same exclusion sets.
     pub fn tile_kind(&self, ctx: &Ctx) -> Option<TileKind> {
         use l2_kingdom::map::flags;
         let Target::Tile(tile) = self.target else { return None };
@@ -112,8 +89,6 @@ impl InfoScreen {
         })
     }
 
-    /// **The county whose town this tile is**, or `None`.
-    ///
     /// Plane-0 bit `0x40` is the county town — `docs/decisions.md` C25 is why
     /// `l2-kingdom` still spells the constant `CASTLE` — and it is reached only
     /// after `FUN_0041BEFE` and `TileInfo_Draw` have both failed `0x20`
@@ -131,9 +106,6 @@ impl InfoScreen {
         Some(map.county[tile])
     }
 
-    /// Whether this town's county has a band standing in it — the condition on
-    /// both halves of the mercenary tail, and the same byte
-    /// [`crate::screens::map`]'s marker reads.
     pub fn mercenary_offer(&self, ctx: &Ctx) -> bool {
         let Some(county) = self.county_town(ctx) else { return false };
         ctx.game
@@ -143,29 +115,17 @@ impl InfoScreen {
             .is_some_and(|c| c.mercenary_offer != 0)
     }
 
-    /// **The castle tile this panel describes**, or `None`.
-    ///
     /// `TileInfo_Draw`'s and `FUN_0041BEFE`'s `0x80` arm, split the same way in
     /// both: `g_pickedTileGraphic < 0x0D` is a resource site and
     /// `0x0C < graphic < 0x1A` is the castle plot ([`terrain::CASTLE_PLOT`]) or
     /// a castle standing on it. The bit is reached only after `0x20`, `0x04`,
     /// `0x10` and `0x40` have all failed, which is the order kept here.
-    ///
-    /// [`terrain::CASTLE_PLOT`]: l2_kingdom::map::terrain::CASTLE_PLOT
     pub fn castle_tile(&self, ctx: &Ctx) -> Option<usize> {
         let tile = self.settlement_tile(ctx)?;
         let g = ctx.game.kingdom.campaign.map.terrain[tile];
         (g > 0x0C && g < 0x1A).then_some(tile)
     }
 
-    /// **The resource site this panel describes**, or `None` — the *other* half
-    /// of the `0x80` arm, `g_pickedTileGraphic < 0x0D`, and the commodity its
-    /// record belongs to.
-    ///
-    /// The industry index is `local_18`, read through
-    /// [`l2_kingdom::industry::map_toggle_for_graphic`] so the panel and the
-    /// left click that toggles the site cannot drift apart; `MapToggle::Castle`
-    /// is unreachable below `0x0D` and is the `None` here.
     pub fn resource_site(&self, ctx: &Ctx) -> Option<(usize, l2_kingdom::tables::Commodity)> {
         let tile = self.settlement_tile(ctx)?;
         let g = ctx.game.kingdom.campaign.map.terrain[tile];
@@ -178,11 +138,6 @@ impl InfoScreen {
         }
     }
 
-    /// **`TileInfo_Draw`'s `flags & 0x80` arm, the flag half of it**, shared by
-    /// [`InfoScreen::castle_tile`] and [`InfoScreen::resource_site`] because the
-    /// painter reaches both through one test and then splits on the terrain
-    /// byte alone.
-    ///
     /// The bit is reached only after `0x01` (road), `0x04` (sea), `0x10` (a
     /// dwelling plot), `0x08` (mountain or wood), `0x20` (farmland) and `0x40`
     /// (the county town) have all failed, which is `TileInfo_Draw`'s order and
@@ -195,9 +150,6 @@ impl InfoScreen {
     /// settlement tile that also carried road or rough would take the `0x80`
     /// *row* and the road's *words*. No such tile exists in the England
 /// position; `tests/screens_info.rs` asserts that.
-    ///
-    /// [`flags::SETTLEMENT`]: l2_kingdom::map::flags::SETTLEMENT
-    /// [`flags::CASTLE`]: l2_kingdom::map::flags::CASTLE
     fn settlement_tile(&self, ctx: &Ctx) -> Option<usize> {
         use l2_kingdom::map::flags;
         let Target::Tile(tile) = self.target else { return None };
@@ -211,9 +163,6 @@ impl InfoScreen {
         (f & before == 0 && f & flags::SETTLEMENT != 0).then_some(tile)
     }
 
-    /// **The farm tile this panel describes**, or `None` — `TileInfo_Draw`'s
-    /// ladder, in its order: bits `0x01` (road), `0x04` (sea), `0x10` (a
-    /// dwelling), `0x08` (mountain or wood) are all tested before `0x20`.
     pub fn farmland(&self, ctx: &Ctx) -> Option<usize> {
         let Target::Tile(tile) = self.target else { return None };
         let f = self.picked_flags(ctx);
@@ -221,8 +170,6 @@ impl InfoScreen {
             .then_some(tile)
     }
 
-    /// The three army buttons, and which of the two tables they come from.
-    ///
     /// `FUN_00437002` picks between `g_infoUnitButtons` (`0x004DC560`) and the
     /// garrisoned table (`0x004DC5A8`) on `unit.garrisonCounty`, behind three
     /// guards: a unit is picked, it is **kind 1**, and its owner is the local
@@ -236,7 +183,6 @@ impl InfoScreen {
         Some((id, u.garrison_county != 0))
     }
 
-    /// Which of the eleven layouts this panel is using.
     pub fn layout(&self, ctx: &Ctx) -> Layout {
         match self.target {
             Target::Unit(id) => {
@@ -249,14 +195,9 @@ impl InfoScreen {
                             Layout { row: 0x12, headroom: 0 }
                         }
                     }
-                    // Peasants, merchant and transport all take `0x0F`.
                     _ => Layout { row: 0x0F, headroom: 0 },
                 }
             }
-            // The tile half's full ladder needs the plane-0 flags and the
-            // county's castle state; what is reproduced here is the two arms a
-// right click on the campaign map can reach today —
-            // farmland of the player's own county, and everything else.
             Target::Tile(tile) => {
                 let map = &ctx.game.kingdom.campaign.map;
                 let county = map.county[tile];
@@ -276,10 +217,6 @@ impl InfoScreen {
                 //   DAT_005651c8 = 2;
                 // }
                 // ```
-                //
-                // Two extra rows of panel, granted so that the marker and its
-                // one line of text have somewhere to go. **No ownership gate**:
-                // the offer is advertised on anybody's town.
                 if self.county_town(ctx).is_some() {
                     let offer = ctx
                         .game
@@ -302,9 +239,6 @@ impl InfoScreen {
                 // else if (g_localPlayer == g_pickedCountyOwner)    DAT_00553d2c = 10;
                 // else                                             DAT_00553d2c = 0x11;
                 // ```
-                //
-                // `0x0A` is the tallest tile layout in the game, and it is
-                // tall because `Castle_DrawStatusBlock` needs five lines.
                 if self.castle_tile(ctx).is_some() {
                     let c = ctx.game.kingdom.counties.get(county as usize);
                     let row = match c {
@@ -323,6 +257,7 @@ impl InfoScreen {
                 // `FUN_0041BEFE`'s `0x20` arm tests the blighted pair **before**
                 // the owner: a flooded or parched field is row `0x11` on anybody's
                 // county, because it offers no brush.
+                //
                 // **`FUN_0041BEFE`'s `0x04` and `0x10` arms**, the two layouts
                 // that grant no head-room: sea is `0x11` with none and a
                 // dwelling plot is `0x10` with none. Both are tested after
@@ -355,8 +290,6 @@ impl InfoScreen {
         }
     }
 
-    /// Whether the field brush is offered: farmland, the player's own county,
-    /// and not a tile the weather ruined this season.
     pub fn brush(&self, ctx: &Ctx) -> Option<&'static [u8]> {
         let Target::Tile(tile) = self.target else { return None };
         let map = &ctx.game.kingdom.campaign.map;

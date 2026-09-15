@@ -19,7 +19,6 @@ use crate::tables::Tables;
 use crate::unit::{TroopType, UnitKind, Units};
 
 impl Kingdom {
-    /// AI step 4 — [`resource_wants`].
     pub fn run_ai_resource_wants(&mut self, realm_id: u8) {
         resource_wants(
             &self.tables,
@@ -43,19 +42,6 @@ impl Kingdom {
     }
 
     /// Step 7's **second** pass — `FUN_0049F12F`, the castle garrisons.
-    ///
-    /// For every county the realm holds that has a castle which is standing,
-    /// not ruined and not under construction, is at or above the lord's
-    /// [`crate::tables::AI_PERSONALITY_GARRISON_MIN_POPULATION`], **and** while
-    /// the realm holds more than [`GARRISON_MIN_MISSILE_STOCK`] bows plus
-    /// crossbows, raise a slice of the garrison's shortfall
-    /// ([`garrison_levy_share`]) and send it to the castle on
-    /// [`Mission::JOIN_GARRISON`].
-    ///
-    /// The missile-stock test is the interesting gate: it is
-    /// `weapons[4] + weapons[0]`, **bows and crossbows only**, and it is read
-/// once per county — so a realm that spends its
-    /// last bows on the first castle stops garrisoning at the second.
     pub fn run_ai_garrisons(&mut self, realm_id: u8) -> Vec<usize> {
         let mut raised = Vec::new();
         let Some(lord) = self.realms.get(realm_id as usize).map(|r| r.lord) else { return raised };
@@ -107,9 +93,6 @@ impl Kingdom {
 
     /// `FUN_004A5389` — the AI's garrison levy, which is **not**
     /// `FUN_004A50AE` and does not equip the same way.
-    ///
-    /// [`GARRISON_EQUIP_ORDER`] is the difference: a greedy fill in a fixed
-    /// priority, where the general raiser round-robins ten at a time.
     fn raise_garrison_levy(&mut self, county: u8, percent: i32, year: i32) -> Option<usize> {
         let realm = self.counties.get(county as usize)?.owner;
         let population = self.counties.get(county as usize)?.population;
@@ -136,28 +119,6 @@ impl Kingdom {
 
     /// Step 7's **third** pass — `FUN_0049F431`, hold the frontier or write it
     /// off.
-    ///
-    /// For every county the realm holds that has **no castle or no garrison**,
-    /// compare the hostile men standing in it against the realm's own. When
-    /// the enemy is above [`FRONTIER_ENEMY_MIN`] and beats the defenders by
-    /// more than [`FRONTIER_DEFICIT`], the realm decides:
-    ///
-    /// * **hold** — if the enemy force is smaller than the realm's total
-    ///   weapon stock plus two thirds of the county's people, *or* the county
-    ///   is the muster county. A levy of [`FRONTIER_LEVY_PCT`] goes up, **armed**
-    ///   from the realm's stores, on [`Mission::HOLD_HOME`].
-    /// * **write it off** — the same levy goes up **carrying nothing at all**,
-    ///   with its [`crate::unit::Unit::home_county`] set to the *muster* county so it walks
-///   away; the county is taxed at the
-    ///   lord's [`crate::tables::AI_PERSONALITY_ABANDON_TAX_RATE`], its whole
-    ///   workforce is thrown at industry, and its larder is shipped out.
-    ///
-    /// **The two branches differ by one argument** — the equip mode — and that
-    /// single bit is the whole difference between a defence and an evacuation.
-    /// A county below [`FRONTIER_MIN_POPULATION`] people forces the comparison
-    /// threshold to zero and is therefore **always** written off.
-    ///
-    /// The larder is the seam; see [`Evacuation`].
     pub fn run_ai_frontier(&mut self, realm_id: u8) -> (Vec<usize>, Vec<Evacuation>) {
         let (mut raised, mut evacuations) = (Vec::new(), Vec::new());
         let Some(lord) = self.realms.get(realm_id as usize).map(|r| r.lord) else {
@@ -243,30 +204,6 @@ impl Kingdom {
 
     /// AI step 9 — `FUN_0049F977`, **raise the main army and point it at
     /// somebody**.
-    ///
-    /// The shape, which is more interesting than any one of its numbers:
-    ///
-    /// 1. An **ally's request** outranks everything. If one stands and still
-    ///    holds ([`ally_request_still_stands`]), that county is the target and
-    ///    the lord's population floor is halved.
-    /// 2. Otherwise, with a **declared war target**, the floor is halved and
-    ///    the realm looks for somewhere every turn.
-    /// 3. Otherwise the realm counts to its lord's
-    ///    [`crate::tables::AI_PERSONALITY_MUSTER_PATIENCE`] first, and only
-    ///    then looks. Two attempts: **the threat's counties**, and failing
-    ///    that anybody's. Nothing found means nothing raised.
-    /// 4. If the muster county has more people than the floor, levy
-    ///    [`crate::tables::AI_PERSONALITY_MUSTER_PCT`] of it — gated on the
-    ///    realm's weapon stock unless [`emergency_weapons`] fires. If it has
-    ///    **fewer**, no levy at all: an existing idle army of at least
-    ///    [`DIVERT_MIN_MEN`] is diverted instead.
-    /// 5. Whatever came out is aimed by [`Kingdom::aim_army`].
-    ///
-    /// Point 4 is the one worth reading twice. A realm whose best county is
-    /// too small to conscript **does not stop making war** — it re-tasks the
-    /// army it already has. That is why a cornered AI keeps coming.
-    ///
-    /// Returns the army it raised or diverted.
     pub fn run_ai_raise_army(&mut self, realm_id: u8) -> Option<usize> {
         let lord = self.realms.get(realm_id as usize)?.lord;
         let p = *self.tables.ai_personality(lord)?;
@@ -350,14 +287,6 @@ impl Kingdom {
     }
 
     /// `FUN_004A03F2` — pick the county to march on, into realm `+0x4B`.
-    ///
-    /// `prefer_threat` restricts the search to [`crate::realm::Realm::threat_realm`]'s
-    /// counties; `owner_filter` restricts it to one realm's and — the part
-    /// that matters — **skips the diplomacy and adjacency gates entirely**.
-/// Step 10 uses the filter, so a raid can be sent at a county
-    /// nowhere near the raider's border, and at an ally's.
-    ///
-    /// Returns whether anything was found.
     pub fn pick_attack_county(
         &mut self,
         realm_id: u8,
@@ -393,14 +322,6 @@ impl Kingdom {
 
     /// `FUN_004A0917` — the best **existing** army to send instead of raising
     /// one.
-    ///
-    /// Only an army with no orders (`needs_destination`), out of any garrison
-    /// and any siege, and of at least [`DIVERT_MIN_MEN`] men qualifies. It is
-    /// scored [`DIVERT_IN_COUNTY`] for already standing in the target county,
-    /// [`DIVERT_NEXT_DOOR`] for standing next door, nothing otherwise, plus an
-    /// eighth of its [`crate::unit::Unit::strength_score`] — so **position dominates
-    /// strength**: an eighth of the strongest plausible army is worth far less
-    /// than the 200 that being adjacent is worth.
     pub fn pick_army_to_divert(&self, realm_id: u8, county: u8) -> Option<usize> {
         let mut best = 0;
         let mut chosen = None;
@@ -435,12 +356,6 @@ impl Kingdom {
 
     /// `FUN_0049FDA5` — give the raised or diverted army its mission and its
     /// destination tile.
-    ///
-    /// A plain campaign is [`Mission::SEEK_ENEMY`]. An **ally's request**
-    /// against a county the ally itself holds is [`Mission::ASSIST_ALLY`] —
-/// relief — and against anybody else's it is an
-    /// ordinary attack. The tile is [`aim_for_county`]'s choice, so a
-    /// garrisoned castle is approached at the castle and a siege begins.
     pub fn aim_army(&mut self, realm_id: u8, unit: usize) {
         let (target, request, ally) = {
             let r = &self.realms[realm_id as usize];
@@ -471,14 +386,6 @@ impl Kingdom {
     /// [`RAID_MEN`]-ish men carrying **nothing** — `FUN_004A5003` never opens
     /// the armoury — so it cannot fight and is not meant to: the damage is
     /// [`crate::movement::destroy_field`], done on the way in.
-    ///
-    /// Three gates, all on the muster county: more than
-    /// [`RAID_MIN_POPULATION`] people, more than [`RAID_MIN_HAPPINESS`]
-    /// happiness, and a rival below [`RAID_STANDING_THRESHOLD`] to send it at.
-    ///
-    /// **The cooldown is only loaded on success.** A realm that wants to raid
-    /// and cannot — no victim, an unhappy muster county — tries again every
-    /// single turn.
     pub fn run_ai_raid(&mut self, realm_id: u8) -> Option<usize> {
         if self.realms.get(realm_id as usize)?.raid_timer != 0 {
             self.realms[realm_id as usize].raid_timer -= 1;
@@ -515,13 +422,6 @@ impl Kingdom {
     }
 
     /// `FUN_004A5003` — [`RAID_MEN`] men, unequipped.
-    ///
-    /// The percentage is `PctOf(50, population)` and the men are
-    /// `Pct(population, that)`, so the party is fifty men rounded by integer
-    /// percent: 48 out of a county of 400, 50 out of 500, 45 out of 900. The
-    /// happiness the county is charged is the table entry for that same
-    /// percentage, so a **big** county pays almost nothing for a raid and a
-    /// small one pays a lot.
     fn raise_raiding_party(&mut self, county: u8, year: i32) -> Option<usize> {
         let c = self.counties.get(county as usize)?;
         let (realm, population) = (c.owner, c.population);

@@ -7,17 +7,14 @@ use l2_kingdom::unit::TROOP_TYPES;
 use crate::game::Game;
 
 impl SetupOptions {
-    /// `Setup_DefaultOptions` for a single-player game.
     pub fn new() -> SetupOptions {
         SetupOptions { value: DEFAULTS }
     }
 
-    /// The same for a network game — two of the twelve differ.
     pub fn new_multiplayer() -> SetupOptions {
         SetupOptions { value: DEFAULTS_MULTIPLAYER }
     }
 
-    /// The selection of option `which`, always inside its run.
     pub fn get(&self, which: usize) -> usize {
         let n = VALUE_COUNT.get(which).copied().unwrap_or(1);
         (self.value.get(which).copied().unwrap_or(0) as usize).min(n - 1)
@@ -32,8 +29,6 @@ impl SetupOptions {
         self.value[which] = value.min(n - 1) as u8;
     }
 
-    /// **The map is allowed to overrule *Nobles*, and it does.**
-    ///
     /// `FUN_004AE5E2` (`0x004AE5E2`) is called with `g_playerStartCount` every
     /// time the scenario list changes the map — three call sites, one per way
     /// of changing it — and it *sets* the selection from the seat count rather
@@ -58,8 +53,6 @@ impl SetupOptions {
     }
 
     /// How many rows the *Nobles* list may show on this map. `FUN_00433999`:
-    /// `g_playerStartCount - 1` when the map seats fewer than five, otherwise
-    /// the full four.
     pub fn nobles_rows_for_map(player_starts: usize) -> usize {
         if player_starts < 5 {
             player_starts.saturating_sub(1).max(1)
@@ -84,9 +77,6 @@ impl SetupOptions {
             exploration: self.get(option::EXPLORATION) != 0,
             armies_eat: self.get(option::ARMIES_EAT) != 0,
             difficulty: self.get(option::DIFFICULTY) as u8,
-            // Stored inverted: index 0 is the string "humans" and the byte the
-            // battle rule tests against zero. `l2_kingdom::battle::settlement`
-            // compares the byte, not a bool, for exactly this reason.
             fight_humans_only_byte: self.get(option::FIGHT) as u8,
             time_limit: TIME_LIMIT_SECONDS[self.get(option::TIME_LIMIT)],
             quirks,
@@ -104,5 +94,4 @@ impl SetupOptions {
     }
 }
 
-// --------------------------------------------------------------- the settings
 

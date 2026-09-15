@@ -9,22 +9,17 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};
 
 /// **`FUN_00415E42`** — one realm's score in one category.
-///
-/// `year` is `g_year`, read only by [`GREATEST_NOBLE`].
 pub fn value(realm: &Realm, category: usize, year: i32) -> i32 {
     if !realm.in_play {
         return 0;
     }
     match category {
         COUNTIES => realm.county_count as i32,
-        // `(uint)(byte)g_realms[r].field_0x4c` — **the original truncates it
-        // to a byte**, and `Castle_BuildTick` is the only thing that writes it.
         CASTLES => realm.score_inputs[SCORE_INPUT_CASTLES] as u8 as i32,
         TROOPS => realm.total_men,
         CROWNS => realm.gold,
         HAPPINESS => realm.mean_happiness,
         PEOPLE => realm.population_total,
-        // `6 - rank`, so rank 1 scores 5. Flat before 1270.
         _ => {
             if year < GREATEST_NOBLE_YEAR {
                 GREATEST_NOBLE_EARLY
@@ -49,7 +44,6 @@ pub fn rank(realms: &[Realm], category: usize, year: i32) -> Standings {
     let at = |r: usize| realms.get(r).map_or(0, |realm| value(realm, category, year));
     let in_play = |r: usize| realms.get(r).is_some_and(|realm| realm.in_play);
 
-    // **`best <= v`**, so a tie for the lead goes to the highest realm index.
     let mut leader = 1u8;
     let mut best = 0i32;
     for r in 1..l2_kingdom::MAX_REALMS {
@@ -65,8 +59,6 @@ pub fn rank(realms: &[Realm], category: usize, year: i32) -> Standings {
         pct[r] = l2_kingdom::math::pct_of(at(r), best).clamp(0, 100);
     }
 
-    // `local_10 == 999` is "nothing seen yet"; the flag falls the first time
-    // two in-play realms disagree.
     let mut first: Option<i32> = None;
     let mut all_level = true;
     for r in 1..l2_kingdom::MAX_REALMS {
@@ -82,7 +74,6 @@ pub fn rank(realms: &[Realm], category: usize, year: i32) -> Standings {
 
     let mut tied_at_top = false;
     if all_level {
-        // The one number the original draws without computing it.
         for r in 1..l2_kingdom::MAX_REALMS {
             if in_play(r) {
                 pct[r] = LEVEL_BAR_PCT;

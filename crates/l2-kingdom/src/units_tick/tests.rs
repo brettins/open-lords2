@@ -15,8 +15,6 @@ mod tests {
     use crate::unit::Unit;
     use crate::Options;
 
-    /// Two counties either side of x = 32, a road along y = 10, and a realm 1
-    /// that is human.
     fn kingdom() -> Kingdom {
         let mut k = Kingdom::new(0x2E5);
         assert!(k.set_county_count(2));
@@ -57,11 +55,6 @@ mod tests {
         k.campaign.units.spawn(u).expect("a free slot")
     }
 
-    /// A unit walks **one tile per crossing, and a crossing on a road is eight
-    /// ticks** — not to exhaustion, and not one tile a tick.
-    ///
-    /// **This test used to be called `a_unit_enters_one_tile_a_tick` and it
-    /// asserted the defect**, in its name, its doc comment and its numbers:
     /// *"fifteen points on a road is fifteen tiles, and it takes fifteen
     /// ticks."* Fifteen tiles is right and fifteen ticks was the whole of
     /// `docs/decisions.md` **C134** — the missing half of
@@ -88,8 +81,6 @@ mod tests {
             .expect("a road runs the whole way");
 
         let mut ticks = 0usize;
-        // (the tick it happened on, the tile it arrived at) — one entry per
-// tile entered,
         let mut arrivals: Vec<(usize, u8)> = Vec::new();
         while k.units_moving(UnitKind::Army) && ticks < 1000 {
             let t = k.tick_units();
@@ -114,11 +105,6 @@ mod tests {
         assert_eq!(k.campaign.units.get(id).unwrap().moves_used, 15);
     }
 
-    /// **`Unit_EnterCounty`'s owner test**, as the report carries it: an army
-    /// leaving its own county for a neutral one is an incursion, the same army
-    /// walking home is not, and a merchant — whose tick never calls
-    /// `Unit_EnterCounty` — crossing the same border is not either.
-    ///
     /// Ablation: delete the `u.kind == UnitKind::Army` test and the merchant
     /// line goes red; flip `!=` and all three do.
     #[test]
@@ -155,11 +141,6 @@ mod tests {
         assert!(carts.is_empty(), "only Army_Tick calls Unit_EnterCounty: {carts:?}");
     }
 
-    /// **The sweep reports `Unit_EnterCounty`'s letter at the crossing and
-    /// `County_ChangeOwner`'s at the town**, in that order.
-    ///
-    /// Ablation: delete the `out.posted.push(Posted::Letter(..))` in `step_one`
-    /// and the greeting goes; delete the capture's and the second entry does.
     #[test]
     fn crossing_into_a_neutral_county_posts_its_greeting_and_taking_its_town_posts_the_capture() {
         let mut k = kingdom();
@@ -186,8 +167,6 @@ mod tests {
         assert_eq!(k.counties[2].owner, 1, "a wretched county surrenders");
     }
 
-    /// The phase wait is answered by the unit array, and it goes false exactly
-    /// when the last unit stops.
     #[test]
     fn the_wait_follows_the_units() {
         let mut k = kingdom();
@@ -196,15 +175,6 @@ mod tests {
         movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (8, 10), movement::Routing::Direct)
             .unwrap();
         assert!(k.units_moving(UnitKind::Army));
-        // **This used to be `for _ in 0..10`**, which was long enough when a
-// It is a `while`
-        // bigger number on purpose: a fixed count that happens to be large
-        // enough asserts nothing about *when* the wait drops, and the count is
-        // what rots the next time the pacing moves. 5 → 8 is three road tiles
-        // — the first on the tick the order is walked, eight for each of the
-        // two after it — **and then eight more to cross the last one.**
-        //
-        // **This was 17, and 17 was the tick the last tile was *entered*.**
         // `Unit_Step` (`0x00465D28`) does not stop a unit on the commit that
         // empties its path: the commit returns 1, `moving` stays 2, the unit
         // crosses into the tile over the next eight admissions, and only at
@@ -224,8 +194,6 @@ mod tests {
         assert_eq!(k.campaign.units.get(id).unwrap().tile(), (8, 10));
     }
 
-/// Two enemy armies meet and the driver reports a battle
-    /// resolving one — and the sweep stops there.
     #[test]
     fn two_enemy_armies_meeting_raise_a_battle_and_stop_the_sweep() {
         let mut k = kingdom();
@@ -251,8 +219,6 @@ mod tests {
         );
     }
 
-    /// Same owner is not a battle. It is not a merge here either — see
-    /// `Contact::Blocked`.
     #[test]
     fn a_friendly_unit_blocks_rather_than_fights() {
         let mut k = kingdom();
@@ -265,7 +231,6 @@ mod tests {
         assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: b }]);
     }
 
-    /// An ally is walked into no more than an enemy is fought.
     #[test]
     fn an_ally_is_not_attacked() {
         let mut k = kingdom();
@@ -280,9 +245,6 @@ mod tests {
         assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: b }]);
     }
 
-    /// A merchant is never attacked, whoever it belongs to — the second rung of
-    /// `Unit_EnterOccupiedTile`'s ladder.
-    ///
     /// **Corrected, and the assertion reversed.** This used to expect
 /// `Contact::Blocked`, on the reading that a merchant cannot be
     /// *fought*. The rung says `return local_8`, and `local_8` is the ordinary
@@ -307,7 +269,6 @@ mod tests {
         assert_eq!(k.campaign.units.get(a).unwrap().tile(), (6, 10), "the army is on the tile");
     }
 
-    /// Phase 2 starts nothing. The whole point of the module's headline.
     #[test]
     fn phase_two_originates_no_movement() {
         let mut k = kingdom();
@@ -316,8 +277,6 @@ mod tests {
         assert!(!k.campaign.units.get(id).unwrap().moving);
     }
 
-    /// Phase 3 re-targets a transport at its **cargo county's anchor**, every
-    /// turn, whether or not it was already going somewhere.
     #[test]
     fn phase_three_sends_every_transport_to_its_cargo_county_anchor() {
         let mut k = kingdom();
@@ -336,11 +295,6 @@ mod tests {
     }
 
     /// **The other end of a shipment.** `Transport_Deliver` (`0x004296B5`):
-    /// the transport reaches the destination county's town tile, its cargo
-    /// lands in `grain` and `herd`, and the slot is freed.
-    ///
-    /// Ablation: drop the transport arm in `step_one` and the cart stands on
-    /// the town for ever with the food still on it — county 2 gains nothing.
     #[test]
     fn a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone() {
         let mut k = kingdom();
@@ -367,8 +321,6 @@ mod tests {
         assert_eq!(k.counties[2].owner, 0, "and a transport takes no county");
     }
 
-    /// A transport whose cargo is for somebody else walks over the town and
-    /// keeps its load — `Transport_Deliver`'s `destCounty == county` guard.
     #[test]
     fn a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing() {
         let mut k = kingdom();
@@ -391,8 +343,6 @@ mod tests {
         assert_eq!(k.counties[2].grain, grain);
     }
 
-    /// Phase 5's cursor is shared, so two mobs are sent to two different
-    /// counties — and neither is sent to the county it is standing in.
     #[test]
     fn phase_five_walks_one_cursor_for_every_mob() {
         let mut k = kingdom();
@@ -430,8 +380,6 @@ mod tests {
         assert!(k.units_moving(UnitKind::PeasantMob));
     }
 
-    /// A unit that cannot move has its flag cleared, or the phase waiting on it
-    /// never ends. This is the failure mode the whole driver has to avoid.
     #[test]
     fn a_unit_with_no_path_stops_being_moving() {
         let mut k = kingdom();
@@ -443,8 +391,6 @@ mod tests {
         assert!(k.campaign.units.get(id).unwrap().needs_destination);
     }
 
-    /// The allowance is derived from the type on every tick,
-    /// arrives from a save with a zero in it still walks.
     #[test]
     fn the_allowance_is_rebuilt_from_the_type() {
         let mut k = kingdom();

@@ -12,13 +12,6 @@ use crate::missiles;
 use crate::sheet::Sheet;
 
 /// Paint the terrain viewport — `Battlefield_Draw32` (`0x004BCBDC`).
-///
-/// Tiles are blitted opaque: the original's tile path does not test for index
-/// 0, and no frame of `T32_bat1.pl8` contains one. `two` is slot 1 —
-/// [`Ground::tileset2`] — which a cell asks for through [`Cell::tileset`];
-/// pass `None` for a field battle, where no cell ever does.
-///
-/// [`Cell::tileset`]: l2_sim::terrain::Cell::tileset
 pub fn draw_terrain(
     canvas: &mut Canvas,
     field: &Battlefield,
@@ -41,7 +34,6 @@ pub fn draw_terrain(
             if let Some(frame) = sheet.and_then(|s| s.frame(cell.gfx as usize)) {
                 canvas.blit_opaque(&frame, x, y);
             }
-            // The second pass of the same cell, always out of slot 1.
             if cell.terrain != 0 && OVERLAY_ELEVATIONS.contains(&cell.elevation) {
                 let idx = match cell.terrain {
                     t if t < 0x10 => OVERLAY_BASE + t as usize,
@@ -73,9 +65,6 @@ pub fn draw_terrain(
 /// crossing, and `BattleFigure_Draw` (`0x004BDC31`) trails him `32 − 2·walking`
 /// pixels behind it: 30, 26 … 2, then 0. **[V]**
 ///
-/// `l2_sim`'s runner now crosses in that order too, so this is a plain read of
-/// `mapX`/`mapY` and `walking` with no compensation in it.
-///
 /// **It used to compensate, and a compensation cannot fix an order.** The
 /// runner counted `substep` 2 … 16 on the cell it was leaving and entered on
 /// the last one, so this returned the cell the facing pointed into with
@@ -86,6 +75,7 @@ pub fn draw_terrain(
 /// jumps of half a cell or more over a 42-figure battle; 0 once
 /// `BattleRunner::step_one` took `BattleMan_Step`'s order. `docs/battle.md`
 /// §13.6, `docs/decisions.md` C200.
+///
 /// **The trail is the mover's, not the pose's.** `BattleFigure_Draw` indexes
 /// `g_walkOffset32[dirc][walking]` with the figure's own crossing counter; no
 /// `Anim_*` handler touches it. Ours read `anim == Walking`, so a man the
@@ -97,10 +87,6 @@ pub fn drawn_cell(f: &Fighter) -> ((i32, i32), u8) {
     ((f.x as i32, f.y as i32), walking)
 }
 
-/// **The pixel a figure's cell corner is drawn at**, trail included —
-/// `BattleFigure_Draw`'s `(mapXY − cameraXY) · 32 + origin +
-/// g_walkOffset32[dirc][walking]`, before the sprite is centred on it. See
-/// [`drawn_cell`] for which cell and which `walking`.
 pub fn figure_origin(f: &Fighter, cam: Camera) -> (i32, i32) {
     let ((cx, cy), walking) = drawn_cell(f);
     let (ox, oy) = figures::walk_offset(f.facing, walking);
@@ -110,10 +96,6 @@ pub fn figure_origin(f: &Fighter, cam: Camera) -> (i32, i32) {
     )
 }
 
-/// Paint the figures, back to front by map y.
-///
-/// Returns how many were drawn, which is what the headless tests assert on
-/// when they do not want to pin exact artwork.
 pub fn draw_figures(
     canvas: &mut Canvas,
     runner: &BattleRunner,
@@ -130,7 +112,6 @@ pub fn draw_figures(
         .filter_map(|i| {
             // A body the corpse state has counted out is gone — the original
             // frees the record, so `FUN_004BD938` never collects it.
-            // [`BattleRunner::corpse_gone`].
             if runner.corpse_gone(i) {
                 return None;
             }
@@ -172,7 +153,6 @@ pub fn draw_figures(
                 Some(i) => i,
                 None => continue,
             },
-            // **Two facings, and which one is read is part of the pose.**
             // `docs/battle.md` §13.8: `dirc` (`+0x18`) drives the sub-cell
             // offset and the **walk** frame; `dirc2` (`+0x19`), copied to
             // `facingDrawn` (`+0x0D`) at the end of every handler, drives the
@@ -192,21 +172,10 @@ pub fn draw_figures(
                     Anim::Idle if f.troop == Troop::Knights => f.facing,
                     _ => f.facing_drawn,
                 };
-                // The three fields the handlers read besides the phase: the
-                // figure's index (`Anim_StandA2`'s pose), its reload counter
-                // (`Anim_DrawBowA2`'s `swingTimer`) and its melee role
-                // (`Anim_StrikeA2` swings only under `role == 1`).
                 figures::frame(f.troop, f.anim, facing, figures::pose_of(runner, i))
             }
         };
         let Some(frame) = sheet.frame(index) else { continue };
-        // `BattleFigure_Draw` centres on the cell using the sprite *width* for
-        // both axes,
-        // sixteen above his cell's corner. Reproduced
-        //
-        // Two troop types get one more nudge on y and only on y —
-        // `engines::body_y_nudge`, the painter's `troopType == 9` and
-        // `== 10` arms.
         let w = frame.width as i32;
         canvas.blit_clipped(
             &frame,
@@ -292,8 +261,6 @@ fn banner_cell(cell: l2_sim::terrain::Cell) -> bool {
 ///
 /// `banner` is the garrison's `(shield, phase)`: `g_units[g_battleArmyB]+0x02`
 /// and `DAT_004E5B18`. `None` for a field battle, which has no keep cell.
-///
-/// Returns how many missiles were drawn.
 pub fn draw_overlay_and_missiles(
     canvas: &mut Canvas,
     runner: &BattleRunner,
@@ -323,7 +290,6 @@ pub fn draw_overlay_and_missiles(
 
             dock_overlay(canvas, runner, assets, mx as usize, my as usize, px, py);
 
-            // The overlap pass's other arm — `gfx == 0` picks the banner.
             if let Some((shield, phase)) = banner {
                 if banner_cell(runner.field.at(mx as usize, my as usize)) {
                     if let Some(sheet) = assets.missiles.as_ref() {
@@ -368,12 +334,6 @@ pub fn draw_overlay_and_missiles(
 /// `Engine.pl8` frames `0x1F … 0x22` over the centre cell of the 3 × 3
 /// `FUN_00491492` leaves behind, drawn after the men so the tower's top
 /// overlaps them. Centred `(0x10 - w / 2)` on **both** axes.
-///
-/// The original gates on cell byte `+2` bit `0x80`; our cells have no byte
-/// `+2`, so this gates on `flags & 1`, which `l2_sim::siege::lay_tower_ramp`
-/// sets on those nine cells and nothing else in `l2_sim` sets anywhere. The
-/// gate is not optional: `Engine.pl8`'s four codes are 73, 76, 97 and 100, and
-/// the field tileset's hills occupy 64 … 111.
 fn dock_overlay(
     canvas: &mut Canvas,
     runner: &BattleRunner,
@@ -419,26 +379,9 @@ fn dock_overlay(
 /// }
 /// ```
 ///
-/// `occupants` is one byte a cell in the same order as the field: the
-/// `t2_spri.pl8` frame for the man standing there, `0` for empty ground — which
-/// is exactly the original's `shieldIndex`, with its `!= 0` guard folded in.
 /// The cell a walking man occupies is the one he is walking *into*
 /// ([`drawn_cell`]): `FUN_00491B1F` moves his cell byte at the start of the
 /// crossing, and `+5` is that byte.
-///
-/// **Two things the original does here
-/// bits of byte `+2`, which our cells do not carry:
-///
-/// * the per-cell dirty bits, `flags & 3` — we repaint every cell of the rows
-///   we visit, which is what `g_mapRedraw` makes the original do anyway;
-/// * the erase tile, `t2_spri` frame 0, drawn over a cell whose `flags & 2` is
-///   set and whose occupant has gone — one pass later that cell draws its
-///   terrain again, and repainting the whole row goes straight there.
-///
-/// The third, `flags & 0x1C == 4`, **is** honoured now: it is
-/// [`Cell::tileset`](l2_sim::terrain::Cell::tileset), and a siege's ground,
-/// moat and rubble come from the second sheet here
-/// pixels.
 ///
 /// **And one branch that is dead in a battle**: column 0 draws `t2_spri` frame
 /// 0 when `g_appPhase == 3`, and `g_appPhase` is past 8 by the time `App_Draw`
@@ -482,9 +425,6 @@ pub fn draw_overview_rows(
 /// The terrain's two sheets come from the [`Ground`] — C201 — and the third
 /// pass from C202; the passes are independent,
 /// take both.
-///
-/// Returns the number of figures drawn, which is what the headless tests
-/// assert on; [`draw_overlay_and_missiles`] returns the missiles.
 pub fn draw(
     canvas: &mut Canvas,
     runner: &BattleRunner,
@@ -500,13 +440,6 @@ pub fn draw(
     figures
 }
 
-/// Where the camera should sit to watch the fighting.
-///
-/// Not the mean of everybody: the two armies deploy forty cells apart and their
-/// midpoint is empty ground that neither of them is on. So it centres on the
-/// men who are *fighting* when anybody is, and otherwise on side 0 — the side
-/// the player would be driving. Integer arithmetic throughout; the camera reads
-/// simulation state and never writes it.
 pub fn follow(runner: &BattleRunner) -> Camera {
     let centre_of = |pick: &dyn Fn(usize) -> bool| -> Option<Camera> {
         let (mut sx, mut sy, mut n) = (0i32, 0i32, 0i32);

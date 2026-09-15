@@ -17,7 +17,6 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-// ----------------------------------------------------------------- the colours
 
 /// **Every pixel of the field is shown in `t32_bat1.256`'s colours** — which
 /// `Screen_DrawBattlefield` (`0x004233F7`) sets with `Palette_Set(0x568EE0)`,
@@ -27,15 +26,6 @@ use l2_view::Canvas;
 /// applied colour is the shell palette the name the stack gives resolves to —
 /// the map the presenter reads, and **the only one**: a name it does not hold
 /// falls through to `base01.256`, which is what the player saw.
-///
-/// It stops at the resolved palette because the
-/// presenter is being moved into the library by the concurrent overlay-palette
-/// branch, as `Machine::present`; once that has landed, the loop below belongs
-/// on `m.present(…)`'s bytes, and the answer must not change.
-///
-/// The discrimination half is what keeps it from passing on a palette that
-/// agrees: the same pixels through `base01.256` must differ, and on the
-/// shipped files they differ at most of them.
 ///
 /// Ablation: delete `"T32_bat1.256"` from `shell::PALETTES` — red, on the
 /// lookup. Run with `main.rs`'s presenter line as the probe instead, before it
@@ -95,7 +85,6 @@ fn the_battlefield_is_shown_in_the_palette_screen_drawbattlefield_sets() {
     assert!(differs * 2 > seen, "base01.256 agrees with T32_bat1.256 on the field: {differs} of {seen}");
 }
 
-/// A siege on the screen, its camera on the keep — for the palette below.
 fn staged_siege(level: u8) -> (Game, Machine) {
     let runner = BattleRunner::deploy_siege(
         l2_sim::siege::our_castle(level),
@@ -117,26 +106,11 @@ fn staged_siege(level: u8) -> (Game, Machine) {
     (g, Machine::new(ScreenId::Battlefield))
 }
 
-/// **The siege's own palette, and what it is worth.**
-///
 /// `Screen_DrawBattlefield`'s other arm is `Palette_Set(0x5675A0)`, which
 /// `Res_LoadStatic` (`0x00499859`) fills from record 1 of `g_preloadTable` —
 /// `t32_stn1.256`, spelled in the table's bytes at `0x004D9F5C`. Ours named
 /// `t32_bat1.256` for every battle and `shell::PALETTES` loaded only that, so
 /// a siege was shown in the field battle's colours.
-///
-/// **Measured, and the measurement is the finding.** The two files differ on
-/// **3 of 256 entries** — 0, 115 and 172 in this install; 172 is field green
-/// `(33, 49, 18)` against siege brown `(37, 13, 2)`. **No pixel of a painted
-/// siege changes colour today**, because we draw a siege from
-/// `T32_bat1.pl8` and none of its tiles uses those three indices. They are
-/// `T32_stn1.pl8`'s — the sheet the original draws a siege from, which is not
-/// ported. So this arm is correct, cheap, and worth nothing on screen until
-/// the siege tileset lands; the two counts are printed every run
-/// asserted, because both come from the player's own files.
-///
-/// Ablation: delete `"T32_stn1.256"` from `shell::PALETTES` — red on the
-/// lookup, which is the fall-through to `base01.256`.
 #[test]
 fn a_siege_is_shown_in_t32_stn1_and_that_changes_the_picture() {
     let Some((assets, platform)) = install() else {
@@ -168,8 +142,6 @@ fn a_siege_is_shown_in_t32_stn1_and_that_changes_the_picture() {
             }
         }
     }
-    // And the same count over the sheet the original would have drawn from,
-    // which is where those indices live.
     let stn = Sheet::new(platform.vfs.read("T32_stn1.pl8").expect("T32_stn1.pl8")).expect("a sheet");
     let (mut stn_px, mut stn_hit) = (0usize, 0usize);
     for i in 0..stn.frame_count() {
@@ -194,9 +166,7 @@ fn a_siege_is_shown_in_t32_stn1_and_that_changes_the_picture() {
     assert!(!entries.is_empty(), "the two battle palettes are the same file");
 }
 
-// ------------------------------------------------------------------- the snap
 
-/// The opaque pixels of a frame, relative to its top-left corner.
 fn opaque(frame: &DecodedFrame) -> Vec<(i32, i32, u8)> {
     let w = frame.width as usize;
     (0..frame.indices.len())
@@ -205,9 +175,6 @@ fn opaque(frame: &DecodedFrame) -> Vec<(i32, i32, u8)> {
         .collect()
 }
 
-/// Every top-left corner in `xs × ys` at which `frame` sits on the canvas
-/// exactly: every opaque pixel that lands inside the field equals the canvas,
-/// and at least half of them land inside it.
 pub(crate) fn locate(canvas: &Canvas, frame: &DecodedFrame, xs: std::ops::Range<i32>, ys: std::ops::Range<i32>) -> Vec<(i32, i32)> {
     let pts = opaque(frame);
     let mut hits = Vec::new();
@@ -230,8 +197,6 @@ pub(crate) fn locate(canvas: &Canvas, frame: &DecodedFrame, xs: std::ops::Range<
     hits
 }
 
-/// What fraction of a frame's opaque pixels sit on the canvas at `(x, y)`.
-/// For a sprite something else is drawn over — [`locate`] wants every pixel.
 pub(crate) fn matched(canvas: &Canvas, frame: &DecodedFrame, (x, y): (i32, i32)) -> f64 {
     let pts = opaque(frame);
     let (mut hit, mut seen) = (0usize, 0usize);
@@ -249,31 +214,16 @@ pub(crate) fn matched(canvas: &Canvas, frame: &DecodedFrame, (x, y): (i32, i32))
     hit as f64 / seen as f64
 }
 
-/// **A walking man is drawn further along every tick and never back on the
-/// square he left** — found in the pixels, by locating the exact frame he is
-/// showing on the canvas the screen painted.
-///
 /// `BattleMan_Step` (`0x0048F1DD`) on a free cell: `dirc = dir; walking = 1;
 /// FUN_00491B1F(man)` — and `FUN_00491B1F` is the move, `mapX += 1` for facing 2.
+///
 /// Then `walking += 2` a sub-step until it passes 16, and `BattleFigure_Draw`
 /// (`0x004BDC31`) adds `g_walkOffset32[dirc][walking]` to the cell he is **in**.
-/// So a man crossing a cell is drawn 30, 26, … 2 pixels short of it and then on
-/// it: forward, four pixels a sub-step, and never backward.
-///
-/// He walks east five cells, so the man's sprite centre must end exactly 160
-/// pixels right of where it stood, moving monotonically on the way. **The
-/// first sample is painted before any tick runs**: the commit *is* the move,
-/// so by the end of tick 1 he is already on the next cell and drawn two
-/// pixels along it.
-///
-/// Ablation: return the facing's neighbour with `walking = substep − 1` from
-/// `l2_view::scene::drawn_cell` — red at once, a cell ahead of himself.
 #[test]
 fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square() {
     let Some((assets, platform)) = install() else {
         l2_testkit::skip!("no game install, so no sprite sheet to find the man with");
     };
-    // Side 0's bank is the blue one — `Assets::load(…, Red, Blue)`.
     let sheet = Sheet::new(platform.vfs.read("A2b_mace.pl8").expect("A2b_mace.pl8")).expect("a sheet");
 
     let (mut g, mut m) =
@@ -286,8 +236,6 @@ fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square(
     let row_y = FIELD_Y0 + (start.1 as i32 - cam.1) * 32;
     let mut canvas = Canvas::screen();
     let mut centres: Vec<(u32, i32, Motion)> = Vec::new();
-    // Macemen cross a cell in 16 ticks; five cells and a margin. Tick 0 is the
-    // paint before the first update — where he stands, not where he commits.
     for t in 0..(5 * 16 + 40) {
         if t == 0 {
             paint(&mut m, &mut g, &assets, &mut canvas);
@@ -300,8 +248,6 @@ fn a_walking_man_is_drawn_advancing_every_tick_and_never_back_on_his_old_square(
         let pic = sheet.frame(index).expect("the frame the man is showing");
         let hits = locate(&canvas, &pic, -48..FIELD_X1, row_y - 48..row_y + 16);
         assert_eq!(hits.len(), 1, "tick {t}: the man's frame {index} was found at {hits:?}");
-        // The sprite is placed at `origin + 16 − w/2`, so `x + w/2` is the
-        // origin plus a constant whatever the pose's width.
         centres.push((t, hits[0].0 + pic.width as i32 / 2, f.anim));
     }
 

@@ -1,5 +1,3 @@
-//! **Which file is which sound**, read out of `Lords2.exe`'s data section.
-//!
 //! Nothing here is a guess. The original addresses a sound by *index into a
 //! table of fixed-width filenames*, and the tables are laid out in `.data` as
 //! `char[N][16]` — so recovering them is reading bytes, not inferring
@@ -15,8 +13,6 @@
 //! 0x004E0258  char[28][4][4][16]  kt/bn/ct/bp 170…197         (a convention, not a table)
 //! ```
 //!
-//! # The two banks are *preloaded*, and that is why they are two
-//!
 //! `Sound_LoadBank(names, count)` (`0x00425E4B`) opens `count` files through
 //! `mmioOpenA` and keeps each in a DirectSound buffer, so a click costs no
 //! I/O. The game fills the cache twice with two different banks —
@@ -27,35 +23,18 @@
 //! is what made the two-bank arrangement visible: it is not one table with a
 //! gap.
 //!
-//! `null.wav` is not in either install. Entry 1 of both banks is
-//! a deliberate hole.
-//!
-//! # **Slot numbers are 1-based, and the arrays here are not**
-//!
 //! This is the trap, and it is invisible in the decompiler unless you compare
 //! two base addresses. `Sound_LoadBank` **stores** at
 //! `&DAT_00522B00 + i * 4` counting `i` from 0. `Sound_PlaySlot` and
 //! `Sound_RestartSlot` **read** from `&DAT_00522AFC + slot * 4` — and
 //! `0x00522AFC` is four bytes *below* `0x00522B00`. So
 //!
-//! ```text
-//! slot n  ==  BANK[n - 1]
-//! ```
-//!
 //! `[V]`, and confirmed twice over by what the numbers then mean.
-//! `Unit_MoveInFacing` plays slot 12 for an army, 11 for a merchant or
-//! transport, 5 for a peasant mob: 1-based those are `army.wav`,
-//! `merchant.wav` and `rioters.wav`, and 0-based they are nothing, `army.wav`
-//! and `fallow.wav`. `g_jobSound` maps the village's jobs to slots 7, 4, 6,
-//! 10, 8, 9: 1-based that is wheat, cattle, fallow, iron, stone, wood — six
-//! for six — and 0-based it is stonecut for grain and rioters for cattle.
 //!
 //! Reading the slots as 0-based makes `click3.wav` look unplayable, because
 //! nothing passes 0. It is slot **1**, and `Widget_Test` (`0x0040DA1E`) plays
 //! it every time a widget is pressed. [`slot`] is the one place that
 //! conversion happens.
-//!
-//! # What ships and is never asked for
 //!
 //! **753 of the install's 771 `.wav` files are named somewhere in
 //! `Lords2.exe`; 18 are not.** `[V]`, by scanning the executable for each
@@ -84,9 +63,6 @@ pub const MUSIC_BATTLE: [&str; 5] = [
     "battle5.wav",
 ];
 
-/// **The front end's bed** — `Music_Play("setup.wav", 0, 1)`, a literal rather
-/// than a table entry.
-///
 /// Two siblings ship and are not reached from our engine: `setup2.wav`, which
 /// `Screen_DrawConquest` (`0x0041E1DD`) plays **unlooped** once the campaign is
 /// past its eighth map, and `SETUP3.WAV`, which four sites play over the
@@ -106,11 +82,6 @@ pub const MUSIC_SCROLL: [&str; 5] = [
 
 /// **`FUN_00499D7D`'s twelve**, `FUN_00425E4B(0x004DAF00, 12)` — the bank the
 /// campaign and county screens play from. `[V]`
-///
-/// Slots 3…11 are the village's work: cattle, unrest, fallow land, wheat, the
-/// quarry, the wood, the iron, the merchant, the army. That is the shape of
-/// the village's nine job slots, so this table is worth writing down
-/// even before anything plays it.
 pub const KINGDOM_BANK: [&str; 12] = [
     "click3.wav",   // 0
     "null.wav",     // 1 — not in the install; a hole in both banks
@@ -158,22 +129,6 @@ pub const BATTLE_BANK: [&str; 17] = [
 /// `unit * 0x100 + class * 0x40 + take * 0x10`, so the stride is troop, then
 /// event class, then take. The four classes are the four things a player tells
 /// his men, and each is named by the letter its files carry:
-///
-/// | class | files | asked for by |
-/// |---:|---|---|
-/// | 0 | `_U` | a selection committed — `Battle_DragSelect`, both arms |
-/// | 1 | `_P` | an order to go somewhere, and `H`/`V` |
-/// | 2 | `_E` | an order onto an enemy |
-/// | 3 | `_M` | an order onto surface 2, the moat |
-///
-/// **Class 3 is always take 0**, which is `docs/bugs.md` D34: the other three
-/// cells of every `_M` row can never be chosen, and that is where the seven
-/// `_F1` names sit — none of which ships — and `Swor_U3.wav` and `Arch_U3.wav`,
-/// which do not ship either. Two `_M` rows borrow another troop's voice:
-/// crossbowmen and swordsmen say `Pike_M1`, macemen and archers `Peas_M1`.
-///
-/// The four siege engines have one row each, class 1 — the engine being told
-/// to move — and `null.wav` everywhere else.
 pub const TROOP_CRIES: [[[&str; 4]; 4]; 11] = [
     [
         ["Peas_U1.wav", "Peas_U2.wav", "Peas_U3.wav", "Peas_U4.wav"],
@@ -223,9 +178,6 @@ pub const TROOP_CRIES: [[[&str; 4]; 4]; 11] = [
     [["null.wav"; 4], ["movoil.wav"; 4], ["null.wav"; 4], ["null.wav"; 4]],
 ];
 
-/// The cry a troop, class and take name, or `None` for a cell holding
-/// `null.wav` and for anything out of the table's range. Which take is asked
-/// for is `super::TroopCries`'s business, not this table's.
 pub fn troop_cry(troop: usize, class: usize, take: usize) -> Option<&'static str> {
     match *TROOP_CRIES.get(troop)?.get(class)?.get(take)? {
         "null.wav" => None,
@@ -233,8 +185,6 @@ pub fn troop_cry(troop: usize, class: usize, take: usize) -> Option<&'static str
     }
 }
 
-/// Which bank a slot number is being read against — the two are not
-/// interchangeable and a bare number does not say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Bank {
     /// `FUN_00499D7D`'s twelve, loaded when the campaign comes up.
@@ -243,12 +193,6 @@ pub enum Bank {
     Battle,
 }
 
-/// **The file a 1-based slot number names**, which is the form every call site
-/// in the original uses. See the module note: `slot n` is `BANK[n - 1]`.
-///
-/// `None` for slot 0, for a slot past the bank, and for
-/// the `null.wav` hole — all three of which mean "no sound" and none of which
-/// is an error.
 pub fn slot(bank: Bank, slot: usize) -> Option<&'static str> {
     let table: &[&'static str] = match bank {
         Bank::Kingdom => &KINGDOM_BANK,
@@ -268,18 +212,9 @@ pub fn slot(bank: Bank, slot: usize) -> Option<&'static str> {
 /// decide which industry a click on that tile switches — so the two agree by
 /// construction. `[V]`
 ///
-/// | graphic | site | slot | file |
-/// |---|---|---:|---|
-/// | 0…3 | mine | 10 | `iron.wav` |
-/// | 4…6 | quarry | 8 | `stonecut.wav` |
-/// | 7…9 | **blacksmith** | 8 | `stonecut.wav` |
-/// | 10…12 | lumber mill | 9 | `woodcut.wav` |
-///
 /// **The blacksmith plays the quarry's sound**
 /// job 8 does. `[V]` at both sites; `[I]` that it is because the kingdom bank
 /// has no forge in it.
-///
-/// 13 and above is the castle, which is silent.
 pub fn resource_site_slot(graphic: u8) -> Option<usize> {
     Some(match graphic {
         0..=3 => 10,
@@ -296,15 +231,6 @@ pub fn resource_site_slot(graphic: u8) -> Option<usize> {
 /// The original's ladder is on `g_uiHotspotId`, the raw terrain the button
 /// paints, and it is five arms over three slots. `[V]`:
 ///
-/// ```c
-/// if      (id == 0x13) Sound_RestartSlot(4);   /* moo_2.wav  — pasture */
-/// else if (id == 2)    Sound_RestartSlot(7);   /* wheat.wav  — grain   */
-/// else if (id == 1)    Sound_RestartSlot(6);   /* fallow.wav — fallow  */
-/// else if (id == 0)    Sound_RestartSlot(6);   /* …abandon             */
-/// else if (id == 0x19) Sound_RestartSlot(6);   /* …start reclaiming    */
-/// ```
-///
-/// Taken here over the *ranges* `County_RecountFields` counts.
 /// five brush values, because the brush value is not what is on the ground a
 /// statement later: `Field_SetType` runs `Herd_UpdateCrowding`, which repaints
 /// a fresh pasture `0x13` to its grazing grade `0x14 … 0x16`
@@ -324,11 +250,8 @@ pub fn field_brush_slot(terrain: u8) -> Option<usize> {
 
 /// **The tip screens' chained takes** — `FUN_004B3ACD`'s five-byte rows at
 /// `0x004E1E40 + group * 5`, for the ten groups whose row is not all zero.
-/// `[V]` read out of the executable; every other row in 200…219 is zero.
 ///
-/// A byte is a 1-based index into [`TAKE_POOL`], and the first zero ends the
-/// group. Rows below 200 are the ASCII of the name pool and are never reached,
-/// because only a tip window calls the function.
+/// `[V]` read out of the executable; every other row in 200…219 is zero.
 pub const TIP_TAKES: [(u16, [u8; 5]); 10] = [
     (200, [26, 27, 0, 0, 0]),
     (201, [1, 2, 3, 0, 0]),
@@ -342,7 +265,6 @@ pub const TIP_TAKES: [(u16, [u8; 5]); 10] = [
     (218, [24, 25, 0, 0, 0]),
 ];
 
-/// `s_S201_02_wav_004E2290`, sixteen bytes a name: the pool the takes index.
 /// `[V]` from the executable; entries 28…30 are the sentinel `S000_00.wav`
 /// and the `n < 0x1F` guard lets no row reach them.
 pub const TAKE_POOL: [&str; 27] = [
@@ -375,7 +297,6 @@ pub const TAKE_POOL: [&str; 27] = [
     "S200_03.wav",
 ];
 
-/// `table[group * 5 + cursor]`, or 0 — the end of the group.
 pub fn tip_take(group: u16, cursor: usize) -> u8 {
     TIP_TAKES
         .iter()
@@ -385,7 +306,6 @@ pub fn tip_take(group: u16, cursor: usize) -> u8 {
         .unwrap_or(0)
 }
 
-/// `"S201_02.wav" + (n - 1) * 0x10`, behind the `n < 0x1F` guard.
 pub fn take_name(n: u8) -> Option<&'static str> {
     if !(1..0x1F).contains(&n) {
         return None;
@@ -409,7 +329,6 @@ mod tests {
         assert_eq!(block[8], "ct170_1.wav");
         assert_eq!(block[12], "bp170_1.wav");
         assert_eq!(block[15], "bp170_4.wav");
-        // And the last cell of the whole table, 28 groups on.
         assert_eq!(lord_voice(197, 15).unwrap(), "bp197_4.wav");
     }
 
@@ -464,8 +383,6 @@ mod tests {
 
     #[test]
     fn the_same_slot_means_two_things_in_the_two_banks() {
-        // The trap the two-bank arrangement sets. Slot 5 is the peasant mob on
-        // the campaign and a sword swing in a battle.
         assert_eq!(slot(Bank::Kingdom, 5), Some("rioters.wav"));
         assert_eq!(slot(Bank::Battle, 5), Some("sword2.wav"));
     }

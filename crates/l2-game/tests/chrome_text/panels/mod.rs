@@ -23,15 +23,6 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// Whether our own 5 × 7 font's rendering of `s` in `colour` is anywhere on the
-/// canvas.
-///
-/// **The first version of this asked the wrong question.** It looked for the
-/// glyph pattern in *any* single colour, which matches every flat run of pixels
-/// wide enough to hold it — so it reported the caption present on a canvas that
-/// did not have it, on the strength of a patch of sea. A negative assertion is
-/// only worth what its positive twin is, so this pins the colour the line it is
-/// about
 pub(super) fn debug_font_absent(canvas: &Canvas, s: &str, colour: u8) -> bool {
     let w = l2_view::text::width(s).max(1);
     let h = l2_view::text::GLYPH_H;
@@ -57,5 +48,4 @@ pub(super) fn debug_font_absent(canvas: &Canvas, s: &str, colour: u8) -> bool {
     true
 }
 
-// ------------------------------------------------- the menu drop-down's plate
 

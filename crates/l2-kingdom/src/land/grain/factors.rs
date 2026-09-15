@@ -17,8 +17,6 @@ pub fn sow_factor(weather: Weather) -> Factor {
     }
 }
 
-/// The growing multiplier: *Sunny* multiplies the crop by 3/2 while *Drought*
-/// and *Flooding* halve it.
 pub fn grow_factor(weather: Weather) -> Factor {
     match weather {
         Weather::Sunny => Factor(3, 2),
@@ -27,8 +25,6 @@ pub fn grow_factor(weather: Weather) -> Factor {
     }
 }
 
-/// The harvest multiplier: *Sunny* again gives 3/2, *Flooding* quarters,
-/// *Frost* or *Storms* halve.
 pub fn harvest_factor(weather: Weather) -> Factor {
     match weather {
         Weather::Sunny => Factor(3, 2),
@@ -38,9 +34,6 @@ pub fn harvest_factor(weather: Weather) -> Factor {
     }
 }
 
-/// The divisor `Grain_Sow` tests labour against: 5 with *Advanced Farming* on
-/// and 2 with it off. **The smaller divisor demands more labour**, so turning
-/// the option off makes sowing harder.
 pub(super) fn sow_divisor(t: &Tables, advanced_farming: bool) -> i32 {
     if advanced_farming {
         t.grain.labour_divisor_advanced
@@ -50,8 +43,6 @@ pub(super) fn sow_divisor(t: &Tables, advanced_farming: bool) -> i32 {
     .max(1)
 }
 
-/// `Grain_Grow`'s crop cap per worker: 10 with *Advanced Farming* on, and the
-/// **sowing divisor's** 2 with it off, because both read the same global.
 pub(super) fn grow_per_worker(t: &Tables, advanced_farming: bool) -> i32 {
     if advanced_farming {
         t.grain.grow_per_worker_advanced
@@ -60,9 +51,6 @@ pub(super) fn grow_per_worker(t: &Tables, advanced_farming: bool) -> i32 {
     }
 }
 
-/// `Grain_Harvest`'s: **3** with *Advanced Farming* on — and it halves the
-/// reapers first, so the effective rate is 1.5 sacks a head — and 2 with it
-/// off, on the full workforce.
 pub(super) fn harvest_per_worker(t: &Tables, advanced_farming: bool) -> i32 {
     if advanced_farming {
         t.grain.harvest_per_worker_advanced

@@ -23,14 +23,6 @@ use l2_kingdom::units_tick::Contact;
 use l2_kingdom::merchant::MerchantRoutes;
 use l2_kingdom::unit::{Unit, UnitKind};
 
-/// A kingdom with a **map** under it: fourteen counties in five-tile columns, a
-/// road the whole way along y = 10, and every anchor on that road.
-///
-/// The map matters and used to be missing everywhere. `Kingdom::new` builds an
-/// empty one and nothing overwrote it, so every imported game ran its
-/// pathfinding over 4,096 blank tiles; `l2-scenario` now reads the planes out of
-/// block 0 of the save. A hand-built kingdom still has to build its own, and a
-/// test that forgot would silently be testing movement over featureless ground.
 fn with_a_map() -> Game {
     let mut g = five_realms();
     let mut map = CampaignMap::empty();
@@ -48,20 +40,11 @@ fn with_a_map() -> Game {
     g
 }
 
-/// **Let the orders on the map finish walking**, which is the thing a player
-/// does between giving one and pressing End Turn.
-///
 /// `Units_Tick` runs on ordinary frames as well as inside a turn —
 /// [`turn::tick_units_only`], `docs/decisions.md` C115 — and since
 /// `Unit_StepOnce`'s sub-tile counter landed (`docs/decisions.md`
 /// **C134**) a unit takes 8 ticks to cross a road tile and 32 to cross
 /// anything else. **Nothing in the seven phases waits on the human's armies**:
-/// phase 2 is sieges and phase 4 is the AI's. So a test that ends the turn on
-/// the same call as the order is asserting a race between the phases and the
-/// march, and the assertion it wants is about the march.
-///
-/// Returns the number of ticks it took, so a caller can assert the pace rather
-/// than only the destination.
 pub(super) fn march(g: &mut Game) -> u32 {
     for ticks in 1..=turn::MAX_TICKS {
         turn::tick_units_only(g);

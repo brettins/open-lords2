@@ -11,22 +11,6 @@ use l2_sim::siege::{
 };
 use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 
-/// The besieger of the tests above: 848 men and four engines, and **not one
-/// bowman**.
-///
-/// That is deliberate and it is the second thing this file learned tonight.
-/// The first draft gave the besieger 148 archers, and at three of the five
-/// castle levels it won with `breach_score` 0, `wall_damage` 0 and the wall
-/// untouched — 148 archers simply shot two garrison figures off the rampart
-/// from the open field.
-/// proved a shooting match. `docs/agents.md`'s *"a check that passes for an
-/// accidental reason looks exactly like one that passes"*: it went green for a
-/// reason unrelated to anything the branch changed, and would have gone on
-/// doing so with the whole assault path deleted.
-///
-/// With no missile troop at all the only ways to win are the three
-/// `Battle_CheckOutcome`
-/// requires getting through the wall.
 pub(super) const STORMING_PARTY: &[(Troop, u32)] = &[
     (Troop::Peasants, 448),
     (Troop::Swordsmen, 300),
@@ -45,13 +29,8 @@ pub(super) fn storming_party(level: u8) -> BattleRunner {
     )
 }
 
-/// **The approach score's two starting values, and the moat is what chooses.**
-///
 /// `Battlefield_BuildCastle` writes 500; the raster's moat byte `0xEE` hands
 /// each ditch cell to `FUN_0047DCCE`, whose first statement puts it back to 0.
-/// So a dry castle opens with the approach already *done* and a moated one
-/// opens with everything to do — which is exactly the shape of
-/// `Order_ToBreachOrStaging`'s three arms.
 #[test]
 fn a_dry_castle_opens_at_five_hundred_and_a_moated_one_at_zero() {
     for level in 0..=4u8 {
@@ -66,18 +45,6 @@ fn a_dry_castle_opens_at_five_hundred_and_a_moated_one_at_zero() {
     }
 }
 
-/// **A player's assault: a ram opens the gate, and the Charge button carries
-/// it.**
-///
-/// The other half of the headline, and the one that
-/// `Wall_Smash`. The AI besieger above wins through cells a *catapult*
-/// collapsed one at a time; this one drives the 20,000-hit gate accumulator
-/// with rams, which is the path that opens a nine-cell hole and leaves it at
-/// the wall's own height.
-///
-/// Everything the player does here is a value: [`BattleRunner::order_side`] and
-/// [`BattleRunner::charge_all`], the same two calls the battlefield screen
-/// makes. Nothing sets a flag by hand.
 #[test]
 fn a_player_rams_the_gate_open_and_charges_through_the_breach() {
     let level = 1; // dry, so the men reach the wall without shovelling

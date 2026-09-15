@@ -9,14 +9,9 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 
 /// One row of the fourteen-row table at `0x004D2B70`, five ints apiece.
-///
-/// Read out of `Lords2.exe`. The third
-/// column is the good's own id, which is what makes the reading self-checking:
-/// row `i` holds `i + 1` in it, fourteen for fourteen.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct StallRow {
     /// `+0x00`, `+0x04` — where the price plaque is drawn on `Merchant.pl8`.
-    /// **(0, 0) for sheep and wool**, which have no place on the stall.
     pub x: i32,
     pub y: i32,
     /// `+0x08` — the good's own id, 1 … 14.
@@ -24,6 +19,7 @@ pub struct StallRow {
     /// `+0x0C` — 0, 1 or 2. **Nothing in the binary reads it.** It is 0 for
     /// exactly sheep, ale and wool — the three goods with no `You have` line —
     /// and 1 or 2 for the rest with no pattern this project has explained.
+    ///
 /// Carried, and marked `[I]` for whoever finds the
     /// reader.
     pub unread: i32,
@@ -61,14 +57,6 @@ pub const PLAQUE_CELLS: (i32, i32) = (8, 4);
 pub const PLAQUE_W: i32 = PLAQUE_CELLS.0 * 16;
 pub const PLAQUE_H: i32 = PLAQUE_CELLS.1 * 16;
 
-/// Where a good can be clicked on the stall.
-///
-/// **This is our fallback, not the original's hit test.** The original reads
-/// `mercgrid.pl8` — see the module docs — and so do we when the file is there;
-/// this rectangle is what a machine with no game installed clicks instead, and
-/// it is the plaque's own box so that what is drawn is what is clickable.
-/// A good at (0, 0) — sheep and wool — gets an empty rectangle, so the fallback
-/// cannot reach them either.
 pub fn plaque(good: Good) -> Rect {
     let r = stall_row(good);
     if r.x == 0 && r.y == 0 {
@@ -78,26 +66,14 @@ pub fn plaque(good: Good) -> Rect {
     }
 }
 
-/// `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)`.
 pub const STALL_OK: Rect = Rect::new(640 - 0x1C, 480 - 0x1C, 24, 24);
 
-// ---------------------------------------------------------------------------
-// the trade panel's geometry, all of it out of `Trade_DrawPanel`
-// ---------------------------------------------------------------------------
 
-/// Which of the four paragraphs the advice well shows.
-///
-/// The `Limit` cases are **not** "you reached the limit": the original sets the
-/// flag only when the limit it clamped to was itself zero.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Advice {
-    /// 68/18 — the ceiling is zero.
     CannotAfford,
-    /// 68/16 — the floor is zero.
     NothingToSell,
-    /// 68/19 — the good is ale.
     Ale,
-    /// 68/17 — the arrows work; use them.
     UseTheArrows,
 }
 
@@ -123,9 +99,6 @@ impl Advice {
     }
 }
 
-// ---------------------------------------------------------------------------
-// the stall
-// ---------------------------------------------------------------------------
 
 /// `g_screenId` `0x08`. Owns the merchant being traded with — `DAT_00553C64`,
 /// which the map click writes and which only this screen and its panel read.
@@ -134,7 +107,6 @@ pub struct MerchantScreen {
     unit: usize,
     /// The good under the pointer, 0 for none. `DAT_0056D8AC`.
     hover: usize,
-    /// Ours: what the last trade did, so a completed trade says so.
     status: String,
 }
 
@@ -143,16 +115,10 @@ impl MerchantScreen {
         MerchantScreen { unit, hover: 0, status: String::new() }
     }
 
-    /// The merchant's morale, which is the only input to the markup.
-    /// **100 for every merchant the shipped game creates**, and 0 for a unit
-    /// that has gone — a merchant that walked away between the click and the
-/// draw prices everything at its floor of one crown.
     fn morale(&self, ctx: &Ctx) -> i32 {
         ctx.game.kingdom.campaign.units.get(self.unit).map_or(0, |u| u.morale)
     }
 
-    /// The good the pointer is over, through `mercgrid.pl8` when it is loaded
-    /// and through the plaque rectangles when it is not.
     fn pick(&self, ctx: &Ctx, x: i32, y: i32) -> Option<Good> {
         if let Some(id) = ctx.assets.shell.merchant_grid(x, y) {
             return Good::from_id(id as usize);
@@ -180,8 +146,6 @@ impl Screen for MerchantScreen {
     /// release as a dismissal. A player reported that our shell closed on any
     /// click anywhere, which is what a shell does and is why this is written
 /// down.
-    ///
-    /// Escape is **ours**, and the screen says so in its own font.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
@@ -194,11 +158,6 @@ impl Screen for MerchantScreen {
             // tested it on the press. Its first statement is
             // `if (g_mouseLeftReleased == 0) return 0;`, and `Screen_FrameInput`'s
             // `0x08` arm is nothing but that call and the right release:
-            //
-            // ```c
-            // if (g_mouseRightReleased == 0) { if (Ui_OkButtonClicked()) { g_screenId = 0; … } }
-            // else { g_screenId = 0; … }
-            // ```
             //
             // arm: 0x0042FF10/merchant-ok left-release
             Event::Release { x, y } => {
@@ -238,8 +197,6 @@ impl Screen for MerchantScreen {
         if !have_backdrop {
             canvas.clear(ink.background);
         }
-        // **No caption.** `Screen_Merchant` draws no string at all; see the
-        // module docs for what used to be here and why it was invented.
 
         // `Merchant_HoverPlaque` (`0x0041608B`), five draws: the box, the name
         // centred in it, and the two prices side by side.
@@ -249,20 +206,14 @@ impl Screen for MerchantScreen {
                 let q = trade::quote(&ctx.game.kingdom.tables, good, self.morale(ctx));
                 // `FUN_004093E0(x, y, 8, 4)` — border **set 1**, in cells.
                 pen.window(canvas, r.x, r.y, PLAQUE_CELLS.0, PLAQUE_CELLS.1, 1);
-                // `Ui_DrawCentred(6, good, x, y + 0x10, 0x80, body, 0x3F)`.
                 pen.eng_centred(canvas, GROUP_GOODS, good.id(), r.x, r.y + 0x10, PLAQUE_W, font::TEXT);
-                // `Ui_DrawNumber(sell, '@', "/", x + 0x24, y + 0x22, body)` and
-                // then the buy price at `x + g_penAdvance + 0x24`, suffix "".
-                // The suffix really is a bare `/`: the manual's *"30/60"*.
                 let x = pen.body(canvas, r.x + 0x24, r.y + 0x22, &format!("{}/", q.sell), font::TEXT);
                 pen.body(canvas, x, r.y + 0x22, &format!("{}", q.buy), font::TEXT);
             }
         }
 
-        // `Ui_OkButton(stride - 0x1C, height - 0x1C, 1)` — mode 1, frame 0x10.
         pen.ok_button(canvas, STALL_OK.x, STALL_OK.y, 1);
 
-        // ---- ours, debug overlay only ---------------------------------------
         if ctx.game.prefs.debug_overlay {
             if !self.status.is_empty() {
                 text::draw(canvas, 4, 458, &self.status, ink.text);
@@ -278,7 +229,4 @@ impl Screen for MerchantScreen {
     }
 }
 
-// ---------------------------------------------------------------------------
-// the trade panel
-// ---------------------------------------------------------------------------
 

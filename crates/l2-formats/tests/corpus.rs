@@ -1,23 +1,9 @@
-//! Validates the decoders against a real game install.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -- --nocapture
-//! ```
-//!
-//! Skips
-//! without the game. No assets live in this repository.
 
 use l2_formats::{Palette, Pl8, Shape, Storage};
 use std::{collections::BTreeMap, fs};
 
-/// Files that use a supported encoding but still do not decode cleanly.
-///
-/// **Empty, and it should stay that way.** All 291 files decode. This list is
-/// kept as the mechanism, not as a bucket: any new failure fails the build with
-/// its name, and anything added here needs a reason recorded alongside it.
 const KNOWN_FAILING: &[&str] = &[];
 
-/// Files that validate today. Must not regress.
 const VALIDATED_BASELINE: usize = 291;
 
 fn asset_dir() -> Option<String> {
@@ -114,7 +100,6 @@ fn palettes_are_768_bytes_of_6bit_vga() {
         l2_testkit::skip!("LORDS2_DIR not set - skipping palette test");
     };
 
-    // 63 must scale to a true 255, not the 252 a naive << 2 would give.
     assert_eq!(Palette::from_bytes(&[63u8; 768]).unwrap().rgb(0), [255, 255, 255]);
     assert!(Palette::from_bytes(&[0u8; 767]).is_err());
 
@@ -133,10 +118,6 @@ fn palettes_are_768_bytes_of_6bit_vga() {
     assert!(count > 0, "no .256 palettes found");
 }
 
-/// The end-offset invariant proves we consume the right *bytes*. It cannot
-/// prove we produce the right *pixels* - a decoder that validates perfectly
-/// while emitting entirely blank frames would pass it. This checks that decoded
-/// frames
 #[test]
 fn decoded_frames_are_not_blank() {
     let Some(dir) = asset_dir() else {
@@ -157,7 +138,6 @@ fn decoded_frames_are_not_blank() {
             Storage::Unknown(_) => continue,
         };
         for i in 0..pl8.frames.len() {
-            // Region maps are never painted, so blankness is correct for them.
             if pl8.frames[i].shape == l2_formats::Shape::RegionMap {
                 continue;
             }
@@ -175,8 +155,6 @@ fn decoded_frames_are_not_blank() {
         println!("{family}: {painted}/{total} frames paint at least one pixel ({pct:.1}%)");
     }
 
-    // Blank frames are legitimate (empty terrain, animation padding), but a
-    // family that is almost entirely blank means the decoder is broken.
     for (family, (total, painted)) in &stats {
         assert!(*total > 0, "{family}: no frames decoded");
         assert!(
@@ -186,12 +164,6 @@ fn decoded_frames_are_not_blank() {
     }
 }
 
-/// Pins two counts that an audit found had drifted in the documentation.
-///
-/// Both were stated in prose, carried across a scope boundary, and restated
-/// wrongly elsewhere - "24 frames" for what is 32, and "15 files" for what is
-/// 18. Prose cannot defend a number; a test can. If either figure changes, the
-/// documentation quoting it is now wrong and this fails until both are fixed.
 #[test]
 fn counts_that_the_documentation_quotes_still_hold() {
     let Some(dir) = asset_dir() else {
@@ -225,23 +197,6 @@ fn counts_that_the_documentation_quotes_still_hold() {
     assert_eq!(non_iso_family_with_iso_frames, 18, "docs say 18 iso files outside family 2");
 }
 
-/// A rectangle that declares overhang rows reserves them whether or not it
-/// stores them.
-///
-/// This is the contract every caller of `decode` relies on, and it was broken
-/// in a way nothing here could see: the canvas height was decided on the *byte
-/// span*,
-/// that declared the same rows and stored none came back `h` tall. The two body
-/// fonts sit on opposite sides of that split — `Fntl2_14.pl8` stores 47 blocks
-/// of overhang rows (45 of them nothing but `00 <width>`, one skip run covering
-/// a wholly transparent row) while `Fntl2_9.pl8` declares exactly the same
-/// counts and stores nothing at all — so no single rule at the call site could
-/// be right about both. `Fntl2_14`'s `rows = 3` glyphs drew three pixels low on
-/// every management screen until a player compared our text with the original's
-/// and named the letters.
-///
-/// The invariant is cheap, file-wide and has no opinion about pixels, which is
-/// what makes it worth pinning.
 #[test]
 fn a_rectangle_reserves_the_rows_it_declares_whether_or_not_it_stores_them() {
     let Some(dir) = asset_dir() else {
@@ -252,8 +207,6 @@ fn a_rectangle_reserves_the_rows_it_declares_whether_or_not_it_stores_them() {
     for path in files_with_ext(&dir, "pl8") {
         let bytes = fs::read(&path).expect("read pl8");
         let Ok(pl8) = Pl8::parse(&bytes) else { continue };
-        // RLE files have no bare rectangle for the rows to sit above, and
-        // shape 1 ignores the count outright - both are settled elsewhere.
         if pl8.storage == Storage::Rle {
             continue;
         }
@@ -278,7 +231,5 @@ fn a_rectangle_reserves_the_rows_it_declares_whether_or_not_it_stores_them() {
     }
 
     println!("shape-0 rectangles checked: {checked}, of which declaring rows: {declaring}");
-    // Both sides of the split must be present, or the assertion above passes
-    // vacuously.
     assert!(declaring >= 100, "expected both fonts' worth of declared rows, saw {declaring}");
 }

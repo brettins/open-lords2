@@ -17,14 +17,6 @@ use l2_view::Canvas;
 
 /// **`Screen_DrawMenuBar` (`0x00419C78`) draws the year, the season and the
 /// treasury in `g_fontBody`, and we drew all three in our 5 × 7 debug font.**
-///
-/// A player reported it as *"still placeholder font in the top right for gold
-/// and summer"*, and he was reading the two `l2_view::text::draw` calls that
-/// used to be at the tail of `draw_menu_bar`.
-///
-/// The probe is rendered with `Fntl2_14.pl8` itself, so this test cannot pass
-/// while the debug font is drawing them — which is the one thing the previous
-/// suite could not tell apart.
 #[test]
 fn the_clock_and_the_treasury_are_drawn_in_the_game_s_body_font() {
     let (mut game, assets) = world!();
@@ -50,12 +42,6 @@ fn the_clock_and_the_treasury_are_drawn_in_the_game_s_body_font() {
     );
 }
 
-/// **The order is the original's: the year first, then the season.**
-///
-/// `Screen_DrawMenuBar` draws `Ui_DrawYear(g_year, 0x168, …)` and then puts the
-/// season at `g_penAdvance + 0x16C` — *after* it. We drew `"{season} {year}"`,
-/// which is the other way round.
-///
 /// Ablated by swapping the two draw calls in `draw_menu_bar`: the season then
 /// lands left of the year and this goes red.
 #[test]
@@ -108,13 +94,6 @@ fn the_treasury_names_crowns_out_of_the_game_s_own_strings() {
     );
 }
 
-/// Where `s`, drawn in `f` at `colour`, starts **on the row the painter
-/// passed** — or `None`.
-///
-/// A whole-canvas search returns the first match in raster order, which for a
-/// short number is often a digit inside some *other* number higher up the
-/// screen. Pinning the row turns "is this string anywhere" into "is this string
-/// at this call site", which is the claim a position test makes.
 pub(crate) fn find_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32) -> Option<i32> {
     let style = Style { colour, shadow: None, caps: None };
     let w = f.width(s).max(1);
@@ -141,9 +120,6 @@ pub(crate) fn find_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32
     None
 }
 
-/// **`Ui_DrawCount` opens the treasury with `'@'`, so its digits start four
-/// pixels right of the call site's `x`, and we drew them at the `x`.**
-///
 /// `Screen_DrawMenuBar` (`0x00419C78`) calls
 /// `Ui_DrawCount(gold, 0, 500, 6, &g_fontBody, 0x3F)`, and `Ui_DrawCount`
 /// (`0x0041AB67`) is `Ui_DrawNumber(value, '@', &DAT_004D41F4, x, y, …)` with
@@ -155,19 +131,6 @@ pub(crate) fn find_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32
 /// ours** — the lead's 4, the trailer's 4, 500 and 6 — so ablating `Pen`'s
 /// constants cannot move the expectation with the code. Only the digits' own
 /// width is measured, and it is measured in the face the call site names.
-///
-/// **Two assertions because the old code was wrong in two opposite ways that
-/// cancelled at the noun.** `blank_lead: true` dropped the lead and invented a
-/// trailing space: digits four left, noun right by coincidence. So the digits'
-/// x is what catches that; the noun's x catches a fix that adds the lead and
-/// keeps the invented space.
-///
-/// Ablated twice, each red on its own assertion:
-/// * `Pen::count_with_noun`'s number put back to the old
-///   `format!("{value} ")` — no lead, invented space: the digits are found at
-///   **500** where 504 is expected, which is the defect as it shipped.
-/// * `COUNT_SUFFIX` `""` → `" "`: the digits stay at 504 and the noun is found
-///   at **551** where 547 is expected.
 #[test]
 fn the_treasury_s_digits_start_one_sign_column_right_of_ui_drawcount_s_x() {
     let (mut game, assets) = world!();
@@ -202,19 +165,6 @@ fn the_treasury_s_digits_start_one_sign_column_right_of_ui_drawcount_s_x() {
 /// **`Court_Draw` (`0x00416925`) draws all four store values in
 /// `&g_fontHeading`, and we drew them in the body face** — beside labels that
 /// were already in heading, so the column read as two different typefaces.
-///
-/// ```c
-/// Ui_DrawCount (g_realms[p].gold,     0, 0xE0, 0x72, &g_fontHeading, 0x3F);
-/// Ui_DrawNumber(g_realms[p].iron, ' ', " ", 0xE0, 0x90, &g_fontHeading, 0x3F);
-/// ```
-///
-/// The probe is rendered in the heading face and searched **on the painter's
-/// own row**, so finding it is the claim *"this face, at this call site"*.
-/// Both leads advance four — `'@'` for the count, `' '` for the number — which
-/// is why both expectations are `0xE0 + 4`.
-///
-/// Ablated by passing `Face::Body` for the two values in `court.rs`: neither is
-/// found on its row in the heading face.
 #[test]
 fn the_court_s_stores_are_drawn_in_the_heading_face_at_court_draw_s_x() {
     use l2_game::screens::court::CourtScreen;

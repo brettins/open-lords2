@@ -37,17 +37,11 @@ fn two_sessions_fed_identical_commands_agree_on_every_tick() {
     assert_eq!(table.peers[0].sim.bad_commands, 0);
 }
 
-/// The other half of §6's claim. One peer's damage rolls are off by
-/// one — a peer that is *almost* right, which is what a real desync
-/// looks like.
 #[test]
 fn a_perturbed_peer_is_caught_and_both_sides_halt() {
     let mut table = Table::new(Config::battle(), 2, 7);
     table.peers[1].sim.bias = 1;
 
-    // Nothing diverges until the biased code path
-    // is the honest shape of the problem: a desync detector cannot see
-    // a difference that has not been computed yet.
     table.run(4);
     assert!(!table.peers[0].session.is_halted(), "diverged before anything could differ");
 
@@ -69,9 +63,6 @@ fn a_perturbed_peer_is_caught_and_both_sides_halt() {
     );
 }
 
-/// §6: halt. A halted session must not step again no matter how much it
-/// is pumped, because continuing turns a reproducible bug into an
-/// unreproducible one.
 #[test]
 fn a_halted_session_never_steps_again() {
     let mut table = Table::new(Config::battle(), 2, 7);
@@ -87,8 +78,6 @@ fn a_halted_session_never_steps_again() {
     assert_eq!(l2_net::state_hash(&table.peers[0].sim), state);
 }
 
-/// The first halt reason sticks: a session that desynced and was then
-/// torn down must still say it desynced.
 #[test]
 fn the_first_halt_reason_wins() {
     let mut table = Table::new(Config::battle(), 2, 7);
@@ -100,12 +89,7 @@ fn the_first_halt_reason_wins() {
     assert_eq!(table.peers[0].session.halt_reason(), Some(&reason));
 }
 
-// --- the network's opinion must not matter -----------------------------
 
-/// §4: commands are concatenated in a fixed order, never in arrival
-/// order, because arrival order is the network's opinion and it differs
-/// per peer. Latency and reordering must therefore change *nothing*
-/// about the result — only how long it takes.
 #[test]
 fn latency_and_reordering_change_nothing_but_the_pace() {
     fn play(latency: u64, reorder: bool) -> Vec<(Tick, u64)> {
@@ -132,8 +116,6 @@ fn latency_and_reordering_change_nothing_but_the_pace() {
     let jumbled = play(0, true);
     let both = play(3, true);
 
-    // A delayed peer gets fewer ticks done in the same number of
-    // rounds, but every tick it did complete must be identical.
     for (name, run) in [("delayed", &delayed), ("jumbled", &jumbled), ("both", &both)] {
         assert!(!run.is_empty(), "{name} produced nothing");
         assert_eq!(
@@ -144,11 +126,7 @@ fn latency_and_reordering_change_nothing_but_the_pace() {
     }
 }
 
-// --- stalling ----------------------------------------------------------
 
-/// §4: if a peer's packet has not arrived, the simulation blocks. It
-/// does not extrapolate and it does not guess, because proceeding is a
-/// desync and a desync is worse than a pause.
 #[test]
 fn a_stalled_link_pauses_the_session_and_it_resumes_intact() {
     let mut table = Table::new(Config::battle(), 2, 3);
@@ -156,9 +134,6 @@ fn a_stalled_link_pauses_the_session_and_it_resumes_intact() {
     let reached = table.peers[0].session.tick();
     assert!(reached > Tick(4));
 
-    // Peer 0 stops hearing from peer 1 — nothing lost, everything
-    // late, which is what a quiet peer looks like over a reliable
-    // transport.
     table.net.hold(PeerId(0), true);
     table.peers[0].waited_for.clear();
     table.run(20);
@@ -172,7 +147,6 @@ fn a_stalled_link_pauses_the_session_and_it_resumes_intact() {
         table.peers[0].waited_for
     );
 
-    // And it resumes, having missed nothing.
     table.net.hold(PeerId(0), false);
     table.run(20);
     assert!(table.peers[0].session.tick() > reached, "the backlog must let it catch up");
@@ -180,14 +154,6 @@ fn a_stalled_link_pauses_the_session_and_it_resumes_intact() {
     assert_eq!(table.peers[0].hashes, table.peers[1].hashes[..caught_up]);
 }
 
-/// The same experiment with a link that *discards* instead of holding.
-///
-/// The session never recovers
-/// defect: tick `N` cannot be simulated without every peer's commands
-/// for it, nothing in the design retransmits, and §4 says plainly that
-/// proceeding without them is a desync. This is the concrete form of
-/// §7's third requirement — reliable, ordered delivery — and the reason
-/// the transport may not be a bare UDP socket.
 #[test]
 fn a_lossy_link_ends_the_session_which_is_why_the_transport_must_be_reliable() {
     let mut table = Table::new(Config::battle(), 2, 3);
@@ -207,8 +173,6 @@ fn a_lossy_link_ends_the_session_which_is_why_the_transport_must_be_reliable() {
     assert!(!table.peers[0].session.is_halted(), "it waits forever; the caller must time it out");
 }
 
-/// The timeout §4 asks for is the caller's to impose, because this
-/// crate has no clock (D-5). What it offers is a way to say so.
 #[test]
 fn a_timeout_is_something_the_caller_declares() {
     let mut table = Table::new(Config::battle(), 2, 3);

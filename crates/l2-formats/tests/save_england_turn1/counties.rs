@@ -5,14 +5,6 @@ use super::merchants::*;
 use l2_formats::save::COUNTY_RECORDS;
 use l2_testkit::{england, england_county_of_realm, ENGLAND_TURN1_COUNTIES};
 
-/// The starting position: fourteen counties, five of them held, one realm each.
-///
-/// **Corrected.** This used to read
-/// `assert_eq!(owners, vec![(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)])`. The
-/// county *set* is scenario; the realm *assignment* is not — a second England
-/// turn-one save gives 1→4, 4→2, 8→5, 11→3, 13→1 for the same five counties.
-/// County 11 matching in both is chance, and is exactly why one playthrough
-/// reads so convincingly as a rule.
 #[test]
 fn the_england_map_starts_with_five_owned_counties_one_realm_each() {
     let save = england!();
@@ -30,14 +22,11 @@ fn the_england_map_starts_with_five_owned_counties_one_realm_each() {
     assert_eq!(real.len(), 14, "fourteen counties on the England map");
     assert_eq!(real.iter().filter(|c| !c.is_owned()).count(), 9, "nine unowned");
 
-    // Records 0, 15 and 16 are array slots, not places.
     for i in [0, 15, 16] {
         assert!(!counties[i].is_county(), "record {i} is not a county");
     }
 }
 
-/// The happiness split: owned counties store 72, unowned 77, and the difference
-/// is the unowned bonus arriving through `shownEvents`.
 #[test]
 fn owned_counties_store_seventy_two_and_unowned_seventy_seven() {
     let save = england!();
@@ -57,8 +46,6 @@ fn owned_counties_store_seventy_two_and_unowned_seventy_seven() {
     }
 }
 
-/// Population: every county grew from the same 417, and the birth rate differs
-/// only because happiness does.
 #[test]
 fn population_grew_from_the_same_starting_number_everywhere() {
     let save = england!();
@@ -77,9 +64,6 @@ fn population_grew_from_the_same_starting_number_everywhere() {
     }
 }
 
-/// Turn one: nothing has been taxed, every rate is zero, and only owned
-/// counties have a castle. These are the facts a new game starts from, and they
-/// are what a scenario importer has to reproduce.
 #[test]
 fn turn_one_has_no_tax_and_castles_only_where_someone_lives() {
     let save = england!();
@@ -97,9 +81,6 @@ fn turn_one_has_no_tax_and_castles_only_where_someone_lives() {
     }
 }
 
-/// The food split `docs/kingdom.md` §4.3 derives: an unowned county at
-/// population 456 with a herd of 67 slaughters 13 head. Read here
-/// computed, which is what makes it evidence.
 #[test]
 fn the_documented_food_split_is_what_the_file_stores() {
     let save = england!();
@@ -117,12 +98,6 @@ fn the_documented_food_split_is_what_the_file_stores() {
 /// The realm records say the same thing the county owner bytes do, from a
 /// different field: five realms in play, one county each. `+0x29` is the
 /// realm's own count of what it owns.
-///
-/// **Corrected.** This used to assert `realms[1].lord == 0` and the AI lords as
-/// `[1, 2, 4, 3]`. Which lord sits behind which realm is part of the same
-/// per-game roll as the county assignment, so what is asserted now is the
-/// structure: five distinct lords, the person is realm 1, and row 0 of every
-/// lord-indexed table belongs to whoever the person is.
 #[test]
 fn five_realms_are_in_play_and_each_owns_exactly_one_county() {
     let save = england!();
@@ -150,12 +125,6 @@ fn five_realms_are_in_play_and_each_owns_exactly_one_county() {
     assert_eq!(lords, [0, 1, 2, 3, 4], "five distinct lords, one apiece");
 }
 
-/// The map is one piece and its shape is the England map's: fourteen counties,
-/// twenty-seven borders, and county 1 the dead end with a single neighbour.
-///
-/// Symmetry itself is an invariant and lives in `tests/save.rs`; what is here
-/// is the *shape of this map*, which is what the old test was really asserting
-/// when it said `assert_eq!(real.len(), 14)` under an invariant's name.
 #[test]
 fn the_england_map_has_fourteen_counties_and_county_one_is_the_dead_end() {
     let save = england!();
@@ -167,36 +136,11 @@ fn the_england_map_has_fourteen_counties_and_county_one_is_the_dead_end() {
     assert_eq!(directed % 2, 0);
     eprintln!("England: {} borders", directed / 2);
 
-    // County 1 is the map's dead end - one neighbour - and it matters later:
-    // it is the county whose ration term needs the season's own pre-season
-    // store to reproduce.
     assert_eq!(counties[1].neighbours(), &[2]);
     assert_eq!(counties[1].neighbour_count, 1);
     assert_eq!(directed / 2, 27, "twenty-seven borders on the England map");
 }
 
-/// **The food configuration, and the mechanic the old test had by the tail.**
-///
-/// Three shapes on turn one:
-///
-/// * the nine unowned counties: 100 sacks, 67 head, split 100 (all livestock),
-///   13 head slaughtered;
-/// * four of the five owned counties: no grain, a herd big enough that five
-///   people per head covers the population, nothing eaten;
-/// * **one owned county on its own**: no grain, a split of 0 (all grain), and a
-///   stored `rationAchieved` of 2 — the only county on the map not on Normal.
-///
-/// The old test asserted that the third county was **county 1**, with
-/// `(owner, grain, herd, ration_split) == (5, 0, 74, 0)`. It is not county 1.
-/// In a second England turn-one save the odd county is 8 — and county 1 in the
-/// first save and county 8 in the second are both **realm 5's** starting
-/// county. The short-of-food start follows the *realm*, not the index; the test
-/// had pinned a real mechanic to a coincidence, and would have gone on passing
-/// against the one file it was written from.
-///
-/// It is also the only county whose `dHapRation` (−2) disagrees with its
-/// `shownRation` (+1), which is the fingerprint of the ration pass running
-/// twice per season.
 #[test]
 fn realm_fives_starting_county_is_the_one_that_begins_on_half_rations() {
     let save = england!();
@@ -209,8 +153,6 @@ fn realm_fives_starting_county_is_the_one_that_begins_on_half_rations() {
         assert_eq!(c.d_hap_ration, 1, "county {}", c.index);
     }
 
-    // Found from the data, not written down: the county short of food is
-    // whichever one realm 5 was given.
     let hungry = england_county_of_realm(&save, 5);
     let short: Vec<usize> = counties
         .iter()

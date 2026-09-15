@@ -16,9 +16,6 @@ use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 use crate::unit::{TroopType, UnitKind, Units};
 
-// ---------------------------------------------------------------------------
-// Step 11 — run every army's mission and re-path it
-// ---------------------------------------------------------------------------
 
 /// `FUN_004673B8` — the nearest **enemy** army anywhere on the map, by
 /// Chebyshev distance, as `(distance, slot)`. Distance is 1000 when there is
@@ -50,13 +47,6 @@ pub fn nearest_enemy_army(units: &Units, unit: usize) -> (i32, Option<usize>) {
 
 /// `FUN_00467532` — the nearest army **in one county** that
 /// [`action_allowed`] lets this one attack.
-///
-/// It takes `&mut` realms because `Diplo_ActionAllowed` is not a predicate:
-/// every allied unit it steps over bumps the searcher's own grudge. This
-/// function is called once per turn per army on missions 3 and 6, over every
-/// unit slot, so **an AI hemmed in by its ally corrodes the alliance by
-/// looking around**. Whether that is intended is not established;
-/// [`action_allowed`] carries the note.
 pub fn nearest_attackable_army_in_county(
     units: &Units,
     realms: &mut [Realm; MAX_REALMS],
@@ -88,10 +78,6 @@ pub fn nearest_attackable_army_in_county(
 
 /// `FUN_004A0649` — the target an army on [`Mission::SEEK_ENEMY`] picks for
 /// itself when its standing order has run out.
-///
-/// The same scoring as [`Kingdom::pick_attack_county`] with the **narrow**
-/// grain ladder ([`target_score`]), and the same two gates: the county must be
-/// one [`action_allowed`] permits and must border the realm.
 pub fn pick_next_target(
     counties: &[County; MAX_COUNTIES],
     county_count: usize,
@@ -121,10 +107,6 @@ pub fn pick_next_target(
 
 /// `FUN_004A07F2` — the **lowest-numbered** county of this realm whose castle
 /// has room for `men`.
-///
-/// Lowest-numbered, not nearest: an army that cannot get into the castle it
-/// was raised for walks to the realm's first castle instead, however far that
-/// is.
 pub fn first_castle_with_room(
     t: &Tables,
     counties: &[County; MAX_COUNTIES],

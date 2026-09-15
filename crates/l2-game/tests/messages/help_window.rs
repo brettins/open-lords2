@@ -13,8 +13,6 @@ fn topic(group: u16) -> Record {
     Record { to: 0, group, category: category::HELP, ..Record::default() }
 }
 
-/// Every differing pixel in a band of the window, so a test can say *"text was
-/// painted here"* without knowing which glyphs or where.
 fn band_diff(a: &l2_view::Canvas, b: &l2_view::Canvas, top: i32, bottom: i32) -> usize {
     let mut n = 0;
     for y in top..bottom {
@@ -47,13 +45,12 @@ fn the_help_geometry_is_the_table_in_the_exe() {
         assert_eq!(f(group), Some((16, 32, 28 * 16, 27 * 16)), "group {group}");
     }
     assert_eq!(f(296), Some((32, 160, 26 * 16, 12 * 16)), "the dead CD check");
-    // Outside the table. The original would index past it; we answer nothing,
-    // and nothing posts one.
     assert_eq!(f(290), None);
     assert_eq!(f(297), None);
 }
 
 /// **`DAT_004D6A8C + group * 4`**, whose group-291 entry is `0x004D6F18`.
+///
 /// `[V]` `1, 5, 5, 5, 10, 1`, which is `strings − 1` for all six
 /// (`docs/formats/eng.md` §5).
 #[test]
@@ -63,23 +60,12 @@ fn the_paragraph_counts_are_the_table_in_the_exe() {
         vec![1, 5, 5, 5, 10, 1]
     );
     assert_eq!(help::paragraphs(290), 0);
-    // Our transcription carries a heading and that many paragraphs for each of
-    // the five topics — rule 6's fallback, which has to be the same shape as
-    // the file it stands in for.
     for (group, strings) in help::TEXT {
         assert_eq!(strings.len(), help::paragraphs(*group) + 1, "group {group}");
         assert!(!strings[0].is_empty(), "group {group} has a heading");
     }
 }
 
-/// **The help window is not the notice layout: the whole group is drawn.**
-///
-/// Groups 292 and 295 share a geometry record to the pixel — `(16, 32, 28,
-/// 27)` — so the window, its border and its corner button paint identically and
-/// the only thing that can differ is text. 292 has five paragraphs and 295 has
-/// ten, so the band low in the window that 295's last paragraphs reach is bare
-/// parchment in 292's.
-///
 /// **This is the ablation.** Delete the `Shape::Help` arm from
 /// `MessageScreen::draw` and both records fall to `draw_notice`, which paints
 /// one string at `y + 0x50` and nothing below it — the band is identical in
@@ -88,8 +74,6 @@ fn the_paragraph_counts_are_the_table_in_the_exe() {
 fn the_help_window_draws_every_paragraph_of_its_group() {
     let five = paint(292);
     let ten = paint(295);
-    // 0x32 in, sixteen a line: the eleven lines of 292 cannot reach this, and
-    // 295's seventeen do. The corner button starts at y + 0x1A0.
     let (top, bottom) = (32 + 0x150, 32 + 0x170);
     assert!(
         band_diff(&five, &ten, top, bottom) > 0,
@@ -97,9 +81,6 @@ fn the_help_window_draws_every_paragraph_of_its_group() {
     );
 }
 
-/// The heading and the first paragraph are drawn too, and they are the group's
-/// own: two topics with different words make different pictures in the band the
-/// heading and first paragraph share.
 #[test]
 fn two_topics_draw_their_own_words() {
     let grain = paint(292);
@@ -111,9 +92,6 @@ fn two_topics_draw_their_own_words() {
     );
 }
 
-/// **The corner button can be clicked.** `Msg_HandleInput`'s 48 × 48 box is
-/// `window_frame`'s, and before the arm existed the help window had no frame —
-/// so a topic could only be dismissed with the right button.
 #[test]
 fn a_click_on_the_corner_button_closes_a_help_topic() {
     let (mut g, a, mut m) = world();
@@ -126,8 +104,6 @@ fn a_click_on_the_corner_button_closes_a_help_topic() {
     assert_ne!(m.top_id(), Some(ScreenId::Message), "the scroll closed");
 }
 
-/// **Rule 6 — our transcription is the player's file, string for string.**
-/// Skipped with no install; `tests/tips.rs` does the same for the tip groups.
 #[test]
 fn the_transcription_matches_the_players_eng_file() {
     let Some(dir) = l2_testkit::install_dir() else {

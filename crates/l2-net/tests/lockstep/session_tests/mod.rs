@@ -14,5 +14,4 @@ use l2_net::{
     Message, PeerId, PlayerSlot, Fixed, Session, SessionError, Tick, Transport,
 };
 
-// --- the property everything else rests on ----------------------------
 

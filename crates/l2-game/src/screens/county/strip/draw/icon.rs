@@ -19,7 +19,6 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
 
-/// One `Misc_cty` frame with our own word behind it when the sheet is absent.
 pub(crate) fn draw_strip_icon(ctx: &Ctx, canvas: &mut Canvas, frame: usize, x: i32, y: i32, label: &str) {
     let drawn = ctx.assets.chrome.as_ref().is_some_and(|ch| ch.draw_misc(canvas, frame, x, y));
     if !drawn {

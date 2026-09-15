@@ -12,8 +12,6 @@ use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
-/// An AI realm taxing one county for a season. Returns the rate its ladder
-/// chose
 fn an_ai_seasons_tax(tables: Tables, happiness: i32) -> (i32, i32) {
     let mut k = one_county(tables);
     k.realms[1].is_human = false;
@@ -26,13 +24,6 @@ fn an_ai_seasons_tax(tables: Tables, happiness: i32) -> (i32, i32) {
     (rate, k.realms[1].gold)
 }
 
-/// An AI lord laying out one county's eight fields, in Winter. Returns
-/// `(grain, pasture, industry share)`.
-///
-/// This is the rule `docs/modding.md` used to list as *"loads and does
-/// nothing"*. It does something now, and this is where it has to earn that:
-/// the same county, the same season, the same eight tiles, and a different
-/// answer because one byte of the ruleset changed.
 fn an_ai_lays_out_a_county(tables: Tables, lord: u8) -> (i32, i32, i32) {
     let mut k = one_county(tables);
     k.realms[1].is_human = false;
@@ -50,24 +41,18 @@ fn an_ai_lays_out_a_county(tables: Tables, lord: u8) -> (i32, i32, i32) {
     l2_kingdom::field::recount(&mut k.counties[1], &k.campaign.map);
     k.counties[1].herd_crowding =
         l2_kingdom::land::herd_crowding(&k.tables, k.counties[1].herd, k.counties[1].fields_cattle);
-    // No merchant stall in this scenario, so every style's opening shopping
-    // cascade is refused
     k.run_ai_farms(1, &mut l2_kingdom::ai_farm::NoMarket);
     l2_kingdom::field::recount(&mut k.counties[1], &k.campaign.map);
     (k.counties[1].fields_grain, k.counties[1].fields_cattle, k.counties[1].industry_share)
 }
 
-/// **`farm_style` is a rule a mod sets, and it changes the map.**
 #[test]
 fn which_way_an_ai_lord_farms_is_a_rule_a_mod_sets() {
-    // Lord 1 ships as style 1, a grazier: no grain at all
-    // grows one field a pass towards all but one of the county.
     let (grain, pasture, share) = an_ai_lays_out_a_county(Tables::DEFAULT, 1);
     assert_eq!(grain, 0, "a grazier plants nothing, even in Winter");
     assert_eq!(pasture, 1, "and takes one more field for the herd");
     assert_eq!(share, 20);
 
-    // Turn him into an arable lord with one byte.
     let arable = modded(
         "arable-lord",
         "[[kingdom.ai.personality]]\nlord = 1\nfarm_style = 0\ntax_ladder = 2\n\
@@ -117,9 +102,6 @@ fn which_way_an_ai_lord_farms_is_a_rule_a_mod_sets() {
 
 #[test]
 fn the_ai_tax_ladders_are_rules_a_mod_sets() {
-    // Ladder 2 is the one three of the four lords use, and it charges nothing
-    // below 60 happiness. Arrays replace whole on merge, so restating it means
-    // restating every rung; this one has a single rung and a flat 40%.
     let greedy =
         modded("tax-farmers", "[[kingdom.ai.tax_ladder.2]]\nbelow = 2147483647\nrate = 40\n");
     assert_eq!(greedy.ai.tax_ladders[2][0], (i32::MAX, 40));
@@ -137,15 +119,6 @@ fn the_ai_tax_ladders_are_rules_a_mod_sets() {
 
 #[test]
 fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
-    // The personality table replaces whole too, so all four lords are restated
-    // in full. Only lord 1 moves, from the gentlest ladder to the greediest;
-    // every other field is the stock value, so the one thing that changes is
-    // the one thing under test.
-    //
-    // The castle columns are the four lords as the binary has them, which is
-    // where the Bishop's royal castle at 2,000 gold sits — against the Knight's
-    // 10,000,
-    // treasury. `docs/diplomacy.md` §8.1.
     #[allow(clippy::too_many_arguments)]
     fn lord(
         n: u8, farm: u8, ladder: u8, gift: i32, help: i32, grudge: i32, offer: i32, floor: i32,
@@ -175,7 +148,6 @@ fn which_ladder_an_ai_lord_taxes_on_is_a_rule_a_mod_sets() {
         "the ladders themselves are untouched: only which one lord 1 walks changed"
     );
 
-    // At 85 happiness the gentle ladder charges 3%
     let (stock_rate, stock_gold) = an_ai_seasons_tax(Tables::DEFAULT, 85);
     let (mod_rate, mod_gold) = an_ai_seasons_tax(ruthless, 85);
     assert_eq!((stock_rate, mod_rate), (3, 15));

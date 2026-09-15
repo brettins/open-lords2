@@ -13,11 +13,7 @@ use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 use crate::unit::{TroopType, UnitKind, Units};
 
-// ---------------------------------------------------------------------------
-// The three destination-tile finders
-// ---------------------------------------------------------------------------
 
-/// Which tile of a county an order aims at.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Aim {
     /// `FUN_004A6735` — the **county town**: plane-0 `0x40`. Stepping onto it
@@ -49,19 +45,6 @@ impl Aim {
     }
 }
 
-/// The body all three finders share: the tile of `county` matching `aim` that
-/// is **nearest by Manhattan distance** to `from`, or the county's anchor.
-///
-/// Two reproduced details:
-///
-/// * **The scan is the whole 64 × 64 map**, row by row, and the comparison is
-/// strict — so a tie goes to the lowest `y`, then the lowest `x`.
-/// * **Tile (0, 0) can never be chosen.** The original keeps its best as a
-///   byte *offset* into the tile array and uses 0 for *"nothing found"*, so
-///   offset 0 — tile (0, 0) — is indistinguishable from failure. Harmless on
-///   any real map and reproduced anyway, because the alternative is a
-///   difference nobody would ever find.
-///
 /// The fallback differs from the original in one place and it is stated: for
 /// [`Aim::Castle`] the original falls back to the county's stored castle tile
 /// (`+0x74`/`+0x75`, `County_FindCastleTile`'s output), which this crate does
@@ -108,10 +91,8 @@ pub fn aim_tile(
 /// > *"This shire contains a garrisoned castle my lord. We must lay siege to
 /// > that, to gain control of the county."* — `L2.eng` group 286, which is the
 /// > game telling the **player** the rule this function is the AI's half of.
-/// > `[V]`
 ///
-/// A county with no castle, or a castle with nobody in it, is entered at the
-/// town; anything else is approached at the castle, which begins a siege.
+/// > `[V]`
 pub fn aim_for_county(counties: &[County; MAX_COUNTIES], county: u8) -> Aim {
     match counties.get(county as usize) {
         Some(c) if c.castle_type != 0 && c.garrison_unit != 0 => Aim::Castle,

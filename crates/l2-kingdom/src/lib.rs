@@ -1,55 +1,7 @@
-//! Deterministic kingdom simulation for Lords of the Realm II — counties,
-//! seasons, population, food, happiness, taxation, crops, livestock, industry,
-//! castles and wages.
-//!
-//! Reimplemented from `docs/kingdom.md`, which reads the model out of the
-//! original binary. Where `l2-sim` covers what happens when two armies meet,
-//! this covers everything that decides *which* armies exist. This crate is our
-//! own code implementing documented behaviour; nothing is copied from the
-//! original.
-//!
-//! # Where to start
-//!
-//! * [`Kingdom`] is the whole state and the season driver.
-//! * [`phase::SEASON_PIPELINE`] is the end-of-season order, as data.
-//!   `docs/kingdom.md` §3.4 is explicit that **the order is the rule**, so it
-//! is an array a test can assert against.
-//! * [`save`] is **our own** save format: a whole campaign as deterministic,
-//! versioned bytes.
-//! `l2_net::Canonical`, and it refuses
-//! an unknown version. It takes and
-//!   returns a `Vec<u8>` and never touches a file — reading the *original's*
-//!   `.sav` is `l2-formats`' job, and importing one is `l2-scenario`'s.
 //! * [`tables`] holds every constant, each carrying the address it was read
 //!   from. `docs/decisions.md` C11: no kingdom rule is loaded from a game data
 //!   file, so our engine has to carry the whole ruleset itself.
 //!
-//! # Determinism
-//!
-//! Lockstep networking requires two machines running the same commands to reach
-//! bit-identical state (`docs/netcode.md`). Four rules follow, and this crate
-//! holds to all four:
-//!
-//! * **No floating point anywhere.** Integer arithmetic only, through
-//!   [`math::pct`] and [`math::div_ceil`], which round exactly the way the
-//!   original's C rounds.
-//! * **No iteration in hash order.** Counties and realms are fixed arrays
-//! walked by ascending index.
-//! * **No dependence on addresses or allocation.** Nothing branches on a
-//!   pointer.
-//! * **One generator, and it is frozen in-tree.** The two rules that draw a
-//! random number — the weather accumulator and the random-event roll — use
-//!   `l2_net::Pcg32`, and both draw the *same number of times* regardless of
-//!   how many counties there are or who owns them, so the stream cannot
-//!   diverge on a difference the two peers already disagree about.
-//!
-//! # Errata: where `docs/kingdom.md` is wrong, ambiguous, or unimplementable
-//!
-//! Implementing a document is the only way to find out whether it is true.
-//! These are the places this crate could not simply follow it. Each is repeated
-//! at the code that deals with it.
-//!
-//! 1. **§4.1's empire tax term is a table, and inference got it wrong.**
 //!    §4.1 gives `dHapTax = (5 - taxRate) + realm.taxHapEmpire` and §2 gives
 //!    `taxHapEmpire = sum of every owned county's +0x16`. `+0x16` cannot be
 //!    `5 - rate` — the England turn-one fixture, four owned counties all at rate 0, would
@@ -61,24 +13,11 @@
 //!    readings because every rate in it is 0. See
 //!    [`tax::empire_contribution`] and `docs/kingdom.md` §4.1.
 //!
-//! 2. **§4.3's ration loop cannot start where it says.** *"descends from
-//!    `rationWanted + 1`"* would let §4.3's own worked example be fed at
-//!    Double — which its herd affords, and which would slaughter 58 head where
-//!    the save stores 13. The loop must be *entered* at `wanted + 1` and first
-//!    *evaluated* at `wanted`, which is what a `do { level--; } while` does.
-//!    See [`ration::choose`].
-//!
-//! 3. **§3.3's prose contradicts §3.3's own code.** The code rolls the year
-//!    when `ended == 4`, i.e. in the same `Season_Advance` call that begins
-//!    Winter, so the year label runs **Winter, Spring, Summer, Autumn**. The
-//!    prose says *"the year runs Spring → Winter"*. The code reproduces the
-//!    England turn-one save's `season 4, year 1268, turn 1`; the prose does not follow
-//!    from it. See [`Kingdom::start_new_game`].
-//!
 //! 4. **§7.3's `random/8` has no stated range** — *resolved, and this crate's
 //!    guess was wrong.* It was the one constant here with no evidence behind
 //!    it. The original's generator (`FUN_00404A46`) steps two 31-bit LFSRs and
 //! masks their output with `0x7F`.
+//!
 //!    **0..=15** — twice this crate's guess, and enough to cancel Spring's `+8`
 //!    and Autumn's `+12` outright, which the guess was chosen to prevent. The
 //!    same call also picks the county that gets the local swing, by a flat
@@ -90,27 +29,8 @@
 //!    hole at band 3 that is `docs/bugs.md` B92. See
 //!    [`weather::local_modifier`] and [`weather::climate_band`].
 //!
-//! 5. **§6's AI unrest ladder has a hole.** *"happiness >= 41 resets it to 0;
-//!    11 … 40 walks it down; below 1 walks it up"* says nothing about 1..=10.
-//!    Reproduced literally, as a dead band, in [`unrest`].
-//!
-//! 4a. **§6 reads as though only a human's counties revolt, and three more
-//!    things about that pass were wrong.** The revolt call is reached from both
-//!    ladders; it fires only on a season the counter rose; a human county's
-//! warning season and its ladder season are exclusive.
-//!    the *fifth* season below 25; and a human county's counter is cleared
-//! outright at happiness 25. All four are corrected
-//!    in `docs/kingdom.md` §6 and reproduced in [`unrest`], which also now
-//!    implements `County_RaiseRevolt` — until this week a revolt raised no mob,
-//!    took no people and left the county in the realm's hands.
 //!    `docs/decisions.md` C90.
 //!
-//! 6. **§5's `deaths = pop` on a county that dies out stores a negative death
-//!    count.** The expression is quoted from decompiled C and is almost
-//!    certainly a lost negation or a `popLast`; it is reproduced as written and
-//! flagged. See [`population::update_one`].
-//!
-//! 7. **§3.4 and §7.4 disagree on the industry order, and both are wrong.**
 //!    §3.4's call list says *"wood, iron, stone, weapons"* and §7.4's table
 //!    indexes them wood, iron, weapons, stone. The driver (`FUN_0044E852`)
 //!    runs **weapons over every county first**, in its own loop, and then iron,
@@ -118,33 +38,10 @@
 //!    the *previous* season's ore, because this season's has not been mined
 //!    yet. See [`tables::INDUSTRY_ORDER`].
 //!
-//! 8. **§4.3's admission is discharged, and this crate's guess was right.**
-//!    §4.3 said the food-split fields reproduced for the unowned counties and
-//!    not for the owned ones, and that it *"did not untangle which write
-//!    survives"*. Reading the save through `l2-scenario` untangles it, and
-//!    **all fourteen counties reproduce** — see
-//!    `tests/reproduction.rs::the_ration_preview_reproduces_every_stored_food_field`.
-//!
-//!    County 1 is what settles it. It stores `dHapRation = -2` and
-//!    `shownRation = +1`, which are the two calls disagreeing: the display copy
-//!    is taken while happiness is computed, so the *first* call fed it at
-//! Normal.
-//!    at Normal on an all-grain split costs `DivCeil(417 - 74*5, 6) = 8` sacks,
-//! and the county stores none.
-//! is [`ration::apply`] spending and [`ration::preview`]
-//!    written here.
-//!
 //!    §4.3 was also wrong about the numbers: it said the owned counties store
 //!    `+0x17C = 3`. They store 0; the 3 is `rationAchieved` at `+0x15D`. And
 //!    there are five of them, not four.
 //!
-//! 9. **The rules §12 lists as unknown have been traced**, and are no longer
-//!    stubs. Each is documented where it is implemented, with the address it
-//!    came from and what second source confirms it:
-//!
-//!    * the fourteen AI turn handlers — all named with their addresses in
-//!      [`ai::AiStep`]. **Twelve of the fourteen are implemented here**: the
-//! economy in [`ai`].
 //!      — steps 4, 7, 9, 10 and 11 — in [`ai_army`]. One of the fourteen
 //!      (step 8) is an *empty function* in the shipped binary; the two that
 //!      remain are the diplomacy pair, which needs the inbox and its seven
@@ -156,8 +53,6 @@
 //! * the efficiency ramp — [`industry::efficiency_ramp`] — and the
 //!      `resourceLimit` term — [`industry::resource_limit`];
 //! * rows 1..3 of `g_aiGoldGrant`.
-//!      [`tables::AI_GOLD_GRANT_SMALL`];
-//!    * the event table — [`event::EVENT_DECK`], which is a 256-slot deck
 //!, with all 24 handlers in [`event`];
 //!    * the history ring — [`kingdom::History`];
 //!    * the ale and army happiness terms — [`happiness::buy_ale`] and
@@ -165,10 +60,6 @@
 //!    * the job slot supplying `Grain_Sow`'s labour — slot 0, which is
 //!      *"Grain farming"*, because the nine labour records are `L2.eng` group
 //!      74's strings **1..9** and §7.4's whole job column is one too high.
-//!      See [`tables::JOB_COUNT`].
-//!
-//! 10. **What is still a stub, and why.** These are named in the binary and
-//! not reproduced:
 //!
 //!     * `localModifier` (`FUN_00449D6E`), the per-county weather swing;
 //!     * the sixth score input, realm `+0x4C` — the other five are identified
@@ -192,26 +83,6 @@
 //!     * `Army_BeginSiege` from the mover: an army sent at somebody else's
 //!       castle arrives and stops. The garrison half of the same tile is
 //!       [`Kingdom::garrison_army`]; `docs/decisions.md` C61.
-//!
-//! 11. **§9's five-stage chain reproduces exactly**, and `tests/reproduction.rs`
-//! now asserts it against `lastturn.sav`:
-//!     ration → health meter → health band → happiness → birth rate →
-//!     population, twenty-six stored fields across all fourteen counties.
-//!     Nothing had to be adjusted to make it land.
-//!
-//!     The save reaches this crate through `l2-scenario`, which is the only
-//!     crate allowed to know both a file format and a simulation. **Nothing in
-//!     `src/` opens a file or knows one exists**, and `l2-formats` is a
-//!     dev-dependency of the tests alone. §9 itself carried the same invented
-//!     scenario the old test did — four counties owned by one realm — and both
-//!     have been corrected to the five the file holds.
-//!
-//! 12. **Two more layout errors, found by reading the bytes.**
-//!     `g_healthBandLadder` is five `{threshold, band}` pairs and §4.2's
-//!     *"else 4"* is an explicit `(100, 4)` row; `g_castleWorkforce` is two
-//! ints per castle level. Both are confirmed by the
-//!     addresses either side of them closing exactly. See
-//!     [`tables::HEALTH_BAND_LADDER`] and [`tables::CASTLE_WORKFORCE`].
 //!
 //! 13. **`Score_RankRealms` is not in the `Season_Advance` pipeline** that
 //! §3.4 lists it in, and realm `+0x04` is a strength count
@@ -279,19 +150,7 @@ pub use victory::{Ending, Outcome, OutcomeStep, Ranking};
 pub use tables::{Commodity, Season, Weather};
 pub use unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS};
 
-/// The generator this crate draws from.
-/// to depend on `l2-net` to seed a kingdom.
 pub use l2_net::Pcg32;
 
-/// **Which of the original's defects a kingdom reproduces**, re-exported for
-/// the same reason [`Pcg32`] is: [`Options::quirks`] is a field of this crate's
-/// public type.
-/// take a dependency on the netcode crate to do so.
-///
-/// They live in `l2-net` because a quirk is part of the *agreed configuration*
-/// — the same category as the ruleset hash and the seed — and because that is
-/// the one crate `l2-kingdom`, `l2-sim`, `l2-view` and `l2-game` can all see.
 /// `docs/decisions.md` C62.
-///
-/// [`Options::quirks`]: crate::kingdom::Options::quirks
 pub use l2_net::{Quirk, Quirks};

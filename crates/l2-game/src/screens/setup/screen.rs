@@ -14,7 +14,6 @@ use crate::setup::SetupOptions;
 use crate::shell::{self, font, Pen};
 use crate::text::{self, TextField};
 
-// --------------------------------------------------------------- the screen
 
 pub struct SetupScreen {
     pub(crate) page: SetupPage,
@@ -25,8 +24,6 @@ pub struct SetupScreen {
     pub(crate) under: SetupPage,
     /// Which of the twelve options is open: `DAT_0055306C`.
     pub(crate) open: usize,
-    /// **The twelve settings, and they now reach the game.**
-    ///
     /// This used to be a bare `[usize; 12]` with a comment saying nothing read
     /// it. It is [`SetupOptions`] — `0x0053F288 … 0x0053F2B4`, the block
     /// `Setup_SetOption` writes — and pressing *Start* puts it through
@@ -37,41 +34,15 @@ pub struct SetupScreen {
     /// original, one-based there and zero-based here because this is an index
     /// into the five frame pairs and nothing else yet.
     pub(crate) shield: usize,
-    /// The top row of the map list, and the selected map — `g_scenarioIndex`,
-    /// which *is* the map slot (`Game::map_slot`).
-    ///
-    /// **Zero is a real value here and it is where the list sits untouched**,
-    /// which is England. A campaign does not read this: `Campaign_LoadEntry`
-    /// *writes* it, from the campaign row, the same way it writes the global —
-/// so [`SetupScreen::start_campaign`] sets it
-    /// slot beside the world it just built.
     pub(crate) map_top: usize,
     pub(crate) map: usize,
-    /// `g_playerStartCount` for [`SetupScreen::map`] — how many lords that map
-    /// seats. `Map_LoadPlanes` recomputes it every time the scenario changes
-    /// and three call sites then push it into the *Nobles* drop-down, so it is
-/// cached beside the map.
-    ///
-    /// **Five until a map has been read**, which is what an install without
-    /// `L2_maps.dat` leaves it at: the full drop-down, and no seat count
-    /// invented from nothing.
     pub(crate) player_starts: usize,
-    /// Whether [`SetupScreen::player_starts`] has been read for
-    /// [`SetupScreen::map`] yet. The file is [`Ctx`]'s and the constructor has
-    /// no `Ctx`, so the first read happens on the first tick.
     pub(crate) map_read: bool,
     /// What the last *Start* could not honour, as `L2.eng` group 102 indices —
     /// [`crate::setup::Settings::unhonoured`]. Drawn under the grid, in our own
     /// font. `docs/decisions.md` C21.
     pub(crate) unhonoured: Vec<usize>,
-    /// **Why the last *Start* did not start**, if it did not.
-    ///
-    /// A slot that will not build a world — no `L2_maps.dat`, an empty
-    /// template, more lords than seats — leaves the game untouched and says so
-    /// under the grid. Silence would look exactly like a button that works.
     pub(crate) failure: Option<String>,
-    /// **The lord's name, being typed.** `g_editBuffer` while page 4 is up.
-    ///
     /// A player reported *"I can't type my name in the start menu?"*, and this
     /// is the field they were looking for. Both arms that open page 4 —
     /// `FUN_00432B05`'s hotspot 2 and `FUN_00432CC8`'s hotspots 3 and 5 — run
@@ -79,11 +50,6 @@ pub struct SetupScreen {
     /// field is seeded with the name you already have, sixteen characters, one
     /// hundred and ninety-two pixels, free text. [`crate::text`] is the engine
     /// and `docs/arms.json`'s `text` group is the inventory.
-    ///
-/// It lives here because our page 4 is
-    /// reachable from three places and a field rebuilt on each of them would
-    /// lose what was typed; [`SetupScreen::go`] does the `Edit_Begin` at
-    /// exactly the moments the original does.
     pub(crate) name: crate::text::TextField,
     /// **`DAT_0057D320` — whether *Continue* on page 4 starts a campaign.**
     ///
@@ -105,34 +71,16 @@ pub struct SetupScreen {
     /// `g_campaignTrack` (`DAT_0053F640`) — which of the two campaigns page 5
     /// chose. `Setup_ChooseCampaign` stores the hotspot here.
     pub(crate) track: crate::victory::Track,
-    /// The persisted `g_options` name — what the field is seeded *from*, and
-    /// where a commit goes back to.
-    ///
-    /// `g_options` is one 0x468-byte block the original `fread`s and `fwrite`s
-    /// whole, and byte 0 begins a 31-byte name. We have no settings file yet,
-    /// so this is that byte run and nothing else, defaulted the way
-    /// `Options_SetDefaults` defaults it.
     pub(crate) saved_name: String,
-    /// **Which minute the drawn clock says** — [`crate::wallclock::minute`] of
-    /// the reading the last tick saw, or `None` before the first.
-    ///
-    /// A still screen costs nothing here: [`Machine::update`] only repaints
-    /// when [`Screen::take_redraw`] says so, and this is what makes it say so
-/// **once a minute**. It is a cached
-    /// *picture* fact, not a clock — the reading itself is handed in through
-    /// `Assets` and is never read from the system by anything in this crate.
     pub(crate) clock_minute: Option<i64>,
-    /// Page 12's state — every field of it one of the original's globals.
     pub(crate) skirmish: skirmish::Skirmish,
     /// `g_troopsTable`, as `Troops_Load` (`0x0042AC0C`) would have filled it.
-    /// Empty on a checkout with no install, and then both armies are empty.
     pub(crate) troops: skirmish::TroopsTable,
     /// The `.skr` files page 13 lists — `DAT_004E8790`, 0x41 bytes a name,
     /// counted by `DAT_004EB25C`. Nothing scans a directory for them yet.
     pub(crate) skirmish_files: Vec<String>,
     /// `g_fileListTop` (`0x004EA1A0`) — the index page 13's ten rows start at.
     pub(crate) skirmish_file_top: usize,
-    /// Whether the minute turned since the last paint.
     pub(crate) clock_redraw: bool,
 }
 

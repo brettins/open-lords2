@@ -14,11 +14,6 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-/// Every page's window, close button and every widget box is on the 640 × 480
-/// screen, and no two boxes on one page overlap.
-///
-/// The overlap half is the one that matters: two hotspots sharing a pixel is a
-/// click whose meaning depends on the order of a `for` loop.
 #[test]
 fn every_box_is_on_screen_and_no_two_on_a_page_overlap() {
     for page in Page::ALL {

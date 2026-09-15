@@ -11,8 +11,6 @@ use l2_net::{
     Transport, PROTOCOL_VERSION,
 };
 
-/// A roster is the one message whose *order* is part of its meaning,
-/// claiming an out-of-order one is refused
 #[test]
 fn an_out_of_order_roster_is_rejected_by_the_decoder() {
     let good = Roster {
@@ -78,9 +76,6 @@ fn every_lobby_message_round_trips() {
     }
 }
 
-/// The whole point, end to end: a lobby over a real socket produces a `Start`,
-/// the `Start` produces two `Session`s, and the two sessions agree on every
-/// tick. If the roster order were wrong this is where it would surface.
 #[test]
 fn a_lobby_over_a_real_socket_starts_a_session_that_agrees() {
     let mut host_net = TcpTransport::listen("127.0.0.1:0").expect("binding a loopback port");
@@ -105,7 +100,6 @@ fn a_lobby_over_a_real_socket_starts_a_session_that_agrees() {
     let mut host_reader = FrameReader::new();
     let mut client_reader = FrameReader::new();
 
-    // Run the lobby until the host is able to start, then start it.
     let mut started = None;
     for _ in 0..10_000 {
         for out in std::iter::from_fn(|| client.next_outgoing()).collect::<Vec<_>>() {
@@ -141,7 +135,6 @@ fn a_lobby_over_a_real_socket_starts_a_session_that_agrees() {
     let client_start = client.started().expect("the client never saw the start").clone();
     assert_eq!(start, client_start, "the two sides must start the same game");
 
-    // Hand the lobby's output to the sessions - this is the seam under test.
     let slots = start.roster.slots();
     assert_eq!(slots, vec![PlayerSlot::new(0), PlayerSlot::new(1)]);
 

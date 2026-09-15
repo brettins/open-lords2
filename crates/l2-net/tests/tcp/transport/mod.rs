@@ -17,5 +17,4 @@ use l2_net::{
     Tick, Transport, TransportError, MAX_FRAME, MAX_OUTBOX,
 };
 
-// --- the socket itself -----------------------------------------------
 

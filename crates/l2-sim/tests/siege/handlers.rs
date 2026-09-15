@@ -11,11 +11,6 @@ use l2_sim::siege::{
 };
 use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 
-/// **The headline: how many of the seventeen a running siege reaches.**
-///
-/// A field battle can reach three. Sieges are the other fourteen, and this
-/// enumerates them by running one and recording which slot every live unit
-/// dispatched to.
 #[test]
 fn a_running_siege_reaches_the_fourteen_handlers_a_field_battle_cannot() {
     let mut seen: Vec<&'static str> = Vec::new();
@@ -36,8 +31,6 @@ fn a_running_siege_reaches_the_fourteen_handlers_a_field_battle_cannot() {
     }
     seen.sort_unstable();
 
-    // The three a field battle already had are *not* in this list: the siege
-    // tables hold entirely different functions at every category.
     for field in TABLE_FIELD.iter() {
         assert!(
             !seen.contains(&field.name) || field.name == "UnitOrder_None",
@@ -61,8 +54,6 @@ fn a_running_siege_reaches_the_fourteen_handlers_a_field_battle_cannot() {
     assert_eq!(seen, all_siege, "and a running siege reaches every one of them");
 }
 
-/// The two dispatch categories that exist **only** in a siege, and only for the
-/// garrison — the one-shot latches in `BattleUnit_Create`.
 #[test]
 fn the_garrisons_first_two_missile_units_take_the_two_wall_categories() {
     let r = siege_battle(4, 7);
@@ -74,7 +65,6 @@ fn the_garrisons_first_two_missile_units_take_the_two_wall_categories() {
     wall.sort_unstable();
     assert_eq!(wall, vec![9, 10], "exactly one of each, and only for the defender");
 
-    // The besieger's missile units keep category 1 whatever it raises.
     assert!(
         (1..=l2_sim::MAX_UNITS)
             .map(|u| r.units.get(u))
@@ -83,7 +73,6 @@ fn the_garrisons_first_two_missile_units_take_the_two_wall_categories() {
         "the latches are the defender's"
     );
 
-    // And in a field battle neither latch fires at all.
     let field = BattleRunner::deploy_muster(
         l2_sim::runner::blank_field(),
         7,

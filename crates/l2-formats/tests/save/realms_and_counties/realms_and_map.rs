@@ -7,9 +7,6 @@ use super::units_and_merchants::*;
 use l2_formats::save::{Save, SaveError, COUNTY_RECORDS, NEIGHBOUR_SLOTS, REALM_RECORDS};
 use l2_testkit::{executable, saves, skip, SaveFile};
 
-/// Owner bytes are in range, name a realm that is in play, and the realms'
-/// own county tallies agree with them.
-///
 /// Two independent fields saying the same thing is the point: `+0x05` of a
 /// county and `+0x29` of a realm are written by different code, so agreement is
 /// evidence the offsets are right.
@@ -67,16 +64,6 @@ fn owner_bytes_and_realm_tallies_agree_in_every_save() {
     }
 }
 
-/// **Adjacency is symmetric.** Every neighbour list names a county that names it
-/// back, names no county twice, never names itself, stays inside the map, and
-/// leaves its unused slots zeroed.
-///
-/// This is a property of the data, so it fails if the
-/// ids are being read from the wrong offset — and it holds for every save,
-/// which is what its name has always claimed. The version of this test that
-/// broke also asserted a fourteen-county map and county 1's single neighbour;
-/// those were scenario values wearing an invariant's name, and they now live in
-/// `save_england_turn1.rs`.
 #[test]
 fn neighbour_lists_are_symmetric_in_every_save() {
     let saves = saves!();
@@ -124,16 +111,11 @@ fn neighbour_lists_are_symmetric_in_every_save() {
                 );
             }
         }
-        // A symmetric relation is counted twice, so the total is even.
         assert_eq!(edges % 2, 0, "{}: an odd number of directed edges", s.label());
     }
     eprintln!("adjacency: {edges} directed edges symmetric across {} saves", saves.len());
 }
 
-/// Every field the reader exposes as a bounded quantity is inside its bound, in
-/// every save. A byte read from the wrong offset is far more likely to land
-/// outside these than inside them, which is what makes a range check over a
-/// whole record worth writing.
 #[test]
 fn every_bounded_field_is_inside_its_bound_in_every_save() {
     let saves = saves!();
@@ -175,10 +157,6 @@ fn every_bounded_field_is_inside_its_bound_in_every_save() {
     }
 }
 
-/// Migration conserves people: across a whole map, everyone who left arrived
-/// somewhere. A one-sided migration would be a rule bug in our engine and a
-/// misread offset here, and this cannot tell the two apart — which is exactly
-///
 #[test]
 fn migration_conserves_people_across_the_whole_map() {
     let saves = saves!();
@@ -190,18 +168,10 @@ fn migration_conserves_people_across_the_whole_map() {
     }
 }
 
-/// **A property that looked like an invariant and is not**, recorded here so
-/// nobody re-derives it: `population == popLast + births - deaths + immigrants
-/// - emigrants` closes on every turn-one save and **fails from turn two on**.
-/// `battle-after.sav`'s county 2 reads 588 where the identity predicts 639.
-///
 /// Something else moves people — army recruitment and battle losses are the
 /// obvious candidates and neither is read here yet — so the five fields are not
 /// a closed system and asserting that they are would have been C12's shape
 /// again: a rule that holds on the one file anybody looked at.
-///
-/// What *is* asserted is the half that survives contact with six saves: the
-/// season's own bookkeeping never runs backwards.
 #[test]
 fn births_and_deaths_are_bounded_by_the_population_they_moved() {
     let saves = saves!();
@@ -213,8 +183,6 @@ fn births_and_deaths_are_bounded_by_the_population_they_moved() {
     }
 }
 
-/// A cheap census of what the machine offered,
-/// almost nothing says so out loud instead of printing thirteen `ok`s.
 #[test]
 fn the_suite_reports_which_saves_it_ran_over() {
     let found: Vec<SaveFile> = l2_testkit::every_available_save();
@@ -236,12 +204,5 @@ fn the_suite_reports_which_saves_it_ran_over() {
         || found.iter().any(|s| s.origin == l2_testkit::Origin::Install));
 }
 
-// --- the unit array ---------------------------------------------------------
-//
-// `g_units` is one array holding four kinds of thing, and everything below is
-// true of all four. The scenario-specific half — that the England turn-one
-// position holds six merchants and nothing else — lives in
-// `save_england_turn1.rs`, behind the fingerprinted fixture, for the reason the
-// module documentation gives.
 
 

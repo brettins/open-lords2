@@ -1,12 +1,7 @@
-//! **A field battle is fought on a field, not on a green rectangle.**
-//!
 //! `Battle_Start` (`0x004778A0`) reaches `Battlefield_BuildRandom`
 //! (`0x0047AAA3`) whenever; this is the seam between
 //! [`l2_game::batfield`], the process global the original reads
 //! `batfield.pl8` out of, and the muster the runner deploys onto it.
-//!
-//! Its own test binary on purpose: [`l2_game::batfield::publish`] is a
-//! `OnceLock`, so exactly one process may fill it.
 
 use l2_sim::runner::{blank_field, BattleRunner, Muster};
 use l2_sim::terrain::{id, FieldSheets, CELLS, DIM, RASTER_BYTES};
@@ -64,12 +59,9 @@ fn a_field_battle_deploys_onto_terrain_and_a_blank_field_has_none() {
     assert_eq!(count(id::WOODLAND), 100);
     assert_eq!(count(id::OBSTACLE), 100);
     assert_eq!(count(id::OPEN), CELLS - 300);
-    // The marker pairs are gone and their slots are filled.
     assert_eq!(field.deploy_side0[0], (42, 20));
     assert_eq!(field.deploy_side4[0], (42, 60));
 
-    // And what the runner fights on: impassable cells exist, which
-    // they never did on the blank template.
     let a: &[(Troop, u32)] = &[(Troop::Swordsmen, 4)];
     let d: &[(Troop, u32)] = &[(Troop::Archers, 4)];
     let runner = BattleRunner::deploy_muster(
@@ -97,10 +89,6 @@ fn the_shipped_batfield_holds_forty_eight_fields() {
     };
     let sheets = FieldSheets::parse(&bytes).expect("batfield.pl8 parses");
     assert_eq!(sheets.len(), FieldSheets::PLAYLIST, "the playlist at 0x0057CAE0 scatters 48");
-    // Every one of them deploys both sides and is flat, and every one but the
-    // plainest carries something to walk round. **Field 13 is genuinely bare**
-    // — open ground and the markers, nothing else — so the floor is 2, and the
-    // shape of the set is asserted instead: all four obstacle kinds appear.
     let mut featured = 0;
     let mut across = [false; 256];
     for map in 0..sheets.len() {
@@ -118,8 +106,5 @@ fn the_shipped_batfield_holds_forty_eight_fields() {
     for t in [id::WATER, id::OBSTACLE, id::ROCKS] {
         assert!(across[t as usize], "no field anywhere carries terrain {t:#04x}");
     }
-    // **No shipped field has a wood on it.** Source byte `0x0A` appears in no
-    // frame of `batfield.pl8`, so the fire model's `0x10`/`0x11` surfaces
-    // (docs/battle.md §17.5) can only be reached from a `.skr` map or a siege.
     assert!(!across[id::WOODLAND as usize]);
 }

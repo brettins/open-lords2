@@ -1,22 +1,8 @@
-//! What a *shell* screen needs: the original's artwork, the original's strings,
-//! the original's fonts, and the handful of primitives its painters call.
-//!
-//! # What a shell is, and what it is not
-//!
 //! Twenty-nine screens are identified in `docs/screens-county.md` §1 and five
 //! are implemented. The rest are shells: each one loads **the `.pl8` its
 //! painter loads** and draws **the `L2.eng` group its painter draws**, at the
 //! coordinates read out of that painter, with nothing behind it. A shell is a
 //! real surface with no logic, not a mock-up.
-//!
-//! The distinction matters because this project has thrown an invented
-//! interface away once already — `screens/county.rs` opens by admitting it used
-//! to be a made-up full-screen page listing twenty-two fields, built because
-//! nobody had looked at what the original drew. Nothing in this module invents
-//! a layout. Where a coordinate is unknown it says so and places the
-//! thing plainly, so that a reader can tell a gap from a guess.
-//!
-//! # Every screen has its own palette
 //!
 //! The management screens run under the campaign palette. The front end does
 //! not: `gateway.256`, `merchant.256`, `armoury.256`, `cas_back.256`,
@@ -25,8 +11,6 @@
 //! 0x004EA8A0, 0x300)` then `Palette_Set`). A canvas of palette indices is
 //! meaningless without knowing which one, so [`Screen::palette`] names it and
 //! the presenter asks the top screen.
-//!
-//! [`Screen::palette`]: crate::screen::Screen::palette
 
 mod assets;
 pub use assets::*;
@@ -46,34 +30,16 @@ use l2_view::Canvas;
 pub use eng::Eng;
 pub use font::Font;
 
-/// The full-screen background sheets, one 640 × 480 frame each, plus the
-/// smaller sheets a shell draws on top of one.
-///
-/// Every name here is a literal in the painter that loads it. The list is
-/// eager because it is small — the six full-screen backgrounds are 300 KB each
-/// and [`Sheet`] decodes lazily, so what this costs is the read, not the
-/// decode — and because a lazy cache would need interior mutability on a path
-/// that `draw` is only allowed to see through `&`.
 pub const SHEETS: &[&str] = &[
-    // 0x1C the conquest screen and 0x1F pages 1..6, 10
     "Gateway.pl8",
     "Panels2.pl8",
-    // 0x1F pages 7..9 — the custom game
     "Custom.pl8",
-    // 0x1F pages 11..13 — skirmish
     "Skirmish.pl8",
     "Skircust.pl8",
-    // the setup mode's icon sheet, g_miscCtySheet
     "Misc_sel.pl8",
-    // 0x08 the merchant, and 0x0C trade goods, which draws over it
     "Merchant.pl8",
     "Mercgrid.pl8",
     "Icontrad.pl8",
-    // 0x0A / 0x0D the armoury. `Arm_it_<c>.pl8` is the one sheet the armoury
-    // and the raise-army screen share — the weapons on the walls, the eight
-    // troop portraits along the bottom, and the six little weapon icons the
-    // levy screen prints its stocks beside. Which of the five is loaded is the
-    // realm's `shield_index`; see [`crate::screens::armoury::items_sheet`].
     "Armoury.pl8",
     "Arm_grid.pl8",
     "Arm_it_r.pl8",
@@ -90,13 +56,6 @@ pub const SHEETS: &[&str] = &[
     "Arm_pike.pl8",
     "Arm_bow.pl8",
     "Arm_mail.pl8",
-    // 0x0A / 0x0D, the room in motion: two guttering torches and the soldier
-    // who walks over and takes the weapon down off the wall. `Armtorch.pl8` is
-    // 26 frames — thirteen per torch — and each `Trp_<weapon>_<colour>.pl8` is
-    // 21 of 89 × 158: eight walking in, five taking it down, eight carrying it
-    // out. See [`crate::screens::armoury::Walker`].
-    //
-    // **Thirty sheets, 3.3 MB, and the original reads exactly one of them.**
     // `FUN_004AABD8` picks it by the local player's shield colour and the
     // weapon just assigned, at the moment the walk starts — which is a read
     // during a click, and this list is eager because a lazy cache would need
@@ -134,21 +93,14 @@ pub const SHEETS: &[&str] = &[
     "Trp_pi_b.pl8",
     "Trp_ar_b.pl8",
     "Trp_kn_b.pl8",
-    // 0x0B the other lords
     "Faces.pl8",
-    // 0x1B castle building
     "Cas_back.pl8",
     "Caspics.pl8",
     "Cas_bits.pl8",
-    // 0x2E the ratings
     "Score1.pl8",
-    // 0x20 the standings: the page, and the six-frame banner sheet on it —
-    // five 51 x 92 shields and one 23 x 60 tab marker.
     "Grtnoble.pl8",
     "Flags.pl8",
-    // 0x1D siege preparations
     "Sgeplans.pl8",
-    // 0x11 army division
     "Icon_tmp.pl8",
     // 0x0F job 8 — the blacksmith page. `Panel_JobBlacksmith` (`0x00413155`)
     // `File_ReadChunk`s both into the same scratch buffer, one after the other,
@@ -157,11 +109,9 @@ pub const SHEETS: &[&str] = &[
     // eleven 69 x 52 fire frames and six hearths, one per weapon.
     "Smithy.pl8",
     "Hearth.pl8",
-    // 0x0F, every job — `Panel_JobDetail`'s icon recess. 17 frames of 48 x 48.
     "Iconvill.pl8",
 ];
 
-/// The `.256` files those screens set as the display palette.
 pub const PALETTES: &[&str] = &[
     "Gateway.256",
     "Custom.256",
@@ -178,7 +128,6 @@ pub const PALETTES: &[&str] = &[
     // with `Palette_Set(0x568EE0)`. **It was missing from this list** while
     // `BattlefieldScreen::palette` named it, so the lookup failed and the
     // presenter drew a battle in `base01.256` — *"blue grainy madness"*.
-    //
     "T32_bat1.256",
     // And the siege arm, `Palette_Set(0x5675A0)` = `t32_stn1.256`, record 1 of
     // the same table. This list said it was NOT PORTED because it *"belongs
@@ -192,36 +141,19 @@ pub const PALETTES: &[&str] = &[
     "T32_stn1.256",
 ];
 
-/// The artwork and text a shell screen draws with.
-///
-/// Everything is optional: a partial install, or a machine with no copy of the
-/// game at all, still lays every screen out — with our own flat panels and
-/// blank labels, and looking it. `docs/plan.md`'s rule that a stub should be
-/// visibly ours applies here too.
 pub struct ShellAssets {
     pub eng: Option<Eng>,
     pub body: Option<Font>,
     pub heading: Option<Font>,
     pub small: Option<Font>,
-    /// `Fnt_8.pl8`, `g_font8` — see [`font::EIGHT`] for where the original
-    /// loads it and why nothing here draws with it yet.
     pub eight: Option<Font>,
-    /// `Font_10.pl8`, `g_font10` — the county strip's numbers. A numeral face:
-    /// see [`font::TEN`] for why nothing but a number may be drawn in it.
     pub ten: Option<Font>,
     sheets: BTreeMap<String, Sheet>,
     palettes: BTreeMap<String, Palette>,
-    /// `mercgrid.pl8`'s 80 x 60 byte map, with its 24-byte header stripped.
-    /// Empty when the file is not installed. See [`ShellAssets::merchant_grid`].
     merchant_grid: Vec<u8>,
-    /// `arm_grid.pl8`'s, the same shape and read by the same arithmetic.
-    /// See [`ShellAssets::armoury_grid`].
     armoury_grid: Vec<u8>,
 }
 
-/// `mercgrid.pl8` is an **80 x 60 grid of eight-pixel cells over the whole
-/// screen**, one byte a cell holding the good id under it.
-///
 /// `File_ReadChunk("mercgrid.pl8", &g_villageGrid, 0x12D8, 0)` reads the file
 /// whole — 4,824 bytes, which is these 4,800 cells plus a 24-byte `.pl8`
 /// header — and `FUN_004357A6` then indexes it as
@@ -233,24 +165,14 @@ pub const MERCHANT_GRID_COLS: usize = 80;
 pub const MERCHANT_GRID_ROWS: usize = 60;
 pub const MERCHANT_GRID_CELL: i32 = 8;
 pub const MERCHANT_GRID_LEN: usize = MERCHANT_GRID_COLS * MERCHANT_GRID_ROWS;
-/// The bytes of a `.pl8` before its single frame's data.
 pub const GRID_HEADER: usize = 24;
 
 impl ShellAssets {
 }
-/// A pen: the two fonts, the emboss colours the screen wants, and a fallback.
-///
-/// Every shell screen draws through one of these so that the *same* painter
-/// works on a full install and on a machine with no copy of the game. With the
-/// fonts present it is the original's text, embossed the original's way; with
-/// them absent it is `l2_view::text`'s 5 × 7 font in the palette-resolved
-/// interface colours, which lays out in the same places and is obviously ours.
 #[derive(Clone, Copy)]
 pub struct Pen<'a> {
     pub assets: &'a ShellAssets,
     pub ink: &'a l2_view::Ink,
-    /// `Panels.pl8` and the button sheet, when the install has them. Several
-    /// shells draw a `Ui_DrawBox` from that kit over their own background.
     pub chrome: Option<&'a l2_view::chrome::Chrome>,
     /// `Ui_DrawText`'s two shadow colours — [`font::SHADOW`] on most screens,
     /// [`font::SHADOW_GATEWAY`] on the setup and conquest pages — or `None`
@@ -276,30 +198,10 @@ pub const TRAILING: i32 = 4;
 /// types, 68 *"Grain"*, 70/71 *"Cow."*, 72/73 *"Total men"*.
 pub const COUNT_NOUN_GROUP: usize = 8;
 
-/// **Which face a call site names** — the `font` argument `Ui_DrawText` and
-/// everything above it take: `&g_fontBody` (`Fntl2_14.pl8`), `&g_fontHeading`
-/// (`Fntl2_22.pl8`) or `&g_font8` (`Fnt_8.pl8`).
-///
-/// They are not interchangeable, and the choice is the call site's, not the
-/// helper's: `Ui_DrawCount` is body at 78 of its 80 call sites and heading at
-/// the other two, and `Court_Draw` puts every store value in heading beside a
-/// heading label where we had drawn them in body. A helper that hard-codes one
-/// face is a helper that draws some screen in the wrong one.
-///
-/// **The original preloads five faces, not three or four** — `Res_LoadStatic`'s
-/// records 3…7 are `fnt_8`, `fntl2_9`, `font_10`, `fntl2_14`, `fntl2_22` — and
-/// all five are loaded. Two have no variant here, because no `Pen` caller names
-/// them: `&g_fontSmall` and `&g_font10` are drawn only on the county strip (and
-/// `&g_fontSmall` once more, in `Screen_DrawEndTurn`), which draws through
-/// `ShellAssets::small` and `ShellAssets::ten` directly. See [`font::TEN`] for
-/// why the fifth face is a numeral face. Counted from the bytes, not the
-/// decompilation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Face {
     Body,
     Heading,
-    /// `g_font8`. **No screen of ours names it**: every call site in the
-    /// original is one of six developer read-outs — [`font::EIGHT`].
     Eight,
 }
 
@@ -316,17 +218,9 @@ pub const COUNT_LEAD: char = '@';
 /// out of the shipped `Lords2.exe` at file offset `0xD23F4`. **[V]**
 pub const COUNT_SUFFIX: &str = "";
 
-/// Which of `Ui_DrawCount`'s singular/plural pair a value takes.
-///
 /// **`|value| == 1`, not `value == 1`**, and this is a free function so that
 /// the rule can be asserted without a canvas, a font or an install. It is the
 /// exact ladder at `0x0041AB67`:
-///
-/// ```c
-/// if (value == 1)       Eng_DrawString(8, unitIndex,     ...);
-/// else if (value == -1) Eng_DrawString(8, unitIndex,     ...);
-/// else                  Eng_DrawString(8, unitIndex + 1, ...);
-/// ```
 ///
 /// Three arms where two would do, because **minus one is singular**. We had
 /// only the first, so `-1` drew the plural — *"−1 Sacks."* where the original
@@ -362,23 +256,9 @@ mod tests {
         assert_eq!(seen.len(), before);
     }
 
-    /// **A palette a screen names is a palette something loads.** The
-    /// battlefield named `T32_bat1.256` for as long as it existed and this list
-    /// never carried it, so the presenter's `shell.palette(name)` found nothing,
-    /// fell through to `base01.256`, and a player saw the battle in the
-    /// campaign's colours. It needs no install: both halves are names.
-    ///
-    /// **Both of the screen's palettes**
-    /// names: `Screen_DrawBattlefield` chooses on `g_battleIsSiege`, and the
-    /// siege arm went unloaded for as long as it was a comment, falling back
-    /// to `base01.256`
-    ///
 /// The loop walks `Ground::ALL`, so a
     /// ground added later cannot bring a palette nobody loads: that is C201's
     /// form, kept over C200's two-name list.
-    ///
-    /// Ablation, run: delete `"T32_bat1.256"` or `"T32_stn1.256"` above — red,
-    /// *"… is named by the battlefield and loaded by nobody"*.
     #[test]
     fn the_battlefields_palette_is_one_the_shell_loads() {
         let name = crate::screen::ScreenId::Battlefield.build().palette();
@@ -409,11 +289,6 @@ mod tests {
         assert_eq!(c.count(0), 640 * 480, "and it drew nothing at all");
     }
 
-    /// **All five faces are announced, and `Fntl2_9.pl8` was the one that was
-    /// not.** The complaint checked `body` and `heading`; `small` draws the
-    /// build stamp and the county strip, and its absence was silent. `ten`
-    /// draws every number on the jobs plate, and joins the list with it.
-    ///
     /// Ablated by deleting the `small` arm of `missing_fonts`: the list comes
     /// back with two names and this goes red naming the third. Verified.
     #[test]

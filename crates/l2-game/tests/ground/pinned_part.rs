@@ -11,15 +11,6 @@ use l2_view::chrome::panels;
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-/// **The join, and the reason every other test in this file uses literals.**
-///
-/// This is the only place where a constant from the crate meets the number the
-/// decompilation carries. Ablating any of those constants fails *here*, by name,
-/// with the painter's address in the message — instead of quietly moving a probe
-/// along with the thing it was supposed to be probing.
-///
-/// It needs no install and is deliberately not gated: a constant that has drifted
-/// away from the binary is wrong on a machine with no copy of the game too.
 #[test]
 fn pinned() {
     assert_eq!(
@@ -79,5 +70,4 @@ fn pinned() {
     );
 }
 
-// ---------------------------------------------------------------- diplomacy
 

@@ -1,16 +1,3 @@
-//! Replays, and the CI check they exist to make possible.
-//!
-//! `docs/netcode.md` §6 calls this the part that pays for itself, and
-//! `docs/decisions.md` D7 explains why: two implementations agreeing
-//! proves only that the same author ported the same misunderstanding
-//! twice, while a property of the *data* is a real check. A recorded
-//! session that must replay to bit-identical checksums is a property of
-//! the data, and it runs on one machine with no network and no second
-//! player.
-//!
-//! The last test in this file is the shape a real replay corpus takes:
-//! record a session, keep the bytes, and assert forever after that they
-//! still reproduce.
 
 mod common;
 
@@ -20,8 +7,6 @@ use l2_net::{
     ReplayMismatch, Session, Simulation, Tick,
 };
 
-/// One peer playing alone, which is enough to record a session: the
-/// lockstep core does not care that the other slots are empty.
 fn record_a_session(seed: u64, rounds: usize) -> (Replay, ToySim) {
     let slots = [PlayerSlot::new(0)];
     let mut sim = ToySim::new(seed, 5);
@@ -60,8 +45,6 @@ fn a_recorded_session_replays_to_the_same_state() {
     assert_eq!(state_hash(&fresh), state_hash(&played), "the final states must be identical");
 }
 
-/// The whole point: a simulation that has stopped being deterministic
-/// fails this, on one machine, with no second player.
 #[test]
 fn a_replay_catches_a_simulation_that_has_changed() {
     let (replay, _) = record_a_session(3, 30);
@@ -72,8 +55,6 @@ fn a_replay_catches_a_simulation_that_has_changed() {
         Err(ReplayMismatch::Diverged { tick, recorded, actual }) => {
             assert_ne!(recorded, actual);
             assert!(tick.0 > 0);
-            // The first differing tick, not the last: a list of every
-            // tick that differs afterwards carries no information.
             let first_command = replay.commands.first().map(|(t, _)| *t).unwrap();
             assert!(tick >= first_command);
         }
@@ -115,7 +96,6 @@ fn a_replay_round_trips_through_its_encoding() {
     assert_eq!(decoded, replay);
     assert_eq!(Canonical::bytes_of(&decoded), bytes);
 
-    // And the decoded copy is still a working replay.
     decoded.verify(&mut ToySim::new(11, 5)).expect("a decoded replay must still reproduce");
 }
 
@@ -124,8 +104,6 @@ fn a_replay_is_small() {
     let (replay, _) = record_a_session(13, 200);
     let bytes = Canonical::bytes_of(&replay);
     assert!(replay.hashes.len() > 190);
-    // A few kilobytes for two hundred ticks. Most of it is the
-    // per-tick checksums, which are what make a divergence localisable
     assert!(bytes.len() < 16 * 1024, "{} bytes for 200 ticks", bytes.len());
 }
 
@@ -147,20 +125,6 @@ fn a_replay_can_be_queried_by_tick() {
     assert!(replay.hash_at(Tick(9_999)).is_none());
 }
 
-/// A pinned end-to-end value, which is what a replay corpus in CI is
-/// for.
-///
-/// Recording a session and then replaying it in the same test proves
-/// only that the code agrees with itself — the failure mode
-/// `docs/decisions.md` D7 warns about. The constant below is what makes
-/// this a regression test instead: it was produced by this crate on one
-/// day and written down, so it fails if the PRNG stream moves, if
-/// `Fixed`'s rounding changes, if the canonical encoding shifts a
-/// field, or if the session starts ordering commands differently.
-///
-/// A real corpus would be a directory of recorded battles. One pinned
-/// session is the same check at the smallest size that still runs on a
-/// bare checkout.
 #[test]
 fn a_recorded_session_still_produces_the_checksum_it_did_when_written() {
     let (replay, sim) = record_a_session(0x1234, 12);
@@ -179,7 +143,6 @@ fn a_recorded_session_still_produces_the_checksum_it_did_when_written() {
         "the replay file's own bytes changed, so old recordings will no longer decode"
     );
 
-    // And it still round-trips and reproduces from those bytes.
     let stored: Replay = decode_all(&Canonical::bytes_of(&replay)).unwrap();
     let mut fresh = ToySim::new(0x1234, 5);
     let final_tick = stored.verify(&mut fresh).expect("the recording must still reproduce");
@@ -188,8 +151,6 @@ fn a_recorded_session_still_produces_the_checksum_it_did_when_written() {
     assert_eq!(stored.slots, vec![PlayerSlot::new(0)]);
 }
 
-/// A replay records the commands *as applied*, which is already in the
-/// order `order_commands` produced. Re-ordering it must be a no-op.
 #[test]
 fn the_recorded_command_order_is_already_canonical() {
     let (replay, _) = record_a_session(19, 30);
@@ -201,8 +162,6 @@ fn the_recorded_command_order_is_already_canonical() {
     }
 }
 
-/// The trait is all a replay needs, so anything implementing it can be
-/// replayed — including a simulation this crate has never heard of.
 #[test]
 fn replaying_needs_nothing_but_the_trait() {
     struct Counter(i64);

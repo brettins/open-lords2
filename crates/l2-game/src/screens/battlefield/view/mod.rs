@@ -50,8 +50,6 @@ impl Banner {
     }
 }
 
-/// **The overview panel's framebuffer and its row cursor.**
-///
 /// `FUN_004BC1D1` (`0x004BC1D1`) is the whole schedule:
 ///
 /// ```c
@@ -75,23 +73,10 @@ impl Banner {
 /// a frame — a twenty-frame sweep — for the rest of the battle.** `[V]`; that
 /// last decrement is what settles it, and without reading `FUN_004BC142` the
 /// obvious reading is that the full pass runs every frame.
-///
-/// The original paints into the back buffer and the seventy-six rows it did not
-/// visit keep the pixels they already had; ours keeps them in a raster of its
-/// own and blits the whole of it, because our canvas has a yes/no box and a film
-/// pushed over it and the original's screen has neither.
-///
-/// One difference that follows from that and is left: the original repeats the
-/// entry pass every time `Screen_DrawBattlefield` runs, which includes the
-/// return from an outcome film. The raster survives the push, so ours does not
-/// need to — it is up to twenty frames behind for that one moment instead of
-/// none.
 pub(super) struct Overview {
     pub(super) raster: Canvas,
     /// `DAT_004E5D74`.
     pub(super) row: usize,
-    /// `g_mapRedraw`, as this panel sees it: the next visit paints all eighty
-    /// rows. Set on entry, cleared by the visit itself.
     pub(super) full: bool,
 }
 

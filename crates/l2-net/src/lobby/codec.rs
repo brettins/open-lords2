@@ -6,7 +6,6 @@ use crate::command::{PlayerSlot, MAX_PLAYERS};
 use crate::packet::{Hello, Mismatch};
 use crate::transport::PeerId;
 
-/// A client's request to sit down.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Join {
     pub hello: Hello,
@@ -58,9 +57,6 @@ impl Encode for Roster {
 impl Decode for Roster {
     fn decode(input: &mut Reader<'_>) -> Result<Self, CodecError> {
         let players = input.seq(Player::decode)?;
-        // The sort order is part of the contract, so a peer that claims
-        // otherwise is refused. A roster out of order would
-        // hand Session::new a different slot list on one machine.
         if players.windows(2).any(|w| w[0].slot.index() >= w[1].slot.index()) {
             return Err(CodecError::BadTag {
                 tag: 0,

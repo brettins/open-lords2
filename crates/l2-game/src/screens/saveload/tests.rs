@@ -17,8 +17,6 @@ mod tests {
     fn the_two_screens_are_one_painter_with_a_mode_flag() {
         assert_eq!(Mode::Load.screen_id(), 0x35);
         assert_eq!(Mode::Save.screen_id(), 0x36);
-        // The painter's argument *is* the string index: `Eng_DrawString(40,
-        // saving, ...)`.
         assert_eq!(Mode::Load.heading_index(), 0);
         assert_eq!(Mode::Save.heading_index(), 1);
         assert_eq!(Mode::Load.working_index(), 2);
@@ -27,8 +25,6 @@ mod tests {
 
     #[test]
     fn the_thirty_rows_fill_the_rectangle_the_painter_reserves_for_them() {
-        // `Ui_DrawBoxInterior(box.x + 0x1E, box.y + 0x6A, 0x15, 10)` — 21 × 10
-        // cells at (46, 250), so 336 × 160 covering x 46 … 381, y 250 … 409.
         let interior = Rect::new(INTERIOR.0, INTERIOR.1, INTERIOR.2, INTERIOR.3);
         let first = SaveLoadScreen::row_rect(0);
         let last = SaveLoadScreen::row_rect(PAGE - 1);
@@ -39,10 +35,6 @@ mod tests {
             ROWS as i32 - 1,
             "ten rows, and the last one is the tenth"
         );
-        // The tenth row's *text* sits inside; its 16-pixel step overhangs the
-        // interior's last two pixels, which is the painter's own arithmetic —
-        // the box starts at 250 and the first baseline at 252 — and not a slip
-        // here. The body font is 14 pixels tall.
         assert!(last.y + 14 <= interior.y + interior.h, "the tenth name at {} spills", last.y);
         for i in 0..PAGE {
             let r = SaveLoadScreen::row_rect(i);
@@ -54,7 +46,6 @@ mod tests {
 
     #[test]
     fn the_rows_run_across_before_they_run_down() {
-        // The painter steps x by 0x78 twice and only then resets and steps y.
         assert_eq!(SaveLoadScreen::row_rect(0).y, SaveLoadScreen::row_rect(2).y);
         assert_eq!(SaveLoadScreen::row_rect(1).x - SaveLoadScreen::row_rect(0).x, COL_W);
         assert_eq!(SaveLoadScreen::row_rect(3).x, SaveLoadScreen::row_rect(0).x);
@@ -69,9 +60,6 @@ mod tests {
             assert!(x + w <= box_r.x + box_r.w, "inset ({x}, {y}) is {} wide", x + w);
             assert!(y + h <= box_r.y + box_r.h, "inset ({x}, {y}) is {} tall", y + h);
         }
-        // The widgets, on the reading this module argues for. Absolutely they
-        // would be at y = 64 and y = 144, above this window entirely, which is
-        // the argument.
         for w in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN] {
             let r = widget_rect(w);
             assert!(
@@ -120,7 +108,6 @@ mod tests {
         assert!(s.top + PAGE >= s.entries.len(), "the last name must be reachable");
         assert_eq!(s.max_top() % SCROLL_STEP, 0, "the top is always a whole row of three");
 
-        // A list that fits on the page does not scroll at all.
         s.entries.truncate(PAGE);
         s.top = 0;
         s.scroll(SCROLL_STEP as i32);

@@ -5,14 +5,7 @@ use l2_sim::siege;
 use l2_sim::terrain::{id, DIM};
 use l2_sim::{BattleRunner, Muster, Troop};
 
-/// **The garrison lowers its own drawbridge**, and what that costs it.
-///
 /// `FUN_00496B9F` sets exactly the globals the twenty-thousandth ram hit sets:
-/// `_DAT_00569588`, and four on each of the two progress scores. So opening
-/// your own gate to sally hands the besieger's AI the same signal it would have
-/// got from breaking the gate down itself — which is the mechanical reason the
-/// shipped `Readme.txt` says *"drawbridges can not be closed once they have
-/// been opened."*
 #[test]
 fn lowering_the_drawbridge_opens_a_way_through_and_tells_the_besieger_so() {
     let mut r = siege_battle(3, 7);
@@ -36,13 +29,9 @@ fn lowering_the_drawbridge_opens_a_way_through_and_tells_the_besieger_so() {
         "every cell the patch covered had its flags cleared",
     );
 
-    // Once, and once only.
     assert!(!r.lower_drawbridge(), "a drawbridge cannot be raised again");
 }
 
-/// **The patch is 7 × 4 and the frames are the ones in the executable**, laid
-/// down in the patch's own row-major order.
-///
 /// A table exercised at one input is `docs/decisions.md` C26's shape, so this
 /// reads all twenty-eight cells back off the field. The **shape** is what makes
 /// the *reading* checkable: fifteen cells carry
@@ -88,8 +77,6 @@ fn the_drawbridge_patch_is_seven_by_four_and_drawn_with_the_executables_frames()
     );
 }
 
-/// **A palisade has nothing to lower**, and the button is not spent trying.
-///
 /// The original's latch is set *inside* the search's `if`, so a castle with no
 /// `0x40` cell leaves `DAT_0052AF9C` clear. It matters because the level-3
 /// guard and the search are two separate tests — the first is the button's and
@@ -106,13 +93,6 @@ fn a_castle_with_no_drawbridge_does_not_spend_the_latch() {
     }
 }
 
-/// The bridge is a **way through**.
-///
-/// `Cell_TryEnter` refuses a `0x40` cell to **both** sides — it is the one
-/// castle flag that is not a side test — so a raised drawbridge is a shut gate
-/// to the garrison as well. Lowering it leaves plain ground behind, and
-/// `strike_castle` then has nothing to catch, which is what lets a sallying
-/// garrison walk out.
 #[test]
 fn the_lowered_bridge_is_a_way_through_where_the_raised_one_was_a_wall() {
     let mut r = siege_battle(3, 21);
@@ -134,7 +114,4 @@ fn the_lowered_bridge_is_a_way_through_where_the_raised_one_was_a_wall() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The two accumulators
-// ---------------------------------------------------------------------------
 

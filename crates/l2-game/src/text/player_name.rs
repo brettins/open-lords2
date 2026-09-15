@@ -18,19 +18,12 @@ use crate::input::{Event, Key};
 /// [`crate::scenario::from_save`] fills this array from it. A `String` here
 /// would put a length prefix and an allocation into something the original
 /// writes as a fixed run of bytes.
-///
-/// **Latin-1 in, Latin-1 out** — `docs/formats/eng.md` — so a byte here is a
-/// `char` under `0x100`.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct PlayerName([u8; PLAYER_NAME_LEN]);
 
 impl PlayerName {
     pub const EMPTY: PlayerName = PlayerName([0; PLAYER_NAME_LEN]);
 
-    /// Truncated at [`PLAYER_NAME_LEN`], which is `Edit_Commit`'s truncation.
-    /// Characters above Latin-1 cannot come out of a [`TextField`] — the
-    /// filter refuses everything above `0xE1` — but a caller with a `String`
-    /// from somewhere else drops them
     pub fn new(s: &str) -> PlayerName {
         let mut out = [0u8; PLAYER_NAME_LEN];
         for (slot, c) in out.iter_mut().zip(s.chars().filter(|c| (*c as u32) < 0x100)) {
@@ -47,8 +40,6 @@ impl PlayerName {
         PlayerName(b)
     }
 
-    /// The name as text, stopping at the terminator the way every reader in the
-    /// binary does.
     pub fn as_str(&self) -> String {
         self.0.iter().take_while(|b| **b != 0).map(|b| *b as char).collect()
     }

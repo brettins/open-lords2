@@ -11,13 +11,11 @@ use crate::screens::options::Page;
 use crate::screens::saveload::Mode;
 use crate::shell::font;
 
-/// **Screen `0x32` — a drop-down is open.**
 pub struct DropdownScreen {
     /// `DAT_00522CB4`, but zero-based: which of the three titles is down.
     menu: usize,
     /// `DAT_00522CB0`, zero-based: the item under the pointer, if any.
     hover: Option<usize>,
-    /// Ours: what a refused item said
     ///.
     status: String,
 }
@@ -35,16 +33,11 @@ impl DropdownScreen {
         self.hover
     }
 
-    /// One item's handler.
-    ///
-    /// The original restores `g_screenId = g_menuPrevScreen` **before** calling
-    /// it
-    /// the player where he was. `Transition::Pop` first is that ordering; a
-    /// `Push` on top of the pop is a handler that moved.
     fn run(&mut self, ctx: &mut Ctx, item: Item) -> Transition {
         match item {
             // `Menu_NewGame`: `Ui_OpenConfirm(1, …)` — group 10 index 1,
             // *"Start a new game?"*, on screen 0x1E.
+            //
             // arm: 0x0040DECA/file-new-game left-press
             Item::NewGame => Transition::Replace(ScreenId::Confirm(confirm::Ask::NewGame)),
             // arm: 0x0040DECA/file-load left-press
@@ -54,13 +47,11 @@ impl DropdownScreen {
             // `Menu_Quit` (`0x004343F8`): `Ui_OpenConfirm(0, 0xA0, 0xA0,
             // FUN_0043441C)`, *"Exit the game?"* — group 10 index 0, on screen
             // 0x1E. The quit is the box's yes, not this item.
+            //
             // arm: 0x0040DECA/file-quit left-press
             Item::Quit => Transition::Replace(ScreenId::Confirm(confirm::Ask::Quit)),
             // arm: 0x0040DECA/options-and-help-pages left-press
             Item::Options(page) => Transition::Replace(ScreenId::Options(page)),
-            // `Ui_OpenSlider` on one option — screen `0x21`, the value spinner.
-            // We have the two values on the options pages instead, and no
-            // spinner; the item says so.
             // arm: 0x0040DECA/options-sliders left-press
             Item::Slider(what) => {
                 self.status = format!("{what} IS ON THE ADVANCED PAGE - NO SPINNER (SCREEN 0x21)");
@@ -72,6 +63,7 @@ impl DropdownScreen {
             // 0x127, all category `0x13` — [`crate::message::category::HELP`],
             // whose window geometry is `g_helpWindowGeom` (`0x004D6EB8`). The
             // topic goes on the ring and the menu closes behind it.
+            //
             // arm: 0x0040DECA/help-topics left-press
             Item::Help(id) => {
                 let player = ctx.game.player;
@@ -111,9 +103,6 @@ impl Screen for DropdownScreen {
         format!("Menu {} - screen 0x32", MENUS[self.menu].fallback)
     }
 
-    /// `Screen_Draw`'s `0x32` arm is `Menu_RestoreBackdrop` and nothing else:
-    /// the band under the bar is put back and whatever was around it is still
-    /// on screen from the last frame.
     fn is_overlay(&self) -> bool {
         true
     }
@@ -148,9 +137,6 @@ impl Screen for DropdownScreen {
                         let t = self.run(ctx, item);
                         return match t {
                             Transition::Stay => Transition::Stay,
-                            // The handler ran with `g_screenId` already back to
-                            // `g_menuPrevScreen`, so it lands *there* and not on
-                            // top of the drop-down.
                             other => other,
                         };
                     }
@@ -161,8 +147,6 @@ impl Screen for DropdownScreen {
             // `if (FUN_0040DD92(...) == 0 && g_mouseRightReleased) FUN_0040DF62();`
             // arm: 0x0042FF10/dropdown-right-close right-release
             Event::RightClick { .. } => return Transition::Pop,
-            // **Ours.** The original has no key here: the window procedure's
-            // Escape arm is `Menu_Quit` and never reaches screen 0x32.
             // arm: ours/dropdown-escape-closes key
             Event::KeyDown(Key::Escape) => return Transition::Pop,
             _ => {}
@@ -199,9 +183,6 @@ impl Screen for DropdownScreen {
         for i in 0..MENUS[self.menu].items.len() {
             let picked = self.hover == Some(i);
             if picked {
-                // 176 x 16 at (x + 8, item.y + y + 0x1E) — **not** the width of
-                // the hit box, which is 144, and not the width of the plate,
-                // which is 192.
                 canvas.fill_rect(
                     plate.x + HIGHLIGHT_DX,
                     BAR_Y + MENUS[self.menu].items[i].0 + HIGHLIGHT_DY,
@@ -211,8 +192,6 @@ impl Screen for DropdownScreen {
                 );
             }
             let caption = item_text(ctx, self.menu, i);
-            // `Eng_DrawString(group, index, x + 0x10, item.y + y + 0x20, body,
-            // picked ? 0x18 : 0x3F)`.
             let colour = if picked { PICKED_INK } else { font::TEXT };
             pen.body(
                 canvas,
@@ -223,9 +202,6 @@ impl Screen for DropdownScreen {
             );
         }
 
-        // **Ours**
-        // for the game's wording: what a refused item could not do.
-        // Debug overlay only.
         if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             text::draw(canvas, plate.x, plate.y + plate.h + 4, &self.status, ink.bad);
         }

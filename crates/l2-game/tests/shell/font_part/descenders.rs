@@ -36,9 +36,6 @@ fn the_fonts_send_descenders_to_the_frames_that_have_them() {
         assert_ne!(e, 0, "{c} has no glyph");
         &pl8.frames[e as usize - 1]
     };
-    // The five letters with descenders are taller than the five without, in
-    // the same file, under the same map. Nothing but the right mapping does
-    // that.
     for d in "gjpqy".chars() {
         for n in "acemn".chars() {
             assert!(
@@ -47,8 +44,6 @@ fn the_fonts_send_descenders_to_the_frames_that_have_them() {
             );
         }
     }
-    // And an uppercase letter is taller again than a lowercase one without an
-    // ascender.
     assert!(frame('A').height > frame('a').height);
 }
 

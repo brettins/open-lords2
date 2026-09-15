@@ -1,5 +1,3 @@
-//! Drawing a battle: the tile viewport, then the men on it.
-//!
 //! The geometry is the original's, taken from the arguments
 //! `Battle_LoadAssets` (`0x004987B7`) passes to the tile renderer's setup
 //! (`0x004BC020`):
@@ -16,22 +14,19 @@
 //!
 //! Figures are drawn between the two terrain passes, sorted by map y ascending
 //! (`0x004BDA92`), which makes a man lower on the field overlap one behind him.
-//! **[V]**
 //!
-//! # Three things a player saw, and the functions they are
+//! **[V]**
 //!
 //! * **Where a walking man is.** `BattleMan_Step` (`0x0048F1DD`) *enters* the
 //!   next cell before it walks — see [`drawn_cell`] — so the picture trails him
 //!   behind the cell he is in. Ours drew the trail behind the cell he was
 //!   leaving, and a player saw every man *"reset on their square once as they
 //!   move"*.
+//!
 //! * **The clip.** `FUN_004BC020` also stores the viewport as the rectangle
 //!   every battle sprite is clipped to — [`FIELD_CLIP`]. Ours blitted men
 //! unclipped into the menu bar, the right column and the strip under the
 //!   field, where nothing repaints them: the *"ghosting"*.
-//! * **The palette** is not here: this crate draws indices, and which `.256`
-//!   they mean is the presenter's, which resolves [`TILE_PALETTE`] through
-//!   `l2_game::shell::PALETTES` like every other page's name.
 
 mod render;
 pub use render::*;
@@ -53,8 +48,6 @@ pub const VIEW_ROWS: usize = 14;
 pub const ORIGIN_X: i32 = 0;
 pub const ORIGIN_Y: i32 = 24;
 
-/// **The rectangle every man, horse and missile on the field is clipped to.**
-///
 /// `FUN_004BC020` (`0x004BC020`) stores it beside the geometry —
 /// `DAT_004E6564 = param_7`, `DAT_004E5D54 = param_9 * param_11 + param_7`,
 /// `DAT_004E5D48 = param_8`, `DAT_004E5D6C = param_10 * param_11 + param_8` —
@@ -75,8 +68,6 @@ pub const FIELD_CLIP: Clip = Clip::new(
     ORIGIN_Y + VIEW_ROWS as i32 * TILE,
 );
 
-/// The field-battle tileset. [`Ground`] carries the siege pair —
-/// `t32_stn1`/`t32_stn2` and `t32_wod1`/`t32_wod2`.
 pub const TILESET: &str = "T32_bat1.pl8";
 
 /// **The two battle palettes**, records 2 and 1 of `g_preloadTable`
@@ -123,9 +114,7 @@ pub enum Ground {
     /// `t32_bat1.pl8`. Slot 1 is skipped: `t32_bat2.pl8`'s size in the table is
     /// **0** and the install does not ship the file. **[V]**
     Field,
-    /// Castle levels 2, 3 and 4 — `t32_stn1` over `t32_stn2`.
     Stone,
-    /// Castle levels 0 and 1 — `t32_wod1` over `t32_wod2`.
     Wood,
 }
 
@@ -149,8 +138,6 @@ impl Ground {
         }
     }
 
-    /// Table entry 0, 2 or 4 — **the castle**: masonry, towers, gates, doors,
-    /// the keep and the wall tops. See [`Ground::tileset2`].
     pub fn tileset(self) -> &'static str {
         match self {
             Ground::Field => TILESET,
@@ -159,9 +146,6 @@ impl Ground {
         }
     }
 
-    /// Table entry 3 or 5 — **the ground the castle stands on**: sixteen grass
-    /// variants at 0…15, the moat's 49-variant water set and the rubble a
-    /// collapsed wall leaves. **Not** the drawbridge:
     /// `Siege_LowerDrawbridge` (`FUN_00496B9F`) clears the selector when it
     /// lays its patch, so that is the castle sheet.
     ///
@@ -235,6 +219,7 @@ pub const OVERVIEW_SPRITES: &str = "T2_spri.pl8";
 /// `g_drawY = row * 2 + _DAT_004E5D60`, `g_drawX = DAT_004E5D68` then `+= 2`
 /// a column. 80 × 80 cells makes a 160 × 160 raster, which ends exactly where
 /// `Screen_DrawBattlefield` puts `Misc_bat.pl8` frame 0, at `(0x1E0, 0xB8)`.
+///
 /// **[V]**
 pub const OVERVIEW_ORIGIN_X: i32 = 0x1E0;
 pub const OVERVIEW_ORIGIN_Y: i32 = 0x18;
@@ -249,9 +234,6 @@ pub const OVERVIEW_SIDE: usize = DIM * OVERVIEW_SCALE as usize;
 /// **20 frames**. **[V]**
 pub const OVERVIEW_ROWS_PER_FRAME: usize = 4;
 
-/// The two 2 × 2 sheets the overview panel is built from. Optional on
-/// [`BattleAssets`] because an install that lacks them still plays — the panel
-/// falls back to the flat fill.
 pub struct OverviewSheets {
     /// `t2_bat1.pl8`: 252 frames of 2 × 2, one for each of `T32_bat1.pl8`'s 252
     /// 32 × 32 tiles, so a cell's `gfx` byte indexes both. **[V]** from the two
@@ -260,6 +242,7 @@ pub struct OverviewSheets {
     /// The second 2 × 2 sheet, `t2_stn2` / `t2_wod2`, reached by the same cell
     /// selector the 32-pixel renderer uses — `FUN_004BC51A` takes it when
     /// `cell[+2] & 0x1C == 4`. `None` for a field battle, whose slot is empty.
+    ///
     /// **[V]**
     pub tiles2: Option<Sheet>,
     /// `t2_spri.pl8`: seven frames of 2 × 2. Frame 0 is the erase tile
@@ -269,7 +252,6 @@ pub struct OverviewSheets {
     pub men: Sheet,
 }
 
-/// Where the camera's top-left tile is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Camera {
     pub x: usize,
@@ -277,8 +259,6 @@ pub struct Camera {
 }
 
 impl Camera {
-    /// Clamp so the viewport never runs off the 80 x 80 map, which is what the
-    /// original's scroll clamp does.
     pub fn clamped(x: i32, y: i32) -> Self {
         Camera {
             x: x.clamp(0, (DIM - VIEW_COLS) as i32) as usize,
@@ -286,46 +266,23 @@ impl Camera {
         }
     }
 
-    /// Centre the viewport on a cell.
     pub fn centred_on(x: usize, y: usize) -> Self {
         Camera::clamped(x as i32 - VIEW_COLS as i32 / 2, y as i32 - VIEW_ROWS as i32 / 2)
     }
 }
 
-/// One [`Ground`]'s three sheets and its palette — what `Battle_LoadAssets`
-/// puts in slots 0, 1, `0x0B`, `0x0C` and the palette
-/// `Screen_DrawBattlefield` ends on.
 pub struct GroundArt {
     pub palette: Palette,
     pub tiles: Sheet,
-    /// Slot 1. `None` for a field battle; see [`Ground::tileset2`].
     pub tiles2: Option<Sheet>,
-    /// [`OverviewSheets`], when the install has the files.
     pub overview: Option<OverviewSheets>,
 }
 
-/// Everything a battle needs to draw. Sheets are loaded once and their frames
-/// decoded on demand.
-///
-/// The three [`Ground`]s are all loaded up front because the original loads
-/// one *per battle* — `Battle_LoadAssets` runs from `Battle_Start` — and we
-/// have no per-battle load step. The troop sheets are shared across them,
-/// which is what the original's table does too: slots `0x12`…`0x1F` do not
-/// move with the siege flag.
 pub struct BattleAssets {
-    /// Indexed by [`Ground::index`]. `Field` is always present — [`load`] fails
-    /// without it; the siege pair is `None` on an install that lacks them.
-    ///
-    /// [`load`]: BattleAssets::load
     grounds: [Option<GroundArt>; 3],
-    /// One sheet per troop type that has one, for each side. `None` for the
-    /// siege engines, which are drawn from `engine` instead.
     side4: Vec<Option<Sheet>>,
     side0: Vec<Option<Sheet>>,
     horse: Option<Sheet>,
-    /// `A2_miss.pl8` — every missile in the game, both sides, all five drawn
-    /// classes. [`crate::missiles`].
-    ///
     /// These three are on `BattleAssets` and not on [`GroundArt`] because they
     /// do not move with the ground: slots `0x12`…`0x1F` of the asset table are
     /// the same whichever way `g_battleIsSiege` falls. The overview sheets
@@ -334,13 +291,9 @@ pub struct BattleAssets {
     /// `Engine.pl8` — troop types 7 … 10, **colourless**: `FUN_00480F8B`
     /// hands all four the same buffer in both banks. [`crate::engines`].
     engine: Option<Sheet>,
-    /// `Catarm1.pl8` and `Catarm2.pl8`, the near and far halves of the
-    /// catapult's arm.
     catarm: [Option<Sheet>; 2],
 }
 
-/// The seven troop types with battlefield sprites, indexed by
-/// `Troop::index()`.
 const SPRITE_TROOPS: [Troop; 7] = [
     Troop::Peasants,
     Troop::Crossbowmen,
@@ -352,8 +305,6 @@ const SPRITE_TROOPS: [Troop; 7] = [
 ];
 
 impl BattleAssets {
-    /// Load through a caller-supplied reader, so this works equally against a
-    /// plain directory and against the mod overlay's case-insensitive VFS.
     pub fn load<F>(mut read: F, side4: Colour, side0: Colour) -> Result<Self, String>
     where
         F: FnMut(&str) -> Result<Vec<u8>, String>,
@@ -408,9 +359,6 @@ impl BattleAssets {
         Ok(BattleAssets { grounds, side4: a, side0: b, horse, missiles, engine, catarm })
     }
 
-    /// The art for one ground, falling back to the field's on an install that
-    /// has no siege sheets — which is the placeholder case and looks it,
-    ///
     pub fn ground(&self, g: Ground) -> &GroundArt {
         self.grounds[g.index()]
             .as_ref()
@@ -418,14 +366,10 @@ impl BattleAssets {
             .expect("the field ground is required by BattleAssets::load")
     }
 
-    /// Whether this install supplied `g`'s own sheets, or [`BattleAssets::ground`]
-    /// is falling back to the field's.
     pub fn has_ground(&self, g: Ground) -> bool {
         self.grounds[g.index()].is_some()
     }
 
-    /// The field ground's palette and tiles, for the callers that never fight
-    /// a siege.
     pub fn palette(&self) -> &Palette {
         &self.ground(Ground::Field).palette
     }
@@ -434,7 +378,6 @@ impl BattleAssets {
         &self.ground(Ground::Field).tiles
     }
 
-    /// `A2_miss.pl8` — the missiles and, at `0x21` and up, the banner.
     pub fn missiles(&self) -> Option<&Sheet> {
         self.missiles.as_ref()
     }
@@ -443,8 +386,6 @@ impl BattleAssets {
         self.ground(Ground::Field).overview.as_ref()
     }
 
-    /// The sheet a figure's body is drawn from.
-    ///
     /// `FUN_00480F8B` (`0x00480F8B`): troop types 0 … 6 take the bank's
     /// colour sheet, **7 … 10 all take `engine.pl8` in both banks**, so a
     /// siege engine has no side colour and this does not consult `side`.
@@ -457,26 +398,14 @@ impl BattleAssets {
     }
 }
 
-/// **The damage overlay** — `Battlefield_Draw32`'s second pass over the same
-/// cell, `frame = cell[+0] + 0x8B` out of slot 1, capped at `0x9A`, drawn
-/// transparently and clipped whenever `cell[+0]` is non-zero and `cell[+4]` is
-/// 1, 2 or 3.
-///
-/// **On a castle, cell byte `+0`
-/// counter**, and the two writers say so:
-///
 /// * `Missile_Step` (`0x00492C8B`) — *"if (cell.elevation < 4) { cell.terrain++; if (0xF <
 ///   cell.terrain) Wall_Collapse(cell); }"*. A catapult shot chips the byte up
 ///   to 15.
+///
 /// * `BattleMan_StateFillMoat` (`0x00483FE1`) — *"if (cell.terrain <
 ///   g_moatFillSteps) { … cell.terrain++; } else { cell.terrain = 0;
 ///   Moat_Fill(cell); }"*. A shovelled load raises the same byte, from the 11
 ///   the castle builder seeds a ditch with to 15.
-///
-/// So `0x8C`…`0x9A` is one growing pile of rubble, and the sheet's sixteen
-/// frames are a wall being knocked down and a ditch being filled in, animated
-/// by the same addition. `0x8B` is unreachable: at `cell[+0] == 0` the pass
-/// does not run.
 ///
 /// **The elevation gate is the shot's own.** `Missile_Step` refuses to count a
 /// hit on a rampart 4 or more high, and this refuses to draw damage on one —
@@ -536,20 +465,6 @@ mod tests {
         assert!(c.x + VIEW_COLS <= DIM && c.y + VIEW_ROWS <= DIM);
     }
 
-    /// **A man walking east is drawn further east every tick, from the running
-    /// simulation** — the ungated half of `tests/battle_picture.rs`, which finds
-    /// him in the pixels.
-    ///
-    /// One maceman, ordered five cells east over open ground, stepped by the
-    /// real runner. The origin this module draws him at must never move west,
-    /// must move on at least eight sub-steps a cell, and must end exactly 160
-    /// pixels east — the original's `g_walkOffset32` column `walking` 1, 3 … 15
-    /// and then the cell.
-    ///
-    /// Ablation: return `(f.x + dx, f.y + dy)` with `walking = substep − 1`
-    /// from [`drawn_cell`], the compensation this file carried while the
-    /// runner crossed in the other order — red on the first sub-step, a whole
-    /// cell east of where he is.
     #[test]
     fn a_man_walking_east_is_drawn_further_east_every_tick() {
         let mut layer = vec![0u8; l2_sim::terrain::CELLS];

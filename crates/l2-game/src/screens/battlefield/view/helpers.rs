@@ -22,11 +22,6 @@ use crate::turn::{self, TurnStep};
 /// `shieldIndex`, `6` for the ownerless, `0` —
 /// also the value the original's `if (DAT_005C9288 != 0)` guard drops.
 ///
-/// ```c
-/// if (g_battleMen[cell[+5]].owner == 6) colour = 6;
-/// else colour = g_realms[g_battleMen[cell[+5]].owner].shieldIndex;
-/// ```
-///
 /// The cell is [`l2_view::scene::drawn_cell`]'s, not `(f.x, f.y)`: byte `+5`
 /// moves with `mapX`/`mapY`, and `FUN_00491B1F` moves those at the *start* of a
 /// crossing. A man walking east is on the minimap's next cell for the whole of
@@ -80,8 +75,6 @@ pub(crate) fn side_shield(game: &crate::Game, live: &LiveBattle, side: l2_sim::S
     if shield == 0 { 6 } else { shield }
 }
 
-/// The pair the column draws, left then right — side 4 then side 0. See
-/// [`draw_column_chrome`].
 pub(crate) fn side_shields(game: &crate::Game, live: &LiveBattle) -> (u8, u8) {
     (side_shield(game, live, l2_sim::SIDE_B), side_shield(game, live, l2_sim::SIDE_A))
 }
@@ -93,8 +86,6 @@ pub(crate) fn side_men(live: &LiveBattle) -> (u32, u32) {
     (live.runner.men(l2_sim::SIDE_B), live.runner.men(l2_sim::SIDE_A))
 }
 
-/// The cursor the ladder picks, exposed for the tests — the picture has no
-/// cursor sheet to draw it with.
 pub fn cursor_of(live: &LiveBattle) -> Cursor {
     live.cursor()
 }

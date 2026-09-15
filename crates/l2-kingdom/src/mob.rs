@@ -33,20 +33,11 @@
 //! }
 //! ```
 //!
-//! # Four things the shape decides
-//!
-//! * **An unowned county is silent.** The mob's county byte is written and
-//!   nothing else happens — no letter (there is nobody to write to), no toll,
-//!   no revolt. A mob wandering neutral land is free.
-//! * **The letter is chosen on the happiness the mob found**, before the ten is
-//!   taken: a county at exactly 10 gets 155, at exactly 30 gets 156.
 //! * **A revolt *raises* happiness.** The `+0x1e` after `County_RaiseRevolt`
 //! is thirty back onto a county below ten, and the toll below then takes the
 //! `-10` arm
 //!   `happiness + 20`. The peasants who were angry have left the population;
 //!   this is the same accounting as the levy.
-//! * **The toll is re-tested, not remembered.** The second `happiness < 10` is
-//!   a fresh read, which is how the revolt branch escapes the floor.
 //!
 //! The trailing `happiness < 0` clamp is the original's last statement and it
 //! runs on **every** mob tick, crossing or not. It is a no-op unless happiness
@@ -54,12 +45,6 @@
 //! — [`crate::conquest`]'s penalty and [`crate::happiness`] both floor at 0 —
 //! so it is folded into [`settle`]
 //! is unreachable; `[V]` that the original tests it every tick.
-//!
-//! # Determinism
-//!
-//! Two integer comparisons and integer deltas; the revolt itself is
-//! [`crate::unrest::raise_revolt`]'s tile search, which is already in the
-//! digest. No float, no map iteration. `docs/netcode.md`.
 
 use crate::county::County;
 use crate::diplomacy::Letter;
@@ -67,43 +52,26 @@ use crate::diplomacy::Letter;
 /// `L2.eng` 154 — *"Revolution in your lands."* Message id `0x9A`, posted when
 /// the mob walks into a county already below 10 happiness.
 pub const GROUP_REVOLUTION_SPREAD: u16 = 0x9A;
-/// 155 — *"Trouble spreading."* `0x9B`, happiness 10…29.
 pub const GROUP_TROUBLE_SPREADING: u16 = 0x9B;
-/// 156 — *"People are troubled."* `0x9C`, happiness 30 and up.
 pub const GROUP_PEOPLE_TROUBLED: u16 = 0x9C;
 
-/// `Msg_DrawWindow`'s category 3 — `l2_game::message::category::COUNTY_NOTICE`,
-/// the county-titled notice box. All three letters use it.
 pub const CATEGORY_COUNTY_NOTICE: u8 = 3;
 
-/// What the mob costs the county it walks into, whatever it says.
 pub const HAPPINESS_TOLL: i32 = 10;
 
 /// What a successful `County_RaiseRevolt` puts back — `+0x1e`.
 pub const REVOLT_RELIEF: i32 = 30;
 
-/// The first happiness threshold: below this the mob's arrival may raise the
-/// county.
 pub const WRETCHED: i32 = 10;
 
-/// The second: below this the county is put on unrest 1.
 pub const TROUBLED: i32 = 30;
 
-/// What a crossing asks of its caller: the letter to post, and whether
-/// `County_RaiseRevolt` is to be attempted.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Crossing {
-    /// The letter, addressed to the county's owner.
     pub letter: Letter,
-    /// True on the `happiness < 10` arm — the caller runs
-    /// [`crate::unrest::raise_revolt`] and tells [`settle`] what happened.
     pub raise_revolt: bool,
 }
 
-/// **The letter half.** `None` for an unowned county — the whole `owner == 0`
-/// branch is one assignment the stepper has already made.
-///
-/// Read on the happiness as found, before [`settle`] takes its ten.
 pub fn crossing(c: &County, county: u8) -> Option<Crossing> {
     if c.owner == 0 {
         return None;
@@ -129,11 +97,6 @@ pub fn crossing(c: &County, county: u8) -> Option<Crossing> {
     })
 }
 
-/// **The writing half**, in the original's order: the arm's own write, then the
-/// toll, then the clamp.
-///
-/// `revolted` is `County_RaiseRevolt`'s return — true only when a mob was
-/// placed. It is read on the `Revolution` arm and nowhere else.
 pub fn settle(c: &mut County, crossing: &Crossing, revolted: bool) {
     match crossing.group_arm() {
         Arm::Revolution => {
@@ -150,8 +113,6 @@ pub fn settle(c: &mut County, crossing: &Crossing, revolted: bool) {
         }
         Arm::Troubled => {}
     }
-    // Re-read, not the value `crossing` was chosen on: thirty back off a
-    // revolt lifts the county out of this arm.
     if c.happiness < WRETCHED {
         c.shown_events -= c.happiness;
         c.happiness = 0;
@@ -167,16 +128,12 @@ pub fn settle(c: &mut County, crossing: &Crossing, revolted: bool) {
 /// Which of `FUN_004ABD0F`'s three arms a crossing took.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Arm {
-    /// Letter 154, happiness below 10.
     Revolution,
-    /// 155, below 30.
     Trouble,
-    /// 156, the rest.
     Troubled,
 }
 
 impl Crossing {
-    /// The arm, off the group the letter carries.
     pub fn group_arm(&self) -> Arm {
         match self.letter.group {
             GROUP_REVOLUTION_SPREAD => Arm::Revolution,

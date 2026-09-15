@@ -1,16 +1,5 @@
-//! The whole path, end to end: a `.toml` in a mod directory changes what
-//! happens when two figures fight.
-//!
-//! Everything else in this crate's tests checks a stage — the document parses,
-//! the merge resolves, the table loads. This checks that the stages are
-//! joined up,
-//! believe without evidence.
-//!
 //! `docs/decisions.md` C11. These numbers
 //! live in `Lords2.exe` as instructions.
-//! game that reaches them. A test that starts at a text file and ends at a
-//! different casualty count is the demonstration that the situation has
-//! changed.
 
 mod combat;
 pub use combat::*;

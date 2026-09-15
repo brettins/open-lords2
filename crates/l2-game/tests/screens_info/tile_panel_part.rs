@@ -17,9 +17,6 @@ use l2_view::Canvas;
 
 /// One tile of the England position, rewritten to the plane bytes an arm of
 /// `TileInfo_Draw` (`0x0041C208`) tests, with the panel drawn over the map.
-///
-/// The tile is real and in a county the player holds, so the county name and
-/// the head-room the layout grants are the position's own.
 fn tile_panel(
     game: &mut Game,
     assets: &Assets,
@@ -46,9 +43,6 @@ fn tile_panel(
     (draw_stack(&mut m, game, assets), layout)
 }
 
-/// The heading at `(0x28, row * 0x10 + 0x40)` and the body's y at
-/// `row * 0x10 + 100` — `TileInfo_Draw`'s own literals, not constants of
-/// `screens/info.rs`.
 fn tile_panel_says(
     canvas: &Canvas,
     assets: &Assets,
@@ -68,10 +62,6 @@ fn tile_panel_says(
     );
 }
 
-/// **`TileInfo_Draw`'s first arm, `flags & 0x01`**: heading 30/1, body 30/23,
-/// icon `0x18`. A player right-clicking a road got a blank panel.
-///
-/// Ablated: dropping the `Road` row from `TILE_LADDER` fails on the heading.
 #[test]
 fn a_road_tile_says_road() {
     let (mut game, assets) = world!();
@@ -89,9 +79,6 @@ fn a_road_tile_says_road() {
 
 /// **`flags & 0x04`**: heading 30/3, body 30/24, icon `0x1D` — and
 /// `FUN_0041BEFE`'s only arm outside a dwelling that grants no head-room.
-///
-/// Ablated: removing the sea arm from `layout` draws the county name over the
-/// sea and moves both lines two rows, failing on the y.
 #[test]
 fn a_sea_tile_says_sea_and_gets_no_head_room() {
     let (mut game, assets) = world!();
@@ -109,9 +96,6 @@ fn a_sea_tile_says_sea_and_gets_no_head_room() {
 /// **Graphic 0 is neither**: `Map_ResolvePick` (`0x0046D5FE`) blanks the flags
 /// of an empty plot, so it falls to scrubland — which is the England position's
 /// own state for all fifty-six plots.
-///
-/// Ablated: dropping the `terrain == 0x10` test draws the ruin's words on the
-/// village; dropping the blanking draws *"Ruined village."* on an empty plot.
 #[test]
 fn a_dwelling_plot_says_village_ruined_village_or_nothing() {
     let (mut game, assets) = world!();
@@ -126,20 +110,15 @@ fn a_dwelling_plot_says_village_ruined_village_or_nothing() {
     let (canvas, l) = tile_panel(&mut game, &assets, plot, 0x11, 0);
     tile_panel_says(&canvas, &assets, l, "Ruined village.", "A once peaceful hamlet");
 
-    // The blanked pick: no bits, so the scrubland fall-through and its layout.
     let (canvas, l) = tile_panel(&mut game, &assets, plot, 0, 0);
     assert_eq!((l.row, l.headroom), (0x11, 2), "a blanked pick takes the fall-through");
     tile_panel_says(&canvas, &assets, l, "Scrubland.", "Empty land that may be crossed");
 }
 
-/// **`flags & 0x08` splits on the bank plane and on nothing else.**
 /// `Map_ResolvePick` sets `DAT_005651BC` on `(tile.bank & 0x1C) == 4` and
 /// `TileInfo_Draw` reads that global: 30/4 + 30/25 + icon `0x19` for a
 /// mountain, 30/5 + 30/26 + icon `0x1A` for a wood. The two tiles below differ
 /// in **one byte**.
-///
-/// Ablated: making `is_mountain` always false calls the mountain a wood and
-/// fails on the heading.
 #[test]
 fn a_rough_tile_says_mountain_or_woodland_by_its_bank() {
     let (mut game, assets) = world!();
@@ -153,13 +132,6 @@ fn a_rough_tile_says_mountain_or_woodland_by_its_bank() {
     tile_panel_says(&canvas, &assets, l, "Woodland.", "Vital to the timber industry!");
 }
 
-/// **The bottom of the ladder**: no bit set at all is 30/0 + 30/22, icon
-/// `0x17`. It is also where `Map_ResolvePick`'s two blanked picks land — a bare
-/// castle plot (`0x80` with graphic `0x14`) among them, which used to draw the
-/// castle arm's *"Castle."* over open ground in every castleless county.
-///
-/// Ablated: removing the `graphic == 0x14` blanking from `picked_flags` fails
-/// the second half on *"Scrubland."* being absent.
 #[test]
 fn an_unflagged_tile_and_a_bare_castle_plot_both_say_scrubland() {
     let (mut game, assets) = world!();
@@ -171,7 +143,6 @@ fn an_unflagged_tile_and_a_bare_castle_plot_both_say_scrubland() {
     let (canvas, l) = tile_panel(&mut game, &assets, 0, 0, 0);
     tile_panel_says(&canvas, &assets, l, "Scrubland.", "Empty land that may be crossed");
 
-    // `Map_ResolvePick`: `flags & 0x80` with graphic `0x14` blanks the pick.
     let settlement = l2_kingdom::map::flags::SETTLEMENT;
     let (canvas, l) = tile_panel(&mut game, &assets, settlement, 0x14, 0);
     tile_panel_says(&canvas, &assets, l, "Scrubland.", "Empty land that may be crossed");

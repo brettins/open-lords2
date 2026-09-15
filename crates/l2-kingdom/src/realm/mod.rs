@@ -1,5 +1,3 @@
-//! The realm record — `docs/kingdom.md` §2.
-//!
 //! Six records at `0x0057BF00`, stride `0x160`; index 0 is unused and 1..=5 are
 //! the players. As with [`crate::county`], the semantics are reproduced and the
 //! byte layout is not.
@@ -10,52 +8,29 @@ pub use methods::*;
 use crate::tables::{Tables, WEAPON_TYPE_COUNT};
 use l2_net::{Quirk, Quirks};
 
-/// `g_realms` is 6 records and **index 0 is unused** (`docs/kingdom.md` §2), so
-/// the usable realm ids are 1..=5 — which is also `g_playerStartCount`'s
-/// maximum and DirectPlay's `dwMaxPlayers` in the original
-/// (`docs/netcode.md` §1).
 pub const MAX_REALMS: usize = 6;
 
-/// The highest playable realm id.
 pub const MAX_REALM_ID: u8 = (MAX_REALMS - 1) as u8;
 
-/// `aiStep` when the realm has finished its turn. `Turn_AllRealmsDone` tests
-/// exactly this. `docs/kingdom.md` §3.2.
 pub const AI_STEP_DONE: i32 = 999;
 
 /// The `lord` byte (`+0x07`) when the realm has been knocked out.
-/// `docs/kingdom.md` §2.
 pub const LORD_ELIMINATED: u8 = 6;
 
-/// The `lord` byte of the human player. Row 0 of every lord-indexed table is
-/// the human's row, and `g_aiGoldGrant`'s row 0 is all zeros.
 pub const LORD_HUMAN: u8 = 0;
 
-/// The `lord` byte of the Bishop.
-///
-/// Named because exactly one rule tests it directly — the reproduced bug in
-/// [`crate::diplomacy::offend`] — and writing `4` there would hide that it is
-/// the same byte every personality table is indexed by.
-/// `docs/diplomacy.md` §0 and §5.
 pub const LORD_BISHOP: u8 = 4;
 
-/// Where the per-pair diplomacy block starts inside the realm record, and how
-/// wide one sub-record is: `realm[me] + 0x84 + them * 0x10`.
 /// `docs/diplomacy.md` §1. `[V]`
 pub const PAIR_BLOCK_OFFSET: usize = 0x84;
 pub const PAIR_RECORD_STRIDE: usize = 0x10;
 
-/// One past the last byte of the block — `0x84 + 6 * 0x10`.
-///
-/// **This closing is the evidence that the block is what it looks like.**
 /// `+0xE4` is referenced nowhere in the binary and `+0xE5` is the AI's chosen
 /// muster county, so six sixteen-byte sub-records fit between two known things
 /// with nothing left over. [`PAIR_FIELDS`] tiles one record and
 /// `the_pair_block_closes_exactly_on_0xe4` asserts both halves.
 pub const PAIR_BLOCK_END: usize = PAIR_BLOCK_OFFSET + MAX_REALMS * PAIR_RECORD_STRIDE;
 
-/// The sixteen bytes of one pair sub-record, as `(name, offset, width)`.
-///
 /// Carried as data so a test can assert that the record tiles exactly rather
 /// than trusting the prose, and so the two runs of bytes that are *not* fields
 /// stay visible. `docs/diplomacy.md` §1 and §9: `+0x06`/`+0x07` are neither
@@ -76,16 +51,6 @@ pub const PAIR_FIELDS: [(&str, usize, usize); 11] = [
     ("- zeroed at init, read nowhere", 0x0E, 2),
 ];
 
-/// How `me` feels about `them`, and what has passed between them — the
-/// sixteen-byte sub-record at `realm[me] + 0x84 + them * 0x10`.
-///
-/// **The relationship is asymmetric.** `realms[a].pair(b)` is a's view of b and
-/// `realms[b].pair(a)` is b's view of a, and nearly every rule moves only one
-/// of them. `docs/diplomacy.md` §1.
-///
-/// As everywhere else in this crate the *semantics* are reproduced and the byte
-/// layout is not; [`PAIR_FIELDS`] is what carries the layout, for the oracle
-/// and for a reader.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Pair {
     /// `+0x00` — [`crate::diplomacy::STANDING_MIN`] ..=
@@ -107,8 +72,6 @@ pub struct Pair {
     /// which is what turns the third compliment into a permanent −4. §3.2.
     pub compliments_from: u8,
     /// `+0x08` — the largest single gift `me` has ever had from `them`.
-    /// Ratchets up, never down, and it is what the next gift is judged
-    /// against. §3.1.
     pub best_gift: i32,
     /// `+0x0C` — a letter from `them` is waiting in my inbox. Cleared for
     /// every sender when the inbox is answered.
@@ -125,10 +88,6 @@ impl Default for Pair {
 }
 
 impl Pair {
-    /// A cleared record. `Diplo_Init` writes **1** into `help_price_multiple`
-    /// and 0 into every other field, so the multiple is the one whose zero
-    /// would be wrong — a never-initialised record would price help at nothing.
-    /// [`crate::diplomacy::init`] is what puts the opening standing in.
     pub const fn new() -> Pair {
         Pair {
             standing: 0,
@@ -144,7 +103,6 @@ impl Pair {
     }
 }
 
-/// A realm — one player, human or AI.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Realm {
     /// `+0x00` — 0..=14 program counter through the AI's turn;
@@ -169,11 +127,6 @@ pub struct Realm {
     pub is_human: bool,
     /// `+0x07` — 0 for the human, 1..=5 for an AI lord, [`LORD_ELIMINATED`]
     /// when knocked out. Indexes `g_aiPersonality` and `g_aiGoldGrant`.
-    ///
-    /// **The lord is not the realm and it is not the colour.** Setup draws a
-    /// lord for each realm out of `g_lordChoice`, so nothing may be indexed by
-    /// realm id or by [`Realm::shield_index`] that the original indexes by
-    /// this. `docs/diplomacy.md` §0.1.
     pub lord: u8,
     /// `+0x0A` — 1..=5, the realm's banner colour. Carried because the lord
     /// card and the map draw it and because §0.1's trap is easier to walk into
@@ -181,12 +134,6 @@ pub struct Realm {
     pub shield_index: u8,
     /// `+0x28` — the sum of every owned county's `tax_hap_other`, added to
     /// every county's tax happiness term.
-    ///
-    /// **Held as `i8`, deliberately.** `docs/kingdom.md` §4.1 flags this
-    /// explicitly: `Tax_SumEmpireHappiness` sums signed bytes from up to
-    /// sixteen counties *into a signed byte* and nothing clamps it. Widening it
-    /// here would be a silent balance change, so the type is kept and the
-    /// wrap is reproduced and tested (see [`Realm::add_empire_tax_happiness`]).
     pub tax_hap_empire: i8,
     /// `+0x29` — owned counties; selects between the two AI gold-grant tables.
     pub county_count: u8,
@@ -231,14 +178,6 @@ pub struct Realm {
     /// **nothing at all reads them.** The only other instruction that touches
     /// any of the four is `Game_SetupRealmsAndCounties` zeroing all four at
     /// new game.
-    ///
-    /// `docs/hypotheses.json` guessed the pairs were *this season* and *the
-    /// running total*, with the caveat that if neither is ever reset they are
-    /// something else. Neither is ever reset, so the guess is refuted and the
-    /// names are deliberately `a` and `b`: what is verified is that two run on
-    /// spending, two on income, both of a pair always take the same number, and
-    /// no reader distinguishes them. Naming them anything more specific would
-    /// be a claim about a mechanic the shipped game does not have.
     pub trade_spent_a: i32,
     pub trade_spent_b: i32,
     pub trade_received_a: i32,
@@ -250,6 +189,7 @@ pub struct Realm {
     /// `Tax_CollectAll` (`0x0044B59B`) adds each owned county's take to both,
     /// straight after it adds it to [`Realm::gold`]; an unowned county's take
     /// goes to its own purse and touches neither. **Nothing reads either.**
+    ///
     /// `[V]`, two ways that share no step: the decompilation names
     /// `field_0xf4`/`field_0xf8` of `g_realms` in exactly two functions —
     /// `Tax_CollectAll` and `Game_SetupRealmsAndCounties` (`0x0049BD99`), which
@@ -278,7 +218,6 @@ pub struct Realm {
 
     // --- the totals AI step 14 rebuilds (`FUN_0049D1E0`) --------------------
     /// `+0x10` — the realm's total population, summed over its counties.
-    /// Score input, weighted `/10`.
     pub population_total: i32,
     /// `+0x18` — the previous turn's [`Realm::population_total`], snapshotted
     /// before the recount.
@@ -303,11 +242,6 @@ pub struct Realm {
     /// The six score inputs in the order [`crate::tables::SCORE_WEIGHTS`]
     /// applies: realm `+0x60, +0x10, +0x0C, +0x58, +0x54, +0x4C`.
     ///
-    /// **All six are identified** — see [`crate::tables::SCORE_INPUT_OFFSETS`].
-    /// [`Realm::sync_score_inputs`] copies the first five out of the named
-    /// fields above, because in the original those five are exactly
-    /// `Realm_UpdateTotals`' writes.
-    ///
     /// **Index 5, `+0x4C`, is the realm's castle count and is deliberately not
     /// one of them**: `Castle_BuildTick` (`0x004508DE`) is its only writer, once
     /// a season, and `Kingdom::castle_build_tick` is where we write it. See
@@ -325,10 +259,8 @@ pub struct Realm {
     /// `+0x80` — who [`crate::diplomacy::ai_diplomacy`] has decided to court.
     pub ally_candidate: u8,
     /// `+0x81` — **one byte, so one ally.** 0 for none.
-    /// rule written anywhere; it is the width of this field.
     pub ally: u8,
     /// `+0x84 + other * 0x10` — this realm's view of each other realm.
-    /// Index 0 is never used, matching the realm array itself.
     pub pairs: [Pair; MAX_REALMS],
     /// `+0xE8` — the county an ally has been asked to march on.
     ///
@@ -352,29 +284,11 @@ pub struct Realm {
     pub crowned_once: bool,
     /// `+0x6C` — **the weapon rota's cursor**, 0..=9, advanced once per county
     /// by AI step 12 and wrapping at 10.
-    ///
-    /// It is a *realm* counter walked inside a loop over the realm's counties,
-    /// so a realm of four counties advances it four places in one step and the
-    /// counties of one realm end up making four different weapons. The rota
-    /// itself is six values in the personality record —
-    /// [`crate::tables::AI_PERSONALITY_WEAPON_ROTA`] — visited in the order
-    /// 0,1,2,3,0,1,2,3,4,5, so the first four are seen twice per lap.
-    /// See [`crate::ai::choose_industry`].
     pub weapon_rota: i32,
     /// `+0x159` — 0..=3, advanced after **every** message this realm sends.
-    /// It picks which of the lord's four recorded takes plays, and it is half
-    /// of the `lord * 4 + rot - 4` variant index. `docs/diplomacy.md` §0.
     pub voice_rotation: u8,
 
-    // --- the war plan: what AI steps 7, 9 and 10 write ----------------------
-    // These seven fields are the AI's *standing orders*. They persist between
-    // turns, which is the whole reason they are realm state and not locals:
-    // a realm that decided last turn to attack county 4 out of county 2 is
-    // still doing that this turn. See [`crate::ai_army`].
     /// `+0xE5` — **the muster county**: where this realm raises its main army.
-    /// Rebuilt every turn by [`crate::ai_army::choose_muster_counties`], which
-    /// scores every owned county on population, happiness and how much spare
-    /// food it has.
     pub muster_county: u8,
     /// `+0xE6` — the **raiding** county, the second output of the same scoring
     /// pass. It takes the *opposite* food term: the county picked to muster
@@ -388,8 +302,6 @@ pub struct Realm {
     /// war target nor an ally's request counts up here and only looks for
     /// somewhere to attack when it reaches the lord's
     /// [`crate::tables::AI_PERSONALITY_MUSTER_PATIENCE`], then resets to 0.
-    /// So the Bishop goes looking every second turn and the Baron every
-    /// fourth.
     ///
     /// The byte sits immediately after the twenty-four army-name counters at
     /// `+0x2D`, which end exactly on `+0x45` — `docs/records.json`.
@@ -433,15 +345,11 @@ impl Default for Realm {
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
 
-    /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
-    /// A player measured 250 men -> 62 crowns, 252 -> 63, 254 -> 63.
-    /// `docs/kingdom.md` §7.4.
     #[test]
     fn a_human_pays_a_quarter_of_a_crown_a_man() {
         let mut r = Realm::new();
@@ -449,7 +357,6 @@ mod tests {
         assert_eq!(r.wage_for_unit(T, 250, 0), 62);
         assert_eq!(r.wage_for_unit(T, 252, 0), 63);
         assert_eq!(r.wage_for_unit(T, 254, 0), 63);
-        // Difficulty does not touch the human divisor.
         for d in 0..=2 {
             assert_eq!(r.wage_for_unit(T, 1000, d), 250);
         }
@@ -462,7 +369,6 @@ mod tests {
         assert_eq!(r.wage_for_unit(T, 300, 0), 100);
         assert_eq!(r.wage_for_unit(T, 300, 1), 60);
         assert_eq!(r.wage_for_unit(T, 300, 2), 30);
-        // Out-of-range difficulty clamps
         assert_eq!(r.wage_for_unit(T, 300, 9), 30);
     }
 
@@ -475,19 +381,15 @@ mod tests {
         }
     }
 
-    /// The hazard `docs/kingdom.md` §4.1 flags and leaves untested: sixteen
-    /// counties at a punitive tax rate overflow a signed byte.
     #[test]
     fn the_empire_tax_term_wraps_exactly_as_the_original_would() {
         let mut r = Realm::new();
-        // Sixteen counties each contributing -10 is -160, which does not fit.
         for _ in 0..16 {
             r.add_empire_tax_happiness(-10, Q);
         }
         assert_eq!(r.tax_hap_empire, (-160i32 as i8), "expected the i8 wrap");
         assert_eq!(r.tax_hap_empire, 96, "and -160 wraps to +96 - a *bonus*");
 
-        // Below the ceiling nothing surprising happens.
         let mut ok = Realm::new();
         for _ in 0..12 {
             ok.add_empire_tax_happiness(-10, Q);
@@ -502,11 +404,6 @@ mod tests {
         assert_eq!(r.compute_score(T), 10 + 10 + 2 + 2 + 20 + 50);
     }
 
-    /// **The bracket pays 50 all the way up**, because the shipped ladder tests
-    /// its smallest threshold first and never reaches the other two. The
-    /// disassembly is in [`crate::tables::score_gold_bracket`]; this test used
-    /// to assert 100 at 5,001 and 200 at 10,001, which is what the table looks
-    /// like
     #[test]
     fn the_gold_bracket_is_the_only_term_with_a_known_meaning() {
         let mut r = Realm::new();
@@ -528,10 +425,6 @@ mod tests {
     /// `docs/diplomacy.md` §1's headline claim, as arithmetic
     /// prose: sixteen bytes per sub-record, six sub-records, and the block
     /// finishing exactly on `+0xE4` where the next named field begins.
-    ///
-    /// Both halves are asserted, because either alone is satisfiable by a
-    /// wrong layout: fields that tile 16 bytes prove nothing about the block,
-    /// and a block that ends on `0xE4` proves nothing about the fields.
     #[test]
     fn the_pair_block_closes_exactly_on_0xe4() {
         assert_eq!(PAIR_BLOCK_END, 0xE4, "0x84 + 6 * 0x10");
@@ -543,14 +436,10 @@ mod tests {
         }
         assert_eq!(next, PAIR_RECORD_STRIDE, "the fields do not fill sixteen bytes");
 
-        // And the two runs that are gaps
-        // future reading that named them would have to change this count.
         let named = PAIR_FIELDS.iter().filter(|(n, _, _)| !n.starts_with('-')).count();
         assert_eq!(named, 9, "nine fields and two untraced gaps");
     }
 
-    /// §0's arithmetic: `lord * 4 + rot - 4` runs 0..=15 over lords 1..=4 and
-    /// rotations 0..=3, in four contiguous blocks, with no value repeated.
     #[test]
     fn the_message_variant_covers_zero_to_fifteen_once_each() {
         let mut seen = [false; 16];

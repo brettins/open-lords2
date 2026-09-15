@@ -9,11 +9,6 @@ use l2_sim::siege::{
 use l2_sim::terrain::DIM;
 use l2_sim::{BattleRunner, Muster, Troop};
 
-/// **The file is exactly its own directory plus ten layers.** The shipped
-/// `Stnfield.pl8` is 64,168 bytes: 168 of PL8 header and directory, then
-/// 10 × 6,400. Five castles, two layers each, and the builder's `castle * 0x20`
-/// stride is two 16-byte PL8 records — a directory written for a
-/// sprite sheet answers a question about castles.
 #[test]
 fn the_layout_file_holds_five_castles_of_two_layers_each() {
     let s = sheets!();
@@ -26,17 +21,11 @@ fn the_layout_file_holds_five_castles_of_two_layers_each() {
     }
 }
 
-/// **The measurement the whole branch is for: a real castle has walls two
-/// cells high, and ours has none.**
-///
 /// [`l2_sim::siege::DOCK_WALL_ELEVATION`] is 2 exactly — `FUN_00491492` tests
 /// `elevation == 2` on the cell two ahead of a siege tower — and
 /// `Oil_FindPourTarget` refuses to look below 2. [`siege::our_castle`] puts its
 /// wall at [`siege::WALL_ELEVATION`], **one**, so both of those are dead
 /// against it whatever the rules say.
-///
-/// Ablation, run: build with `siege::our_castle(level)` instead — red at every
-/// level, *"level 0: our stand-in has 0 cells at elevation 2"*.
 #[test]
 fn every_real_castle_has_ground_two_cells_high_and_the_stand_in_has_none() {
     let s = sheets!();
@@ -75,12 +64,6 @@ fn a_tower_finds_a_dock_on_every_real_castle_and_none_on_the_stand_in() {
     }
 }
 
-/// **The moat is where the layout puts it, and it is not "level 2 and up".**
-///
-/// Our stand-in gave every castle from level 2 a ditch, which read as a
-/// sensible ladder and is not what the file says: `0xEE` — the `Battlefield_PlaceMoatCell`
-/// escape — appears in the layers of levels **1, 3 and 4** and in neither 0
-/// nor 2. A test used to assert the ladder; its premise was our own ring.
 #[test]
 fn the_moat_is_at_levels_one_three_and_four() {
     let s = sheets!();
@@ -95,10 +78,6 @@ fn the_moat_is_at_levels_one_three_and_four() {
     assert_eq!(moated, vec![false, true, false, true, true]);
 }
 
-/// **The Readme, from inside the raster.** *"Only the Stone and Royal castles
-/// have drawbridges"* — structure code 9 is in the layers of levels 3 and 4
-/// and no other, four cells each, which is the same answer the stone/wooden
-/// table split gives from the other side.
 #[test]
 fn only_the_two_largest_castles_carry_a_drawbridge() {
     let s = sheets!();
@@ -109,10 +88,6 @@ fn only_the_two_largest_castles_carry_a_drawbridge() {
     }
 }
 
-/// **One way in, and it is a way in whatever else the castle has.** Structure
-/// code 6 appears in every one of the five layers, and the keep
-/// door's elevation is the one place the two castle families disagree: 4 for a
-/// stone keep and 1 for a wooden one.
 #[test]
 fn every_castle_has_exactly_one_keep_door_at_its_familys_height() {
     let s = sheets!();
@@ -125,12 +100,6 @@ fn every_castle_has_exactly_one_keep_door_at_its_familys_height() {
     }
 }
 
-/// **Something a catapult and a ram can open, on every castle** — but not the
-/// same thing on each. Levels 0, 1 and 2 carry a curtain block (code 8, flag
-/// `0x20`) and no drawbridge; level 3 carries a drawbridge and **no** code-8
-/// block at all; level 4 carries both. [`siege::smash_walls`] opens either, so
-/// "the besieger has something to break" holds at every level — which is the
-/// assertion our stand-in's `wall > 0` was reaching for and getting wrong.
 #[test]
 fn every_castle_offers_the_besieger_something_to_open() {
     let s = sheets!();
@@ -145,10 +114,6 @@ fn every_castle_offers_the_besieger_something_to_open() {
     assert_eq!(shape, vec![(4, 0), (8, 0), (8, 0), (0, 4), (4, 4)]);
 }
 
-/// **The classifier gives every cell a surface**, and the two that drive
-/// behaviour are both present: surface 4, the only value an order handler
-/// searches for (`Siege_FindCellSurface4`), and surface 5, the one
-/// `Wall_Collapse` bills a breach against.
 #[test]
 fn the_six_passes_leave_no_cell_unclassified() {
     let s = sheets!();

@@ -14,11 +14,6 @@ mod tests {
     use crate::runner::blank_field;
     use crate::Troop;
 
-    /// **The burn table**, pinned from the literals in `BattleMan_BurnTick`
-    ///
-    /// AI's and a human's.
-    ///
-    /// Ablation: swap the `6` and `9` in `MAN` and the class-2 row reads 9.
     #[test]
     fn a_frame_in_fire_costs_three_six_nine_or_twelve_hits_and_an_engine_less() {
         for (class, man, engine) in [(0u8, 3u16, 1u16), (1, 3, 1), (2, 6, 3), (3, 9, 5), (4, 12, 7), (8, 12, 7)] {
@@ -38,9 +33,6 @@ mod tests {
         }
     }
 
-    /// **One man a frame, the remainder carried, and the last man's death
-    /// reported once.** At three hits a frame the hundredth hit lands on the
-    /// thirty-fourth frame, with two carried.
     #[test]
     fn a_man_in_fire_dies_every_thirty_four_frames_and_the_figure_once() {
         let mut f = Figure::new(Troop::Archers, SIDE_B, 2);
@@ -76,8 +68,6 @@ mod tests {
         assert_eq!(pot.men, 3, "100 hits, not 160");
     }
 
-    /// **A fire remembers what it burnt and gives it back**, and what burns
-    /// away is a bridge and a wood.
     #[test]
     fn a_fire_puts_back_the_ground_except_a_bridge_and_a_wood() {
         let mut field = blank_field();
@@ -118,10 +108,6 @@ mod tests {
         assert_eq!(wood.cells[cell].surface, 0, "a burnt wood is surface 0");
     }
 
-    /// **A bridge fire walks five cells along the bridge and no further**, each
-    /// cell seven frames longer-lived than the last, and a cell of the bailey
-    /// beside it is only scorched.
-    ///
     /// The durations are pinned as the literals `FUN_0048551D` produces: 520,
     /// then `0x280 − (0x78 − 7k)`. Ablation: drop the `c` accumulation and every
     /// spread cell reads 520.
@@ -146,7 +132,6 @@ mod tests {
 
         let life = |y: i16| ms.iter().find(|(_, m)| m.cell_y == y && m.cell_x == 40).unwrap().1.ttl;
         assert_eq!(life(38), 520);
-        // Ring 1 is scanned top row first: row 37 catches before row 39.
         assert_eq!(life(37), 520);
         assert_eq!(life(39), 527);
         assert_eq!(life(36), 534);
@@ -156,8 +141,6 @@ mod tests {
         assert_eq!(ms.live(), 11);
     }
 
-    /// **A wood fire is one ring a frame**, and a cell that caught this frame
-    /// does not light its neighbour until the next.
     #[test]
     fn a_wood_fire_floods_the_wood_one_ring_a_frame() {
         let mut field = blank_field();

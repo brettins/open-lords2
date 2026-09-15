@@ -47,19 +47,9 @@ fn a_peer_with_a_different_seed_cannot_join() {
     assert_eq!(t.host.roster().len(), 1);
 }
 
-/// **A peer who has turned the original's bugs off cannot join a faithful
-/// game**, and is told which thing differs
-/// wrong.
-///
 /// A quirk changes what the simulation computes, so it is part of the agreed
 /// configuration, not a local preference — `docs/netcode.md` D-12 with a
 /// different noun, and `docs/decisions.md` C62.
-///
-/// **The per-tick digest would catch this too, and much too late.**
-/// `l2_kingdom::save::checksum` covers `Options::quirks`, so two peers who
-/// disagreed would eventually halt — but only at the first tick a quirk
-///
-/// This refuses in the lobby, before a seed is chosen.
 #[test]
 fn a_peer_with_a_different_quirk_set_is_refused_in_the_lobby() {
     let faithful = hello(1);
@@ -72,8 +62,6 @@ fn a_peer_with_a_different_quirk_set_is_refused_in_the_lobby() {
         "the quirk set is the only thing that differs, and it must be reported as itself"
     );
 
-    // Named as itself, not folded into the ruleset — a player whose mods match
-    // perfectly should not be sent looking at his mod list.
     let text = reasons[0].to_string();
     assert!(text.contains("bugs"), "{text}");
     assert!(!text.contains("mod set"), "{text}");
@@ -83,8 +71,6 @@ fn a_peer_with_a_different_quirk_set_is_refused_in_the_lobby() {
     assert_eq!(mine.check(&same), vec![]);
 }
 
-/// The quirk set survives the wire, and a `Hello` that lost it would report
-/// agreement between two peers playing different games.
 #[test]
 fn the_quirk_set_round_trips_through_a_hello() {
     for bits in [0u64, 1, 0x3FFF, u64::MAX] {

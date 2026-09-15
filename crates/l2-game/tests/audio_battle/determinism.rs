@@ -13,9 +13,6 @@ use l2_game::Game;
 use l2_sim::runner::{Army, BattleRunner};
 use l2_sim::{Cues, Troop, SIDE_A, SIDE_B};
 
-/// One battle, played twice from the same events: once with a
-/// [`audio::Director`] listening after every tick, once with nothing listening.
-/// Returns the two games.
 fn play_it_twice(sound: &mut Audio) -> (Game, Game) {
     let a = Assets::placeholder();
     let armies = (
@@ -31,8 +28,6 @@ fn play_it_twice(sound: &mut Audio) -> (Game, Game) {
         let enemy = *cells_of(live(g), SIDE_B).first().unwrap();
         let at = pixel(live(g), enemy);
         click_at(m, g, &a, at);
-        // Park the pointer mid-field so the edge scroll never moves either
-        // camera.
         send(m, g, &a, Event::Pointer { x: 240, y: 240 });
     }
     assert_eq!(heard.battle, silent.battle, "the same events left the two games different");
@@ -43,7 +38,6 @@ fn play_it_twice(sound: &mut Audio) -> (Game, Game) {
         tick(&mut sm, &mut silent, &a);
         assert!(heard.battle == silent.battle, "sound changed the battle at tick {t}");
         if t % 500 == 250 {
-            // An order mid-battle, to both, so a cry lands while men are dying.
             for (g, m) in [(&mut heard, &mut hm), (&mut silent, &mut sm)] {
                 send(m, g, &a, Event::KeyDown(Key::letter('h')));
             }
@@ -52,16 +46,8 @@ fn play_it_twice(sound: &mut Audio) -> (Game, Game) {
     (heard, silent)
 }
 
-/// **Sound does not change the battle, tick for tick** — with the silent
-/// layer, so it runs everywhere.
-///
-/// Compared by the whole `LiveBattle`'s derived equality at every tick — every
-/// field of the runner, the figures, the missiles, the cues and the cries — and
-/// by the saved game's bytes and trailing hash at the end. That is strictly more
-/// than the lockstep digest, which is a hand-written projection of the same
-/// runner (`crates/l2-sim/tests/lockstep.rs`).
-///
 /// **A green ablation, and it is the finding.**
+///
 /// `Director` whose deletion turns this red, because `Director::listen` holds
 /// `&Game` and cannot write to it: the guarantee is the type, and this test is
 /// the tripwire for the day somebody changes the signature. Ablated the other
@@ -72,7 +58,6 @@ fn sound_does_not_change_the_battle() {
     let mut silent_layer = Audio::silent();
     let (heard, silent) = play_it_twice(&mut silent_layer);
     assert_eq!(l2_game::save::encode(&heard), l2_game::save::encode(&silent));
-    // The listener had something to listen to, or the comparison is empty.
     let b = live(&heard);
     assert!(b.cries.len() >= 2, "cries: {:?}", b.cries);
     assert!(b.runner.sim.cues.loosed(l2_sim::WeaponClass::Bow) > 0, "{:?}", b.runner.sim.cues);
@@ -83,8 +68,6 @@ fn sound_does_not_change_the_battle() {
     assert!(melee + missile > 0, "{:?}", b.runner.sim.cues);
 }
 
-/// **The proving ground as a live battle**: `l2_sim::proving`'s siege, unpaused,
-/// in a game on the battlefield screen.
 fn staged_siege() -> (Game, Machine) {
     let runner = l2_sim::proving::deploy();
     let mut live = LiveBattle::new(runner, 0, 0, 0, Some(l2_sim::proving::LEVEL), 1, 1);
@@ -97,10 +80,6 @@ fn staged_siege() -> (Game, Machine) {
     (g, Machine::new(ScreenId::Battlefield))
 }
 
-/// One siege that pours oil, docks a tower, burns a bridge and the men on it
-/// and bounces catapult shots off a wall four high, played twice from the same
-/// timetable: once with a [`audio::Director`] listening after every tick, once
-/// with nothing listening.
 fn play_a_siege_twice(sound: &mut Audio) -> (Game, Game) {
     let a = Assets::placeholder();
     let (mut heard, mut hm) = staged_siege();
@@ -123,13 +102,6 @@ fn play_a_siege_twice(sound: &mut Audio) -> (Game, Game) {
 
 /// **Sound does not change a siege that burns, tick for tick** — C166's proof,
 /// extended to the six sites fire, oil, the tower and the high rampart added.
-///
-/// The same comparison as [`sound_does_not_change_the_battle`]: the whole
-/// `LiveBattle` at every tick — every field of the runner, the missile array
-/// with its fires and its stream, the battlefield with its burning cells and
-/// its ramp — and the saved game's bytes at the end. The second half of the
-/// assertion is what keeps the first from being about a quiet siege: every one
-/// of the six occasions happened, so the listener was asked for all six.
 #[test]
 fn sound_does_not_change_a_siege_that_burns() {
     let mut silent_layer = Audio::silent();
@@ -148,9 +120,7 @@ fn sound_does_not_change_a_siege_that_burns() {
     assert_eq!(live(&heard).conclusion, None, "the siege was still being fought");
 }
 
-// ------------------------------------------------------ against the install
 
-/// The install's case-insensitive lookup, as `tests/audio_install.rs` does it.
 pub(crate) fn find(dir: &Path, name: &str) -> Option<PathBuf> {
     let want = name.to_ascii_lowercase();
     std::fs::read_dir(dir).ok()?.filter_map(|e| e.ok()).find_map(|e| {
@@ -160,9 +130,6 @@ pub(crate) fn find(dir: &Path, name: &str) -> Option<PathBuf> {
     })
 }
 
-/// **The same, with sound** — decoded and mixed from the
-/// install, and the assertion that sound was made is what keeps the equality
-/// from being about a silence.
 #[test]
 fn sound_that_plays_does_not_change_the_battle() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -178,9 +145,6 @@ fn sound_that_plays_does_not_change_the_battle() {
     }
 }
 
-/// **The same siege with sound** — and the four files the
-/// siege added are among what was opened: the pour, the dock, the bridge and
-/// the shot off the high wall, with a burning man's death cry beside them.
 #[test]
 fn sound_that_plays_does_not_change_a_siege_that_burns() {
     let Some(dir) = l2_testkit::install_dir() else {

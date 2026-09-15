@@ -61,10 +61,6 @@ pub(crate) fn siege_att_missile(w: &mut World, cur: usize) {
 }
 
 /// `UnitOrder_SiegeAttFoot` (`0x0048D412`) — the longest of the order scripts.
-///
-/// The ladder is 8, 18, 25, 31, 40, 51, 60, 71, alternating two staging
-/// positions, with a jump that sets `orders` to **100** outright when the
-/// castle layout flag is set — skipping the rest of the approach script.
 pub(crate) fn siege_att_foot(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, true) {
         w.ai.record(cur, Action::NoThink);
@@ -161,26 +157,12 @@ pub(crate) fn siege_att_melee(w: &mut World, cur: usize) {
 
 /// `UnitOrder_SiegeAttKnight` (`0x0048D9CE`).
 ///
-/// # It is also **the only thing in the binary that ends a battle by giving up**
-///
 /// ```c
 /// if ((g_aiMenTotal <= g_aiMenKnight) && (g_siegeBreachScore == 0)) {
 ///     g_battleWithdrawal = 1;
 ///     DAT_005656f8 = g_battleUnits[g_curBattleUnit].owner;
 /// }
 /// ```
-///
-/// — three statements at the top of the think, above the movement ladder and
-/// **not** in an `else`, so the unit raises the flag and then goes on issuing
-/// its order for the frame. `g_aiMenTotal` and `g_aiMenKnight` are
-/// [`Ai::count_men`]'s totals over the AI's own living troops of type 0…6, so
-/// `total <= knights` is *"every man I have left is a knight"* — an all-cavalry
-/// besieger in front of an unbreached wall, which is a siege it cannot win.
-///
-/// `Battle_CheckOutcome` tests [`Ai::withdrawal`] **before** either men
-/// counter, so this outranks annihilation; and `Battle_ReturnToCampaign` then
-/// charges the loser [`Army_WithdrawCasualties`](../../l2_kingdom/battle/fn.withdraw_casualties.html)
-/// — half of every troop line — before deciding whether fifty men are left.
 ///
 /// **This clause was missing, and its absence was load-bearing.** Nothing else
 /// raises the flag, so with it absent `End::Withdrawal` could not arise in a
@@ -217,11 +199,6 @@ pub(crate) fn siege_att_knight(w: &mut World, cur: usize) {
 /// The search radius is 20 cells, which is *exactly* the catapult's firing
 /// range in `g_missileStats` (160 eighths of a cell). Two unrelated constants
 /// in the binary agreeing is the strongest check available here. **[V]**
-///
-/// Note it `return`s on the wall-found path *before* the `orders` increment, so
-/// a catapult doing its job stops advancing its script.
-// Two ladder rungs issue the same order from different conditions, as the
-// original does. Collapsing them would lose the correspondence.
 #[allow(clippy::if_same_then_else)]
 pub(crate) fn siege_att_catapult(w: &mut World, cur: usize) {
     if !w.may_think(cur, THINK_INTERVAL, false) {

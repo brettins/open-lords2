@@ -1,36 +1,3 @@
-//! Renders the original's three fonts to a PNG, so a player can hold our text
-//! against a screenshot of the real game.
-//!
-//! ```text
-//! LORDS2_DIR="..." cargo run -p l2-game --example font_card
-//! LORDS2_DIR="..." cargo run -p l2-game --example font_card -- some/where.png
-//! ```
-//!
-//! **The output is a render of Sierra's artwork and must never be committed.**
-//! It is written to the system temp directory by default for exactly that
-//! reason; `.gitignore` covers `*.png` and that stays as it is.
-//!
-//! # Why this exists
-//!
-//! A player found a three-pixel error in our text by opening Lords of the
-//! Realm II next to our demo and reading the letters. He was right, and he was
-//! right about the fix for finding the next one too:
-//!
-//! > i assume more if you give me quick brown fox in caps and lowercase
-//!
-//! A word only ever shows a handful of glyphs. `"The siege is on"` happens to
-//! contain `h` and `?`-adjacent shapes and almost nothing with a descender, so
-//! it hid more than it showed. A card with the whole character set in both
-//! cases, in every font, shows all of it at once.
-//!
-//! # The baseline rule
-//!
-//! Each line gets a hairline drawn across the card at the bottom of its own
-//! `'l'`. `'l'` is the control: its frame record byte `0x0D` is zero in every
-//! one of these fonts, so nothing that has ever gone wrong with the glyph
-//! offset can move it. Any letter that sinks below that rule, or floats above
-//! it by more than the single-pixel terminals `r v w s` have, is misplaced —
-//! and you can see it without measuring anything.
 
 use std::fs::File;
 use std::io::Write;
@@ -40,7 +7,6 @@ use l2_formats::Palette;
 use l2_game::shell::font::{self, Font, Style};
 use l2_view::Canvas;
 
-/// The lines every font draws, top to bottom.
 const LINES: &[&str] = &[
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
     "abcdefghijklmnopqrstuvwxyz",
@@ -51,16 +17,10 @@ const LINES: &[&str] = &[
     "Is it? Yes - jumpy fjords, vexing quilt.",
 ];
 
-/// The fonts, with the line height `ShellAssets::load` gives each.
 const FONTS: &[(&str, i32)] = &[(font::SMALL, 12), (font::BODY, 16), (font::HEADING, 24)];
 
 const WIDTH: usize = 900;
 
-/// Indices into `gateway.256`, the palette the setup and conquest screens run
-/// under. `font::TEXT` (`0x3F`) is **black** there — the original's body text is
-/// dark on a light panel, which is easy to get backwards when a debug canvas
-/// starts out black — so the card puts it on a light ground and rules the
-/// baseline in red.
 const BACKGROUND: u8 = 0x2C;
 const CAPTION: u8 = 0x20;
 const RULE: u8 = 0xF9;
@@ -75,8 +35,6 @@ fn main() {
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::temp_dir().join("lords2-font-card.png"));
 
-    // The setup pages and the conquest screen run under `gateway.256`, and
-    // those are the screens whose text the player is comparing.
     let palette = std::fs::read(dir.join("gateway.256"))
         .ok()
         .and_then(|b| Palette::from_bytes(&b).ok())
@@ -98,14 +56,10 @@ fn main() {
         std::process::exit(1);
     }
 
-    // Height: each font contributes a caption plus its lines, generously spaced
-    // so a sunk glyph has somewhere to sink to and stays visible.
     let height: usize = rows.iter().map(|(_, f)| 24 + LINES.len() * (f.line as usize + 16)).sum();
     let mut canvas = Canvas::new(WIDTH, height + 16);
     canvas.clear(BACKGROUND);
 
-    // The card labels itself with our own 5x7 font, so the caption can never be
-    // mistaken for a sample of the font it is captioning.
     let mut y: i32 = 8;
     for (name, f) in &rows {
         l2_view::text::draw(&mut canvas, 8, y, &format!("{name}  (our render)"), CAPTION);
@@ -119,7 +73,6 @@ fn main() {
             f.draw(&mut canvas, 24, y, line, &flat);
             if let Some(b) = baseline(f, y) {
                 for x in 0..WIDTH {
-                    // Dashed, so it reads as a guide and not as part of a glyph.
                     if x % 3 != 2 {
                         canvas.set(x, b, RULE);
                     }
@@ -140,8 +93,6 @@ fn main() {
     }
 }
 
-/// The row a line's baseline rule goes on: the bottom of its own `'l'`, drawn
-/// at the same `y`. See the module comment for why `'l'` and nothing else.
 fn baseline(f: &Font, y: i32) -> Option<usize> {
     let mut probe = Canvas::new(64, y as usize + 64);
     let flat = Style { colour: font::TEXT, shadow: None, caps: None };
@@ -157,13 +108,6 @@ fn to_rgb(canvas: &Canvas, palette: &Palette) -> Vec<u8> {
     canvas.pixels.iter().flat_map(|&i| palette.rgb(i)).collect()
 }
 
-// ------------------------------------------------------------------- the PNG
-//
-// Hand-rolled
-// crate and this is the only thing in it that wants one: an example that writes
-// a diagnostic picture is a poor reason to put a decoder in everybody's
-// dependency tree. Deflate "stored" blocks are uncompressed and legal, so the
-// file is large and every reader opens it.
 
 fn write_png(path: &std::path::Path, w: usize, h: usize, rgb: &[u8]) -> std::io::Result<()> {
     let mut raw = Vec::with_capacity(h * (1 + w * 3));
@@ -193,7 +137,6 @@ fn chunk(out: &mut Vec<u8>, kind: &[u8; 4], body: &[u8]) {
     out.extend_from_slice(&crc32(&crc_input).to_be_bytes());
 }
 
-/// A zlib stream of deflate stored blocks: no compression, no tables, no risk.
 fn zlib_stored(data: &[u8]) -> Vec<u8> {
     let mut out = vec![0x78, 0x01];
     let mut i = 0;

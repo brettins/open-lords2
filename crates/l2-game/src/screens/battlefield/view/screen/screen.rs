@@ -24,8 +24,6 @@ impl Screen for BattlefieldScreen {
         ScreenId::Battlefield
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
-    /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
@@ -37,7 +35,6 @@ impl Screen for BattlefieldScreen {
         }
     }
 
-    /// **Two files, and the battle's kind picks between them.**
     /// `Screen_DrawBattlefield` (`0x004233F7`) ends every repaint of `0x28`
     /// … `0x2A` with
     ///
@@ -50,6 +47,7 @@ impl Screen for BattlefieldScreen {
     /// (`0x004D9F48`) — the filenames are in the table's own bytes, and
     /// `Res_LoadStatic` (`0x00499859`) is the `local_10 == 1 →
     /// &DAT_005675A0`, `local_10 == 2 → &DAT_00568EE0` ladder that fills them.
+    ///
     /// Neither is `Battle_LoadAssets`' read. `Palette_Set` (`0x004B0AB5`) is a
     /// plain copy — no remap, no shade table.
     ///
@@ -58,9 +56,6 @@ impl Screen for BattlefieldScreen {
     /// it the other way round — a siege drew every wall and every man in the
 /// field's colours, the whole screen wrong —
     /// and **C201 then ported the tiles**, so neither is wrong now.
-    ///
-    /// [`BattlefieldScreen::ground`] is the cached flag, because this is
-    /// handed no world; one palette serves both castle families.
     fn palette(&self) -> Option<&'static str> {
         Some(self.ground.palette())
     }
@@ -69,18 +64,7 @@ impl Screen for BattlefieldScreen {
         if ctx.game.battle.is_none() {
             return Transition::Pop;
         }
-        // The yes/no box is modal in the original too: `Ui_OpenConfirm` sets
-        // `g_screenId = 0x1E`, so none of the battlefield's arms run under it.
         if self.confirm.is_some() {
-            // **Kind 5, and the press does not answer.** `Widget_Test`'s
-            // kind-5 branch sets `rec[0x0D] = 0x14` and returns *without*
-            // calling the handler; the handler runs from the countdown at the
-            // top of the next call, on the frame the timer reaches zero. So
-            // this returns nothing and [`Screen::update`] gives the answer.
-            // A double click is a press to kind 5 as well, and restarts the
-            // gauntlet's twenty frames.
-            //
-            // The two arms are declared on [`CONFIRM_WIDGETS`], beside their kind.
             let fired = self.press.event(&CONFIRM_WIDGETS, event);
             if fired.is_some() || self.press.busy() {
                 self.redraw = true;
@@ -97,11 +81,6 @@ impl Screen for BattlefieldScreen {
                 live.update_hover();
                 if mode == Mode::Drag {
                     live.drag_to(x, y);
-                    // `0x2A`'s last clause: the pointer leaving the field ends
-                    // the drag. It is tested *after* the two selection guards,
-                    //
-                    // commits.
-                    //
                     // // arm: 0x0042FF10/drag-leaves-field hover
                     if !live.hover.on_field {
                         live.mode = Mode::Field;
@@ -123,7 +102,6 @@ impl Screen for BattlefieldScreen {
             // epilogue. Each `return` is one of its `goto LAB_00431F25`s.
             Event::Click { x, y } => {
                 if mode == Mode::Field {
-                    // **Guard 1 of the `0x29` ladder, and it is the menu bar.**
                     // `Screen_FrameInput`'s arm opens
                     // `Menu_OpenDropdown(&g_menuBarItems, 3)` *before*
                     // `Map_EdgeScroll`, `Battle_ButtonClicked`,
@@ -135,8 +113,6 @@ impl Screen for BattlefieldScreen {
                     // can save, load, start a new game, quit, or open any
                     // options page from the battlefield. **[V]**
                     //
-                    // `0x2A` and `0x2B` do **not** have this arm — only `0x29`
-                    // — which is what `mode == Mode::Field` is.
                     // arm: 0x0040DECA/battle-menu-bar left-press
                     if let Some(title) = menubar::title_at(&*ctx, x, y) {
                         return Transition::Push(ScreenId::MenuBar(title));
@@ -163,10 +139,6 @@ impl Screen for BattlefieldScreen {
                 // **The ladder short-circuits.** `FUN_0043BF07` runs first, and
                 // when it consumes the release — a committed box or a picked man
                 // — `Screen_FrameInput` jumps past `FUN_0043C57D`.
-                // box does *not* also order at the corner it ended on. When it
-                // declines (a click that moved nothing and hit nobody) the order
-                // arm behind it gets the release, and that is the only way a
-                // click on empty ground ever becomes an order.
                 if live.release_field(x, y) {
                     self.redraw = true;
                     return Transition::Stay;
@@ -185,16 +157,9 @@ impl Screen for BattlefieldScreen {
                 live.pointer = (x, y);
                 live.update_hover();
                 match live.mode {
-                    // `0x2B`'s whole arm.
                     Mode::Outcome => {
                         live.skip_outcome();
                     }
-                    // `0x2A`'s: cancel the drag and go back to `0x29`. The box
-                    // that was being drawn is **not** undone — the original
-                    // leaves the live selection
-                    // it, because the cancel is a screen change and nothing
-                    // else.
-                    //
                     // // arm: 0x0042FF10/cancel-drag right-release
                     Mode::Drag => {
                         live.mode = Mode::Field;
@@ -221,10 +186,6 @@ impl Screen for BattlefieldScreen {
                 self.redraw |= acted;
                 Transition::Stay
             }
-            // `WM_CHAR`. The battlefield's four key arms are all `WM_KEYDOWN`
-            // virtual-key ones — the nine digits and H/V —
-            // field on any of the three battle screens, so the character
-            // message has nothing to do here. See `crate::text`.
             Event::Text(_) => Transition::Stay,
             // **The right button's down edge is nothing here.** The epilogue
             // that reads `g_mouseRightPressed` (`0x004EABE0`) is guarded on
@@ -235,22 +196,12 @@ impl Screen for BattlefieldScreen {
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        // `g_battleIsSiege` and the castle's level, which the painter reads
-        // and [`Screen::palette`] cannot. First statement, ahead of every
-        // early return; a change of ground repaints.
         self.redraw |= self.note_ground(ctx);
-        // `Tick_Pulses` runs once a frame regardless of the battle's pause, and
-        // `BattleBanner_Draw` reads only `g_pulse80` — a paused castle still
-        // flies its flag.
         self.banner.tick();
-        // `Widget_Test`'s countdown loop, which runs whether or not anything is
-        // under the pointer. Index 0 is the tick, index 1 the cross. The first
-        // answer closes the box, and a table nobody walks fires nothing more.
         if let Some(widget) = self.press.tick().next() {
             return self.answer_confirm(ctx, widget == 0);
         }
         if self.confirm.is_some() && self.press.any_pressed() {
-            // The gauntlet is down; the picture has to move while it is.
             self.redraw = true;
         }
         // `Smk_OnFinished`'s one battle line: `if (g_screenId == 0x2B)
@@ -269,8 +220,6 @@ impl Screen for BattlefieldScreen {
         live.edge_scroll();
         live.tick();
         let done = live.mode == Mode::Outcome && live.outcome_ticks > battlefield::OUTCOME_FRAMES;
-        // `Battle_Frame`'s own placement: after the tick, before the field is
-        // painted, once a frame whatever the pause word says. See [`Overview`].
         {
             let ctx = Ctx { game: &mut *ctx.game, assets: ctx.assets };
             self.step_overview(&ctx);
@@ -296,14 +245,9 @@ impl Screen for BattlefieldScreen {
             // `[D]` on one guard it is inside: `g_siegeCount < 2 || !siege`
             // decides whether there is a banner at all, and this engine has no
             // count of the turn's sieges to put in it.
+            //
             // arm: 0x00477DFC/outcome-film frame
             //
-            // **The push happens on the frame the banner is raised, not after
-            // it is painted**, and that is deliberate. `Screen_BattleOutcome`
-            // paints the recess and `Battle_CheckOutcome` plays into it in one
-            // pass; here `draw` is a frame behind `update`, so the film starts
-            // over whatever the last paint left. Holding the push until a flag
-            // `draw` sets makes the picture decide the battle — measured:
             // `painting_the_battlefield_with_its_artwork_does_not_change_the_battle`
             // goes red at tick 620. `docs/netcode.md` — presentation state stays
             // out. The film's ground is [`crate::movie::Film::is_over_a_screen`]'s
@@ -323,7 +267,6 @@ impl Screen for BattlefieldScreen {
     }
 
     fn take_redraw(&mut self) -> bool {
-        // `|`, not `||`: both flags are drained on every call.
         std::mem::take(&mut self.redraw) | self.press.take_redraw()
     }
 
@@ -364,7 +307,6 @@ impl Screen for BattlefieldScreen {
             caps: None,
         };
 
-        // --- the field ---------------------------------------------------
         match ctx.assets.battle.as_ref() {
             Some(art) => {
                 let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
@@ -376,8 +318,6 @@ impl Screen for BattlefieldScreen {
         // The selection markers. The original draws a coloured tick over a
         // picked man (`selctd seen`, figure `+0x0A`); ours is a box, and it is
         // ours because that sprite has not been located.
-        // It follows the man where he is *drawn* — `l2_view::scene::figure_origin`
-        // — so it walks with him instead of waiting on the square he is leaving.
         let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
         for f in live.runner.selected_fighters(live.owner) {
             let fig = &live.runner.fighters[f];
@@ -403,10 +343,7 @@ impl Screen for BattlefieldScreen {
             crate::widget::frame(canvas, r, ink.highlight);
         }
 
-        // --- the right column ---------------------------------------------
         draw_overview(canvas, &self.overview, live, ink, have_sheets);
-        // The column's artwork goes down before the banner plates, the way
-        // `Screen_DrawBattlefield` lays it: frame 0 is the ground they sit on.
         let art_column = draw_column_chrome(
             canvas,
             &p,
@@ -416,8 +353,6 @@ impl Screen for BattlefieldScreen {
             live.paused,
         );
         draw_banner_plates(canvas, &p, ctx.assets.chrome.as_ref(), live, ink);
-        // Ours, and only where the sheet is not: frame 1's own strip carries
-        // the five button pictures, so drawing boxes over it would hide them.
         if !art_column {
             for b in Button::ALL {
                 let r = b.rect();
@@ -431,7 +366,6 @@ impl Screen for BattlefieldScreen {
             }
         }
 
-        // --- the pause banner ----------------------------------------------
         if live.paused && live.mode != Mode::Outcome {
             // `FUN_00423B4F`: group 32 index 0 in the heading font at
             // (0x10E, 0x1AE), with system frame 0x4D beside it at (400, 0x1C4).
@@ -440,8 +374,6 @@ impl Screen for BattlefieldScreen {
             p.heading(canvas, 0x10E, 0x1AE, &s, font::TEXT);
         }
 
-        // --- the outcome banner --------------------------------------------
-        //
         // `Screen_BattleOutcome` (`0x00423241`), the un-animated arm:
         //
         // ```text
@@ -450,16 +382,6 @@ impl Screen for BattlefieldScreen {
         //   Eng_DrawString(0x52, pair*2,     0x30, 0xA8, heading)
         //   FUN_0040328E (0x52, pair*2 + 1,  0x30, 0xE0, 0x180, 100, …)
         // ```
-        //
-        // **All four of those numbers were ours.** The box was a 416 × 128
-        // `fill_rect` of `ink.background` at (32, 96) with an outline over it,
-        // and the two strings were laid out inside it by eye. The window is
-        // 448 × 160 at (16, 144); the heading starts at (48, 168) and the body
-        // is wrapped to 384 at (48, 224). The corner picture was absent
-        // entirely.
-        //
-        // **And the animated arm**, when `g_optAnimations` is set and the local
-        // player decided the battle — the one the film plays in:
         //
         // ```text
         //   FUN_0047703A(); FUN_004B1310();             the field dimmed
@@ -501,14 +423,9 @@ impl Screen for BattlefieldScreen {
             }
         }
 
-        // --- the yes/no box --------------------------------------------------
-        //
         // `Screen_ConfirmBox` (`0x0040CCFA`) is three statements and the first
         // is the ground: `FUN_004093E0(g_confirmX − 0x10, g_confirmY − 0x10,
         // 0xE, 8)` — the shared box in **border set 1**, not a plate of ours.
-        // The geometry above was already the original's; the ground was a
-        // `fill_rect` of `ink.background`, which is the one colour that looks
-        // right under our own palette and is a hole under the game's.
         if let Some(prompt) = self.confirm {
             p.window(canvas, CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_COLS, CONFIRM_ROWS, BOX_SET);
             let s = ctx.assets.shell.text(GROUP_CONFIRM, prompt).to_string();
@@ -517,8 +434,6 @@ impl Screen for BattlefieldScreen {
             // `g_confirmWidgets` (`0x004DD310`) carries frames **29 and 31** —
             // a mailed hand thumb up and thumb down. This drew `system::OK` and
             // `system::OK + 2`, which are the close corner and its neighbour:
-            // the right sheet, the wrong frames, and a canvas diff would have
-            // passed on either.
             //
             // **And the pressed picture is `base + 1`.** `Widget_Draw`
             // (`0x0040CFD2`) is
@@ -545,26 +460,13 @@ impl Screen for BattlefieldScreen {
             }
         }
 
-        // --- the menu bar ----------------------------------------------------
-        //
         // **`Screen_DrawMenuBar` (`0x00419C78`), and it is the last thing
         // painted.** `Battle_Frame` (`0x004B99C0`) runs it *after* `Screen_Draw`
         // and `Screen_DrawWidgets`, so the bar sits over everything this
 // function has just drawn — so it is here and not at the top,
         // and why the outcome banner's `canvas.remap` above does **not** dim it.
-        //
-        // The 640 × 24 band at y 0 was blank on this screen: the field starts at
-        // `VIEW.y == 24` and nothing filled the strip above it. A player read
-        // that as *"the menu buttons are deactivated in battle mode"*, and he
-// was looking at an empty bar — the original
-        // has **no disabled state anywhere in the menu bar**, on this screen or
-        // any other. `true` is `g_battlePhase != 0`: the shields and the
-        // year-and-season go, the three titles and the treasury stay.
         crate::screens::map::draw_menu_bar(canvas, ctx, true);
 
-// The cursor kind, printed: the pointer itself is the
-        // host's and we have no cursor sheet. It is here because the ladder that
-        // chooses it is an arm and a test reads it.
         let _ = live.cursor();
     }
 }

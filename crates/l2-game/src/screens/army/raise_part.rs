@@ -14,8 +14,6 @@ use crate::widget;
 use crate::screens::armoury::Raised;
 
 
-/// The painter's one local: `0x80` when the county has a mercenary offer,
-/// `0xA0` when it has not. Everything on the screen is placed off it.
 pub const fn base(offer: bool) -> i32 {
     if offer {
         0x80
@@ -24,7 +22,6 @@ pub const fn base(offer: bool) -> i32 {
     }
 }
 
-/// `Ui_DrawBox`'s row count, less the `+ 1` the call adds.
 pub const fn rows(offer: bool) -> i32 {
     if offer {
         0x10
@@ -41,8 +38,6 @@ pub fn rack_row(offer: bool) -> i32 {
     base(offer) + (rows(offer) - 4) * 0x10
 }
 
-/// The row `69/14 "Total weapons"` and `69/9 "Continue"` share:
-/// `(rows - 2) * 0x10 + base + 4`.
 pub fn footer_row(offer: bool) -> i32 {
     (rows(offer) - 2) * 0x10 + base(offer) + 4
 }
@@ -51,8 +46,6 @@ pub fn county_name_index(ctx: &Ctx, county: u8) -> usize {
     ctx.game.map_slot * COUNTY_NAMES_STRIDE + county as usize
 }
 
-/// The mercenary block's inset well, `0x60` tall with an offer and `0x32`
-/// without.
 pub fn merc_well(offer: bool) -> Rect {
     Rect::new(0x70, base(offer) + 0x58, 0x1A0, if offer { 0x60 } else { 0x32 })
 }
@@ -74,12 +67,10 @@ pub fn continue_button(offer: bool) -> Rect {
     Rect::new(480, 336 + widget_offset(offer), 24, 24)
 }
 
-/// The tick — record 1, frame 29, hotspot id 1, 32 pixels at (352, 256).
 pub fn hire_yes(offer: bool) -> Rect {
     Rect::new(352, 256 + widget_offset(offer), 32, 32)
 }
 
-/// The cross — record 2, frame 31, hotspot id 0, 32 pixels at (400, 260).
 pub fn hire_no(offer: bool) -> Rect {
     Rect::new(400, 260 + widget_offset(offer), 32, 32)
 }
@@ -105,29 +96,13 @@ pub(super) fn widgets(offer: bool, affordable: bool) -> Vec<Widget> {
     out
 }
 
-/// `Eng_DrawString(18, 0 or 1, 0x1D0, base + 0x98)` — **not a button.** The
-/// word the flag prints, kept as a rectangle only so that the drawing code and
-/// the test that says nothing tests it can name the same thing.
 pub fn hire_readout(offer: bool) -> Rect {
     Rect::new(0x1D0, base(offer) + 0x98 - 2, 0x40, 20)
 }
 
-/// Screen `0x17` for one county.
-///
-/// **It owns almost nothing.** The percentage, the men, the cost, the basket
-/// and the hire flag are [`crate::game::LevyOrder`], because `0x17 → 0x0A →
-/// 0x17` destroys and rebuilds this screen twice and the original's globals
-/// survive that.
 pub struct RaiseArmyScreen {
     pub(crate) county: u8,
-    /// One line of feedback. **Ours.**
     pub(crate) status: String,
-    /// **`g_mouseLeftDown`, as this screen has heard it** — set by a press,
-    /// cleared by a release.
-    ///
-    /// It is a *level*, and `Levy_SliderClick`'s track reads nothing else, so
-    /// the knob follows the pointer for as long as the button is down.
-    ///
     /// **It is the global, not the widget table's business.** `WM_LBUTTONDOWN`
     /// sets `DAT_004EABC2` whatever the press landed on, so a press that
     /// `Widget_Test` consumed — Continue, the tick, the cross — still sets it,
@@ -139,9 +114,6 @@ pub struct RaiseArmyScreen {
     /// double-click flag; the down bit in `DAT_004EABC2` is set by
     /// `WM_LBUTTONDOWN` alone, and the first click's `WM_LBUTTONUP` has already
     /// cleared it. `[V]`, `0x004B29BE`.
-    ///
-    /// What ours cannot see: a button that went down on the screen that opened
-    /// this one. The original's flag is global; ours starts clear.
     pub(crate) left_down: bool,
     /// `DAT_004DD340`'s press timers. See [`widgets`].
     pub(crate) press: Press,

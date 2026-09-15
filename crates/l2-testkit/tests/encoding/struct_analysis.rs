@@ -4,27 +4,12 @@ use super::free_function_codecs_part::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// `struct T { … }`'s field names, plus the ones excused by `not-encoded:`.
 fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> {
-    // **Resolve inside the codec's own crate first.** `l2_kingdom::unit::Unit`
-    // and `l2_formats::save::Unit` are different types with the same short
-    // name, and taking whichever the directory walk reached first reported
-    // twelve fields of the raw `.sav` record as missing from a codec that has
-    // never seen them. A scanner that resolves a name wrongly produces a clean,
-    // plausible, wrong answer, which is this project's commonest tool failure.
-    // **Required, not preferred.** Falling back to the workspace resolved
-    // `l2-net`'s test-fixture `Order` to `l2_kingdom::trade::Order` and reported
-    // six fields of a trade order as missing from a network codec that has never
-    // heard of it. A name that does not resolve in its own crate is a name this
-    // check cannot verify, and saying so is better than a plausible answer about
-    // the wrong type — the failure mode `docs/agents.md` catalogues five of.
     let files: Vec<PathBuf> = rust_files().into_iter().filter(|p| crate_of(p) == krate).collect();
     for path in files {
         let Ok(src) = std::fs::read_to_string(&path) else { continue };
         for head in [format!("pub struct {name} {{"), format!("struct {name} {{")] {
             let Some(at) = src.find(&head) else { continue };
-            // `struct Foo {` must not match `struct FooBar {`; find() on the
-            // brace-terminated form already prevents that.
             let Some(body) = block_after(&src, at) else { continue };
             let mut fields = Vec::new();
             let mut excused = Vec::new();
@@ -32,12 +17,6 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
             let mut pending_excuse = false;
             for line in body.lines() {
                 let t = line.trim();
-                // Two markers, and they mean different things. `not-encoded:`
-                // is a field outside the codec. `codec-via:` is a field that
-// crosses it through a constructor —
-                // `Quirks::from_bits` is the first — which this check cannot
-                // see, because it matches names. Both are excuses and both are
-                // counted; neither is a silence.
                 if t.contains("not-encoded:") || t.contains("codec-via:") {
                     pending_excuse = true;
                 }
@@ -47,11 +26,6 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
                     continue;
                 }
                 let Some((lhs, _)) = t.split_once(':') else { continue };
-                // **`pub(crate)` counts.** Stripping only `pub ` left a
-                // `pub(crate) turn: …` field with a parenthesis in its name,
-                // which the alphanumeric guard below then dropped in silence —
-                // so a restricted field was invisible to this check for
-                // as long as nobody looked. Found while bringing `Game` in.
                 let lhs = lhs.trim();
                 let lhs = lhs
                     .strip_prefix("pub(crate) ")
@@ -80,8 +54,6 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
     None
 }
 
-/// A codec body with its **comments removed**.
-///
 /// [`mentions`] matches text, and until this existed the text it matched
 /// included the prose. The check was ablated by deleting
 /// the loop that encodes `Game::player_names`, and it **stayed green**, because
@@ -90,9 +62,6 @@ fn struct_fields(name: &str, krate: &str) -> Option<(Vec<String>, Vec<String>)> 
 /// say about it — which is exactly backwards, and is `docs/agents.md`'s *"a
 /// check that passes for an accidental reason is indistinguishable from one
 /// that passes for the right reason"* with the accident being good writing.
-///
-/// Line comments only. A `/* */` inside a codec body would need brace-safe
-/// scanning and there are none; if one appears, this comment is where to say so.
 fn without_comments(body: &str) -> String {
     body.lines()
         .map(|line| match line.find("//") {
@@ -123,19 +92,6 @@ fn is_word(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
-/// **Types with a codec that this check makes no claim about**, each read and
-/// classified:
-///
-/// * `Fixed` — `pub struct Fixed(i32)`, a tuple struct. It has no named fields,
-///   so its single value is checked by
-///   `l2-net`'s own round trip.
-/// * `Message`, `Mismatch` — enums. A variant list is a different contract from
-///   a field list and needs a different check; the tag-and-payload round trip in
-///   `l2-net/tests/canonical.rs` is what covers them today.
-/// * `Order` — an enum, and a fixture in `l2-net/tests/common`. Not shipped.
-///
-/// **A growing list is a signal, so it is asserted
-/// counted.** Every entry is a field list nothing is checking.
 const UNVERIFIABLE: &[&str] = &[
     "Fixed (l2-net)",
     "Message (l2-net)",
@@ -143,8 +99,6 @@ const UNVERIFIABLE: &[&str] = &[
     "Order (l2-net)",
 ];
 
-/// **The check.** Every field of every type with an `Encode`/`Decode` pair must
-/// be named in both.
 #[test]
 fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
     let mut bodies = codec_bodies();
@@ -158,10 +112,7 @@ fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
 
     for (ty, c) in &bodies {
         let (enc, dec) = (&c.encode, &c.decode);
-        // A type with only one half is an enum wire format or a hand-rolled
-        // pair; this check is about structs whose field list is the contract.
         let (Some(enc), Some(dec)) = (enc, dec) else { continue };
-        // **Code, not prose.** See `without_comments`.
         let (enc, dec) = (&without_comments(enc), &without_comments(dec));
         let Some((fields, excused)) = struct_fields(ty, &c.krate) else {
             unverifiable.push(format!("{ty} ({})", c.krate));
@@ -190,7 +141,6 @@ fn every_field_of_an_encodable_struct_is_encoded_and_decoded() {
     // not resolve in the codec own crate: enums with a hand-rolled wire form,
     // and fixtures that live in a test module. Each is a type this check makes
     // NO claim about.
-    // does.
     unverifiable.sort();
     assert_eq!(
         unverifiable, UNVERIFIABLE,

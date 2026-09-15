@@ -32,9 +32,6 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// Whether the string found at `at` carries `Ui_DrawText`'s **drop shadow**:
-/// every pixel one right and one down of a glyph pixel that is not itself a
-/// Glyph pixel is `0x3F`. Typed here.
 /// `font::DROP_SHADOW_COLOUR`, so ablating the constant cannot move the probe.
 fn is_dropped(canvas: &Canvas, f: &font::Font, s: &str, at: (i32, i32)) -> bool {
     const SHADOW: u8 = 0x3F;
@@ -58,8 +55,6 @@ fn is_dropped(canvas: &Canvas, f: &font::Font, s: &str, at: (i32, i32)) -> bool 
     checked > 0
 }
 
-/// Pixels of `colour` inside a box — the "renders something" half of a string
-/// that [`find_font_text`] could otherwise only find or not find.
 fn ink_in(canvas: &Canvas, x: i32, y: i32, w: i32, h: i32, colour: u8) -> usize {
     (y..y + h)
         .flat_map(|py| (x..x + w).map(move |px| (px, py)))

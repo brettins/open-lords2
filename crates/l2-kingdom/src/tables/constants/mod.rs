@@ -22,10 +22,8 @@ use super::*;
 /// 80 cows feeding 400 people.
 pub const DAIRY_PER_HEAD: i32 = 5;
 
-/// `g_foodPerHead` (`docs/kingdom.md` §4.3) - one slaughtered animal feeds ten.
 pub const FOOD_PER_HEAD: i32 = 10;
 
-/// `g_foodPerSack` (`docs/kingdom.md` §4.3) - one sack of grain feeds six.
 pub const FOOD_PER_SACK: i32 = 6;
 
 /// `g_grainYieldPerSack` (`0x0057C8E0`) = 12. Confirmed verbatim by the game's
@@ -41,11 +39,6 @@ pub const GRAIN_YIELD_PER_SACK: i32 = 12;
 /// fields sowing 90.
 pub const GRAIN_MAX_SACKS_PER_FIELD: i32 = 10;
 
-/// The labour divisor in `Grain_Sow`'s "can this many sacks be tended?" test:
-/// 5 with *Advanced Farming* on, 2 with it off. `docs/kingdom.md` §7.1.
-///
-/// Note the direction: the *smaller* divisor demands *more* labour, so turning
-/// Advanced Farming off makes sowing harder, not easier.
 pub const GRAIN_LABOUR_DIVISOR_ADVANCED: i32 = 5;
 pub const GRAIN_LABOUR_DIVISOR_BASIC: i32 = 2;
 
@@ -62,8 +55,6 @@ pub const GRAIN_LABOUR_DIVISOR_BASIC: i32 = 2;
 /// new constants here and not four. **`[V]`**
 pub const GRAIN_GROW_PER_WORKER_ADVANCED: i32 = 10;
 
-/// …and the harvest's, which is far tighter: **three sacks a reaper**, out of a
-/// workforce `Grain_Harvest` has already halved. `docs/kingdom.md` §7.1.
 pub const GRAIN_HARVEST_PER_WORKER_ADVANCED: i32 = 3;
 
 /// A field is fully reclaimed at 800, and `Field_ReclaimTick` (`0x0044C093`)
@@ -73,8 +64,6 @@ pub const GRAIN_HARVEST_PER_WORKER_ADVANCED: i32 = 3;
 pub const FIELD_PROGRESS_MAX: i32 = 800;
 pub const FIELD_RECLAIM_PER_SEASON: i32 = 200;
 
-/// The flat efficiency every industry runs at when *Advanced Farming* is off.
-///
 /// **`[V]`** - `FUN_0044F248`'s first line is
 /// `if (g_optAdvancedFarming == 0) return 80;`. The 15% and 20% bases, and the
 /// whole ramp, only exist in an Advanced Farming game. Nothing in
@@ -88,6 +77,7 @@ pub const EFFICIENCY_WITHOUT_ADVANCED_FARMING: i32 = 80;
 /// **`[V]`, and in the instruction stream**: the ramp
 /// ends `CMP dword ptr [ebp-0x0C], 0x64` / `MOV dword ptr [ebp-0x0C], 0x64` at
 /// `0x0044F2E8`, and the flat 80 above is the `MOV EAX, 0x50` at `0x0044F278`.
+///
 /// `tools/oracle/kingdom.ps1` recovers both immediates out of `.text` — the
 /// technique `docs/decisions.md` C16 established, applied to a rule rather
 /// than to a `Rules_InitConstants` global.
@@ -98,16 +88,9 @@ pub const EFFICIENCY_MAX: i32 = 100;
 /// with enough workers really is capped at 999 units a season.
 pub const RESOURCE_LIMIT_UNLIMITED: i32 = 999;
 
-// ---------------------------------------------------------------------------
-// Wages
-// ---------------------------------------------------------------------------
 
 /// `Wages_ForUnit` (`0x004AD52B`): a human pays `men / 4`; an AI pays
 /// `men / 3`, `men / 5` or `men / 10` by difficulty.
-///
-/// **Troop type does not enter it: a knight and a peasant cost the same.** A
-/// player measured 250 men -> 62 crowns, 252 -> 63, 254 -> 63, across armies of
-/// knights, of peasants and of mixed troops.
 pub const WAGE_DIVISOR_HUMAN: i32 = 4;
 pub const WAGE_DIVISOR_AI: [i32; 3] = [3, 5, 10];
 
@@ -120,18 +103,13 @@ pub const BANKRUPT_STAGE_MAX: u8 = 5;
 ///
 /// **`[V]`, and the length invariant closes it.** Save block 10 is
 /// `0x0056D8C0` for **51,200** bytes, and `400 * 16 * 8` is exactly 51,200.
+///
 /// The write is `[head << 7 + county * 8 + 0x0056D8B8]`, so county `k` lands at
 /// slot `k - 1` of the entry — the eight-byte offset between the block's base
 /// and the instruction's is what makes the 1-based county array fit a 0-based
 /// ring without spilling.
-///
-/// `docs/kingdom.md` §3.4 names this pass and nothing more.
 pub const HISTORY_SEASONS: usize = 400;
 
-/// The ring stores 16 county slots per season, which is [`MAX_COUNTY_ID`]
-/// counties — the loop runs `for (c = 1; c < 0x11; c++)`.
-///
-/// [`MAX_COUNTY_ID`]: crate::county::MAX_COUNTY_ID
 pub const HISTORY_COUNTIES: usize = 16;
 
 
@@ -139,8 +117,6 @@ pub const HISTORY_COUNTIES: usize = 16;
 mod tests {
     use super::*;
 
-    /// The health ladder's comparison sense, pinned by `docs/kingdom.md` §9:
-    /// a starting meter of 65 must band as 2, and 67 must band as 3.
     #[test]
     fn the_health_ladder_is_inclusive_at_every_step() {
         assert_eq!(health_band(65), 2, "65 <= 65 is band 2 - the save says so");
@@ -167,7 +143,6 @@ mod tests {
         }
     }
 
-    /// Every documented ration ratio, checked against its name.
     #[test]
     fn the_ration_table_matches_the_names_in_l2_eng_group_21() {
         let need = |level: usize, pop: i32| {
@@ -182,9 +157,6 @@ mod tests {
         assert_eq!(need(5, 400), 1200, "Triple");
     }
 
-    /// The manual: *"A ration of Normal or above will improve happiness while
-    /// half or quarter rations will decrease happiness"*. Normal is the first
-/// positive row.
     #[test]
     fn normal_is_the_first_ration_level_worth_happiness() {
         for l in 0..3 {
@@ -198,11 +170,6 @@ mod tests {
         assert_eq!(ration_happiness(5), 7);
     }
 
-    /// The published FAQ, quoted in `docs/kingdom.md` §4.4: *"a county in good
-    /// health (+1 happiness) with normal rations (+1) and 100 happiness can pay
-    /// 7% taxes (-2) and remain at 100%. At perfect health, they can pay 8%."*
-    ///
-    /// This is the steady state of the whole layer in one assertion.
     #[test]
     fn the_break_even_tax_rate_is_seven_at_good_health_and_eight_at_perfect() {
         let steady = |band: usize, ration: i32, rate: i32| {
@@ -214,8 +181,6 @@ mod tests {
         assert!(steady(4, 3, 9) < 0, "9% is one too many at Perfect health");
     }
 
-    /// **Perfect health decays under anything less than Double rations** - the
-    /// sign pattern in the delta table's last column.
     #[test]
     fn perfect_health_needs_double_rations_to_hold() {
         for level in 0..RATION_LEVEL_COUNT {
@@ -228,8 +193,6 @@ mod tests {
         }
     }
 
-    /// Recovering a starved county is fast at the bottom and slow at the top,
-    /// in both directions: every row of the delta table is non-increasing.
     #[test]
     fn every_health_delta_row_is_non_increasing_across_the_bands() {
         for level in 0..RATION_LEVEL_COUNT {
@@ -277,8 +240,6 @@ mod tests {
         assert_eq!(birth_rate(50_000), 1, "above the last row the last row holds");
     }
 
-    /// The soft cap players describe: at 2,000 people a Winter birth rate
-    /// cannot keep up with a Winter death rate even at Perfect health.
     #[test]
     fn two_thousand_people_cannot_outbreed_winter() {
         let winter_deaths = DEATH_RATE_BY_HEALTH[4] + DEATH_RATE_BY_SEASON[Season::Winter as usize];
@@ -314,7 +275,6 @@ mod tests {
         assert_eq!(GOOD_NAMES[5], "Wool");
     }
 
-    /// The human's `lord` byte is 0, and row 0 is all zeros.
     #[test]
     fn the_human_gets_no_gold_grant() {
         assert_eq!(AI_GOLD_GRANT[0], [0; 4]);
@@ -326,8 +286,5 @@ mod tests {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The whole thing, as one value
-// ---------------------------------------------------------------------------
 
 

@@ -61,10 +61,6 @@ impl Encode for Realm {
             out.i32(*input);
         }
 
-        // The diplomacy record (`docs/diplomacy.md` §1). It landed on `main`
-        // outside this file and was absent from the encoding — and therefore
-        // from the lockstep digest — until the census below found it. See
-        // [`VERSION`] 8.
         out.bool(self.offer_pending);
         out.u8(self.ally_candidate);
         out.u8(self.ally);
@@ -79,11 +75,6 @@ impl Encode for Realm {
         out.bool(self.crowned_once);
         out.u8(self.voice_rotation);
 
-        // The war plan (`VERSION` 14). Seven fields the AI writes in steps 7,
-        // 9 and 10 and reads again next turn, plus the four resource wants
-        // step 4 fills. A realm that reloaded without them would forget which
-        // county it musters from, restart every lord's muster and raid
-        // counters at zero, and lose the county its main army is marching on.
         out.u8(self.muster_county);
         out.u8(self.raid_county);
         out.u8(self.muster_timer);

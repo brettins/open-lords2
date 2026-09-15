@@ -1,6 +1,3 @@
-//! The county strip, the sidebar and the county panels.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 
 #[macro_use]
@@ -41,15 +38,6 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// **Run the frames a turn takes.** Pressing End Turn only starts one — the
-/// phase machine is wound on once per fixed tick and the season fade follows —
-/// so a test that wants the numbers afterwards has to tick. See
-/// `l2_game::turn::TurnRun`.
-///
-/// **Both halves of a frame**, in `Machine::update`'s order:
-/// `Screen::wind_turn` is `Battle_Frame`'s `Turn_Tick(); Units_Tick();`, which
-/// the driver runs whatever is on top, and `Screen::update` is
-/// `Screen_FrameInput`'s, which it runs for the top screen only.
 fn run_turn<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) {
     let before = game.kingdom.turn_count;
     let mut done_at = None;
@@ -69,6 +57,5 @@ fn run_turn<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) {
     panic!("the turn never came round");
 }
 
-/// And the one exception: the achieved ration when it is not the wanted one.
 const STRIP_BAD: u8 = l2_game::shell::font::HIGHLIGHT;
 

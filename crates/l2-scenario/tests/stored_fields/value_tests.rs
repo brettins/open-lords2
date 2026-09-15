@@ -9,7 +9,6 @@ use l2_formats::save::{Save, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, REALM_STRID
 use l2_kingdom::Kingdom;
 use l2_scenario::Scenario;
 
-/// One element of one row, as the file holds it.
 fn decode(save: &Save, va: u32, ty: Ty) -> i64 {
     let value = match ty {
         Ty::U8 => save.u8_at(va).map(i64::from),
@@ -22,9 +21,6 @@ fn decode(save: &Save, va: u32, ty: Ty) -> i64 {
     value.unwrap_or_else(|e| panic!("{va:#X}: {e}"))
 }
 
-/// **Every claimed row, in every county and realm of every save, reaches the
-/// loaded kingdom holding the original's own value.**
-///
 /// This is the half that cannot be typed into agreement, and it is the one that
 /// would have caught all three instances before a player did: C142's `+0xC0`,
 /// the 56 industry forecasts and the three farm rows were each a row that
@@ -103,10 +99,6 @@ fn every_imported_and_derived_field_reaches_the_kingdom_holding_the_files_bytes(
         wrong.join("\n  ")
     );
 
-    // **What a green run did not measure.** A claimed row that is zero in every
-    // save was compared with zero, and a wrong offset landing on another zero
-    // passes. Named, so the next save with a castle under construction or a
-    // crop in the ground knows what it can settle.
     let silent: Vec<&str> = claimed.iter().filter(|id| !nonzero.contains(**id)).copied().collect();
     eprintln!(
         "{compared} values compared over {} saves; {} of {} claimed rows hold zero in every save, \

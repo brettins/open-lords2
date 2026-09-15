@@ -1,30 +1,18 @@
-//! **A campaign, and how one ends.** The half of the ending chain that is not a
-//! rule.
-//!
 //! `l2_kingdom::victory` has the rules: who is eliminated, who wins, and what
 //! `DAT_0053F0C4` becomes. This module has the session state those rules are read
 //! against — the campaign counter, the ending messages waiting to be shown, and
 //! the step into screen `0x1C`.
 //!
-//! # A campaign is eight maps, and *nothing* carries between them
-//!
 //! That question was worth asking and the answer is smaller than it looks. When
 //! the person presses OK on the conquest screen, `FUN_004329EC` calls
 //! **`Game_NewGame`** — the same function the front end calls. No gold, no
 //! armies, no counties, no diplomacy and no realm records survive a map boundary.
-//! Three globals do, and they are the whole of a campaign's memory:
 //!
 //! | global | here | what it is |
 //! |---|---|---|
 //! | `DAT_0053F258` | [`Campaign::map`] | how many maps have been won; also the index into the table below |
 //! | `DAT_0053F640` | [`Campaign::track`] | which of the two campaigns |
 //! | `DAT_0053F0C4` | [`Campaign::outcome`] | how the map just played ended |
-//!
-//! So "finish a campaign" is "win eight scenarios in a row", and a scenario
-//! ending is a whole ending. Nothing in this workspace has to model continuity
-//! across a boundary because the original models none.
-//!
-//! # The campaign table, read out of the binary
 //!
 //! **[V]** — the bytes at `0x004D8E18` and `0x004D8F58` in a GOG `Lords2.exe`,
 //! eight 32-bit words per entry, read by `FUN_00499E5D`:
@@ -57,13 +45,6 @@
 //! map, four from the fourth on. The two columns both climb and both stop at 5
 //! and 4, which is how a plausible reading survived being written down.
 //!
-//! Columns 4, 5 and 6 are the county status, the weapons and the army size, and
-//! they say something about the campaign: **`g_startArmySize` is 0 on every row
-//! of both tracks**, so no campaign map ever starts you with an army, and
-//! `g_startWeapons` is 1 — *few* — on every row but Italy's and the Crusades',
-//! where it is 0.
-//!
-//! **The second track starts at index 2**:
 //! `FUN_00433461` sets `DAT_0053F258 = 2` when the campaign hotspot is 1 and 0
 //! otherwise, and track B's rows 0 and 1 are the same bytes as track A's zero
 //! padding. So track B is *six* maps and still ends on the same `< 8` test.
@@ -81,22 +62,12 @@ use l2_kingdom::victory::{Outcome, Ranking};
 /// handler both test `DAT_0053F258 < 8`.
 pub const CAMPAIGN_LENGTH: usize = 8;
 
-/// One row of the campaign table.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CampaignMap {
     /// `g_scenarioIndex` — the map slot, and the `L2.eng` group 101 index.
     pub scenario: usize,
-    /// `g_optDifficulty`, 0..=2.
     pub difficulty: u8,
-    /// `g_startingGoldChosen` — the starting treasury, 5000 / 2500 / 1000.
     pub gold: i32,
-    /// `g_startCastle`, `g_startCountyStatus`, `g_startWeapons`,
-    /// `g_startArmySize`, `g_aiLordCount`, in the order `Campaign_LoadEntry`
-    /// assigns them — which is the order of the four accessors below.
-    ///
-    /// Kept as one array because they are still read
-    /// verbatim out of the table and written verbatim back; the accessors say
-    /// what each slot is.
     pub options: [i32; 5],
 }
 
@@ -107,18 +78,14 @@ impl CampaignMap {
         self.options[0].clamp(0, 5) as u8
     }
 
-    /// The county-status row, 0..=2 — weak, medium, strong.
     pub fn county_status(&self) -> usize {
         self.options[1].clamp(0, 2) as usize
     }
 
-    /// The armoury row, 0..=3 — none, few, some, many.
     pub fn weapons(&self) -> usize {
         self.options[2].clamp(0, 3) as usize
     }
 
-    /// The garrison row, 0..=3 — no army, small, medium, large. **0 on every
-    /// row of both tracks.**
     pub fn army_size(&self) -> usize {
         self.options[3].clamp(0, 3) as usize
     }
@@ -131,44 +98,16 @@ impl CampaignMap {
 
     /// **`Campaign_LoadEntry` (`0x00499E5D`), as a [`crate::setup::Settings`].**
     ///
-    /// This is the half of that function that is not the map load, and the
-    /// reason it returns a `Settings` is the whole
-    /// point of the function: **a campaign map does not go through
-    /// `Setup_CommitOptions`.** The eight columns of the row *are* the committed
-    /// globals — `g_scenarioIndex`, `g_optDifficulty`, `g_startingGoldChosen`,
-    /// `g_startCastle`, `g_startCountyStatus`, `g_startWeapons`,
-    /// `g_startArmySize`, `g_aiLordCount` — written straight over whatever the
-    /// custom-game screen last committed. `crate::setup` §"The twelve" has the
-    /// pairing; `docs/kingdom.md` §8.5 has the table.
-    ///
-    /// **Five options are forced, and the forcing brackets the row.** Two
-    /// before it and three after, in the original's own order:
-    ///
-    /// ```text
-    /// g_optTimeLimit = 0;  g_optFightHumansOnly = 1;
-    ///     ...the eight columns...
-    /// g_optAdvancedFarming = 0;  g_optExploration = 0;  g_optArmiesEat = 0;
-    /// ```
-    ///
     /// So a campaign map ignores what the custom page last set for those five,
     /// and there is **no time limit and no fighting the AI's battles for it** on
     /// any of the fourteen. **[V]**
-    ///
-    /// `g_startingGoldChosen` is a *value* here and an index on the custom path
-    /// — the row holds 5000, not `STARTING_GOLD`'s index 4 — which is the one
-    /// place the two paths disagree about what a column means, and the reason
-    /// this cannot be written as "look the twelve up and commit them".
-    ///
-    /// `quirks` is ours and is [`crate::setup::Settings`]'s own note.
     pub fn settings(&self, quirks: l2_kingdom::Quirks) -> crate::setup::Settings {
         use crate::setup::{COUNTY_STATUS, START_ARMOURY, START_TROOPS};
         crate::setup::Settings {
-            // The three the tail of `Campaign_LoadEntry` zeroes.
             advanced_farming: false,
             exploration: false,
             armies_eat: false,
             difficulty: self.difficulty,
-            // …and the two its head forces.
             fight_humans_only_byte: 1,
             time_limit: 0,
             quirks,
@@ -177,10 +116,6 @@ impl CampaignMap {
             armoury: START_ARMOURY[self.weapons()],
             garrison: START_TROOPS[self.army_size()],
             county: COUNTY_STATUS[self.county_status()],
-            // **Already the AI count**.
-            // `Setup_CommitOptions` subtracts the people because its source is
-            // *Nobles*, which counts everybody; this column is `g_aiLordCount`
-            // itself and is stored into the same global with no arithmetic.
             ai_lords: self.ai_lords(),
         }
     }
@@ -244,16 +179,11 @@ impl Track {
         }
     }
 
-    /// How many maps this track asks for.
     pub fn length(self) -> usize {
         CAMPAIGN_LENGTH - self.first_map()
     }
 }
 
-/// A campaign in progress, and the ending messages the current map has raised.
-///
-/// Everything here is plain data with no handles in it, for the reason
-/// [`crate::game::Game`] gives about itself.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Campaign {
     /// `DAT_0053F640`.
@@ -264,27 +194,15 @@ pub struct Campaign {
     pub map: usize,
     /// `DAT_0053F0C4`.
     pub outcome: Outcome,
-    /// What the last `Score_RankRealms` left behind. [`l2_kingdom::victory::outcome_of`]
-    /// reads `opponents_remaining` out of it.
     pub ranking: Ranking,
 }
 
-// **`Campaign::pending` is gone, and that is the point of this branch.**
-//
-// It used to be a `Vec<Ending>` with the note *"the original has one message
-// ring for everything … when one lands, this becomes a filter over it."* One has
-// landed: [`crate::message::MessageQueue`], on [`crate::Game`]. The endings now
-// go into the ring every other message goes into, are pulled by `Msg_Pump`,
-// **displayed**, and act on being **dismissed** — which is what `docs/plan.md`
-// says the win is and what nothing here could do while there was a second queue
-// nothing drew.
 
 impl Campaign {
     pub fn new(track: Track) -> Campaign {
         Campaign { track, map: track.first_map(), ..Campaign::default() }
     }
 
-    /// The map now being played, or `None` once the campaign is over.
     pub fn current(&self) -> Option<CampaignMap> {
         if self.map >= CAMPAIGN_LENGTH {
             return None;
@@ -302,8 +220,6 @@ impl Campaign {
     /// **A win advances the counter and a loss does not**, which is the whole
     /// rule for replaying a map: on a loss `FUN_00499E5D` reloads the same table
     /// entry and the person fights the same country again.
-    ///
-    /// Returns which of the conquest screen's three branches to draw.
     pub fn enter_conquest_screen(&mut self) -> ConquestBranch {
         if self.outcome == Outcome::Won {
             self.map += 1;
@@ -323,8 +239,6 @@ impl Campaign {
     }
 }
 
-/// The three things screen `0x1C` can say. Mirrors
-/// [`crate::screens::conquest::Outcome`], which is the painter's own copy.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConquestBranch {
     Won,
@@ -349,7 +263,6 @@ mod tests {
         assert_eq!(Track::First.length(), 8);
         assert_eq!(Track::Second.first_map(), 2);
         assert_eq!(Track::Second.length(), 6);
-        // The scenario column, as read out of `Lords2.exe`.
         let first: Vec<usize> = TRACK_FIRST.iter().map(|m| m.scenario).collect();
         assert_eq!(first, vec![17, 12, 2, 5, 0, 3, 7, 4]);
         let second: Vec<usize> = TRACK_SECOND[2..].iter().map(|m| m.scenario).collect();
@@ -362,12 +275,6 @@ mod tests {
         }
     }
 
-    /// **The purse is not monotonic, and finding that out is why this test is
-    /// written the long way.** It reads 5000, 2500, 5000, 2500, 5000, 2500, 1000,
-    /// 1000: the difficulty steps 0, 0, 1, 1, 2, 2, 2, 2 and the purse **resets
-    /// at the top of each difficulty tier** and falls inside it. An earlier
-    /// version of this test asserted the purse never rises and went red on the
-    /// third row, which is the table telling the truth about its own shape.
     #[test]
     fn the_campaign_gets_harder_tier_by_tier_and_poorer_inside_each_tier() {
         let mut difficulty = 0;
@@ -380,7 +287,6 @@ mod tests {
                 gold = i32::MAX; // a new tier; the purse starts again
             }
             assert!(m.gold <= gold, "the purse went up inside one difficulty tier");
-            // **Both of these climb.**
             // Column 3 is the castle you start with and column 7 is how many
             // lords you start against; `docs/decisions.md` C44.
             assert!(m.castle() >= castle && m.castle() <= 5);
@@ -396,9 +302,6 @@ mod tests {
         assert_eq!(opponents, 4, "against four lords");
     }
 
-    /// **No campaign map starts you with an army, on either track.** Column 6
-    /// is `g_startArmySize` and it is 0 on all fourteen real rows, which is what
-    /// makes it distinguishable from the three columns beside it that do move.
     #[test]
     fn the_campaign_never_starts_you_with_a_garrison() {
         for m in TRACK_FIRST.iter().chain(TRACK_SECOND[2..].iter()) {
@@ -439,7 +342,6 @@ mod tests {
         assert_eq!(c.current(), None, "and there is no ninth map");
     }
 
-    /// Track two ends after six because it starts at two.
     #[test]
     fn the_second_track_finishes_after_six_wins() {
         let mut c = Campaign::new(Track::Second);
@@ -452,13 +354,6 @@ mod tests {
         assert_eq!(c.map, 8);
     }
 
-    // --- the queue ---------------------------------------------------------
-    //
-    // These used to drive `Campaign::settle` over a private `Vec<Ending>`. They
-    // now drive the **real ring** on a real [`crate::Game`], through the same
-    // [`crate::message::show`] and [`crate::message::dismiss`] the message
-    // screen calls — because a queue only one code path can reach is the thing
-    // this branch existed to remove.
 
     use crate::message::{self, Record};
     use crate::Game;
@@ -492,9 +387,6 @@ mod tests {
         assert_eq!(g.campaign.outcome.value(), 11);
     }
 
-    /// The mainline win: the last AI's obituary, with nobody left, becomes a
-    /// victory one message later — and the victory arrives **through the ring**,
-    /// enqueued by the arm that displayed the obituary.
     #[test]
     fn the_last_ai_dying_wins_the_game_through_an_enqueued_victory() {
         let mut g = game_with(0);
@@ -513,7 +405,6 @@ mod tests {
         assert!(!g.messages.is_open());
     }
 
-    /// Group 195 travels as category 1 and so cannot touch the outcome.
     #[test]
     fn the_ai_coronation_taunt_does_not_end_a_game() {
         let mut g = game_with(1);

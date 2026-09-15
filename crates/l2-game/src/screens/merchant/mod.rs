@@ -2,14 +2,6 @@
 //! and the trade panel `Screen_TradeGoods` (`0x00416308`) / `Trade_DrawPanel`
 //! (`0x0041635F`), `g_screenId` `0x0C`, both on `L2.eng` group 68.
 //!
-//! Two screens, because the original has two screen ids and the panel goes back
-//! to the stall. [`MerchantScreen`] is the stall you
-//! pick a good on; [`TradeScreen`] is the one you agree a quantity on. The
-//! rules behind both are [`l2_kingdom::trade`], which knows nothing about
-//! either.
-//!
-//! # The painter, address by address — and the stall makes **one** draw call
-//!
 //! ```text
 //! Screen_Merchant(firstFrame):                                 0x00415FB7
 //!   File_ReadChunk("merchant.256", &DAT_004EA8A0, 0x300)   the palette only
@@ -31,15 +23,8 @@
 //!   Widget_Draw(0, 0, &DAT_004DD808, DAT_00569500)   <- count is always 0
 //! ```
 //!
-//! **The stall is a picture.**
 //! sheet: the shipped file is 307,224 bytes, which is `640 * 480 + 24`, and
 //! `FUN_00408FCB` reads it from offset `0x18` straight into the display buffer.
-//! Every ware, every price plaque frame, every shelf is in that one raster. So
-//! `Screen_Merchant`'s single `Ui_OkButton` really is the whole of its drawing,
-//! the grid is nowhere on screen.
-//! `docs/draws.md` §3's *"an audit that walks painters reports a comfortable
-//! number"* has an opposite here: an audit that walks painters reports **one**,
-//! and one is the truth.
 //!
 //! # `DAT_004DD808` is two widgets that are drawn and tested with a count of 0
 //!
@@ -73,11 +58,6 @@
 //! FUN_0043530E();                          /* -> screen 0x0C on that good */
 //! ```
 //!
-//! — so every ware painted on the stall carries its own good id in a parallel
-//! image, and the picture and the click map are the same artwork twice. There
-//! are no rectangles anywhere. Ours reads the same file the same way when it is
-//! installed, and falls back to the plaque rectangles below when it is not.
-//!
 //! **The stall draws no text of its own, and the hover plaque is the whole of
 //! its interface.** `Merchant_HoverPlaque` (`0x0041608B`): for the good under
 //! the pointer it draws a 128 x 64 box at that good's own position out of a
@@ -99,18 +79,6 @@
 //! happens at zero. Ours updates on the pointer event instead, because our
 //! widget pass is not the original's frame and a count of ours would mean a
 //! different length of time; the throttle is recorded.
-//!
-//! **This screen's artwork says sheep and wool are not in the game, twice.**
-//! [`STALL`] puts both at **(0, 0)** — no place for a plaque — and the shipped
-//! `mercgrid.pl8` holds exactly twelve ids, with **neither 3 nor 5 in any of
-//! its 4,800 cells**: there is nowhere on the stall to click for either. With
-//! the missing `Merchant_Trade` branch and the price of zero that is four
-//! independent sources, and these are the two made by the pictures
-//! by the code or the strings. Both goods are carried anyway, for the reason
-//! `l2_kingdom::trade` carries them: the game demonstrating its own dead end
-//! beats us deciding in advance that it does not exist.
-//!
-//! # The panel, address by address — and `Screen_TradeGoods` makes **zero**
 //!
 //! ```text
 //! Screen_TradeGoods():                                         0x00416308
@@ -157,17 +125,6 @@
 //!   Widget_Draw(0x30, 0x50, &DAT_004DD838, DAT_00553F58)
 //! ```
 //!
-//! **`Screen_TradeGoods` itself has no draw call at all.** All 33 are in
-//! `Trade_DrawPanel`, which the painter calls once and `Screen_DrawWidgets`
-//! calls again every frame — so the panel repaints itself over the backdrop
-//! without the screen being redrawn, which is `docs/draws.md`'s send-supplies
-//! finding in a second place.
-//!
-//! **The two colours on one line are the original's.** *"Purchase?"* is drawn
-//! in `0xF9` and *"Sale?"* in `0xFC` — the only place in this module where the
-//! colour carries meaning, and the reason [`ASK_BUY_COLOUR`] and
-//! [`ASK_SELL_COLOUR`] are named.
-//!
 //! **`DAT_0058FE2C` is on for the middle third of the panel** and off for the
 //! rest: the heading, the price line and the *"You have"* line are drawn with
 //! the drop-capital colour and the advice well is not. `Pen::drop_caps` is that
@@ -181,24 +138,6 @@
 //! panel's whole modality. **The table is exactly six records long** —
 //! `0x004DD838 + 6 * 24` is `0x004DD8C8`, which is `g_armouryBuyWidgets` — so
 //! unlike the merchant's own table.
-//!
-//! # The three strings that are the rules stated in English
-//!
-//! The advice paragraph is chosen by a flag the arrows set, and each of its
-//! four values is one of the model's own limits:
-//!
-//! * **68/18** *"You do not have enough crowns to buy, my Lord."* — the up
-//! arrow clamped **and the ceiling was zero**. The original's test is
-//!   `if (maxQty < qty && (qty = maxQty, maxQty == 0))`, so it is not "you hit
-//!   the limit", it is "you cannot afford even one".
-//! * **68/16** *"You have no goods to sell, my Lord."* — the down arrow, with
-//!   the floor at zero, the same way.
-//! * **68/19** *"Buy ale for your county, as a gift for its people."* — the
-//!   good is ale.
-//! * **68/17** *"Use the up and down arrows to buy and sell goods."* —
-//!   otherwise.
-//!
-//! # What is ours, and marked
 //!
 //! The arrows, the two limit buttons, the tick and the cross are the original's
 //! six widgets at the original's six positions, drawn as our own buttons
@@ -221,15 +160,6 @@ use crate::shell::{self, font, Pen};
 
 /// `L2.eng` group 68 — the merchant's own words, and **only the trade panel
 /// draws any of them**. `Screen_Merchant` calls `Eng_DrawString` not once.
-///
-/// **Verified against the words.** Group 68 is 20 strings and this module draws
-/// fourteen of them; every index below was read out of the file and reads as
-/// the fragment the panel assembles it into — 0 *"Click on a price to trade
-/// with"*, 1 *"We receive"*, 2 *"Trading"*, 3 *"Buy"*, 4 *"Sell"*, 5
-/// *"Buying"*, 6 *"Selling"*, 7 *"Complete this"*, 8 *"Total cost of"*, 9
-/// *"Buying price"*, 0xA *"Selling price"*, 0xB *"and"*, 0xC *"You have."*,
-/// 0xD *"my Lord."*, 0xE *"Purchase?"*, 0xF *"Sale?"*, 0x10…0x13 the four
-/// advice paragraphs.
 pub const GROUP: usize = 68;
 /// `L2.eng` group 6 — the fourteen goods' names, indexed 1…14 by the good's own
 /// id, with index 0 *"No goods"*. Both the stall plaque and the panel's heading
@@ -248,10 +178,7 @@ pub const GROUP_GOODS: usize = 6;
 /// `L2.eng` 31/21 *"Morale"*, it is a label left in the file. Named so the next
 /// reader does not go looking for the painter that shows it.
 pub const CLICK_ON_A_PRICE: usize = 0;
-/// **Drawn by nothing** — see [`CLICK_ON_A_PRICE`]. The arrows carry pictures
-/// (`System.pl8` frames 21 and 23) instead of these two words.
 pub const BUY_LABEL: usize = 3;
-/// See [`BUY_LABEL`].
 pub const SELL_LABEL: usize = 4;
 
 pub const WE_RECEIVE: usize = 1;
@@ -273,12 +200,7 @@ pub const SALE_ASK: usize = 0xF;
 /// total. **[V]** against the words.
 pub const CROWN_NOUN: usize = 0;
 
-/// `Eng_DrawString(68, 0x0E, …, 0xF9)` — *"Purchase?"* is drawn in the
-/// highlight colour and *"Sale?"* in `0xFC`. The two differ, and no other pair
-/// on this screen does.
 pub const ASK_BUY_COLOUR: u8 = 0xF9;
-/// See [`ASK_BUY_COLOUR`]. `0xFC` has no name in `shell::font`; it appears at
-/// this one call site.
 pub const ASK_SELL_COLOUR: u8 = 0xFC;
 
 /// `File_ReadChunk("icontrad.pl8", DAT_004EABEC, 160000)` — the trade panel's
@@ -290,16 +212,12 @@ pub const ICONS: &str = "Icontrad.pl8";
 pub const BACKDROP: &str = "Merchant.pl8";
 
 /// `System.pl8` frames for the six records of `DAT_004DD838`, in table order:
-/// up, down, all, none, thumb up, thumb down.
 pub const WIDGET_FRAMES: [usize; 6] = [21, 23, 72, 70, 29, 31];
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// The table is self-checking: row `i` carries good id `i + 1`, fourteen
-    /// for fourteen. A misread row would show up here
-    /// in the wrong place.
     #[test]
     fn the_stall_table_names_its_own_good_in_every_row() {
         for (i, row) in STALL.iter().enumerate() {
@@ -309,9 +227,6 @@ mod tests {
         assert_eq!(STALL.len(), trade::ALL_GOODS.len());
     }
 
-    /// **Sheep and wool have no place on the stall**, and nothing else is
-    /// missing one. The third independent statement that the two goods are not
-    /// in the game.
     #[test]
     fn exactly_sheep_and_wool_are_absent_from_the_stall() {
         for good in trade::ALL_GOODS {
@@ -322,22 +237,15 @@ mod tests {
         assert!(plaque(Good::Ale).w > 0, "ale is bought here, so it is on the stall");
     }
 
-    /// The `You have … and N …` clause is drawn only for a good you can hold,
-    /// and that is exactly the goods with a non-zero icon: not sheep, not wool,
-/// and **not ale**, which is drunk.
     #[test]
     fn only_a_good_you_can_hold_gets_an_icon() {
         for good in trade::ALL_GOODS {
             let holdable = !matches!(good, Good::Sheep | Good::Ale | Good::Wool);
             assert_eq!(stall_row(good).icon != 0, holdable, "{good:?}");
-            // and the unread third column agrees with it, row for row
             assert_eq!(stall_row(good).unread != 0, holdable, "{good:?}");
         }
     }
 
-    /// Every plaque is on the screen, and **they overlap** — which is a fact
-/// about the original.
-    ///
     /// `FUN_0041608B` draws exactly one plaque at a time and erases the last
     /// one before drawing the next, so two goods may claim the same 128 x 64
     /// box and nothing ever shows both. Grain's at (100, 230) and stone's at
@@ -356,11 +264,9 @@ mod tests {
         for (g, r) in &placed {
             assert!(r.x >= 0 && r.y >= 0 && r.x + r.w <= 640 && r.y + r.h <= 480, "{g:?} {r:?}");
         }
-        // The overlap is real and named, so nobody "fixes" the table later.
         let grain = plaque(Good::Grain);
         let stone = plaque(Good::Stone);
         assert!(grain.contains(stone.x, stone.y + stone.h - 1), "grain and stone overlap");
-        // And the fallback picks the lower id where they do.
         let first = trade::ALL_GOODS
             .iter()
             .copied()
@@ -368,8 +274,6 @@ mod tests {
         assert_eq!(first, Some(Good::Grain));
     }
 
-    /// The six widgets land inside the original's window, in two rows, and the
-    /// tick and cross are the pair on the lower one.
     #[test]
     fn the_six_widgets_are_inside_the_panel() {
         for i in 0..6 {
@@ -382,18 +286,12 @@ mod tests {
         assert!(confirm_button().y > up_button().y);
     }
 
-    /// **The six widget frames are the six pictures, in table order**, and the
-    /// last two are the same pair every yes/no in the game draws — the castle
-    /// chooser's `g_castleBuildWidgets` carries 29 and 31 at the same sizes.
     /// Pinned from `widgets.js`'s reading of `0x004DD838`, not computed.
     #[test]
     fn the_widget_frames_are_the_tables_own_and_end_in_the_mailed_hand() {
         assert_eq!(WIDGET_FRAMES, [21, 23, 72, 70, 29, 31]);
         assert_eq!(WIDGET_FRAMES[4], crate::screens::castle::THUMB_UP);
         assert_eq!(WIDGET_FRAMES[5], crate::screens::castle::THUMB_DOWN);
-        // The four arrows are 24 pixels square and the pair is 32, which is
-        // the record's `+6` and is why they cannot be drawn from one loop with
-        // one size.
         for i in 0..4 {
             assert_eq!(widget_rect(i).w, 24, "record {i}");
         }
@@ -401,9 +299,6 @@ mod tests {
         assert_eq!(widget_rect(5).w, 32);
     }
 
-    /// **Group 68 indices 0, 3 and 4 are drawn by nothing.**
-    ///
-    /// Seventeen of the twenty are drawn, all seventeen by `Trade_DrawPanel`.
     /// This asserts the module names all three of the leftovers, so that a
     /// later reader adding a *"Buy"* caption has to delete a constant that says
     /// the original has no call site for it. `L2.eng` 31/21 *"Morale"* is the
@@ -430,7 +325,6 @@ mod tests {
         for d in dead {
             assert!(!drawn.contains(&d), "{d} is both drawn and not drawn");
         }
-        // Thirteen singles plus the four advice paragraphs is seventeen.
         let mut all: Vec<usize> = drawn.to_vec();
         all.extend([16, 17, 18, 19]);
         all.sort_unstable();
@@ -438,7 +332,6 @@ mod tests {
         assert_eq!(all.len(), 17);
     }
 
-    /// The four advice indices are the four strings, and no two share one.
     #[test]
     fn the_four_advice_paragraphs_are_four_distinct_strings() {
         let all = [Advice::CannotAfford, Advice::NothingToSell, Advice::Ale, Advice::UseTheArrows];

@@ -8,11 +8,7 @@ use crate::message::{self, category, Prompt, Record, Shape};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 
-// ------------------------------------------------------------------ the words
 
-/// The county's name — `Eng_DrawString(100, g_scenarioIndex * 0x14 + county)`.
-/// **Twenty per map slot**, not sixteen; the stride is the table's, not the
-/// county count's.
 pub(crate) fn county_name(ctx: &Ctx, id: u8) -> String {
     let name = ctx.assets.shell.text(message::GROUP_COUNTY, ctx.game.map_slot * 20 + id as usize);
     if name.is_empty() {
@@ -55,8 +51,6 @@ pub fn lord_name(ctx: &Ctx, realm: u8) -> String {
     }
 }
 
-/// The group's own label, index 0 — *"Index 0 of a group is a label the game
-/// wrote about itself"*, and here it is drawn as the heading of the window.
 pub(crate) fn label(ctx: &Ctx, group: u16) -> String {
     let s = crate::arrival::words(&ctx.assets.shell, group, 0);
     if s.is_empty() {
@@ -75,18 +69,7 @@ pub fn body(ctx: &Ctx, record: &Record) -> String {
     crate::arrival::words(&ctx.assets.shell, record.group, record.body_index())
 }
 
-// ---------------------------------------------------------------- the layouts
 
-/// **Category `0x00` and its near neighbours.** The heading is a three-way
-/// choice and it is the only interesting thing in the arm:
-///
-/// ```c
-/// if (county == 0) {
-///     if (spare == 0) Ui_DrawCentred(group, 0, …);              /* the label   */
-///     else            Ui_DrawText(g_playerNames + spare * 0x2C, …); /* a lord   */
-/// } else              Ui_DrawCentred(100, scenario * 0x14 + county, …); /* a county */
-/// ```
-///
 /// So `+0x13` is not spare: it puts a **second realm's** name where the group's
 /// own label would have gone.
 pub(super) fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
@@ -114,11 +97,6 @@ pub(super) fn draw_notice(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Re
 /// Ui_DrawCentred(100, g_scenarioIndex * 0x14 + county, x + 0x10, y + 0x20, w - 0x20, heading);
 /// FUN_0040328e(g_messageGroup, 1, x + 0x20, y + 0x40, w - 0x40, 400, 0, 0, body);
 /// ```
-///
-/// The heading is the county **always**
-/// and the body is sixteen pixels higher than a notice's, under a window
-/// sixteen shorter. The string is index **1**, not `variant + 1`; every
-/// capture letter is posted with variant 0, so the two agree.
 pub(super) fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     let heading = county_name(ctx, record.county);
     pen.heading_centred(canvas, f.x + 0x10, f.y + 0x20, f.w - 0x20, &heading, font::TEXT);
@@ -126,13 +104,6 @@ pub(super) fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &R
     pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x40, f.w - 0x40, &words, font::TEXT);
 }
 
-/// **Categories `0x01`, `0x0A` and `0x0B`** — a lord's letter. All three draw
-/// the identical head: shield, portrait well, *"From "* plus the sender's name
-/// in the heading font, then the group's label, then the wrapped body.
-///
-/// The pay prompt inserts `Ui_DrawCount(g_diploHelpPrice, 0, …)` immediately
-/// after the label, on the same line, so the price reads as part of
-/// the sentence.
 pub(super) fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     draw_portrait(pen, ctx, canvas, record.from, f);
     let from = ctx.assets.shell.text(message::GROUP_FROM, 0).to_string();
@@ -183,6 +154,7 @@ pub(super) fn draw_county_portrait(
 /// blits the frame like every other portrait layout. `DAT_00553EE0` is
 /// `g_messageFrom`, so the face is the **sender's**, whoever the heading names
 /// — the dead lord for an obituary, the player himself for group 224 *Defeat!*
+///
 /// (`from == g_localPlayer` is what makes it his), and the realm-0 end of the
 /// ladder for group 225, which `Msg_Enqueue(0, g_localPlayer, 0xE1, …)` posts
 /// with `from = 0`.
@@ -205,11 +177,6 @@ pub(super) fn draw_ending(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Re
     pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x70, f.w - 0x40, &body(ctx, record), font::TEXT);
 }
 
-/// **Category `0x11`** — *"Cannot garrison castle."* Two numbers under the
-/// body: how much room is left in the castle, and how many men the army has.
-///
-/// The first is `castleCapacity[castleType] - garrison`, and it is drawn with
-/// the `'@'` blank lead so it lines up with the second.
 pub(super) fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     pen.heading_centred(
         canvas,
@@ -276,10 +243,6 @@ pub(super) fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &
 /// }
 /// ```
 ///
-/// **The heading is the group's own label, never the county's name** —
-/// [`draw_notice`] would have put the county there, and this arm has no county
-/// name on it at all. The body is index 1 whatever the variant.
-///
 /// **All eight number lines are drawn.** The last two were not: *Plague* and
 /// *Wedding fever* print county `+0x2F8`, `Population_UpdateAll`'s event swing,
 /// which nothing of ours carried. It is carried now —
@@ -288,7 +251,6 @@ pub(super) fn draw_garrison(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &
 /// `Ui_DrawNumber(+0x2F8, '@', " ", …)` and 77/`0x1D` *"extra deaths."* or
 /// 77/`0x1E` *"extra births."* after it.
 ///
-/// The lead is `'@'` — the blank digit — and the suffix is one space:
 /// `DAT_004D7050` and `DAT_004D7054` are both `" "`, dumped.
 ///
 /// **The record is posted by [`message::post_event`]**, the port of
@@ -307,8 +269,6 @@ pub(super) fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Rec
     pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x40, f.w - 0x40, &text, font::TEXT);
 
     let Some(c) = ctx.game.kingdom.counties.get(record.county as usize) else { return };
-    // `Ui_DrawCount(value, noun, …)` for six, `Ui_DrawNumber(value, '@', " ", …)`
-// for the two that print people.
     enum Line {
         Count(i32, usize),
         Number(i32),
@@ -322,8 +282,6 @@ pub(super) fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Rec
         0x8D => (Line::Count(c.herd_event_change, EVENT_NOUN_ANIMAL), 0x17),
         0x8A => (Line::Number(c.event_population_swing), 0x1D),
         0x8E => (Line::Number(c.event_population_swing), 0x1E),
-        // The sixteen ids from `0x12E` up have no number line at all — and the
-        // taller window, see `message::event_height`.
         _ => return,
     };
     let (x, y) = (f.x + 0x20, f.y + 0x90);
@@ -339,20 +297,9 @@ pub(super) fn draw_event(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Rec
 /// `L2.eng` group 77, whose indices `0x14` … `0x1A` are the event letters'
 /// last words: *"died of disease."*, *"eaten by rats."* and the rest.
 const EVENT_GROUP: usize = 77;
-/// Group 8's *Sack* and *Animal*, the two nouns the event arm counts in.
 const EVENT_NOUN_SACK: usize = 2;
 const EVENT_NOUN_ANIMAL: usize = 4;
 
-/// **Category `0x04`, the floating tip.** Its box follows the cursor, clamped
-/// into `0x50 ..= 0xF0` on both axes — so it never leaves the middle of the
-/// screen however far out the pointer is.
-///
-/// ```c
-/// x = (mouseX < 0xF1) ? mouseX + 0x20 : mouseX - 0xA8;   clamp 0x50 .. 0xF0
-/// y = (mouseY < 0xF1) ? mouseY + 0x20 : mouseY - 0x50;   clamp 0x50 .. 0xF0
-/// ```
-///
-/// One centred line of the group's label, and **no button**.
 pub(super) fn draw_tip(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, pointer: (i32, i32)) {
     if record.category != category::TIP {
         return;
@@ -364,11 +311,7 @@ pub(super) fn draw_tip(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Recor
     pen.body_centred(canvas, x, y + 0x10, 0xB0, &label(ctx, record.group), font::TEXT);
 }
 
-// ------------------------------------------------------------------ the parts
 
-/// `Ui_DrawInsetRect(x + 0xF, y + 0x11, 0x52, 0x4E)` — the recess the portrait
-/// sits in. Drawn by `draw_face` for every layout that has a portrait; no
-/// layout leaves it empty since the ending got its face.
 fn draw_portrait_well(pen: &Pen, canvas: &mut Canvas, f: message::Frame) {
     let (dx, dy, w, h) = FACE_WELL;
     pen.inset(canvas, Rect::new(f.x + dx, f.y + dy, w, h));
@@ -388,7 +331,6 @@ fn draw_face(pen: &Pen, canvas: &mut Canvas, frame: usize, f: message::Frame) {
     }
 }
 
-/// The well, the face and the shield.
 fn draw_portrait(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, realm: u8, f: message::Frame) {
     let r = ctx.game.kingdom.realms.get(realm as usize);
     if let (Some(r), Some(chrome)) = (r, pen.chrome) {
@@ -405,15 +347,6 @@ fn realm_face_frame(ctx: &Ctx, realm: u8) -> usize {
     face_frame(r.map_or(0, |r| r.lord), r.is_some_and(|r| r.is_human), realm)
 }
 
-/// **Draw the scroll's two clickable pictures again, and nothing else.**
-///
-/// This exists for a test and says so. `docs/agents.md`: *"where an operation is
-/// idempotent, assert idempotence"* — a sprite is an
-/// opaque blit, so drawing the corner button and the answer buttons a second
-/// time over themselves changes no pixel, **but only if they were there the
-/// first time**. Deleting either draw call above makes this one *add* them, and
-/// the two canvases stop being equal.
-///
 /// It is the build stamp's assertion, and it is here
 /// because the test may not know the geometry — computing the probe from the
 /// same constants the code reads is what makes an ablation prove nothing.
@@ -425,9 +358,6 @@ pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
         shadow: Some(font::SHADOW),
         caps: None,
     };
-    // A fresh `Press`: this repaints what a FRESH frame would draw, and a press
-    // timer is per-screen state the caller does not have. The test that uses it
-    // compares an untouched draw with a second one, so both sides are up.
     if let Some(prompt) = record.answer_widgets() {
         draw_prompt(&pen, canvas, prompt, &Press::new());
     }
@@ -439,10 +369,7 @@ pub fn repaint_clickables(ctx: &Ctx, canvas: &mut Canvas, record: &Record) {
     }
 }
 
-// ------------------------------------------------------------ the tip window
 
-/// The window a record is drawn in: the constant geometry of
-/// [`message::frame_of`], or for a tip window the geometry its text computes.
 pub fn window_frame(ctx: &Ctx, record: &Record) -> Option<message::Frame> {
     match record.shape() {
         Shape::Paragraphs(n) => Some(tip_layout(ctx, record, n).0.frame),
@@ -480,14 +407,6 @@ fn glyph_width(ctx: &Ctx, c: char) -> i32 {
     }
 }
 
-/// **Categories `0x05`…`0x09` — the tip window.** `Msg_DrawWindow`'s last
-/// arm, drawn to [`message::paragraph_layout`]: the box, the group's label in
-/// the heading font, `category − 4` paragraphs in the body font, and the OK
-/// button in the corner the text decided.
-///
-/// The first of the arm's two loops paints every paragraph at one height
-/// before the box exists, to measure them; the box then covers it, so it is
-/// not reproduced as paint.
 pub(super) fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, n: usize) {
     let (layout, texts) = tip_layout(ctx, record, n);
     let f = layout.frame;
@@ -503,8 +422,6 @@ pub(super) fn draw_paragraphs(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record:
     pen.ok_button(canvas, x, y, 0);
 }
 
-/// `Widget_Draw(0, 0, table, 2)` — the two mailed hands, `System.pl8` frames 29
-/// and 31.
 pub(super) fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, press: &Press) {
     let [yes, no] = prompt.widgets();
     // `Widget_Draw` adds one to the frame while `+0x0D` runs.
@@ -516,5 +433,4 @@ pub(super) fn draw_prompt(pen: &Pen, canvas: &mut Canvas, prompt: Prompt, press:
     }
 }
 
-// ----------------------------------------------------------------- the answers
 

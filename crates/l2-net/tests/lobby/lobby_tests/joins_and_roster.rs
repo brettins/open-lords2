@@ -41,11 +41,9 @@ fn a_client_that_joins_appears_on_both_sides() {
     assert!(!joiner.is_host);
 }
 
-/// The test this module exists for.
 #[test]
 fn the_roster_is_slot_ordered_whatever_order_players_arrived_in() {
     let mut t = Table::new("Richard");
-    // Deliberately backwards: slot 4 arrives first, then 3, then 1.
     t.join(1, hello(4), "Eleanor").unwrap();
     t.join(2, hello(3), "Geoffrey").unwrap();
     t.join(3, hello(1), "Matilda").unwrap();
@@ -65,7 +63,6 @@ fn the_roster_is_slot_ordered_whatever_order_players_arrived_in() {
     sorted.sort_by_key(|s| s.index());
     assert_eq!(slots, sorted);
 
-    // And every client agrees, which is the property Session::new depends on.
     for i in 0..3 {
         assert_eq!(t.client(i).roster().slots(), slots);
     }
@@ -82,8 +79,6 @@ fn two_players_cannot_share_a_name_or_a_slot() {
     ));
     assert_eq!(t.host.roster().len(), 2);
 
-    // A second claim on slot 1 is not refused - it is reseated, so two people
-    // clicking join at the same moment both get in.
     assert_eq!(t.join(3, hello(1), "Eleanor"), Ok(LobbyEvent::Joined(PlayerSlot::new(2))));
     assert_eq!(t.host.roster().slots().len(), 3);
 }
@@ -99,15 +94,6 @@ fn a_full_game_refuses_the_next_arrival() {
     assert_eq!(t.host.roster().len(), l2_net::MAX_PLAYERS);
 }
 
-/// A joiner that claims the host's own slot is **reseated, not refused.**
-///
-/// `Hello::check` reports `SameSlot` because it is written for a direct
-/// two-peer handshake with no authority to move anyone. A lobby has one. This
-/// test pins the difference: the first version of the lobby forwarded that
-/// mismatch straight through,
-/// told it was "incompatible" with a game it could play perfectly well — while
-/// two clients colliding on slot 2 were reseated silently. Same situation,
-/// opposite answer, decided by who opened the game.
 #[test]
 fn claiming_the_hosts_slot_reseats_rather_than_refuses() {
     let mut t = Table::new("Richard");
@@ -120,7 +106,6 @@ fn claiming_the_hosts_slot_reseats_rather_than_refuses() {
     assert_eq!(t.host.roster().get(PlayerSlot::new(0)).unwrap().name, "Richard");
     assert_eq!(t.host.roster().get(PlayerSlot::new(1)).unwrap().name, "Matilda");
 
-    // The genuine incompatibilities must still refuse.
     let mut bad = hello(0);
     bad.ruleset_hash = 999;
     assert!(matches!(t.join(2, bad, "Eleanor"), Err(LobbyError::Incompatible(_))));

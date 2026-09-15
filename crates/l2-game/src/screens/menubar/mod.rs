@@ -1,12 +1,6 @@
-//! **The menu bar — three titles, sixteen items, and a screen id of its own.**
-//!
-//! `docs/screens-county.md` §10.1. The bar itself is painted every frame by
-//! `Screen_DrawMenuBar`, and until now it was painted here too and did nothing:
 //! `crates/l2-game/src/screens/map/mod.rs`'s header carried the line *"**not
 //! reproduced:** the menu bar's three titles — `Menu_OpenDropdown`
 //! (`0x0040DECA`)"*, which is nineteen input arms in one row of a table.
-//!
-//! # The interface is data, and every number below came out of the table
 //!
 //! `g_menuBarItems` (`0x004DC428`) is **three 16-byte records**:
 //!
@@ -16,24 +10,8 @@
 //!   0x4DC448   x=10  measuredX=0  y=6  group=3   items=0x004DC3D0  count=7
 //! ```
 //!
-//! and each item is 12 bytes — `{short y; short stringIndex; void (*handler)();
-//! int 0}`. `tools/oracle/widgets.js menu 4dc428 3` prints all sixteen with
-//! their handlers named, and [`MENUS`] is that print-out.
-//!
-//! # The titles are **measured**, not placed
-//!
 //! `Ui_DrawMenuTitles` (`0x0040C5B0`) is the only reason record 0's `x` is 10
 //! and every other `x` is 10 as well:
-//!
-//! ```c
-//! g_penAdvance = items[0].x;                       /* 10 */
-//! for (i = 1; i <= count; i++) {
-//!     items[i].x = g_penAdvance;                   /* written back  */
-//!     Eng_DrawString(items[i].group, 0, x, y, &g_fontBody, colour);
-//!     items[i].measuredX = g_penAdvance;           /* the pen after the string */
-//!     g_penAdvance += 0x20;                        /* 32 px between titles */
-//! }
-//! ```
 //!
 //! So each title's hit box is **exactly the width of its own word** in the
 //! 14-pixel body font, with a 32-pixel gap after it, and `Menu_HitTitle`
@@ -42,12 +20,6 @@
 //! nothing. That is why [`titles`] takes the loaded font: the geometry is
 //! `L2.eng`'s words through the game's own font, not a table of rectangles.
 //!
-//! # Where it is live, which is two screens and not every screen
-//!
-//! `Menu_OpenDropdown` is called from exactly two of `Screen_FrameInput`'s
-//! forty-nine arms: `g_screenId == 0` (the campaign map) and `g_screenId ==
-//! 0x29` (the battlefield). **The bar is drawn over the village and the four
-//! county panels and is dead there** — it is not tested in any of their arms.
 //! The battlefield's half is `docs/arms.json`'s `0x0040DECA/battle-menu-bar` and
 //! belongs to the battlefield group; this module is the campaign map's.
 //!
@@ -57,8 +29,6 @@
 //! then the menu bar. So the five sidebar buttons keep working after End Turn
 //! and the menu bar does not.
 //!
-//! # The drop-down is screen `0x32`, and **its painter draws nothing**
-//!
 //! `Menu_OpenDropdown` saves `g_screenId` into `g_menuPrevScreen`, writes
 //! **`0x32`**, and calls `Menu_SaveBackdrop` (`0x0040C8D1`), which copies the
 //! **400 × 180 band at (0, 24)** so the painter can put it back. `Screen_Draw`'s
@@ -66,8 +36,6 @@
 //! draw calls: it sets `g_drawX`/`g_drawY`/`g_spriteWidth`/`g_spriteHeight` and
 //! calls `FUN_004B3EC0`, the restore twin of the save. It is the *erase*, and
 //! nothing else.
-//!
-//! # So where is the drop-down drawn? **In the frame loop.**
 //!
 //! Not in `Screen_Draw` and not in `Screen_DrawWidgets` — which has no `0x32`
 //! arm either. `FUN_0040C725` (`0x0040C725`) is the painter, and its only
@@ -81,7 +49,6 @@
 //! FUN_0041423F();
 //! ```
 //!
-//! It runs every frame on every screen and guards *itself*:
 //! `if (g_screenId == 0x32 && DAT_00522CB4 != 0)`. **That is a fourth place
 //! drawing hides**, alongside the painter, `Screen_DrawWidgets` and the
 //! variable widget count — and it is the only one of the four where a screen's
@@ -117,9 +84,6 @@
 //!   Gfx_MarkSpriteDirty(x, y + 0x12, 0x0D, 0x0C, 2)
 //! ```
 //!
-//! **Four draw-call sites, two of them a border pair.** The three numbers this
-//! module had wrong before that listing was written:
-//!
 //! * **there is a plate.** This header used to say *"the original saves the
 //!   screen band and draws the captions straight onto it with no plate at
 //!   all"*. It draws a twelve-cell `Ui_DrawBoxBorder(2, …)` — border set
@@ -133,9 +97,6 @@
 //!   pixels wide.
 //!
 //! The box is 192 wide, the highlight 176 and `FUN_0040E099`'s hit box 144.
-//! Three different widths for the same row, all read out of the binary.
-//!
-//! Its own arm, `Screen_FrameInput`'s `0x32`, is two lines:
 //!
 //! ```c
 //! if (FUN_0040DD92(&g_menuBarItems, 3) == 0 && g_mouseRightReleased) FUN_0040DF62();
@@ -147,6 +108,7 @@
 //!   with the button up **switches the open menu**, and then `FUN_0040E099`
 //!   recomputes which item the pointer is on. Hover, in other words, and it is
 //!   the only hover arm in the management interface.
+//!
 //! * **pressed** — an item under the pointer runs its handler *after* restoring
 //!   `g_screenId = g_menuPrevScreen`; no item under the pointer is
 //!   `FUN_0040DF62`, which closes.
@@ -157,16 +119,16 @@
 //! title's baseline and each is 15 tall in a 20-pixel pitch. The five-pixel gap
 //! between rows is dead.
 //!
-//! # What is ours
-//!
 //! * **Nothing about the plate any more.** It was ours; it is the original's
 //!   `FUN_00409429(x, y + 0x12, 0x0C, h)` now, border set 2 and all —
 //!   `l2_view::chrome::Chrome::draw_box` draws the open-topped shape, and
 //!   `crates/l2-game/tests/chrome_text/main.rs`'s
 //!   `the_drop_down_plate_has_no_top_rail` holds it there.
+//!
 //! * **`Menu_NewGame` and `Menu_Quit` reach the confirmation box**, prompts 1
 //!   and 0 of `L2.eng` group 10 on screen `0x1E` —
 //!   [`crate::screens::confirm`]. Neither item acts itself; the box's yes does.
+//!
 //! * **The five help topics go on the message ring.** `Menu_HelpHowDoI` and its four
 //!   siblings are `Msg_Enqueue(…, 0x123 … 0x127, …)`, five consecutive message
 //!   ids, category 0x13, and they go on the ring; the window is
@@ -190,12 +152,9 @@ use crate::screens::options::Page;
 use crate::screens::saveload::Mode;
 use crate::shell::font;
 
-/// `g_menuBarItems[0].x` — the pen the first title starts at.
 const BAR_X: i32 = 10;
-/// `g_menuBarItems[*].y`, and `Menu_HitTitle`'s fixed height.
 const BAR_Y: i32 = 6;
 const TITLE_H: i32 = 12;
-/// `g_penAdvance += 0x20` between one title and the next.
 const TITLE_GAP: i32 = 32;
 
 /// `FUN_0040E099`: the item row's width, its height, and the offset from the
@@ -203,7 +162,6 @@ const TITLE_GAP: i32 = 32;
 const ITEM_W: i32 = 0x90;
 const ITEM_H: i32 = 0x0F;
 const ITEM_TOP: i32 = 0x1F;
-/// The item table's own `y` column: 0, 20, 40, … with no gaps.
 pub const ITEM_PITCH: i32 = 20;
 
 /// **`FUN_004B414A`'s width unit** — it writes four dwords, sixteen bytes, per
@@ -218,14 +176,10 @@ const PLATE_DY: i32 = 0x12;
 /// the only screen in the crate that asks for it; `Pen::window` models sets 0
 /// and 1 and draws set 1's artwork for this.
 const PLATE_SET: usize = 2;
-/// `g_spriteHeight = (count * 0x15) / 16 + 2`, in cells.
 fn plate_rows(count: usize) -> i32 {
     (count as i32 * 0x15) / PLATE_CELL + 2
 }
 
-/// `Eng_DrawString(group, index, x + 0x10, item.y + y + 0x20, body, colour)` —
-/// the caption is **sixteen pixels** into the plate, and its baseline is one
-/// pixel below the hit box's top edge.
 const CAPTION_DX: i32 = 0x10;
 const CAPTION_DY: i32 = 0x20;
 /// `g_spriteWidth = 0x0B; g_spriteHeight = 0x10; FUN_004B414A(x + 8,
@@ -235,12 +189,7 @@ const HIGHLIGHT_W: i32 = 0x0B * PLATE_CELL;
 const HIGHLIGHT_H: i32 = 0x10;
 const HIGHLIGHT_DX: i32 = 8;
 const HIGHLIGHT_DY: i32 = 0x1E;
-/// The picked caption's colour. `Ui_DrawMenuTitles` uses the same `0x18` for the
-/// open *title*, which is how the two halves of the bar agree.
 const PICKED_INK: u8 = 0x18;
-/// `g_spriteHeight = 0x12` and `g_spriteWidth = (textWidth + 4) / 16 + 2` —
-/// the plate `Ui_DrawMenuTitles` puts under the **open title**, two pixels left
-/// and three up.
 const TITLE_PLATE_H: i32 = 0x12;
 const TITLE_PLATE_DX: i32 = -2;
 const TITLE_PLATE_DY: i32 = -3;

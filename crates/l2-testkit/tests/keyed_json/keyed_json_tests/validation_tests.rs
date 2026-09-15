@@ -6,14 +6,6 @@ use super::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// Every file `.gitattributes` hands to the driver is in [`KEYED`], and every
-/// file in [`KEYED`] is handed to the driver.
-///
-/// The two lists are maintained by different work — one by whoever adds a file
-/// to the driver, one by whoever adds a test — so they must agree, which is the
-/// only shape of check that has ever caught anything here. Adding
-/// `docs/arms.json` to `.gitattributes` and forgetting it here would have left
-/// the file this test exists for outside the test.
 #[test]
 fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
     let text = std::fs::read_to_string(root().join(".gitattributes")).expect(".gitattributes");
@@ -34,36 +26,7 @@ fn the_attributes_file_and_this_test_name_the_same_keyed_files() {
     );
 }
 
-/// **Every keyed array is in its own key's order**, asked of the driver.
-///
-/// This test used to scan for `"addr"` lines itself and require them to
-/// ascend. That was right for `symbols.json` and **wrong for `arms.json`**,
-/// which carries both `id` and `addr` and is keyed by `id` because one address
-/// holds several arms — so sorting it correctly, by `id`, made this test fail.
-///
-/// The rule about what a file's key IS now lives in exactly one place,
-/// `KEY_FIELDS` in `merge-json.js`
-/// check ask it. A Rust copy of that rule was a second list that could disagree
-/// with the first, which is the failure this whole area is about — and it did
-/// disagree, within a day of being written.
-///
-/// Why order matters at all: two branches that both keep a file in key order
-/// cannot produce a misaligned diff, whatever git does and whether or not the
-/// driver is registered. That is the half of the fix that removes the failure
-///
 
-/// **Every keyed array's key is
-///
-/// This is the invariant a keyed merge silently depends on: if the key the
-/// driver picks is not unique, merging *deletes* one entry per collision, and
-/// the result parses and reads plausibly. `arms.json` is exactly that trap —
-/// `addr` looks like the key and is not.
-///
-/// It shells out to `merge-json.js --check`
-/// `KEY_FIELDS` here **on purpose**. A Rust copy of the key rule would be a
-/// second list that can drift from the first, which is the failure this whole
-/// area is about; the driver's own logic is what a merge will use, so the
-/// driver's own logic is what has to be asked.
 #[test]
 fn every_keyed_arrays_key_is_unique() {
     let root = root();

@@ -10,18 +10,6 @@ use l2_kingdom::unit::TROOP_TYPES;
 use l2_sim::runner::{blank_field, BattleRunner, Muster};
 use l2_sim::{End, Troop, SIDE_A, SIDE_B};
 
-/// **The two crates index the same column the same way**, kept honest at
-/// compile time.
-///
-/// `l2_kingdom::TroopType` and `l2_sim::Troop` are separate enums in separate
-/// crates that never see each other, and [`muster_of`] and [`write_back`] cross
-/// between them by index alone. If either is ever reordered this stops
-/// building, which is the only way that mistake gets caught: a swapped pair
-/// would compile, run, and quietly turn every archer into a swordsman.
-/// The column order both crates index by, written out once so that a
-/// reordering of either enum fails here and names the column,
-/// quietly turning every archer into a swordsman.
-///
 /// `docs/battle.md` §4.1: the campaign record's `+0x16C`, `TROOPS*.ENG`'s
 /// columns and the `.skr` army record all agree on it — three independent
 /// sources, so it is safe to cross between the crates by index at
@@ -91,10 +79,6 @@ mod tests {
         (k, ai, di)
     }
 
-    /// **The fixture battle, through the seam.** `battle-before.sav`'s player
-    /// army against the militia county 3 levies, resolved the way the original
-    /// resolves a battle the player does not fight — and every number the saved
-    /// game holds afterwards comes out.
     #[test]
     fn the_fixture_battle_runs_from_the_campaign_and_returns_the_saves_numbers() {
         let (mut k, a, d) = kingdom_with(
@@ -113,36 +97,23 @@ mod tests {
         )
         .expect("a battle");
 
-        // A person is in it, so the original would have asked.
         assert_eq!(report.settlement, Settlement::Prompt);
         assert_eq!(report.resolution, Resolution::Autocalc, "declining is the autocalc");
 
-        // **The player lost.**
         assert!(!report.verdict.attacker_won);
         assert_eq!(report.verdict.winner(), d);
         assert_eq!(report.attacker_men, (178, 0));
         assert_eq!(report.defender_men, (182, 36), "the ladder's second rung, 20%");
 
-        // The county did **not** change hands, and both armies are gone.
         assert_eq!(report.aftermath.county_taken_by, None);
         assert_eq!(k.counties[3].owner, 0, "county 3 is still neutral");
         assert!(k.campaign.units.get(a).is_none(), "the attacker was destroyed");
         assert!(k.campaign.units.get(d).is_none(), "the defence was dissolved");
 
-        // …and the survivors went back into the county: 546 -> 582.
         assert_eq!(report.defenders_returned, 36);
         assert_eq!(k.counties[3].population, 582);
     }
 
-/// The same battle **fought**: `l2-sim` really does
-    /// run from campaign records, and the result really does come back.
-    ///
-    /// The *winner* is deliberately not asserted. `l2-sim` does not fly
-    /// missiles yet, so sixty archers fight as sixty men with bows they never
-    /// draw, and pinning the outcome here would pin that gap in place. What is
-    /// asserted is that the seam is whole: figures were raised at the right
-    /// scale, men died, the survivors landed back in the campaign records, one
-    /// army was destroyed and the county's books balance either way.
     #[test]
     fn taking_the_field_runs_the_real_simulation_and_hands_the_result_back() {
         let (mut k, a, d) = kingdom_with(
@@ -165,8 +136,6 @@ mod tests {
             panic!("taking the field must fight it to a conclusion: {:?}", report.resolution);
         };
         assert!(ticks > 0);
-        // The only way a field battle ends by itself. If this ever reads
-        // `Withdrawal` something pulled a lever nothing should be pulling.
         assert_eq!(cause, End::Annihilation);
         eprintln!(
             "fought: {ticks} ticks, {cause:?}, attacker {:?}, defender {:?}, winner {}",
@@ -175,20 +144,15 @@ mod tests {
             if report.verdict.attacker_won { "attacker" } else { "defender" }
         );
 
-        // Men died, and nobody was invented.
         let (a0, a1) = report.attacker_men;
         let (d0, d1) = report.defender_men;
         assert_eq!((a0, d0), (178, 182));
         assert!(a1 < a0 || d1 < d0, "a battle in which nobody died is not a battle");
         assert!(a1 >= 0 && d1 >= 0 && a1 <= a0 && d1 <= d0);
 
-        // The loser is gone and the winner is the one still standing.
         let loser = report.verdict.loser();
         assert!(k.campaign.units.get(loser).is_none());
 
-        // The county's books balance whichever way it went: a levied defence
-        // that won walked its survivors home, and one that lost returned
-        // nobody.
         if report.verdict.attacker_won {
             assert_eq!(report.defenders_returned, 0);
             assert_eq!(k.counties[3].population, 546);
@@ -199,9 +163,6 @@ mod tests {
         }
     }
 
-    /// Two AI armies never reach a screen and never reach `l2-sim` — the
-    /// campaign settles them and moves on. This is the path an AI-versus-AI war
-    /// takes, and it must not depend on a battle simulation being present.
     #[test]
     fn an_ai_battle_is_settled_silently_whatever_the_player_would_have_answered() {
         for answer in [Answer::TakeTheField, Answer::Decline] {
@@ -224,10 +185,6 @@ mod tests {
         }
     }
 
-    /// The battle simulation is deterministic through the seam: the same
-    /// kingdom fought twice with the same seed reaches the same numbers.
-    /// `docs/netcode.md` — two lockstep peers fight the same battle or they are
-    /// not playing the same game.
     #[test]
     fn the_same_battle_fought_twice_gives_the_same_answer() {
         let run = || {
@@ -251,9 +208,6 @@ mod tests {
         assert_eq!(run(), run());
     }
 
-    /// The men-per-figure ladder is chosen from the two armies together, and
-    /// the raising loses nobody: the counts that go in are the counts that come
-    /// out when nothing has happened yet.
     #[test]
     fn a_campaign_army_is_raised_at_the_scale_the_two_totals_choose() {
         let (k, a, d) = kingdom_with(
@@ -270,7 +224,6 @@ mod tests {
             Muster { troops: &at, owner: 1, human: true },
             Muster { troops: &dt, owner: 6, human: false },
         );
-        // 178 + 182 = 360, over the ladder's first break at 305: class 1.
         assert_eq!(runner.men_per_figure(SIDE_B), 8);
         assert_eq!(runner.men_per_figure(SIDE_A), 8);
         assert_eq!(runner.survivors(SIDE_B)[TroopType::Peasant.index()], 128);
@@ -279,16 +232,8 @@ mod tests {
         assert_eq!(runner.men(SIDE_B) + runner.men(SIDE_A), 360, "nobody lost in the raising");
     }
 
-    // --- sieges ------------------------------------------------------------
 
-    /// A besieging army with its engines built, a garrison in a castle, and
-    /// the assault taken all the way back onto the campaign map.
     fn siege_kingdom(castle_type: u8, engines: [i16; 3]) -> (Kingdom, usize, usize) {
-        // Chosen so that the castle bonus is the *only* thing that decides it:
-        // 200 peasants and 150 knights score 3,720, and 100 archers with 50
-        // pikemen score 1,770 — which the five castle percentages lift to
-        // 2,832 / 3,540 / 4,425 / 5,664 / 7,080. The attacker clears the first
-        // two and nothing above them.
         let (mut k, a, d) = kingdom_with(
             &[(TroopType::Peasant, 200), (TroopType::Knight, 150)],
             &[(TroopType::Archer, 100), (TroopType::Pikeman, 50)],
@@ -313,12 +258,6 @@ mod tests {
         (k, a, d)
     }
 
-    /// **The castle level reaches the autocalc, and it changes who wins.**
-    ///
-    /// The same two armies, the same seed, five castles: the besieger takes a
-    /// palisade and is thrown off a royal castle, and the only thing that
-    /// differs is [`l2_kingdom::battle::CASTLE_STRENGTH_PERCENT`]. Until this
-    /// existed the table was in `auto_resolve` with nothing to pass it.
     #[test]
     fn the_castle_level_reaches_the_autocalc_and_decides_the_siege() {
         let mut won = Vec::new();
@@ -350,8 +289,6 @@ mod tests {
         );
     }
 
-    /// **The engines and the oil reach the battle**,
-    /// `Army_PrepareForBattle` — and neither survives it.
     #[test]
     fn the_besiegers_engines_and_the_garrisons_oil_are_raised_and_then_gone() {
         let (k, a, d) = siege_kingdom(5, [2, 1, 1]);
@@ -365,18 +302,9 @@ mod tests {
         assert!(at.iter().any(|&(t, n)| t == l2_sim::Troop::Catapults && n == 2));
         assert!(dt.iter().any(|&(t, n)| t == l2_sim::Troop::Oil && n == 6));
 
-        // And the campaign record
-        // seven columns and the four battle slots are produced on the way in.
         assert_eq!(k.campaign.units.get(a).unwrap().troops.len(), TROOP_TYPES);
     }
 
-/// A siege **fought**: the castle is on the field,
-    /// the siege order tables are the ones being dispatched, and the result
-    /// comes back onto the campaign map.
-    ///
-    /// The winner is deliberately not asserted, for the same reason the field
-    /// version does not assert one — missiles do not fly yet, so a fought
-    /// battle here and a fought battle there would not agree.
     #[test]
     fn a_fought_siege_puts_a_castle_on_the_field_and_returns_a_result() {
         let (mut k, a, d) = siege_kingdom(4, [2, 2, 1]);
@@ -389,7 +317,6 @@ mod tests {
             "taking the field runs l2-sim: {:?}",
             report.resolution
         );
-        // Whoever won, the siege link is gone on both sides afterwards.
         for id in [a, d] {
             if let Some(u) = k.campaign.units.get(id) {
                 assert_eq!(u.besieging_county, 0);
@@ -398,9 +325,6 @@ mod tests {
         }
     }
 
-    /// **A besieger that gives up — the whole withdrawal path, on the road a
-/// player can reach.**
-    ///
     /// `UnitOrder_SiegeAttKnight` (`0x0048D9CE`) is the only writer of
     /// `g_battleWithdrawal` in the binary: an AI besieger whose whole force is
     /// knights, in front of a wall nothing has breached, stops trying. It is
@@ -408,18 +332,10 @@ mod tests {
     /// [`l2_kingdom::battle::withdraw_casualties`], and until the clause was
 /// added to `l2-sim` neither existed — so the campaign had never
     /// implemented the half of `Battle_ReturnToCampaign` behind it.
-    ///
-    /// The catapult is not decoration: with no siege engine at all
-    /// `Battle_CheckOutcome`'s *assault repulsed* arm fires first and the
-    /// question never gets asked. One engine keeps `g_siegeEngineCount`
-    /// non-zero, the breach score stays 0, and the knights think.
     #[test]
     fn an_all_knight_ai_besieger_withdraws_and_is_charged_for_it() {
         let (mut k, a, d) = siege_kingdom(2, [1, 0, 0]);
         {
-            // Swap the roles round: the besieger is the AI's and the castle is
-            // the player's, so the battle is one the player is asked about and
-            // the AI's own knights are the only figures the census sees.
             let au = k.campaign.units.get_mut(a).unwrap();
             au.owner = 2;
             au.owner_is_human = false;
@@ -443,7 +359,6 @@ mod tests {
         );
         assert!(!report.verdict.attacker_won, "a withdrawal hands the field to the other side");
 
-        // **`Army_WithdrawCasualties` was charged**, and it is half the line.
         assert_eq!(report.aftermath.withdrawal_casualties, Some(200));
         assert!(!report.aftermath.loser_destroyed, "two hundred knights is over fifty");
         assert!(report.aftermath.loser_siege_lifted);
@@ -452,13 +367,9 @@ mod tests {
         assert_eq!(survivor.men, 200);
         assert_eq!(survivor.besieging_county, 0, "and it lost the siege, not its life");
         assert_eq!(k.counties[3].owner, 1, "the castle held");
-        // The report's "after" numbers are the ones the retreat left, not the
-        // ones the army walked onto the field with.
         assert_eq!(report.attacker_men, (400, 200));
     }
 
-    /// The ticks of whatever the report says, so the assertion above can name
-    /// the *cause* without pinning the length of the battle.
     fn report_ticks(r: &BattleReport) -> u32 {
         match r.resolution {
             Resolution::Fought { ticks, .. } | Resolution::Stalled { ticks } => ticks,
@@ -466,12 +377,9 @@ mod tests {
         }
     }
 
-    /// **A whole turn phase 2**, from the link check to the county changing
-    /// hands — which is the thing a player could not do before today.
     #[test]
     fn one_turn_phase_two_builds_the_engines_assaults_and_takes_the_county() {
         let (mut k, a, d) = siege_kingdom(1, [0, 0, 0]);
-        // The player orders one catapult: 200 man-seasons over 350 men is one.
         l2_kingdom::siege::order_engine(
             &mut k.campaign.units,
             a,
@@ -489,16 +397,12 @@ mod tests {
         assert!(k.campaign.units.get(d).is_none());
         assert_eq!(k.campaign.units.get(a).unwrap().engines[0].percent, 100);
 
-        // And a second phase 2 finds nothing to do.
         assert!(run_siege_phase(&mut k, Answer::Decline, 8).is_empty());
     }
 
-    /// A siege whose engines are not ready yet is **not** assaulted, and the
-    /// phase leaves it building.
     #[test]
     fn a_siege_still_building_survives_the_phase_untouched() {
         let (mut k, a, d) = siege_kingdom(5, [0, 0, 0]);
-        // Two rams: 800 man-seasons over 350 men is three seasons.
         for _ in 0..2 {
             l2_kingdom::siege::order_engine(
                 &mut k.campaign.units,
@@ -522,9 +426,6 @@ mod tests {
         }
     }
 
-    /// **The gate, from the phase's own side.** A besieger that orders nothing
-    /// against a stone castle is not stalled and does not fight: its siege is
-    /// lifted and it is free to march away.
     #[test]
     fn a_besieger_with_no_engines_against_a_big_castle_is_released_rather_than_stalled() {
         let (mut k, a, d) = siege_kingdom(4, [0, 0, 0]);
@@ -536,14 +437,11 @@ mod tests {
         assert_eq!(k.counties[3].owner, 2);
     }
 
-    /// The banner the outcome screen shows is one of the four siege pairs, and
-    /// which one depends on **both** questions.
     #[test]
     fn a_siege_picks_one_of_the_four_siege_banners_and_not_a_field_one() {
         let (mut k, a, _d) = siege_kingdom(1, [1, 0, 0]);
         let assault = l2_kingdom::siege::assault(&k.counties, &mut k.campaign.units, a);
         let report = resolve_siege(&mut k, assault, Answer::Decline, 1).unwrap();
-        // A is the besieger (realm 1, the player) and B the garrison (realm 2).
         let (winner_owner, loser_owner) =
             if report.verdict.attacker_won { (1, 2) } else { (2, 1) };
         let banner = battle::outcome(report.verdict, true, 1, winner_owner, loser_owner);

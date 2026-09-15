@@ -6,12 +6,6 @@ use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
 
-/// **What the block writes over a shield** — `Ui_DrawText(&g_playerNames +
-/// realm * 0x2C, …)`. Group 37 has no word for a player, so the fallback when
-/// nothing filled the names is ours and is the one `screens/county.rs` uses:
-/// a world that never came through the front end has no lords in it, and an
-/// empty line beside a shield reads as a drawing fault
-/// data.
 fn lord_name(ctx: &Ctx, realm: u8) -> String {
     match ctx.game.player_names.get(realm as usize).map(|n| n.as_str()) {
         Some(n) if !n.is_empty() => n.to_string(),
@@ -19,7 +13,6 @@ fn lord_name(ctx: &Ctx, realm: u8) -> String {
     }
 }
 
-/// `Pl8_DrawFrame(g_miscCtySheet, g_realms[realm].shieldIndex + 8, 0x70, y)`.
 fn shield_frame(ctx: &Ctx, realm: u8) -> usize {
     let index = ctx.game.kingdom.realms.get(realm as usize).map_or(0, |r| r.shield_index);
     SHIELD_FRAME0 + index as usize
@@ -38,34 +31,18 @@ impl Screen for RatingsScreen {
         Some(PALETTE)
     }
 
-    /// A full page: `score1.pl8` is a raw 640 × 480 image, not a sheet.
     fn is_overlay(&self) -> bool {
         false
     }
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
-            // `Screen_FrameInput`'s epilogue, which runs on every screen but
-            // `0x12`: a press inside the minimap raster selects that county,
-            // recentres the map and sets `g_screenId = 0`. The shell wrapper
-            // did this for all seven shells generically; graduating them lost
-            // it,
-            //
-            // Only the raster, not the column — see `screens/job.rs` at the
-            // same arm.
             // arm: 0x0042FF10/minimap-under-the-ratings left-press
             Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
                 Transition::Pass
             }
-            // **Any press, either button, anywhere.** The OK picture is not
-            // tested and this fires on press.
-            //
-            // The original goes *forward* to `0x2F`, the rank screen, which is
-            // not built; `0x2F` returns to the skirmish setup page, which is
-            // where popping lands too.
             // arm: 0x0042FF10/ratings-any-press left-press
             Event::Click { .. } | Event::RightClick { .. } => Transition::Pop,
-            // **Ours.**
             // arm: ours/ratings-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             _ => Transition::Stay,
@@ -106,9 +83,6 @@ impl Screen for RatingsScreen {
         {
             let top = BLOCK_Y[b];
             pen.misc_frame(canvas, shield_frame(ctx, realm), SHIELD_X, top);
-            // `Ui_DrawText(&g_playerNames + realm * 0x2C, 0xD8, …)` — the lord's
-            // own name. This read `PLAYER 1` / `PLAYER 2` because the struct
-            // carried shield indices and no realm id.
             let name = lord_name(ctx, realm);
             // **[`Pen::body`] returns an absolute x, not a width** — see its
             // own doc comment and `docs/decisions.md` C61. These three lines
@@ -136,13 +110,10 @@ impl Screen for RatingsScreen {
 
             for c in 0..COLUMNS {
                 let x = c as i32 * COL_PITCH + COL_X0;
-                // The inverted highlight: a wiped-out troop type takes the
-                // *ordinary* colour and a surviving one takes `0x20`.
                 let hue = if after.troops[c] == 0 { font::TEXT } else { 0x20 };
                 // Lead `' '`, suffix `&DAT_004D43B8` … `&DAT_004D43D0` — six
                 // addresses, each holding a single space. Read out of the image
                 //: the suffix is inside what `FUN_004025D7`
-                // measures, and `Panel_Ration`'s five sites pass an *empty* one.
                 // `docs/decisions.md` C140. **[V]**
                 pen.number_centred(
                     canvas,
@@ -177,7 +148,6 @@ impl Screen for RatingsScreen {
             }
         }
 
-        // Debug overlay only.
         if ctx.game.prefs.debug_overlay {
             l2_view::text::draw(
                 canvas,

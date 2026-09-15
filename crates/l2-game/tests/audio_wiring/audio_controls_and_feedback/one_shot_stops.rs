@@ -1,5 +1,3 @@
-//! **Emptying the one-shot buffer — the two sites ours did not have.**
-//!
 //! Reports: *"no VO for the mercenary offer"* and *"no drum roll when I try to
 //! attack a country"*, both on builds where the line **was** wired. The buffer
 //! is one, `Sound_PlayFile` (`0x00427990`) drops what it cannot fit, and a
@@ -10,10 +8,6 @@
 //! the map — and `Music_StartBattle` (`0x00477B2F`) releases it as the
 //! battlefield opens: `Music_Stop(0); Sound_StopOneShot();`. `[V]` on all three
 //! statements.
-//!
-//! The popup is *pushed* here, because the row that opens it is the county
-//! strip's and its rects are `screens_map`'s subject; what is driven is the
-//! **close**, which is the statement under test.
 
 #![allow(unused_imports)]
 use super::*;
@@ -28,7 +22,6 @@ use l2_game::Game;
 /// in the one-shot buffer (`Panel_JobDetail`, `0x00412B33`).
 const FORGE: usize = 7;
 
-/// How the player closes the popup.
 #[derive(Clone, Copy)]
 enum Close {
     /// `Ui_OkButtonClicked() || g_mouseRightReleased` — `00420000.c:6867`.
@@ -39,8 +32,6 @@ enum Close {
     Map,
 }
 
-/// The forge popup opened over the map and closed again, then the ARMY button
-/// with a band waiting. Answers what the buffer was asked for.
 fn the_forge_then_the_army_button(
     platform: &l2_mods::Platform,
     band: u8,
@@ -94,14 +85,6 @@ fn the_forge_then_the_army_button(
     audio.heard().iter().map(|s| s.to_string()).collect()
 }
 
-/// **The offer is announced after the forge popup, closed either way.**
-///
-/// Without `Screen_FrameInput`'s stop, `fire.wav` is still the occupant when
-/// the sidebar asks for `S016_nn.wav` and the line is dropped — which is the
-/// report, on a build where the line is wired.
-///
-/// **Ablation, run:** delete the `audio.stop_one_shot()` on the job arm of
-/// `Director::listen` and both halves go red on `s016_01.wav`.
 #[test]
 fn the_forge_popup_releases_the_buffer_and_the_mercenary_line_is_heard() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -119,8 +102,6 @@ fn the_forge_popup_releases_the_buffer_and_the_mercenary_line_is_heard() {
     }
 }
 
-/// **And the drum roll, which is the same buffer.**
-///
 /// `Battle_ChooseSettlement` (`0x004A6A30`) plays `ff_batl.wav` bare, so the
 /// question raised while the forge is still burning is silent.
 #[test]
@@ -157,9 +138,6 @@ fn the_forge_popup_releases_the_buffer_and_the_battle_fanfare_is_heard() {
 /// opens**, so a line the campaign screen was still reading does not swallow
 /// the battlefield's own first sound.
 ///
-/// Driven through the director, whose `Audio::follow` is the site: the
-/// battlefield on the stack is `Scene::Battle`.
-///
 /// **Ablation, run:** delete the `stop_one_shot` at the head of
 /// `Audio::follow` and the cry is dropped, the assertion below goes red, and
 /// the bed still starts — the two statements are separate.
@@ -176,8 +154,6 @@ fn the_battlefield_opening_releases_the_buffer_and_the_bed_starts() {
     let mut director = audio::Director::new();
     director.listen(&mut audio, &machine, &game);
 
-    // A narration still running when the battle starts — any bare
-    // `Sound_PlayFile`; this is the split-army line.
     assert!(audio.play_file(l2_game::audio::names::speech::SPLIT_ARMY, true), "the line started");
     assert!(audio.one_shot_busy(), "the narrator holds the buffer");
 
@@ -186,11 +162,8 @@ fn the_battlefield_opening_releases_the_buffer_and_the_bed_starts() {
     assert!(!audio.one_shot_busy(), "Music_StartBattle's Sound_StopOneShot did not run");
     assert!(audio.music_name().is_some(), "and its Music_Play did not start the bed");
 
-    // Which is what the field's own first sound needs: it is another bare call.
     assert!(audio.play_file("bathit2.wav", false), "the field's first sound was dropped");
 
-    // The field staying open is not a second entry, and neither is a film over
-    // it: a cry sounding must not be cut by the next frame.
     director.listen(&mut audio, &machine, &game);
     assert!(audio.one_shot_busy(), "the stop fired again on a frame that started no battle");
 }
@@ -218,7 +191,6 @@ fn toggling_music_off_then_on_during_a_battle_empties_the_buffer() {
     machine.push(ScreenId::Battlefield);
     director.listen(&mut audio, &machine, &game);
 
-    // Off, with a cry sounding: `g_battlePhase == 2` is no exemption.
     assert!(audio.play_file("bathit2.wav", false), "the buffer took the cry");
     let mut off = audio.options();
     off.music = false;
@@ -226,7 +198,6 @@ fn toggling_music_off_then_on_during_a_battle_empties_the_buffer() {
     assert!(!audio.one_shot_busy(), "the off arm stopped the music and left the buffer");
     assert!(audio.music_name().is_none(), "and it did stop the music");
 
-    // And on again, the field still up.
     assert!(audio.play_file("bathit2.wav", false), "the buffer took the second cry");
     let mut on = audio.options();
     on.music = true;
@@ -239,9 +210,6 @@ fn toggling_music_off_then_on_during_a_battle_empties_the_buffer() {
 /// (`0x00426120`, `0x00426216`) never touches it. So a click firing the same
 /// file leaves `Sound_OneShotBusy` (`0x00427C9B`) answering *busy*, and eight
 /// more slots cannot evict it.
-///
-/// **Ablation, run:** route `Audio::play_file` back through
-/// `Mixer::play_effect` and both assertions go red.
 #[test]
 fn a_slot_firing_the_same_file_leaves_the_one_shot_busy() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -253,6 +221,4 @@ fn a_slot_firing_the_same_file_leaves_the_one_shot_busy() {
 
     audio.play_effect("bathit2.wav");
     assert!(audio.one_shot_busy(), "a slot of the same file emptied the one-shot buffer");
-    // The eight-slot cap is the other way to lose it; `Mixer`'s own
-    // `the_slot_cap_cannot_evict_the_one_shot_buffer` has that half.
 }

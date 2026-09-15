@@ -1,13 +1,9 @@
-//! **The skirmish setup — `g_setupPage` 12, and the file box 13 over it.**
-//!
 //! A skirmish is one battle with no kingdom behind it: `Skirmish_Setup`
 //! (`0x0042B7F7`) pairs realm `g_localPlayer` against `DAT_0056D5CC`, fills
 //! army records `g_battleArmyA` = 1 and `g_battleArmyB` = 2 out of the troops
 //! table, raises `DAT_0057A0F0` — the flag that makes `Battle_Start` skip every
 //! write-back to a campaign that is not there — and leaves the page up until
 //! *Go*.
-//!
-//! The page answers seven things, and this is all of them:
 //!
 //! | arm | what |
 //! |---|---|
@@ -26,11 +22,13 @@ use l2_sim::Troop;
 /// `g_troopsRowBase` (`0x004D49B8`) — the first table row of each category,
 /// and with it the row counts `FUN_0043DC1D` sets `DAT_0053F0D4` to: ten
 /// random field battles, ten more, fifteen castles, twenty from a `.skr`.
+///
 /// **[V]** — read out of `Lords2.exe` at `0x004D49B8` (file offset
 /// `0xD2BB8`); `docs/symbols.md` still calls the four inferred.
 pub const ROW_BASE: [usize; 4] = [0, 10, 20, 35];
 
 /// `g_troopStrengthWeight` (`0x004D4B98`) — **eleven** entries, not seven.
+///
 /// `Army_StrengthScore` and `Battle_InitArmies` stop at the seven men types;
 /// `Skirmish_FillArmies` runs the whole width, so a skirmish's strength counts
 /// the four engines at 100, 100, 100 and 150. **[V]**, read out of the exe;
@@ -47,6 +45,7 @@ pub const STRENGTH_WEIGHT: [i32; 11] = [2, 16, 8, 13, 9, 13, 22, 100, 100, 100, 
 pub const CASTLE_LEVEL: [u8; 15] = [0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
 
 /// `DAT_004D4B18` — which of the same fifteen has a drawbridge.
+///
 /// `Siege_LowerDrawbridge` (`0x00496B9F`, `00490000.c:2672`) reads it by the
 /// same row in place of its `g_castleLevel >= 3` guard once `DAT_0057A0F0` is
 /// up. **[V]** from `Lords2.exe` at `0x004D4B18` (file offset `0xD2D18`): 1 at
@@ -64,7 +63,6 @@ pub const ROWS_SHOWN: usize = 6;
 /// (`0x0043DC1D`, `00430000.c:8081-8089`) writes into `DAT_0053F0D4`. That
 /// global is the *only* reader afterwards, and nothing else writes it, so a
 /// page-13 pick that sets the category to 3 leaves the old count standing:
-/// [`Skirmish::rows`] stores it rather than deriving it.
 pub fn rows_in(kind: usize) -> usize {
     match kind {
         3 => 20,
@@ -90,7 +88,6 @@ pub struct SkirmishArmy {
 }
 
 impl SkirmishArmy {
-    /// The same, for a test that has no table.
     pub fn from_counts_for_test(counts: [i16; 11]) -> Self {
         Self::from_counts(counts)
     }
@@ -111,16 +108,12 @@ impl SkirmishArmy {
 /// instead by `FUN_0042D4AA` when a `.skr` file is loaded, which scales the
 /// file's own counts by 5/3, 4/3, 1, 2/3 and 1/3 across the five difficulty
 /// columns.
-///
-/// The parse is not here: this is the shape the page and the fill read, and a
-/// checkout with no install has it empty.
 #[derive(Clone, Debug, Default)]
 pub struct TroopsTable {
     pub rows: Vec<[[[i16; 11]; 5]; 2]>,
 }
 
 impl TroopsTable {
-    /// `(&g_troopsTable)[(rowBase[kind] + row) * 0xDC + side * 0x6E + diff * 0x16]`.
     pub fn counts(&self, kind: usize, row: usize, side: usize, diff: u8) -> [i16; 11] {
         let i = ROW_BASE.get(kind).copied().unwrap_or(0) + row;
         match self.rows.get(i) {
@@ -130,7 +123,6 @@ impl TroopsTable {
     }
 }
 
-/// The page's own state. Every field is one of the original's globals.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Skirmish {
     /// `DAT_0053E91C` — 0 and 1 field battles, 2 castles, 3 a `.skr` file.
@@ -184,6 +176,7 @@ impl Default for Skirmish {
 impl Skirmish {
     /// **One of the six rows** — `FUN_0043D929`, whose whole body is guarded by
     /// `g_uiHotspotId != DAT_0053E9A8`: clicking the lit row is not a click.
+    ///
     // arm: 0x0043D929/skirmish-pick-row left-press
     pub fn pick_row(&mut self, slot: usize) -> bool {
         if slot == self.slot {
@@ -215,7 +208,6 @@ impl Skirmish {
 
     /// **One of the four categories** — `FUN_0043DC1D`, where the hotspot id
     /// *is* the category. Hotspot 3 with no `.skr` loaded falls back to 0.
-    /// The row count, the row, the slot and the scroll all follow.
     pub fn choose_kind(&mut self, kind: usize) {
         self.kind = if kind == 3 && self.file.is_none() { 0 } else { kind };
         self.rows = rows_in(self.kind);
@@ -254,6 +246,7 @@ impl Skirmish {
 
     /// ***Cust.*** — `FUN_0043DA9E`, which flips the flag and puts both
     /// handicaps back to 2.
+    ///
     // arm: 0x0043DA9E/skirmish-custom left-press
     pub fn toggle_custom(&mut self) {
         self.custom = !self.custom;
@@ -269,6 +262,7 @@ impl Skirmish {
     ///
     /// Returns whether the page changed — choosing the name already chosen
     /// returns 0 and stays on page 13 (`00430000.c:1364-1367`).
+    ///
     // arm: 0x00434174/skirmish-pick-file left-press
     pub fn choose_file(&mut self, name: &str) -> bool {
         if self.file.as_deref() == Some(name) {
@@ -337,7 +331,6 @@ impl Skirmish {
     /// identity comes from the category and the row through `FUN_0042B9C4`
     /// (`0x0042B9C4`, `00420000.c:4608-4619`), which picks the builder, and
     /// `Battlefield_BuildRandom` draws on the global PRNG.
-    /// [`crate::batfield::field`] is the other end of this.
     pub fn seed(&self) -> u64 {
         let d = self.difficulty;
         let n = (self.kind as u64) << 32
@@ -349,8 +342,6 @@ impl Skirmish {
     }
 }
 
-/// The eleven counts as the simulation wants them — the tail of
-/// [`crate::engagement::muster_with`], which drops the empty types.
 pub fn muster(counts: &[i16; 11]) -> Vec<(Troop, u32)> {
     (0..11)
         .filter(|&t| counts[t] > 0)

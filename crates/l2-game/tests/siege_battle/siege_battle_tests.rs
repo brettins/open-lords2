@@ -12,15 +12,8 @@ use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
 use l2_game::battlefield as bf;
 
-/// **A player besieged by an AI can answer the prompt.**
-///
 /// `Battle_ChooseSettlement` (`0x004A6A30`) is two `if`s and the second
 /// overrides the first:
-///
-/// ```c
-/// if (units[armyA].owner == localPlayer) choiceOwner = 1;
-/// if (units[armyB].owner == localPlayer) choiceOwner = units[armyA].ownerIsHuman ? 2 : 1;
-/// ```
 ///
 /// so a human defender attacked by an AI holds the choice himself, and only two
 /// humans put it in the other man's hands. Ours tested the *defender's*
@@ -29,8 +22,6 @@ use l2_game::battlefield as bf;
 /// `Battle_ChooseSettlement` writes `DAT_00554408 = 2` only under 1. In the
 /// original a bystander's prompt waits for the multiplayer answer timeout;
 /// single player has no such timeout.
-///
-/// So the assertion that matters is the last one: **the turn finishes.**
 #[test]
 fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
     let (mut g, a, mut m) = on_the_map();
@@ -51,7 +42,6 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
 
     take_the_field(&mut m, &mut g, &a);
     assert_eq!(g.battle.as_ref().map(|b| b.owner), Some(1));
-    // The battle really is up, really is a siege, and really is being stepped.
     for _ in 0..500 {
         tick(&mut m, &mut g, &a);
     }
@@ -61,7 +51,6 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
         assert!(live.runner.tick > 0, "the frames are reaching the simulation");
     }
 
-    // **Then the garrison gives the castle up**, which is the second button:
     // `FUN_0043BA29` opens `Ui_OpenConfirm(11)` — *"Surrender castle?"* —
     // rather than the field battle's *"Retreat from field?"*, and both
     // callbacks reach `FUN_0043BE65`.
@@ -82,11 +71,6 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
     // *"Defeat!"*. `Msg_Pump` shows that on the campaign map the moment the map
     // is on top — **mid-turn, because the pump runs every frame** — and
     // `Msg_Dismiss` reads `DAT_0053F0C4` and enters screen `0x1C`.
-    //
-    // So the turn is abandoned on the conquest screen, and this loop has to say
-// so our turn is stepped by
-    // `MapScreen::update` and the original's by `App_IdleFrame`, which is a
-    // difference that only shows when a game ends in the middle of one.
     run_until(&mut m, &mut g, &a, "the rest of the turn", |m, g| {
         !l2_game::turn::turn_in_flight(g) || m.top_id() == Some(ScreenId::Conquest)
     });
@@ -97,21 +81,12 @@ fn a_human_besieged_by_an_ai_holds_the_choice_and_the_turn_can_end() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// 2. The drawbridge
-// ---------------------------------------------------------------------------
 
-/// **The garrison lowers its drawbridge**, from the battlefield's third button.
-///
 /// `FUN_0043BBE7` → `FUN_00496B9F`. The four guards are the button's and were
 /// already built; the routine underneath was a once-per-battle latch that did
 /// nothing at all. Now it lays the 7 × 4 patch, opens the gate, moves both siege
 /// scores and rebuilds the pathfinding, and the way out of the castle it leaves
 /// behind is a thing men can walk through.
-///
-/// A **stone** castle, because the shipped `Readme.txt` says *"only the Stone
-/// and Royal castles have drawbridges"* and the button's third guard is
-/// `g_castleLevel < 3`.
 ///
 /// The battle is ended with the **autocalc button**, and
 /// that is a second assertion: `FUN_0043BE65` leaves for
@@ -140,8 +115,6 @@ fn the_garrison_lowers_the_drawbridge_and_the_besieger_sees_the_gate_open() {
     // Palette_Set(0x568ee0); else Palette_Set(0x5675a0);`, and those two
     // buffers are records 2 and 1 of `g_preloadTable` (`0x004D9F48`) —
     // `t32_bat1.256` and `t32_stn1.256`, spelled in the table's own bytes.
-    // Ours registered only the first, so a siege was drawn in the field's
-    // colours. The name is written out here, never read from `l2_view::scene`.
     tick(&mut m, &mut g, &a);
     assert_eq!(
         m.palette_name(),
@@ -156,8 +129,6 @@ fn the_garrison_lowers_the_drawbridge_and_the_besieger_sees_the_gate_open() {
         assert!(!live.sallied);
     }
 
-    // Button 2. `press_sally`'s guards want the local player to be the
-    // garrison, which he is: army B is the garrison.
     click(&mut m, &mut g, &a, on(bf::Button::Sally.rect()));
     {
         let live = g.battle.as_ref().expect("a live battle");
@@ -184,7 +155,6 @@ fn the_garrison_lowers_the_drawbridge_and_the_besieger_sees_the_gate_open() {
     // A second press is refused with `L2.eng` 157, *"Drawbridge is down."*
     assert_eq!(g.battle.as_mut().expect("a live battle").press_sally(true), Err(0x9D));
 
-    // Give up on it: the fifth button, then Yes.
     click(&mut m, &mut g, &a, on(bf::Button::Autocalc.rect()));
     click(&mut m, &mut g, &a, on(l2_game::screens::battlefield::CONFIRM_YES));
     run_until(&mut m, &mut g, &a, "the result screen", |m, _| {
@@ -200,40 +170,18 @@ fn the_garrison_lowers_the_drawbridge_and_the_besieger_sees_the_gate_open() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// 3. Besieging one: the ditch, the breach and the bill
-// ---------------------------------------------------------------------------
 
-/// **The whole route, played: besiege, watch, dig, break in, and be billed.**
-///
-/// This is the one-way door, closed. Before it, `Answer::TakeTheField` on an
-/// assault ran the whole battle between two statements and handed back a
-/// report; the thumb now raises the battlefield, the battle is *stepped by
-/// frames*, and the banner comes up at the end of it.
-///
 /// `Siege_RecordCastleDamage` (`0x004784CA`) is the only writer of
 /// [`l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED`] in the binary, and its three
 /// readers were reachable only from their own tests until this route existed.
-/// The damage is the **ditch**, filled in by hand, in three played gestures a
-/// player would use to reach a corner of an 80 × 80 field from a 15 × 14
-/// viewport:
-///
-/// 1. a **right click on the overview panel** to look at his own army;
-/// 2. a **box drag** across the viewport to pick it up;
-/// 3. a **left click on the overview panel** on a cell of the ditch, which is
-///    `BattleMap_Click`'s order arm at battlefield scale.
 ///
 /// `Formation_RectIsClear` then caches *"this unit was ordered onto water"*,
 /// every figure enters state 9, and `FUN_0047DD86` counts the cells they fill.
-/// A Norman keep — type 3, level 2 — because that is the smallest castle
-/// [`l2_sim::siege::our_castle`] gives a ditch, and it still needs no engines.
 #[test]
 fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it() {
     let (mut g, a, mut m) = on_the_map();
     let (keep, garrison) = castle_with_garrison(&mut g, &mut m, &a, 2, 3, 200);
 
-    // The player's army marches onto the castle. Two clicks, because here the
-    // march *is* the route: it is `Army_BeginSiege`.
     let camp = (keep.0 - 1, keep.1 + 1);
     let besieger = army_at(&mut g, 1, 1, 120, camp);
     click(&mut m, &mut g, &a, pixel(camp.0, camp.1).unwrap());
@@ -249,8 +197,6 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     assert_eq!(q.choice_owner, 1, "the besieger is the human, so he chooses");
 
     take_the_field(&mut m, &mut g, &a);
-    // The castle really is on the field, and the siege tables are what is being
-    // dispatched.
     {
         let live = g.battle.as_ref().expect("a live battle");
         assert!(live.is_siege());
@@ -262,9 +208,6 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
         );
     }
 
-    // Where the besieger men are, and where the nearest ditch cell is. Both
-// read off the field the battle is on, because the
-    // castle layout is ours and may change.
     let (home, ditch) = {
         let live = g.battle.as_ref().expect("a live battle");
         let home = live.runner.home(l2_sim::SIDE_B);
@@ -284,7 +227,6 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
         (home, ditch)
     };
 
-    // 1. Look at the army. 2. Box it. 3. Order it into the ditch.
     let look = overview_px(home);
     send(&mut m, &mut g, &a, Event::RightClick { x: look.0, y: look.1 });
     box_select_the_viewport(&mut m, &mut g, &a);
@@ -310,8 +252,6 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     assert!(filled > 0, "the ditch was never filled in {n} frames");
     eprintln!("the ditch started going in after {n} frames");
 
-    // Then the assault: wait for the wall to open, send them through it, and
-    // charge.
     press_the_assault_home(&mut m, &mut g, &a);
     watch_to_the_end(&mut m, &mut g, &a, 400_000);
 
@@ -327,9 +267,6 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     let wall = report.castle_damage.wall_damage as i32;
     assert!(moat > 0);
 
-    // **The bill.** Work at five man-seasons a ditch cell and fifteen a wall
-    // cell; wood or stone from the *wall* damage alone, in the material the
-    // castle is made of — `docs/bugs.md` B69.
     let c = &g.kingdom.counties[2];
     assert_eq!(
         c.castle_degraded,
@@ -355,8 +292,6 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     assert_eq!(c.siege_scars.moat_filled as i32, moat);
     assert_eq!(c.siege_scars.wall_damage as i32, wall);
 
-    // And the campaign takes it from there: the siege link is gone on both
-    // sides whichever way the assault went.
     click(&mut m, &mut g, &a, on(battle::ok_rect()));
     run_until(&mut m, &mut g, &a, "the rest of the turn", |_, g| {
         !l2_game::turn::turn_in_flight(g)

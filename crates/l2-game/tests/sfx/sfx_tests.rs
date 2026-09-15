@@ -4,13 +4,6 @@ use super::*;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-/// `docs/audio.json`'s `sites` array.
-///
-/// A scanner
-/// must not add a dependency to the build, and the file is generated with one
-/// field per line by `tools/oracle/sounds.js --rebuild`. It **fails loudly**
-///
-/// matters for a file whose whole purpose is a count.
 fn sites(root: &Path) -> Vec<Site> {
     let text = std::fs::read_to_string(root.join("docs/audio.json")).expect("docs/audio.json");
     let field = |line: &str, name: &str| -> Option<String> {
@@ -56,7 +49,6 @@ fn sites(root: &Path) -> Vec<Site> {
     out
 }
 
-/// **The check.**
 #[test]
 fn every_reproduced_trigger_has_a_marker_and_every_marker_has_a_record() {
     let root = repo_root();
@@ -92,7 +84,6 @@ fn every_reproduced_trigger_has_a_marker_and_every_marker_has_a_record() {
     );
 }
 
-/// One marker per trigger, so a record cannot silently mean two places.
 #[test]
 fn no_trigger_is_claimed_twice() {
     let root = repo_root();
@@ -108,16 +99,6 @@ fn no_trigger_is_claimed_twice() {
     }
 }
 
-/// **Every record says enough to act on**, which is the half of the inventory a
-/// set comparison cannot reach.
-///
-/// The task this file was written for asked for one of three verdicts per
-/// unreached trigger — *fired*, *cannot be fired yet and here is the mechanic*,
-/// or *dead in the original and here is the evidence*. The first is checked
-/// above. The other two are checked here, and the check is simply that the
-/// record **says which and why**: a `blocked` with no note is the shape of an
-/// answer without the answer in it, and that is what a hand-marked document
-/// degrades into.
 #[test]
 fn every_record_carries_the_verdict_it_claims() {
     let root = repo_root();
@@ -152,8 +133,6 @@ fn every_record_carries_the_verdict_it_claims() {
         }
         *counts.entry(s.status.clone()).or_default() += 1;
     }
-    // Three of the four must be populated. `dead` is asserted the other way —
-    // see below.
     for s in ["reproduced", "blocked", "missing"] {
         assert!(counts.get(s).copied().unwrap_or(0) > 0, "no {s} triggers at all");
     }

@@ -10,28 +10,11 @@ use l2_kingdom::industry::MapToggle;
 use l2_kingdom::tables::{Commodity, Tables};
 use l2_mods::Platform;
 
-/// **The rate is the mechanic: the busier the site, the faster the wheel.**
-///
-/// Two halves, and the first is the road.
-///
-/// * **From the save.** England turn one's own records put its forests on
-///   different rungs: county 1's running total is 166 against a snapshot of 0,
-///   which is past `0x32`, and at least one other working forest records an idle
-/// season.
 ///   another **from its first frame**. This used to say *"the England position's
 ///   five forests have produced nothing, so every wheel is on the 640 ms
 ///   rung"* — true of `Industry::new()`, which is what the importer gave every
 ///   county until `docs/decisions.md` C161, and false of the file.
-/// * **From the simulation.** End one season on the idle site with the game's
-///   own pass, and its output reaches the top band: the same wheel is now on
-///   the 80 ms rung and turns **eight times as often**. Nothing here writes
-///   `Industry::output`.
-/// * **From the table.** Then one output either side of each of the three band
-///   edges — `0x0A`, `0x19`, `0x32` — staged on the record, because no fixture
-///   reaches the middle two bands and a boundary that is off by one is exactly
-///   what a test of a banded rate is for.
 ///
-/// The counts are `TICKS / EVERY[band]` with both typed from the decompilation:
 /// **no expression in this test mentions
 /// [`l2_view::campaign::industry_period_ms`]**, which is the constant being
 /// ablated.
@@ -45,18 +28,13 @@ use l2_mods::Platform;
 fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
     let (mut game, assets) = world!();
 
-    // The premise of `EVERY`. A frame rate that moved would otherwise rescale
-    // every expectation below without saying so.
     assert_eq!(l2_game::TICK_MS, 16, "`EVERY` is `PULSE_MS` in 16 ms ticks");
-    // Two ticks a gate at 16 ms, because the 20 ms gate drops its remainder.
     const TICKS_PER_GATE: u32 = 2;
     for (rung, ms) in PULSE_MS.iter().enumerate() {
         assert_eq!(ms / 20 * TICKS_PER_GATE, EVERY[rung], "rung {rung}");
         assert_eq!(TICKS % EVERY[rung], 0, "rung {rung} does not divide the window");
     }
 
-    // The five owned counties' forests are switched on in the shipped position
-    // — this is the *working* appearance, on the fixture, with nothing staged.
     let sites = working_sites(&game);
     assert!(
         !sites.is_empty(),
@@ -88,8 +66,6 @@ fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
         game.kingdom.counties[busy_county].industry[busy_commodity].output
     );
 
-    // The season, by the game's own road — `Industry_ProduceAll` is what writes
-    // `output`, and `Industry_UpdateSiteTile` runs behind it.
     game.kingdom.advance_season();
     let produced = game.kingdom.counties[county].industry[commodity].output;
     assert!(
@@ -114,7 +90,6 @@ fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
         slow[&tile]
     );
 
-    // And the table, one output either side of every edge.
     for (output, band) in BAND_EDGES {
         let (mut game, assets) = world!();
         for &(_, id, c) in &working_sites(&game) {
@@ -134,15 +109,6 @@ fn a_busy_site_turns_its_wheel_eight_times_as_often_as_an_idle_one() {
     }
 }
 
-/// **A site that is switched off does not turn at all**, and switching it off is
-/// a map click
-///
-/// `Industry_UpdateSiteTile` writes `content = base + (enabled != 0)`, so "off"
-/// is a terrain value `Sprite_TopIt`'s arm 5b never animates — the whole of the
-/// on/off appearance. This is the half that makes the test above a claim about
-/// *industry* and not about a counter: a wheel that turned on every site
-/// whatever its switch would pass the rate test and fail this one.
-///
 /// **Ablation.** Delete the `if !working { … continue; }` guard in
 /// `MapScreen::step_industry` and this goes red while the rate test stays green.
 #[test]

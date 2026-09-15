@@ -15,32 +15,6 @@ use crate::tables::{
 
 /// Step 12 — `FUN_0049E77D`, which this crate names `AI_ChooseIndustry`.
 ///
-/// Three loops over the realm's counties
-/// each county takes the weapon type at the realm's cursor and the cursor
-/// advances. Because the cursor is a *realm* field advanced inside a loop over
-/// counties, a realm of four counties makes four different weapons at once and
-/// the pattern rotates from wherever it stopped last turn — so
-/// [`Realm::weapon_rota`] has to be saved.
-///
-/// The second loop is **the industry switchboard**, and it is the interesting
-/// one:
-///
-/// ```c
-/// enabled = 0;
-/// if (hasResource && disabledSeasons == 0 &&
-///     (!castleBuilding
-///      || (slot != iron && slot != weapons
-///          && (slot != wood  || woodStillNeeded  > 0)
-///          && (slot != stone || stoneStillNeeded > 0))))
-///     enabled = 1;
-/// ```
-///
-/// With the four slots in [`crate::tables::Commodity`] order that reads:
-/// **while a castle is going up
-/// outright**, and keeps forestry and quarrying on only while the build still
-/// wants wood or stone. An AI at war stops making weapons the moment it starts
-/// a castle, which is a real strategic quirk and not an obvious one.
-///
 /// `docs/kingdom.md` calls county `+0x1B0` untraced; this loop sets it to **1
 /// on every county the realm holds, unconditionally**, and
 /// `AI_ManageFields(0)` sets it to 0 on the unowned ones. That is
@@ -50,15 +24,6 @@ use crate::tables::{
 /// **The departure this used to record is closed.** It said the original reads
 /// county `+0x1D4`/`+0x1D0` — the wood and stone a build still owes — and that
 /// this crate had no such counter because it debited the whole cost up front.
-/// The up-front debit was ours and it was wrong; the counters exist
-/// ([`County::castle_wood_owed`]), and [`castle_allows`] reads them. So an AI
-/// realm that has already delivered all the stone for its keep switches its
-/// quarries off and leaves the forests running, which the constant could not
-/// say.
-///
-/// The third loop is the labour re-allocation, which the caller does — this
-/// crate's [`crate::labour::allocate`] is county-local and the caller already
-/// walks the counties.
 pub fn choose_industry(
     t: &Tables,
     counties: &mut [County],

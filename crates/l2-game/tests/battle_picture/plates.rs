@@ -2,15 +2,10 @@
 //! `Ui_DrawNumberRight` counts (`0x00423530`) and `FUN_004238B8` /
 //! `FUN_004239D5` (`0x004238B8`, `0x004239D5`), the plate and the count a held
 //! figure gets in the right column.
-//!
-//! The plate probes are the **file's own frames** and the number probes are the
-//! **install's own body font** rendered a second time on a blank canvas: the
-//! test never asks the drawing code where it put anything.
 
 use super::*;
 use l2_game::shell::{font, Pen};
 
-/// The same pen the battlefield draws with — `screen.rs`'s construction.
 fn pen<'a>(a: &'a Assets) -> Pen<'a> {
     Pen {
         assets: &a.shell,
@@ -21,7 +16,6 @@ fn pen<'a>(a: &'a Assets) -> Pen<'a> {
     }
 }
 
-/// Every pixel `draw` writes on an empty canvas, and what it writes there.
 fn stamped(draw: impl FnOnce(&mut Canvas)) -> Vec<(usize, usize, u8)> {
     let mut want = Canvas::screen();
     draw(&mut want);
@@ -41,7 +35,6 @@ fn found(canvas: &Canvas, want: &[(usize, usize, u8)]) -> usize {
     want.iter().filter(|&&(x, y, c)| canvas.at(x, y) == c).count()
 }
 
-/// A battle whose two sides hold **different** numbers of men, painted once.
 fn counted() -> (Game, Canvas, Assets) {
     let (assets, _platform) = install().expect("checked by the caller");
     let (mut g, mut m) =
@@ -53,20 +46,6 @@ fn counted() -> (Game, Canvas, Assets) {
     (g, canvas, assets)
 }
 
-/// **The two living-men counts, centred in a 0x38 box at y 0x1A6.**
-///
-/// ```c
-/// Ui_DrawNumberRight(g_battleMenA,' ',…,0x1fa,0x1a6,0x38,&g_fontBody,0x20);
-/// Ui_DrawNumberRight(g_battleMenB,' ',…,0x24a,0x1a6,0x38,&g_fontBody,0x20);
-/// ```
-///
-/// The two sides are given different armies,
-/// carries side 4's census and the right side 0's,
-///
-/// Ablation: drop either call — red, none of that number's pixels are on the
-/// canvas. Move a box by one pixel,
-/// red. Swap the pair — red, each box carries the other side's count.
-/// Colour `0x3F` — red.
 #[test]
 fn the_two_living_men_counts_are_centred_on_the_plate_the_shields_sit_on() {
     if install().is_none() {
@@ -84,14 +63,12 @@ fn the_two_living_men_counts_are_centred_on_the_plate_the_shields_sit_on() {
         assert!(!want.is_empty(), "the {side} count renders nothing");
         assert_eq!(found(&canvas, &want), want.len(), "the {side} count is not at ({x}, 0x1A6)");
     }
-    // And not the other way round.
     let swapped = stamped(|c| {
         p.body_centred(c, 0x1FA, 0x1A6, 0x38, &men.1.to_string(), 0x20);
     });
     assert!(found(&canvas, &swapped) < swapped.len(), "the left box carries side 0's count");
 }
 
-/// The human's whole army picked with one box,
 fn picked() -> (Game, Canvas, Assets, l2_mods::Platform) {
     let (assets, platform) = install().expect("checked by the caller");
     let (mut g, mut m) =
@@ -130,11 +107,6 @@ fn picked() -> (Game, Canvas, Assets, l2_mods::Platform) {
 /// `0xD13F0`): 13 for the twelve-slot layout, 24 for eighteen, 35 for fifty,
 /// eleven troops apart. Under thirteen figures the first band applies, and
 /// peasants are troop type 0, so slot `n` must hold frame 13.
-///
-/// Ablation: drop the blit — red, 0% of the frame is at the slot. Use the
-/// wrong band (24 or 35) — red, a 45 × 35 or 22 × 18 plate is not the 45 × 50
-/// one at that origin. Walk the slots in the wrong order — red, slot 0's
-/// origin is the only one tested against `BANNERS_FEW`.
 #[test]
 fn each_held_figures_banner_is_its_troops_plate_from_the_twelve_slot_band() {
     if install().is_none() {
@@ -163,9 +135,6 @@ fn each_held_figures_banner_is_its_troops_plate_from_the_twelve_slot_band() {
 /// **The men on a banner are drawn `0x14` right of the plate and `2` down**,
 /// and `0xC` right once the count needs three digits — `FUN_004239D5`'s
 /// `man.men < 0x65` fork, which is room for the extra digit.
-///
-/// Ablation: drop the number — red. Use `r.y`,
-/// other fork's offset — red, the glyphs are elsewhere.
 #[test]
 fn a_banners_men_are_drawn_inside_its_plate_at_the_forks_own_offset() {
     if install().is_none() {

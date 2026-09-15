@@ -24,8 +24,6 @@ fn the_front_end_is_the_setup_screens_first_page() {
     let mut m = Machine::new(ScreenId::Setup(SetupPage::Title));
     assert_eq!(m.ids(), vec![ScreenId::Setup(SetupPage::Title)]);
 
-    // "Single player" opens "Your options"; that is one screen changing its
-// own page, as `g_setupPage` is one screen.
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     m.handle(click(setup_item(0)), &mut ctx);
     assert_eq!(m.ids(), vec![ScreenId::Setup(SetupPage::Options)]);
@@ -38,12 +36,10 @@ fn back_walks_the_page_graph_the_original_has() {
     let mut m = Machine::new(ScreenId::Setup(SetupPage::Title));
     let mut ctx = Ctx { game: &mut game, assets: &assets };
 
-    // Title -> Options -> Custom game -> back to Options -> back to Title.
     m.handle(click(setup_item(0)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Options)));
     m.handle(click(setup_item(3)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Custom)));
-    // "Cancel" is the first of the custom page's bottom buttons.
     m.handle(click(custom_button(0)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Options)));
     m.handle(click(setup_item(4)), &mut ctx);
@@ -56,12 +52,10 @@ fn a_drop_down_opens_over_its_page_and_puts_the_value_back() {
     let mut m = Machine::new(ScreenId::Setup(SetupPage::Custom));
     let mut ctx = Ctx { game: &mut game, assets: &assets };
 
-    // Option 4 is Difficulty, which has four values.
     let (x, y, _) = setup::OPTION_CELLS[4];
     m.handle(click((x + 8, y + 8)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Dropdown)));
 
-    // Its third value, "hard": the list starts one cell into the box.
     let (lx, ly, _) = setup::OPTION_LIST[4];
     m.handle(click((lx + 8, ly + 16 + 2 * 16 + 8)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Custom)));
@@ -84,9 +78,6 @@ fn every_screen_the_index_lists_opens_over_it_draws_and_closes_again() {
         {
             let mut ctx = Ctx { game: &mut game, assets: &assets };
             m.draw(&ctx, &mut canvas);
-            // Escape backs out. The setup screen is thirteen pages behind one
-            // `ScreenId`, so it takes at most two presses — one to the title
-            // page, one off the screen — and every other screen takes one.
             for _ in 0..3 {
                 if m.top_id() == Some(ScreenId::Index) {
                     break;
@@ -98,7 +89,6 @@ fn every_screen_the_index_lists_opens_over_it_draws_and_closes_again() {
         // **The campaign map no longer backs out on Escape.** In a game the key
         // is `Menu_Quit` (`App_WndProc` `0x004B29BE`), so it raises the yes/no
         // box (`0x1E`) and the box's answer decides — `tests/confirm_box.rs`.
-        // The index still reached it, drew it, and got a screen back.
         if id == ScreenId::Campaign {
             assert_eq!(m.top_id(), Some(ScreenId::Confirm(confirm::Ask::Quit)));
             assert!(!m.should_quit());
@@ -109,7 +99,6 @@ fn every_screen_the_index_lists_opens_over_it_draws_and_closes_again() {
     }
 }
 
-/// Every id the demo can build, which is also every row of the index.
 fn every_screen() -> Vec<ScreenId> {
     let mut v = vec![
         ScreenId::Campaign,
@@ -118,7 +107,6 @@ fn every_screen() -> Vec<ScreenId> {
         ScreenId::Index,
     ];
     v.extend(SetupPage::ALL.iter().map(|p| ScreenId::Setup(*p)));
-    // The last seven shells, now seven screens.
     v.extend([
         ScreenId::About,
         ScreenId::Court,
@@ -136,17 +124,6 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     let (mut game, assets) = bare();
     game.kingdom.set_county_count(2);
 
-    // The court is an overlay; the battle master ratings, which load their own
-    // 640 × 480 background, are not. Those are the two kinds of screen this
-    // test is about.
-    //
-    // **This test outlived four of its own examples and then the whole
-    // table.** The merchant stood here, then the armoury, then castle
-    // building, then the court - every whole-picture shell the table had -
-    // and the note here said that when the last one graduated this should go
-// red and be deleted deliberately
-    // set. It went red. This is that deliberate rewrite.
-    //
 // **an overlay
     // does not clear what is underneath it** - the property
     // `docs/decisions.md` C22 was written about
@@ -169,8 +146,6 @@ fn a_popup_is_drawn_over_what_was_underneath() {
     }
 
     assert!(over.diff_count(&under) > 0, "the popup must have drawn something");
-    // The index's own title line is at y = 10 and the court's window starts at
-    // y = 48, so the line above it must survive the popup.
     let untouched = (0..640).filter(|&x| over.at(x as usize, 10) == under.at(x as usize, 10)).count();
     assert_eq!(untouched, 640, "a popup must not clear what was underneath it");
 }
@@ -192,9 +167,6 @@ fn every_setup_page_and_every_shell_draws_without_the_game() {
 /// `Eng::get` ran `from_utf8` on the bytes and returned `None` when it failed —
 /// under a comment saying the file was Latin-1 and that `from_utf8` would reject
 /// its accented bytes.
-///
-/// Ablated: `Eng::get` put back to `from_utf8(…).ok()` — red at the `expect` on
-/// 295/9, which does not read back.
 #[test]
 fn the_each_turn_help_page_keeps_its_nine_bullets() {
     let Some(e) = eng() else {
@@ -208,14 +180,11 @@ fn the_each_turn_help_page_keeps_its_nine_bullets() {
     assert_eq!(e.group(295).len(), 11, "a title and ten lines");
 }
 
-// ------------------------------------------------------------------ helpers
 
-/// The n'th menu item of setup pages 1 and 2, in canvas coordinates.
 fn setup_item(i: usize) -> (i32, i32) {
     (0xE0 + 8, 0x5B + i as i32 * 0x24 + 8)
 }
 
-/// The n'th bottom button of the custom-game page.
 fn custom_button(i: usize) -> (i32, i32) {
     ([0xA5, 0xF3, 0x141, 399][i] + 8, 0xC6 + 4)
 }

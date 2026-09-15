@@ -15,13 +15,6 @@ use l2_scenario::{Scenario, STARTING_HEALTH_METER};
 /// **The correction, asserted through the importer.** Five owned counties, at
 /// indices 1, 4, 8, 11 and 13, one for each of realms 1 to 5 — not four owned
 /// by one realm, which is what C12's version of this file invented.
-///
-/// **Corrected again.** It used to pin the mapping,
-/// `[(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)]`. The *set* is scenario; the
-/// *assignment* is rolled per game, and a second England turn-one save gives
-/// 1→4, 4→2, 8→5, 11→3, 13→1. The importer's job is to carry across whatever
-/// the file says, so what is asserted is that it did: every owner it produced
-/// is the owner byte the save holds.
 #[test]
 fn the_england_scenario_is_five_realms_with_one_county_each() {
     let s = england!();
@@ -55,10 +48,6 @@ fn the_england_scenario_is_five_realms_with_one_county_each() {
     }
 }
 
-/// `g_season` 4, `g_year` 1268, `g_turnCount` 1 — read out of the file rather
-/// than predicted from `Game_NewGame`'s constants. The prediction and the file
-/// agree, which is the point: [`the_pipeline_reaches_the_files_clock`] runs the
-/// clock forward and lands on these.
 #[test]
 fn the_file_is_a_turn_one_winter_1268_autosave() {
     let s = england!();
@@ -72,8 +61,6 @@ fn the_file_is_a_turn_one_winter_1268_autosave() {
     assert!(!s.options.armies_eat);
 }
 
-/// The seventeen-record array with an unused index 0, from the file: records 15
-/// and 16 import as nothing at all, and 1 … 14 all import.
 #[test]
 fn the_array_holds_seventeen_records_and_only_fourteen_are_a_county() {
     let s = england!();
@@ -93,9 +80,6 @@ fn the_array_holds_seventeen_records_and_only_fourteen_are_a_county() {
     }
 }
 
-/// Adjacency comes from the file:
-/// end with a single neighbour, county 10 is a hub with seven, and every border
-/// is named from both sides.
 #[test]
 fn the_map_the_import_builds_is_the_map_in_the_file() {
     let s = england!();
@@ -116,14 +100,7 @@ fn the_map_the_import_builds_is_the_map_in_the_file() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// The starting position
-// ---------------------------------------------------------------------------
 
-/// The rewind is the file's own record of the previous season, not a guess:
-/// `population` becomes `popLast` and `happiness` becomes `happinessLast`, and
-/// every value the season *computes* starts at zero, so that a pass which does
-/// nothing cannot pass by leaving them alone.
 #[test]
 fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
     let s = england!();
@@ -150,8 +127,6 @@ fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
         assert_eq!(a.happiness_sum, 0, "county {id}");
     }
 
-    // Every county in the England turn-one fixture started the season on the same two
-    // numbers - the file's own claim, checked.
     let starts: Vec<(i32, i32)> = s
         .county_ids()
         .map(|id| (file.counties[id].pop_last, file.counties[id].happiness_last))

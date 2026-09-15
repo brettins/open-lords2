@@ -43,13 +43,10 @@ impl VillageScreen {
         self.drag_count
     }
 
-    /// `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)`.
     pub fn ok_button(top: i32) -> Rect {
         Rect::new(vill::OK_X, top + vill::OK_DY, l2_view::chrome::system::OK_DIM, l2_view::chrome::system::OK_DIM)
     }
 
-    /// `g_villageTopY`: 64, or 132 with *Advanced Farming*, which is what makes
-    /// room for `villtops.pl8` above the scene.
     pub fn top_y(ctx: &Ctx) -> i32 {
         if ctx.game.kingdom.options.advanced_farming {
             vill::SCENE_Y_ADVANCED
@@ -62,7 +59,6 @@ impl VillageScreen {
         ctx.game.kingdom.counties.get(self.county as usize)
     }
 
-    /// Which labour slot each of the eight clusters is, for this county.
     pub fn slots(c: &County) -> [usize; vill::CLUSTER_COUNT] {
         let (quarry, mine) = Self::resources(c);
         let mut out = [0usize; vill::CLUSTER_COUNT];
@@ -80,8 +76,6 @@ impl VillageScreen {
         (c.industry[3].has_resource, c.industry[1].has_resource)
     }
 
-    /// All four `has_resource` bytes, in commodity order, for the three
-    /// buildings [`l2_view::village::VillageArt::draw_resources`] paints.
     pub fn resource_flags(c: &County) -> [bool; 4] {
         [
             c.industry[0].has_resource,
@@ -91,7 +85,6 @@ impl VillageScreen {
         ]
     }
 
-    /// `Village_RebuildIcons` for the whole village.
     pub fn icons(c: &County) -> [ClusterIcons; vill::CLUSTER_COUNT] {
         let slots = Self::slots(c);
         let mut out = [[0u8; ICONS_PER_CLUSTER]; vill::CLUSTER_COUNT];
@@ -108,8 +101,6 @@ impl VillageScreen {
         out
     }
 
-    /// The band's rectangle, as two inclusive corners in either order — which
-    /// is how `Village_BoxSelect` normalises it.
     pub fn band(&self) -> Option<(i32, i32, i32, i32)> {
         let (ax, ay) = self.anchor?;
         let (px, py) = self.pointer;
@@ -133,9 +124,6 @@ impl VillageScreen {
     /// else if (g_villageTopY + 0x178 <= y0 + h) { h = (g_villageTopY + 0x178) - y0; }
     /// FUN_00403cf4(x0, y0, w, h, 0x20);
     /// ```
-    ///
-    /// Both branches are `else if`,
-    /// never clamped on the right. That is the original's, kept.
     ///
     /// `FUN_00403CF4` is the four-line rectangle outline — it draws top,
     /// bottom, left and right through `FUN_00403A8F` in one colour — and the
@@ -161,6 +149,7 @@ impl VillageScreen {
     }
 
     /// `Village_BoxSelect` (`0x0043958A`).
+    ///
     // arm: 0x0043958A/box-select drag
     pub(crate) fn box_select(&mut self, ctx: &Ctx) {
         self.selected = [false; ICONS_PER_CLUSTER];
@@ -178,8 +167,6 @@ impl VillageScreen {
             }
             for slot in 0..ICONS_PER_CLUSTER {
                 let value = icons[cluster][slot];
-                // 0 is an empty slot and 1 is a worker the job wants and has
-                // not got. Neither is a person you can pick up.
                 if value == 0 || value == vill::ICON_SHORTFALL {
                     continue;
                 }
@@ -188,7 +175,6 @@ impl VillageScreen {
                     continue;
                 }
                 if self.drag_cluster != 0 && self.drag_cluster != cluster + 1 {
-                    // A band across two clusters selects nothing at all.
                     self.drag_cluster = 0;
                     self.selected = [false; ICONS_PER_CLUSTER];
                     self.drag_count = 0;
@@ -221,7 +207,6 @@ impl VillageScreen {
             return false;
         }
         if target == self.drag_cluster {
-            // Dropped where it came from: the original just redraws.
             self.clear_drag();
             self.status = "PUT BACK".into();
             return false;
@@ -284,45 +269,23 @@ impl VillageScreen {
         self.status = if moved > 0 { format!("{moved} REASSIGNED") } else { "NOTHING TO DO".into() };
     }
 
-    /// How many ticks a click waits before it counts as a click and not the
-    /// first half of a double one.
-    ///
     /// **The original's number is 300 milliseconds** — the frame poll at
     /// `0x004B2D5A` compares `timeGetTime() - DAT_004E59F8` against `300` and
     /// only then sets `DAT_004EABF0`, the flag `Village_ClickJob` opens the job
     /// popup on. Ours is in *ticks*, because nothing below `main.rs` is allowed
     /// to read a clock (`docs/netcode.md`); at the 16 ms tick that file fixes,
     /// nineteen ticks is 304 ms.
-    ///
-    /// It is why the job popup opens a fraction after the button comes up
     ///, and that delay is not an accident of ours: without it
-    /// there is nowhere for the double click to happen.
     pub const CLICK_SETTLE_TICKS: u32 = 19;
 
-    /// One fixed simulation tick in milliseconds — `main::TICK`, and the same
-    /// constant `screens::map::TICK_MS` carries for the same reason.
-    ///
-    /// **A constant, not a clock.** [`l2_view::village::AnimationClock`] is
-    /// told how long a tick is; it never asks how long one took.
     pub const TICK_MS: u32 = 16;
 
-    /// Whether this event is one the village's arm hands to the sidebar.
-    ///
-    /// **Left button and pointer only.** The six guards are all left-button
-    /// hit tests, and the right button is the village's own third way out
-    /// (`g_mouseRightReleased` → `g_screenId = 0`), so it must not pass. The
-    /// double click must not pass either: `Village_DoubleClick` is read in
-    /// exactly one place in the whole binary and this arm is it.
     pub(super) fn belongs_to_the_sidebar(event: Event) -> bool {
-        // The six guards are the *same six* the four county panels open with,
-        // so the predicate is one function for both:
-        // [`crate::screens::belongs_to_the_right_column`].
         crate::screens::belongs_to_the_right_column(event)
     }
 }
 
 impl VillageScreen {
-    /// The eight clusters, and the icons in them.
     pub(super) fn draw_clusters(
         &self,
         ctx: &Ctx,
@@ -340,8 +303,6 @@ impl VillageScreen {
                 if value == 0 {
                     continue;
                 }
-                // `Village_DrawCluster`: the frame is the stored value less
-                // one, and one more again while the icon is selected.
                 let lit = self.drag_cluster == cluster + 1 && self.selected[slot];
                 let frame = value as usize - 1 + usize::from(lit);
                 let (x, y) = vill::icon_position(cluster, slot, top);
@@ -351,7 +312,6 @@ impl VillageScreen {
                     .as_ref()
                     .is_some_and(|ch| ch.draw_misc(canvas, frame, x, y));
                 if !drawn {
-                    // OURS: a lozenge where the peasant goes.
                     let colour = match value {
                         vill::ICON_SHORTFALL => ink.bad,
                         vill::ICON_SURPLUS => ink.dim,
@@ -361,8 +321,6 @@ impl VillageScreen {
                     canvas.fill_rect(x + 4, y + 12, 8, 18, colour);
                 }
             }
-            // OURS, and only when the artwork is missing: the original tells
-            // the clusters apart by what is painted under them.
             if !have_scene {
                 let (ox, oy) = vill::cluster_origin(cluster, top);
                 let name = if slots[cluster] == JOB_IDLE_TOWNSFOLK {

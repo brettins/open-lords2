@@ -1,12 +1,3 @@
-//! Validates the map container against a real game install.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-formats -- --nocapture
-//! ```
-//!
-//! These re-derive the structural claims in `docs/formats/maps.md` from the
-//! bytes. Skips when `LORDS2_DIR` is unset; no game
-//! data lives in this repository.
 
 use l2_formats::maps::{flags, Plane, MapSet, PLANE_DIM, SLOT_LEN};
 use std::fs;
@@ -33,7 +24,6 @@ fn the_windows_release_holds_eighty_slots_of_which_fortyfour_are_used() {
     );
     assert_eq!(set.slot_count(), 80);
     assert_eq!(used.len(), 44);
-    // Used slots come in two runs: 0..23 and 40..59.
     assert!(used.contains(&0) && used.contains(&23) && used.contains(&40) && used.contains(&59));
     assert!(!used.contains(&24) && !used.contains(&79));
 }
@@ -57,8 +47,6 @@ fn the_no_county_flag_agrees_with_the_county_plane_exactly() {
         }
     }
     println!("NO_COUNTY flag agrees with county id on {agree}/{tiles} tiles");
-    // This is claimed to hold at exactly 100%, so anything less is a red flag
-    // about our plane indexing, not a tolerance to widen.
     assert_eq!(agree, tiles);
 }
 
@@ -79,7 +67,6 @@ fn castle_tiles_form_complete_two_by_two_blocks() {
                 if !castle(x, y) || marked[y * PLANE_DIM + x] {
                     continue;
                 }
-                // Top-left of a block: the other three must also be castle.
                 assert!(
                     x + 1 < PLANE_DIM && y + 1 < PLANE_DIM,
                     "slot {i}: castle block runs off the edge at ({x},{y})"
@@ -94,7 +81,6 @@ fn castle_tiles_form_complete_two_by_two_blocks() {
                 blocks += 1;
             }
         }
-        // One castle per county.
         assert_eq!(
             blocks,
             slot.county_count(),
@@ -107,10 +93,6 @@ fn castle_tiles_form_complete_two_by_two_blocks() {
     assert_eq!(total_blocks, 434);
 }
 
-/// **`part == 2` is the town block's *third* tile in index order, not its
-/// second** — which is the whole of a defect a player reported as *"I haven't
-/// seen any mercenary icons on the town square yet."*
-///
 /// `Sprite_TopIt` (`0x004071A0`) picks the quadrant a picture goes on by
 /// `tile.part & 0xf`: `0` flies the realm's banner and `2` carries the mercenary
 /// marker. [`Plane::ObjectPart`] documents that byte as `dx + W * dy` from the
@@ -118,11 +100,6 @@ fn castle_tiles_form_complete_two_by_two_blocks() {
 /// row *south*, the **third** tile a scan in index order meets. A renderer that
 /// indexed a list of the block's tiles and took element 1 drew on `(x + 1, y)`,
 /// which is quadrant 1 and which the original never paints anything on.
-///
-/// This is the claim checked against the player's own file
-/// the sentence in `maps.rs`
-/// bytes are what is true — `docs/agents.md`, *a document is an input to the
-/// code, not only a record of it*.
 #[test]
 fn town_quadrant_two_is_the_tile_one_row_south_of_the_blocks_corner() {
     let Some(bytes) = maps_file() else {
@@ -136,7 +113,6 @@ fn town_quadrant_two_is_the_tile_one_row_south_of_the_blocks_corner() {
         let town = |x: usize, y: usize| slot.flags_at(x, y) & flags::CASTLE != 0;
         for y in 0..PLANE_DIM - 1 {
             for x in 0..PLANE_DIM - 1 {
-                // The corner: a town tile whose own part is 0.
                 if !town(x, y) || slot.at(Plane::ObjectPart, x, y) != 0 {
                     continue;
                 }
@@ -164,7 +140,6 @@ fn the_dos_release_is_the_windows_file_truncated() {
     let Some(bytes) = maps_file() else {
         l2_testkit::skip!("no L2_maps.dat reachable");
     };
-    // Optional: only runs if the older DOS install is also present.
     let Some(dos_dir) = l2_testkit::dos_install_dir() else {
         l2_testkit::skip!("no DOS install ({} unset)", l2_testkit::DOS_INSTALL_VAR);
     };
@@ -192,6 +167,5 @@ fn county_ids_stay_in_the_documented_range() {
     }
     let ids: Vec<usize> = (0..256).filter(|&i| seen[i]).collect();
     println!("county ids present: {ids:?}");
-    // Documented as 1..=16 plus 32, with 0 meaning "no county".
     assert!(ids.iter().all(|&c| c == 0 || (1..=16).contains(&c) || c == 32));
 }

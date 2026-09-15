@@ -6,8 +6,6 @@ use l2_kingdom::map::MAP_TILES;
 use l2_scenario::newgame::{self, MapError, NewGame};
 use l2_scenario::{CountyState, Scenario};
 
-/// **Every shipped map builds a world**, and each one closes on itself.
-///
 /// Running all 44 is `docs/plan.md`'s C26: a rule can
 /// be wrong at 45 of its 51 inputs and stay invisible behind a fixture that
 /// exercises one. Every claim here is a per-map invariant, so a map that breaks
@@ -44,15 +42,10 @@ fn every_shipped_map_builds_a_world_that_closes_on_itself() {
             if !w.has_resource[c][2] {
                 smithless.push((slot_index, c));
             }
-            // Exactly four `0x10` plots, which is what stops the dwelling array
-            // running into `fieldProgress` — `maps-layers.md` §2.3 measured it
-            // over the file and this measures it after the load.
             let plots = (0..MAP_TILES)
                 .filter(|&t| w.tiles.county[t] as usize == c && w.tiles.flags[t] & 0x10 != 0)
                 .count();
             assert_eq!(plots, 4, "{label} county {c}: {plots} dwelling plots");
-            // The twenty-slot table is a bound, and the razing is what keeps it
-            // one: after the load no county may have a farm tile with no slot.
             let fields = w.field_tiles[c].iter().filter(|&&t| t != 0).count();
             let farm_tiles = (0..MAP_TILES)
                 .filter(|&t| w.tiles.county[t] as usize == c && w.tiles.flags[t] & 0x20 != 0)
@@ -61,9 +54,6 @@ fn every_shipped_map_builds_a_world_that_closes_on_itself() {
             assert!(fields <= 20, "{label} county {c}: {fields} fields");
         }
 
-        // The player-start table and `l2-formats`' own count of it agree — the
-        // one counts writes and the other counts distinct markers, and no
-        // shipped map repeats a marker.
         let starts: Vec<u8> = (1..6).map(|m| w.player_start[m]).filter(|&c| c != 0).collect();
         assert_eq!(
             w.player_start_count,
@@ -86,24 +76,9 @@ fn every_shipped_map_builds_a_world_that_closes_on_itself() {
     assert_eq!(checked, 44, "the shipped file has 44 used slots");
     assert_eq!(counties_seen, 434, "434 counties over the 44 used slots — maps.md §2");
 
-    // **A correction, and it is worth more than the assertion it replaces.**
-    // `docs/symbols.json` says of `County_PlaceBlacksmith` that the weapons
-    // site "is derived
-    // one". 433 of 434 do. County 4 of slot 8 (Africa) has **no tile whose
-    // flags byte is zero at all** — its 57 tiles are all road, boundary, rough,
-    // plot, farmland, town or site — and the candidate test is `flags == 0`
-    // exactly, so the original's `local_14` stays 0 and its guard refuses.
-    // That county can never make a weapon.
     assert_eq!(smithless, vec![(8, 4)], "the set of counties with no blacksmith has changed");
 }
 
-/// **`PlayerStart_Compact`'s bubble is a slice, and this is why.**
-///
-/// The original drops table entries whose slot number is above the live realm
-/// count by bubbling them down. `newgame`'s version takes the first `lords`
-/// entries instead. The two agree exactly when every populated entry's slot
-/// number is its own index and the populated entries are contiguous from 1 —
-/// which is a property of the **maps**, and is what is checked here.
 #[test]
 fn the_player_start_markers_are_contiguous_from_one_on_every_shipped_map() {
     let bytes = maps!();
@@ -114,7 +89,6 @@ fn the_player_start_markers_are_contiguous_from_one_on_every_shipped_map() {
         for y in 0..PLANE_DIM {
             for x in 0..PLANE_DIM {
                 let m = slot.at(Plane::Marker, x, y);
-                // The `0x80` arm — the castle — is the player start.
                 if m != 0 && slot.flags_at(x, y) & 0x80 != 0 {
                     markers.push(m);
                 }
@@ -130,8 +104,6 @@ fn the_player_start_markers_are_contiguous_from_one_on_every_shipped_map() {
     }
 }
 
-/// A map that seats two cannot be started with five lords, and the refusal is a
-/// refusal.
 #[test]
 fn a_two_seat_map_refuses_five_lords() {
     let bytes = maps!();
@@ -151,7 +123,6 @@ fn a_two_seat_map_refuses_five_lords() {
     );
 }
 
-/// **Which realm you play is rolled, and the seed is what rolls it.**
 #[test]
 fn the_start_table_is_dealt_and_the_deal_follows_the_seed() {
     let bytes = maps!();
@@ -168,10 +139,7 @@ fn the_start_table_is_dealt_and_the_deal_follows_the_seed() {
         v
     };
     let a = owner_of(1);
-    // The same seed twice is the same world — a lockstep peer's whole
-    // requirement of this constructor.
     assert_eq!(a, owner_of(1), "the deal is a function of the seed");
-    // The set of owned counties never moves; only who owns them.
     for seed in 0..24u64 {
         let deal = owner_of(seed);
         let counties: Vec<u8> = deal.iter().map(|&(c, _)| c).collect();
@@ -185,15 +153,7 @@ fn the_start_table_is_dealt_and_the_deal_follows_the_seed() {
     assert!(deals.len() > 1, "the deal never moves, so it is not a deal");
 }
 
-// ------------------------------------------------------------------ the diff
 
-/// **Break it on purpose and watch the checks go red.**
-///
-/// `docs/agents.md`: this project has twice shipped a check that passed with
-/// the bug still in. The diff is worth exactly what its sensitivity is worth,
-/// so this reproduces the three shapes of failure it exists to catch — a pass
-/// that does not run, a pass that runs in the wrong order, and a table that
-/// silently truncates — on a synthetic map, so it needs no install.
 #[test]
 fn the_checks_are_sensitive_to_the_three_mistakes_they_exist_for() {
     let slot_bytes = synthetic_slot();
@@ -201,22 +161,13 @@ fn the_checks_are_sensitive_to_the_three_mistakes_they_exist_for() {
     let good =
         newgame::build(&set.slot(0).unwrap(), &NewGame { lords: 1, ..NewGame::default() }).unwrap();
 
-    // 1. The blacksmith pass not running: the county claims no weapons
-    //    resource, which is what the corpus test's `has_resource[2]` catches.
     assert!(good.has_resource[1][2], "the blacksmith pass ran");
-    // …and it went on a tile the file gave no flags at all.
     let smith = good.industry_site[1][2];
     assert_eq!(slot_bytes[Plane::Flags as usize * 4096 + smith], 0);
 
-    // 2. The site passes in the wrong order: were the castle search to run
-    //    before the resource sites, the mine — a `0x80` tile with no terrain —
-    //    would be swallowed into the castle block and stamped `0x14`.
     assert_eq!(good.tiles.content[mine_tile()], 1, "the mine is iron, not a castle plot");
     assert_ne!(good.castle_tile[1], mine_tile(), "the castle did not eat the mine");
 
-    // 3. The twenty-slot table dropping: a twenty-first
-    // field would stay farmland with no entry, and the corpus test's
-    //    `fields == surviving farm tiles` is what fails.
     let many = many_fields_slot();
     let set = MapSet::parse(&many).unwrap();
     let w = newgame::build(&set.slot(0).unwrap(), &NewGame { lords: 1, ..NewGame::default() })
@@ -249,7 +200,6 @@ fn synthetic_slot() -> Vec<u8> {
         put(&mut buf, Plane::GfxIndex, 20 + dx, 20 + dy, 6);
     }
     put(&mut buf, Plane::Marker, 20, 20, 1);
-    // The mine: a Town-bank tile drawing frame 30, carrying the site bit.
     put(&mut buf, Plane::Flags, 30, 30, 0x80);
     put(&mut buf, Plane::GfxBank, 30, 30, 0x0C);
     put(&mut buf, Plane::GfxIndex, 30, 30, 30);

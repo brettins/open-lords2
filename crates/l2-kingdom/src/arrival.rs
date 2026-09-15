@@ -25,8 +25,6 @@
 //! }
 //! ```
 //!
-//! # What is said, by the kind of county
-//!
 //! | the county the army crosses into | letter | category | to |
 //! |---|---|---|---|
 //! | neutral | `L2.eng` 130…134, by mood and by the army's size — [`greeting`] | 2 | the army's owner |
@@ -41,23 +39,6 @@
 //! [`crate::conquest::Capture`]. `Army_Tick` (`0x0046521F`) is the only caller,
 //! so a merchant, a cart or a mob of peasants says nothing; the mob's own
 //! crossing function (`FUN_004ABD0F`, groups 154…156) is a different rule.
-//!
-//! No option, no difficulty and no single-player test guards either letter.
-//! The only filter is `Msg_Enqueue`'s own — `to == 0 || to == g_localPlayer` —
-//!
-//! invader's rotation, and is seen by nobody.
-//!
-//! # Reported as letters, and one of them is not presentation
-//!
-//! Both are returned as [`Letter`] values, the same on every peer, and
-//! `l2_game::arrival` puts them through that peer's ring filter.
-//!
-//! **The invasion letter changes the world.** `Realm::voice_rotation` is
-//! advanced by the posting itself, for every invasion, whoever is watching —
-//! and the rotation is half the variant of every later letter that lord sends,
-//! taunts and diplomatic replies included. So [`enter_county`] takes the realms
-//! mutably and the rotation is simulation state, in the lockstep digest,
-//! as it already is for `AI_Taunt`.
 
 use crate::county::{County, MAX_COUNTIES};
 use crate::diplomacy::{category, Letter};
@@ -67,15 +48,10 @@ use crate::unit::Unit;
 
 /// `L2.eng` 130 — *"The people are wretched, my liege…"*. Message id `0x82`.
 pub const GROUP_WRETCHED: u16 = 0x82;
-/// 131 — *"We welcome you to our humble county, noble lord…"*.
 pub const GROUP_WELCOME: u16 = 0x83;
-/// 132 — *"We have had no notification of your army's passage…"*.
 pub const GROUP_NO_NOTICE: u16 = 0x84;
-/// 133 — *"…unacceptable. Remove your troops now, or face the consequences!"*
 pub const GROUP_UNACCEPTABLE: u16 = 0x85;
-/// 134 — *"Your violation of our borders is an outrage…"*.
 pub const GROUP_OUTRAGE: u16 = 0x86;
-/// 170 — *"Invasion of"*, and sixteen taunts, four to a lord.
 pub const GROUP_INVASION: u16 = 0xAA;
 
 /// `Msg_DrawWindow`'s category 2 — the portrait panel with `L2.eng` 109/1,
@@ -84,23 +60,6 @@ pub const CATEGORY_ENVOY: u8 = 2;
 
 /// **`County_GreetArmy` (`0x004ABF77`)** — a neutral county's reply to an army
 /// walking in. `[V]`:
-///
-/// ```c
-/// if (county.owner == 0) {
-///     pct = (unit.menTotal < county.population) ? PctOf(unit.menTotal, county.population) : 101;
-///     if      (county.happiness < 10) Msg_Enqueue(0, unit.owner, 0x82, 0, 2, county, 0, 0);
-///     else if (county.happiness < 30) Msg_Enqueue(0, unit.owner, 0x83, …);
-///     else if (pct < 101) {
-///         if (pct < 50) { if (pct < 20) 0x86; else 0x85; }
-///         else 0x84;
-///     } else 0x83;
-/// }
-/// ```
-///
-/// **The rule runs the way it reads: the bigger the army against the county's
-/// people, the politer they are**, and a wretched county asks for help whatever
-/// size of army arrives. An army
-/// *not* below it, so it takes the 101 — the welcome.
 pub fn greeting(county: u8, c: &County, unit: &Unit) -> Option<Letter> {
     if c.owner != 0 {
         return None;
@@ -134,14 +93,6 @@ pub fn greeting(county: u8, c: &County, unit: &Unit) -> Option<Letter> {
     })
 }
 
-/// **`Unit_EnterCounty`'s two letters**, for an army that has just crossed
-/// into `county`. At most one: the greeting needs a neutral county and the
-/// invasion letter an owned one.
-///
-/// The invasion letter's variant is `rotation - 4 + lord * 4`, computed in the
-/// original's unsigned arithmetic and stored in a byte, and posting it advances
-/// the invader's rotation through 0…3. See the module header for why that is
-/// simulation state.
 pub fn enter_county(
     counties: &[County; MAX_COUNTIES],
     realms: &mut [Realm; MAX_REALMS],
@@ -227,9 +178,6 @@ mod tests {
         assert_eq!(greeting(2, &c[2], &army(3, 100)), None);
     }
 
-    /// **A lord writes only to the county he is marching on.** Passing through
-    /// is silent, and so is walking into your own.
-    ///
     /// Ablation: delete `unit.dest_county != county` and the passing-through
     /// line goes red.
     #[test]
@@ -254,8 +202,6 @@ mod tests {
         assert_eq!(realms[2].voice_rotation, 2);
     }
 
-    /// The rotation wraps after four letters, so a lord's four takes come round
-    /// in order — and the first take of lord 4 is variant 12.
     #[test]
     fn the_invasion_letter_advances_the_invaders_rotation_through_four_takes() {
         let mut c = counties();
@@ -271,8 +217,6 @@ mod tests {
         assert_eq!(realms[2].voice_rotation, 1);
     }
 
-    /// A neutral county takes the greeting branch and never the invasion one,
-    /// even when it is the destination.
     #[test]
     fn a_neutral_destination_is_greeted_not_invaded() {
         let mut c = counties();

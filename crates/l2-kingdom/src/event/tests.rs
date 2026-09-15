@@ -11,11 +11,8 @@ use l2_net::{Pcg32, Quirk, Quirks};
 mod tests {
     use super::*;
 
-    /// Faithful: every test here asserts the original.s answer unless it says
-    /// otherwise. The switched-off answers live in `tests/quirks.rs`.
     const Q: Quirks = Quirks::FAITHFUL;
 
-    /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
     use std::collections::BTreeSet;
 
@@ -25,9 +22,6 @@ mod tests {
         c
     }
 
-    /// **The invariant that closes the table.** The deck holds exactly the 24
-    /// ids the dispatch handles: no id the dispatch cannot reach, and no
-    /// handler the deck cannot deal.
     #[test]
     fn the_deck_holds_exactly_the_twenty_four_dispatched_ids() {
         let dealt: BTreeSet<u16> = EVENT_DECK.iter().map(|(_, k)| k.id()).collect();
@@ -36,8 +30,6 @@ mod tests {
         assert_eq!(handled.len(), 24);
     }
 
-    /// The two id runs `docs/kingdom.md` §8.1 names: `0x87 … 0x8E` and
-    /// `0x12E … 0x13D`, contiguous and with nothing between them.
     #[test]
     fn the_ids_are_the_two_contiguous_runs_the_document_names() {
         let ids: Vec<u16> = EVENT_KINDS.iter().map(|k| k.id()).collect();
@@ -48,8 +40,6 @@ mod tests {
         }
     }
 
-    /// Every filled slot is at `index ≡ 7 (mod 8)` — the deck is 32 groups of
-    /// eight with at most one event in each group's last slot.
     #[test]
     fn every_dealt_slot_sits_at_the_end_of_a_group_of_eight() {
         for (slot, kind) in EVENT_DECK {
@@ -61,8 +51,6 @@ mod tests {
         }
     }
 
-    /// 26 filled slots for 24 ids: two events are dealt twice and so come up
-    /// about twice as often as the rest.
     #[test]
     fn two_events_are_dealt_twice_and_the_rest_once() {
         let mut doubled: Vec<&str> = Vec::new();
@@ -78,7 +66,6 @@ mod tests {
         assert_eq!(EVENT_DECK.len(), 26);
     }
 
-    /// The frequency rule, stated as the density it is: 26 slots in 256.
     #[test]
     fn about_one_county_season_in_ten_draws_anything() {
         let filled = (0..EVENT_DECK_SLOTS).filter(|s| deck_slot(*s).is_some()).count();
@@ -86,8 +73,6 @@ mod tests {
         assert_eq!(EVENT_DECK_SLOTS - filled, 230, "230 empty slots");
     }
 
-    /// **The AI never draws random events**, and nothing happens before 1268 is
-    /// past.
     #[test]
     fn only_a_human_county_after_1268_is_eligible() {
         let c = county(1);
@@ -97,8 +82,6 @@ mod tests {
         assert!(!eligible(T, &county(0), true, 1269), "nor an unowned one");
     }
 
-    /// Four handlers read the season. A plague in Winter costs twice what a
-    /// plague in Summer does.
     #[test]
     fn four_events_hit_harder_in_winter_than_in_summer() {
         let hit = |k: EventKind, s: Season| match k.effect(s) {
@@ -115,9 +98,6 @@ mod tests {
         assert_eq!(hit(EventKind::WeddingFever, Season::Winter), 30);
     }
 
-    /// Every one of the twenty-four has an effect in every season, and no
-    /// percentage is outside what an `i8` can hold — the original stores them
-    /// in a signed byte.
     #[test]
     fn every_effect_fits_the_signed_byte_the_original_stores_it_in() {
         for kind in EVENT_KINDS {
@@ -131,8 +111,6 @@ mod tests {
         }
     }
 
-    /// A guard that fails leaves the county untouched and reports nothing —
-    /// the original's "clear the flag" branch.
     #[test]
     fn a_failed_guard_changes_nothing_at_all() {
         let mut c = county(1);
@@ -151,8 +129,6 @@ mod tests {
         assert_eq!(c.event_id, 0x89);
     }
 
-    /// *"Stop thief!. … Lose all tax revenues this season."* — the handler's
-    /// whole body is the gate `docs/kingdom.md` §4.1 could not explain.
     #[test]
     fn stop_thief_sets_the_gate_that_zeroes_the_tax_take() {
         let mut c = county(1);
@@ -165,25 +141,14 @@ mod tests {
         assert!(fire(&mut c, 1, &mut purse, EventKind::StopThief, Season::Spring, Q));
         assert!(c.tax_suppressed);
 
-        // And the gate is what Tax_CollectAll reads.
         c.population = 1000;
         c.tax_rate = 10;
         c.castle_type = 0;
         assert_eq!(crate::tax::collect(T, &mut c, 0), 0, "the collectors were waylaid");
     }
 
-    /// *"No bull"* writes 99, and the herd pass reads 99 as a sentinel
-    /// than as +99%.
-    ///
-    /// **It stops the calves and nothing else.** The branch sets the weather
-    /// swing and the *births* to zero and never touches the deaths, so a
-    /// well-tended, uncrowded herd stands still — and an understaffed one goes
-    /// on dying through it.
     #[test]
     fn no_bull_stops_the_herd_growing_rather_than_doubling_it() {
-        // Fifty head on five fields: the mildest crowding band, fully staffed,
-        // and small enough that 1 death per 10,000 rounds away to nothing. So
-        // the only thing left for the season to do is calve, and it does not.
         let furnish = |c: &mut County| {
             c.herd = 50;
             c.fields_cattle = 5;
@@ -207,8 +172,6 @@ mod tests {
         assert_eq!(c.herd, 50, "no growth, and certainly not +99%");
     }
 
-    /// The other half of the same branch, and the reason it is worth its own
-    /// test: *"No bull"* silences the births, **not** the losses.
     #[test]
     fn no_bull_does_not_stop_an_understaffed_herd_dying() {
         let mut c = county(1);
@@ -222,7 +185,6 @@ mod tests {
         assert_eq!(c.herd, 10_000 - 4_000, "(7 + 33) per 10,000 of 100x the herd, uncontested");
     }
 
-    /// The plague hits the population *and* pins the health meter to 25.
     #[test]
     fn the_plague_knocks_a_perfect_county_into_the_sick_band() {
         let mut c = county(1);
@@ -236,9 +198,6 @@ mod tests {
         assert_eq!(c.health_band, 1, "Sick");
     }
 
-    /// **The weapon-slot bug, reproduced.** Which weapon a county finds depends
-    /// on its id and never on what its blacksmith makes, and the crossbow can
-    /// never be found at all.
     #[test]
     fn a_found_weapon_is_chosen_by_the_county_id_not_by_the_blacksmith() {
         for id in 1..=16usize {
@@ -253,8 +212,6 @@ mod tests {
         }
     }
 
-    /// *Fraud*, *Termites* and *Corruption* all take, and all refuse to take
-    /// what is not there.
     #[test]
     fn the_three_thefts_are_guarded_on_there_being_something_to_take() {
         let mut c = county(1);
@@ -274,7 +231,6 @@ mod tests {
         assert_eq!(purse.weapons[weapon_slot(1, c.weapon_type, Q)], 0);
     }
 
-    /// The two field events, on the crate's county-count model of fields.
     #[test]
     fn the_two_field_events_need_a_field_to_work_on() {
         let mut full = county(1);
@@ -293,8 +249,6 @@ mod tests {
         assert!(!fire(&mut none, 1, &mut purse, EventKind::Locusts, Season::Spring, Q));
     }
 
-    /// The draw count must not depend on ownership, or two peers that disagree
-    /// about one county's owner would diverge in every later draw.
     #[test]
     fn the_stream_advances_identically_whoever_owns_the_counties() {
         let run = |human: bool| {
@@ -302,8 +256,6 @@ mod tests {
             let mut c = vec![County::new(); 17];
             let mut purses = vec![RealmPurse::default(); 6];
             for id in 1..=14 {
-                // Odd counties owned: see
-                // `only_odd_numbered_counties_can_ever_draw_an_event`.
                 c[id].owner = if id % 2 == 1 { 1 } else { 0 };
                 c[id].grain = 5_000;
                 c[id].herd = 500;
@@ -336,8 +288,6 @@ mod tests {
         assert_eq!(events_b, 0, "and an all-AI kingdom draws nothing");
     }
 
-    /// One draw per season, — so a kingdom of 4 and a
-    /// kingdom of 14 leave the generator in the same place.
     #[test]
     fn the_season_draws_exactly_one_number_however_many_counties_there_are() {
         for n in [1usize, 4, 14, 16] {
@@ -383,8 +333,6 @@ mod tests {
         assert_eq!(run(), run());
     }
 
-    /// Adjacent counties can never both draw, because no two dealt slots are
-/// adjacent. A property of the deck.
     #[test]
     fn no_two_neighbouring_counties_can_draw_in_the_same_season() {
         for pair in EVENT_DECK.windows(2) {
@@ -392,15 +340,6 @@ mod tests {
         }
     }
 
-    /// **The reproduced bug: half the counties never draw an event.**
-    ///
-    /// The seed is `random * 2` and so always even, the wrap resets to 0 which
-    /// is also even, and every dealt slot is odd. County `k` lands on a slot of
-    /// parity `k`, so an even-numbered county cannot reach a dealt slot at any
-    /// seed, in any season, for the whole game.
-    ///
-/// Checked exhaustively over every one of the 128 seeds
-    /// sampling, because "we never saw it happen" is not the same claim.
     #[test]
     fn only_odd_numbered_counties_can_ever_draw_an_event() {
         for slot in EVENT_DECK.iter().map(|(s, _)| *s) {
@@ -423,8 +362,6 @@ mod tests {
         assert_eq!(drew, vec![1, 3, 5, 7, 9, 11, 13, 15], "the even counties never come up");
     }
 
-    /// The same thing through the real entry point: an all-even kingdom draws
-    /// nothing at all however long it runs.
     #[test]
     fn a_kingdom_of_even_numbered_counties_never_sees_an_event() {
         let mut rng = Pcg32::from_seed(4242);
@@ -446,16 +383,6 @@ mod tests {
         assert!(out.is_empty(), "five hundred seasons and not one event");
     }
 
-    /// **The latch survives the seasons that deal nothing.**
-    ///
-    /// `Event_RollAll` clears the three modifiers and the tax gate and *not*
-    /// `eventFired`/`eventId`, so an unread letter waits. This is the whole
-    /// reason a player ever meets one: ours cleared both here, every season, and
-    /// the frame that posts the letter never found a flag set.
-    ///
-    /// Ablation: put `counties[id].event_fired = false; counties[id].event_id =
-    /// 0;` back at the top of `roll_all`'s loop → the flag is gone by the time
-    /// the assert runs and the county reports no waiting letter.
     #[test]
     fn a_letter_nobody_read_is_still_waiting_seasons_later() {
         let mut c = county(1);
@@ -464,9 +391,6 @@ mod tests {
         assert!(fire(&mut c, 1, &mut purse, EventKind::Wolves, Season::Spring, Q));
         assert!(c.event_fired);
 
-        // Ten seasons of a deck that deals this county nothing: an all-AI
-        // kingdom takes the same number of values from the generator and fires
-        // no handler.
         let mut counties = vec![County::new(); 17];
         counties[1] = c;
         let mut rng = Pcg32::from_seed(11);
@@ -482,10 +406,6 @@ mod tests {
         assert!(!counties[1].tax_suppressed);
     }
 
-    /// **A new event whose guard fails destroys the letter that was waiting.**
-    /// The handler's failing branch writes zero into both fields, and it was the
-    /// *roll* that put the new id there a moment earlier — so the county is left
-    /// with neither event.
     #[test]
     fn a_new_event_that_cannot_fire_takes_the_old_letter_with_it() {
         let mut c = county(1);

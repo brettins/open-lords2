@@ -12,12 +12,8 @@ use l2_sim::terrain::DIM;
 /// of the 36 lines: `range - 3` kept on each axis, independently, and **an axis
 /// already inside range keeps the unit's own coordinate** because the function
 /// seeds its answer from `(x, y)` and not from the cell clicked.
-///
-/// Ablation: a stub that returns the clicked cell fails every assert here, and
-/// one that returns the unit's own cell fails the first three.
 #[test]
 fn a_bowman_halts_twelve_cells_short_on_each_axis_by_itself() {
-    // A bow is 15 cells (`g_missileStats`), so twelve are kept.
     assert_eq!(
         stop_short_of_target((10, 10), (10, 40), 15),
         (10, 28),
@@ -33,14 +29,11 @@ fn a_bowman_halts_twelve_cells_short_on_each_axis_by_itself() {
         (28, 10),
         "target right"
     );
-    // The x axis is pulled back to 12; the y axis is 4 away, inside range, so
-    // it stays at the *unit's* 10 and the clicked 14 is discarded.
     assert_eq!(
         stop_short_of_target((10, 10), (30, 14), 15),
         (18, 10),
         "one axis only"
     );
-    // A crossbow keeps 5 and a catapult 17 — the same `range - 3`.
     assert_eq!(
         stop_short_of_target((10, 10), (10, 40), 8),
         (10, 35),
@@ -51,7 +44,6 @@ fn a_bowman_halts_twelve_cells_short_on_each_axis_by_itself() {
         (10, 23),
         "catapult"
     );
-    // Inside range on both axes: the unit does not move at all.
     assert_eq!(
         stop_short_of_target((10, 10), (14, 16), 15),
         (10, 10),
@@ -59,13 +51,6 @@ fn a_bowman_halts_twelve_cells_short_on_each_axis_by_itself() {
     );
 }
 
-/// The same helper **in its place in the order ladder**: a click with the
-/// woodland argument set on a side-0 missile unit has its destination pulled
-/// back before `targX`/`targY` are written, while `targetCell` keeps the cell
-/// that was clicked.
-///
-/// Ablation: drop the [`stop_short_of_target`] call out of `order_full` and
-/// `target_x`/`target_y` are the clicked cell, which the second assert refuses.
 #[test]
 fn the_ladder_pulls_an_ordered_missile_unit_back_to_its_range() {
     let mut r = siege_battle(0, 0x5E1_6Eu64);
@@ -81,7 +66,6 @@ fn the_ladder_pulls_an_ordered_missile_unit_back_to_its_range() {
         let u = r.units.get(unit);
         (u.x as i32, u.y as i32)
     };
-    // A cell 30 or more away on both axes, wherever the archers deployed.
     let click = (
         if ux > 40 { 5u8 } else { 74 },
         if uy > 40 { 5u8 } else { 74 },
@@ -117,13 +101,6 @@ fn the_ladder_pulls_an_ordered_missile_unit_back_to_its_range() {
 /// `Dest_FindReachableNear` (`0x0048A7D9`) — squares of radius 0…19 around the
 /// destination for an interior cell `Formation_SlotIsUsable` (`0x0048A672`)
 /// accepts against the **source** cell's surface and elevation.
-///
-/// The surface gate is what this measures: for a unit standing on the rampart
-/// walk (surface 4) no cell of any other surface is acceptable, so the answer
-/// is false for a destination out in the field and true for the walk itself.
-///
-/// Ablation: a stub returning `true` fails the second assert and one returning
-/// `false` fails the first.
 #[test]
 fn the_wall_walk_reaches_only_the_wall_walk() {
     let r = siege_battle(4, 0x5E1_6Fu64);
@@ -138,7 +115,6 @@ fn the_wall_walk_reaches_only_the_wall_walk() {
         "the walk is its own ground"
     );
 
-    // A destination with no walk cell inside Chebyshev 19 of it.
     let far = (0..DIM * DIM)
         .map(|c| ((c % DIM) as i32, (c / DIM) as i32))
         .find(|&(x, y)| {

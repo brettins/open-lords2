@@ -17,8 +17,6 @@ use l2_testkit::england;
 /// (&DAT_0053fc44)[industry * 0x18 + county * 0x300] = (char)iVar3;   /* +0x294 */
 /// ```
 ///
-/// # Why four refreshes are one refresh
-///
 /// C136 held the write back because `County_RefreshEstimates` runs four times
 /// inside `Industry_ToggleFromMap` alone, and a compounding ramp would climb
 /// four steps on one click. It does not compound: `Industry_EfficiencyRamp`
@@ -26,13 +24,6 @@ use l2_testkit::england;
 /// **`+0x294`**, and only `Industry_Produce` (`0x0044EA92`) copies the one into
 /// the other — `(&DAT_0053fc4c)[...] = (&DAT_0053fc44)[...];`, the line after
 /// its own ramp.
-///
-/// # Doctored, and which fields
-///
-/// The option, the capacity and the two efficiency bytes
-/// test above doctors its three: every save on this machine has *Advanced
-/// Farming* off, and with it off the ramp is a flat 80 for every staffing.
-/// Everything else — the county, its foresters, its switch — is the importer's.
 ///
 /// **Ablation.** Delete the write-back in `industry::preview` and the first
 /// assertion goes red at the base against the ramped number.
@@ -56,8 +47,6 @@ fn the_refresh_ramps_the_efficiency_and_four_refreshes_land_on_one_answer() {
     };
 
     let workers = kingdom.counties[id].labour[JOB[WOOD]];
-    // Overstaffed three to one, so the increment is scaled and the ramp lands
-    // short of the cap — at the cap every count is idempotent for free.
     let capacity = workers / 3;
     {
         let c = &mut kingdom.counties[id];

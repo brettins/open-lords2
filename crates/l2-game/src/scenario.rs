@@ -1,29 +1,3 @@
-//! Starting from the England turn-one scenario.
-//!
-//! `lastturn.sav` in a real install is a turn-1 autosave of the England map,
-//! and `l2_formats::save` reads it by walking the block table out of the user's
-//! own `Lords2.exe` (the save is a memory dump; the executable is its schema).
-//!
-//! **The conversion itself is `l2-scenario`'s**, not this module's. That crate
-//! is the seam between a file format and a simulation that may not know about
-//! each other, and duplicating it here would have meant two importers that
-//! could disagree. What is left in this module is the part that is genuinely
-//! the application's:
-//!
-//! * finding the two files through the mod overlay;
-//! * `g_scenarioIndex`, which picks the **map slot** — a scenario for the
-//!   kingdom does not need it and a screen that draws the map does;
-//! * seeding the interface's own state: each county's anchor tile, the
-//!   treasury the turn started from, and which county the game opens on.
-//!
-//! # Why it is worth the trouble
-//!
-//! `docs/plan.md`'s review found that `l2-kingdom`'s reproduction test built
-//! the *scenario* from a document — four counties owned by one realm — while
-//! the file holds **five owned counties, one for each of realms 1 to 5, and
-//! nine unowned**, with the human realm owning county 8 alone. Reading the file
-//! means the interface cannot inherit that fiction, and `tests/scenario.rs`
-//! asserts what the bytes say.
 
 use l2_formats::maps::{MapSlot, PLANE_DIM};
 use l2_formats::save::Save;
@@ -35,8 +9,6 @@ use l2_scenario::{ImportError, Scenario};
 
 use crate::game::Game;
 
-/// The two files a scenario is read from. The executable is the schema and the
-/// save is the data; neither is shipped by us.
 pub const EXECUTABLE: &str = "Lords2.exe";
 pub const SAVE: &str = "lastturn.sav";
 
@@ -62,8 +34,6 @@ const REALM_COLOUR: u32 = 0x0A;
 /// ever disagree this fails to compile.
 const _: () = assert!(l2_formats::save::PLAYER_NAME_LEN == crate::text::PLAYER_NAME_LEN);
 
-/// The seed the kingdom's generator starts on.
-///
 /// **Ours, not the original's, and it could not be otherwise.** The original
 /// draws from two 31-bit LFSRs (`FUN_00404A46`) whose state is not among the
 /// blocks the save writes, and `l2-kingdom` draws from `l2_net::Pcg32`, which
@@ -74,14 +44,9 @@ pub const SEED: u64 = 0x0001_0D52;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
-    /// A file the scenario needs is not in the overlay.
     Missing { name: String, detail: String },
-    /// The save would not open, or would not convert.
     Import(ImportError),
-    /// The save opened but an address the interface needs is not in a saved
-    /// block.
     Save(l2_formats::SaveError),
-    /// A map slot that could not be made into a world.
     Map(MapError),
 }
 
@@ -110,11 +75,6 @@ impl From<l2_formats::SaveError> for Error {
     }
 }
 
-/// Read the England turn-one scenario into a playable [`Game`].
-///
-/// `tables` is the ruleset the kingdom will run on for the rest of its life —
-/// `Tables::DEFAULT`, or whatever `l2-mods` built from the core ruleset and any
-/// enabled mod.
 pub fn load(vfs: &Vfs, tables: Tables) -> Result<Game, Error> {
     let exe = vfs
         .read(EXECUTABLE)
@@ -126,7 +86,6 @@ pub fn load(vfs: &Vfs, tables: Tables) -> Result<Game, Error> {
     from_save(&save, tables)
 }
 
-/// The same, from an already-opened save.
 pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     let scenario = Scenario::from_save(save)?;
     let mut game = Game::new(SEED);
@@ -147,9 +106,6 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         *slot = save.u8_at(va).unwrap_or(0);
     }
 
-    // **`g_playerNames` — the lords' names, and they were in the file all
-    // along.**
-    //
     // `g_saveBlocks[2] = {0x00553D50, 264}` is the six-slot player table and
     // the name is each slot's `+0x04` (`l2_formats::save::Player`, which also
     // says what the four bytes before it are). Nothing here read it, so a
@@ -159,8 +115,6 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     // `Player_SetHuman` (`0x0049BAE9`) are what filled it before the save was
     // written; this is the reading half.
     //
-    // Raw and unfixed, like `realm_colour` above: a slot the original never
-    // wrote stays empty and `lord_name` is the one place the fallback lives.
     // **Nothing moves in the lockstep digest** — the digest is
     // `Canonical::hash_of(kingdom)` and this is on `Game`, beside
     // `realm_colour`, for exactly that reason. `docs/decisions.md` C198.
@@ -180,22 +134,13 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         game.gold_last[id] = realm.gold;
     }
 
-    // **The pair block is carried now, so this no longer runs.**
-    //
     // `l2_formats::save::Realm` did not read `+0x84 … +0xE3` at all, so every
     // load re-ran `Diplo_Init` -- right for the England turn-one fixture, where
     // nothing has moved, and wrong for every later save: a player who loaded a
     // mid-game file found the AI had forgotten every war.
     //
-    // The fixtures can tell the difference. `Diplo_Init` opens an in-play AI at 5;
-    // `Diplo_Init` opens an in-play AI at 5;
-    // `siege-lastturn.sav` carries 18, `old_turn.sav` 8 and `battle-after.sav`
-    // 10 -- the +1-a-turn heal, thirteen turns of it in the first. A test that
-    // could only be run against turn one could not have failed.
     // `docs/decisions.md` C83.
 
-    // Open on a county the player holds, if any. Ascending, so two peers with
-    // the same save open on the same county.
     game.selected = game
         .kingdom
         .county_ids()
@@ -205,52 +150,12 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     Ok(game)
 }
 
-/// **A new game on a chosen `L2_maps.dat` slot.**
-///
-/// The other constructor. [`load`] reads a world the original built and this
-/// one builds a world, which is what *New Game* has needed since the setup
-/// screen learned to choose a map. `l2_scenario::newgame` is the whole of
-/// `Map_InitScenario`; what is left here is the application's part, and it is
-/// the same three things [`from_save`] does — find the file through the mod
-/// overlay, keep `g_scenarioIndex`, and seed the interface's own state.
-///
-/// # The order is `Game_NewGame`'s
-///
-/// 1. `Map_InitScenario` and `County_Reset` — [`Scenario::from_map`];
-/// 2. `Game_SetupRealmsAndCounties`' option half —
-///    [`crate::setup::Settings::apply_to`], which the caller runs next because
-///    it is the caller who has the settings;
-/// 3. one immediate `Season_Advance` — [`l2_kingdom::Kingdom::start_new_game`],
-/// and not in the Autumn
-///    1267 this function returns.
-///
-/// Steps 2 and 3 are the caller's on purpose: this returns the world, and the
-/// twelve options are not the world.
-///
-/// # The seed
-///
 /// `seed` decides one thing — which realm gets which start county, dealt by
 /// `FUN_00497E65`. It is a parameter because a network
 /// game's seed comes from the lobby and both peers must build the same world
 /// from it (`docs/netcode.md`). The single-player path passes [`SEED`], so a
 /// new game on a given map is reproducible today; a seed the player can see and
 /// change is the lobby's to add.
-///
-/// # The shield
-///
-/// `shield` is the colour the person picked on setup page 4, 1 … 5, and it sits
-/// beside `seed` and `human_players` on purpose: all three are **lobby** facts
-/// `settings` is the twelve values the custom
-/// page committed, and a campaign row overwrites every one of them — but not
-/// the colour, because page 4 is the page you pass *through* on the way to
-/// pressing anything. So the shield cannot live on [`crate::setup::Settings`]
-/// without being wiped by a campaign.
-///
-/// It changes the world: it moves which realm flies
-/// which colour **and which lord sits behind each realm**
-/// (`l2_scenario::newgame::assign_lords`, `docs/rules.md` §7a), so two lockstep
-/// peers must agree on it before tick 0 the same way they agree on the seed.
-/// `docs/netcode.md` D-3a.
 pub fn new_game(
     assets: &crate::game::Assets,
     slot: usize,
@@ -271,7 +176,6 @@ pub fn new_game(
         slot,
         options: settings.kingdom_options(),
         lords,
-        // One person, realm 1. `g_localPlayer` is the lobby's in a network
         local_player: 1,
         shield,
         seed,
@@ -283,21 +187,8 @@ pub fn new_game(
     game.player = scenario.local_player;
     game.map_slot = slot;
 
-    // The happiness average and its running sum open on zero, which is
-    // `County_Reset`'s value, because the map constructor now says so itself.
-    // This used to zero them here, over a save-path import that set both to
-    // this season's happiness — wrong on every turn but the first.
     // `docs/decisions.md` C161.
 
-    // **The colour a realm flies is the one `Realms_AssignLords` gave it**, and
-    // this used to say it was the realm id: *"`Game_SetupRealms` seeds
-    // `shieldIndex = i` and only a custom game's colour picker permutes it,
-    // which this build has no screen for."* Two of those three clauses were
-    // wrong by the time anybody read them — the picker is setup page 4, this
-    // build has had it since the front end was drawn, and the seed is
-    // overwritten for every AI on every `Realms_AssignLords`. The player who
-    // reported *"I picked a colour and it didn't get honoured once the game
-    // opened"* was reporting this line's premise, not this line.
     // `docs/decisions.md` C130.
     for (id, slot) in game.realm_colour.iter_mut().enumerate() {
         *slot = game.kingdom.realms.get(id).map(|r| r.shield_index).unwrap_or(0);
@@ -319,16 +210,6 @@ pub fn new_game(
     Ok(game)
 }
 
-/// County adjacency **derived from the map's county plane**: two counties are
-/// neighbours when a tile of one is 4-adjacent to a tile of the other.
-///
-/// This is not how a game is loaded — the save stores the adjacency list and
-/// `l2-scenario` reads it. It exists as an **independent check** on that
-/// reading: `L2_maps.dat` and `lastturn.sav` were authored separately, and over
-/// the England map the derivation reproduces the stored list for all fourteen
-/// counties, ids and all. `tests/scenario.rs` asserts it.
-///
-/// Returns one ascending list per county id, index 0 unused.
 pub fn adjacency_from_map(map: &MapSlot<'_>, county_count: usize) -> Vec<Vec<u8>> {
     let n = county_count.min(16);
     let mut adjacent = vec![[false; 17]; 17];

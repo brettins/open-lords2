@@ -1,5 +1,3 @@
-//! **The game's films: which one plays, when, where, and what happens after.**
-//!
 //! `Smk_Play` (`0x0042D91B`) is the one door every film goes through — it
 //! opens the file, parks `g_screenId` at `0x22`, and remembers the screen to
 //! go back to — and it has exactly seven callers, which are the whole of the
@@ -21,16 +19,17 @@
 //! in the decompilation; every file name is `[V]`, dumped out of `.rdata` at
 //! the address the call site indexes.
 //!
-//! # What is not here, and why
-//!
 //! * **`Smk_ReplayIntro`** is the replay button of screen `0x44`, a Smacker
 //!   test page (`g_smackTestWidgets`, `0x004DDFA0`, painted by `0x00425A6A`).
+//!
 //!   Scanning the whole image for `mov byte ptr [g_screenId], imm8` finds 52
 //!   distinct immediates and **no `0x44`**; the other 48 stores are `mov
 //!   [g_screenId], al` restoring a remembered screen, which cannot hold a value
 //!   nothing ever wrote. `[D]` — so the page and its forty-name table
 //!   (`s_Intro_smk_004d4d60`) are a debug tool the shipped game cannot open.
+//!
 //! * **`Smk_PlayThenClose`** (`0x0042D96E`) has no caller at all.
+//!
 //! * **The CD's `smk_high` directory.** `Msg_DrawWindow`'s ending branch has a
 //!   second layout — a 502 × 314 well at (24, 80) — taken when `g_fastMedia` is
 //!   set, and `Cd_PathForFile` then reads the film from `smk_high`. The flag is
@@ -53,57 +52,33 @@ use crate::message::Record;
 use crate::screen::{Machine, ScreenId, Transition};
 
 /// **`FUN_004B3571(0)`** — `App_WinMain`'s last act before the message loop:
-/// play `intro.smk`, and on failure go straight to the front end.
-///
-/// A function in the library, for
-/// `crate::audio::Director`'s reason: a binary's code cannot be called by a
-/// test.
 pub fn start_up(machine: &mut Machine) {
     machine.push(ScreenId::Movie(Film::Intro));
 }
 
-/// One call of `Smk_Play`, as a value a screen can name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Film {
     /// `FUN_004B3571` — `Smk_Play("intro.smk", 0x28, 0x50, 0, g_screenId)`.
     Intro,
-    /// `Smk_OnFinished`'s first `strcmp`: during start-up, the end of
-    /// `intro.smk` plays `imptitle.smk` at (0x50, 0x50).
     ImpTitle,
-    /// …and the end of `imptitle.smk` plays `credits.smk` at (0, 0), returning
-    /// to screen `0x1F`.
     Credits,
     /// `FUN_00432B05`'s hotspot 4, *"Lords of Magic?"* on the title page —
     /// Sierra's trailer for its next game. `Smk_Play("lom.smk", 0x46, 0x50, 0,
     /// g_screenId)`.
     LordsOfMagic,
-    /// `CastleBuild_Confirm` — `Smk_Play(castle1.smk + level * 0x10, 0x9E,
-    /// 0x14, 0, 0)`, the level 0-based.
     Castle(u8),
     /// `Msg_DrawWindow`'s animated capture branch. `take` is `DAT_00553ED4`
     /// after its increment, 0…2; `record` is the message it dismissed.
     Capture { take: u8, record: Record },
-    /// `Msg_DrawWindow`'s animated ending branch. `file` is what
-    /// [`ending_film`] chose; `game_over` is whether `Msg_Dismiss` entered
-    /// screen `0x1C`, which is the screen `Smk_Play` was told to go back to.
     Ending { file: &'static str, record: Record, game_over: bool },
-    /// `Battle_CheckOutcome`, over the outcome banner.
     Battle { file: &'static str },
 }
 
-/// `s_castle1_smk_004d5590`, five entries at 0x10 bytes.
 pub const CASTLE_FILMS: [&str; 5] =
     ["castle1.smk", "castle2.smk", "castle3.smk", "castle4.smk", "castle5.smk"];
 
-/// `s_cap_cty1_smk_004d6e88`, three entries.
 pub const CAPTURE_FILMS: [&str; 3] = ["cap_cty1.smk", "cap_cty2.smk", "cap_cty3.smk"];
 
-/// `s_cart_kgt_smk_004d6cf8`: five rows of five, **indexed by the fallen
-/// lord** — 0 unused, then the Knight, the Baron, the Countess and the Bishop
-/// — and across by how long the game has run. A lord with no cart film of his
-/// own is given his pillory twice (the Countess) or his cart twice (the
-/// Bishop), which is exactly the five names `docs/formats/smk.md` found
-/// referenced and missing: `cart_cts`, `pill_bsp`, and the cut `_hmn` pair.
 pub const ENDING_FILMS: [[&str; 5]; 5] = [
     ["cart_kgt.smk", "pill_kgt.smk", "jail.smk", "hang.smk", "axmen.smk"],
     ["cart_kgt.smk", "pill_kgt.smk", "jail.smk", "hang.smk", "axmen.smk"],
@@ -117,6 +92,7 @@ pub const VICTORY_FILM: &str = "win_game.smk";
 
 /// `DAT_00553228`: the year a new game starts in, written once, by
 /// `Game_NewGame` (`0x00497CED`: `g_year = 0x4F3; DAT_00553228 = 0x4F3;`).
+///
 /// `[V]` — one writer in the corpus.
 pub const FIRST_YEAR: i32 = 0x4F3;
 
@@ -193,8 +169,6 @@ pub const BATTLE_FILMS_THIRD_MODE: [[&str; 4]; 6] = [
 ];
 
 impl Film {
-    /// The name `Lords2.exe` asks for. Resolved case-insensitively, because the
-    /// install spells them `Cap_cty1.smk` and the executable `cap_cty1.smk`.
     pub fn file(&self) -> &'static str {
         match *self {
             Film::Intro => "intro.smk",
@@ -207,8 +181,6 @@ impl Film {
         }
     }
 
-    /// `Smk_Play`'s second and third arguments: where `SmackToBuffer` puts the
-    /// film's top-left pixel in the 640 × 480 screen.
     pub fn at(&self) -> (i32, i32) {
         match self {
             Film::Intro => (0x28, 0x50),
@@ -222,36 +194,21 @@ impl Film {
         }
     }
 
-    /// **Whether the screen behind the film is cleared first.**
-    ///
     /// The front-end films are preceded by `FUN_004B11CE` —
     /// `Palette_Set`, `FUN_004B1867` (which hands the whole back buffer to
     /// `FUN_004B3E51` — a clear, `[I]` from the length) and a repaint — so they
     /// play on black. The other four play over the screen that raised them,
     /// which is still in the back buffer because screen `0x22` has no painter:
-    /// the castle chooser's preview well, the dimmed map with the message
-    /// window drawn once, the battlefield under its banner.
     pub fn is_over_a_screen(&self) -> bool {
         !matches!(self, Film::Intro | Film::ImpTitle | Film::Credits | Film::LordsOfMagic)
     }
 
-    /// Played before `Game_NewGame` could have run. The question
-    /// [`crate::audio`]'s exhaustive `before_the_campaign` asks of every screen.
     pub fn is_front_end(&self) -> bool {
         !self.is_over_a_screen()
     }
 
     /// **`Smk_OnFinished` (`0x0042E060`)** — what the end of this film, or a
     /// skip, does next.
-    ///
-    /// * During start-up (`g_appPhase == 1`) it `strcmp`s the path: `intro.smk`
-    ///   plays `imptitle.smk`, `imptitle.smk` plays `credits.smk`, and anything
-    /// else lets the front end up. **So a skip moves one film along,
-    ///   out of the sequence**, which is what the original does to a player
-    ///   who clicks through the intro.
-    /// * Otherwise `g_screenId = g_smkReturnScreen`: the screen that raised the
-    ///   film — or, for an ending, the conquest screen `Msg_Dismiss` had
-    ///   already entered.
     ///
     /// # What each call site, `[V]` at all eight
     ///
@@ -265,27 +222,11 @@ impl Film {
     /// | `Msg_DrawWindow` capture | `g_screenId` | [`Transition::Pop`] |
     /// | `Msg_DrawWindow` ending, both media layouts | `g_screenId`, read after `Msg_Dismiss` | [`Transition::Pop`], or [`Transition::Replace`]`(Conquest)` when that dismissal entered `0x1C` |
     /// | `Battle_CheckOutcome` | `g_screenId` | [`Transition::Pop`] |
-    ///
-    /// **Only the castle film names a screen that is not the one it was raised
-    /// over**,:
-    /// `Smk_Play(s_castle1_smk + g_castleSelection * 0x10, 0x9E, 0x14, 0, 0)`.
-    /// Screen `0` is the campaign map, so the end of the film is the map and the
-    /// chooser that ordered the castle goes with it — the original has one
-    /// `g_screenId` byte and nothing to leave it on.
-    ///
-    /// Ours popped the film instead and left the chooser to pop itself on its
-    /// next `update`; [`crate::screen::Machine::update`] runs `run_tips` and
-    /// `pump_messages` first, and `tip::DELAY` is `0x14` frames, so on any film
-    /// longer than twenty frames the castle advisor tip seated itself and the
-    /// chooser never got that update. Measured at tick 523 of `castle1.smk`'s
-    /// 521 frames, and reported by a player as being stranded on the chooser
-    /// under a tip.
     pub fn then(&self) -> Transition {
         match self {
             Film::Intro => Transition::Replace(ScreenId::Movie(Film::ImpTitle)),
             Film::ImpTitle => Transition::Replace(ScreenId::Movie(Film::Credits)),
             Film::Ending { game_over: true, .. } => Transition::Replace(ScreenId::Conquest),
-            // `Smk_Play(…, 0, 0)` — the campaign map, unwinding the chooser.
             Film::Castle(_) => Transition::Goto(ScreenId::Campaign),
             _ => Transition::Pop,
         }
@@ -299,10 +240,6 @@ impl Film {
     pub fn on_failure(&self) -> Transition {
         match self {
             Film::Ending { game_over: true, .. } => Transition::Replace(ScreenId::Conquest),
-            // The same destination, because it is the same argument: `Smk_Play`
-            // failing writes `g_screenId = returnScreen` directly, and
-            // `CastleBuild_Confirm`'s own fail arm sets `g_screenId = 0` again
-            // right after it.
             Film::Castle(_) => Transition::Goto(ScreenId::Campaign),
             _ => Transition::Pop,
         }
@@ -322,7 +259,6 @@ impl Film {
         }
     }
 
-    /// The screen this film belongs to, for a window title.
     pub fn title(&self) -> &'static str {
         match self {
             Film::Intro | Film::ImpTitle | Film::Credits => "Lords of the Realm II",

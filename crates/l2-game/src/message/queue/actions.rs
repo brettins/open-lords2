@@ -10,10 +10,6 @@ use crate::game::Game;
 
 /// `Msg_Dismiss` (`0x00476768`) reads `crate::victory::Campaign` and can enter
 /// the conquest screen, which belongs to `Game`.
-/// Groups `0x9E`, `0x9F`, `0xEE`, `0xEF` drop to screen `0x26` and set `g_quitRequest = 3`.
-/// Nothing in the binary enqueues them; `docs/formats/eng.md` marks all four dead.
-/// `crates/l2-game/tests/arms.rs` asserts the `dead-reproduced` arm stays empty;
-/// `docs/arms.json` records it as `dead`.
 pub fn dismiss(game: &mut Game) -> Dismissal {
     if !game.messages.is_open() {
         return Dismissal::Nothing;
@@ -35,29 +31,11 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
 /// **`Msg_DismissUnlessQuestion` (`FUN_00476710`, `0x00476710`)** — the whole
 /// function:
 ///
-/// ```c
-/// if (category != 0x11 && category != 10 && category != 0x0B && category != 0x0C)
-///     Msg_Dismiss();
-/// ```
-///
-/// One caller, and it is the arm nobody had looked for: **`Map_Click`'s entire
-/// body is `if (g_messageGroup == 0) { … } else { this }`**. So with a message
-/// up, a left click on the campaign map closes it and the map does nothing else
-/// at all — no pick, no county selection, no village. A *question* survives the
-/// click, which is what stops a stray click on the map from silently declining
-/// an alliance.
-///
 /// `FUN_00476710` (`00470000.c:2409`) calls `Msg_Dismiss` (`2438`), so this is a
 /// [`dismiss`]: `FUN_00476E21` runs, `g_screenId` goes back to `_DAT_004F0350`
 /// and `DAT_004F0358` is re-armed to `0x14`. Until 2026-09-14 ours closed the
 /// ring only, which left [`crate::tip::Tips::hosting`] set and the `0x27` host
 /// seated over the map, and a save box pushed after it got no update.
-///
-/// Returns what `Msg_Dismiss` asked for (`Dismissal::GameOver` carries its last
-/// three lines: `Campaign_EnterConquest(); g_screenId = 0x1C`), or `None` when
-/// the window is a question and stays. The marker for this arm is on its CALLER, in
-/// `screens/map/mod.rs`: the gesture is a click on the campaign map and this is
-/// only the four-line helper it reaches.
 pub fn dismiss_unless_question(game: &mut Game) -> Option<Dismissal> {
     if !game.messages.dismissed_by_map_click() {
         return None;
@@ -81,25 +59,6 @@ pub fn dismiss_unless_question(game: &mut Game) -> Option<Dismissal> {
 /// **`Battle_Frame` is its only caller**, once a frame, as
 /// `FUN_00448d7e(g_selectedCounty)` at `0x004BA187` — between `Msg_Pump` and
 /// `Turn_Tick`, which is where [`crate::screen::Machine::update`] calls this.
-/// The letter for the selected county pops over
-/// the castle screen, the market or the map alike.
-///
-/// # Three consequences, and none of them is guessable from `Event_RollAll`
-///
-/// * **Only the selected county's letter is ever posted.** An event in a county
-///   the player is not looking at *waits*, because `Event_RollAll` clears the
-///   three modifiers and not this latch (`l2_kingdom::event::roll_all`). It
-///   arrives the instant that county is picked, which may be seasons later and
-///   may be the same frame the player clicks it.
-/// * **The clear is outside the owner test.** A county that changed hands
-/// between the roll and the click has its flag thrown away without a letter.
-/// * **`eventId` is never cleared by anything.** It is overwritten by the next
-///   event the county draws and otherwise stands for the rest of the game, which
-///   is why four siege fixtures still read `0x8E` on a county whose Wedding
-/// fever is long over. The county panels read it too
-///   showing its last event's line.
-///
-/// # What is not reproduced, and why
 ///
 /// **`g_mouseRightDown`.** Our [`crate::input::Event`] has no *held* right
 /// button — `RightClick` is the release and [`crate::input::Event::RightPress`] the
@@ -111,10 +70,6 @@ pub fn dismiss_unless_question(game: &mut Game) -> Option<Dismissal> {
 /// original's effect is to hold a letter back while the button is held; ours
 /// posts on the next frame either way.
 ///
-/// # It moves no byte of the lockstep digest
-///
-/// `Event_Post` writes `g_counties[county].eventFired = 0`, and it may, because
-/// the original is one machine with one `g_selectedCounty`. We may not:
 /// `County::event_fired` is `County+0x000` and is in `Encode for County`, so it
 /// is inside `l2_kingdom::save::checksum` — `Canonical::hash_of(kingdom)`, the
 /// per-tick lockstep digest — and [`Game::selected`] is a per-peer cursor. Two
@@ -130,7 +85,6 @@ pub fn dismiss_unless_question(game: &mut Game) -> Option<Dismissal> {
 /// stays
 /// `docs/netcode.md` §6, `docs/decisions.md` C210.
 ///
-/// Returns whether a letter was enqueued.
 // arm: 0x00448D7E/event-letter-post frame
 pub fn post_event(game: &mut Game) -> bool {
     let county = game.selected as usize;
@@ -140,15 +94,11 @@ pub fn post_event(game: &mut Game) -> bool {
     if !c.event_fired || posted {
         return false;
     }
-    // `g_counties[county].eventFired = 0` runs inside the condition before owner test.
-    // Ours marks instead of clearing in the same place so swallowing is unchanged.
     game.event_posted[county] = true;
     let c = &game.kingdom.counties[county];
     if c.owner != player {
         return false;
     }
-    // `Msg_Enqueue(0, g_localPlayer, eventId, 0, 0x0F, county, 0, 0)` calls
-    // `Msg_Enqueue(from, to, …)` from nobody to `g_localPlayer`. Group and painter id match.
     let group = c.event_id;
     let record = Record {
         to: player,
@@ -163,20 +113,12 @@ pub fn post_event(game: &mut Game) -> bool {
     game.messages.enqueue(record, player)
 }
 
-/// **The other half of [`post_event`]'s latch: `Event_RollAll` raising it.**
-///
 /// `Event_RollAll` (`0x00448819`) does `eventFired = 1; eventId = <slot>;` on
 /// every county it deals to,
 /// `Event_Post` had cleared that same byte. Ours clears
 /// [`Game::event_posted`] instead — the kingdom's latch is never lowered — so
 /// the raising has to be mirrored here, once per season, from the report
 /// `l2_kingdom::event::roll_all` already writes.
-///
-/// **The report is exactly the right set.** `roll_all` pushes
-/// `Message::Event` only where `fire` returned true; a handler whose guard
-/// fails clears `eventFired` itself and pushes nothing, which is the original's
-/// "a new event destroys an unread letter" (`l2_kingdom::event::fire`) and
-/// wants no mark cleared.
 pub fn rearm_events(game: &mut Game, report: &l2_kingdom::report::SeasonReport) {
     for message in &report.messages {
         if let l2_kingdom::report::Message::Event { county, .. } = message {
@@ -187,27 +129,9 @@ pub fn rearm_events(game: &mut Game, report: &l2_kingdom::report::SeasonReport) 
     }
 }
 
-/// **`Msg_DrawWindow`'s side effects on the frame the window opens** — the arms
-/// that are not drawing at all, and that a reading for text and voice lookups
-/// walks straight past.
-///
-/// Three of them, and each is in a different category's branch:
-///
-/// * **`0x0B`** opens `if (g_realms[g_localPlayer].ally != 0) { Msg_Dismiss();
-///   return; }` — an alliance offer that arrives when you already have an ally
-///   closes itself unseen. `Msg_DrawDiplomacy` has the same guard for its own
-///   alliance arm (group `0xF8`).
 /// * **`0x0E`** runs the outcome ladder — `l2_kingdom::victory::outcome_of` —
 ///   and, with no opponents left, **enqueues group 225 onto the ring it is being
 ///   drawn from**. That is `docs/plan.md`'s mainline win.
-/// * **`0x04`** clamps the timer; see [`MessageQueue::clamp_tip_timer`].
-///
-/// Returns whether the window is still up. It is called from the message
-/// screen's `update`, because [`crate::screen::Screen`]
-/// hands `draw` a `&Ctx` on purpose and this changes the world — see
-/// `crates/l2-game/src/screen/mod.rs`, *Draw cannot mutate*. The original runs it in
-/// the draw; the effect is identical because the original's draw and input both
-/// run once per frame, and the difference is recorded here.
 pub fn show(game: &mut Game) -> bool {
     let Some(record) = game.messages.open().copied() else { return false };
     // arm: 0x0047309E/tip-timer-clamp draw
@@ -242,7 +166,6 @@ pub fn show(game: &mut Game) -> bool {
                 }
             }
         }
-        // Group 0xF8 alliance guard in `Msg_DrawDiplomacy`'s `iVar2 == 3` arm.
         // arm: 0x00475E07/letter-alliance-lapses draw
         category::DIPLOMACY if record.group == 0xF8 => {
             let ally = game.kingdom.realms.get(game.player as usize).map_or(0, |r| r.ally);
@@ -256,14 +179,6 @@ pub fn show(game: &mut Game) -> bool {
     true
 }
 
-/// **`Msg_DrawWindow`'s two animated branches** — categories `0x0D` (a county
-/// taken) and `0x0E` (a lord fallen) when `g_optAnimations == 1` and
-/// `g_messageTimer > 0x7C6`, which on the frame the window opens it always is.
-///
-/// Neither shows the window a player would recognise. Each draws a taller one
-/// **once**, dismisses the message **from inside the draw**, stops the music
-/// and plays a film in the well it drew:
-///
 /// ```c
 /// /* 0x0D */ …; Msg_Dismiss(); Music_Stop(0);
 ///            if (2 < ++DAT_00553ED4) DAT_00553ED4 = 0;
@@ -273,16 +188,6 @@ pub fn show(game: &mut Game) -> bool {
 /// /* 0x0E */ …the outcome ladder…; FUN_00475B41(g_messageFrom, g_messageGroup);
 ///            Msg_Dismiss(); Music_Stop(0); Smk_Play(&DAT_004F0340, 0x59, 0x69, …); …
 /// ```
-///
-/// The outcome ladder is [`show`]'s, which has already run on this frame —
-/// the animated branch carries its own copy of the same eleven lines. So what
-/// is left here is the film: which one, the dismissal, and — because
-/// `Msg_Dismiss` can enter the conquest screen, and `Smk_Play` is told to
-/// return to whatever `g_screenId` is by then — whether the game is over.
-///
-/// Returns the film to play, or `None` when this message is not one of the two
-/// or animations are off; the unanimated branches are [`show`] and the
-/// ordinary window, unchanged.
 pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
     use crate::movie::Film;
     let record = game.messages.open().copied()?;
@@ -305,15 +210,8 @@ pub fn animate(game: &mut Game) -> Option<crate::movie::Film> {
     }
 }
 
-/// Headless turns run `Msg_Pump` + [`show`] + [`dismiss`] to exhaustion with no window.
-/// [`crate::turn::end_turn`] is the headless door (`docs/agents.md`, *name the branch*).
-/// One ladder serves both, so a headless ending and a clicked one cannot disagree.
-/// It stops at the first message that ends the game: dismissing that one enters
-/// screen `0x1C` and nothing behind it in the ring is shown.
-/// Execution stops when a game-ending message enters screen `0x1C`.
 pub fn drain(game: &mut Game) -> Outcome {
     // Fifty slots plus group 225 draining iteration bounds ring processing.
-    // Prevents `while true` hangs from ring corruption.
     for _ in 0..(RING * 2) {
         if !game.messages.is_open() && !game.messages.pull() {
             if game.messages.is_empty() {

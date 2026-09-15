@@ -51,8 +51,6 @@ impl TradeScreen {
         self.qty
     }
 
-    /// The county the merchant stands in — `g_selectedCounty`, which the map
-    /// click set to the merchant's own county on the way here.
     fn county(&self, ctx: &Ctx) -> usize {
         ctx.game.selected as usize
     }
@@ -70,8 +68,6 @@ impl TradeScreen {
     /// `FUN_00435339` / `FUN_0043543D` — step, then clamp, and set the flag
     /// only when the limit clamped to was zero.
     ///
-    /// The up arrow is `S068_01.wav` and the down arrow `S068_02.wav`; see
-    /// [`TradeScreen::crossed_into_buying`] for the guard both share.
     // sfx: FUN_00435339#1,FUN_0043543d#1
     fn step(&mut self, ctx: &mut Ctx, by: i32) {
         let (floor, ceiling) = self.limits(&Ctx { game: ctx.game, assets: ctx.assets });
@@ -97,25 +93,10 @@ impl TradeScreen {
         });
     }
 
-    /// **The tail all four quantity handlers share**, and the whole of what
-    /// they do with sound:
-    ///
-    /// ```c
-    /// if (0 < qty && oldQty < 1) { Sound_PlayFile(take, 1, 0); }
-    /// ```
-    ///
     /// `[V]` at `FUN_00435339`, `FUN_0043543D`, `FUN_00435541` and
     /// `FUN_004355DB`. It is the *crossing* and not the value: a player who
     /// holds the up arrow hears it once, on the step that turns a sale or a
     /// standstill into a purchase, and not again while the number climbs.
-    ///
-    /// **The down arrow's copy is very nearly dead and is not quite.** A step
-    /// down cannot raise the quantity, so the guard can only be met when the
-    /// clamp does it — the floor is above zero and the quantity was at or
-/// below it. Written as the original writes it.
-    ///
-    /// A screen cannot reach the audio layer (`docs/netcode.md` D-3), so the
-    /// line is reported on [`crate::game::Game::spoken`].
     fn crossed_into_buying(&self, ctx: &mut Ctx, before: i32, take: &'static str) {
         if self.qty > 0 && before < 1 {
             ctx.game.spoken = (ctx.game.spoken.0.wrapping_add(1), take);
@@ -125,8 +106,6 @@ impl TradeScreen {
     /// `FUN_004355DB` and `FUN_00435541` — the two buttons that go straight to
     /// a limit. Neither sets the flag.
     ///
-    /// The ceiling button says `S068_01.wav` and the floor button
-    /// `S068_02.wav`, on the same crossing the arrows use.
     // sfx: FUN_004355db#1,FUN_00435541#1
     fn jump_to_limit(&mut self, ctx: &mut Ctx, ceiling: bool) {
         let (floor, top) = self.limits(&Ctx { game: ctx.game, assets: ctx.assets });
@@ -140,7 +119,6 @@ impl TradeScreen {
         });
     }
 
-    /// What the panel is about to charge or pay — `g_tradeCrowns`.
     fn crowns(&self, ctx: &Ctx) -> i32 {
         let q = self.quote(ctx);
         if self.qty < 0 {
@@ -153,10 +131,6 @@ impl TradeScreen {
     /// `Ale_PreviewGain` (`0x00435673`) — the same ladder as
     /// [`l2_kingdom::happiness::buy_ale`], run on the pending crown total so
     /// the panel can show the gain before the purchase.
-    ///
-    /// **Duplicated code in the original, not a shared helper** — a mod that
-    /// changes one must change both. Ours calls the rule, so it cannot drift;
-    /// that is a deliberate difference and it is the safe direction.
     fn ale_preview(&self, ctx: &Ctx) -> i32 {
         if self.good != Good::Ale || self.qty <= 0 {
             return 0;
@@ -166,7 +140,6 @@ impl TradeScreen {
         l2_kingdom::happiness::buy_ale(&k.tables, &mut county, self.crowns(ctx), k.options.quirks)
     }
 
-    /// Which paragraph the advice well shows.
     fn advice(&self) -> Advice {
         if self.limit == 1 {
             Advice::CannotAfford
@@ -206,9 +179,6 @@ impl TradeScreen {
                 };
                 Transition::Pop
             }
-            // The original refuses silently and returns to `0x08` anyway. Ours
-            // stays and says which of the two guards fired, because a silent
-            // refusal is a screen a player thinks is broken.
             Err(Refusal::NotEnoughGold) => {
                 self.limit = 1;
                 self.status = "THE TREASURY WILL NOT COVER IT".into();
@@ -232,8 +202,6 @@ impl Screen for TradeScreen {
         format!("Trading {}", self.good.name())
     }
 
-    /// `Screen_TradeGoods` re-loads `merchant.pl8` as its own backdrop, so it is
-/// a page — and it runs under the merchant's palette.
     fn palette(&self) -> Option<&'static str> {
         Some("Merchant.256")
     }
@@ -249,13 +217,10 @@ impl Screen for TradeScreen {
         Transition::Stay
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
 
-    /// A held arrow moved the quantity: `Screen_DrawWidgets`' `0x0C` arm runs
-    /// `Trade_DrawPanel` every frame. See [`Press::take_redraw`].
     fn take_redraw(&mut self) -> bool {
         self.press.take_redraw()
     }
@@ -288,9 +253,6 @@ impl Screen for TradeScreen {
                 self.jump_to_limit(ctx, false);
                 Transition::Stay
             }
-            // The six widgets through the hit test, each on its own kind — a
-// double click is a press to kind 4.
-            // widget and reads only the press here.
             Event::Click { .. } | Event::DoubleClick { .. } => {
                 let table = trade_widgets(self.qty != 0);
                 if let Some(i) = self.press.event(&table, event) {
@@ -302,6 +264,7 @@ impl Screen for TradeScreen {
             // `0x0C` arm is `Ui_OkButtonClicked()` (`0x0040E7E4`) → `g_screenId
             // = 8`, and that call opens `if (g_mouseLeftReleased == 0) return
             // 0;`. This panel closed on the press.
+            //
             // arm: 0x0042FF10/trade-ok left-release
             Event::Release { x, y } => {
                 let fired = self.press.event(&trade_widgets(self.qty != 0), event);
@@ -337,16 +300,9 @@ impl Screen for TradeScreen {
         }
         // `FUN_004093E0(0x30, 0x40, 0x22, 0x10)` — border **set 1**.
         pen.window(canvas, PANEL.x, PANEL.y, 0x22, 0x10, 1);
-        // `Ui_OkButton(0x22C, 0x114, 0)` — mode 0, frame 0x33. The original
-        // draws it here, second, and not at the end.
         pen.ok_button(canvas, PANEL_OK.x, PANEL_OK.y, 0);
 
-        // `Ui_DrawBevelRect(0x44, 0x66, 0x32, 0x32)` — four lines and **no
-        // fill**: exactly `Ui_DrawInsetRect` with its two colours swapped, so
-        // it reads as raised. Filling it would paint a hole in the parchment,
-        // which is the mistake `shell::inset_rect`'s docs record.
         bevel_rect(canvas, ICON_WELL.x, ICON_WELL.y, ICON_WELL.w, ICON_WELL.h);
-        // `Sprite_WGenSprite(good - 1, 0x45, 0x67)` — `icontrad.pl8`.
         if let Some(f) = a.sheet(ICONS).and_then(|s| s.frame(self.good.id() - 1)) {
             canvas.blit(&f, ICON_AT.0, ICON_AT.1);
         }
@@ -372,18 +328,11 @@ impl Screen for TradeScreen {
         let name = a.text(GROUP_GOODS, self.good.id()).to_string();
         let x = caps.heading(canvas, x, HEADING_AT.1, &name, font::TEXT);
 
-        // `if (good == 4 && g_alePreviewHappiness != 0)
-        //     Ui_DrawHappinessDelta(v, g_penAdvance + 0x90, 0x6E, body, 0x3F, 0xF9)`
-        // — a bracketed signed number with `Misc_cty.pl8` frame 0x17, the
-        // happiness face, inside the brackets. It is drawn from the heading's
-        // own pen, so it follows the good's name.
         let ale = self.ale_preview(ctx);
         if self.good == Good::Ale && ale != 0 {
             happiness_delta(&pen, canvas, ale, x + ALE_DELTA_DX, ALE_DELTA_Y);
         }
 
-        // The price line, and **the price carries its noun**:
-        // `Ui_DrawCount(price, 0, …)` is "N Crowns.", not a bare number.
         if self.qty != 0 {
             let (idx, price) =
                 if self.qty < 1 { (SELLING_PRICE, q.sell) } else { (BUYING_PRICE, q.buy) };
@@ -391,7 +340,6 @@ impl Screen for TradeScreen {
             caps.count(canvas, x, PRICE_AT.1, price, CROWN_NOUN, font::TEXT);
         }
 
-        // "You have." <gold Crowns.> ["and" <stock> <icon>] "my Lord."
         let gold = ctx.game.gold();
         let mut x = caps.eng(canvas, GROUP, YOU_HAVE, HAVE_AT.0, HAVE_AT.1, font::TEXT);
         x = caps.count(canvas, x, HAVE_AT.1, gold, CROWN_NOUN, font::TEXT);
@@ -401,14 +349,12 @@ impl Screen for TradeScreen {
             // `Ui_DrawNumber(-DAT_0053E9E4, …)` and `DAT_0053E9E4` is **minus**
             // what the seller holds, so this prints the stock. `floor` is the
             // same number with the same sign as the original's.
+            //
             // `'@'` and `&DAT_004D3F80`, a NUL: the digits sat four left, and
             // the icon at `g_penAdvance + 0x58` landed right by the same
             // cancellation as everywhere else. **[V]**
             let body = shell::Face::Body;
             x = caps.number_in(body, canvas, x, HAVE_AT.1, -floor, '@', "", font::TEXT);
-            // `Sprite_WGenSprite(STALL[good].icon, g_penAdvance + 0x58, 0xAA)`
-            // — the good's own picture, **six pixels above the text baseline**,
-            // then a flat `g_penAdvance += 0x24` regardless of its width.
             if let Some(f) = a.sheet(ICONS).and_then(|s| s.frame(icon)) {
                 canvas.blit(&f, x, HAVE_ICON_Y);
             }
@@ -416,8 +362,6 @@ impl Screen for TradeScreen {
         }
         caps.eng(canvas, GROUP, MY_LORD, x, HAVE_AT.1, font::TEXT);
 
-        // `Ui_DrawBoxInterior(0x50, 0xD0, 0x1D, 5)` then `Ui_DrawInsetRect` over
-        // it — the parchment and then its four lines, in that order.
         pen.box_interior(canvas, ADVICE_WELL.x, ADVICE_WELL.y, ADVICE_CELLS.0, ADVICE_CELLS.1);
         pen.inset(canvas, ADVICE_WELL);
 
@@ -427,7 +371,6 @@ impl Screen for TradeScreen {
             let s = if s.is_empty() { advice.fallback().to_string() } else { s };
             pen.body_wrapped(canvas, ADVICE_X, ADVICE_Y, ADVICE_W, &s, font::TEXT);
         } else {
-            // 68/7 "Complete this" and then the question, **in two colours**.
             let x = pen.eng(canvas, GROUP, COMPLETE_THIS, ASK_AT.0, ASK_AT.1, font::TEXT);
             let (ask, colour) = if self.qty < 0 {
                 (SALE_ASK, ASK_SELL_COLOUR)
@@ -435,13 +378,10 @@ impl Screen for TradeScreen {
                 (PURCHASE_ASK, ASK_BUY_COLOUR)
             };
             pen.eng(canvas, GROUP, ask, x, ASK_AT.1, colour);
-            // `Ui_DrawNumber(|qty|, '@', "", 0x60, 0xE0)` — **the number alone.**
             // The good's name is not repeated here; ours used to add it. The
             // two suffixes are `&DAT_004D3F84` / `…88`, both NUL. **[V]**
             let (qx, qy) = QTY_AT;
             pen.number_in(shell::Face::Body, canvas, qx, qy, self.qty.abs(), '@', "", font::TEXT);
-            // 68/1 "We receive" when selling, 68/8 "Total cost of" when buying,
-            // then `Ui_DrawCount(g_tradeCrowns, 0, …)` — "N Crowns."
             let idx = if self.qty < 1 { WE_RECEIVE } else { TOTAL_COST_OF };
             let x = pen.eng(canvas, GROUP, idx, TOTAL_AT.0, TOTAL_AT.1, font::TEXT);
             pen.count(canvas, x, TOTAL_AT.1, self.crowns(ctx), CROWN_NOUN, font::TEXT);
@@ -455,12 +395,8 @@ impl Screen for TradeScreen {
             let r = widget_rect(i);
             pen.system_frame(canvas, frame + usize::from(self.press.is_pressed(i)), r.x, r.y);
         }
-        // The two clamps are read for the *arrows'* behaviour, not for their
-        // pictures: `Widget_Draw` draws every record it is given whether or not
-        // the handler would do anything.
         let _ = (floor, ceiling);
 
-        // ---- ours, below the original's window, debug overlay only --------
         if ctx.game.prefs.debug_overlay {
             text::draw(canvas, PANEL.x, PANEL.y + PANEL.h + 6, &self.status, ink.text);
             text::draw(

@@ -2,41 +2,6 @@
 //! `Unit_EnterCounty` (`0x004ABB36`), `County_GreetArmy` (`0x004ABF77`) and
 //! `County_ChangeOwner` (`0x004A72FE`).
 //!
-//! Two reports asked for this, from two directions. A player, on build
-//! `73DF34969`: *"county did not give me a message when I moved an army into
-//! it."* And the films work: `County_ChangeOwner` posts its capture letters in
-//! category `0x0D`, and nothing in the engine posted one, so the capture films
-//! and the voices after them could never play.
-//!
-//! # Where the rules are, and what is left here
-//!
-//! The rules are `l2_kingdom`'s and the sweep reports them as it runs them —
-//! [`l2_kingdom::units_tick::Posted`] from `Units_Tick`,
-//! [`l2_kingdom::battle::Aftermath::captures`] from `Battle_ReturnToCampaign`.
-//! What is left for this module is the one decision that belongs to a peer:
-//!
-//! * a **greeting** or an **invasion letter** is addressed by the world, so it
-//!   goes straight through `Msg_Enqueue`'s filter, [`crate::message::MessageQueue::post`];
-//! * a **capture** is not. `County_ChangeOwner` compares the taker and the loser
-//!   against `g_localPlayer` to choose among thirteen letters, so
-//!   [`capture_record`] makes that choice for this peer's player.
-//!
-//! Every letter here is posted from the event that posts it in the original:
-//! the crossing, the town, and the end of the battle. None of them changes the
-//! world from this side of the seam — the one posting that does, the invasion
-//! letter's voice rotation, happens inside the simulation, in
-//! [`l2_kingdom::arrival::enter_county`].
-//!
-//! # What the window, the films and the voice do with them
-//!
-//! Nothing new. The categories are the original's, so the message scroll lays
-//! each out by its category and [`crate::audio`] voices each by its category
-//! and group — `ff_capt.wav` for the three notices `0x72`…`0x74`, the trumpet
-//! and a ninety-tick voice for a capture —
-//! categories that had senders.
-//!
-//! # The words
-//!
 //! `CLAUDE.md` rule 6. Every group posted here is drawn from the player's own
 //! `L2.eng`; [`TEXT`] is our transcription, used only where the file gave
 //! nothing, and `tests/arrival.rs` holds it against the file string for string.
@@ -49,68 +14,26 @@ use crate::message::{category, Record};
 
 /// The capture letters' `L2.eng` groups — message id and group are one number.
 pub mod group {
-    /// 114 — *"This enemy shire has a new ruler…"*: one lord took another's.
     pub const NEW_RULER: u16 = 0x72;
-    /// 115 — *"Our county is lost!"*
     pub const LOST: u16 = 0x73;
-    /// 116 — *"This poor, defenseless county has been ruthlessly occupied…"*
     pub const OCCUPIED: u16 = 0x74;
-    /// 117 — *"Bravo!!"*, the first county past a peak of one.
     pub const BRAVO: u16 = 0x75;
-    /// 118 — *"…a solid base."*
     pub const SOLID_BASE: u16 = 0x76;
-    /// 119, 120, 121, 122 — the share-of-map rungs below 26, 41, 61 and 81 %.
     pub const SHARE_26: u16 = 0x77;
     pub const SHARE_41: u16 = 0x78;
     pub const SHARE_61: u16 = 0x79;
     pub const SHARE_81: u16 = 0x7A;
-    /// 123 — *"One more county and the crown is yours!"*
     pub const ONE_MORE: u16 = 0x7B;
-    /// 125 — *"Another county falls before you…"*, 81 % and above.
     pub const SHARE_TOP: u16 = 0x7D;
-    /// 126 — *"The county is yours. May you rule it wisely."* — no new peak.
     pub const RULE_WISELY: u16 = 0x7E;
-    /// 129 — *"This county is too far from the heart of your lands…"*. The
-    /// `else` branch, to the taker alone: see [`super::capture_record`].
     pub const TOO_FAR: u16 = 0x81;
 }
 
-/// **`County_ChangeOwner`'s letter for one peer's player**, or `None`.
-///
 /// `[V]`, `0x004A72FE`, with `countyCount` the taker's recount plus one and
 /// `share` `Realm_UpdateTotals`' `PctOf(recount, g_countyCount)` — the share
 /// **before** this county, because the recount runs before the increment:
-///
-/// | who the player is | letter | category | from | spare |
-/// |---|---|---|---|---|
-/// | the taker, `countyCount == g_countyCount - 1` | 123 | `0x0D` | 0 | loser |
-/// | the taker, past his peak, peak < 2 | 117 | `0x0D` | 0 | loser |
-/// | … peak < 3 | 118 | | | |
-/// | … share < 26 / 41 / 61 / 81 | 119 / 120 / 121 / 122 | | | |
-/// | … share ≥ 81 | 125 | | | |
-/// | the taker, not past his peak | 126 | | | |
-/// | the loser | 115 | 0 | taker | 0 |
-/// | anyone else, the county was neutral | 116 | 0 | taker | 0 |
-/// | anyone else | 114 | 0 | taker | loser |
-///
-/// **Group 124 is never posted** — no call site passes it — so the *"You are the
-/// Lord of the Realm"* capture letter is dead text, and the ladder's rung for
-/// the last county is 125 or 126 like any other.
-///
-/// **An ungovernable county is 129 to its taker and nothing to anybody else.**
-/// `County_ChangeOwner`'s `else` branch has one `Msg_Enqueue` and it is inside
-/// `if (newOwner == g_localPlayer)`, so the loser is never told his county went
-/// its own way — he finds out from the map. The county itself is made
-/// independent by [`l2_kingdom::conquest::change_owner`].
 pub fn capture_record(capture: &Capture, player: u8, county_count: usize) -> Option<Record> {
     if !capture.governable {
-        // ```c
-        // if (newOwner == g_localPlayer) Msg_Enqueue(0, g_localPlayer, 0x81, 0, '\0', county, '\0', 0);
-        // County_MakeIndependent(county);
-        // ```
-        // **Only the taker is told.** The loser is not: the county he lost is
-        // nobody's now and no letter in the ladder says so, which is the
-        // original's silence and not ours.
         if capture.new_owner != player {
             return None;
         }
@@ -164,7 +87,6 @@ pub fn capture_record(capture: &Capture, player: u8, county_count: usize) -> Opt
         } else {
             group::RULE_WISELY
         };
-        // `Msg_Enqueue(0, g_localPlayer, group, 0, '\r', county, g_counties[county].owner, 0)`.
         return Some(Record {
             to: player,
             from: 0,
@@ -177,7 +99,6 @@ pub fn capture_record(capture: &Capture, player: u8, county_count: usize) -> Opt
         });
     }
     Some(if capture.old_owner == player {
-        // `Msg_Enqueue(newOwner, g_counties[county].owner, 0x73, 0, 0, county, 0, 0)`.
         from_the_taker(group::LOST, 0)
     } else if capture.old_owner == 0 {
         from_the_taker(group::OCCUPIED, 0)
@@ -186,12 +107,10 @@ pub fn capture_record(capture: &Capture, player: u8, county_count: usize) -> Opt
     })
 }
 
-/// **One unit sweep's letters**, in the order the sweep made them.
 pub fn post(game: &mut Game, posted: &[Posted]) {
     let player = game.player;
     for p in posted {
         match p {
-            // `Msg_Enqueue` keeps it only when it is to this peer's player.
             Posted::Letter(letter) => {
                 game.messages.post(*letter, player);
             }
@@ -200,8 +119,6 @@ pub fn post(game: &mut Game, posted: &[Posted]) {
     }
 }
 
-/// **A settled battle's captures** — `Battle_ReturnToCampaign`'s one or two
-/// `County_ChangeOwner` calls, in call order.
 pub fn post_captures(game: &mut Game, captures: &[Option<Capture>]) {
     for capture in captures.iter().flatten() {
         post_capture(game, capture);
@@ -215,12 +132,10 @@ fn post_capture(game: &mut Game, capture: &Capture) {
     }
 }
 
-// ------------------------------------------------------------------ the words
 
 /// **Our transcription of every group this module posts**, for an install whose
 /// `L2.eng` cannot be read. Index 0 is the group's own label — `FREE` for the
 /// letters whose heading is the county's name — and the rest are the bodies.
-/// `tests/arrival.rs` holds it against the player's file, string for string.
 pub const TEXT: &[(u16, &[&str])] = &[
     (
         114,
@@ -351,7 +266,6 @@ pub const TEXT: &[(u16, &[&str])] = &[
     ),
 ];
 
-/// Our transcription of `(group, index)`, or `""`.
 pub fn transcribed(group: u16, index: usize) -> &'static str {
     TEXT.iter()
         .find(|(g, _)| *g == group)
@@ -379,13 +293,7 @@ mod tests {
         Capture { new_owner, old_owner, county: 5, held_before, peak_before, governable: true, penalty: 10, garrison: None }
     }
 
-    /// **Every rung of the taker's ladder, and both edges of each share band.**
-    /// A map of a hundred counties so the percentages are the counts; the peak
-    /// is set equal to the holding so each capture is a new high.
-    ///
     /// The 25 and 26 rows are the ablation for *"the share before the county"*:
-    /// computed after the increment, 25 held becomes 26 % and the first row
-    /// reads 120. The thresholds are typed here, not read from the function.
     #[test]
     fn the_taker_is_sent_the_rung_his_holding_and_his_peak_choose() {
         let cases: [(u8, u8, u16, &str); 14] = [
@@ -413,13 +321,9 @@ mod tests {
                 "{why}"
             );
         }
-        // `countyCount == g_countyCount - 1` is tested before the peak, so it
-        // wins even for a holding that is not a new high.
         assert_eq!(capture_record(&taken(1, 0, 98, 120), 1, 100).map(|r| r.group), Some(123));
     }
 
-    /// **The loser and everybody else are told in a plain notice, from the
-    /// taker** — and only the new-ruler notice names the loser.
     #[test]
     fn the_loser_and_the_onlookers_are_told_in_a_notice_from_the_taker() {
         for (old, want, spare) in [(1u8, 115u16, 0u8), (0, 116, 0), (3, 114, 3)] {
@@ -432,11 +336,6 @@ mod tests {
         }
     }
 
-    /// **129 to the taker, silence to everybody else** — the whole of the
-    /// `else` branch's one `Msg_Enqueue`, which sits inside
-    /// `if (newOwner == g_localPlayer)`. `from` is a literal 0 here and not the
-    /// taker, unlike the three notices above.
-    ///
     /// Ablation: return `None` for `!governable`, as this did before the branch
     /// was built, and the first assertion goes red.
     #[test]

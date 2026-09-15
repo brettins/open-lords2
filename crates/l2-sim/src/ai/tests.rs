@@ -13,8 +13,6 @@ mod tests {
     use crate::figure::{SIDE_A, SIDE_B};
     use crate::unit::CATEGORY_OF_TROOP;
 
-    /// A two-unit field battle: one AI unit of `ai_troop`, one human unit of
-    /// `human_troop`, twenty cells apart.
     struct Fixture {
         units: Units,
         figures: Vec<Figure>,
@@ -66,12 +64,6 @@ mod tests {
             fx
         }
 
-        /// Run one whole think cycle with a chosen strength advantage.
-        ///
-        /// The number is written on the last frame before the handler reads it,
-        /// which is the only way to hold it steady: the recompute would
-        /// otherwise overwrite it every 101 frames. `multiplayer` is set so
-        /// the jitter cannot move it either.
         fn think_at(&mut self, advantage: i32) -> Action {
             self.ai.multiplayer = true;
             for _ in 0..(THINK_INTERVAL - 1) {
@@ -108,10 +100,7 @@ mod tests {
         }
     }
 
-    // --- the think gate ----------------------------------------------------
 
-    /// A unit decides once every two hundred frames. Nothing else in the battle
-    /// is that slow.
     #[test]
     fn a_unit_thinks_once_every_two_hundred_frames_and_not_before() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -132,9 +121,6 @@ mod tests {
         assert_eq!(fx.units.get(fx.ai_unit).orders, 2);
     }
 
-    /// Thirteen of the seventeen handlers refuse to run while any figure of the
-    /// unit is in melee. Once the AI's line makes contact, most of the AI stops
-    /// manoeuvring.
     #[test]
     fn a_unit_in_melee_stops_thinking_entirely() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -145,15 +131,11 @@ mod tests {
             assert_eq!(fx.action(), Action::NoThink);
         }
         assert_eq!(fx.units.get(fx.ai_unit).orders, 0, "five thinks' worth of frames, none taken");
-        // And it resumes the moment the melee ends.
         fx.figures[0].state = State::Idle;
         fx.frames(200);
         assert!(fx.units.get(fx.ai_unit).orders > 0);
     }
 
-/// The four exceptions, so "13 of 17" is worth pinning: the two
-    /// siege engines and the ram keep thinking while engaged, and so does the
-    /// siege defender's foot.
     #[test]
     fn four_handlers_do_not_gate_on_melee() {
         for (troop, side) in [
@@ -183,8 +165,6 @@ mod tests {
         }
     }
 
-    /// `SiegeDefFoot` and `SiegeDefMelee` think twice as often as everybody
-    /// else.
     #[test]
     fn the_two_fast_siege_defenders_think_every_hundred_frames() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
@@ -202,7 +182,6 @@ mod tests {
         fx.frames(100);
         assert_eq!(fx.units.get(foot).orders, 1);
         assert_eq!(fx.units.get(melee).orders, 1);
-        // The 200-frame handlers have not moved at all yet.
         assert_eq!(fx.units.get(fx.ai_unit).orders, 0);
     }
 
@@ -216,14 +195,12 @@ mod tests {
         assert!(fx.units.get(fx.ai_unit).orders > 0, "but the AI's did");
     }
 
-    // --- the one number ----------------------------------------------------
 
     #[test]
     fn the_strength_advantage_is_weighted_ai_men_over_weighted_human_men() {
         let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
         fx.ai.multiplayer = true;
         fx.ai.update_strength_advantage(&fx.figures);
-        // 4 figures x 8 men: knights weigh 4, peasants 1, so 128 v 32 = 400 %.
         assert_eq!(fx.ai.strength_advantage, 300);
 
         let mut even = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -232,7 +209,6 @@ mod tests {
         assert_eq!(even.ai.strength_advantage, 0, "identical armies are even");
     }
 
-/// An army with no living enemy reads −100.
     #[test]
     fn an_unopposed_army_reads_minus_one_hundred() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -244,10 +220,6 @@ mod tests {
         assert_eq!(fx.ai.strength_advantage, -100);
     }
 
-    /// The jitter is **−10 to +21**, not ±10 and not ±16. Asymmetric because
-/// the original is `(rand & 0x1F) - 10`, and reproduced:
-    /// with the threshold at 5 the half-point bias toward attacking is a real
-    /// behaviour.
     #[test]
     fn the_jitter_spans_minus_ten_to_plus_twenty_one() {
         let mut ai = Ai::new(0x1234_5678);
@@ -256,8 +228,6 @@ mod tests {
         let mut seen = [false; 32];
         for _ in 0..5_000 {
             ai.update_strength_advantage(&figures);
-            // No figures at all: pct_of(0, 0) is 0, so the base is -100 and
-            // everything after it is the jitter.
             let j = ai.strength_advantage + 100;
             low = low.min(j);
             high = high.max(j);
@@ -268,8 +238,6 @@ mod tests {
         assert!(seen.iter().all(|s| *s), "every one of the 32 values should occur");
     }
 
-    /// Determinism is the property lockstep depends on, and the jitter is the
-    /// only place a battle draws a random number at all.
     #[test]
     fn the_same_seed_gives_the_same_jitter_and_a_different_seed_does_not() {
         let roll = |seed: u64| {
@@ -286,8 +254,6 @@ mod tests {
         assert_ne!(roll(7), roll(8));
     }
 
-    /// The multiplayer flag drops the jitter entirely, which is the
-    /// original's own answer to "this is a networked game".
     #[test]
     fn the_multiplayer_flag_removes_the_jitter_and_the_draw() {
         let mut ai = Ai::new(99);
@@ -313,11 +279,7 @@ mod tests {
         assert_ne!(fx.ai.rng, start, "the hundred-and-first frame draws");
     }
 
-    // --- the field handlers ------------------------------------------------
 
-    /// Above the aggression threshold a foot unit marches on the enemy's
-    /// deployment marker for ten thinks, and then charges — which drops every
-    /// figure into free pursuit and *stops the unit being a formation*.
     #[test]
     fn an_aggressive_foot_unit_marches_for_ten_thinks_and_then_charges() {
         let mut fx = Fixture::new(Troop::Peasants, Troop::Peasants, 4);
@@ -339,8 +301,6 @@ mod tests {
             .all(|f| f.state == State::Chasing));
     }
 
-    /// Melee units march three thinks longer than foot units and are silent for
-/// four. The two functions differ only in constants.
     #[test]
     fn a_melee_unit_marches_thirteen_thinks_rather_than_ten() {
         let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
@@ -351,8 +311,6 @@ mod tests {
         assert_eq!(actions[13], Action::Charge);
     }
 
-    /// **The aggression threshold is 5, and it is the whole field AI.** The
-    /// same unit in the same position attacks or does not, on one number.
     #[test]
     fn five_is_the_line_between_marching_on_the_enemy_and_falling_back() {
         let run = |advantage: i32| {
@@ -375,9 +333,6 @@ mod tests {
         );
     }
 
-    /// The field handlers' rally waypoints differ, which
-    /// `docs/battle-ai.md` §2.3's pseudocode does not say: foot units go to
-    /// waypoint 2 and melee units to waypoint 1.
     #[test]
     fn foot_and_melee_units_rally_on_different_waypoints() {
         let waypoint = |troop: Troop| {
@@ -393,12 +348,9 @@ mod tests {
         assert_eq!(waypoint(Troop::Knights), Some(1));
     }
 
-    /// The charge radius is tiny, and a unit of fewer than three figures is
-    /// invisible to it: `Enemy_NearestUnit(unit, 8, 3)`.
     #[test]
     fn a_worn_down_enemy_unit_becomes_invisible_to_the_melee_ai() {
         let mut fx = Fixture::new(Troop::Peasants, Troop::Peasants, 4);
-        // Put the human unit right on top of the AI unit.
         let human: Vec<usize> = fx
             .figures
             .iter()
@@ -415,7 +367,6 @@ mod tests {
         for i in &human {
             worn.positions[*i] = (41, 50);
         }
-        // Two figures left of four: below the three-figure floor.
         let doomed: Vec<usize> = worn
             .figures
             .iter()
@@ -430,25 +381,14 @@ mod tests {
         assert_ne!(worn.think_at(0), Action::Charge, "two figures is not a target");
     }
 
-    /// The only inter-unit message in the game: a melee unit that is being hit
-    /// backs off *and* publishes its attacker's position, and a missile unit
-    /// answers by shifting two cells toward it.
     #[test]
     fn a_melee_unit_under_attack_calls_the_archers_onto_its_attacker() {
-        // Peasants, so this is `UnitOrder_FieldFoot`. The choice matters: the
-        // cautious branch takes a *second* decision after the withdrawal, and
-        // its rally is gated on `withdrawals == 0` — which the withdrawal has
-        // just made false. `UnitOrder_FieldMelee` allows two withdrawals, so
-        // there the rally runs and overwrites the destination the step-away
-        // wrote. Both are the original; only the constant differs.
         let mut fx = Fixture::new(Troop::Peasants, Troop::Peasants, 4);
         fx.ai.engagement_budget = 100; // stay out of the two escalation branches
         fx.ai.men_missile = 100;
         fx.ai.men_total = 100;
         fx.ai.multiplayer = true;
 
-        // The grudge lasts 50 frames, so it has to be created inside the last
-        // 50 of the 200 the unit waits.
         for _ in 0..(THINK_INTERVAL - 10) {
             fx.frame();
         }
@@ -466,23 +406,16 @@ mod tests {
         assert_eq!(fx.units.get(fx.ai_unit).withdrawals, 1);
     }
 
-    /// `g_aiCommitCounter` is an escalation, not a hold: while it is non-zero
-    /// **every** AI melee unit charges regardless of what is near it.
     #[test]
     fn the_commit_counter_makes_every_melee_unit_charge_regardless() {
         let mut fx = Fixture::new(Troop::Peasants, Troop::Peasants, 4);
-        // Twenty cells apart, so nothing is within the eight-cell radius.
         assert_ne!(fx.think_at(0), Action::Charge, "nothing in reach");
 
-        // Two, not one: an unengaged unit decays the counter *before* reading
-        // it, so a counter of one is already spent by the time it is tested.
         fx.ai.commit_counter = 2;
         assert_eq!(fx.think_at(0), Action::Charge, "the counter overrides distance");
         assert_eq!(fx.ai.commit_counter, 1, "and it decays by one per unengaged think");
     }
 
-    /// Running out of archers raises the counter by twenty — "we have run out
-    /// of archers, so go in" — and being over the engagement budget by three.
     #[test]
     fn the_two_escalations_raise_the_counter_by_three_and_by_twenty() {
         let escalate = |budget: i32, missile: i32| {
@@ -506,8 +439,6 @@ mod tests {
         assert_eq!(escalate(100, 0), 20, "no archers left");
     }
 
-    /// An AI archer unit that thinks it is winning never backs away: the
-    /// retreat is a second decision that exists only on the cautious branch.
     #[test]
     fn a_winning_archer_unit_never_backs_away_however_often_it_is_hit() {
         let hit_ten_times = |advantage: i32| {
@@ -540,8 +471,6 @@ mod tests {
         );
     }
 
-    /// A missile unit looks over the whole eighty-cell field; a melee unit
-    /// looks eight or nine cells.
     #[test]
     fn the_search_radius_is_the_whole_field_for_missiles_and_a_few_cells_for_melee() {
         let mut fx = Fixture::new(Troop::Archers, Troop::Peasants, 4);
@@ -558,9 +487,6 @@ mod tests {
         assert_eq!(world.nearest_enemy_unit(1, 19, 1), 0);
     }
 
-    /// `Order_HalfwayToUnit` does nothing until an axis is separated by eight,
-    /// and then moves only the axes separated by six. This is why AI archers
-    /// advance in stages and then stop.
     #[test]
     fn halfway_to_unit_does_nothing_below_eight_cells_of_separation() {
         let close = |gap: u8| {
@@ -587,29 +513,19 @@ mod tests {
         assert_eq!(close(20), (40, 40));
     }
 
-    // --- the siege handlers ------------------------------------------------
 
-    /// **The one thing in `Lords2.exe` that ends a battle by giving up.**
-    ///
     /// `UnitOrder_SiegeAttKnight` is the only writer of `g_battleWithdrawal`
     /// (`0x0056D5C8`) in the whole binary, and the clause was missing here —
     /// which made [`crate::End::Withdrawal`] unreachable in a played game and
     /// with it the whole withdrawal half of the campaign seam, including
     /// `Army_WithdrawCasualties`, which `l2-kingdom` had never implemented
     /// because nothing could reach it. `docs/decisions.md` C71.
-    ///
-    /// Three cases, and the third is the one the two conditions are for:
-    /// `g_aiMenTotal <= g_aiMenKnight` is *"every AI man still standing is a
-    /// knight"*, over `Battle_CountMenByType`'s census of **both** sides'
-    /// non-human figures.
     #[test]
     fn an_all_knight_besieger_at_an_unbreached_wall_leaves_the_field() {
         let raised = |breach: i32, dismount: bool| {
             let mut fx = Fixture::new(Troop::Knights, Troop::Peasants, 4);
             fx.ai.is_siege = true;
             if dismount {
-                // One man of the besieging force who is not a knight,
-                // the whole of what `total <= knights` asks about.
                 fx.figures[0].troop = Troop::Peasants;
             }
             fx.ai.count_men(&fx.figures);
@@ -624,9 +540,6 @@ mod tests {
         assert_eq!(raised(0, true), None, "and so is one man who can climb");
     }
 
-    /// The three defender stubs at categories 5, 6 and 7 are the catapult, the
-/// siege tower and the ram — the three troop types
-    /// `g_raiseOrderSiege` says a garrison never has.
     #[test]
     fn a_garrison_has_no_handler_for_the_three_troops_it_never_raises() {
         for category in [5usize, 6, 7] {
@@ -635,8 +548,6 @@ mod tests {
                 "defender category {category} should be the empty handler"
             );
         }
-        // And the mirror: oil is a defender's weapon, so the attacker's slot is
-        // empty too.
         assert_eq!(TABLE_SIEGE_ATT[8].name, "UnitOrder_None");
 
         let all = || {
@@ -661,8 +572,6 @@ mod tests {
         assert_eq!(*distinct.last().unwrap(), 0x0048_E8B8);
     }
 
-    /// A garrison sallies out only above 260, which is close to never — and
-    /// below it the defenders sit on the castle instead.
     #[test]
     fn a_garrison_only_sorties_when_it_believes_it_is_three_and_a_half_times_stronger() {
         let sortied = |advantage: i32| {
@@ -684,10 +593,6 @@ mod tests {
         assert_eq!(sortied(SORTIE_THRESHOLD + 1), (Action::Charge, true));
     }
 
-    /// Category 9's handler does nothing at all except count, so that unit
-    /// holds the wall slot it deployed on for the whole battle. A test that
-    /// only checked "it issued no order" would pass on a broken dispatch too,
-    /// so check the counter moved.
     #[test]
     fn the_first_wall_missile_unit_holds_its_slot_for_the_entire_battle() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
@@ -709,9 +614,6 @@ mod tests {
         );
     }
 
-    /// In an open field, categories 5 to 8 have no handler at all: the table is
-    /// five entries and the bound is `< 5`. An AI catapult in a field battle is
-    /// never repositioned.
     #[test]
     fn a_catapult_in_a_field_battle_is_never_given_an_order() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
@@ -725,15 +627,11 @@ mod tests {
         fx.frames(2_000);
         assert_eq!(fx.units.get(u).orders, 0, "it never even thinks");
         assert_eq!(fx.ai.last_action[u], Action::NoThink);
-        // The siege table, by contrast, does have a handler for it.
         fx.ai.is_siege = true;
         fx.frames(200);
         assert!(fx.units.get(u).orders > 0);
     }
 
-    /// The catapult searches exactly its own firing range: `Siege_FindCellSurface4`
-    /// is called with radius 20, and `g_missileStats` gives the catapult 160
-    /// eighths of a cell = 20. Two unrelated constants agreeing.
     #[test]
     fn the_catapult_looks_for_a_wall_within_exactly_its_firing_range() {
         let found = |wall_distance: i32| {
@@ -749,7 +647,6 @@ mod tests {
             f.owner = 3;
             fx.figures.push(f);
             fx.positions.push((cx as u8, cy as u8));
-            // Think 31 is the first that searches.
             for _ in 0..32 {
                 fx.frames(200);
             }
@@ -759,8 +656,6 @@ mod tests {
         assert_eq!(found(21), Action::ToCastleApproach(5), "twenty-one is not");
     }
 
-    /// Two handlers return before the `orders` increment on their wall-found
-    /// path, so a unit that is doing its job stops advancing its script.
     #[test]
     fn a_catapult_that_has_found_its_wall_stops_advancing_its_script() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
@@ -785,8 +680,6 @@ mod tests {
         assert_eq!(fx.units.get(u).orders, pinned, "the script counter is stuck");
     }
 
-    /// `SiegeAttFoot` abandons its whole approach script and charges once the
-    /// advantage reaches 151.
     #[test]
     fn a_siege_attacker_on_foot_charges_outright_above_a_hundred_and_fifty_one() {
         let outcome = |advantage: i32| {
@@ -810,8 +703,6 @@ mod tests {
         assert_eq!(outcome(SIEGE_CHARGE_ADVANTAGE), Action::Charge);
     }
 
-    /// The castle layout flag makes two handlers jump `orders` to 100 outright,
-    /// skipping the rest of the approach script.
     #[test]
     fn the_castle_layout_flag_jumps_the_approach_script_to_a_hundred() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 2);
@@ -824,18 +715,13 @@ mod tests {
         f.owner = 3;
         fx.figures.push(f);
         fx.positions.push((30, 55));
-        // Think 18 is the first in the 18..25 band that carries the jump.
         for _ in 0..19 {
             fx.frames(200);
         }
         assert_eq!(fx.units.get(u).orders, 101, "jumped to 100, then incremented");
     }
 
-    // --- reforming ---------------------------------------------------------
 
-    /// `re targ` counts 500 down and then reforms the unit's **own figures**;
-    /// it does not look for an enemy. And it runs for human-controlled units
-/// too, so the exemption for small human units exists at all.
     #[test]
     fn the_five_hundred_frame_countdown_reforms_and_runs_for_human_units_too() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
@@ -848,9 +734,6 @@ mod tests {
         assert_eq!(fx.units.get(fx.human_unit).reform, REFORM_INTERVAL);
     }
 
-    /// Two exemptions, and they are different in kind. A human unit of fewer
-    /// than four figures is spared the tidy-up; a unit that has been ordered to
-    /// charge is spared it because *it is no longer a formation*.
     #[test]
     fn a_small_human_unit_is_exempt_and_so_is_one_that_has_charged() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 3);
@@ -865,22 +748,16 @@ mod tests {
         );
         assert!(who.contains(&fx.ai_unit), "the AI's unit of three is not");
 
-// The charge exemption, checked on the flag the charge sets
-        // by waiting fourteen thinks for one.
         let mut charged = *fx.units.get(fx.ai_unit);
         assert!(needs_reform(&charged));
         charged.halted = true;
         assert!(!needs_reform(&charged));
-        // And an emptied unit is never reformed either.
         charged.halted = false;
         charged.figures = 0;
         assert!(!needs_reform(&charged));
     }
 
-    // --- determinism -------------------------------------------------------
 
-    /// The property lockstep depends on, at the level of the whole AI: two
-    /// battles from the same seed must stay bit-identical, jitter and all.
     #[test]
     fn two_ai_battles_from_the_same_seed_stay_identical() {
         let build = || Fixture::new(Troop::Swordsmen, Troop::Archers, 6);
@@ -892,7 +769,6 @@ mod tests {
             assert_eq!(a.ai, b.ai, "ai state diverged");
             assert_eq!(a.figures, b.figures, "figures diverged");
         }
-        // And the jitter really was in play,
         assert_ne!(a.ai.rng, Ai::new(0x5EED).rng, "the generator never advanced");
     }
 }

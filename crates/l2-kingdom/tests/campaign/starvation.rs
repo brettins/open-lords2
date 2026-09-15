@@ -13,18 +13,11 @@ use l2_kingdom::report::Message;
 use l2_kingdom::unit::{Unit, UnitKind, Units};
 use l2_kingdom::{Kingdom, MercenaryBands, Options, TroopType};
 
-// ---------------------------------------------------------------------------
-// The season hooks
-// ---------------------------------------------------------------------------
 
-/// **The whole starvation ladder, season by season.** `docs/armies.md` §3.3b:
-/// the counter warns at 1, deserts at 2, 3 and 4, and destroys the army at 5.
 #[test]
 fn a_starving_army_warns_then_deserts_three_times_then_dies() {
     let mut k = kingdom();
     k.options = Options { difficulty: 0, advanced_farming: false, armies_eat: true, ..Options::default() };
-    // A county with nothing at all in it, so `Food_Available` is 0 and any army
-    // is unfed.
     k.counties[1].herd = 0;
     k.counties[1].grain = 0;
     k.counties[1].herd_available = 0;
@@ -39,7 +32,6 @@ fn a_starving_army_warns_then_deserts_three_times_then_dies() {
     for _ in 0..5 {
         let mut report = l2_kingdom::report::SeasonReport::new();
         k.run_pass(Pass::WagesPay, &mut report);
-        // Keep the county empty: the season's other passes are not run here.
         k.counties[1].herd = 0;
         k.counties[1].grain = 0;
         seen.push(
@@ -56,7 +48,6 @@ fn a_starving_army_warns_then_deserts_three_times_then_dies() {
     }
 
     assert_eq!(seen, vec![vec![1], vec![2], vec![3], vec![4], vec![5]]);
-    // 700 -> warn -> three rounds of ten percent -> gone.
     assert_eq!(men[0], Some(700), "the first season only warns");
     assert_eq!(men[1], Some(630));
     assert_eq!(men[2], Some(567));
@@ -65,7 +56,6 @@ fn a_starving_army_warns_then_deserts_three_times_then_dies() {
     assert_eq!(k.realms[1].wages, 0, "and the bill goes with it");
 }
 
-/// A garrison never starves, however empty the county is.
 #[test]
 fn a_garrisoned_army_is_fed_by_the_castle() {
     let mut k = kingdom();
@@ -84,8 +74,6 @@ fn a_garrisoned_army_is_fed_by_the_castle() {
     assert_eq!(k.campaign.units.get(id).unwrap().starvation, 0);
 }
 
-/// With *Army foraging* off the counter is only ever cleared — the option gates
-/// the whole rule.
 #[test]
 fn with_foraging_off_nothing_starves_at_all() {
     let mut k = kingdom();
@@ -101,10 +89,6 @@ fn with_foraging_off_nothing_starves_at_all() {
     assert_eq!(k.campaign.units.get(id).unwrap().men, 900);
 }
 
-/// **An army is an extra mouth at the county's ration level, not a flat
-/// subtraction** — `docs/armies.md` §3.3a. The cost of the same army *triples*
-/// when the county goes from Normal to Triple rations, which a subtraction
-/// could not do.
 #[test]
 fn an_armys_food_cost_scales_with_the_countys_ration_level() {
     let eaten = |level: i32, troops: i32| {
@@ -136,8 +120,6 @@ fn an_armys_food_cost_scales_with_the_countys_ration_level() {
     );
 }
 
-/// Enemy troops eat out of your county's store too — the field pair exists for
-/// exactly that.
 #[test]
 fn an_occupying_army_eats_the_countys_food() {
     let mut k = kingdom();
@@ -161,8 +143,6 @@ fn an_occupying_army_eats_the_countys_food() {
     assert!(k.counties[1].grain_eaten > alone, "the invader is fed by the invaded");
 }
 
-/// The recount is what puts an army on the county's food bill, and it is driven
-/// by where the army is standing.
 #[test]
 fn marching_an_army_across_a_border_moves_which_county_feeds_it() {
     let mut k = kingdom();
@@ -172,7 +152,6 @@ fn marching_an_army_across_a_border_moves_which_county_feeds_it() {
     assert_eq!(k.counties[1].friendly_troops, 300);
     assert_eq!(k.counties[2].enemy_troops, 0);
 
-    // Two tiles east is county 2, which realm 1 does not own.
     l2_kingdom::movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (33, 10), Routing::Direct);
     let Kingdom { campaign, counties, realms, .. } = &mut k;
     let realms_snapshot = realms.clone();

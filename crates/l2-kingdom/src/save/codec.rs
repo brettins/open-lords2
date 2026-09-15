@@ -10,20 +10,10 @@ use crate::tables::{
 };
 use l2_net::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 
-/// The fingerprint of a ruleset: the canonical hash of every constant in it.
-///
-/// Two `Tables` that differ anywhere differ here — `tests/save.rs` asserts that
-/// for each of the sub-tables in turn, which is the guard against a new field
-/// being added and quietly left out of the encoding.
 pub fn ruleset_fingerprint(tables: &Tables) -> u64 {
     Canonical::hash_of(tables)
 }
 
-/// A whole kingdom as bytes.
-///
-/// Deterministic by construction: the same kingdom encodes to the same bytes on
-/// any machine, because every write is a fixed width in little-endian and every
-/// collection is an array walked by index.
 pub fn encode(kingdom: &Kingdom) -> Vec<u8> {
     let mut body = Canonical::recording();
     kingdom.encode(&mut body);
@@ -40,17 +30,10 @@ pub fn encode(kingdom: &Kingdom) -> Vec<u8> {
     out
 }
 
-/// The checksum of a kingdom without writing it out — the same number
-/// [`encode`] puts in the trailer, and the same one a lockstep tick would
-/// exchange.
 pub fn checksum(kingdom: &Kingdom) -> u64 {
     Canonical::hash_of(kingdom)
 }
 
-/// Read a save back, on a supplied ruleset.
-///
-/// `tables` is the ruleset the game is currently running — from `l2-mods`, or
-/// [`Tables::DEFAULT`]. It must be the one the save was written under.
 pub fn decode(bytes: &[u8], tables: Tables) -> Result<Kingdom, LoadError> {
     if bytes.len() < HEADER_LEN + 8 || bytes[..8] != MAGIC {
         return Err(LoadError::NotASave);
@@ -87,15 +70,10 @@ pub fn decode(bytes: &[u8], tables: Tables) -> Result<Kingdom, LoadError> {
     let mut reader = Reader::new(body);
     let mut kingdom = decode_kingdom(&mut reader, tables)?;
     reader.finish()?;
-    // The tables are the caller's, not the file's; the fingerprint above is
-    // what guarantees they are the right ones.
     kingdom.tables = tables;
     Ok(kingdom)
 }
 
-// ---------------------------------------------------------------------------
-// The state
-// ---------------------------------------------------------------------------
 
 impl Encode for Kingdom {
     fn encode(&self, out: &mut Canonical) {
@@ -118,18 +96,11 @@ impl Encode for Kingdom {
         out.u8(self.options.fight_humans_only_byte);
         out.bool(self.options.exploration);
         out.i32(self.options.time_limit);
-        // One `u64`, inside the `options` section, which is inside the per-tick
-        // digest. That placement *is* the design: see `Options::quirks` and
-        // entry 14 of `VERSION` above.
         out.encode(&self.options.quirks);
 
-        // The generator is part of the state (docs/netcode.md D-3), so it is
-        // part of the save and part of the checksum.
         out.section("rng");
         out.encode(&self.rng);
 
-        // Fixed arrays, walked by ascending index. The lengths are part of the
-// schema, so they are written once.
         out.section("counties");
         out.u32(MAX_COUNTIES as u32);
         for county in &self.counties {
@@ -153,16 +124,6 @@ impl Encode for Kingdom {
     }
 }
 
-/// The diplomatic state that is not inside a realm record — `VERSION` 15.
-///
-/// Fixed-width and index-ordered like everything else: six realms of five
-/// slots, written whether or not they hold a letter, because *"realm 3's inbox
-/// is empty"* is state a lockstep peer has to agree about.
-///
-/// The dice go out as their two `u64` parts for the reason
-/// [`crate::Kingdom::rng`] does: a generator that reloaded at its seed would
-/// give a reloaded game different answers to the same alliance offer, which is
-/// the divergence `docs/netcode.md` D-3 is about.
 fn encode_diplomacy(d: &crate::diplomacy::Diplomacy, out: &mut Canonical) {
     out.u32(MAX_REALMS as u32);
     out.u32(crate::diplomacy::INBOX_SLOTS as u32);
@@ -210,14 +171,6 @@ fn decode_diplomacy(input: &mut Reader<'_>) -> Result<crate::diplomacy::Diplomac
     Ok(d)
 }
 
-/// The campaign layer — `docs/armies.md`.
-///
-/// Written last so that a reader of a hex dump meets the economy in the order
-/// `docs/kingdom.md` describes it and the war after. Everything is
-/// fixed-width and index-ordered like the rest of the file: the unit array is
-/// 151 slots with a presence byte apiece,
-/// because "slot 7 is empty" is state a lockstep peer has to agree about and a
-/// compacted list would renumber every unit above a casualty.
 fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.section("units");
     out.u32(crate::unit::MAX_UNITS as u32);
@@ -235,7 +188,6 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.u32(crate::map::MAP_TILES as u32);
     out.raw(&campaign.map.terrain);
     out.raw(&campaign.map.flags);
-    // Version 28 — tile `+2`, the bank plane. `crate::map::CampaignMap::bank`.
     out.raw(&campaign.map.bank);
     out.raw(&campaign.map.county);
 
@@ -261,7 +213,6 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     }
     out.u32(campaign.mob_cursor as u32);
 
-    // Version 20 — the seen plane, one byte a tile. `crate::explore`.
     out.section("explored");
     campaign.explored.encode(out);
 }
@@ -351,9 +302,6 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
             at: input.position() - 1,
         })?,
         step: input.u32()?,
-        // Not in the stream and not in the digest: a loaded game is parked at
-        // phase 1 and the first map frames open phase 4 again. See
-        // `TurnMachine::players_turn_open` and `docs/netcode.md`.
         players_turn_open: false,
     };
     k.weather_county = input.u32()? as usize;

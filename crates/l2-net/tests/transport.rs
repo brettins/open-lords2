@@ -1,16 +1,6 @@
-//! Framing and the in-process network.
-//!
-//! The framing tests matter more than they look. Nothing in this crate
-//! opens a socket, so `FrameReader` is the one piece of a future TCP
-//! transport that exists today — and message reassembly is where
-//! stream transports go wrong: a length prefix split across two reads,
-//! two messages arriving in one read, a message arriving in fifty
-//! reads. All three are tested exhaustively below, because none of them
-//! can be tested later without a network.
 
 use l2_net::{frame, FrameReader, Loopback, PeerId, Transport, TransportError, MAX_FRAME};
 
-// --- framing ----------------------------------------------------------
 
 #[test]
 fn a_frame_is_a_little_endian_length_and_the_payload() {
@@ -34,7 +24,6 @@ fn messages_come_back_out_whole() {
     assert_eq!(reader.next_message().unwrap(), None);
 }
 
-/// The case that happens on the day of the demo.
 #[test]
 fn a_stream_delivered_one_byte_at_a_time_yields_the_same_messages() {
     let mut stream = Vec::new();
@@ -56,8 +45,6 @@ fn a_stream_delivered_one_byte_at_a_time_yields_the_same_messages() {
     assert_eq!(reader.buffered(), 0);
 }
 
-/// Every possible split point —
-/// including splits inside the length prefix.
 #[test]
 fn every_split_of_a_stream_yields_the_same_messages() {
     let mut stream = Vec::new();
@@ -98,8 +85,6 @@ fn a_hostile_length_prefix_is_refused_before_it_is_believed() {
     assert!(matches!(reader.next_message(), Err(TransportError::FrameTooLong { .. })));
 }
 
-/// A busy stream must not become quadratic in the number of messages.
-/// The reader compacts.
 #[test]
 fn a_long_stream_of_small_messages_does_not_accumulate() {
     let mut reader = FrameReader::new();
@@ -110,7 +95,6 @@ fn a_long_stream_of_small_messages_does_not_accumulate() {
     assert_eq!(reader.buffered(), 0);
 }
 
-// --- loopback ---------------------------------------------------------
 
 #[test]
 fn messages_arrive_at_the_addressed_peer_only() {
@@ -184,8 +168,6 @@ fn a_partition_drops_silently_at_the_receiver() {
     let mut b = net.endpoint(PeerId(1));
 
     net.partition(PeerId(1), true);
-    // The sender of a lost packet gets no error on a real network
-    // either, which is exactly why §4 needs a packet every tick.
     a.send(PeerId(1), b"lost").unwrap();
     assert_eq!(b.poll(), None);
 
@@ -212,9 +194,6 @@ fn an_endpoint_knows_its_own_id() {
     assert_eq!(net.endpoint(PeerId(4)).id(), PeerId(4));
 }
 
-/// The loopback is a `Transport`, so anything written against the trait
-/// can be tested against it — including code that only holds a `&mut
-/// dyn Transport`.
 #[test]
 fn the_trait_is_object_safe_enough_to_be_swapped() {
     let net = Loopback::with_peers(&[PeerId(0), PeerId(1)]);
@@ -243,10 +222,6 @@ fn holding_queues_instead_of_dropping_and_releases_in_order() {
     assert_eq!(b.poll(), None);
 }
 
-/// The distinction the lockstep tests depend on: a held link is a
-/// pause, a partitioned one is a loss, and only the first is
-/// recoverable. `docs/netcode.md` §7 requires a reliable transport for
-/// exactly this reason.
 #[test]
 fn holding_and_partitioning_are_not_the_same_thing() {
     let net = Loopback::with_peers(&[PeerId(0), PeerId(1)]);

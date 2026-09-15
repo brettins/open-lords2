@@ -1,27 +1,3 @@
-//! **The minimap's four modes, counted in pixels.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" \
-//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-game --test minimap
-//! ```
-//!
-//! The claim these tests exist to settle is a visual one — *"the three
-//! statistic modes recolour the minimap, and from a different table than the
-//! ownership mode"* — so it is turned into a number the canvas can answer: **the
-//! set of distinct palette indices drawn over the county land pixels of the
-//! user's own `Map01.pl8`.**
-//!
-//! Sampling the *land* pixels is what
-//! makes the sets exact. The panel artwork behind the minimap, and the sea, are
-//! full of the same greys the realm ramp uses, so a naive rectangle sweep
-//! reports colours nothing in this code path drew — it did, and the first
-//! version of this file failed on `0x2F` and `0x32` coming out of `Misc_cty`
-//! frame 54.
-//!
-//! Shade 10 is skipped for the same reason: it is the shade the selected county
-//! has replaced with `0x20`, and leaving it in would put a colour in every set
-//! that has nothing to do with the mode.
-//!
 //! `Minimap_DrawOverlay` (`0x00410CBD`) and `FUN_00451BBA` are the two functions
 //! under test; `docs/screens.md` §3.2 describes them.
 

@@ -15,9 +15,6 @@ use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
 
-/// **The icon table is the shipped one, and a man past his job's ceiling is
-/// drawn with the idle townsman's own sprite.**
-///
 /// A player reported *"when I put peasants into a quarry they show as idle,
 /// which should be impossible"*. The **drawing** is faithful and he was reading
 /// the picture correctly; what is missing is upstream of it. The quarry was
@@ -30,18 +27,6 @@ use l2_view::sheet::Sheet;
 /// which `Labour_Move` calls on every drop, **switches the industry on** when
 /// men are dropped on a site whose resource the county has. Ours did not, so it
 /// reached a picture the original only ever shows for a county that has.
-/// resource at all. It does now — `l2_kingdom::Kingdom::move_labour`, and
-/// `crates/l2-game/tests/labour_move/main.rs` drives it through the village. (This
-/// comment named a `docs/arms.json` row for it: it is not
-/// an input arm but a call inside the drop's.) This pins the drawing half so
-/// that the input half cannot quietly change what the icons mean.
-///
-/// [`l2_view::village::ICON_VALUE`] was transcribed by hand and nothing checked
-/// it, which is the shape `docs/agents.md` warns about: a table of nine numbers
-/// with no oracle, in the crate that decides what the player sees. This reads
-/// the nine dwords back out of the user's own `Lords2.exe` and asserts the
-/// identity that caused the confusion, so it cannot be "tidied" by someone who
-/// thinks two jobs sharing a frame is a typo.
 #[test]
 fn the_icon_table_is_the_exes_own_and_surplus_is_the_idle_sprite() {
     use l2_view::village as v;
@@ -62,8 +47,6 @@ fn the_icon_table_is_the_exes_own_and_surplus_is_the_idle_sprite() {
     );
 }
 
-/// Slot 8. Spelled out, which this crate
-/// does not and should not know about.
 fn l2_kingdom_job_idle() -> usize {
     8
 }
@@ -91,8 +74,6 @@ fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
     let sheet = Sheet::new(bytes.clone()).expect("Misc_cty.pl8 parses");
     let pl8 = l2_formats::Pl8::parse(&bytes).expect("Misc_cty.pl8 parses");
 
-    // Every frame the drawing code can ask for: value - 1, and value while the
-    // icon is selected.
     let mut named = std::collections::BTreeSet::new();
     for value in v::ICON_VALUE.iter().copied().chain([v::ICON_SHORTFALL, v::ICON_SURPLUS]) {
         named.insert(value as usize - 1);
@@ -123,8 +104,6 @@ fn the_peasant_icons_account_for_every_frame_the_icon_table_names() {
     eprintln!("Misc_cty: {} named icons, 4 stubs, nothing over", named.len());
 }
 
-/// **The ten words `Village_BalanceAll` reads out of an eight-word table.**
-///
 /// `FUN_00439EDB` loops `i < 10` over `g_jobClusterToSlot`, which has eight
 /// entries. The two past the end are the head of the table that follows, and
 /// they decide what a double click on the idle townsfolk balances — so
@@ -139,13 +118,9 @@ fn the_cluster_to_slot_table_and_the_two_words_the_balance_loop_overruns_into() 
     let read: Vec<usize> = table.i32s(10).into_iter().map(|v| v as usize).collect();
     assert_eq!(read[..8], v::CLUSTER_TO_SLOT, "the eight the table really has");
     assert_eq!(read, v::CLUSTER_TO_SLOT_BALANCE, "and the ten the balance loop reads");
-    // The point of the two extra words: they bring slot 4, iron mining, into a
-    // gesture that the eight-entry table can otherwise only reach through
-    // cluster 0's override.
     assert!(read[8..].contains(&4), "the overrun reaches iron mining");
 }
 
-/// The village's own three files, and the arithmetic that ties them together.
 #[test]
 fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
     use l2_view::village as v;
@@ -154,7 +129,6 @@ fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
         return;
     };
 
-    // The scene: one frame, 363 x 320, drawn at (0x40, g_villageTopY).
     let scene_bytes = read(&dir, "vill.pl8").expect("vill.pl8");
     let scene = l2_formats::Pl8::parse(&scene_bytes).unwrap();
     assert_eq!(scene.frames.len(), 1);
@@ -169,12 +143,10 @@ fn the_village_files_are_the_size_the_drawing_code_indexes_them_at() {
         assert_eq!((f.width as i32, f.height), (363, 70));
     }
 
-    // The drop grid: 24 bytes of header and 45 x 40 cells, and nothing else.
     let grid = read(&dir, "vill_gd8.pl8").expect("vill_gd8.pl8");
     assert_eq!(grid.len(), 0x18 + v::GRID_LEN, "1,824 bytes: 24 + 45 * 40");
     assert_eq!(v::GRID_COLS as i32 * v::GRID_CELL, 360, "x 0x40 .. 0x1A8");
     assert_eq!(v::GRID_ROWS as i32 * v::GRID_CELL, v::SCENE_H, "y top .. top + 0x140");
-    // Every cell names a cluster or nothing; nothing names a ninth cluster.
     assert!(
         grid[0x18..].iter().all(|&b| b as usize <= v::CLUSTER_COUNT),
         "a cell names a cluster the village does not draw"
@@ -215,7 +187,6 @@ fn the_realm_pen_table_matches_the_bytes_in_the_binary() {
         "the two bytes below the table are g_lordChoice's tail, not a sixth pen"
     );
 
-    // And the ten bytes are followed by zeros: five shields and no more.
     assert!(
         exe[base + want.len()..base + want.len() + 8].iter().all(|&b| b == 0),
         "something follows the fifth pair"
@@ -223,23 +194,12 @@ fn the_realm_pen_table_matches_the_bytes_in_the_binary() {
     eprintln!("realm pens: {} bytes match Lords2.exe at {:#010X}", want.len(), chrome::REALM_PEN_VA);
 }
 
-/// **The pen really is keyed by the shield**, checked against every saved game
-/// this project keeps — including the ones that separate the two candidate
-/// keys.
-///
 /// `l2_view::chrome::realm_pen` *derives* the pen from the shield
 /// reading realm `+0x08` out of the save, because both writers in the binary
 /// derive it the same way and nothing else touches the field
 /// (`Realms_AssignLords` at new game, `FUN_0042BA40` for a custom battle). This
 /// is that claim tested against data: for every realm of every fixture, the
 /// byte the game stored at `+0x08` must equal our table indexed by `+0x0A`.
-///
-/// **The fixtures are what make this decisive.** In
-/// `england-turn1.sav` realm *n* happens to fly shield *n*, so it cannot tell
-/// "keyed by the shield" from "keyed by the realm id" — and the realm id is
-/// exactly the wrong key our county strip was using. Six of the other fixtures
-/// have **realm 1 flying shield 5**, and there realm 1's stored pen is `0x04`,
-/// blue, which is shield 5's. That is the observation the fix rests on.
 #[test]
 fn every_saved_realms_stored_pen_is_its_shields_pen() {
     let Some(dir) = l2_testkit::fixtures_dir() else {
@@ -254,8 +214,6 @@ fn every_saved_realms_stored_pen_is_its_shields_pen() {
 
     let mut realms_checked = 0;
     let mut files_checked = 0;
-// Did any fixture exercise a realm whose id differs from its
-    // shield? Without one this test would pass on the wrong key too.
     let mut separating = 0;
     let mut names: Vec<String> = std::fs::read_dir(&dir)
         .expect("the fixture directory")
@@ -266,8 +224,6 @@ fn every_saved_realms_stored_pen_is_its_shields_pen() {
     names.sort();
     for name in &names {
         let Ok(bytes) = std::fs::read(dir.join(name)) else { continue };
-        // Loud, not silent: a save this cannot open is a schema problem, and
-        // skipping it quietly is how a test ends up asserting over nothing.
         let save = l2_formats::save::Save::open(&exe, &bytes)
             .unwrap_or_else(|e| panic!("{name}: {e:?}"));
         files_checked += 1;
@@ -307,26 +263,15 @@ fn every_saved_realms_stored_pen_is_its_shields_pen() {
     );
 }
 
-/// **The two tables that decide which lord flies which colour**, read out of
-/// the user's own executable — and the arithmetic that says which of them the
-/// campaign uses.
-///
-/// A player described the rule as *"the game will always try to give the Knight
-/// yellow, the Countess blue, the Bishop purple/pink … and it'll move a noble's
-/// colour around if you pick it."* Every colour is right and the mechanism is
-/// two mechanisms:
-///
 /// * **`g_lordChoice`** (`0x004DC17C`) is per **colour**, four candidate lords
 ///   per shield. `Realms_AssignLords` hands out the lowest free shield by realm
 ///   order and then picks the lord *from the shield*, so no lord has a
 ///   preference on the campaign path — the appearance of one is this table's
 ///   first column.
+///
 /// * **`g_battleLordShield`** (`0x004D4CA8`) is per **lord**, `{preferred,
 ///   alternate}`, and really is preference-then-fallback. It belongs to the
 ///   custom battle (`FUN_0042BA40`) and nothing else.
-///
-/// `docs/rules.md` §7a has both halves and the table of what happens
-/// when a person takes each of the five colours.
 #[test]
 fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
     let Some(dir) = asset_dir() else {
@@ -343,7 +288,6 @@ fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
         exe[va_to_offset(&exe, va).unwrap_or_else(|| panic!("{va:#010X} unmapped"))]
     };
 
-    // --- `g_battleLordShield`: the per-lord preference, and the only one.
     // Knight, Baron, Countess, Bishop are lord ids 1 … 4 (`L2.eng` group 7).
     const BATTLE_LORD_SHIELD_VA: u32 = 0x004D_4CA8;
     let pair = |lord: u32| {
@@ -358,7 +302,6 @@ fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
     // campaign gives him black, which is the whole point of §7a.
     assert_ne!(pair(2).0, 3, "the Baron's battle preference is not the campaign's black");
 
-    // --- `g_lordChoice`: per colour, and it is the campaign's.
     const LORD_CHOICE_VA: u32 = 0x004D_C17C;
     let candidates = |group: u32, shield: u32| -> [u8; 4] {
         let base = LORD_CHOICE_VA + group * 0x14 + shield * 4;
@@ -371,8 +314,6 @@ fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
     assert_eq!(candidates(0, 5), [3, 2, 4, 1], "blue leads with the Countess");
     assert_eq!(candidates(0, 1), [2, 1, 3, 4], "red leads with the Baron");
 
-    // Slot 0 is never indexed — shields are 1 … 5 — and the index runs one row
-    // off its own group, so slot 5 of group *g* is slot 0 of group *g+1*.
     for group in 0..3 {
         assert_eq!(
             candidates(group, 5),
@@ -397,19 +338,6 @@ fn the_lord_colour_tables_are_the_bytes_in_the_binary() {
     );
 }
 
-/// **What the campaign produces for each of the five colours a person
-/// can take** — the rule, run against the tables the test above pinned.
-///
-/// This is `Realms_AssignLords`' walk, and it is the thing no fixture can
-/// check: every `.sav` this project holds has the human on shield 1 or shield
-/// 5, never a middle colour, so none of them exercises a collision the two
-/// candidate readings disagree about.
-///
-/// The row that matters is the second. *"The game always tries to give the
-/// Knight yellow"* is true of four rows out of five and false of that one, and
-/// it fails in a way no preference rule would produce: the Knight takes black
-/// because black's candidate list reaches him second, and the **Baron** takes
-/// red. `docs/rules.md` §7a.
 #[test]
 fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
     let Some(dir) = asset_dir() else {
@@ -422,15 +350,12 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
         exe[va_to_offset(&exe, va).unwrap_or_else(|| panic!("{va:#010X} unmapped"))]
     };
 
-    /// `Realms_AssignLords`, for one human on realm 1 and four AI lords.
-    /// Returns `(shield, lord)` for realms 2 … 5.
     let assign = |human_shield: u8| -> Vec<(u8, u8)> {
         let mut shield_taken = [false; 6];
         shield_taken[human_shield as usize] = true;
         let mut lord_taken = [false; 8];
         let mut out = Vec::new();
         for _realm in 2..=5u8 {
-            // The lowest shield nobody has taken.
             let shield = (1..=5u8).find(|s| !shield_taken[*s as usize]).expect("a free shield");
             shield_taken[shield as usize] = true;
             // Then the lord, from that shield. England is slot 0 -> group 0.
@@ -450,16 +375,12 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
     const COUNTESS: u8 = 3;
     const BISHOP: u8 = 4;
 
-    // The default, and the one arrangement a fixture can confirm: it is
-    // what `england-turn1.sav` holds.
     assert_eq!(
         assign(1),
         vec![(2, KNIGHT), (3, BARON), (4, BISHOP), (5, COUNTESS)],
         "taking red gives the arrangement every default game shows"
     );
 
-// **Take yellow and the Knight does not keep it, and does not shift
-    // one along.** He becomes the black lord; the Baron becomes the red one.
     assert_eq!(
         assign(2),
         vec![(1, BARON), (3, KNIGHT), (4, BISHOP), (5, COUNTESS)],
@@ -474,9 +395,6 @@ fn taking_a_middle_colour_moves_the_lords_and_not_only_their_colours() {
     );
     assert_eq!(assign(5), vec![(1, BARON), (2, KNIGHT), (3, COUNTESS), (4, BISHOP)]);
 
-    // The description, stated as the count that makes it a description: the
-    // Knight has yellow in four of the five, and never in the one where the
-    // person took it.
     let knight_yellow = (1..=5u8)
         .filter(|&h| assign(h).iter().any(|&(s, l)| l == KNIGHT && s == 2))
         .count();

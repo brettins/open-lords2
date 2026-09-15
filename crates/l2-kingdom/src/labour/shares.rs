@@ -12,7 +12,6 @@ use crate::tables::{
 /// `Labour_ToggleShare` (`FUN_00450639`, `0x00450639`, 677 bytes) — bring one
 /// farm job into the split, or take it out.
 ///
-/// **This is the function `docs/screens-county.md` §9 called the field brush.**
 /// It is not: it writes county `+0x130 + job*4`, the eight job percentages
 /// (`docs/kingdom.md` §14), and its only caller is `Field_SetType`, which uses
 /// it to give field reclamation a share of the farm the moment the county has
@@ -20,50 +19,18 @@ use crate::tables::{
 /// two readings were both half-right — the *call* comes from painting a field,
 /// the *effect* is on labour — and only the caller separates them.
 ///
-/// ```c
-/// if ((share[job] == 0) != (on == 1)) return;    /* already in the wanted state */
-/// n = number of the three farm shares that are non-zero;
-/// if (on) {  give  = g_shareTable[n] / divisor;
-///            scale = 100 - give;
-///            share[0..3] = Pct(scale, share[0..3]);
-///            share[job]  = give; }
-/// else    {  scale = 100 - share[job];  share[job] = 0;
-///            share[0..3] = PctOf(share[0..3], scale); }
-/// /* and the rounding remainder goes to the largest of the three */
-/// ```
-///
 /// **`[D]`**, and two details of it are worth stating because they look like
 /// transcription errors and are not.
-///
-/// The **guard is inverted from what its shape suggests**. Written out, the
-/// original's condition is *"(share is zero or we are not switching on) and
-/// (share is non-zero or we are not switching off)"* — which is exactly *"the
-/// job is not already in the state being asked for"*. So switching on a job
-/// that already has a share does nothing at all.
-///
-/// The **remainder pass is asymmetric**: it seeds its search with cattle's
-/// share and with slot 1, then adds `(100 - grain - cattle) - reclamation` to
-/// whichever of the three is largest. On a group that already sums to 100 that
-/// term is 0, so the pass is a no-op; it only bites where the two `Pct` calls
-/// have rounded the group away from 100, which is what it is for.
 pub fn toggle_share(county: &mut County, job: usize, on: bool, divisor: i32) {
     toggle(county, job, on, divisor, &FARM_GROUP, FARM_SEED);
 }
 
 /// `FUN_004502CA` (`0x004502CA`, 879 bytes) — the same thing for the five
 /// industry jobs
-///
-/// Line for line the twin of [`toggle_share`] with a five-member group and no
-/// divisor. Switching an industry off on the
-/// map takes its share out of the split and hands it to the rest; switching one
-/// on gives it `g_shareTable[n]`, an even share of the enlarged group.
 pub fn toggle_industry_share(county: &mut County, job: usize, on: bool) {
     toggle(county, job, on, 1, &INDUSTRY_GROUP, INDUSTRY_SEED);
 }
 
-/// The body both share. `group` is the jobs whose percentages must go on
-/// summing to 100; `seed` indexes into it, and decides where a tie in the
-/// remainder search lands.
 fn toggle(
     county: &mut County,
     job: usize,
@@ -72,7 +39,6 @@ fn toggle(
     group: &[usize],
     seed: usize,
 ) {
-    // The original spells this `(s || !on) && (!s || on)`, which is `s == on`.
     if (county.labour_share[job] == 0) != on {
         return;
     }
@@ -92,10 +58,6 @@ fn toggle(
         }
     }
 
-    // `100 - share[seed] - (every other member)`, added to whichever member is
-    // largest. On a group that already sums to 100 the term is 0, so the pass
-    // only bites where the `Pct` calls above have rounded it away from 100 —
-    // which is what it is for.
     let short: i32 = 100 - group.iter().map(|&j| county.labour_share[j]).sum::<i32>();
     let mut best = group[seed];
     let mut best_share = county.labour_share[group[seed]];
@@ -110,10 +72,6 @@ fn toggle(
 
 /// `FUN_0044FF4A` — rewrite [`County::industry_share`] from what
 /// assigned.
-///
-/// **Half the idle count goes to industry**, which is the one surprising part:
-/// a county with people doing nothing drifts towards a 50/50 split
-/// towards whichever half it last favoured.
 pub fn recompute_industry_share(county: &mut County) {
     let pop = county.population;
     let farm = county.labour[JOB_GRAIN_FARMING]
@@ -124,11 +82,6 @@ pub fn recompute_industry_share(county: &mut County) {
 }
 
 /// `FUN_00450000` — rewrite the eight percentages from the worker counts.
-///
-/// Two independent groups, each renormalised to exactly 100 by giving the
-/// rounding remainder to whichever job in that group already has the largest
-/// share. That is why the two defaults in the binary both close: they are what
-/// this function produces.
 pub fn recompute_shares(county: &mut County) {
     renormalise(county, &[JOB_GRAIN_FARMING, JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION], 1);
     renormalise(

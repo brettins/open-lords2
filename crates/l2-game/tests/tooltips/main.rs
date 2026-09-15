@@ -1,9 +1,3 @@
-//! **The tool tips, played.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test tooltips
-//! ```
-//!
 //! `FUN_00476E95` (`0x00476E95`) and the six functions under it
 //! built: the Help Options panel's *"Tool tips"* row flipped a flag nothing
 //! read. `crate::tooltip` has the decompilation.
@@ -37,7 +31,6 @@ use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------------- setup
 
 fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     let mut ctx = Ctx { game: g, assets: a };
@@ -62,7 +55,6 @@ fn point(m: &mut Machine, g: &mut Game, a: &Assets, x: i32, y: i32) {
 pub(crate) fn world() -> Game {
     let mut g = Game::new(0x7195);
     g.player = 1;
-    // **Tip screens: No.** See the module header.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(6);
     l2_testkit::chain_neighbours!(g.kingdom);
@@ -82,5 +74,4 @@ fn shown(m: &Machine) -> Option<Shown> {
     m.tooltips().shown()
 }
 
-// ------------------------------------------------------------------ the rest
 

@@ -1,8 +1,3 @@
-//! The AI's **five farming styles** — how an AI lord lays out a county's twenty
-//! fields, sets its rations, and splits its workforce.
-//!
-//! # The correction this module exists to carry
-//!
 //! `crates/l2-kingdom/src/ai/mod.rs` used to say that AI turn step 5 is
 //! `AI_ManageFields` at `0x0049DD01`, dispatching into *"one of three labour
 //! allocators"*. **Two names for two different functions had been collapsed into
@@ -22,12 +17,6 @@
 //! and `FUN_004A4782` (the AI's ration setter), and [`manage_county_farms`] and
 //! [`manage_neutral_fields`] are the two outer passes.
 //!
-//! # What the five do differently
-//!
-//! Every style runs the same skeleton — *top up the larder, set the industry
-//! share, take the default labour shares, set rations, re-lay the fields,
-//! re-estimate* — and differs in six places. Laid side by side:
-//!
 //! | | `0x004A3C67` neutral 0 | `0x004A3ED3` neutral 1 | `0x004A4052` realm 0 | `0x004A42E3` realm 1 | `0x004A440F` realm 9 |
 //! |---|---|---|---|---|---|
 //! | sells its surplus first | no | no | **yes** | **yes** | **yes** |
@@ -38,36 +27,30 @@
 //! | ration split search | herd ≥ 101 ? high : low | low | herd ≥ 101 ? high : low | low | low |
 //! | field layout | grain on **half**, one pasture | pasture on **all but one** | grain on **half**, one pasture | pasture on **all but one** | grain on a **third**, pasture up to a **third** |
 //!
-//! Read as behaviour: **style 0 is an arable lord**, style 1 is a **grazier**,
-//! and style 9 splits the county in three and is the only one that farms both.
-//! `AI_PERSONALITY_FARM_STYLE` is `[1, 1, 0, 9]`, so two of the four lords
-//! graze, one ploughs and one mixes —
-//! the most aggressive shopping list.
-//!
-//! # Five findings that fall out of reading them
-//!
-//! 1. **The fertility ladder's middle rung is unreachable.** Styles 0 and 9 size
-//!    the Winter grain quota with
-//!    `if (fertility < -20) n/2 - 1; else if (fertility < -50) n/2 - 2; else n/2`.
 //!    Anything below −50 is already below −20, so the `-2` branch **never
 //!    runs**: a ruined county gets the same one-field discount as a tired
 //!    one. Reproduced — see [`winter_grain_quota`]. `[V]`,
 //!    from the branch order in the decompilation of all three functions that
 //!    carry it.
+//!
 //! 2. **Turning *Advanced Farming* off makes the AI plant far more grain, not
 //!    less.** The option's `else` limb overwrites the whole ladder: neutral 0
 //!    plants `total - 3`, realm 0 plants `total - 1` (nearly every field), and
 //! style 9 plants `total / 2` instead of `total / 3`. `[V]`.
+//!
 //! 3. **`Labour_DefaultSharesBuilt` (`0x0045158B`) is the AI's setter.**
+//!
 //!    `docs/symbols.md` records of the two default-share functions that *"which
 //!    of the two setters a county gets is not traced"*. All five styles call the
 //!    *Built* one — farm 33/50/17, industry 40/15/15/15/15 with castle building
 //!    favoured — and none calls `Labour_DefaultShares`. `[V]`.
+//!
 //! 4. **The AI's ration ladder punishes a cattle county.** Of its two dairy
 //! rungs the Triple one can never change an answer,
 //!    ever *lowers* the level: a county fed on cattle gets Double where a county
 //!    fed on the same quantity of food as grain gets Triple. The arithmetic is
 //!    in [`ration_wanted`]. `[V]`.
+//!
 //! 5. **"Add a field" is a reclamation order, and one already running eats the
 //!    quota.** `crate::tables::AI_FIELD_LADDER` reads as *"give the county
 //!    another field"*; `FUN_0044C6C4` paints
@@ -79,11 +62,6 @@
 //!    next pass: **the AI's field expansion has never happened.** See
 //!    [`crate::field::order_reclamation`]. `[V]`.
 //!
-//! # The seams
-//!
-//! Two things these functions do are not this crate's state,
-//! **named seams**:
-//!
 //! * **The merchant.** Every style opens by buying food (`FUN_004A4B12` →
 //! `Merchant_Trade`),
 //!   trigger them — `if (grain < 100) buy 400; if (grain < 100) buy 200;` — so
@@ -94,6 +72,7 @@
 //!   5, and `Ai_ManageFarmsAll` at the head of the season. [`NoMarket`]
 //!   refuses everything and is left for a hand-built kingdom with no merchant
 //!   model.
+//!
 //! * **`FUN_0049E39B`, the AI's selling pass**, which the three *realm* styles
 //!   run first: it sells wood, iron and stone down to the lord's reserves at
 //!   personality `+0x84`/`+0x88`/`+0x8C` and buys weapons of the county's type
@@ -118,29 +97,20 @@ use crate::ration;
 use crate::realm::Realm;
 use crate::tables::{Season, Tables};
 
-/// Everything the styles read that is neither the county nor the map.
 #[derive(Debug, Clone, Copy)]
 pub struct FarmEnv {
-    /// `g_season`. Only Winter re-sows; see [`FarmStyle::sows_in_winter`].
     pub season: Season,
-    /// `g_seasonNext`, which is what `County_RefreshEstimates` forecasts for.
     pub season_next: Season,
-    /// `g_optAdvancedFarming`. **Off makes the AI plant more, not less** —
-    /// finding 2 in the module documentation.
     pub advanced_farming: bool,
-    /// `g_optArmiesEat`, which moves the ration ladder's denominator.
     pub armies_eat: bool,
 }
 
 impl FarmEnv {
-    /// Both options on, which is the game's default.
     pub fn new(season: Season, season_next: Season) -> FarmEnv {
         FarmEnv { season, season_next, advanced_farming: true, armies_eat: true }
     }
 }
 
-/// The five allocators, named for what they are.
-///
 /// The stored style byte is county `+0x1FE`; [`FarmStyle::from_county_byte`]
 /// resolves it the way each of the two outer passes does, which is **not the
 /// same mapping**. Style 9 dispatches nowhere in the neutral pass — an unowned
@@ -170,7 +140,6 @@ impl FarmStyle {
         FarmStyle::RealmMixed,
     ];
 
-    /// The address of the allocator in `Lords2.exe`.
     pub fn address(self) -> u32 {
         match self {
             FarmStyle::NeutralArable => 0x004A3C67,
@@ -215,20 +184,10 @@ impl FarmStyle {
     /// Whether this style runs `FUN_0049E39B` — the surplus sale
     /// purchase — before it farms. The three realm styles do; the two neutral
     /// ones do not, because an unowned county has no realm to sell for.
-    ///
-    /// [`lay_out`] calls [`Market::trade_for_county`] on a style that says yes.
     pub fn sells_first(self) -> bool {
         matches!(self, FarmStyle::RealmArable | FarmStyle::RealmGrazing | FarmStyle::RealmMixed)
     }
 
-    /// The percentage of the county's people this style hands to industry
-    /// — [`County::industry_share`], written before the
-    /// labour shares are reset.
-    ///
-    /// This is the single largest difference between the styles, and it goes
-    /// the way you would not guess: **the two arable styles put the most people
-    /// into industry**, not into the fields, because grain needs a sower for a
-    /// season and nothing after.
     pub fn industry_share(self) -> i32 {
         match self {
             FarmStyle::NeutralArable | FarmStyle::NeutralGrazing => 0,
@@ -238,33 +197,16 @@ impl FarmStyle {
         }
     }
 
-    /// Whether the style re-lays its grain in Winter. All but the two grazing
-    /// styles do — they plant no grain at all.
     pub fn sows_in_winter(self) -> bool {
         matches!(self, FarmStyle::NeutralArable | FarmStyle::RealmArable | FarmStyle::RealmMixed)
     }
 }
 
-// ---------------------------------------------------------------------------
-// The shopping list
-// ---------------------------------------------------------------------------
 
-/// One `if (stock < floor) buy(lot)` line of a style's opening cascade.
-///
-/// The cascade is **not** "buy the biggest lot you can afford". Each line
-/// re-reads the stock,
-/// later line is skipped; a lot the purse refuses leaves the floor unmet and
-/// the next, smaller lot is tried. The floors are per line, not per style:
-/// [`FarmStyle::RealmArable`] tops up to **600** sacks with the three big lots
-/// and only to **100** with the two small ones,
-/// sacks still tries for 50 and 25.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BuyLine {
-    /// The good, and therefore which stock the floor is read from.
     pub good: Good,
-    /// Buy only while the stock is strictly below this.
     pub floor: i32,
-    /// How much to ask for.
     pub lot: i32,
 }
 
@@ -307,7 +249,6 @@ const BUYS_REALM_MIXED: [BuyLine; 7] = [
 ];
 
 impl FarmStyle {
-    /// The style's opening cascade, in the order the original tries it.
     pub fn buys(self) -> &'static [BuyLine] {
         match self {
             FarmStyle::NeutralArable => &BUYS_NEUTRAL_ARABLE,

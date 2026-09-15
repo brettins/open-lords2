@@ -11,8 +11,6 @@ use l2_view::Canvas;
 use eng::Eng;
 use font::Font;
 
-/// A full-screen background: frame 0 of a sheet whose only frame is 640 × 480.
-///
 /// `FUN_00408FCB(name, 0x1E0)` reads one of these straight into the display
 /// buffer — the `0x1E0` is 480, the row count. Returns false when the sheet is
 /// missing, so the caller can fill instead of drawing nothing.
@@ -28,12 +26,6 @@ pub fn background(canvas: &mut Canvas, assets: &ShellAssets, name: &str) -> bool
 ///
 /// **[V]** `Panels2.pl8` has the same frame layout as `Panels.pl8`: four
 /// corners, four twelve-frame edges, then the 144-frame interior field at 0x34.
-/// The function is `Ui_DrawBoxBorder(0, …)` reading from `sheet` plus
-/// `Ui_DrawBoxInterior` inset by one cell, which is exactly what
-/// `l2_view::chrome::Chrome::draw_box` already does for `Panels.pl8`.
-///
-/// Sizes are in 16-pixel cells, and the box includes its border: a box of
-/// `cols` × `rows` covers `cols * 16` by `rows * 16` pixels.
 pub fn box_from(canvas: &mut Canvas, sheet: &Sheet, x: i32, y: i32, cols: i32, rows: i32) {
     use l2_view::chrome::panels;
     let cell = panels::CELL;
@@ -94,8 +86,6 @@ pub fn inset_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
 /// edges are colour `0x35` and the bottom and left `0x28`, which is the
 /// opposite lighting to `Ui_DrawInsetRect` (`0x00403DEB`, `0x10` and `0x1F`)
 /// and reads as *raised* under `gateway.256`.
-///
-/// Pixels, not cells.
 pub fn button_recess(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
     const LIGHT: u8 = 0x35;
     const DARK: u8 = 0x28;

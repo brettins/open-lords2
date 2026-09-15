@@ -1,19 +1,3 @@
-//! **Pressing *Start* starts the game the screen was showing.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" LORDS2_FIXTURES="E:\dev\lords2-fixtures" \
-//!     cargo test -p l2-game --test setup
-//! ```
-//!
-//! The unit tests in `l2_game::setup` check the *tables* — that each is as long
-//! as its drop-down, that the defaults are the original's, that the commit
-//! arithmetic is `Setup_CommitOptions`'. This file checks the other half, which
-//! is the one that was broken: that clicking a value in a drop-down
-//! and then clicking *Start* changes the world.
-//!
-//! Everything is driven through [`Screen::handle`] with real pointer
-//! coordinates read out of the geometry tables
-//! calling a method the interface does not reach.
 
 
 use std::path::PathBuf;
@@ -58,7 +42,6 @@ pub use skirmish_tests::*;
 mod title_tests;
 pub use title_tests::*;
 
-/// Click the middle of a rectangle.
 pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
     let mut ctx = Ctx { game, assets };
     screen.handle(Event::Click { x, y }, &mut ctx)
@@ -69,8 +52,6 @@ fn tick(screen: &mut SetupScreen, game: &mut Game, assets: &Assets) {
     screen.update(&mut ctx);
 }
 
-/// Open option `i`'s drop-down and choose row `row`, by clicking,
-/// person would.
 fn choose(
     screen: &mut SetupScreen,
     game: &mut Game,
@@ -81,7 +62,6 @@ fn choose(
     let (bx, by, _) = OPTION_CELLS[i];
     click(screen, game, assets, bx + 8, by + 8);
     assert_eq!(screen.page(), SetupPage::Dropdown, "option {i} opened its list");
-    // The list's own geometry, and the *Nobles* list rides up one row per item.
     let (lx, mut ly, _) = OPTION_LIST[i];
     if i == option::NOBLES {
         let rows = SetupOptions::nobles_rows_for_map(screen.player_starts());
@@ -92,7 +72,6 @@ fn choose(
     assert_eq!(screen.options().get(i), row, "option {i} took row {row}");
 }
 
-/// The *Start* button on page 7 — the third caption at y = 0xC6.
 fn press_start(screen: &mut SetupScreen, game: &mut Game, assets: &Assets) -> Transition {
     click(screen, game, assets, 0xF3 + 20, 0xC6)
 }

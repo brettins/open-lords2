@@ -33,12 +33,7 @@ impl<'a> Pl8<'a> {
                 trailing,
             });
         }
-        // Reclassify hit-test region maps. Their shape byte says "rectangle",
-        // but they hold one byte per 8x8 block,
-// end of the file. Decided on the byte span.
         for i in 0..frames.len() {
-            // RLE frames have variable-length data and no meaningful shape byte,
-            //
             if storage == Storage::Rle || frames[i].shape != Shape::Rect {
                 continue;
             }
@@ -53,15 +48,6 @@ impl<'a> Pl8<'a> {
             }
         }
 
-        // A file that declares RLE but whose every frame spans exactly w*h is
-// stored raw: the header byte is wrong. `Font_c2.pl8` is the same
-        // font as `Fntl2_9.pl8`, exported twice, and shares 103 of its 108 frame
-        // records. Nothing in the engine reads the family byte,
-        // invisible to the game.
-        //
-        // Decided over the *whole file*. Deciding per frame would let a single
-        // coincidental span reinterpret one frame of an otherwise valid RLE file
-// - including a corrupt frame that should have raised an error.
         let storage = if storage == Storage::Rle
             && !frames.is_empty()
             && frames.iter().enumerate().all(|(i, f)| {
@@ -80,8 +66,6 @@ impl<'a> Pl8<'a> {
         Ok(Pl8 { data, storage, zoom, frames })
     }
 
-    /// Where frame `i`'s pixel data must end: the next frame's offset, or EOF
-    /// for the last frame. This is what makes the format self-verifying.
     pub fn frame_boundary(&self, i: usize) -> usize {
         self.frames
             .get(i + 1)
@@ -104,39 +88,18 @@ impl<'a> Pl8<'a> {
 
         let boundary = self.frame_boundary(index);
 
-        // Two things extrude a frame *upward*, and both are decided per frame
-        //
-        //
-        //   * an isometric diamond of shape 2-4 appends chevron records
-        //   * a plain rectangle may store extra RLE rows above itself
-        //
-        // Shape::Diamond ignores the overhang count even when non-zero - 24
-        // frames in the corpus declare rows and still occupy exactly h^2.
         let rows = info.overhang_rows as usize;
         let iso_overhang = matches!(
             info.shape,
             Shape::DiamondFull | Shape::DiamondLeft | Shape::DiamondRight
         );
-        // A rectangle that declares rows *reserves* them whether or not it
-        // stores them. Those are two different questions and conflating them
-        // was a real bug: `Fntl2_14.pl8` stores its rows (mostly `00 <width>`,
-        // one skip run covering a wholly transparent row) while `Fntl2_9.pl8`
-        // declares exactly the same counts and stores nothing at all. Deciding
-        // the canvas height on the byte span made one font's frames `h + rows`
-        // tall and the other's `h`,
-        // every `rows = 3` glyph in the body font drew three pixels low.
-        //
         // Reserving unconditionally is also what the engine does: `Glyph_Draw`
         // (0x00402A14) adds byte 0x0D to `y` before it clips, for every frame,
         // without looking at how many bytes the frame occupies.
         let reserves_overhang = info.shape == Shape::Rect && self.storage != Storage::Rle;
-// Whether the rows are *stored* stays structural: does the
-        // bare rectangle land exactly on the next frame's offset?
         let stored_rect_overhang = reserves_overhang && rows > 0 && start + w * h != boundary;
 
         let overhang = if iso_overhang || reserves_overhang { rows } else { 0 };
-        // A region map is stored at 1/8 resolution, so its canvas is not the
-        // record's width and height.
         let (canvas_w, canvas_h) = if info.shape == Shape::RegionMap {
             (w / 8, h / 8)
         } else {
@@ -152,8 +115,6 @@ impl<'a> Pl8<'a> {
                 return Err(Error::Truncated { needed: end, have: self.data.len() });
             }
             indices.copy_from_slice(&self.data[start..end]);
-            // Deliberately left fully transparent: these bytes are region ids,
-            // not palette indices,
             return Ok((
                 DecodedFrame {
                     width: canvas_w as u16,
@@ -193,8 +154,6 @@ impl<'a> Pl8<'a> {
                 | Shape::DiamondRight => {
                     self.decode_iso(index, info, overhang, &mut indices, &mut opaque)?
                 }
-                // Region maps take the early return above, so this arm exists
-                // only to keep the match exhaustive.
                 Shape::RegionMap | Shape::Unknown(_) => {
                     return Err(Error::UnsupportedShape {
                         frame: index,
@@ -215,8 +174,6 @@ impl<'a> Pl8<'a> {
         ))
     }
 
-    /// A plain `width * height` rectangle of palette indices, written starting
-    /// at canvas row `dest_row` — non-zero when overhang rows sit above it.
     fn decode_rect(
         &self,
         start: usize,
@@ -239,8 +196,6 @@ impl<'a> Pl8<'a> {
         Ok(end)
     }
 
-    /// `rows` RLE-encoded rows stored *after* a rectangle but drawn *above* it.
-    ///
     /// Real artwork, contiguous with the rectangle — the accent on a glyph, the
     /// sloped top edge of a hill tile. `FUN_00402A14` shifts the destination
     /// down by this row count before clipping, reserving exactly these rows.
@@ -347,17 +302,6 @@ impl<'a> Pl8<'a> {
         Ok(p)
     }
 
-    /// Isometric diamond, optionally with a chevron overhang above it.
-    ///
-    /// Row `r` of the diamond holds `2 + 4*r` pixels in the top half and
-    /// `2 + 4*(h-1-r)` in the bottom, centred - so widths run
-    /// `2, 6, 10, ..., w, w, ..., 6, 2` and total exactly `h^2`. Only the
-    /// pixels inside the diamond are stored; there are no control bytes.
-    ///
-    /// Each overhang record is a *chevron* tracing the diamond's own upper
-/// silhouette, and record `i` paints one
-    /// screen row higher than the last. That is how the engine extrudes
-    /// mountains and cliffs upward without storing a bounding rectangle.
     fn decode_iso(
         &self,
         index: usize,
@@ -394,7 +338,6 @@ impl<'a> Pl8<'a> {
         }
 
         if overhang > 0 {
-            // Pair `m` sits at column `2*m`, on silhouette row |hh-1-m|.
             let (m_first, m_count) = match info.shape {
                 Shape::DiamondFull => (0usize, w / 2),
                 Shape::DiamondLeft => (0usize, hh),
@@ -425,16 +368,10 @@ impl<'a> Pl8<'a> {
         Ok(p)
     }
 
-    /// Whether this file can be decoded.
-    /// Currently equivalent to the storage check; kept as a file-level hook for
-    /// when sub-mode turns out to matter.
     pub fn is_supported(&self) -> bool {
         self.storage.is_supported()
     }
 
-    /// Decode every frame and assert the format's self-verifying invariants:
-    /// each frame must end exactly where the next begins, and every RLE row
-    /// must consume exactly `width` pixels.
     pub fn validate(&self) -> Result<()> {
         for i in 0..self.frames.len() {
             let (_, end) = self.decode_inner(i)?;

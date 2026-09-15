@@ -23,12 +23,6 @@ use l2_net::Pcg32;
 impl Kingdom {
     /// `Castle_RaiseFreeGarrison` (`0x004A551B`) — the archers a new castle
     /// comes with, mustered and marched straight inside.
-    ///
-    /// The original tops the realm's **bow** stock up by exactly the number it
-    /// is about to hand out, so `Levy_ConsumeWeapons` takes them back and the
-/// men cost nothing. Reproduced, because the
-    /// order matters if the realm is short of bows: the top-up happens first,
-    /// so it never is.
     pub(crate) fn raise_free_garrison(&mut self, county: u8, archers: i32) {
         let owner = self.counties[county as usize].owner;
         let Some(realm) = self.realms.get_mut(owner as usize) else { return };
@@ -88,27 +82,9 @@ impl Kingdom {
         self.history.record(&self.counties);
     }
 
-    /// `AI_SetTaxRates`' first half — set every county `realm` owns to the
-    /// rate its happiness earns on that realm's ladder.
-    ///
-/// Like [`Kingdom::run_ai_grants`] this runs in the AI's turn
-/// in `Season_Advance`, so it is exposed.
-    /// **Realm 0 is the unowned counties**, which the original taxes once a
-    /// turn in phase 1 on the neutral ladder. An out-of-range realm index does
-/// nothing, because the caller is a turn machine and
-    /// not a rule.
     /// **Paint one field.** `Field_SetType` (`0x00438BEC`) with this kingdom's
     /// own map, ruleset and clock supplied — the whole of what a click on the
     /// campaign map does to the simulation.
-    ///
-    /// This is the only writer of the field counts a player can reach, and
-    /// until it existed there was none: every county of the England position
-    /// starts with `fieldsGrain = 0` and nothing but the AI's own farming
-    /// styles ever changed one. See [`crate::field`].
-    ///
-    /// A refusal is a refusal — the tile is not one of the county's twenty
-    /// fields, it is blighted this season, or the brush is not one that tile's
-    /// menu offers — and never a silent no-op.
     pub fn paint_field(
         &mut self,
         county: usize,
@@ -132,10 +108,6 @@ impl Kingdom {
 
     /// `County_RefreshEstimates` (`0x004485A5`) for one county, with the owning
     /// realm and its blacksmiths' share of the stockpile looked up.
-    ///
-/// Every caller in this crate goes through here
-    /// arguments itself, because getting the *owner* wrong is the failure that
-    /// leaves a county full of idle townsfolk.
     pub fn refresh_estimates(&mut self, county: usize) {
         if county == 0 || county >= self.counties.len() {
             return;
@@ -158,14 +130,8 @@ impl Kingdom {
         );
     }
 
-    /// **Switch one industry, or castle building, on or off.**
     /// `Industry_ToggleFromMap` (`0x0043D309`) assembled — the enable byte, the
     /// industry share
-    ///
-    /// Like [`Kingdom::paint_field`] this is only reachable from a click on the
-    /// map, because in the original it is only reachable from a click on the
-    /// map: no county panel has an industry switch. Returns the state the
-    /// switch ends in.
     ///
     /// ```c
     /// enabled ^= 1;                                  /* or the castle switch */
@@ -183,12 +149,6 @@ impl Kingdom {
     /// labour share, and it is idempotent while the efficiency write-back is
     /// not ported (C136)
     /// same refresh. **The last line was missing, and it is a visible one.**
-    /// The Readme: *"turning a blacksmith on will reduce the resources
-    /// available to other blacksmiths"* — every other smithy of the realm has
-    /// its ceiling and its sidebar forecast recomputed on the click, and ours
-    /// kept the old numbers until the season. So was `Ration_Apply`, which is
-    /// [`crate::ration::preview`] for the reason
-    /// [`Kingdom::set_ration_wanted`] gives.
     pub fn toggle_industry(&mut self, county: usize, what: crate::industry::MapToggle) -> bool {
         if county == 0 || county > self.county_count {
             return false;
@@ -201,10 +161,6 @@ impl Kingdom {
         crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
         crate::labour::allocate(&mut self.counties[county]);
         self.refresh_estimates(county);
-        // `Industry_UpdateSiteTile(county, industry)` — the *visible* half of
-        // the switch. A player: *"there's no message saying or visually
-        // showing mining on / mining off."* The message is the caller's; this
-        // is the picture.
         if let crate::industry::MapToggle::Industry(c) = what {
             self.update_industry_site(county, c);
         }
@@ -215,32 +171,6 @@ impl Kingdom {
 
     /// **`Game_SetupRealmsAndCounties` (`0x0049BD99`)'s two rounds for one start
     /// county**, which run before it switches anything on.
-    ///
-    /// ```c
-    /// Labour_Allocate(county); Ration_Apply(county, g_season); County_RefreshEstimates(county, g_seasonNext);
-    /// Labour_Allocate(county); Ration_Apply(county, g_season); County_RefreshEstimates(county, g_seasonNext);
-    /// castleType = g_startCastle; …materials, armoury…
-    /// for (i = 0; i < 4; i++) if (i != 2 && industry[i].hasResource) { industry[i].enabled = 1; break; }
-    /// castleSwitch = 1;
-    /// ```
-    ///
-    /// **This is the only allocation a person's county gets before its first
-    /// season.** An AI county is allocated again by `Ai_ManageFarmsAll` at the
-    /// head of `Season_Advance`; the human one is not, so without these rounds
-    /// it went into `Herd_SeasonTick` with nobody minding the cattle and into
-    /// `Industry_ProduceAll` with nobody in the forest. Measured on a new
-    /// England: the human county opened on 47 head and 47 idle, forecasting
-    /// −10 cattle, where every AI county already matched `england-turn1.sav`.
-    ///
-    /// **The switches are off while the rounds run**, because the original sets
-    /// them after. `l2_scenario::Scenario::from_map` has already set them, so
-    /// they are put aside and put back. It is visible in the file: the human
-    /// realm is the one whose wood stock did not move in the opening season —
-    /// `Industry_ProduceAll`'s `symbols.json` note, *"(0, 66, 66, 132, 166)"* —
-    /// because its foresters were dealt with the forest switched off.
-    ///
-    /// `Ration_Apply` is [`crate::ration::preview`]: it records and does not
-    /// spend, for the reason [`Kingdom::set_ration_wanted`] gives.
     pub fn settle_start_county(&mut self, county: usize) {
         if county == 0 || county > self.county_count {
             return;
@@ -265,18 +195,6 @@ impl Kingdom {
 
     /// **`FUN_00448648`** — `Industry_LabourEstimate(c, weapons)` for every
     /// county `owner` holds.
-    ///
-    /// ```c
-    /// for (c = 1; c <= g_countyCount; c++)
-    ///     if (g_counties[c].owner == owner) Industry_LabourEstimate(c, 2, 7, 15, 4);
-    /// ```
-    ///
-    /// A blacksmith's ceiling is a share of the realm's stockpile split across
-    /// every staffed smithy it owns ([`industry::weapon_shares`]), so anything
-    /// that staffs or switches one moves every other smithy's number. Its two
-    /// callers are `Labour_Move` (twice) and `Industry_ToggleFromMap`. The
-    /// share cannot move inside the loop — an estimate staffs nothing — so it
-    /// is taken once.
     pub fn refresh_blacksmiths(&mut self, owner: u8) {
         let share = industry::weapon_shares(&self.tables, &self.counties, self.county_count, owner);
         let advanced = self.options.advanced_farming;
@@ -306,36 +224,11 @@ impl Kingdom {
     /// if (g_localPlayer == owner) { Panel_JobBlacksmith(); Sound_RestartSlot(8); }
     /// ```
     ///
-    /// **Five statements and four of them are the recompute**, which is the
-/// whole reason this is a method here
-    /// screen. The type is a divisor in three places at once:
-    /// [`industry::weapon_shares`] sums `g_weaponCost[type]` over the realm's
-    /// staffed smithies, so **changing one county's weapon moves every other
-    /// county's ceiling in the same realm** — the Readme's *"turning a
-    /// blacksmith on will reduce the resources available to other
-    /// blacksmiths"*, reached from the other side. That is what the closing
-    /// [`Kingdom::refresh_blacksmiths`] is for, and it is the original's own
-    /// last line.
-    ///
-    /// **The estimate comes before the allocation**, which is the opposite way
-    /// round from [`Kingdom::toggle_industry`] and is the original's order:
     /// `Industry_LabourEstimate` writes `labour_useful[7]`, the ceiling the
     /// allocator then deals against, so
     /// on the same click. There is **no `Ration_Apply` and no second
     /// allocation** here; `docs/decisions.md` C177 and
     /// [`Kingdom::set_ration_wanted`] on why that asymmetry is not tidied.
-    ///
-    /// **No owner guard, and that is the original's too.** `Screen_HandleInput`'s
-    /// `0x0F` arm hit-tests the six hotspots on `g_jobPanelJob == 8` alone; the
-    /// only `g_localPlayer` test in the function is the one that decides whether
-    /// to repaint and play the hammer. What keeps a player out of an AI's smithy
-    /// is that the job popup opens on `g_selectedCounty`.
-    ///
-    /// Returns `false` for a county out of range or a weapon out of
-    /// [`crate::tables::WEAPON_TYPE_COUNT`], and does nothing in that case. The
-    /// original indexes `g_weaponCost` with the byte unchecked; the hotspot
-    /// table can only ever publish 0…5
-    /// screen and is here because this is a public method.
     pub fn set_weapon_type(&mut self, county: usize, weapon: usize) -> bool {
         if county == 0 || county > self.county_count || self.counties.len() <= county {
             return false;
@@ -344,10 +237,6 @@ impl Kingdom {
             return false;
         }
         self.counties[county].weapon_type = weapon;
-        // `Industry_LabourEstimate(county, 2, 7, 0xF, 4)` — the weapons row
-        // alone, with the realm share as it stands *before* the county-wide
-        // refresh below. `industry::refresh` is that function whole: the search
-        // loop's two words into `labour[7]` and the tail's forecast.
         let advanced = self.options.advanced_farming;
         let owner = self.counties[county].owner;
         let share =
@@ -385,21 +274,6 @@ impl Kingdom {
     /// County_RefreshEstimates(county, g_seasonNext);
     /// FUN_00448648(owner);
     /// ```
-    ///
-    /// allocator deals a county out from its shares
-    /// twice; `Labour_RecomputeShares` rewrites the shares from where people
-    /// now stand, so the season deals the player's own split back to him. Ours
-    /// moved the counts and nothing else, so every drag lasted until the
-    /// season re-dealt the old split — *"the labor slider seems to reset each
-    /// turn so that I have to reassign peasants to wheat each turn"* — and every
-    /// forecast on the sidebar went on describing the staffing the player had
-    /// just changed: *"industry values don't seem to update"*.
-    ///
-    /// `workers` is already clamped: that is `Village_Drop`'s job, and
-    /// `Village_BalanceJob`'s arithmetic never overshoots, so `Labour_Move`
-    /// does not repeat it. Returns `workers`. `Ration_Apply` is
-    /// [`crate::ration::preview`], for the reason
-    /// [`Kingdom::set_ration_wanted`] gives.
     pub fn move_labour(&mut self, county: usize, from: usize, to: usize, workers: i32) -> i32 {
         if county == 0 || county > self.county_count || from == to {
             return 0;
@@ -427,15 +301,6 @@ impl Kingdom {
 
     /// **`FUN_00439CC2`** — the first thing `Labour_Move` does after the
     /// arithmetic, and it reads only the destination.
-    ///
-    /// ```c
-    /// if      (to == 6 && industry[0].hasResource) rec = 0;   /* wood   */
-    /// else if (to == 5 && industry[3].hasResource) rec = 3;   /* stone  */
-    /// else if (to == 4 && industry[1].hasResource) rec = 1;   /* iron   */
-    /// else if (to == 7 && industry[2].hasResource) rec = 2;   /* smithy */
-    /// if (rec != 999) { industry[rec].enabled = 1; Industry_UpdateSiteTile(county, rec); }
-    /// if (to == 3) castleSwitch = 1;
-    /// ```
     ///
     /// **Putting men on a site is how a player switches it on**
     /// way besides the map. A new game opens with one industry on per start
@@ -470,29 +335,6 @@ impl Kingdom {
 
     /// **`Industry_UpdateSiteTile` (`0x0044EDC2`)**, the half of it that is
     /// terrain.
-    ///
-    /// ```c
-    /// if (hasResource == 0 || disabledSeasons != 0) return;
-    /// g_tiles[site].content = base + (enabled != 0);      /* 1 iron, 4 stone, 7 weapons, 10 wood */
-    /// if (total - totalSnapshot < 1)
-    ///     g_tiles[site].frame = idleFrame;                /* 30 iron, 0 stone, 10 weapons, 20 wood */
-    /// ```
-    ///
-    /// **The `content` write is the on/off appearance**, and it is a whole
-/// terrain value: an enabled site is `base + 1` and
-    /// `Sprite_TopIt` animates exactly that value. So *"on"* is **motion**, not
-    /// a different picture — see
-    /// [`l2_view::campaign::industry_frames`](../../l2_view/campaign/fn.industry_frames.html).
-    ///
-    /// The frame reset is the other half and lives in the view, because this
-    /// crate holds no graphics: a site with no output this season shows its
-    /// idle frame, which is where the wheel starts from again.
-    ///
-    /// The guard matters and is easy to miss. A **wrecked** site — three
-/// seasons on the countdown — is left as `Unit_TrampleTile` wrote
-    /// it, so switching a trampled mine on and off changes nothing on the map
-    /// until the countdown expires and `Industry_Produce`'s own call here
-    /// repaints it.
     pub fn update_industry_site(&mut self, county: usize, c: crate::tables::Commodity) {
         let Some(record) = self.counties.get(county).map(|k| k.industry[c.index()]) else {
             return;
@@ -519,31 +361,8 @@ impl Kingdom {
     /// County_RefreshEstimates(county, g_seasonNext);
     /// ```
     ///
-    /// **One pass, not two, and with `Ration_Apply` between them.** Ours ran
-    /// `Labour_Allocate; County_RefreshEstimates` *twice* and never re-applied
-    /// the ration at all — copied from [`toggle_industry`](Self::toggle_industry)
-    /// on the reasoning that a control which moves the labour must re-allocate,
-    /// which is true and is not the same as running the same pair twice. The
-    /// omitted `Ration_Apply` is the one that matters: `herd_eaten` sizes the
-    /// herd the estimate that follows searches over
-    /// it twice. Two passes and a bare `Ration_SetSplit` is a different
-    /// control — see [`set_ration_wanted`](Self::set_ration_wanted), which
-    /// explains why that asymmetry is deliberate and must not be tidied.
-    ///
     /// The doc this replaces named `FUN_00439122` and county `+0x2C`; the
     /// writer is `0x0043933B` and the field is `+0x08`.
-    ///
-    /// [`crate::labour::allocate`] reads
-    /// [`crate::county::County::industry_share`] to size the industry pool, so
-    /// moving the split without re-running it would leave every job's headcount
-    /// describing the split the player just left.
-    ///
-    /// **What this does *not* fix, and cannot:** a click here also re-runs an
-    /// allocation the season left owing, so on a county whose cattle ceiling is
-    /// bounded by its population the milkmaid count *rises* when the player
-    /// drags towards industry. That is the original's, and `docs/bugs.md` has
-    /// it — the pipeline refreshes the ceilings after the last
-    /// `Labour_AllocateAll`, so
     pub fn set_industry_share(&mut self, county: usize, share: i32) -> bool {
         if county == 0 || county > self.county_count {
             return false;
@@ -555,10 +374,6 @@ impl Kingdom {
         self.counties[county].industry_share = share;
         crate::labour::allocate(&mut self.counties[county]);
         let armies_eat = self.options.armies_eat;
-        // `Ration_Apply` records and does not spend — [`set_ration_wanted`] and
-        // [`toggle_army_foraging`] make the same substitution for the same
-        // reason. Calling the spending twin here would charge the county for a
-        // meal every time the player nudged the slider.
         crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
         self.refresh_estimates(county);
         true

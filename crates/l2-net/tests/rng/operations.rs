@@ -42,10 +42,7 @@ fn index_of_an_empty_collection_is_none_and_draws_nothing() {
     assert_eq!(rng.parts(), before);
 }
 
-// --- jumping and forking ---------------------------------------------
 
-/// The closed-form jump must agree with the loop it replaces. This is
-/// the only way to believe a piece of modular exponentiation.
 #[test]
 fn advance_agrees_with_stepping_one_at_a_time() {
     for n in [0u64, 1, 2, 3, 17, 64, 1000, 65_536] {
@@ -87,7 +84,6 @@ fn fork_is_deterministic() {
     assert_eq!(a.fork().parts(), b.fork().parts());
 }
 
-// --- serialisation ---------------------------------------------------
 
 #[test]
 fn a_generator_round_trips_through_its_parts() {
@@ -112,17 +108,12 @@ fn a_generator_round_trips_through_the_canonical_encoding() {
     assert_eq!(restored, rng);
 }
 
-/// An even increment collapses the LCG's period. A snapshot carrying
-/// one is corrupt, and repairing it beats generating a broken stream.
 #[test]
 fn an_even_increment_is_forced_odd() {
     let rng = Pcg32::from_parts(1, 4);
     assert_eq!(rng.parts().1, 5);
 }
 
-/// The generator is part of simulation state, so it must be comparable
-/// and clonable — the first for desync dumps, the second for asking
-/// "what would this roll be" without disturbing the stream.
 #[test]
 fn generators_compare_and_clone() {
     let mut rng = Pcg32::from_seed(3);

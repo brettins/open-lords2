@@ -9,8 +9,6 @@ use l2_sim::siege::{
 use l2_sim::terrain::DIM;
 use l2_sim::{BattleRunner, Muster, Troop};
 
-/// **The structure layer decodes, and it says so itself.**
-///
 /// `Deploy_SlotForUnitSiege` (`0x004816F9`) maps a troop type to slot 0, 1, 4
 /// or 8 of the garrison's twelve and to nothing else. Every shipped layout
 /// fills exactly those four and leaves the other eight at zero — which nothing
@@ -24,8 +22,6 @@ fn the_garrison_slots_the_layouts_fill_are_the_four_the_dispatcher_reaches() {
         let t = castle::tables(s.get(level).unwrap());
         let filled: Vec<usize> = (0..12).filter(|&i| t.deploy_side0[i] != (0, 0)).collect();
         assert_eq!(filled, vec![0, 1, 4, 8], "level {level}");
-        // And the besieger's twelve are all there, in two rows across the foot
-        // of the field — `Deploy_SlotForUnit` indexes them by unit ordinal.
         assert!(t.deploy_side4.iter().all(|&(x, y)| x > 0 && y >= 60), "level {level}");
         assert_eq!(t.deploy_side4.iter().filter(|&&p| p != (0, 0)).count(), 12);
     }
@@ -45,28 +41,18 @@ fn the_structure_layer_fills_the_tables_the_ai_reads() {
         assert!(ai.wall_slot[1][0] != (0, 0), "level {level}: no inner wall slots");
         assert!(ai.castle_ref != (0, 0), "level {level}: no reference cell");
         assert!(ai.staging.iter().all(|&p| p != (0, 0)), "level {level}: four lanes");
-        // Row 4 is never written by any shipped layout; row 2 is the reference
-        // cell repeated into all four lanes.
         assert!(ai.castle_approach[4].iter().all(|&p| p == (0, 0)), "level {level}");
         assert!(ai.castle_approach[2].iter().all(|&p| p == ai.castle_ref), "level {level}");
-        // Every point is on the field.
         for p in ai.wall_slot.iter().flatten().chain(ai.castle_approach.iter().flatten()) {
             assert!((0..DIM as i16).contains(&p.0) && (0..DIM as i16).contains(&p.1), "{p:?}");
         }
     }
 }
 
-/// **A whole siege, on the castle in the file** — and the two things that could
-/// not happen on our ring.
-///
 /// Boiling oil wants elevation 2 under the pot (`Oil_FindPourTarget`) and a
 /// tower wants elevation 2 in front of it (`FUN_00491492`). Both are counted by
 /// [`l2_sim::Cues`], so this runs the battle and reads the counters
 /// asserting on geometry.
-///
-/// Ablation, run: swap `deploy_siege_on_sheet` for `deploy_siege` with
-/// `siege::our_castle(level)` — red, *"no pot of oil was ever poured"*, at
-/// every level.
 #[test]
 fn oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle() {
     let s = sheets!();
@@ -118,8 +104,6 @@ fn oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle() {
     assert!(docked > 0, "no siege tower ever docked in five real sieges");
 }
 
-/// **Why level 3 docks nothing: the moat, not the elevation and not the AI.**
-///
 /// `Battlefield_PlaceMoatCell` zeroes `g_siegeApproachScore`
 /// ([`siege::approach_score_at_build`]), and `UnitOrder_SiegeAttTower`
 /// (`0x0048DDC7`) moves a tower at the castle only on

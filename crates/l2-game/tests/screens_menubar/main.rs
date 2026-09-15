@@ -1,6 +1,3 @@
-//! The menu bar, the options menu and the turn timer.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 
 #[macro_use]
@@ -28,8 +25,6 @@ use l2_game::Game;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// `n` fixed ticks of a whole [`Machine`] — which is where the turn timer
-/// counts, because the original counts it in `Turn_Tick` and not in a screen.
 fn tick_stack(m: &mut Machine, game: &mut Game, assets: &Assets, n: u32) {
     for _ in 0..n {
         let mut ctx = Ctx { game: &mut *game, assets };
@@ -37,9 +32,6 @@ fn tick_stack(m: &mut Machine, game: &mut Game, assets: &Assets, n: u32) {
     }
 }
 
-/// The same stack drawn with the time limit taken away for the one frame, so
-/// that `with == without` says *the timer drew nothing* as an equality, with no
-/// threshold and no knowledge of what else is on the screen.
 fn draw_stack_without_the_timer(m: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
     let limit = game.kingdom.options.time_limit;
     game.kingdom.options.time_limit = 0;
@@ -55,8 +47,6 @@ fn timer_digits(canvas: &Canvas, assets: &Assets, v: i32) -> Option<(i32, i32)> 
     find_body(&window, assets, &v.to_string(), font::TEXT)
 }
 
-/// Where they belong, in the box's own coordinates.
-///
 /// The buffer is lead, digits and suffix, centred whole. **The suffix is under
 /// test and the expectation does not go through it**: `&DAT_004D41D0` is `20 00`
 /// in the image, one space, and it is written here as one more space's advance

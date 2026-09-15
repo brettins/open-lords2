@@ -17,7 +17,4 @@ use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::{Season, Tables, Weather};
 use l2_kingdom::{Quirk, Quirks};
 
-// ---------------------------------------------------------------------------
-// B11a — an unowned county trades with neither stock nor gold
-// ---------------------------------------------------------------------------
 

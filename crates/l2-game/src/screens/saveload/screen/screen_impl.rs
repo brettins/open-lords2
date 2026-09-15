@@ -24,15 +24,6 @@ impl Screen for SaveLoadScreen {
         format!("{what} — screen 0x{:02X}", self.mode.screen_id())
     }
 
-    /// A `Ui_DrawBox` window over whatever opened it. Same as the four county
-    /// panels: `Screen_SaveLoad` clears nothing.
-    /// The caret's blink, and nothing else. `Edit_DrawCaret` counts frames of
-    /// its own; `docs/netcode.md` does not let anything below the renderer read
-    /// a clock, so it is a tick here. See [`crate::text`].
-    ///
-    /// **And `Widget_Test`'s countdown and `SaveLoad_Tick`'s**, in that order:
-    /// the scroll arrows repeat while held, and the latch the thumb up armed
-    /// runs down to the load or the save.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.name.tick();
         for widget in self.press.tick() {
@@ -50,13 +41,10 @@ impl Screen for SaveLoadScreen {
         Transition::Stay
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio layer.
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
 
-    /// A held arrow scrolled the list: `SaveLoad_Scroll` sets
-    /// `g_redrawRequest = 2`. See [`Press::take_redraw`].
     fn take_redraw(&mut self) -> bool {
         self.press.take_redraw()
     }
@@ -66,12 +54,6 @@ impl Screen for SaveLoadScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // **The field first, on both screens.** See [`SaveLoadScreen::edit`].
-        // It takes `WM_CHAR` and the six editing keys and nothing else,
-        // Escape, Enter and the four navigation arrows below still arrive —
-        // except Left and Right, which the original spends on the caret here
-        // and which this screen was spending on the file list. The list keeps
-        // Up and Down, which the original spends on nothing at all.
         if self.edit(event, ctx) {
             return Transition::Stay;
         }
@@ -83,7 +65,6 @@ impl Screen for SaveLoadScreen {
             //
             // arm: ours/saveload-key-escape key
             Event::KeyDown(Key::Escape) => Transition::Pop,
-            // **Enter is the confirm button, and that is the original's.**
             // `VK_RETURN` runs `Edit_Confirm` (`0x00401C5B`), whose whole body
             // is `g_saveLoadConfirm = 100` — the identical assignment the
             // confirm widget's handler `FUN_004342F3` makes. `SaveLoad_Tick`
@@ -96,15 +77,6 @@ impl Screen for SaveLoadScreen {
                 self.begin(ctx);
                 Transition::Stay
             }
-            // **Space no longer confirms, and could not**: the field takes it
-            // above as a character, on both screens, which is what the original
-            // does — a space is a legal character in a name and `VK_SPACE` has
-            // no `WM_KEYDOWN` arm at all. It used to confirm here, and with the
-            // field live it would have done both.
-            //
-            // Ours. The original scrolls the list from the two arrow *widgets*
-            // and from nothing else.
-            //
             // arm: ours/saveload-key-scroll key
             Event::KeyDown(Key::Up) => {
                 self.scroll(-(SCROLL_STEP as i32));
@@ -114,14 +86,6 @@ impl Screen for SaveLoadScreen {
                 self.scroll(SCROLL_STEP as i32);
                 Transition::Stay
             }
-            // **Left and Right walked the file list here and no longer do.**
-            // They are `Edit_Left` and `Edit_Right` in the original — caret
-            // keys, taken by the field above — and a screen that spent them on
-            // a list would leave a person unable to move the caret in the one
-            // place the game has a caret. Clicking a row still selects it.
-            // **The four widgets, through the hit test that plays the click.**
-            // Kind 4: each acts on the press, and a double click is a press.
-            // The arms are declared on [`widgets`].
             Event::Click { x, y } | Event::DoubleClick { x, y } => {
                 if let Some(i) = self.press.event(&widgets(), event) {
                     return self.fire(ctx, i);
@@ -162,9 +126,6 @@ impl Screen for SaveLoadScreen {
             rect_outline(canvas, x, y, w, h, OUTLINE);
         }
 
-// **The name field, with the original's caret
-        // underscore.**
-        //
         // The underscore was a stand-in and it was wrong twice over: it was
         // drawn in save mode only, when the original's edit arm covers both
         // screens; and `Ui_DrawText` maps `0x5F` to a space
@@ -177,7 +138,6 @@ impl Screen for SaveLoadScreen {
         let caret_colour = if a.body.is_some() { font::TEXT } else { pen.ink.text };
         self.name.draw_caret(canvas, NAME.0, NAME.1, caret_colour, &crate::text::FontMetrics::of(a));
 
-        // The list: three columns, ten rows, thirty names.
         for i in 0..PAGE {
             let Some(entry) = self.entries.get(self.top + i) else { break };
             let r = Self::row_rect(i);
@@ -185,7 +145,6 @@ impl Screen for SaveLoadScreen {
                 // `g_spriteWidth = 6; g_spriteHeight = 0x10; FUN_004B414A(x - 2,
                 // y - 1, 0x3F)`, then the row's own text in colour 0x20.
                 //
-                // **`g_spriteWidth` is in units of sixteen pixels, not pixels.**
                 // `FUN_004B414A` writes `g_spriteWidth` iterations of four
                 // dwords per row — sixteen bytes each — so 6 is a **96-pixel**
                 // bar, not a six-pixel one, and it runs *behind* the name
@@ -199,8 +158,6 @@ impl Screen for SaveLoadScreen {
             }
         }
 
-        // The status line. Group 40's own words where the game has words for
-        // it; ours, in our font, where it does not.
         match &self.status {
             Status::Idle => {}
             // `SaveLoad_DrawStatus`: `Eng_DrawString(40, 2 | 3, …)` while
@@ -210,15 +167,12 @@ impl Screen for SaveLoadScreen {
             }
             Status::Failed(detail) => {
                 pen.eng(canvas, GROUP, ERROR_INDEX, STATUS.0, STATUS.1, font::TEXT);
-                // Our detail under the original's sentence: debug overlay only.
                 if ctx.game.prefs.debug_overlay {
                     text::draw(canvas, STATUS.0, STATUS.1 + 18, &ours(detail), ink.bad);
                 }
             }
         }
 
-        // `Widget_Draw(0x10, 0x90, &g_saveLoadWidgets, 4)`, with `base + 1`
-        // while a record's press timer runs.
         for (i, w) in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN].into_iter().enumerate() {
             let frame = w.2 + usize::from(self.press.is_pressed(i));
             let drawn = ctx
@@ -231,9 +185,6 @@ impl Screen for SaveLoadScreen {
             }
         }
 
-        // **Ours, and it says so.** The directory these files live in is not
-        // something the original has an opinion about, so it is drawn in our
-        // own 5 x 7 font in the dim colour — never in `Fntl2_14.pl8`.
         let where_ = match saves::dir() {
             Some(d) => d.display().to_string().to_uppercase(),
             None => "NO SAVE DIRECTORY ON THIS MACHINE".into(),

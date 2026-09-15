@@ -10,15 +10,6 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_kingdom::tables::Tables;
 use l2_kingdom::UnitKind;
 
-/// **A merchant crosses a tile in at least eight frames, not one.**
-///
-/// This is the assertion the player's report makes, and the one the existing
-/// merchant-walk test cannot make: a stall followed by a sprint satisfies
-/// *distinct tiles* and *at most one tile a tick* perfectly.
-///
-/// **Ablated**: making `l2_kingdom::units_tick`'s `cross_sub_tile` return
-/// `true` unconditionally — which is the behaviour every build before it had —
-/// turns every gap here into 1 and this red on the first merchant.
 #[test]
 fn a_merchant_takes_at_least_eight_frames_to_cross_one_tile() {
     let mut game = england!();
@@ -49,26 +40,6 @@ fn a_merchant_takes_at_least_eight_frames_to_cross_one_tile() {
     );
 }
 
-/// **A turn cannot be shorter than the slowest march inside it.**
-///
-/// The other half of the report — *"they don't move right when you click End
-/// Turn"* — and the half that is easy to blame on the wrong thing. Merchants
-/// are ordered by phase 6 (`Merchant_AdvanceAll`) and nothing before it moves
-/// them, so a run of frames in which no merchant walks is **the original's
-/// design and not the defect**. What made it read as a stall is that the
-/// walking which followed was over in eleven frames, so the still part was
-/// three quarters of the whole turn.
-///
-/// So the property to hold is the one that: a phase that
-/// waits for a class of unit to stop walking cannot finish before that class
-/// has walked, so **the turn is at least as long as its longest single leg**.
-/// A merchant on the England position walks ten tiles, which is eighty ticks;
-/// the turn was forty-seven.
-///
-/// It says nothing about *where* in the turn the walking happens, on purpose:
-/// that is phase order, it is the original's, and asserting it here would be
-/// asserting a preference.
-///
 /// **Ablated**: making `cross_sub_tile` return `true` unconditionally gives a
 /// 47-frame turn containing an 11-tile leg and this goes red.
 #[test]
@@ -97,22 +68,6 @@ fn a_turn_lasts_at_least_as_long_as_the_longest_march_in_it() {
     );
 }
 
-/// **One `Turn_Tick` a frame, and never two.**
-///
-/// The unit of measure that would catch the *other* explanation of a stall
-/// followed by a sprint: a turn whose ticks are deferred while something else
-/// holds the frame and then flushed several to a frame to catch up. It is not
-/// what is happening — this passes today and passed before the sub-tile
-/// counter landed — and it is here so that it keeps being not what is
-/// happening.
-///
-/// The count comes from the invariant `tests/scenario.rs` already rests on:
-/// the same turn run stepped and run all at once takes the same number of
-/// `Turn_Tick`s. So the headless door's [`l2_game::turn::TurnOutcome::ticks`]
-/// is the tick count, the frames are counted here, and the two must differ by
-/// exactly one — [`l2_game::turn::begin_turn`] runs the first tick inside the
-/// keystroke, before any frame.
-///
 /// **Ablated**: returning `TurnStep::Running` from `advance` only every other
 /// tick — two ticks to a frame — halves the frame count and this goes red.
 #[test]
@@ -143,8 +98,6 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
     assert_eq!(stepped.kingdom.season, at_once.kingdom.season);
 }
 
-/// **A letter open over the map does not stop the turn underneath it.**
-///
 /// `Battle_Frame` (`0x004B99C0`) ends its inner loop with
 ///
 /// ```c
@@ -155,15 +108,6 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
 /// scroll is not a screen in the original at all (`g_messageGroup`, painted
 /// over whatever `g_screenId` is)
 /// treating the campaign map as the screen while a letter is up.
-///
-/// Ours ran the turn out of `MapScreen::update`, which `Machine::update` gives
-/// to the **top** screen only, so the frame the scroll opened was the frame the
-/// campaign stopped on — and it never started again, because in single player
-/// the message timer is clamped and the window waits for a click for ever.
-///
-/// **Ablated**: making `Machine::wind_turn` return early unless the campaign
-/// map is the top screen — what the machine did before — leaves the turn where
-/// the letter found it and this panics on the give-up count.
 #[test]
 fn a_letter_open_over_the_map_does_not_stop_the_turn() {
     use l2_game::message::{category, Record};
@@ -179,8 +123,6 @@ fn a_letter_open_over_the_map_does_not_stop_the_turn() {
     }
     assert!(l2_game::turn::turn_in_flight(&game), "End Turn started a turn");
 
-    // Four frames in, a letter arrives. `Msg_Pump`'s pull half puts the scroll
-    // up on the next tick and nothing here ever dismisses it.
     for _ in 0..4 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         machine.update(&mut ctx);
@@ -230,17 +172,6 @@ fn a_letter_open_over_the_map_does_not_stop_the_turn() {
 /// `Unit_MoveInFacing` (`0x00466D84`), which plays a sound as its first
 /// statement after unlinking the unit from the tile it is leaving.
 ///
-/// It is the same number as the two tests above, which is the point of putting
-/// it in this file: a player judging the tempo by ear and this file measuring
-/// it by frame have to be measuring one thing. Before the sub-tile counter
-/// landed, six merchants crossing eleven tiles in eleven frames would have
-/// been a 180 ms gallop at the end of every turn.
-///
-/// What is asserted is that the *call site exists and is reached from a played
-/// turn* — `merchant.wav` opened by the audio layer during an End Turn that
-/// nothing but merchants walked in. How loud it is and how often the mixer
-/// drops it are `Mixer`'s own tests.
-///
 /// **Ablated**: removing the `hear_the_march` call from `Director::listen`
 /// leaves `merchant.wav` unheard and this goes red.
 #[test]
@@ -265,7 +196,6 @@ fn a_merchant_crossing_a_tile_is_audible() {
             let mut ctx = Ctx { game: &mut game, assets: &assets };
             machine.update(&mut ctx);
         }
-        // `App::tick`'s own order: the simulation tick, then the listen.
         director.listen(&mut audio, &machine, &game);
         if game.kingdom.turn_count > before {
             break;
@@ -280,21 +210,14 @@ fn a_merchant_crossing_a_tile_is_audible() {
     );
 }
 
-/// **A merchant crosses a tile at the road-keyed rate and is drawn between
-/// tiles while he does it** — on a built map, so the rate is *measured* and
-/// the way the England tests above bound it.
-///
 /// Nothing in the original takes the interpolation off a cart (C213, C184):
+///
 /// `Unit_StepOnce` (`0x0046634D`) has no kind test — `+0x14A` past the
 /// road-keyed divider (0 on road, 3 off), then `+0x149 += 2` and the tile is
 /// entered at 16 — and `Map_DrawArmies` (`0x00408438`) reads its six 8 x 16
 /// offset tables (`l2_view::campaign::walk_offset`) **before** its first kind
 /// comparison. So: 8 ticks a road tile, 32 an open one, and a non-zero walk
 /// offset on the ticks in between. The numbers are typed; see the module note.
-///
-/// **Ablated**: gating `l2_kingdom::units_tick`'s `cross_sub_tile` on
-/// `kind == UnitKind::Army` — the "a cart steps tile to tile" reading — makes
-/// every gap 1 and leaves every sample at `sub_tile == 0`.
 #[test]
 fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tiles() {
     use l2_kingdom::map::{flags, CampaignMap, MAP_TILES};
@@ -302,7 +225,6 @@ fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tile
     use l2_kingdom::{movement, Kingdom};
     use l2_view::campaign;
 
-    /// An open tile is admitted one tick in four: `cVar1 = onRoad ? 0 : 3`.
     const TICKS_PER_OPEN_TILE: u32 = 32;
 
     let mut k = Kingdom::new(0x2E5);
@@ -318,8 +240,6 @@ fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tile
     k.counties[1].population = 500;
     k.counties[1].happiness = 70;
 
-    // Two carts, same kind, same owner byte (realm 6, the merchants'), one on
-    // the road at y = 10 and one on open ground at y = 20.
     let mut carts = Vec::new();
     for (y, dest) in [(10u8, (16u8, 10u8)), (20, (13, 20))] {
         let mut cart = Unit::new(UnitKind::Merchant, 6, 10, y);
@@ -330,7 +250,6 @@ fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tile
         carts.push(id);
     }
 
-    // One `(tile, sub_tile, facing)` a tick, for each cart.
     let mut trail: Vec<Vec<((u8, u8), u8, u8)>> = vec![Vec::new(); carts.len()];
     for _ in 0..600 {
         k.tick_units();
@@ -341,9 +260,6 @@ fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tile
     }
 
     let zoom = campaign::NEAR;
-    // The open cart walks fewer tiles for the same reason it walks them slower:
-    // `STEP_COST_OPEN` against a merchant's move allowance ends its turn after
-    // two. Both are the original's and neither is this test's subject.
     for (i, (expected, fewest)) in
         [(FEWEST_TICKS_PER_TILE, 4usize), (TICKS_PER_OPEN_TILE, 2)].into_iter().enumerate()
     {
@@ -367,15 +283,10 @@ fn a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tile
             );
         }
 
-        // And between two entries he is somewhere inside the tile, and drawn
-        // there: `Map_DrawArmies` reads the table for a cart as for an army.
         let mut between = 0;
         for tick in (on[0] as usize)..(*on.last().expect("entries") as usize) {
             let (_, sub_tile, facing) = trail[i][tick];
-            // 1 on the tile just entered, then `+= 2` an admission: 1..=15.
             assert!(sub_tile < 16, "`+0x149` never reaches 16 without entering a tile: {sub_tile}");
-            // 0 is a unit at rest and 15 is the table's own last admission,
-            // which it draws on the centre; the twelve in between are not.
             if sub_tile == 0 || sub_tile == 15 {
                 continue;
             }

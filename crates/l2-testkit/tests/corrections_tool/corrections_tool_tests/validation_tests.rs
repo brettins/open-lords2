@@ -6,15 +6,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-/// **The base tree passes**, so every failure below is the line it adds.
-///
-/// Also pins the two D-series as two series: `D1` in `decisions.md` and `D1` in
-/// `bugs.md` are not a duplicate, and the report gives each its own next number.
-///
-/// Ablated: keying duplicates by id alone, without the log, fails this — and
-/// every other test in the file, because every tree here carries D1 in both
-/// logs. Taking the next free number by letter alone fails
-/// `assign_numbers_a_dead_code_entry_in_its_own_series` instead.
 #[test]
 fn the_base_tree_passes_and_its_two_d_series_are_two_series() {
     let Some(tree) = Tree::new("base") else { return };
@@ -28,8 +19,6 @@ fn the_base_tree_passes_and_its_two_d_series_are_two_series() {
     }
 }
 
-/// **A Markdown heading is an error naming its line, not a skip.**
-///
 /// Two branches wrote their correction as a `##` heading over a placeholder, and
 /// the tool recognised only `**C<n> — title**`, so the integrator rewrote both by
 /// hand. The numbered shape is the dangerous one: nothing cites a new correction
@@ -49,15 +38,11 @@ fn a_markdown_heading_is_an_error_naming_its_line() {
         tree.append("docs/decisions.md", &format!("\n{line}\n\nIts prose.\n"));
         assert_malformed(&tree, "docs/decisions.md", &line, "Markdown heading");
     }
-    // And in bugs.md, where headings are the form: the wrong level is still wrong.
     let Some(tree) = Tree::new("markdown-level") else { return };
     tree.append("docs/bugs.md", "\n## B4 — a bug at the wrong level\n");
     assert_malformed(&tree, "docs/bugs.md", "## B4", "level-2 heading");
 }
 
-/// **A missing em-dash is an error naming its line.**
-///
-/// Ablated: without the `SUSPECT` scan, every one of these passes `--check`.
 #[test]
 fn a_heading_without_its_em_dash_is_an_error_naming_its_line() {
     let cases = [
@@ -74,21 +59,16 @@ fn a_heading_without_its_em_dash_is_an_error_naming_its_line() {
         tree.append(file, &format!("\n{line}\n"));
         assert_malformed(&tree, file, line, why);
     }
-    // A placeholder with no dash is the same error.
     let Some(tree) = Tree::new("dash-placeholder") else { return };
     let line = format!("### {}: a colon", tag('B', "colon"));
     tree.append("docs/bugs.md", &format!("\n{line}\n"));
     assert_malformed(&tree, "docs/bugs.md", &line, "colon");
 }
 
-/// **A double-encoded em-dash is an error, and it says so.**
-///
 /// C146's heading carried these exact bytes. The old tool parsed nothing on
 /// that line, so the correction did not exist; it was noticed only because three
 /// citations then dangled. A new correction has no citations, so it would not
 /// have been noticed at all.
-///
-/// Ablated: without the `SUSPECT` scan, this passes `--check`.
 #[test]
 fn a_double_encoded_em_dash_is_an_error_that_names_the_encoding() {
     let Some(tree) = Tree::new("mojibake") else { return };
@@ -100,11 +80,6 @@ fn a_double_encoded_em_dash_is_an_error_that_names_the_encoding() {
     assert_malformed(&tree, "docs/decisions.md", "The differential's first finding", "double-encoded");
 }
 
-/// **Prose that opens with an id is not a heading.**
-///
-/// Both logs do it, and the real ones carry every shape below. A check that
-/// cried wolf at them would be switched off within a day.
-///
 /// Ablated: treating every bold line that opens with an id as an attempted
 /// entry fails this on `**C1's failure mode…`.
 #[test]
@@ -126,11 +101,6 @@ fn prose_that_opens_with_an_id_is_not_a_heading() {
     assert!(out.status.success(), "--check flagged prose as a heading:\n{}", err(&out));
 }
 
-/// **Every placeholder family is reported**, and so is a letter no log numbers.
-///
-/// The tool once matched `[CB]NEW-` and nothing else, so a `D` placeholder for a
-/// dead-code entry went unreported and was numbered by hand.
-///
 /// Ablated: narrowing `PLACEHOLDER` back to `[CB]` fails this, and fails the
 /// dead-code assignment too, whose `D` tag's uses are then never found to
 /// rewrite. Entries the logs define are still listed under that ablation —

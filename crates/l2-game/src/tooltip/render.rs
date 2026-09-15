@@ -58,7 +58,6 @@ pub fn words(shell: &crate::shell::ShellAssets, id: u8) -> String {
     }
 }
 
-// ------------------------------------------------------------------ the draw
 
 /// `FUN_004015B9(c, &g_fontBody)`.
 fn glyph_width(ctx: &Ctx, c: char) -> i32 {
@@ -69,9 +68,6 @@ fn glyph_width(ctx: &Ctx, c: char) -> i32 {
     }
 }
 
-/// **The box as it is drawn**, and the lines left in it: the rectangle and the
-/// second pass's wrap. The first pass is drawn by [`draw`] and not returned,
-/// because the fill covers it.
 pub fn layout(ctx: &Ctx, tip: Shown) -> (crate::input::Rect, Vec<String>) {
     let text = words(&ctx.assets.shell, tip.id);
     let measured = crate::message::break_lines(&text, MEASURE_WIDTH, |c| glyph_width(ctx, c));
@@ -110,14 +106,12 @@ pub fn draw(ctx: &Ctx, tips: &Tooltips, canvas: &mut Canvas) {
     let pen = pen(ctx);
     let text = words(&ctx.assets.shell, tip.id);
     let (tx, ty) = (tip.x + 4, tip.y + 4);
-    // First pass, wrapped at 0xB4: what the box is measured from.
     let measured = crate::message::break_lines(&text, MEASURE_WIDTH, |c| glyph_width(ctx, c));
     for (k, line) in measured.iter().enumerate() {
         pen.body(canvas, tx, ty + LINE * k as i32, line, font::TEXT);
     }
     let (rect, lines) = layout(ctx, tip);
     canvas.fill_rect(rect.x, rect.y, rect.w, rect.h, FILL);
-    // Second pass, wrapped at 0xB0.
     for (k, line) in lines.iter().enumerate() {
         pen.body(canvas, tx, ty + LINE * k as i32, line, font::TEXT);
     }

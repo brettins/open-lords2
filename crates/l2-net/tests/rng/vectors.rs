@@ -4,16 +4,9 @@ use super::ranges::*;
 use super::operations::*;
 use l2_net::{Canonical, Pcg32};
 
-/// The one vector in this file that is somebody else's.
-///
 /// `pcg32-demo.c` from `pcg-c-basic` calls `pcg32_srandom_r(&rng, 42u,
 /// 54u)` and prints six 32-bit values; the published output begins
 /// `0xa15c02b7 0x7b47f409 0xba1d3330 …`.
-///
-/// It exercises the whole algorithm: the two-step seeding, the LCG
-/// advance, the xorshift, and the variable rotation — a rotation that
-/// is wrong in one direction still produces plausible noise and would
-/// pass every statistical check a hobby project would think to write.
 #[test]
 fn matches_the_published_pcg32_demo() {
     let mut rng = Pcg32::new(42, 54);
@@ -34,8 +27,6 @@ fn the_default_stream_is_frozen() {
     );
 }
 
-/// Two draws, high word first. Swapping them would change every 64-bit
-/// value the game has ever produced while breaking nothing visible.
 #[test]
 fn next_u64_is_high_word_first() {
     let mut wide = Pcg32::from_seed(7);
@@ -45,9 +36,6 @@ fn next_u64_is_high_word_first() {
     assert_eq!(wide.next_u64(), (hi << 32) | lo);
 }
 
-/// Adjacent seeds must not produce adjacent streams. This is what the
-/// seeding dance in `Pcg32::new` buys, and it is the reason the state
-/// is not simply set to the seed.
 #[test]
 fn adjacent_seeds_give_unrelated_streams() {
     let mut a = Pcg32::from_seed(1000);
@@ -55,7 +43,6 @@ fn adjacent_seeds_give_unrelated_streams() {
     let first_a = a.next_u32();
     let first_b = b.next_u32();
     assert_ne!(first_a, first_b);
-    // Not merely different: differing in a good spread of bits.
     assert!(
         (first_a ^ first_b).count_ones() >= 8,
         "seeds 1000 and 1001 produced first outputs differing in only {} bits",
@@ -70,11 +57,9 @@ fn different_streams_from_one_seed_do_not_coincide() {
     let sequence_a: Vec<u32> = (0..32).map(|_| a.next_u32()).collect();
     let sequence_b: Vec<u32> = (0..32).map(|_| b.next_u32()).collect();
     assert_ne!(sequence_a, sequence_b);
-    // And they must not merely be offset from one another.
     assert!(!sequence_b.windows(4).any(|w| w == &sequence_a[0..4]));
 }
 
-// --- bounded draws ---------------------------------------------------
 
 #[test]
 fn below_is_frozen() {

@@ -1,13 +1,3 @@
-//! The twelve mercenary bands — `docs/armies.md` §5.
-//!
-//! They are not a random event and they are not on the merchant screen.
-//! **Twelve fixed bands wander the map, one per nationality, and you hire
-//! whichever is standing in your county on the turn you raise an army there.**
-//! The roster is identical on every map and every playthrough; only the
-//! starting counties and the walk depend on the map.
-//!
-//! # Why the roster is a finding
-//!
 //! `docs/decisions.md` C3 is the standing hazard: a table that *looks* like the
 //! thing you were hoping for is not evidence. The roster is held in place by an
 //! arithmetic invariant instead. `Mercenary_Init` (`0x004AC904`) copies six
@@ -44,13 +34,10 @@ use crate::realm::{Realm, MAX_REALMS};
 use crate::unit::{Mercenaries, TroopType, UnitKind, Units};
 use l2_net::{Quirk, Quirks};
 
-/// Twelve bands, one per nationality, indexed 1…12. Slot 0 is never a band.
 pub const MERCENARY_BANDS: usize = 12;
 
-/// The array bound: `MERCENARY_BANDS + 1`.
 pub const BAND_SLOTS: usize = MERCENARY_BANDS + 1;
 
-/// One row of the shipped roster.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BandRules {
     /// `L2.eng` group 16, which begins *"No mercenaries in the army."* and then
@@ -59,30 +46,12 @@ pub struct BandRules {
     pub men: i32,
     pub troop: TroopType,
     pub price: i32,
-    /// `g_mercWage`, which is **`price / 10` for every band and is never read
-    /// anywhere**. Carried because a mod might want it and because its absence
-    /// from every read path is itself a finding: the raise-army screen prints
-    /// `men / 2` and `Wages_ForUnit` charges `men / 4`, so there are three
-    /// different numbers for the same thing and only the last is spent.
     pub listed_wage: i32,
-    /// Where the band begins its walk, and where it returns to.
     pub start_county: u8,
-    /// It stops to offer itself every this-many seasons.
     pub period: u8,
 }
 
-/// `g_mercMen`, `g_mercTroopType`, `g_mercPrice`, `g_mercWage`,
-/// `g_mercStartCounty` and `g_mercPeriod`, as twelve rows. Index 0 is a
-/// placeholder that no rule reads.
-///
-/// Nationalities come in pairs by troop type — a small band and a large one of
-/// each — and the price per man is flat within a type: pikemen ≈ 18, archers
-/// 20, swordsmen ≈ 27, crossbowmen 30, macemen ≈ 12.5, knights ≈ 54. The prices
-/// are hand-authored: price ÷ `TROOP_STRENGTH_WEIGHT` comes out 2.0, 1.54, 2.1,
-/// 1.875, 1.56 and 2.5 across the six types, so they do not track the combat
-/// value.
 pub const ROSTER: [BandRules; BAND_SLOTS] = [
-    // Slot 0 — never read. Every field is the zero its absence deserves.
     BandRules { nationality: "-", men: 0, troop: TroopType::Peasant, price: 0, listed_wage: 0, start_county: 0, period: 0 },
     BandRules { nationality: "Scottish", men: 100, troop: TroopType::Pikeman, price: 1800, listed_wage: 180, start_county: 1, period: 5 },
     BandRules { nationality: "Irish", men: 200, troop: TroopType::Pikeman, price: 3500, listed_wage: 350, start_county: 2, period: 3 },
@@ -101,15 +70,13 @@ pub const ROSTER: [BandRules; BAND_SLOTS] = [
 /// `g_mercBandCount` (`0x004DE820`) — how many bands a map gets, indexed by its
 /// county count.
 ///
-/// **Twenty entries**, and the length is held by address arithmetic:
 /// `0x004DE820 + 20 * 4 = 0x004DE870`, which is where the string table begins
 /// (`"ff_batl.wav"`). England has 14 counties, so all twelve bands exist there.
+///
 /// `[V]`
 pub const BAND_COUNT_BY_COUNTIES: [i32; 20] =
     [0, 1, 2, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 12, 12, 12, 12, 12, 12];
 
-/// `Mercenary_Init`'s clamp on [`BAND_COUNT_BY_COUNTIES`].
-///
 /// > **`docs/armies.md` §5.2 and `docs/symbols.json` both say *"clamped to
 /// > 1 … 12"*. That is wrong at both ends.** The code is
 /// >
@@ -158,7 +125,6 @@ impl Band {
     }
 }
 
-/// The live band table plus how many of it are in play.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MercenaryBands {
     bands: [Band; BAND_SLOTS],
@@ -175,7 +141,6 @@ impl Default for MercenaryBands {
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
     use crate::unit::Unit;
@@ -184,10 +149,6 @@ mod tests {
         (core::array::from_fn(|_| County::new()), core::array::from_fn(|_| Realm::new()))
     }
 
-    /// The prediction `docs/armies.md` §5.1 tests itself against, and the two
-    /// places the player's recollection was wrong: **the Spanish band is the
-    /// fifty knights, the Angevin is a hundred**.
-    /// band.
     #[test]
     fn the_roster_is_the_shipped_one() {
         assert_eq!(ROSTER[11].nationality, "Spanish");
@@ -204,8 +165,6 @@ mod tests {
         );
     }
 
-    /// The listed wage is `price / 10` for all twelve — and is never read by
-    /// any rule, here or in the original.
     #[test]
     fn the_listed_wage_is_a_tenth_of_the_price_for_every_band() {
         for band in &ROSTER[1..] {
@@ -213,23 +172,18 @@ mod tests {
         }
     }
 
-    /// Nationalities come in pairs by troop type: a small band and a large one
-    /// of each of the six equipped types, and the price per man is flat within
-    /// a pair.
     #[test]
     fn the_twelve_bands_are_six_pairs_at_a_flat_price_per_man() {
         for pair in 0..6 {
             let (a, b) = (&ROSTER[1 + pair * 2], &ROSTER[2 + pair * 2]);
             assert_eq!(a.troop, b.troop, "{} and {}", a.nationality, b.nationality);
             assert_ne!(a.men, b.men, "a small band and a large one");
-            // Flat within a couple of crowns a man, allowing for hand-rounding.
             let (pa, pb) = (a.price * 100 / a.men, b.price * 100 / b.men);
             assert!((pa - pb).abs() <= 200, "{} {pa} vs {} {pb}", a.nationality, b.nationality);
         }
         assert_eq!(ROSTER[0].men, 0, "slot 0 is not a band");
     }
 
-    /// England has 14 counties, so all twelve bands are in play there.
     #[test]
     fn a_fourteen_county_map_gets_all_twelve_bands() {
         assert_eq!(bands_in_play(14), 12);
@@ -240,13 +194,10 @@ mod tests {
         assert_eq!(BAND_COUNT_BY_COUNTIES.len(), 20, "the address arithmetic says twenty");
     }
 
-    /// The correction: above twelve becomes **one**, and zero stays zero.
-    /// Unreachable with the shipped table, reachable with a mod.
     #[test]
     fn the_band_count_clamp_collapses_to_one_rather_than_to_twelve() {
         let mut modded = BAND_COUNT_BY_COUNTIES;
         modded[5] = 30;
-        // The rule, applied directly, since the table itself is a constant.
         let clamp = |n: i32| if n > 12 { 1 } else if n < 0 { 1 } else { n };
         assert_eq!(clamp(modded[5]), 1, "not 12");
         assert_eq!(clamp(0), 0, "zero is not less than zero");
@@ -269,21 +220,10 @@ mod tests {
         assert!(bands.get(0).is_none(), "and slot 0 is not one either");
     }
 
-    /// The Saxon band has period 1, so it offers itself every single season —
-    /// and it walks **two** counties on each, because a season that makes an
-    /// offer advances the walk once for the step and once more afterwards.
-    ///
-    /// The sequence is also where the missing wrap guard shows: starting at
-    /// county 13 on a fourteen-county map, the first season offers in 14 and
-    /// leaves the walk sitting at **15**, one past the end, until the *next*
-    /// season's guarded increment wraps it to 1. That is why the offers run
-    /// 14, 1, 3, 5 — the overshoot costs the band a
-    /// county. Reproduced.
     #[test]
     fn the_saxon_band_offers_itself_every_season_and_keeps_walking() {
         let (mut counties, _) = blank();
         let mut bands = MercenaryBands::init(14);
-        // Isolate band 9 by hiring every other one out of the way.
         for i in 1..=12u8 {
             if i != 9 {
                 bands.bands[i as usize].hired_by = 99;
@@ -297,8 +237,6 @@ mod tests {
         assert_eq!(offers, vec![14, 1, 3, 5]);
     }
 
-    /// A band with period 7 is silent for six seasons and offers on the
-    /// seventh.
     #[test]
     fn a_long_period_band_is_silent_until_its_countdown_runs_out() {
         let (mut counties, _) = blank();
@@ -328,8 +266,6 @@ mod tests {
         assert_eq!(*bands.get(3).unwrap(), before, "a hired band is frozen");
     }
 
-    /// The county's offer is a one-slot cache.
-    /// wins when two land together.
     #[test]
     fn a_county_holds_one_offer_and_the_lower_numbered_band_wins() {
         let mut bands = MercenaryBands::init(14);
@@ -342,7 +278,6 @@ mod tests {
         bands.bands[9].offered_in = 3;
         assert_eq!(bands.offer_in(3), 4);
 
-        // …and once the lower one is hired the higher one is visible.
         bands.bands[4].hired_by = 1;
         assert_eq!(bands.offer_in(3), 9);
     }
@@ -361,7 +296,6 @@ mod tests {
         }
     }
 
-    // --- hiring ------------------------------------------------------------
 
     fn army(units: &mut Units, owner: u8, home: u8) -> usize {
         let mut u = Unit::new(UnitKind::Army, owner, 5, 5);
@@ -394,14 +328,10 @@ mod tests {
         assert!(!bands.get(9).unwrap().is_available());
         assert_eq!(bands.offer_in(2), 0);
 
-        // The same band cannot be hired twice.
         let second = army(&mut units, 1, 2);
         assert!(!bands.hire(&mut units, &mut counties, &mut realms, second, 9));
     }
 
-    /// The band is inside `men` but not inside `troops`, which is what makes it
-    /// atomic — and, as `Army_Desert` walks `troops` alone, what makes
-    /// **mercenaries the one part of an army that never deserts**.
     #[test]
     fn a_mercenary_band_is_not_in_the_troop_counts_and_never_deserts() {
         let (mut counties, mut realms) = blank();

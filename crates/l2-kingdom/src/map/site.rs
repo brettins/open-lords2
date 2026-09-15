@@ -5,14 +5,6 @@ use super::campaign::*;
 use super::cost::*;
 use crate::tables::{MOVE_COST_BLOCKED, MOVE_COST_IMPASSABLE};
 
-/// The commodity and state a settlement terrain byte names, or `None` when the
-/// tile is a town, a castle plot or plain ground.
-///
-/// The inverse of [`terrain::INDUSTRY_IDLE`]
-/// [`crate::industry::map_toggle_for_graphic`] reads from the click side — kept
-/// as two functions because the click ladder folds terrain 0 into iron and
-/// everything from 21 up into the castle, which are `Map_Click`'s concerns and
-/// not a site's.
 pub fn industry_state(terrain: u8) -> Option<(crate::tables::Commodity, SiteState)> {
     if terrain == 0 || terrain > 12 {
         return None;

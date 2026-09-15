@@ -4,7 +4,6 @@ use super::arithmetic_and_overflow::*;
 use super::math_functions::*;
 use l2_net::Fixed;
 
-// --- construction and exact values -----------------------------------
 
 #[test]
 fn the_scale_is_65536() {
@@ -33,7 +32,6 @@ fn from_ratio_and_percent() {
     assert_eq!(Fixed::from_ratio(1, -2), -Fixed::HALF);
     assert_eq!(Fixed::percent(100), Fixed::ONE);
     assert_eq!(Fixed::percent(150), Fixed::ONE + Fixed::HALF);
-    // The difficulty scales from l2-mods' seeded ruleset.
     assert_eq!(Fixed::percent(116).raw(), 76_021);
     assert_eq!(Fixed::percent(84).raw(), 55_050);
 }
@@ -44,7 +42,6 @@ fn from_ratio_by_zero_panics() {
     Fixed::from_ratio(1, 0);
 }
 
-// --- conversion to integers ------------------------------------------
 
 #[test]
 fn trunc_goes_toward_zero() {
@@ -58,7 +55,6 @@ fn floor_goes_toward_negative_infinity() {
     assert_eq!(Fixed::from_ratio(27, 10).floor(), 2);
     assert_eq!(Fixed::from_ratio(-27, 10).floor(), -3);
     assert_eq!(f(-3).floor(), -3);
-    // The reason floor exists: tile -1 starts at -1.0.
     assert_eq!((-Fixed::EPSILON).floor(), -1);
 }
 
@@ -98,8 +94,6 @@ fn floor_plus_frac_reconstructs_the_value() {
     for raw in [0i32, 1, -1, 65_535, -65_535, 100_000, -100_000, i32::MAX, i32::MIN] {
         let v = Fixed::from_raw(raw);
         let rebuilt = f(v.floor()) + v.frac();
-        // f(v.floor()) saturates at the extremes, so only check where
-        // the integer part is representable.
         if v.floor().abs() < 32_768 {
             assert_eq!(rebuilt, v, "floor + frac lost {raw}");
         }
@@ -107,7 +101,6 @@ fn floor_plus_frac_reconstructs_the_value() {
     }
 }
 
-// --- arithmetic -------------------------------------------------------
 
 #[test]
 fn ordering_is_the_numeric_ordering() {

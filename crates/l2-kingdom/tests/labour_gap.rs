@@ -1,23 +1,6 @@
-//! **The labour allocator is in the season pipeline now, and this is what it
-//! took.** The file that used to record the gap records the closing of it.
-//!
-//! ```text
-//! cargo test -p l2-kingdom --test labour_gap
-//! ```
-//!
-//! # What the gap was
-//!
 //! `crates/l2-kingdom/src/labour/mod.rs` reproduced `Labour_Allocate`
 //! (`0x0044F6E7`) exactly and rebuilt all fourteen counties' worker counts from
 //! the England turn-one save, and it ran only where a **click** reached it.
-//! `Season_Advance` calls it twice and this crate called it never, so from turn
-//! 2 a county's nine job records stopped summing to its population — the very
-//! invariant that established the `0x0C` labour-record stride.
-//!
-//! The reason was not the allocator. It was that
-//! **`Season_Advance` never calls `County_RefreshEstimates`**, so each of the
-//! nine ceilings the allocator reads has to be refreshed by the pass that
-//! invalidates it, as that pass's **tail call**:
 //!
 //! | ceiling | refreshed at the end of | this crate's pass |
 //! |---|---|---|
@@ -28,36 +11,17 @@
 //! | four industries | `Industry_LabourEstimate`, inside `Industry_ProduceAll` | [`Pass::RefreshEstimates`] |
 //! | castle | `Castle_BuildEstimate`, both arms of `Castle_BuildTick` | [`Pass::RefreshEstimates`] |
 //!
-//! …plus the one that made the whole thing possible: **`County_RefreshEstimates`
-//! *does* run every season**, once per county, as the middle statement of
-//! `Panels_RefreshAll`, which is `Season_Advance`'s *last* call. It is
-//! [`Pass::RefreshEstimates`]. `docs/kingdom.md` §3.4.
-//!
-//! # The three that could not be written, and what each needed
-//!
-//! * **grain outside the sowing season.** `Grain_Grow` and `Grain_Harvest` are
-//!   now [`l2_kingdom::land::grow_step`] and
-//!   [`l2_kingdom::land::harvest_step`], which cap the crop at
-//!   `labour * multiplier` and apply fertility at the growing step. The crop
-//!   model changed with them: [`County::crop`] is **seed, standing crop,
-//!   harvest** and not three growth stages.
 //! * **the four industries.** `Industry_LabourEstimate` reads the owning
 //! *realm*, so [`l2_kingdom::field::refresh_estimates`] takes one — and the
 //!   blacksmith's share of the stockpile is
 //!   [`l2_kingdom::industry::weapon_shares`], `FUN_0044F15B`, which was `[D]`
 //!   and is now traced.
+//!
 //! * **the castle.** `Castle_BuildEstimate`'s ceiling is 0 until the build's
 //!   materials have been delivered. This file used to say the gate was
 //!   permanently open because the crate debited the cost up front; it does not,
 //! the six words at `+0x1CC … +0x1E0` are on [`County`] now, and the gate
 //!   shuts. See [`l2_kingdom::industry::castle_labour_estimate`].
-//!
-//! And the one that would have made wiring the allocator a **silent no-op**:
-//! [`l2_kingdom::land::reclaim_fields`] now spends `labour[2]` as a budget, the
-//! way `Field_ReclaimTick` does, instead of advancing every started field by a
-//! flat quarter. Putting people on reclamation now does something.
-//!
-//! # What was still open, and is not
 //!
 //! The six words at county `+0x1CC … +0x1E0` that track a castle's material
 //! *delivery*. They are in [`County`] now and
@@ -74,8 +38,6 @@ use l2_kingdom::tables::{
 };
 use l2_kingdom::{industry, land, County, Kingdom, Realm};
 
-/// The pipeline has an allocation pass — twice — and a field recount, and the
-/// original's has both.
 #[test]
 fn the_season_pipeline_allocates_twice_and_recounts_the_fields() {
     let names: Vec<String> = SEASON_PIPELINE.iter().map(|p| format!("{p:?}")).collect();
@@ -87,8 +49,6 @@ fn the_season_pipeline_allocates_twice_and_recounts_the_fields() {
     // — went in before the second allocation.
     assert_eq!(SEASON_PIPELINE.len(), 34, "and the length is written down too");
 
-    // The order is the rule, and it is this: everything that moves a ceiling
-    // runs before the first allocation.
     let at = |p: Pass| p.order();
     for pass in [
         Pass::CountyRecountFields,
@@ -109,9 +69,6 @@ fn the_season_pipeline_allocates_twice_and_recounts_the_fields() {
     );
 }
 
-/// **All nine ceilings are refreshed now**, where three were before. Named one
-/// by one, because the identity of the missing ones was the whole content of
-/// this file's first version.
 #[test]
 fn every_one_of_the_nine_ceilings_is_refreshed() {
     let t = &Tables::DEFAULT;
@@ -124,9 +81,6 @@ fn every_one_of_the_nine_ceilings_is_refreshed() {
     c.fields_grain = 4;
     c.grain = 500;
     c.herd_crowding = land::herd_crowding(t, c.herd, c.fields_cattle);
-    // A castle under construction with its materials all delivered, so the
-    // ninth ceiling has something to say. `castle_building` is deliberately
-    // left at 0: it is the castle that WAS there, and this plot was bare.
     c.castle_type = 1;
     c.castle_degraded = l2_kingdom::siege::CASTLE_DEGRADED_BUILDING;
     c.castle_work_left = industry::castle_workforce(t, 1);
@@ -165,8 +119,6 @@ fn every_one_of_the_nine_ceilings_is_refreshed() {
     assert!(c.labour_useful[JOB_WOOD_CUTTING] > 0, "an owned county can cut wood");
 }
 
-/// And the grain ceiling is a real number in **every** season,
-/// be the sowing season's alone.
 #[test]
 fn the_grain_ceiling_is_computed_in_all_four_seasons() {
     let t = &Tables::DEFAULT;
@@ -189,15 +141,10 @@ fn the_grain_ceiling_is_computed_in_all_four_seasons() {
         );
     }
 
-    // The only `None` left is the original's own guard: a county with nobody
-    // in it writes no estimate at all.
     c.pop_band = 0;
     assert_eq!(land::grain_labour_estimate(t, &c, Season::Summer, false), None);
 }
 
-/// **The invariant, as a measurement.** The nine job records sum to the
-/// population, exactly, in every season — which is what proved the `0x0C`
-/// stride in the first place, and what this crate could not hold from turn 2.
 #[test]
 fn the_nine_records_sum_to_the_population_every_season() {
     let mut k = Kingdom::new(11);
@@ -228,18 +175,15 @@ fn the_nine_records_sum_to_the_population_every_season() {
     }
 }
 
-/// **This test used to say the castle ceiling rested on an inferred model. It
-/// does not any more,
-///
 /// `Castle_BuildEstimate` computes `min(100 - Pct(woodOwed, woodTotal),
 /// 100 - Pct(stoneOwed, stoneTotal))` from six words at county
 /// `+0x1CC … +0x1E0` and returns a ceiling of **0** until that reaches 100.
+///
 /// The claim here was that `County` could not have those words because
 /// `order_castle` took the whole cost up front — which was this crate's
 /// invention, not `docs/kingdom.md`'s finding. `Castle_Order` (`0x00436D02`)
 /// takes what the realm happens to have and leaves the rest owing, and
 /// `Castle_DeliverMaterials` (`0x00450CCD`) carts the rest in season by season.
-/// So the gate is real, it is reproduced, and this asserts it shuts.
 #[test]
 fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
     let t = &Tables::DEFAULT;
@@ -252,7 +196,6 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
         "no build, no ceiling"
     );
 
-    // A palisade is 400 wood and 40 stone. Order it with nothing in the store.
     let mut realm = Realm::new();
     assert!(industry::order_castle(t, &mut c, &mut realm, 1));
     assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (400, 40), "all of it owed");
@@ -263,7 +206,6 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
     );
     assert_eq!(industry::castle_seasons_left(t, &c), 100, "and the panel says: for ever");
 
-    // **The gate is a whole percent, and that is the original's arithmetic.**
     // `PctOf(1, 400)` is 0,
     // delivered and the builders start. Reproduced
     // `FUN_00450FB4` is two `PctOf` calls and integer division, and a rule that
@@ -277,7 +219,6 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
         industry::castle_workforce(t, 1),
         "and one stick short is close enough for the original"
     );
-    // Four sticks short is not: PctOf(4, 400) is 1.
     c.castle_wood_owed = 4;
     assert_eq!(industry::castle_labour_estimate(t, &c).1, 0, "1% short shuts it");
 
@@ -286,7 +227,6 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
     let (_, ceiling) = industry::castle_labour_estimate(t, &c);
     assert_eq!(ceiling, industry::castle_workforce(t, 1), "the whole workforce, now it is paid");
 
-    // …and it counts down as the work is done.
     c.castle_work_left = ceiling - ceiling / 4;
     assert_eq!(industry::castle_labour_estimate(t, &c).1, ceiling - ceiling / 4);
 }

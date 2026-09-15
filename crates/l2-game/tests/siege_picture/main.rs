@@ -1,10 +1,3 @@
-//! **A siege is fought on the castle's tiles, not the field's.**
-//!
-//! ```text
-//! cargo test -p l2-game --test siege_picture
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test siege_picture
-//! ```
-//!
 //! `Battle_LoadAssets` (`0x004987B7`) fills the tile renderer's two sheet
 //! pointers from slots 0 and 1 of the battle asset table at `0x004DA550`, and
 //! the ladder that picks them is two flags:
@@ -16,9 +9,9 @@
 //! ```
 //!
 //! with `DAT_0057C910 = (uint)(1 < g_castleLevel)` (`Siege_LaunchAssault`, `0x004A8AAB`).
+//!
 //! `Screen_DrawBattlefield` (`0x004233F7`) then ends the repaint with
 //! `Palette_Set(0x568EE0)` or `Palette_Set(0x5675A0)` on the same siege flag.
-//! Every battle here was drawn from `T32_bat1.pl8` under `T32_bat1.256`.
 //!
 //! **Which of the two sheets a cell comes from is cell byte `+2`**, bits
 //! `0x1C`: `Battlefield_Draw32` (`0x004BCBDC`) takes slot 0 at 0 and slot 1 at
@@ -47,7 +40,6 @@ use l2_view::Canvas;
 
 /// `.data` begins at RVA `0x4D2000` / file offset `0xD0200`, so the two
 /// structure tables at `0x004D7B80` and `0x004D7D80` are these. Written out
-///
 const STONE_AT: usize = 0xD5D80;
 const WOOD_AT: usize = 0xD5F80;
 
@@ -66,7 +58,6 @@ fn staged(castle_level: Option<u8>) -> (Game, Machine) {
     );
     let mut live = LiveBattle::new(runner, 0, 0, 0, castle_level, 1, 1);
     live.paused = true;
-    // On the castle, looking at the wall the gate is in.
     live.cam = (33, 17);
     let mut g = Game::new(5);
     g.prefs.tip_screens = false;
@@ -87,5 +78,4 @@ pub(crate) fn paint(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
     canvas
 }
 
-// --------------------------------------------------------------- the tables
 

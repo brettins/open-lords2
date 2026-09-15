@@ -20,20 +20,6 @@ use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 
-/// **The build stamp identifies a build, and this is the assertion that stops
-/// it decaying back into a version string.**
-///
-/// It exists because three of the last five interface defects a player reported
-/// were against a binary four merges old — two already fixed, one fixed twice —
-/// and nothing on screen could have told him. The failure mode this guards is
-/// not the stamp going missing; it is somebody replacing it with something that
-/// *looks* like an answer. `0.1.0` has been true of every build for two months,
-/// so a constant is worse than nothing: it invites the reader to stop asking.
-///
-/// So the shape is asserted, not the value: nine hex digits, an optional
-/// `-DIRTY`, and a date — or the literal `NO GIT` when the source is not a
-/// checkout, which is a fact. No gate; it needs
-/// neither the game nor the fixtures.
 #[test]
 fn the_build_stamp_names_a_commit_rather_than_a_version() {
     let id = l2_game::build_id::ID;
@@ -63,35 +49,9 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
         "the build's own HH:MM, which tells two builds of one commit apart: {time:?}",
     );
 
-    // The point of the whole exercise: two different builds must be able to
-    // disagree. A constant cannot, and this is the shape a constant has.
     assert_ne!(id, env!("CARGO_PKG_VERSION"), "a version is not an identity");
 }
 
-/// **The build stamp is painted.**
-///
-/// The test above asserts the shape of the string. This one asserts a player can
-/// see it: the whole point
-/// is that somebody looking at a screenshot can say which binary it is.
-///
-/// It is separate because the two fail for unrelated
-/// reasons — a wrong string and an unpainted one need different fixes — and
-/// because this one is the fragile half. `crate::build_id::draw` is one line at
-/// the end of the title page's painter, in a file three branches touched
-/// tonight, and a line like that is exactly what a merge drops without anything
-/// noticing.
-///
-/// **How it asserts, and the first attempt was wrong.** The obvious test — count
-/// non-background pixels in the stamp's band — *passed with the draw line
-/// deleted*, because the title page carries a full-screen `gateway.pl8` and no
-/// pixel down there is background. It measured the artwork.
-///
-/// So: draw the page, copy it, draw the stamp again onto the copy, and require
-/// the two to be **identical**. Text is an opaque blit, so drawing it a second
-/// time over itself changes nothing — but only if it was there the first time.
-/// Deleting the line makes the second draw *add* the stamp, and the canvases
-/// differ. That is an exact test, and it needs no
-/// knowledge of what else is on the page.
 #[test]
 fn the_build_stamp_is_painted_on_the_title_page() {
     let (mut game, assets) = world!();
@@ -127,32 +87,6 @@ fn the_build_stamp_is_painted_on_the_title_page() {
     );
 }
 
-/// **The build stamp is inside the picture — the third test this one small
-/// feature has needed
-///
-/// The first version counted non-background pixels in the stamp's band and
-/// passed with the draw line deleted, because the page carries full-screen
-/// artwork and no pixel down there is background. The second — the one above —
-/// draws the stamp twice and requires the canvases to be identical. That proves
-/// it was **painted** and says nothing about **where it landed**, so the stamp
-/// shipped hanging off the bottom of the screen and a player reported it as
-/// *"half obscured by the bottom of the screen"*. The literal `468` had been
-/// chosen against the 7-pixel debug font; with the game's own `Fntl2_14.pl8`
-/// loaded the line is taller and ran past 480.
-///
-/// > **"Is it drawn" and "can it be seen" are different claims, and only the
-/// > second is what anybody wanted.**
-///
-/// **Why this cannot be written by reading pixels back.** A canvas clips: paint
-/// a glyph at y 476 and the rows past 479 are discarded, leaving nothing
-/// to observe. Every "is it on screen" test written against the canvas would
-/// therefore pass on exactly the bug it is meant to catch. So the assertion is
-/// made two ways that fail together — the geometry must fit, and the stamp must
-/// paint **its full height**, which is the observable consequence of fitting.
-///
-/// Ablate by subtracting ten fewer pixels in `build_id::top_edge`: the glyphs
-/// clip, the painted height drops below the font's height, and both halves go
-/// red while the identity test above stays green.
 #[test]
 fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
     let (_game, assets) = world!();
@@ -172,7 +106,6 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
     };
     let screen_h = l2_view::canvas::HEIGHT as i32;
 
-    // Half one: the geometry fits.
     assert!(top >= 0, "the build stamp starts at y {top}, above the top of the canvas");
     assert!(
         top + height <= screen_h,
@@ -184,9 +117,6 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
         top + height - screen_h,
     );
 
-    // Half two: the observable consequence. Paint it on a blank canvas and
-// count the rows it marks. If any of it fell off the bottom the
-    // canvas clipped those rows away and this count comes up short.
     let mut blank = Canvas::screen();
     let mut painted = Canvas::screen();
     l2_game::build_id::draw(&mut painted, &pen);
@@ -204,10 +134,6 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
         first >= top,
         "the stamp painted row {first}, above the y {top} it claims to start at",
     );
-    // The glyphs of this string do not all reach the font's full box, so the
-    // painted span may be shorter than `height` — but it must not be shorter
-    // than it would be with rows clipped off the bottom, and the simplest
-    // statement of that is that the last painted row is inside the margin.
     assert!(
         last >= screen_h - 2 - height,
         "the stamp's lowest painted row is {last}, above the band y {}..{screen_h} it is \
@@ -216,15 +142,9 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
     );
 }
 
-// ------------------------------------------------ the MST clock, which is OURS
-//
 // `FUN_0041EA14` draws no clock: 143 bytes, a box, two `Ui_DrawCentred` calls
 // and `FUN_0041EAA3`'s four items. A player asked for one — *"can the build have
 // time in MST in the title screen"* — so it is a deliberate divergence, marked
 // as such in `l2_game::wallclock` and in `docs/draws.md`. Nobody should "fix" it
 // toward the binary, and nobody should cite it as a reproduction.
-//
-// Every test below **injects** the instant. Nothing in `l2-game` the library
-// reads a clock (`docs/netcode.md` D-5): the shell samples `SystemTime` and
-// projects it into `Assets::wall_clock`, which is what these set by hand.
 

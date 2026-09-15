@@ -5,8 +5,6 @@ use super::icons::*;
 use crate::sheet::Sheet;
 use crate::Canvas;
 
-/// How many gates make one rung of the chain: 4 at 80 ms, 32 at 640 ms.
-///
 /// `Tick_Pulses` (`0x004BBC80`) counts *gates*, so this is the only honest
 /// conversion from a rung's millisecond name to a period. Dividing the rung by
 /// the tick length instead is the C179 error, and runs it 1.6 times fast.
@@ -19,11 +17,6 @@ impl AnimationClock {
         AnimationClock::default()
     }
 
-    /// Advance by one fixed tick of `tick_ms`, and say whether anything moved.
-    ///
-    /// A `false` is a screen that need not repaint — the same economy
-    /// `MapScreen`'s flag phase makes.
-    /// sixty repaints a second while a player thinks about it.
     pub fn tick(&mut self, tick_ms: u32) -> bool {
         let before = self.pulses;
         self.elapsed_ms += tick_ms;
@@ -37,8 +30,6 @@ impl AnimationClock {
         if self.gates < PULSE80_GATES {
             return false;
         }
-        // The fast pulse is the primary and the slow one is every second fast
-        // one, so they cannot drift apart.
         self.gates = 0;
         self.pulses[0] += 1;
         if self.pulses[0].is_multiple_of(2) {
@@ -47,7 +38,6 @@ impl AnimationClock {
         self.pulses != before
     }
 
-    /// Which frame of `overlay` is showing.
     pub fn frame_of(&self, overlay: &Overlay) -> usize {
         let pulses = if overlay.period_ms == PULSE_FAST_MS { self.pulses[0] } else { self.pulses[1] };
         overlay.first + (pulses as usize % overlay.frames.max(1))
@@ -55,9 +45,6 @@ impl AnimationClock {
 }
 
 impl VillageArt {
-    /// `vill.pl8` is required; `villtops.pl8` is only drawn with *Advanced
-    /// Farming* on and `vill_gd8.pl8` only decides where a drop lands, so an
-    /// install missing either still gives a village that draws.
     pub fn load<F>(mut read: F) -> Result<VillageArt, String>
     where
         F: FnMut(&str) -> Result<Vec<u8>, String>,
@@ -74,8 +61,6 @@ impl VillageArt {
         Ok(VillageArt { scene, tops, grid, animation_b, animation_a })
     }
 
-    /// Whether the drop grid was found. Without it nothing can be dropped, and
-    /// the screen says so.
     pub fn has_grid(&self) -> bool {
         self.grid.len() == GRID_LEN
     }
@@ -90,13 +75,9 @@ impl VillageArt {
         }
         let col = ((x - SCENE_X) / GRID_CELL) as usize;
         let row = ((y - top) / GRID_CELL) as usize;
-        // The original clamps to 8,
-        // as the last cluster.
         (self.grid[row * GRID_COLS + col] as usize).min(CLUSTER_COUNT)
     }
 
-    /// The scene itself. Returns false when the frame will not decode, so the
-    /// caller can draw its own ground.
     pub fn draw_scene(&self, canvas: &mut Canvas, top: i32) -> bool {
         match self.scene.frame(0) {
             Some(f) => {
@@ -107,8 +88,6 @@ impl VillageArt {
         }
     }
 
-    /// `villtops.pl8` frame `weather`, drawn at y = 64 above an Advanced
-    /// Farming scene.
     pub fn draw_tops(&self, canvas: &mut Canvas, weather: usize) -> bool {
         match self.tops.as_ref().and_then(|s| s.frame(weather)) {
             Some(f) => {
@@ -123,16 +102,6 @@ impl VillageArt {
         self.tops.as_ref().map_or(0, |s| s.frame_count())
     }
 
-    /// **The quarry, the mine and the lumber camp**, drawn over the scene in
-    /// `Village_Draw`'s own order and gated on `has_resource[industry]`.
-    ///
-    /// Returns how many were painted,
-    /// none" from "the artwork is missing" —
-    /// county with a mine draws one and the county with a quarry does not.
-    ///
-    /// This is the missing half of a defect a player reported as *"a county
-    /// that clearly has iron has no iron mine in the town centre"*: the other
-    /// half was that `has_resource`.
     /// every resource. `docs/decisions.md` C57.
     pub fn draw_resources(&self, canvas: &mut Canvas, has_resource: [bool; 4], top: i32) -> usize {
         let Some(sheet) = self.animation_b.as_ref() else { return 0 };
@@ -149,17 +118,6 @@ impl VillageArt {
         drawn
     }
 
-    /// **`Village_Animate`'s six overlays**, in its own order, at the frames
-    /// `clock` is currently showing.
-    ///
-    /// The three unconditional ones are drawn whatever the county holds; the
-    /// other three are gated on `has_resource`.
-    /// [`VillageArt::draw_resources`]'s are, and go **on top of** the buildings
-    /// that function paints — the original calls `Village_Draw` once and
-    /// `Village_Animate` every frame after it.
-    ///
-    /// Returns how many were painted,
-    /// a missing sheet.
     pub fn draw_animations(
         &self,
         canvas: &mut Canvas,
@@ -182,7 +140,6 @@ impl VillageArt {
         drawn
     }
 
-    /// Whether `villani1.pl8` loaded. Only the iron mine's overlay needs it.
     pub fn has_villani1(&self) -> bool {
         self.animation_a.is_some()
     }

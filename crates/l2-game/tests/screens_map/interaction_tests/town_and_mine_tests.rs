@@ -25,17 +25,6 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// **The county town is not four quarries.**
-///
-/// `L2_maps.dat` stores a town's 2 × 2 block as `Town1a.pl8` frames 0 … 3, and
-/// those four frames are the *stone quarry* artwork — which is exactly how
-/// `County_PlaceResourceSites` identifies a quarry (frame 0 stone, 20 wood, 30
-/// iron). The original never shows them: `Counties_PlaceSites` re-stamps the
-/// block to frames 47 … 50, 51 … 54 or 55 … 58 by the county's population, and
-/// the population pass re-stamps it every season.
-///
-/// We rendered the stored bytes, so every town on the map came out as four
-/// pits. This asserts the rewrite, and that it is population-banded.
 #[test]
 fn every_county_town_is_re_stamped_off_the_quarry_frames_and_onto_a_village() {
     let (mut game, assets) = world!();
@@ -74,18 +63,10 @@ fn every_county_town_is_re_stamped_off_the_quarry_frames_and_onto_a_village() {
     assert_eq!(towns, 14, "England has fourteen counties and fourteen towns");
 }
 
-/// And it reaches the picture: **the same viewport, painted twice** — once
-/// through the override and once straight from the file — differs, and it
-/// Differs by about the area of four tiles.
-///
-/// Both halves go through `campaign::draw` and nothing else, so nothing but the
-/// tile frames can account for the difference. Reverting the rewrite turns this
-/// test red.
 #[test]
 fn the_rewritten_town_actually_changes_what_is_drawn() {
     let (mut game, assets) = world!();
     let mut screen = MapScreen::new();
-    // Put county 8's town — the player's — in the middle of the view.
     let ctx = Ctx { game: &mut game, assets: &assets };
     let tile = *MapScreen::town(&ctx, 8).first().expect("county 8 has a town");
     let (tx, ty) = l2_kingdom::map::coords(tile);
@@ -115,33 +96,14 @@ fn the_rewritten_town_actually_changes_what_is_drawn() {
     let with = paint(&overrides);
     let without = paint(&l2_view::campaign::Overrides::new());
 
-    // A near-zoom tile is 58 x 30 and its diamond is about half of that, so one
-    // town is four of them - somewhere around 3,500 pixels. Two towns can be in
-    // view at once, so the ceiling is generous; the floor is what matters.
     let moved = with.diff_count(&without);
     assert!(moved > 500, "the town's tiles are painted from different frames: {moved} pixels");
     assert!(moved < 30_000, "and only the towns changed, not the whole viewport: {moved}");
 }
 
-/// **Every painted pixel of the mine switches the mine.**
-///
-/// A player reported *"I can't click the iron mine on the world map to
-/// enable/disable that"*, and he was describing geometry. `Town1a.pl8` frame 30
-/// is 58 × 47 on a 58 × 30 tile: seventeen rows of headframe hang above the
-/// tile's diamond, and more of the building falls inside the diamond's bounding
-/// box but outside the rhombus. Swept pixel by pixel against the old hit test,
-/// **1,314 pixels of the mine were painted and only 857 of them were on the
-/// tile** — the entire upper half of the building was dead, and a click there
-/// fell through to "open the county panel" instead.
-///
-/// The sweep is the assertion. It is not vacuous in either direction: the frame
-/// really does overhang (asserted), and a pixel *outside* the building that is
-/// also outside the diamond must still not toggle, or the fallback would be a
-/// bounding box and not a mask.
 #[test]
 fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
     let (mut game, assets) = world!();
-    // A county the player holds that has a mine, from the save.
     let county = game
         .kingdom
         .county_ids()
@@ -182,7 +144,6 @@ fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
                 painted += 1;
                 reached += usize::from(toggled);
             } else if toggled && dy < overhang {
-                // Above the diamond entirely, and not on the building.
                 off_the_art_and_off_the_tile += 1;
             }
         }

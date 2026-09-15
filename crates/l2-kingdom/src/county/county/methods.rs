@@ -8,8 +8,6 @@ use crate::tables::{
 };
 
 impl County {
-    /// An empty, unowned county. Everything is zero except the three values
-    /// that have a documented non-zero default.
     pub fn new() -> County {
         County {
             event_fired: false,
@@ -71,8 +69,6 @@ impl County {
             labour_share: [33, 50, 17, 0, 0, 0, 100, 0],
             industry_share: 25,
             field_progress: [0; MAX_FIELDS],
-            // Normal rations, all of it from livestock: the values every county
-            // in the shipped lastturn.sav carries (docs/kingdom.md §4.3).
             ration_achieved: 3,
             ration_wanted: 3,
             ration_split: 100,
@@ -122,9 +118,6 @@ impl County {
             fields_grain_standing: 0,
             sow_shortfall: false,
             herd: 0,
-            // The lowest band: density 0 is at the bottom of it, and a county
-            // with no pasture is pushed to the top band by `herd_crowding` the
-            // first time the herd ticks.
             herd_crowding: crate::tables::HERD_CROWDING[0].1,
             herd_births_expected: 0,
             herd_deaths_expected: 0,
@@ -150,28 +143,14 @@ impl County {
         }
     }
 
-    /// True when this county belongs to no realm. Unowned counties are a real
-    /// case, not an edge case: they get their own happiness bonus (§4.4),
-    /// halve their migration (§5.3) and are the ten counties whose food split
-    /// reproduces in `docs/kingdom.md` §4.3.
     pub fn is_unowned(&self) -> bool {
         self.owner == 0
     }
 
-    /// The sum of the three field-usage counts is the county's field total.
-    /// Over the fourteen counties of the England map the totals run 8 to 16.
-    ///
-    /// **Three of five.** `County_RecountFields` fills five counts and this
-    /// sums the three the AI's field ladder reads; a county's waste and
-    /// reclaiming fields are not in it. [`County::field_slots_used`] is the
-    /// count of tiles.
     pub fn field_total(&self) -> i32 {
         self.fields_fallow + self.fields_cattle + self.fields_grain
     }
 
-    /// The map tile in one of the twenty field slots, or `None` for an empty
-/// slot. Out-of-range slots are `None`, because the
-    /// callers walk `0 .. MAX_FIELDS` and a bound check reads better there.
     pub fn field_tile(&self, slot: usize) -> Option<usize> {
         match self.field_tiles.get(slot) {
             Some(&0) | None => None,
@@ -179,34 +158,25 @@ impl County {
         }
     }
 
-    /// Put a tile in a field slot, or clear it. Returns `false` if the slot is
-    /// out of range.
     pub fn set_field_tile(&mut self, slot: usize, tile: Option<usize>) -> bool {
         let Some(cell) = self.field_tiles.get_mut(slot) else { return false };
         *cell = tile.unwrap_or(0) as u16;
         true
     }
 
-    /// Which field slot holds this tile, if any. Linear over twenty entries in
-    /// stored order — the original's own search.
     pub fn field_slot(&self, tile: usize) -> Option<usize> {
         (0..MAX_FIELDS).find(|&slot| self.field_tile(slot) == Some(tile))
     }
 
-    /// How many of the twenty slots hold a tile.
     pub fn field_slots_used(&self) -> usize {
         (0..MAX_FIELDS).filter(|&slot| self.field_tile(slot).is_some()).count()
     }
 
-/// The neighbour ids present, as a slice. Always walked in stored
-    /// order — never sorted, never hashed.
     pub fn neighbours(&self) -> &[u8] {
         let n = (self.neighbour_count as usize).min(MAX_NEIGHBOURS);
         &self.neighbours[..n]
     }
 
-    /// Record an adjacency. Returns `false` once [`MAX_NEIGHBOURS`] is reached,
-/// — the original has a fixed slot count.
     pub fn add_neighbour(&mut self, id: u8) -> bool {
         let n = self.neighbour_count as usize;
         if n >= MAX_NEIGHBOURS {
@@ -224,8 +194,6 @@ impl County {
         (self.population - 1) / 25 + 1
     }
 
-    /// A convenience for the ration and industry code: the ration level as an
-    /// index, clamped into the table.
     pub fn ration_index(&self) -> usize {
         (self.ration_achieved.max(0) as usize).min(RATION_LEVEL_COUNT - 1)
     }
@@ -253,7 +221,6 @@ impl County {
         // workers than it can use. Understaffing either farm job below its
         // wanted floor beats everything and gives band 0; otherwise a county
         // with no slack at all is 6 (draw nothing) and one with slack is 5.
-        // So the labour overlay only ever paints the two ends of the ramp.
         let mut slack = self.labour[JOB_IDLE_TOWNSFOLK];
         for job in 0..JOB_IDLE_TOWNSFOLK {
             if self.labour_useful[job] < self.labour[job] {
@@ -273,8 +240,6 @@ impl County {
         MinimapBands { labour, food, happiness }
     }
 
-    /// Push one field's reclamation towards [`FIELD_PROGRESS_MAX`] by at most
-    /// [`crate::tables::FIELD_RECLAIM_PER_SEASON`]. Returns the new progress.
     pub fn reclaim_field(&mut self, field: usize, by: i32) -> u16 {
         let p = self.field_progress[field] as i32;
         let next = (p + by.min(crate::tables::FIELD_RECLAIM_PER_SEASON)).min(FIELD_PROGRESS_MAX);

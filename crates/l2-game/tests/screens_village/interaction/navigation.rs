@@ -19,9 +19,6 @@ use l2_view::chrome;
 use l2_view::village;
 use l2_view::Canvas;
 
-/// **Closing a screen opened over the village closes the village with it**, and
-/// That is the original's behaviour.
-///
 /// The player, from that game: *"things that open a dialog will open
 /// it and when you close that dialogue it will close town square and that
 /// dialogue, probably something to fix so it only closes the dialog you
@@ -55,7 +52,6 @@ fn a_screen_opened_over_the_village_takes_the_village_with_it_when_it_closes() {
         "the sidebar's screen replaced the village rather than stacking on it"
     );
 
-    // And closing that screen lands on the map, not back on the village.
     {
         let mut c = Ctx { game: &mut game, assets: &assets };
         m.handle(Event::RightClick { x: 320, y: 240 }, &mut c);

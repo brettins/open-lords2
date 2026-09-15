@@ -1,7 +1,3 @@
-//! **Ours, entirely — and the shipped binary cannot reach it.**
-//!
-//! # It is not screen `0x32`, and it is not the front end either
-//!
 //! This file was a bootstrap: a two-item menu written before there was a front
 //! end to reproduce. There is one now. **The original's front end is
 //! `g_screenId` `0x1F` page 1** (`FUN_0041E7E1`), and
@@ -10,21 +6,6 @@
 //! `ScreenId::Setup(SetupPage::Title)`; `ScreenId::Menu` is constructed in
 //! exactly one place, `screen.rs`'s factory, and **nothing outside
 //! `crates/l2-game/tests/` ever pushes it.** Verified by grep, both ways.
-//!
-//! So every draw call in this file is an invention on an unreachable screen,
-//! which is the pair `docs/agents.md` records for screen `0x28`: *counting arms
-//! cannot tell you whether a screen is reachable*, and an audit that counts an
-//! unreachable screen has put rows into a denominator that should not have
-//! them.
-//!
-//! **The recommendation is that it goes**, and [`crate::screens::setup`]
-//! replaces it outright — `screen.rs`, `screens/mod.rs` and
-//! `crates/l2-game/tests/machine.rs` all name it, and none of those is this
-//! agent's file. Until somebody does that, it is kept the way
-//! [`crate::screens::index`] is kept: **ours on purpose, and saying so on
-//! itself.**
-//!
-//! # The title was a misspelling of the game's own
 //!
 //! It drew `"LORDS OF THE REALM II"`. `L2.eng` group 11 index 0 — which
 //! `crates/l2-game/tests/shell/main.rs` has asserted for weeks — is
@@ -51,8 +32,6 @@ const ITEM_GAP: i32 = 30;
 /// `crates/l2-game/tests/shell/main.rs` asserts it.
 pub const TITLE_GROUP: usize = 11;
 pub const TITLE_INDEX: usize = 0;
-/// What to draw with no install. **Ours**, and deliberately not a guess at the
-/// game's spelling.
 const TITLE_FALLBACK: &str = "OURS: NO L2.ENG. SEE SCREENS/SETUP.RS FOR THE REAL FRONT END";
 
 const ITEMS: [&str; 2] = ["START CAMPAIGN", "QUIT"];
@@ -60,8 +39,6 @@ const START: usize = 0;
 const QUIT: usize = 1;
 
 pub struct MenuScreen {
-    /// Which item the keyboard is on. The pointer moves it too, so hover and
-    /// keyboard selection are the same state and cannot disagree.
     selected: usize,
 }
 
@@ -150,9 +127,6 @@ impl Screen for MenuScreen {
             pen.heading_centred(canvas, 0, 140, canvas.width as i32, &title, font::TEXT);
         }
 
-        // Everything below this line is **ours**, in our own 5 x 7 font, and
-        // says so: this whole screen is an invention the shipped binary cannot
-        // reach. See the module header.
         text::draw_centred(canvas, mid, 172, "AN OPEN REIMPLEMENTATION", ink.dim);
 
         for (i, label) in ITEMS.iter().enumerate() {

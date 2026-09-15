@@ -1,51 +1,21 @@
-//! Merging rule documents.
-//!
-//! This is the mechanism that makes a mod composable: a mod restates only the
-//! keys it changes, and the rest of the table survives. It is deliberately a
-//! small set of rules, because every extra rule is one more thing a mod author
-//! has to hold in their head to predict what two mods will do together.
-//!
-//! 1. **Table into table: recurse.** Keys only the newer document has are
-//!    added. Keys both have are resolved one level deeper.
-//! 2. **Anything else: replace.** Scalars replace scalars. Arrays replace
-//! arrays *whole* —
-//! identity on an element
-//!    an override refers to. A table keyed by name is the right shape for
-//! anything that wants partial override, and the seeded rulesets use it.
-//! 3. **`"$delete" = ["a", "b"]`** removes those keys from the table it
-//!    appears in, before the rest of that table is merged.
-//!
-//! Every replacement of an existing value is logged with both origins. That
-//! log is the answer to "two mods touched the same thing".
 
 use crate::value::{join_path, Origin, Spanned, Table, Value, DELETE_KEY};
 
-/// One value replaced by a later layer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Override {
-    /// Dotted path of the value that was replaced.
     pub path: String,
-    /// Where the value being replaced came from.
     pub previous: Origin,
-    /// Where the replacement came from.
     pub current: Origin,
-    /// True when the two values are structurally different types — almost
-    /// always a mistake
     pub type_changed: bool,
 }
 
-/// One key removed by a `"$delete"` directive.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Deletion {
     pub path: String,
-    /// Where the deleted value had been defined.
     pub removed: Origin,
-    /// Where the `"$delete"` was written.
     pub by: Origin,
 }
 
-/// A `"$delete"` naming a key that is not there. Usually a typo, or a mod
-/// written against a version of another mod that has since renamed something.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DanglingDelete {
     pub path: String,
@@ -60,15 +30,12 @@ pub struct MergeLog {
 }
 
 impl MergeLog {
-    /// Overrides whose path starts with `prefix`, for narrower reporting.
     pub fn overrides_under<'a>(&'a self, prefix: &'a str) -> impl Iterator<Item = &'a Override> {
         self.overrides
             .iter()
             .filter(move |o| o.path == prefix || o.path.starts_with(&format!("{prefix}.")))
     }
 
-    /// Paths that three or more documents have fought over — a stronger smell
-    /// than a single override, and worth surfacing by default.
     pub fn contested_paths(&self) -> Vec<(&str, usize)> {
         let mut counts: std::collections::BTreeMap<&str, usize> = Default::default();
         for o in &self.overrides {
@@ -80,7 +47,6 @@ impl MergeLog {
     }
 }
 
-/// Merge `src` into `dst`, recording what happened.
 pub fn merge(dst: &mut Table, src: Table, log: &mut MergeLog) {
     let mut path = Vec::new();
     merge_tables(dst, src, &mut path, log);

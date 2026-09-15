@@ -4,10 +4,6 @@ use super::*;
 use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 
 impl Quirk {
-    /// Every quirk, in declaration order, which is bit order.
-    ///
-    /// **The only supported way to walk the set.** Nothing anywhere builds a
-    /// map keyed by [`Quirk`] and iterates it; `docs/netcode.md` D-4.
     pub const ALL: &'static [Quirk] = &[
         Quirk::HarvestIgnoresLabourCap,
         Quirk::EventDeckParityLocksOutEvenCounties,
@@ -25,15 +21,10 @@ impl Quirk {
         Quirk::MutualDestructionIsAWin,
     ];
 
-    /// Its bit position in [`Quirks`].
     pub const fn bit(self) -> u32 {
         self as u32
     }
 
-    /// The `docs/bugs.md` entry this switches — `"B1"`, `"B11a"`.
-    ///
-    /// This is the join between the code and the catalogue, and
-    /// `tools/quirks/quirks.js` is what checks the join holds.
     pub const fn entry(self) -> &'static str {
         match self {
             Quirk::HarvestIgnoresLabourCap => "B1",
@@ -53,7 +44,6 @@ impl Quirk {
         }
     }
 
-    /// The identifier, for the toggle list and for a check's output.
     pub const fn name(self) -> &'static str {
         match self {
             Quirk::HarvestIgnoresLabourCap => "HarvestIgnoresLabourCap",
@@ -77,8 +67,6 @@ impl Quirk {
         }
     }
 
-    /// One line for the player, in the player's words
-    /// binary's. Shown on the quirks page.
     pub const fn summary(self) -> &'static str {
         match self {
             Quirk::HarvestIgnoresLabourCap => {
@@ -122,17 +110,11 @@ impl Quirk {
 }
 
 impl Quirks {
-    /// **What the original does.** Zero.
     pub const FAITHFUL: Quirks = Quirks { bits: 0 };
 
-    /// Every defined quirk fixed.
     pub const FIXED: Quirks = Quirks { bits: Quirks::MASK };
 
-    /// The bits [`Quirk::ALL`] occupies. Everything else is reserved and held
-    /// at zero.
     pub(crate) const MASK: u64 = {
-        // A `const fn` loop, so the mask cannot drift from the enum: adding a
-        // variant to `ALL` widens it with no second edit.
         let mut m = 0u64;
         let mut i = 0;
         while i < Quirk::ALL.len() {
@@ -142,31 +124,22 @@ impl Quirks {
         m
     };
 
-    /// Read a raw bitfield, discarding bits no quirk claims.
     pub const fn from_bits(bits: u64) -> Quirks {
         Quirks { bits: bits & Quirks::MASK }
     }
 
-    /// The raw bitfield, as the save and the digest carry it.
     pub const fn bits(self) -> u64 {
         self.bits
     }
 
-    /// **Does the simulation reproduce this defect?**
-    ///
-    /// The question every rule site asks, phrased so that the faithful answer
-    /// is the one a reader expects from a project whose premise is fidelity.
     pub const fn reproduces(self, q: Quirk) -> bool {
         self.bits & (1u64 << q.bit()) == 0
     }
 
-    /// The complement of [`Quirks::reproduces`], for the interface, which
-    /// thinks in *"turn off the original game's bugs"*.
     pub const fn is_fixed(self, q: Quirk) -> bool {
         !self.reproduces(q)
     }
 
-    /// Reproduce this defect, or do not.
     pub fn set_reproduced(&mut self, q: Quirk, reproduced: bool) {
         if reproduced {
             self.bits &= !(1u64 << q.bit());
@@ -175,22 +148,14 @@ impl Quirks {
         }
     }
 
-    /// Flip one quirk. What a checkbox does.
     pub fn toggle(&mut self, q: Quirk) {
         self.bits ^= 1u64 << q.bit();
     }
 
-    /// **The group switch.** Set every quirk at once.
-    ///
-    /// The parent control's whole behaviour: `set_all(true)` is *"reproduce
-    /// them all"*, `set_all(false)` is *"turn off the original game's bugs"*.
-    /// It does not remember what the children were — a parent that restored a
-    /// previous mixture would be a fourth state the checkbox cannot show.
     pub fn set_all(&mut self, reproduced: bool) {
         self.bits = if reproduced { 0 } else { Quirks::MASK };
     }
 
-    /// What the parent control shows.
     pub fn group(self) -> Group {
         if self.bits == 0 {
             Group::AllReproduced
@@ -201,8 +166,6 @@ impl Quirks {
         }
     }
 
-    /// How many quirks are reproduced, and how many there are — the *"9 of
-    /// 14"* a mixed parent shows beside itself.
     pub fn tally(self) -> (usize, usize) {
         let fixed = self.bits.count_ones() as usize;
         (Quirk::ALL.len() - fixed, Quirk::ALL.len())

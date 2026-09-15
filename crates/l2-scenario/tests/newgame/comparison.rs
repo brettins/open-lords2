@@ -6,17 +6,6 @@ use l2_kingdom::map::MAP_TILES;
 use l2_scenario::newgame::{self, MapError, NewGame};
 use l2_scenario::{CountyState, Scenario};
 
-/// **A new game's mercenary bands, after its opening season, are England turn
-/// one's, band for band.**
-///
-/// `Game_NewGame` is `Mercenary_Init(); … Season_Advance();` with no
-/// `Mercenary_AdvanceAll` between them, and the save written after it still
-/// holds every band at its start county with its countdown full. Our
-/// `Kingdom::start_new_game` walks the same pipeline `Season_Advance` does, which
-/// carries the phase-7 walk; this is the test that says it must not run there.
-///
-/// **Ablation, run:** take the `MercenaryAdvance` skip out of `start_new_game`
-/// and the Saxon band, period 1, has already offered itself in county 14.
 #[test]
 fn a_new_games_bands_after_its_opening_season_are_england_turn_ones() {
     let save = l2_testkit::england!();
@@ -32,13 +21,6 @@ fn a_new_games_bands_after_its_opening_season_are_england_turn_ones() {
     }
 }
 
-/// **England out of `L2_maps.dat` and England out of `lastturn.sav`, field by
-/// field.**
-///
-/// Two files authored separately, one reading each. Almost every legitimate
-/// difference is of one kind: **the save is one season further on**, because
-/// `Game_NewGame` runs an immediate `Season_Advance` and the autosave is
-/// written after it. The exceptions are named individually.
 #[test]
 fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     let save = l2_testkit::england!();
@@ -49,16 +31,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(a.county_count, 14);
     assert_eq!(a.local_player, b.local_player);
 
-    // --------------------------------------------- the colours and the lords
-    //
-    // **`Realms_AssignLords` against a game the original itself set up.** The
-    // walk is otherwise checked only against itself — the reference
-    // implementation in `l2-view`'s install tests reads the same tables and
-    // does the same arithmetic — so this is the one place a save the *original
-    // program wrote* says what the answer is. It can only settle the default
-    // row of `docs/rules.md` §7a, because every `.sav` this project keeps has
-    // the human on shield 1 or 5; the middle colours have no fixture and say
-    // so at the table.
     for id in 1..l2_kingdom::realm::MAX_REALMS {
         assert_eq!(
             a.realms[id].shield_index, b.realms[id].shield_index,
@@ -70,13 +42,9 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         );
     }
 
-    // ------------------------------------------------------- the three planes
 
-    // The county plane is copied verbatim by both paths and nothing rewrites
-    // it, so this one is exact over all 4,096 tiles.
     assert_eq!(a.map.county, b.map.county, "the county plane");
 
-    // **The bank plane, on the one question a rule asks it.**
     // `Map_ResolvePick` (`0x0046D5FE`) reads `(tile.bank & 0x1C) == 4` and
     // `TileInfo_Draw` (`0x0041C208`) has nothing else to tell a mountain from a
     // wood. Both paths agree tile for tile, and every mountain is rough.
@@ -92,12 +60,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         );
     }
 
-    // The flags plane differs on exactly the dwelling plots. Both paths leave
-    // bit `0x10` set at load; `County_UpdateDwellings` clears it on every plot
-    // beyond what the population supports, and England's turn-one population of
-    // 417 supports **none** — so all fifty-six plots lose the bit in the save
-    // and keep it here. `maps-layers.md` §5.4 counted the same difference from
-    // the other side: 55 tiles `0x10 -> 0x00` and one `0x12 -> 0x02`.
     let flag_diffs: Vec<usize> =
         (0..MAP_TILES).filter(|&t| a.map.flags[t] != b.map.flags[t]).collect();
     for &t in &flag_diffs {
@@ -112,10 +74,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     }
     assert_eq!(flag_diffs.len(), 14 * 4, "one dwelling-plot bit per plot, and nothing else");
 
-    // **The blacksmith is a load-time edit that is in both.** It is the only
-    // place either path adds `0x80` to a tile the file gave no flags at all,
-    // and it lands on the same tile in all fourteen counties — which is what
-    // says the nearest-plain-tile-to-a-field rule is read right.
     let file_set = MapSet::parse(&maps).unwrap();
     let file = file_set.slot(ENGLAND).unwrap();
     let smiths: Vec<usize> = (0..MAP_TILES)
@@ -131,9 +89,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         assert_eq!(a.map.terrain[t], 7, "tile {t}: the save's blacksmith terrain");
     }
 
-    // **The terrain plane, category by category.** This is the strongest single
-    // assertion in the file: 4,096 tiles, 67 differences, and every one of them
-    // in a class that names the pass that made it.
     let mut terrain_classes: std::collections::BTreeMap<(u8, u8, u8), usize> =
         std::collections::BTreeMap::new();
     for t in 0..MAP_TILES {
@@ -146,16 +101,9 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(
         classes,
         vec![
-            // A farm tile the season sowed: the map path laid pasture (0x14)
-            // and the county's lord ploughed it.
             ((1, 20, 0x20), 7),
-            // Five wood industries stepped from idle (10) to working (11) —
-            // exactly the five owned counties, and exactly the five records
-            // `Game_SetupRealmsAndCounties` switched on.
             ((11, 10, 0x80), 5),
-            // Two fallow tiles the lord turned to pasture, and grown a stage.
             ((21, 1, 0x20), 2),
-            // Pasture, one growth stage on: 0x14 -> 0x15.
             ((21, 20, 0x20), 32),
             ((22, 20, 0x20), 1),
             // **The castles.** Five 2x2 blocks stamped from the bare plot
@@ -167,7 +115,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         ],
         "the terrain plane differs in a way nothing accounts for"
     );
-    // …and the twenty castle tiles are the five start counties' castle blocks.
     let castle_diffs: Vec<u8> = (0..MAP_TILES)
         .filter(|&t| a.map.terrain[t] == 0x17 && b.map.terrain[t] == 0x14)
         .map(|t| a.map.county[t])
@@ -178,7 +125,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(owners, ENGLAND_STARTS, "the built castles are not the five start counties");
     assert_eq!(castle_diffs.len(), 20, "four tiles each");
 
-    // ------------------------------------------------- per-county, exactly
 
     for id in 1..=a.county_count {
         let s = a.counties[id].as_ref().expect("the save has this county");
@@ -200,8 +146,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         assert_eq!(s.castle_switch, m.castle_switch, "county {id}: the castle-building switch");
     }
 
-    // The five owned counties are the map's five start markers, whatever the
-    // roll made of the assignment.
     let owned = |sc: &Scenario| {
         let mut v: Vec<u8> = (1..=sc.county_count)
             .filter(|&id| sc.counties[id].as_ref().map(|c| c.owner).unwrap_or(0) != 0)
@@ -213,7 +157,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(owned(&a), ENGLAND_STARTS, "the save's five owned counties");
     assert_eq!(owned(&b), ENGLAND_STARTS, "the map's five owned counties");
 
-    // The merchants: six routes, six start counties, six units — both ways.
     assert_eq!(a.routes, b.routes, "the six merchant routes");
     assert_eq!(a.merchant_start, b.merchant_start, "the six merchant start counties");
     let merchants = |sc: &Scenario| {
@@ -223,23 +166,10 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     assert_eq!(merchants(&b), 6, "England seats six merchants");
     assert_eq!(a.units.len(), b.units.len(), "England turn one has nothing but merchants");
 
-    // **The mercenary bands, exactly.** `Game_NewGame` runs `Mercenary_Init` and
-    // then `Season_Advance`, which does not walk them, so the save written after
-    // it holds `Mercenary_Init`'s table untouched: twelve bands on a
-    // fourteen-county map, each at its start county with its countdown equal to
-    // its reload — including the Spanish and Angevin bands, whose start
-    // counties 16 and 17 are not on this map at all. One reading of the file
-    // and one of the roster, and they agree on all sixty fields.
     assert_eq!(b.mercenaries.in_play(), 12, "England gets all twelve bands");
     assert_eq!(a.mercenaries, b.mercenaries, "the band table is Mercenary_Init's");
 
-    // ------------------------------- the five derived counts, on the kingdoms
 
-    // `fields_*` are the one group the *scenario* cannot be compared on: the
-    // save carries the file's cache and the map path carries nothing, because
-    // `Scenario::skeleton` derives all five from the field tiles with
-    // `field::recount` on both paths. So they are compared where they are
-    // — on the kingdom.
     let ka = a.starting_kingdom(SEED);
     let kb = b.starting_kingdom(SEED);
     for id in 1..=a.county_count {
@@ -254,13 +184,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "county {id}: the field total moved, so a field was created or lost"
         );
     }
-    // **A field can reach `CountyState` and stop there, and a diff of two
-    // `CountyState`s cannot see it.** Deleting the one line of
-    // `Scenario::skeleton` that carries `farm_style` into the county left every
-    // other assertion in this file green — which is exactly the shape of the
-    // four defects `docs/agents.md` lists, one layer further out. So every
-    // field this file calls *agreed* is checked again where the rules
-    // read it: on the county, on both paths.
     for id in 1..=a.county_count {
         let s = a.counties[id].as_ref().unwrap();
         let m = b.counties[id].as_ref().unwrap();
@@ -293,8 +216,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             }
         }
     }
-    // …and none of that is worth anything if every value is the default, so
-    // each of the four that *can* be zero everywhere is checked for content.
     for (k, path) in [(&ka, "save"), (&kb, "map")] {
         let ids = 1..=k.county_count;
         assert!(
@@ -315,16 +236,12 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         );
     }
 
-    // Difficulty 0 lays the first eight fields of every county to pasture, so
-    // the map path's pasture count is `min(fields, 8)` everywhere — the whole
-    // of the difficulty setting's effect on the land, measured.
     for id in 1..=b.county_count {
         let fields = kb.counties[id].field_tiles.iter().filter(|&&t| t != 0).count() as i32;
         assert_eq!(kb.counties[id].fields_cattle, fields.min(8), "county {id}: pasture");
         assert_eq!(kb.counties[id].fields_fallow, (fields - 8).max(0), "county {id}: fallow");
     }
 
-    // ---------------------------------------------- the field-by-field report
 
     let mut verdicts: Vec<(&'static str, Verdict)> = Vec::new();
     let column = |sc: &Scenario, f: fn(&CountyState) -> i64| -> Vec<i64> {
@@ -343,7 +260,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         verdicts.push((field, v));
     };
 
-    // Written by something the game runs, on both paths, and equal.
     judge("neighbours", |c| c.neighbours.len() as i64, UNEXPLAINED);
     judge("anchor", |c| c.anchor.0 as i64 * 64 + c.anchor.1 as i64, UNEXPLAINED);
     judge("field_tiles", |c| c.field_tiles.iter().map(|&t| t as i64).sum(), UNEXPLAINED);
@@ -353,7 +269,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     judge("labour_share", |c| c.labour_share.iter().map(|&n| n as i64).sum(), UNEXPLAINED);
     judge("castle_switch", |c| c.castle_switch as i64, UNEXPLAINED);
 
-    // Written on both paths and legitimately different.
     for (field, f) in [
         ("population", (|c: &CountyState| c.population as i64) as fn(&CountyState) -> i64),
         ("population_last", |c| c.population_last as i64),
@@ -400,10 +315,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         |c| c.ration_split as i64,
         "County_Reset opens every county at 100; the first ration pass moves an AI county's",
     );
-    // **The purse and the stall.** `County_Reset` zeroes all four and no
-    // new-game path writes any of them, so a fresh county has no money and no
-    // merchant; a played save has both, and they are the two things
-    // `Ai_BuyGood` reads before it will let an unowned county buy food.
     judge("purse", |c| c.purse as i64, "Tax_CollectAll fills it only once a season has run");
     judge(
         "merchant_count",
@@ -442,10 +353,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         "not carried on the map path — see fields_fallow; both are 0 because nobody has sown",
     );
 
-    // **Both silent, and each one is a claim about the game
-    // shrug.** These are zero in the England turn-one save *and* zero at new
-    // game, and the save's zero is the original's own byte — so they are
-    // corroborated.
     judge("tax_rate", |c| c.tax_rate as i64, "nothing sets a tax rate at new game: the county \
          record is zeroed by FUN_0046EA28 and County_Reset does not write one");
     judge("tax_collected", |c| c.tax_collected as i64, "no tax has been collected at rate 0");
@@ -543,8 +450,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
         ("fields_grain_sown", |c| c.fields_grain_sown as i64),
         ("fields_grain_standing", |c| c.fields_grain_standing as i64),
         ("sow_shortfall", |c| c.sow_shortfall as i64),
-        // The two field cursors: `County_Reset` zeroes both and no sweep has
-        // run by turn one.
         ("pasture_cursor", |c| c.pasture_cursor as i64),
         ("blight_cursor", |c| c.blight_cursor as i64),
     ] {
@@ -602,8 +507,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     }
     assert!(unexplained.is_empty(), "differences with no reason given: {unexplained:?}");
 
-    // The list of fields neither constructor writes. Not an assertion of
-    // health — an assertion that it has not grown silently.
     silent.sort_unstable();
     silent.dedup();
     assert_eq!(
@@ -616,14 +519,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "grain_eaten",
             "immigrants",
             "industry",
-            // **And this row is the whole of how the neutral counties came to
-            // starve.** `purse` is zero on both sides *of turn one* — nothing
-            // has been banked yet, because `Tax_CollectAll` runs at the end of
-            // a season and turn one has not had one. `County::purse`'s own
-            // comment generalised exactly this observation to *"it is 0 in
-            // every fixture"*, and the turn pair carries 186 … 436. A field
-            // that is inert in the only save a check reads is not an inert
-            // field; it is an unread one.
             "purse",
             "tax_collected",
             "tax_rate",
@@ -635,8 +530,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             // reclaimed, levied, bought ale, drawn an event or moved house.
             "ale_happiness_given",
             "army",
-            // Neither field cursor has been stepped: no cattle bought, no
-            // county blighted.
             "pasture_cursor",
             "blight_cursor",
             "castle_degraded",
@@ -678,8 +571,6 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
             "tax_hap_other",
             "tax_suppressed",
             "unrest_warned",
-            // No band has walked by turn one, and no weather or event has
-            // touched a crop or a herd in England turn one's first season.
             "mercenary_offer",
             "grain_weather_change",
             "grain_event_change",
@@ -694,5 +585,4 @@ fn england_from_the_map_and_england_from_the_save_agree_field_by_field() {
     );
 }
 
-// ------------------------------------------------ the enumeration, from source
 

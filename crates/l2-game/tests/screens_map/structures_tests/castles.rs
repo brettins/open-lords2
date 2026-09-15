@@ -23,24 +23,6 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// **The county town flies its owner's flag, and it waves.**
-///
-/// A player: *"I didn't see the colorful waving flag over my county."* It is
-/// There: the assertion in numbers.
-/// screenshot somebody has to open.
-///
-/// Three claims, each with its own pixels:
-///
-/// 1. **It is drawn.** `Flags1a.pl8` frame `(shield − 1) * 8 + phase` — several
-///    hundred opaque palette indices — stands somewhere on the canvas, exactly.
-/// 2. **The frame is keyed on the shield.** Move the owning realm's
-/// `shield_index` and the flag at the *same pixel* becomes the other
-///    shield's frame. Nothing else on the campaign map reads `shield_index` —
-/// the minimap and the menu-bar banner both read `realm_colour` — so this
-///    isolates the flag from everything drawn beside it.
-/// 3. **The wave advances.** Sixteen ticks is one phase (`phase = tick >> 4`),
-///    and after them the flag at the same pixel is the next frame of the eight.
-///
 /// If any of the three stops being true the feature has gone, and this fails
 /// instead of a person noticing weeks later. C59.
 #[test]
@@ -65,7 +47,6 @@ fn the_county_town_flies_its_owners_flag_and_the_wave_advances() {
         sheet.frame(i).expect("Flags1a.pl8 holds forty 32 x 24 frames")
     };
 
-    // 1 — it is drawn.
     let f = frame_of(shield, 0);
     assert_eq!((f.width, f.height), (32, 24), "the first forty frames are 32 x 24");
     let (at, ink) = find_sprite(&canvas, &f)
@@ -77,7 +58,6 @@ fn the_county_town_flies_its_owners_flag_and_the_wave_advances() {
 
     assert!(at.0 < campaign::PANEL_X, "the flag is on the map, not in the sidebar");
 
-    // 2 — the frame is keyed on the shield, at the same pixel.
     let other = if shield == 5 { 1 } else { shield + 1 };
     game.kingdom.realms[owner].shield_index = other;
     let (_, moved) = town_view(&mut game, &assets, county);
@@ -88,7 +68,6 @@ fn the_county_town_flies_its_owners_flag_and_the_wave_advances() {
     );
     game.kingdom.realms[owner].shield_index = shield;
 
-    // 3 — the wave advances. `Map_DrawFrame`: `phase = (tick & 0x7F) >> 4`.
     for _ in 0..16 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         let _ = screen.update(&mut ctx);
@@ -101,27 +80,8 @@ fn the_county_town_flies_its_owners_flag_and_the_wave_advances() {
     );
 }
 
-/// **A garrisoned castle flies its *garrison's* shield, and an empty one flies
-/// nothing.**
-///
 /// The second half of `FUN_004071A0`, and the half that is easy to get wrong by
 /// reading the county instead of the unit standing in it:
-///
-/// ```c
-/// else if (flags & 0x80) {                       /* the castle */
-///   if (content <= 0x14 || !county.garrisonUnit) return;
-///   shield = units[county.garrisonUnit].shield;  /* NOT county.owner */
-/// }
-/// ```
-///
-/// So a castle taken from somebody whose garrison is still theirs flies
-/// **their** colours, and the two flags of one county disagree. That is the
-/// case worth testing, and it is the case a fixture cannot supply: the position
-/// is set up here — a county the player holds, its castle built, and somebody
-/// *else's* army standing in it — so the two flags must be two different
-/// Pictures. A save with a garrison would almost always
-/// have one whose shield matched its host's, and would prove nothing about
-/// which of the two fields the branch reads.
 ///
 /// The measurement is a **count**, not a position: the town of the same county
 /// is flying a flag of its own a few tiles away, so what is asserted is that
@@ -139,13 +99,8 @@ fn a_garrisoned_castle_flies_the_garrisons_shield_and_an_empty_one_flies_nothing
 
     let owner = game.kingdom.counties[county].owner as usize;
     let town_shield = game.kingdom.realms[owner].shield_index;
-    // Somebody else's shield, so the castle's flag and the town's cannot be
-    // confused for one another.
     let garrison_shield = if town_shield == 5 { 1 } else { town_shield + 1 };
 
-    // A built castle with a foreign army inside it. `content <= 0x14` is the
-    // bare plot and flies nothing even with a garrison standing on it, so the
-    // castle has to be built for this to be the branch under test.
     let unit = game
         .kingdom
         .campaign
@@ -185,7 +140,6 @@ fn a_garrisoned_castle_flies_the_garrisons_shield_and_an_empty_one_flies_nothing
     assert!(ink >= 200, "matched on {ink} opaque pixels, too few to be a flag");
     let towns_before = sprite_positions(&held, &town_flag).0.len();
 
-    // Take the garrison away. `if (!county.garrisonUnit) return`.
     game.kingdom.counties[county].garrison_unit = 0;
     let empty = draw(&mut screen, &mut game, &assets);
     assert!(
@@ -198,8 +152,6 @@ fn a_garrisoned_castle_flies_the_garrisons_shield_and_an_empty_one_flies_nothing
         "and the town's own flag reads the county's owner, so it must not have moved"
     );
 
-    // The other half of the guard: a garrison on a bare plot flies nothing
-    // either, whatever its shield.
     {
         let c = &mut game.kingdom.counties[county];
         c.castle_type = 0;
@@ -215,10 +167,6 @@ fn a_garrisoned_castle_flies_the_garrisons_shield_and_an_empty_one_flies_nothing
 /// **A besieged castle carries the besieger's camp mark and the seasons he has
 /// left** — `FUN_00407F82` (`0x00407F82`), called from `Sprite_TopIt`'s castle
 /// arm before the garrison's banner.
-///
-/// The report was that a siege is invisible on the map. It was: we drew a dot
-/// over the *army*, gated as a debug overlay because the original draws nothing
-/// there, and nothing at all over the castle, where the original draws this.
 ///
 /// ```c
 /// besieger = g_units[county.garrisonUnit].besiegedBy;
@@ -246,8 +194,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
         .expect("the player holds a county");
     game.select(county as u8);
 
-    // A built castle, an army inside it, and a second army camped outside with
-    // four seasons of work left.
     let mut ids = game.kingdom.campaign.units.iter().map(|(id, _)| id);
     let garrison = ids.next().expect("the fixture carries units");
     let besieger = ids.next().expect("the fixture carries a second unit");
@@ -261,7 +207,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
     game.kingdom.campaign.units.get_mut(besieger).expect("the slot exists").siege_seasons_left =
         SEASONS;
 
-    // The castle's own tile, found the way the painter finds it.
     let castle = {
         let ctx = Ctx { game: &mut game, assets: &assets };
         let terrain = ctx.game.kingdom.campaign.map.terrain.clone();
@@ -300,7 +245,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
     let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
     let (mx, my) = (sx + screen.zoom().besieger_at.0, sy + screen.zoom().besieger_at.1);
 
-    // The whole frame, pixel for pixel, at the one place the two literals name.
     let mut reference = free.clone();
     reference.blit_clipped(&mark, mx, my, screen.map_clip());
     // `Ui_DrawNumberRight(seasons, ' ', " ", x, y + 10, frameWidth, &g_fontBody,
@@ -325,8 +269,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
             .map(|(i, _)| i)
             .collect()
     };
-    // A set of 640 x 480 indices is unreadable in a failure; its bounding box
-    // and its size say where the ink went and are what a reader needs.
     let corner = |v: &[usize]| -> (usize, usize, usize, usize, usize) {
         let xs = v.iter().map(|i| i % besieged.width);
         let ys = v.iter().map(|i| i / besieged.width);
@@ -347,7 +289,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
          count centred in its 24 pixels at ({mx}, {ny})"
     );
     assert_eq!(drawn, expected, "the siege's ink is the right size in the right place and is not the same pixels");
-    // Independently of the set: the digits are findable where they were put.
     let off = ((i32::from(mark.width) - body.width(&count)) / 2).max(0);
     assert_eq!(
         find_body(&besieged, &assets, &count, campaign::BESIEGER_COUNT_INK),
@@ -355,7 +296,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
         "the seasons left are the besieger's `+0x19C`, centred in frame 0x82's own width"
     );
 
-    // **The far zoom draws nothing, and that is the original's.**
     // `Sprite_TopIt` calls `FUN_00407F82(…, 2, -0x28)` at `g_mapZoom == 2` and
     // the whole of that function is inside `if (g_mapZoom == 0)`, so the call
     // returns having drawn nothing. `docs/bugs.md`.
@@ -373,7 +313,6 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
         );
     }
 
-    // And the mark goes when the siege does.
     game.kingdom.campaign.units.get_mut(garrison).expect("the slot exists").besieged_by = 0;
     let lifted = draw(&mut screen, &mut game, &assets);
     assert_eq!(lifted.diff_count(&free), 0, "no siege, no mark and no count");

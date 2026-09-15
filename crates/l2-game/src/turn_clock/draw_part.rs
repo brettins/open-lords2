@@ -7,8 +7,6 @@ use crate::game::Game;
 use crate::screen::{Ctx, ScreenId};
 use crate::shell::{font, Pen};
 
-/// The number the timer shows this frame, or `None` when it is not drawn —
-/// everything but the screen table.
 pub fn shown(game: &Game) -> Option<i32> {
     let ended = crate::turn::players_turn_ended(game) || game.turn_clock.end_turn_pending();
     game.turn_clock.value(game.kingdom.options.time_limit, ended, game.battle.is_some())

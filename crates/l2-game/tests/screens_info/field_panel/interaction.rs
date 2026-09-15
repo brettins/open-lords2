@@ -17,21 +17,11 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// **A left click on your own field opens what a right click opens**, and the
-/// grain button on it sows the field.
-///
 /// A player: *"Clicking on a field still brings up placeholder … right click
 /// and left click on fields in game."*
 /// `Map_Click`'s farmland arm is `_DAT_005681CC = 3; g_screenId = 4;
 /// FUN_0041B032();` and the right button's `FUN_0043CAF4` ends in the same two
 /// statements, so both land on screen `0x04`'s tile half for the picked tile.
-/// The brush's grain button is `g_infoFieldBrush` record 1 at `(304, 376)`,
-/// 48 square — the literal from the table, not our constant.
-///
-/// Driven through the [`Machine`] at the pixel a player would click, on a field
-/// That is on screen. **Ablation, run:** deleting the `Push` in the
-/// farmland arm of `screens/map/mod.rs` fails the second assertion — the left click
-/// stays on the campaign map.
 #[test]
 fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {
     use l2_game::screens::info::Target;
@@ -53,7 +43,6 @@ fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {
     send_stack(&mut right, &mut game, &assets, Event::RightClick { x: at.0, y: at.1 });
     assert_eq!(right.top_id(), panel, "the right button opens the information panel on that field");
     assert_eq!(right.depth(), 2);
-    // The same button closes it, and the map under it keeps its viewport.
     send_stack(&mut right, &mut game, &assets, Event::RightClick { x: at.0, y: at.1 });
     assert_eq!(right.ids(), vec![ScreenId::Campaign]);
 
@@ -63,7 +52,6 @@ fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {
     assert_eq!(left.top_id(), panel, "and the left button opens the same screen, on the same tile");
     assert_eq!(left.depth(), 2);
 
-    // The grain button, on the panel the left click opened.
     send_stack(&mut left, &mut game, &assets, Event::Click { x: 328, y: 400 });
     assert_eq!(
         game.kingdom.counties[county as usize].fields_grain,
@@ -73,14 +61,9 @@ fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {
     assert_eq!(game.kingdom.campaign.map.terrain[tile], l2_kingdom::field::terrain::GRAIN);
     assert_eq!(left.ids(), vec![ScreenId::Campaign], "FUN_00438B02 ends in g_screenId = 0");
 
-    // **The owner test is inside the arm.** The same field in somebody else's
-    // hands: the left click falls out of `Map_Click`, and the right one still
-    // opens the panel, which has no owner test at all.
     let other = (1..game.kingdom.realms.len() as u8)
         .find(|&r| r != game.player)
         .expect("there is another realm");
-    // The two machines that have already opened are reused: a fresh one would
-    // open on whichever county the player now holds and look somewhere else.
     game.kingdom.counties[county as usize].owner = other;
     send_stack(&mut left, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
     assert_eq!(left.ids(), vec![ScreenId::Campaign], "a foreign field opens nothing on the left button");
@@ -88,8 +71,6 @@ fn a_left_click_on_your_own_field_opens_what_a_right_click_opens() {
     assert_eq!(right.top_id(), panel, "and the right button still opens the panel");
 }
 
-/// **A click on a county that is not yours paints nothing**, which is the owner
-/// test `Map_Click` makes before it reaches any of the three hotspots.
 #[test]
 fn another_lords_fields_are_not_yours_to_paint() {
     let (mut game, assets) = world!();
@@ -106,12 +87,6 @@ fn another_lords_fields_are_not_yours_to_paint() {
     assert_eq!(game.kingdom.counties[theirs as usize], before);
 }
 
-/// **A click on one of your own buildings switches its industry.**
-///
-/// `Map_Click`'s plane-0 dispatch tests bit `0x80` before farmland, and the
-/// industry comes from a ladder on the tile's terrain byte. The England
-/// position gives every county one iron site, one stone, one weapons and one
-/// wood, so a click on each is a click on a different industry.
 #[test]
 fn clicking_a_mine_switches_that_industry_off_and_on_again() {
     let (mut game, assets) = world!();

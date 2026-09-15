@@ -9,8 +9,6 @@ use crate::Game;
 /// **`Tip_Update` (`0x00476AA7`)**, the whole ladder. Returns the group it
 /// hands to `Tip_Show`, which may still refuse — see [`show`].
 ///
-/// The order is the original's and two things about it are load-bearing:
-///
 /// * the campaign map's four tips are **one per re-arm**, in the order 206
 /// (only when zoomed out), 200, 201, 202 — so a player meets three windows
 ///   in a row with twenty frames between each;
@@ -80,10 +78,6 @@ pub fn update(tips: &mut Tips, view: &View) -> Option<u16> {
 }
 
 /// **`Tip_Show` (`0x00476DA9`).** Returns whether it posted.
-///
-/// The record is `Msg_Enqueue(0, g_localPlayer, group, 0, g_tipCategory[group],
-/// 0, 0, 0)` — **from** realm 0 **to** the local player, which the peer filter
-/// always keeps.
 pub fn show(game: &mut Game, group: u16) -> bool {
     let Some(i) = index(group) else { return false };
     if game.tips.hosting {
@@ -107,12 +101,9 @@ pub fn show(game: &mut Game, group: u16) -> bool {
     true
 }
 
-/// `Tip_Update` then `Tip_Show`, as `Battle_Frame` runs them. Returns the group
-/// posted, if one was.
 pub fn tick(game: &mut Game, view: &View) -> Option<u16> {
     let group = update(&mut game.tips, view)?;
     show(game, group).then_some(group)
 }
 
-// ------------------------------------------------------------------ the words
 

@@ -13,26 +13,12 @@ use l2_game::Game;
 use l2_kingdom::victory::Outcome;
 
 /// **A battle swallows its own letters.** `Msg_Pump` (`0x00472E46`) opens with
-///
-/// ```c
-/// if (g_battlePhase == 2 && g_messageGroup != 0) Msg_Dismiss();
-/// else { …pull, count down, draw… }
-/// ```
-///
-/// — the guard is on an *open* window, so the pull still happens and each
-/// record is drawn for one frame before the next frame closes it. The ring
-/// drains during a battle; it is not held.
-///
-/// Ablated: dropping the `fighting` test in `Machine::pump_messages` leaves the
-/// scroll up over the battlefield for every frame of the loop.
 #[test]
 fn a_battle_drains_the_message_ring_one_frame_at_a_time() {
     use l2_game::battlefield::LiveBattle;
     use l2_sim::runner::{Army, BattleRunner};
     use l2_sim::Troop;
     let (mut g, a, mut m) = world();
-    // A live battle, so the battlefield screen stays on the stack: two
-    // deployment markers eight rows apart, as `tests/audio_battle.rs` builds it.
     let mut layer = vec![0u8; l2_sim::terrain::CELLS];
     layer[36 * l2_sim::terrain::DIM + 40] = 0x04;
     layer[44 * l2_sim::terrain::DIM + 40] = 0x0F;
@@ -60,7 +46,6 @@ fn a_battle_drains_the_message_ring_one_frame_at_a_time() {
     assert_eq!(frames_up, 2, "both records are drawn once each and never for a second frame");
     assert!(!g.messages.is_open(), "a message is still open with the battlefield on the stack");
 
-    // The control: the same record with no battle stays up.
     let (mut g, a, mut m) = world();
     post(&mut g, notice(130));
     open_the_scroll(&mut m, &mut g, &a);

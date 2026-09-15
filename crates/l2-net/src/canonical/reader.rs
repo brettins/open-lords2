@@ -22,7 +22,6 @@ impl<'a> Reader<'a> {
         self.pos == self.input.len()
     }
 
-    /// Error unless every byte has been consumed.
     pub fn finish(self) -> Result<(), CodecError> {
         if self.at_end() {
             Ok(())
@@ -79,10 +78,6 @@ impl<'a> Reader<'a> {
         Ok(self.u64()? as i64)
     }
 
-    /// A `bool` written by [`Canonical::bool`]. Anything other than 0
-/// or 1 is an error: a byte that was
-    /// never written by our encoder means the schemas differ, and
-    /// guessing at that point buries the evidence.
     pub fn bool(&mut self) -> Result<bool, CodecError> {
         let at = self.pos;
         match self.u8()? {
@@ -96,12 +91,6 @@ impl<'a> Reader<'a> {
         Ok(Fixed::from_raw(self.i32()?))
     }
 
-/// A `u32` length, checked against what is left.
-    ///
-    /// The check is the point. A declared length of four billion would
-    /// otherwise become a four-billion-element `Vec::with_capacity`,
-/// and a peer who sends one should get an error
-    /// allocator.
     pub fn len32(&mut self) -> Result<usize, CodecError> {
         let at = self.pos;
         let declared = self.u32()? as usize;
@@ -126,14 +115,6 @@ impl<'a> Reader<'a> {
         core::str::from_utf8(bytes).map_err(|_| CodecError::NotUtf8 { at })
     }
 
-    /// A length-prefixed sequence.
-    ///
-    /// The `Vec` is *not* preallocated from the declared length even
-    /// though [`Reader::len32`] has already bounded it, because an
-    /// element may be one byte and a bound of "no more than the
-    /// remaining input" is still a large allocation for a small packet.
-    /// Growing costs a few reallocations on a path that runs ten times
-    /// a second.
     pub fn seq<T>(
         &mut self,
         mut each: impl FnMut(&mut Reader<'a>) -> Result<T, CodecError>,

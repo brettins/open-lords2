@@ -20,17 +20,10 @@ use l2_view::chrome::{
 };
 use l2_view::Canvas;
 
-/// **Mode 0 against mode 3, colour for colour.**
-///
-/// With the player holding everything, the ownership tint over county land is
-/// exactly one row of the realm ramp; the happiness tint is exactly the rating
-/// ramp entries the counties' happiness bands select. Both sets are asserted
-/// whole.
 #[test]
 fn the_happiness_overlay_recolours_the_minimap_from_the_rating_ramp() {
     let (mut game, assets, raster) = world!();
     let ids = hand_the_player_everything(&mut game);
-    // 0, 20, 40, 60, 80, 100, 0, ... — bands 0..=5 and round again.
     for (n, &id) in ids.iter().enumerate() {
         game.kingdom.counties[id].happiness = ((n % 6) * 20) as i32;
     }
@@ -49,7 +42,6 @@ fn the_happiness_overlay_recolours_the_minimap_from_the_rating_ramp() {
     let want: BTreeSet<u8> = MINIMAP_REALM_RAMP[row][1..].iter().copied().collect();
     assert_eq!(owners, want, "mode 0 draws realm ramp row {row} and nothing else");
 
-    // Button 3 of four — `Minimap_ModeButton` hotspot id 3, the heart.
     click(&mut screen, &mut game, &assets, 2);
     let happy = land_colours(&draw(&mut screen, &mut game, &assets), &raster, &mine);
 
@@ -59,8 +51,6 @@ fn the_happiness_overlay_recolours_the_minimap_from_the_rating_ramp() {
     eprintln!("minimap: owners {owners:?}, happiness {happy:?}");
 }
 
-/// **The food overlay is binary, and half of it draws nothing.**
-///
 /// `FUN_00451BBA` gives a county band 0 when the ration it achieved fell short
 /// of the ration asked for, and **6 — outside the six-entry ramp — when it did
 /// not**, so a fed county keeps the raster's own shade. That is the original's,
@@ -93,9 +83,6 @@ fn the_food_overlay_marks_only_the_counties_that_went_short() {
     );
 }
 
-/// **The labour overlay only ever paints the two ends of the ramp.** Band 0 is
-/// a county short of farm workers, band 5 one with idle townsfolk or a
-/// over-staffed job, and band 6 — nothing drawn — one with neither.
 #[test]
 fn the_labour_overlay_paints_only_the_two_ends_of_the_ramp() {
     let (mut game, assets, raster) = world!();
@@ -111,8 +98,6 @@ fn the_labour_overlay_paints_only_the_two_ends_of_the_ramp() {
             _ => {}
         }
     }
-    // The three cases really are the three bands, so the picture below is a
-    // statement about labour and not only about the ramp.
     let bands: BTreeSet<u8> = ids
         .iter()
         .map(|&id| game.kingdom.counties[id].minimap_bands().labour)

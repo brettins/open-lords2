@@ -186,6 +186,13 @@ line; what it does, with the numbers; then one line per claim that is inferred o
 departure, `[I]` or `[D]` with the reason. A test's doc names the claim and the line whose
 deletion turns it red. The past tense belongs in `docs/decisions.md`, with a C-number.
 
+**The standard since 2026-09-14, the player's call:** a comment sentence carries evidence or
+it does not exist. `tools/review/comment-cut.js` cut the crates from 82,119 comment lines
+to 29,963 by that rule (a sentence stays when it carries an address, a `+0x` offset, a
+decompilation line, an arm or sfx marker, a `[V]`/`[I]`/`[D]` mark, a C-number, an `L2.eng`
+group, or a test's ablation line); git history keeps the rest. `.claude/hooks/comment-lint.js`
+hands back any new sentence without one. What the code does is read from the code.
+
 ## File size
 
 The player's cap, 2026-09-13: a test file stays under 300 lines, a source under 500, and a

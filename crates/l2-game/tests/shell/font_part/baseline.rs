@@ -23,37 +23,8 @@ use l2_game::shell::{font, Eng};
 use l2_game::Game;
 use l2_view::Canvas;
 
-/// Lowercase letters that sit *on* the baseline in all three fonts.
-///
-/// `g j p q y` descend everywhere. `h` is left out because it descends in
-/// `Fntl2_22.pl8` and nowhere else — that typeface gives it a tail, and its
-/// frame is 22 rows against 18 for the x-height letters, the same as the real
-/// descenders. Excluding one letter costs nothing; pretending it is flat would
-/// make this test lie about which font is wrong.
 const ON_THE_BASELINE: &str = "abcdefiklmnorstuvwxz";
 
-/// Every lowercase letter in a font must land on one baseline once drawn.
-///
-/// This is the test that would have caught the bug a player found by opening
-/// the original next to our demo: `a c e m n o s u x z` sat three pixels below
-/// `b d f h i k l t`.
-/// `Font::draw` added that byte to `y` while the decoder had already reserved
-/// the same rows at the top of the canvas, so the offset was applied twice —
-/// but only for the frames whose rows were *stored*, so the two
-/// halves of one alphabet disagreed.
-///
-/// It draws through `Font::draw`, because the
-/// records. The whole bug lived between the decoder and the
-/// blitter, and only an end-to-end render can see that seam.
-///
-/// The tolerance is one pixel and it is earned, not slack: `r v w` in
-/// `Fntl2_14.pl8` and `s` in `Fntl2_22.pl8` end in a single-pixel terminal one
-/// row below the stroke. A misapplied `0x0D` is three pixels, or four in the
-/// heading font — far outside it.
-///
-/// **Four of the five faces.** `Font_10.pl8` has no lowercase to put on a
-/// baseline; its digits are checked in
-/// [`font_10_is_a_numeral_face_read_through_the_shared_table`].
 #[test]
 fn every_font_puts_its_lowercase_on_one_baseline() {
     let Some(dir) = install() else {
@@ -70,7 +41,6 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
             .map(|f| f.overhang_rows)
             .collect();
         let f = font::Font::new(bytes, line).expect("the font loads");
-        // Flat, so a shadow pass cannot extend a glyph a row past its own ink.
         let flat = font::Style { colour: font::TEXT, shadow: None, caps: None };
 
         let mut bottoms: Vec<(char, u8, usize)> = Vec::new();
@@ -93,10 +63,6 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
             );
         }
 
-        // The sharp half: the letters that declare overhang rows and the ones
-        // that do not must reach the *same* first row. Under the old
-        // double-application these two groups differed by exactly the declared
-        // count, which is what the player saw.
         let mut groups: std::collections::BTreeMap<u8, usize> = Default::default();
         for &(_, over, b) in &bottoms {
             let e = groups.entry(over).or_insert(b);
@@ -111,9 +77,6 @@ fn every_font_puts_its_lowercase_on_one_baseline() {
                 *b as i32 - base as i32,
             );
         }
-        // Not vacuous in the fonts that have both kinds. `Fnt_8.pl8` has
-        // `0x0D == 0` on all 150 frames (`docs/formats/pl8-failures.md` §4), so
-        // for it only the one-baseline half above is a claim — and it holds.
         if name != font::HEADING && name != font::EIGHT {
             assert!(groups.len() >= 2, "{name}: expected both 0x0D = 0 and 0x0D > 0 letters");
         }

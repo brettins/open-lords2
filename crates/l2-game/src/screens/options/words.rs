@@ -13,9 +13,7 @@ use crate::shell::{self, font, Pen};
 /// both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Words {
-    /// Group 18 — `Yes` / `No`.
     YesNo,
-    /// Group 19 — `On` / `Off`.
     OnOff,
 }
 
@@ -27,7 +25,6 @@ impl Words {
         }
     }
 
-    /// Index 0 is the affirmative and index 1 the negative in both groups.
     pub fn index(self, on: bool) -> usize {
         usize::from(!on)
     }

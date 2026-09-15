@@ -50,9 +50,6 @@ fn the_glyph_map_is_the_table_in_the_users_own_executable() {
         }
     }
     let at = file_off.expect("0x004D71F0 is in a section");
-    // `Ui_DrawText` indexes it with `c - 0x20` for every byte above 0x1F, so the
-    // table the code can reach is 224 bytes. We had 128, and eleven of the 96
-    // we left out are glyphs.
     assert_eq!(font::GLYPH_MAP.len(), 0x100 - 0x20);
     assert_eq!(
         &exe[at..at + font::GLYPH_MAP.len()],

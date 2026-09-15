@@ -5,7 +5,6 @@ use super::layout::*;
 use types::*;
 
 impl Save {
-    /// Read a save, checking the arithmetic closes.
     pub fn open(exe: &[u8], save: &[u8]) -> Result<Save, SaveError> {
         let layout = Layout::from_executable(exe)?;
         let expected = layout.expected_len();
@@ -48,7 +47,6 @@ impl Save {
         Ok(i32::from_le_bytes([s[0], s[1], s[2], s[3]]))
     }
 
-    /// One county record, by array index. Index 0 is never a county.
     pub fn county(&self, index: usize) -> Result<County, SaveError> {
         if index >= COUNTY_RECORDS {
             return Err(SaveError::OutOfRange { index, count: COUNTY_RECORDS });
@@ -111,13 +109,10 @@ impl Save {
         })
     }
 
-    /// Every record, including the three that are never counties. Callers that
-    /// want only the real ones filter on [`County::is_county`].
     pub fn counties(&self) -> Result<Vec<County>, SaveError> {
         (0..COUNTY_RECORDS).map(|i| self.county(i)).collect()
     }
 
-    /// One realm record, by array index. Index 0 is never a realm.
     pub fn realm(&self, index: usize) -> Result<Realm, SaveError> {
         if index >= REALM_RECORDS {
             return Err(SaveError::OutOfRange { index, count: REALM_RECORDS });
@@ -180,8 +175,6 @@ impl Save {
         (0..REALM_RECORDS).map(|i| self.realm(i)).collect()
     }
 
-    /// One `g_units` record, by slot. Slot 0 is never a unit.
-    ///
     /// **Everything is read, including the fields whose meaning depends on the
     /// type byte.** `+0x14F`, `+0x164` and `+0x167` are each two fields sharing
     /// one offset (`docs/armies.md` §1), so this layer reads the bytes and
@@ -252,13 +245,10 @@ impl Save {
         })
     }
 
-    /// Every unit record, including slot 0 and the free ones. Callers that want
-    /// only the live units filter on [`Unit::is_live`].
     pub fn units(&self) -> Result<Vec<Unit>, SaveError> {
         (0..UNIT_RECORDS).map(|i| self.unit(i)).collect()
     }
 
-    /// One player slot, by realm index. Slot 0 is never a realm.
     pub fn player(&self, index: usize) -> Result<Player, SaveError> {
         if index >= PLAYER_RECORDS {
             return Err(SaveError::OutOfRange { index, count: PLAYER_RECORDS });
@@ -281,7 +271,6 @@ impl Save {
         (0..PLAYER_RECORDS).map(|i| self.player(i)).collect()
     }
 
-    /// `g_merchantRoutes` — six rows of sixteen county ids, zero-padded.
     pub fn merchant_routes(
         &self,
     ) -> Result<[[u8; MERCHANT_ROUTE_LEN]; MERCHANT_ROUTE_ROWS], SaveError> {
@@ -294,8 +283,6 @@ impl Save {
         Ok(rows)
     }
 
-    /// `g_merchantStartCounty` — the county each route's merchant was spawned
-    /// in.
     pub fn merchant_start_counties(&self) -> Result<[u8; MERCHANT_ROUTE_ROWS], SaveError> {
         let mut out = [0u8; MERCHANT_ROUTE_ROWS];
         for (r, slot) in out.iter_mut().enumerate() {
@@ -304,8 +291,6 @@ impl Save {
         Ok(out)
     }
 
-    /// The scalars outside the two arrays — the clock, the options and who is
-    /// playing.
     pub fn globals(&self) -> Result<Globals, SaveError> {
         Ok(Globals {
             county_count: self.i32_at(globals::COUNTY_COUNT)?,

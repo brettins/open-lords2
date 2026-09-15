@@ -1,4 +1,3 @@
-//! A battle: a fixed set of figures, advanced one tick at a time.
 
 use crate::cue::Cues;
 use crate::figure::{Figure, Side, State, SIDE_A, SIDE_B};
@@ -8,48 +7,21 @@ use crate::MAX_FIGURES;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Battle {
-    /// Index order is the simulation order and never changes. Figures are never
-    /// removed — a dead one stays in place — so indices stay stable and two
-    /// machines walk them identically.
     pub figures: Vec<Figure>,
     pub tick: u32,
-    /// The combat constants this battle runs on.
-    ///
-    /// Fixed for the life of the battle: every figure copies its row in at
-    /// construction, so changing this afterwards affects nothing already
-    /// added. That is on purpose — rules that could change mid-battle are
-    /// rules two lockstep peers can disagree about.
     pub troops: TroopTable,
-    /// **What a listener could hear of the ticks run so far** — see
-    /// [`crate::cue`]. Written by the melee sweep below and by
-    /// [`crate::runner`]'s missiles and walls; **read by nothing in this
-    /// crate**, and deliberately outside the lockstep checksum.
     pub cues: Cues,
 }
 
 impl Battle {
-    /// A battle on [`TroopTable::DEFAULT`].
     pub fn new() -> Self {
         Battle::with_troops(TroopTable::DEFAULT)
     }
 
-    /// A battle on a supplied table — how a ruleset reaches the simulation.
-    ///
-    /// ```
-    /// # use l2_sim::{Battle, Troop, TroopTable, SIDE_A};
-    /// let mut table = TroopTable::DEFAULT;
-    /// table.stats[Troop::Archers.index()].melee_attack = [9, 9, 9, 9];
-    /// let mut battle = Battle::with_troops(table);
-    /// let a = battle.add(Troop::Archers, SIDE_A, 4).unwrap();
-    /// assert_eq!(battle.figures[a].stats.melee_attack[0], 9);
-    /// ```
     pub fn with_troops(troops: TroopTable) -> Self {
         Battle { figures: Vec::new(), tick: 0, troops, cues: Cues::default() }
     }
 
-    /// Add a figure. Returns its index, or `None` once the original's ceiling is
-    /// reached — the real engine truncates silently
-    /// matters if we ever diff against it.
     pub fn add(&mut self, troop: Troop, side: Side, men: u16) -> Option<usize> {
         if self.figures.len() >= MAX_FIGURES {
             return None;
@@ -62,7 +34,6 @@ impl Battle {
         melee::engage(&mut self.figures, a, b);
     }
 
-    /// Advance every figure by one tick, in index order.
     pub fn step(&mut self) {
         for i in 0..self.figures.len() {
             if self.figures[i].state == State::Melee {
@@ -75,7 +46,6 @@ impl Battle {
         self.tick += 1;
     }
 
-    /// Men and life of both halves of a duel, for [`Self::hear_the_duel`].
     fn duel_snapshot(&self, i: usize, pair: Option<usize>) -> [(u16, bool); 2] {
         let of = |f: &Figure| (f.men, f.is_alive());
         [of(&self.figures[i]), pair.map_or((0, false), |o| of(&self.figures[o]))]
@@ -96,10 +66,6 @@ impl Battle {
     /// than by threading a report through it, so the rules module is untouched
     /// and cannot be told a listener exists.
     ///
-    /// One divergence that is the rules' and not this record's: [`melee::tick`]
-    /// resolves a heavy blow's casualties at once, in the striker's tick, where
-    /// the original adds the hits and lets the victim's own tick count them. The
-    /// striker is the same figure either way, so the sword chosen is the same.
     /// `[D]`.
     fn hear_the_duel(&mut self, i: usize, pair: Option<usize>, before: [(u16, bool); 2]) {
         let Some(o) = pair else { return };
@@ -135,7 +101,6 @@ impl Battle {
             .sum()
     }
 
-    /// True once one side has no living figures.
     pub fn is_decided(&self) -> bool {
         self.living(SIDE_A) == 0 || self.living(SIDE_B) == 0
     }
@@ -160,12 +125,6 @@ mod tests {
         bt
     }
 
-    /// The point of [`TroopTable`]: a different table is a different battle,
-    /// with no code path in this crate knowing where the numbers came from.
-    ///
-    /// This is the assertion that makes "data-driven" mean something. Both
-    /// halves matter — the default must be unchanged, *and* the override must
-    /// bite.
     #[test]
     fn a_supplied_troop_table_decides_the_battle_instead_of_the_default() {
         let stock = {
@@ -192,11 +151,9 @@ mod tests {
             modded > stock,
             "peasants swinging for 40 should fare better than the stock 5: {modded} vs {stock}"
         );
-        // And the default really is untouched by the existence of the other.
         assert_eq!(Battle::new().troops, TroopTable::DEFAULT);
     }
 
-    /// A figure carries its own numbers, so the table cannot change under it.
     #[test]
     fn a_figure_keeps_the_row_it_was_built_from() {
         let mut table = TroopTable::DEFAULT;
@@ -206,7 +163,6 @@ mod tests {
         assert_eq!(bt.figures[0].hits_per_casualty, 10);
         assert_eq!(bt.figures[0].take_hits(10), 1, "ten hits is a casualty under this table");
 
-        // Mutating the battle's table afterwards leaves the figure alone.
         bt.troops.hits_per_casualty[Troop::Peasants.index()] = 100;
         assert_eq!(bt.figures[0].hits_per_casualty, 10);
     }
@@ -219,7 +175,6 @@ mod tests {
         assert_eq!(f.take_hits(1), 1, "the hundredth hit kills");
         assert_eq!(f.men, 3);
         assert_eq!(f.hits, 0, "no remainder here");
-        // Damage is never wasted: 250 is two more men and 50 carried forward.
         assert_eq!(f.take_hits(250), 2);
         assert_eq!(f.men, 1);
         assert_eq!(f.hits, 50);
@@ -282,9 +237,6 @@ mod tests {
         );
     }
 
-    /// Recovery is the only melee defence, so the figure that recovers more
-    /// slowly should survive longer against identical opposition. Pikemen have
-    /// the longest recovery in the game; peasants among the shortest.
     #[test]
     fn slower_recovery_survives_longer() {
         fn ticks_to_die(defender: Troop) -> u32 {
@@ -310,9 +262,6 @@ mod tests {
         );
     }
 
-    /// The property lockstep identical inputs must give
-    /// bit-identical state, every time, with no dependence on allocation or
-    /// iteration order.
     #[test]
     fn two_identical_battles_stay_identical() {
         let build = || {
@@ -344,15 +293,6 @@ mod tests {
         }
     }
 
-    /// **A man felled in a duel is cued by the troop that struck him, and a
-    /// figure that dies by its own side** — `Melee_Tick`'s two ladders.
-    ///
-    /// Checked tick by tick against the men, both halves of the duel, so the
-    /// assertion is about each occasion Macemen against
-    /// knights
-    /// *different* swords (slot 4 against slot 5). Ablation: delete
-    /// `self.cues.melee_casualty(striker)` and the first assertion names the
-    /// tick; swap `other` for `me` in the striker and the second does.
     #[test]
     fn a_man_felled_in_melee_is_cued_by_the_troop_that_struck_him() {
         let mut bt = duel(Troop::Macemen, Troop::Knights, 8);
@@ -363,7 +303,6 @@ mod tests {
             let alive = [bt.figures[0].is_alive(), bt.figures[1].is_alive()];
             bt.step();
             let now = bt.cues;
-            // Figure 0 is the maceman (side A), 1 the knight (side B).
             if bt.figures[0].men < men[0] {
                 assert!(
                     now.melee_casualties(Troop::Knights) > was.melee_casualties(Troop::Knights),

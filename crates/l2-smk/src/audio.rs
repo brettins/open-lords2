@@ -4,28 +4,14 @@ use super::decode::*;
 use super::bitstream::*;
 use std::fmt;
 
-// ------------------------------------------------------------- audio
 
-/// One frame's audio, decoded, with the two numbers that say whether it was
-/// decoded right.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AudioChunk {
-    /// Interleaved unsigned 8-bit samples.
     pub pcm: Vec<u8>,
-    /// What the chunk's own header said the output would be.
     pub unpacked: usize,
-    /// Bits read, and bits in the chunk after its length word.
     pub bits: (usize, usize),
 }
 
-/// **One packed audio chunk.**
-///
-/// A 32-bit unpacked length; then, as bits, a *data present* flag, a stereo
-/// flag and a 16-bit flag (which must agree with the track's descriptor); one
-/// 8-bit delta tree per channel; the first sample of each channel as eight raw
-/// bits, **right before left**; and then one tree code per sample, a signed
-/// delta added to that channel's last value, channels interleaved from the
-/// left.
 pub(super) fn decode_audio(raw: &[u8], desc: Track) -> Result<AudioChunk> {
     if !desc.packed {
         return Ok(AudioChunk { pcm: raw.to_vec(), unpacked: raw.len(), bits: (0, 0) });

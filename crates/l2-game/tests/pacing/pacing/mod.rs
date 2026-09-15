@@ -13,11 +13,6 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_kingdom::tables::Tables;
 use l2_kingdom::UnitKind;
 
-/// Where every merchant stood at the end of each **frame** of a turn started by
-/// pressing End Turn on the campaign map, plus how many frames it took.
-///
-/// The machine is driven: one
-/// [`Machine::update`] a frame, and no other door into the simulation.
 fn watch_a_turn(game: &mut l2_game::Game, machine: &mut Machine) -> Vec<Vec<(u8, u8)>> {
     let assets = Assets::placeholder();
     let slots = merchant_slots(game);
@@ -51,7 +46,6 @@ fn watch_a_turn(game: &mut l2_game::Game, machine: &mut Machine) -> Vec<Vec<(u8,
     panic!("the turn never came round in {GIVE_UP} frames");
 }
 
-/// The frames on which this unit entered a tile.
 fn entries(path: &[(u8, u8)]) -> Vec<u32> {
     path.windows(2)
         .enumerate()

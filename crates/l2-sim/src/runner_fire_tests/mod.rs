@@ -1,12 +1,3 @@
-//! **Fire, oil and the siege tower, each against a battle built so it must
-//! happen** — and the determinism proof extended to a siege that uses all of
-//! them.
-//!
-//! A child of [`crate::runner`], so a test can stand a man on a chosen cell
-//! the way `firing_line` does. The siege is [`crate::proving`]'s, and every
-//! literal asserted below is the original's: a frame count, a fire's life, a
-//! cell's height, read out of the routine the test names — never computed from
-//! the constant under test.
 
 mod oil_and_rampart_tests;
 pub use oil_and_rampart_tests::*;
@@ -25,7 +16,6 @@ fn cell(x: u8, y: u8) -> usize {
     y as usize * DIM + x as usize
 }
 
-/// The fire record burning over `(x, y)`, if there is one.
 fn fire_at(r: &BattleRunner, x: u8, y: u8) -> Option<crate::missile::Missile> {
     r.missiles
         .iter()
@@ -33,7 +23,6 @@ fn fire_at(r: &BattleRunner, x: u8, y: u8) -> Option<crate::missile::Missile> {
         .find(|m| m.class == crate::missile::CLASS_FIRE && (m.cell_x, m.cell_y) == (x as i16, y as i16))
 }
 
-/// Stand one figure on a cell by hand, as `firing_line` does.
 fn stand(r: &mut BattleRunner, troop: Troop, side: Side, owner: u8, human: bool, at: (u8, u8)) -> usize {
     let sim = r.sim.add(troop, side, 4).unwrap();
     r.sim.figures[sim].owner = owner;
@@ -66,5 +55,4 @@ fn stand(r: &mut BattleRunner, troop: Troop, side: Side, owner: u8, human: bool,
     i
 }
 
-// ------------------------------------------------------------------ boiling oil
 

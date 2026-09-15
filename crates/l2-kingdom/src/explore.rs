@@ -1,12 +1,8 @@
-//! **Exploration** — the fog of war's seen bits, and every rule that sets them.
-//!
 //! `g_optExploration` (`0x0053F264`) is the *Exploration* row of the advanced
 //! options, and `L2.eng` group 218 index 3 is the game's own specification of
 //! it: *"When Exploration is turned on, the world outside your county is
 //! blacked out. It is gradually revealed as your armies move through and
 //! conquer new counties."*
-//!
-//! # Where the original keeps it: tile record `+2`, bit `0x20`
 //!
 //! **[V]**, from the decompilation, every reader and every writer:
 //!
@@ -26,39 +22,11 @@
 //! tile** — a county lost stays explored. The only wholesale assignment is
 //! `Map_LoadPlanes`' load from the map file, which `FUN_0046DF51` follows.
 //!
-//! **None of the writers tests `g_optExploration`.** The bits are kept whether
-//! the option is on or off
-//! the data: it was saved with the option off, and its
-//! seen bits are exactly the local player's county and its one-tile border, bit
-//! for bit (`crates/l2-scenario/tests/explored.rs`). So turning the option on in the
-//! middle of a game blacks out what the armies have *not* seen, not the whole
-//! world.
-//!
 //! **And none of the readers is a rule.** The option and the bit are read
 //! together in seven painters and nowhere else — `Map_RenderIso`,
 //! `Map_RenderAlignedRow`, `Map_RenderOffsetRow`, `Map_DrawTile`,
 //! `Map_DrawTileApex`, `Sprite_TopIt`, `Map_DrawArmies`, plus the dead
 //! `FUN_00406BBA` — and the option alone by `Screen_AdvancedOptions`' Yes/No.
-//! No input arm, no AI step and no simulation pass reads either. **The AI lords
-//! see everything.**
-//!
-//! # One seen bit per realm, where the original has one per machine
-//!
-//! Every writer above is guarded on `g_localPlayer` — a value that differs
-//! between the machines of a network game — so the original's seen plane is a
-//! different array on every peer. That cannot be lockstep state
-//! (`docs/netcode.md` §3), and it cannot be left out of the save either, because
-//! nothing can rebuild it: it is the history of where the armies walked.
-//!
-//! So this keeps **one bit per realm per tile**, and every writer sets the bit
-//! of the realm its original sets the bit for *when that realm is the local
-//! player*. The plane a viewer draws is exactly the original's for that viewer;
-//! the other realms' bits are the planes the other machines would hold, and
-//! nothing reads them. Every peer computes all of them identically. That is the
-//! one divergence in representation, and it changes no picture.
-//!
-//! A unit owned by no realm — the ownerless militia `Army_Create` writes as
-//! owner 6, the merchants — can never be `g_localPlayer`, and reveals nothing.
 
 use crate::map::{index, CampaignMap, MAP_DIM, MAP_TILES};
 use crate::realm::MAX_REALMS;
@@ -72,10 +40,6 @@ pub const ARMY_SIGHT: i32 = 6;
 /// with a one-tile border round it.
 pub const COUNTY_BORDER: i32 = 1;
 
-/// The seen bits: one byte per tile, bit `r` for realm `r`.
-///
-/// `MAX_REALMS` is 6 and realm 0 is never a realm, so bits 1 … 5 are used and
-/// bits 0, 6 and 7 are always clear.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Explored {
     seen: Vec<u8>,
@@ -87,8 +51,6 @@ impl Default for Explored {
     }
 }
 
-/// The bit a realm's seen flag occupies, or `None` for anything— 0
-/// realm — 0
 fn realm_bit(realm: u8) -> Option<u8> {
     if realm == 0 || realm as usize >= MAX_REALMS {
         None
@@ -109,8 +71,6 @@ impl Explored {
         self.seen.iter_mut().for_each(|b| *b = 0);
     }
 
-    /// Has `realm` seen this tile? `false` for anything and
-    /// for a tile off the map.
     pub fn is_seen(&self, realm: u8, tile: usize) -> bool {
         match (realm_bit(realm), self.seen.get(tile)) {
             (Some(bit), Some(b)) => b & bit != 0,
@@ -118,32 +78,18 @@ impl Explored {
         }
     }
 
-    /// Mark one tile seen by `realm`. What `l2-scenario` uses to carry a saved
-    /// game's bank bit `0x20` across, which is the local player's alone.
     pub fn set_seen(&mut self, realm: u8, tile: usize) {
         if let (Some(bit), Some(b)) = (realm_bit(realm), self.seen.get_mut(tile)) {
             *b |= bit;
         }
     }
 
-    /// How many tiles `realm` has seen.
     pub fn count(&self, realm: u8) -> usize {
         (0..MAP_TILES).filter(|&t| self.is_seen(realm, t)).count()
     }
 
     /// **`FUN_0046E067(x, y, r)` (`0x0046E067`)** — the `(2r+1)²` square
     /// centred on `(x, y)`, clipped to the 64 × 64 map.
-    ///
-    /// ```c
-    /// x -= r;  y -= r;  w = h = 2*r + 1;
-    /// if (x < 0) { w += x; x = 0; } else if (0x40 < w + x) w = 0x40 - x;
-    /// if (y < 0) { h += y; y = 0; } else if (0x40 < h + y) h = 0x40 - y;
-    /// for (row = y; row < y + h; row++) for (col = x; col < x + w; col++)
-    ///     g_tiles[row * 64 + col].bank |= 0x20;
-    /// ```
-    ///
-    /// The clip is a plain intersection for every radius the game passes (1
-    /// and 6), which is what the ranges below compute.
     pub fn reveal_square(&mut self, realm: u8, x: i32, y: i32, radius: i32) {
         let Some(bit) = realm_bit(realm) else { return };
         let dim = MAP_DIM as i32;
@@ -171,13 +117,10 @@ impl Explored {
         }
     }
 
-    /// The plane as bytes, tile order — what the save writes.
     pub fn as_bytes(&self) -> &[u8] {
         &self.seen
     }
 
-    /// Replace the plane from [`Explored::as_bytes`]' form. `false`, and
-    /// nothing changed, when the length is not one byte a tile.
     pub fn copy_from_bytes(&mut self, bytes: &[u8]) -> bool {
         if bytes.len() != MAP_TILES {
             return false;
@@ -193,14 +136,6 @@ impl Encode for Explored {
     }
 }
 
-/// **The test every painter makes**
-///
-/// ```c
-/// if (g_optExploration == 1 && (g_tiles[t].bank & 0x20) == 0)  /* hidden */
-/// ```
-///
-/// `exploration` is `Options::exploration` and `viewer` is the realm whose
-/// screen this is — `g_localPlayer`.
 pub fn hides(exploration: bool, explored: &Explored, viewer: u8, tile: usize) -> bool {
     exploration && !explored.is_seen(viewer, tile)
 }
@@ -247,7 +182,6 @@ mod tests {
         }
         let mut e = Explored::new();
         e.reveal_county(3, &map, 5);
-        // A 4 × 3 block grown by one on every side is 6 × 5.
         assert_eq!(e.count(3), 30);
         assert!(e.is_seen(3, index(19, 19)) && e.is_seen(3, index(24, 23)));
         assert!(!e.is_seen(3, index(18, 21)) && !e.is_seen(3, index(25, 21)));

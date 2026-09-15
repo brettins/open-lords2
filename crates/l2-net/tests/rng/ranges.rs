@@ -4,12 +4,6 @@ use super::vectors::*;
 use super::operations::*;
 use l2_net::{Canonical, Pcg32};
 
-/// The debiasing must. A modulo without rejection makes
-/// the low residues more likely; over a large sample with a bound that
-/// divides badly into 2^32, that shows up as a measurable skew.
-///
-/// This is a statistical test with a fixed seed, so it is
-/// deterministic: it either passes forever or fails forever.
 #[test]
 fn below_is_uniform_enough_to_notice_a_bias() {
     const BOUND: u32 = 7;
@@ -49,16 +43,12 @@ fn range_of_one_value_is_that_value() {
     assert_eq!(rng.range(9, 9), 9);
 }
 
-/// The full `i32` span is wider than `below` works in, and takes the
-/// 64-bit path. It is the boundary most likely to be wrong.
 #[test]
 fn range_spans_the_whole_of_i32() {
     let mut rng = Pcg32::from_seed(11);
     for _ in 0..1000 {
         let _ = rng.range(i32::MIN, i32::MAX);
     }
-    // A span of exactly 2^32, which is the first value that does not
-    // fit a u32 and therefore the first that takes the other branch.
     let mut low_half = 0;
     let mut high_half = 0;
     for _ in 0..1000 {
@@ -100,5 +90,4 @@ fn chance_is_about_right() {
     assert!((2300..2700).contains(&hits), "{hits} hits in 10,000 at one in four");
 }
 
-// --- shuffle ---------------------------------------------------------
 

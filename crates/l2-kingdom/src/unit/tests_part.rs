@@ -42,8 +42,6 @@ mod tests {
         assert!(units.get(b).is_some());
     }
 
-    /// The four types and the two budgets
-    /// `docs/armies.md` §0's movement row.
     #[test]
     fn an_army_gets_fifteen_moves_and_everything_else_gets_ten() {
         assert_eq!(UnitKind::Army.move_allowance(), 15);
@@ -65,8 +63,6 @@ mod tests {
         assert!(!UnitKind::Transport.is_combatant());
     }
 
-    /// The seven troop types line up with the six weapons plus the unequipped
-    /// levy — `docs/armies.md` §6.2's cross-check, as an assertion.
     #[test]
     fn a_knight_is_a_man_in_armour_and_a_peasant_carries_nothing() {
         assert_eq!(TroopType::Peasant.weapon_slot(), None);
@@ -80,8 +76,6 @@ mod tests {
         assert_eq!(crate::tables::WEAPON_NAMES[0], "Crossbow");
     }
 
-    /// The correction this module makes to `docs/armies.md` §7: an empty army
-    /// scores 1, not 0
     #[test]
     fn an_empty_army_scores_one_and_a_single_peasant_scores_twenty_two() {
         let empty = Unit::new(UnitKind::Army, 1, 0, 0);
@@ -105,8 +99,6 @@ mod tests {
         assert_eq!(u.strength_score(), (10 + 50) * 22 + STRENGTH_SCORE_BONUS);
     }
 
-    /// `Army_Desert` takes a tenth of every count that *exceeds* ten, so an
-    /// army of small detachments stops shrinking instead of dying out.
     #[test]
     fn desertion_skips_any_troop_type_of_ten_or_fewer() {
         let mut u = Unit::new(UnitKind::Army, 1, 0, 0);
@@ -119,8 +111,6 @@ mod tests {
         assert_eq!(lost, 10 + 1 + 25);
         assert_eq!(u.men, before - lost);
 
-        // And a second pass takes nothing more from the ones already at the
-        // floor.
         let mut small = Unit::new(UnitKind::Army, 1, 0, 0);
         small.troops = [10; TROOP_TYPES];
         small.men = 70;
@@ -137,7 +127,6 @@ mod tests {
         }
     }
 
-    // --- combining ---------------------------------------------------------
 
     #[test]
     fn two_armies_totalling_fifteen_hundred_merge_and_fifteen_hundred_and_one_does_not() {
@@ -169,15 +158,11 @@ mod tests {
         let b = units.spawn(two).unwrap();
         assert_eq!(combine(&mut units, a, b), Err(CombineRefusal::TwoMercenaryBands));
 
-        // One band between them is fine, and it travels with the merge.
         units.get_mut(b).unwrap().mercenaries = None;
         assert!(combine(&mut units, a, b).is_ok());
         assert_eq!(units.get(a).unwrap().mercenaries, Some(band));
     }
 
-    /// The correction to `docs/armies.md` §2.7: the merge takes the **higher**
-    /// of the two move counts, in both directions, so it never refunds
-    /// movement.
     #[test]
     fn a_merge_takes_the_higher_of_the_two_move_counts_in_both_directions() {
         for (a_used, b_used) in [(12, 2), (2, 12)] {
@@ -213,10 +198,7 @@ mod tests {
         assert_eq!(units.get(a).unwrap().men, units.get(a).unwrap().troop_total());
     }
 
-    // --- names -------------------------------------------------------------
 
-    /// Twenty-four names, `+2` a use
-    /// repeating.
     #[test]
     fn a_realm_uses_every_name_before_repeating_one() {
         let mut names = ArmyNames::new();
@@ -230,7 +212,6 @@ mod tests {
         assert_eq!(names.pick(1), 0, "and then round again from the first");
     }
 
-    /// The correction: `Army_PickName` adds 2 and `Army_Destroy` gives back 1.
     #[test]
     fn a_destroyed_army_gives_back_only_half_of_what_its_name_cost() {
         let mut names = ArmyNames::new();
@@ -238,7 +219,6 @@ mod tests {
         assert_eq!(names.counters(1)[n as usize], 2);
         names.release(1, n);
         assert_eq!(names.counters(1)[n as usize], 1, "not back to zero");
-        // So the next pick avoids it, even though nothing is using it.
         assert_ne!(names.pick(1), n);
     }
 
@@ -250,7 +230,6 @@ mod tests {
         assert_eq!(names.counters(0), &[0; ARMY_NAME_SLOTS]);
     }
 
-    // --- the two rollups ---------------------------------------------------
 
     fn kingdom_bits() -> ([County; MAX_COUNTIES], [Realm; MAX_REALMS]) {
         let counties = core::array::from_fn(|_| County::new());
@@ -297,7 +276,6 @@ mod tests {
         assert_eq!(counties[1].enemy_troops, 0);
     }
 
-    /// A garrison is off the books entirely, and a besieger is not.
     #[test]
     fn a_garrison_is_excluded_from_the_recount_but_a_besieger_is_not() {
         let (mut counties, realms) = kingdom_bits();
@@ -318,7 +296,6 @@ mod tests {
         assert_eq!(counties[1].enemy_troops, 300, "the besieger forages the county");
     }
 
-    /// The loop tests type 1 **or 2**
     #[test]
     fn revolting_peasants_are_counted_and_merchants_are_not() {
         let (mut counties, realms) = kingdom_bits();
@@ -348,8 +325,6 @@ mod tests {
         assert_eq!((counties[3].friendly_troops, counties[3].enemy_troops), (0, 0));
     }
 
-    /// The wage bill walks type-1 units only, and mercenaries cost `men / 4`
-    /// like everyone else because they are part of `men`.
     #[test]
     fn the_wage_bill_covers_armies_only_and_charges_a_quarter_a_man() {
         let (_, mut realms) = kingdom_bits();
@@ -433,7 +408,6 @@ mod tests {
         destroy(T, &mut units, &mut realms, &mut names, besieger, 0);
         assert_eq!(units.get(garrison).unwrap().besieged_by, 0);
 
-        // And the other way round: losing the garrison lifts the siege.
         let besieger = units.spawn(army(2, 400)).unwrap();
         units.get_mut(besieger).unwrap().besieging_county = 4;
         destroy(T, &mut units, &mut realms, &mut names, garrison, 0);

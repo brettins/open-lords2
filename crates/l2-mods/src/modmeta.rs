@@ -1,27 +1,12 @@
-//! Mod metadata, discovery and load order.
-//!
-//! A mod is a directory containing `mod.toml`. Everything else about it —
-//! which assets it replaces, which rules it changes — is discovered from its
-//! contents, not declared. Declaring it would be a second source of truth that
-//! goes stale.
 
 use crate::reader::{self, ParseError};
 use crate::value::{Table, Value};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// The file at the root of every mod.
 pub const MANIFEST: &str = "mod.toml";
 
-// ---------------------------------------------------------------------------
-// Versions
-// ---------------------------------------------------------------------------
 
-/// `major.minor.patch`, with the trailing components optional on input.
-///
-/// Not full semver: no pre-release tags, no build metadata. Those exist to
-/// coordinate a published package ecosystem, which this is not, and every one
-/// of them is a comparison rule a mod author would have to learn.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub struct Version {
     pub major: u32,
@@ -61,17 +46,11 @@ impl fmt::Display for Version {
     }
 }
 
-/// What a dependency will accept.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum VersionReq {
-    /// No constraint.
     Any,
-    /// `>= 1.2.0`
     AtLeast(Version),
-    /// `= 1.2.0`
     Exactly(Version),
-    /// `^1.2.0` — at least this, below the next major. Below 1.0 the minor
-    /// component is treated as the breaking one, as Cargo does.
     Compatible(Version),
 }
 
@@ -106,7 +85,6 @@ impl fmt::Display for VersionReq {
     }
 }
 
-/// `"core >= 1.2"`, `"ui ^0.4.0"`, `"maps"`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Dependency {
     pub id: String,
@@ -116,7 +94,6 @@ pub struct Dependency {
 impl Dependency {
     pub fn parse(spec: &str) -> Result<Dependency, String> {
         let spec = spec.trim();
-        // The id runs to the first space or comparison character.
         let split = spec
             .find(|c: char| c.is_whitespace() || c == '>' || c == '=' || c == '^')
             .unwrap_or(spec.len());
@@ -143,9 +120,6 @@ impl Dependency {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Manifest
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone)]
 pub struct ModMeta {
@@ -154,15 +128,9 @@ pub struct ModMeta {
     pub version: Version,
     pub author: Option<String>,
     pub description: Option<String>,
-    /// Mods that must be present, and loaded first.
     pub requires: Vec<Dependency>,
-    /// Mods that must load first *if present*. This is the knob for
-    /// compatibility patches, which need to win over the thing they patch
-    /// without depending on it.
     pub after: Vec<String>,
-    /// Mods that must not be enabled at the same time.
     pub conflicts: Vec<String>,
-    /// Directory the manifest was found in.
     pub root: PathBuf,
 }
 
@@ -251,14 +219,7 @@ fn string_list(t: &Table, key: &str) -> Vec<String> {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Discovery
-// ---------------------------------------------------------------------------
 
-/// Every immediate subdirectory of `dir` that has a `mod.toml`, sorted by id.
-///
-/// Only one level deep: a mod that contains a directory that itself looks like
-/// a mod is a mod with a `mods/` example folder, not two mods.
 pub fn discover(dir: &Path) -> Result<Vec<ModMeta>, MetaError> {
     let mut found = Vec::new();
     let entries = match std::fs::read_dir(dir) {
@@ -277,21 +238,14 @@ pub fn discover(dir: &Path) -> Result<Vec<ModMeta>, MetaError> {
     Ok(found)
 }
 
-// ---------------------------------------------------------------------------
-// Load order
-// ---------------------------------------------------------------------------
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadOrderError {
-    /// An enabled id matches no discovered mod.
     Unknown(String),
-    /// The same id was enabled twice, or two directories declare it.
     Duplicate(String),
     MissingDependency { dependent: String, needs: String },
     VersionMismatch { dependent: String, needs: String, want: VersionReq, found: Version },
     Conflict { a: String, b: String },
-    /// `after`/`requires` edges form a loop. The ids are listed in the order
-    /// they chain.
     Cycle(Vec<String>),
 }
 
@@ -319,20 +273,10 @@ impl fmt::Display for LoadOrderError {
 
 impl std::error::Error for LoadOrderError {}
 
-/// Order the enabled mods so that every dependency loads before its dependent,
-/// disturbing the user's stated order as little as possible.
-///
-/// The user's list is the primary signal — in an overlay system the order *is*
-/// the conflict resolution policy, so silently re-sorting it would be taking
-/// the player's decision away. Constraints override it only where they must.
-/// Ties break on the user's index, so the result is deterministic and stable:
-/// the same list plus the same manifests gives the same order on every machine
-/// and every run, which is a precondition for a bug report meaning anything.
 pub fn resolve_load_order(
     available: &[ModMeta],
     enabled: &[String],
 ) -> Result<Vec<ModMeta>, LoadOrderError> {
-    // Index the enabled selection, preserving the user's order.
     let mut chosen: Vec<&ModMeta> = Vec::with_capacity(enabled.len());
     for id in enabled {
         if chosen.iter().any(|m| &m.id == id) {
@@ -346,8 +290,6 @@ pub fn resolve_load_order(
 
     let pos = |id: &str| chosen.iter().position(|m| m.id == id);
 
-    // Conflicts and dependency satisfaction, before any ordering work, so the
-    // error a user sees is the real problem.
     for m in &chosen {
         for c in &m.conflicts {
             if pos(c).is_some() {
@@ -377,7 +319,6 @@ pub fn resolve_load_order(
         }
     }
 
-    // Edges: dependency -> dependent.
     let n = chosen.len();
     let mut edges: Vec<Vec<usize>> = vec![Vec::new(); n];
     let mut indegree = vec![0usize; n];
@@ -400,8 +341,6 @@ pub fn resolve_load_order(
         }
     }
 
-    // Kahn's algorithm, always taking the lowest remaining user index. That is
-    // what keeps the user's order where the constraints allow it.
     let mut out: Vec<usize> = Vec::with_capacity(n);
     let mut done = vec![false; n];
     for _ in 0..n {
@@ -418,8 +357,6 @@ pub fn resolve_load_order(
     Ok(out.into_iter().map(|i| chosen[i].clone()).collect())
 }
 
-/// Recover one concrete cycle from the nodes Kahn's algorithm could not place,
-/// so the error names the loop.
 fn find_cycle(chosen: &[&ModMeta], edges: &[Vec<usize>], done: &[bool]) -> Vec<String> {
     let start = match (0..chosen.len()).find(|&i| !done[i]) {
         Some(i) => i,

@@ -1,11 +1,6 @@
 //! **The standings** — `Screen_GreatestNoble` (`0x0041593B`), screen `0x20`,
 //! and the court button that opens it.
 //!
-//! A player reported the *Greatest nobles* button in the treasury view as
-//! dead. It was: the button was drawn, `court.rs` answered it with
-//! `Transition::Stay`, and screen `0x20` did not exist. So this file has two
-//! halves and the first one is the smaller:
-//!
 //! * **the button answers** — a kind-5 press, the handler twenty ticks later,
 //! the recount `FUN_00435211` runs before the page is drawn, and the page on
 //!   the stack;
@@ -36,9 +31,7 @@ use l2_game::Game;
 use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::SCORE_INPUT_CASTLES;
 
-// ---------------------------------------------------------------- the rules
 
-/// Five realms in play, every field zero, so a test can set the one it means.
 pub(crate) fn five_realms() -> Vec<Realm> {
     let mut realms = vec![Realm::new(); l2_kingdom::MAX_REALMS];
     for (i, r) in realms.iter_mut().enumerate() {
@@ -49,7 +42,6 @@ pub(crate) fn five_realms() -> Vec<Realm> {
     realms
 }
 
-// ------------------------------------------------------------- the behaviour
 
 fn bare_world() -> (Game, Assets) {
     let mut game = Game::new(5);

@@ -9,9 +9,6 @@ use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::{Season, Tables, Weather};
 use l2_kingdom::{Quirk, Quirks};
 
-// ---------------------------------------------------------------------------
-// B42 — a mercenary band overshoots a county after making an offer
-// ---------------------------------------------------------------------------
 
 #[test]
 fn b42_a_band_that_made_an_offer_stands_off_the_end_of_the_map_or_does_not() {
@@ -37,16 +34,12 @@ fn b42_a_band_that_made_an_offer_stands_off_the_end_of_the_map_or_does_not() {
     assert!(!overshot(fixed), "fixed: the second increment gets the wrap guard the first has");
 }
 
-// ---------------------------------------------------------------------------
-// B51, B52, B53 — victory, defeat and the score
-// ---------------------------------------------------------------------------
 
 #[test]
 fn b51_a_game_with_nobody_in_it_is_won_by_the_array_slot_or_by_nobody() {
     let (faithful, fixed) = pair(Quirk::EmptyGameIsWonBySlotZero);
 
     let endings = |quirks: Quirks| {
-        // Nobody in play at all: leader and trailer are both 0 and `0 == 0`.
         let mut realms: [Realm; l2_kingdom::realm::MAX_REALMS] =
             core::array::from_fn(|_| Realm::new());
         for r in realms.iter_mut() {
@@ -67,8 +60,6 @@ fn b52_the_human_wins_a_game_the_human_is_dead_in_or_does_not() {
     let (faithful, fixed) = pair(Quirk::DeadHumanCanStillWin);
 
     let second_call = |quirks: Quirks| {
-        // Realm 2, an AI, is the only one standing. The local player is 1 and is
-        // gone. `Score_RankRealms` runs many times a turn.
         let mut realms: [Realm; l2_kingdom::realm::MAX_REALMS] =
             core::array::from_fn(|_| Realm::new());
         for r in realms.iter_mut() {
@@ -103,7 +94,6 @@ fn b53_dying_with_the_last_opponent_is_a_win_or_a_loss() {
     use l2_kingdom::victory::{Ending, Outcome, OutcomeStep, Ranking, CATEGORY_ENDING};
     let (faithful, fixed) = pair(Quirk::MutualDestructionIsAWin);
 
-    // My own defeat message, on the pass where no opponent is left either.
     let mine =
         Ending { group: l2_kingdom::victory::MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING, variant: 0 };
     let ranking = Ranking { opponents_remaining: 0, ..Ranking::default() };
@@ -120,8 +110,6 @@ fn b53_dying_with_the_last_opponent_is_a_win_or_a_loss() {
     );
 }
 
-/// Somebody else's defeat with opponents left is the ordinary case, and the
-/// switch must not touch it.
 #[test]
 fn b53_an_ordinary_elimination_is_the_same_step_either_way() {
     use l2_kingdom::victory::{Ending, Ranking, CATEGORY_ENDING};
@@ -145,7 +133,4 @@ fn b53_an_ordinary_elimination_is_the_same_step_either_way() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The wire: the digest and the save
-// ---------------------------------------------------------------------------
 

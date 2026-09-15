@@ -18,23 +18,13 @@ use crate::widget;
 /// offers. The indices are into `L2.eng` group 72.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Menu {
-    /// 0 — I have no ally. Gift, compliment, insult, **offer an alliance**.
     NoAlly,
-    /// 1 — this realm **is** my ally. Gift, compliment, insult, terminate, ask
-    /// for help, ask for an attack.
     Allied,
-    /// 2 — I am allied to somebody else. Gift, compliment, insult, and nothing
-    /// more: you cannot even offer, because the offer would be refused.
     AlliedElsewhere,
-    /// 3 — a letter of mine is already sitting in their inbox. Group 72 index
-    /// 24 alone, *"A message has been dispatched, my Lord."*, and **no
-    /// widgets at all**: `g_diploWidgetCount = 0`.
     Dispatched,
 }
 
 impl Menu {
-    /// `Diplo_DrawScreen`'s opening test, in its own order — the mail flag
-    /// first, and only then the three alliance cases.
     pub fn of(ctx: &Ctx, target: u8) -> Menu {
         let me = ctx.game.player;
         let realms = &ctx.game.kingdom.realms;
@@ -64,12 +54,6 @@ impl Menu {
         }
     }
 
-    /// `Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h)` — the recess behind the menu, and
-    /// the height is the only thing the four arms vary about it.
-    ///
-    /// **The dispatched layout draws none**, which is the reason this returns an
-/// option: the one-line *"A message has been
-    /// dispatched, my Lord."* sits directly on the window's parchment.
     pub fn inset_height(self) -> Option<i32> {
         match self {
             Menu::NoAlly => Some(0xD0),
@@ -79,12 +63,6 @@ impl Menu {
         }
     }
 
-    /// Whether `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` runs.
-    ///
-    /// **Three of the four** — its
-    /// recess is `0x130` tall and reaches `0x60 + 0x130 = 0x190`, past the
-/// picture's own `0x140`. Read out of the four arms
-    /// about; the geometry is offered as the likely *why* and is not evidence.
     pub fn draws_seal(self) -> bool {
         self != Menu::Allied
     }
@@ -109,23 +87,14 @@ impl Menu {
 }
 
 /// `g_diploWidgets` (`0x004DD940`) — six 32-pixel widgets at (400, 102 + 50n).
-/// The menu layout decides how many of them are live (`g_diploWidgetCount`),
-///
 pub fn menu_widget(slot: usize) -> Rect {
     Rect::new(400, 102 + slot as i32 * 50, 32, 32)
 }
 
-/// `g_diploWidgets` holds six records; the allied layout uses all six.
 pub(super) const MENU_SLOTS: usize = 6;
 
 /// **`g_diploWidgets` as a table** — one record per row the layout draws,
 /// every one **kind 5**, read out of `+0x0F` of `0x004DD940` … `0x004DD9B8`.
-/// The dispatched layout has none: `g_diploWidgetCount = 0`.
-///
-/// The `arm!` is the six handlers' one marker — `Diplo_OpenGift`,
-/// `…Compliment`, `…Insult`, `…Alliance`, `…AskHelp`, `…AskAttack` differ only
-/// in the `g_diploKind` they set and in which draft buffer they clear —
-/// kind they are answered with.
 pub(crate) fn menu_widgets(menu: Menu) -> Vec<Widget> {
     if menu == Menu::Dispatched {
         return Vec::new();

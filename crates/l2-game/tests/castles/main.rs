@@ -1,33 +1,3 @@
-//! **The castle route,**
-//!
-//! ```text
-//! cargo test -p l2-game --test castles
-//! ```
-//!
-//! Every line below goes through [`Machine::handle`] with an [`Event`]. Nothing
-//! here sets `castle_degraded`, `garrison_unit` or `besieging_county` by hand,
-//! and that is the whole point: those three fields were **read by rules and
-//! written by nothing a player could reach**
-//! build a castle,
-//! be laid by a test that laid it itself.
-//!
-//! > *"A field is only tested if something a test reads was written by
-//! > something the game runs. A test that populates the state it then asserts
-//! > on is checking its own fixture."* — `docs/agents.md`
-//!
-//! So the route is: **order a castle from the sidebar, watch it go up over
-//! seasons, march an army into it, have an enemy march up to it, and end the
-//! turn into the assault.** The only things placed by hand are the ones a
-//! scenario would place — the map, the counties, and armies that already exist.
-//!
-//! # Why the map has a castle plot in it
-//!
-//! A county's castle stands on a 2×2 block of plane-0 bit `0x80` tiles whose
-//! terrain is `0x14` (bare) or `0x15 … 0x19` (a castle of type 1 … 5).
-//! `County_FindCastleTile` finds that block at load and stamps `0x14` on it;
-//! [`l2_kingdom::map::stamp_castle_terrain`] is what raises it afterwards.
-//! [`plot`] below is that block, and it is the only piece of scenery these
-//! tests place.
 
 mod construction;
 pub use construction::*;
@@ -44,9 +14,6 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
 
-/// The border between county 1 and county 2, chosen the same way
-/// `tests/military.rs` chooses it: inside the band the campaign screen opens
-/// on,
 const BORDER_1_2: usize = 32;
 
 fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
@@ -71,10 +38,6 @@ fn on(r: Rect) -> (i32, i32) {
     (r.centre_x(), r.y + r.h / 2)
 }
 
-/// **Press one of `g_castleBuildWidgets`' two thumbs and let its twenty frames
-/// run.** Both are `Widget_Test` kind 5, so the screen must still be up on
-/// every tick before the twentieth,
-///
 /// Every castle order in this file goes through here, so all five are tests of
 /// the gesture. **Ablations, run:** declare the thumbs `Press` in their `arm!`s
 /// and all five go red at the screen's own debug assertion that both records
@@ -116,9 +79,6 @@ fn run_until(
     panic!("{what} never happened");
 }
 
-/// **Let every order on the map finish walking**, which is what a player does
-/// between giving one and pressing End Turn.
-///
 /// `Units_Tick` runs on ordinary frames as well as inside a turn
 /// (`turn::tick_units_only`, `docs/decisions.md` C115), and since
 /// `Unit_StepOnce`'s sub-tile counter landed a unit takes 8 ticks to cross a
@@ -140,8 +100,6 @@ pub(crate) fn end_turn(m: &mut Machine, g: &mut Game, a: &Assets) {
     }
 }
 
-/// The sidebar's **CASTLE** button, found by its name
-/// so that reordering the strip does not silently point this at COURT.
 fn castle_button() -> Rect {
     map::SIDEBAR_BUTTONS
         .iter()
@@ -150,9 +108,6 @@ fn castle_button() -> Rect {
         .rect()
 }
 
-/// A county's castle plot: a 2×2 block of `SETTLEMENT` tiles at terrain
-/// `0x14`, placed inside the opening viewport so it can be clicked and marched
-/// to. Returns its north-west tile.
 fn plot(g: &mut Game, county: u8, at: (u8, u8)) -> (u8, u8) {
     for dy in 0..2u8 {
         for dx in 0..2u8 {
@@ -165,15 +120,8 @@ fn plot(g: &mut Game, county: u8, at: (u8, u8)) -> (u8, u8) {
     at
 }
 
-/// Two counties, one the player's and one an opponent's, on a map every tile of
-/// which is walkable. The opponent holds two counties so that losing one does
-/// not eliminate it and end the game — `tests/military.rs` learned that the
-/// hard way and it is the same trap here.
 pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(11);
-    // **Tip screens: No**, the player's own switch. A new game's three tips
-    // open on the campaign map and hold its input on screen `0x27`, which is
-    // right and is `tests/tips.rs`'s subject, not this file's.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
     for id in 1..=3usize {
@@ -186,15 +134,11 @@ pub(crate) fn world() -> (Game, Assets) {
     g.kingdom.counties[1].owner = 1;
     g.kingdom.counties[2].owner = 2;
     g.kingdom.counties[3].owner = 2;
-    // 1 — 2 — 3, a chain: county 2 borders realm 1, so taking it is a capture
-    // and not an independence declaration.
     l2_testkit::chain_neighbours!(g.kingdom);
     for realm in 1..=2usize {
         g.kingdom.realms[realm].in_play = true;
         g.kingdom.realms[realm].strength = 5;
         g.kingdom.realms[realm].gold = 20_000;
-        // Enough wood and stone in the store that a palisade is paid for on the
-        // spot. A castle ordered without them is a separate test.
         g.kingdom.realms[realm].wood = 5_000;
         g.kingdom.realms[realm].stone = 5_000;
     }
@@ -210,10 +154,6 @@ pub(crate) fn world() -> (Game, Assets) {
     g.kingdom.campaign.mercenaries = MercenaryBands::init(2);
     g.player = 1;
     g.selected = 1;
-    // **Animations off.** With them on — the original's default and ours —
-    // `CastleBuild_Confirm` plays `castle<n>.smk` over the chooser before the map
-    // comes back, and these tests are about the order, not the film. The film
-    // is `tests/movies.rs`'s.
     g.prefs.animations = false;
     (g, Assets::placeholder())
 }
@@ -233,15 +173,6 @@ fn army_at(g: &mut Game, owner: u8, county: u8, men: i32, at: (u8, u8)) -> usize
     g.kingdom.campaign.units.spawn(u).expect("a free slot")
 }
 
-/// A tile whose whole 4×4 neighbourhood — from one west and one north to two
-/// east and two south — is inside the opening viewport **and** in the given
-/// county,
-/// stand and for a test to click.
-///
-/// The campaign screen opens at `Map_InitMode`'s own scroll origin and these
-/// tests never scroll, so [`pixel`]'s fresh probe is a valid ruler for the
-/// machine's screen. Searched in ascending `(y, x)` so the answer is the same
-/// every run.
 fn visible_in(g: &Game, county: u8) -> (u8, u8) {
     for y in 2..60u8 {
         for x in 2..60u8 {
@@ -259,7 +190,4 @@ fn visible_in(g: &Game, county: u8) -> (u8, u8) {
     panic!("no visible 4x4 block in county {county}");
 }
 
-// ---------------------------------------------------------------------------
-// 1. Building one
-// ---------------------------------------------------------------------------
 

@@ -14,7 +14,6 @@ mod tests {
         Record { to, group, ..Record::default() }
     }
 
-    /// **The filter that makes this display state and not simulation state.**
     #[test]
     fn a_message_addressed_to_another_realm_never_enters_this_peers_ring() {
         let mut q = MessageQueue::new();
@@ -36,8 +35,6 @@ mod tests {
         assert_eq!(q.queued(), 0, "the slot was cleared");
     }
 
-    /// `Msg_Pump` only pulls when the timer has run out, and in single player it
-    /// never does. So a second message waits behind the first.
     #[test]
     fn a_second_message_waits_behind_the_first() {
         let mut q = MessageQueue::new();
@@ -51,8 +48,6 @@ mod tests {
         assert_eq!(q.open().map(|r| r.group), Some(0x93));
     }
 
-    /// **Single player never times out.** Two thousand ticks and the message is
-    /// still there, clamped at 1.
     #[test]
     fn in_single_player_a_message_waits_for_ever() {
         let mut q = MessageQueue::new();
@@ -65,7 +60,6 @@ mod tests {
         assert_eq!(q.timer(), 1, "clamped, not expired");
     }
 
-    /// **In a network game it goes after 399 ticks** — `2000 - 0x641`.
     #[test]
     fn in_a_network_game_a_message_expires_after_three_hundred_and_ninety_nine_ticks() {
         let mut q = MessageQueue::new();
@@ -83,8 +77,6 @@ mod tests {
         assert!(!q.is_open());
     }
 
-    /// …but an **ending** does not, on either kind of game. It is the one
-    /// category the multiplayer timeout exempts.
     #[test]
     fn an_ending_never_times_out_even_in_a_network_game() {
         let mut q = MessageQueue::new();
@@ -99,8 +91,6 @@ mod tests {
         assert!(q.is_open());
     }
 
-    /// The tip is the other exemption, in the other direction: it goes even in
-    /// single player, because the draw shortens its timer to 100.
     #[test]
     fn a_tip_closes_itself_and_has_no_button_to_close_it_with() {
         let mut q = MessageQueue::new();
@@ -112,17 +102,12 @@ mod tests {
         assert!(!Shape::of(category::TIP).has_ok_button());
         q.clamp_tip_timer();
         assert_eq!(q.timer(), TIP_TIMER);
-        // The tip's own branch is only reached in a network game; in single
-        // player the first branch clamps it to 1 and it stays up. That is the
-        // original, and it is why `Msg_Pump`'s ladder tests multiplayer FIRST.
         for _ in 0..TIP_TIMER {
             q.advance(false);
         }
         assert!(q.is_open(), "single player: clamped to 1, like everything else");
     }
 
-    /// **A gap in the ring costs one call, not a search.** `Msg_Pump` advances
-    /// the tail by one and returns when it lands on an empty slot.
     #[test]
     fn an_empty_slot_costs_one_pull_each() {
         let mut q = MessageQueue::new();
@@ -132,13 +117,10 @@ mod tests {
         q.close();
         q.pull();
         q.close();
-        // Both gone; the tail is at 2 and the head at 2, so the next pull sees
-        // an empty slot with tail == head and stops.
         assert!(!q.pull());
         assert!(!q.is_open());
     }
 
-    /// The four question categories and the four widget tests are the same four.
     #[test]
     fn the_categories_that_survive_a_map_click_are_the_ones_with_an_answer() {
         for c in 0u8..=0x14 {
@@ -172,8 +154,6 @@ mod tests {
         assert!(q.is_open());
     }
 
-    /// The OK hit box is **twice** the picture, and off-centre by nothing:
-    /// twelve pixels of slop on each side.
     #[test]
     fn the_ok_hitbox_is_forty_eight_square_round_a_twenty_four_square_button() {
         let f = frame_of(&Record { group: 1, category: category::NOTICE, ..Record::default() })
@@ -188,8 +168,6 @@ mod tests {
         assert!(!hit.contains(bx - 13, by));
     }
 
-    /// The five prompts are five distinct tables and three distinct positions,
-    /// and every one is a 36-pixel step with a 4-pixel drop.
     #[test]
     fn every_prompt_is_a_thumb_up_and_a_thumb_down_thirty_six_pixels_apart() {
         for p in [
@@ -208,7 +186,6 @@ mod tests {
         }
     }
 
-    /// The paragraph categories are a *range* and the count is in the byte.
     #[test]
     fn the_paragraph_categories_carry_their_own_count() {
         assert_eq!(Shape::of(5), Shape::Paragraphs(1));
@@ -217,8 +194,6 @@ mod tests {
         assert_eq!(Shape::of(10), Shape::Prompt);
     }
 
-    /// A category nobody enqueues draws nothing **and cannot be left with the
-    /// left button**, because every `Ui_OkButton` call is inside an arm.
     #[test]
     /// **The event window's height is a rule, and the corner button rides on
     /// it.** `Msg_DrawWindow`'s category-`0x0F` arm opens

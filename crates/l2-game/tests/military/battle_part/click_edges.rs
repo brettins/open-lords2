@@ -1,5 +1,3 @@
-//! **The battlefield's two edges**, driven through the real [`Machine`].
-//!
 //! `Battle_DragSelect` (`0x0043BF07`) is four arms in one function and the
 //! player's hand is in all of them: the press opens the drag (`g_screenId`
 //! `0x2A`), the held branch re-boxes live, the release commits. The order arm
@@ -17,7 +15,6 @@ use l2_game::screen::{Machine, ScreenId};
 use l2_game::screens::battle;
 use l2_game::Game;
 
-/// A paused battlefield with the camera over the local player's men.
 fn a_paused_battlefield() -> (Game, l2_game::game::Assets, Machine) {
     let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
     press(&mut m, &mut g, &a, 'e');
@@ -28,7 +25,6 @@ fn a_paused_battlefield() -> (Game, l2_game::game::Assets, Machine) {
     (g, a, m)
 }
 
-/// The screen pixel one of the player's own men is standing on.
 fn a_standing_mans_pixel(g: &Game) -> (i32, i32) {
     let live = g.battle.as_ref().expect("a live battle");
     let i = (0..live.runner.fighters.len())
@@ -41,7 +37,6 @@ fn a_standing_mans_pixel(g: &Game) -> (i32, i32) {
     )
 }
 
-/// Every man's position, destination and state, and every unit's destination.
 fn a_snapshot(g: &Game) -> (Vec<(u8, u8, (u8, u8), u8)>, Vec<(i16, i16)>) {
     let live = g.battle.as_ref().expect("a live battle");
     let men = (0..live.runner.fighters.len())
@@ -59,7 +54,6 @@ fn a_snapshot(g: &Game) -> (Vec<(u8, u8, (u8, u8), u8)>, Vec<(i16, i16)>) {
     (men, units)
 }
 
-/// Empty ground inside the viewport, as a pixel and as the cell it is.
 fn some_empty_ground(g: &Game) -> (i32, i32, (u8, u8)) {
     let live = g.battle.as_ref().expect("a live battle");
     for row in 0..bf::VIEW_ROWS {
@@ -85,15 +79,10 @@ fn some_empty_ground(g: &Game) -> (i32, i32, (u8, u8)) {
 /// `g_battleHoverFriendlyPicked` is set — which is what makes a click on one of
 /// your own men a selection and never a destination.
 ///
-/// The men *do* close up twenty frames later:
 /// `BattleUnits_RegroupSelection` (`0x00478987`) writes `reTarg = 0x14` on the
 /// selected unit and the per-unit tick counts it down into `BattleUnit_Reform`
 /// (`0x0048970E`). That is the original's, so this test asserts on the *order*
 /// — no man's destination, position or state moves on the click itself.
-///
-/// **Ablated**: the ladder short-circuit in `Event::Release` and `order_at`'s
-/// two hover guards are belt and braces — either alone still refuses, and
-/// removing both turns the destination assertion red.
 #[test]
 fn a_click_on_a_standing_man_selects_him_and_orders_nobody() {
     let (mut g, a, mut m) = a_paused_battlefield();
@@ -117,24 +106,12 @@ fn a_click_on_a_standing_man_selects_him_and_orders_nobody() {
     assert_eq!(before.1, after.1, "a unit was given a destination by a selection click");
 }
 
-/// **The mouse down and the mouse up are two different things, and the order is
-/// on the up.** `Battle_OrderClicked`'s fourth guard is `g_mouseLeftReleased`;
-/// the press before it only opens the drag.
-///
 /// And the drag in flight must keep its hands off: the held branch of
 /// `FUN_0043BF07` runs `Battle_ClassifyDrag` *first* and returns 0 on kind 0, so
 /// a shaking hand between the press and the release leaves the selection alone.
-/// Ours re-boxed on every pixel of motion, which cleared the selection under the
-/// press and left the release with nobody to order — the move order went missing
-/// unless the mouse never moved.
-///
-/// **Ablated**: re-boxing unconditionally in `LiveBattle::drag_to` turns the
-/// last assertion red; moving `order_at` onto `Event::Click` turns the middle
-/// one red.
 #[test]
 fn a_click_on_empty_ground_orders_on_the_release_and_not_on_the_press() {
     let (mut g, a, mut m) = a_paused_battlefield();
-    // Select some men with a real box first.
     let start = (bf::VIEW.x + 4, bf::VIEW.y + 4);
     let end = (bf::VIEW.x + bf::VIEW.w - 4, bf::VIEW.y + bf::VIEW.h - 4);
     send(&mut m, &mut g, &a, Event::Pointer { x: start.0, y: start.1 });
@@ -152,7 +129,6 @@ fn a_click_on_empty_ground_orders_on_the_release_and_not_on_the_press() {
     send(&mut m, &mut g, &a, Event::Click { x: px, y: py });
     assert_eq!(a_snapshot(&g).1, units_before, "the press issued the order");
 
-    // The same three-pixel shake, then the release.
     send(&mut m, &mut g, &a, Event::Pointer { x: px + 3, y: py + 2 });
     send(&mut m, &mut g, &a, Event::Release { x: px + 3, y: py + 2 });
     let live = g.battle.as_ref().expect("a live battle");
@@ -168,12 +144,10 @@ fn a_click_on_empty_ground_orders_on_the_release_and_not_on_the_press() {
 
 /// **The band commits on the release.** `Battle_CommitSelection` (`0x0043C247`)
 /// takes `param_2 = 0` on every frame of the drag and `1` once, on the release:
+///
 /// the highlight follows the box live and the *units* are rearranged only when
 /// the button comes up, which is what `DAT_0053E984` — our `current_unit` —
 /// records.
-///
-/// **Ablated**: passing `true` from `drag_to`'s `pick_box` turns the
-/// mid-drag assertion red.
 #[test]
 fn the_selection_band_highlights_live_and_regroups_only_on_the_release() {
     let (mut g, a, mut m) = a_paused_battlefield();
@@ -193,7 +167,6 @@ fn the_selection_band_highlights_live_and_regroups_only_on_the_release() {
     assert_ne!(live.current_unit, 0, "the release did not commit the band");
 }
 
-/// A camera position whose viewport holds none of the living.
 fn look_at_empty_field(g: &mut Game) {
     let live = g.battle.as_mut().expect("a live battle");
     let men: Vec<(u8, u8)> = (0..live.runner.fighters.len())
@@ -217,7 +190,6 @@ fn look_at_empty_field(g: &mut Game) {
     panic!("the field has no empty viewport");
 }
 
-/// Box the whole viewport and commit it, which is how a unit gets held.
 fn band_the_whole_viewport(m: &mut Machine, g: &mut Game, a: &l2_game::game::Assets) {
     let start = (bf::VIEW.x + 4, bf::VIEW.y + 4);
     let end = (bf::VIEW.x + bf::VIEW.w - 4, bf::VIEW.y + bf::VIEW.h - 4);
@@ -234,10 +206,6 @@ fn band_the_whole_viewport(m: &mut Machine, g: &mut Game, a: &l2_game::game::Ass
 /// so the clear, the re-box and the regroup inside `Battle_CommitSelection`'s
 /// `commit == 1` (`00430000.c:7009`) all stay unrun, and `DAT_0053E984` — our
 /// `current_unit` — keeps the unit it had. The clear is the unobservable half:
-/// the live re-box emptied the selection a frame earlier either way.
-///
-/// **Ablated**: dropping the gate regroups an empty selection and turns
-/// `current_unit` to 0.
 #[test]
 fn a_release_that_boxed_nobody_leaves_the_unit_standing() {
     let (mut g, a, mut m) = a_paused_battlefield();
@@ -260,23 +228,18 @@ fn a_release_that_boxed_nobody_leaves_the_unit_standing() {
 /// of five buckets, all zeroed when more than one is filled, so non-zero only
 /// for a selection that is nothing but troop type 10. With a pot held the
 /// click **looks** there instead: a pot is ordered by pouring downhill.
-///
-/// **Ablated**: dropping the `oil_selected` clause orders the pot and leaves
-/// the camera where it was.
 #[test]
 fn the_overview_looks_rather_than_orders_a_pot_of_oil() {
     let (mut g, a, mut m) = a_paused_battlefield();
     band_the_whole_viewport(&mut m, &mut g, &a);
     let cell = |c: (i32, i32)| (bf::OVERVIEW.x + c.0 * 2, bf::OVERVIEW.y + c.1 * 2);
 
-    // The control: men, so the click is an order and the camera stands still.
     let cam_before = g.battle.as_ref().expect("a live battle").cam;
     let units_before = a_snapshot(&g).1;
     click(&mut m, &mut g, &a, cell((60, 60)));
     assert_eq!(g.battle.as_ref().expect("a live battle").cam, cam_before, "the order looked");
     assert_ne!(a_snapshot(&g).1, units_before, "the overview click gave no order");
 
-    // Now the selection is a pot.
     {
         let live = g.battle.as_mut().expect("a live battle");
         for i in live.runner.selected_fighters(1) {

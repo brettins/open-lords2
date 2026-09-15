@@ -1,12 +1,6 @@
 //! **The map information panel** — `FUN_0041B032` (`0x0041B032`), `g_screenId`
 //! `0x04`.
 //!
-//! # One screen, two painters, eleven layouts
-//!
-//! The shell table called it *"the map information panel"*, which is right and
-//! is half the story: the painter is a **dispatcher** and everything it does is
-//! choose between two others.
-//!
 //! ```c
 //! void FUN_0041B032(void) {
 //!   FUN_004B1DE0();                 /* an empty stub - 11 bytes, `return` */
@@ -20,14 +14,12 @@
 //!
 //! * **`UnitPanel_Draw` (`0x0041B19D`)** — the unit half, four layouts by
 //!   `unit.kind`: army, revolting peasants, merchant, transport.
+//!
 //! * **`FUN_0041BEFE`** — the tile half, which is itself only a layout chooser:
+//!
 //!   it computes the panel's top row, draws the frame and hands off to
 //!   **`TileInfo_Draw` (`0x0041C208`)**. On farmland it also calls
 //!   `FUN_0041C996`, **the field brush**.
-//!
-//! So `docs/screens.md`'s *"screen `0x04` is the field brush"* and
-//! `docs/screens-county.md`'s *"the map information panel"* are both true and
-//! both partial. The brush is one sub-case of the tile half.
 //!
 //! # `DAT_00553D2C` is a top row, and the panel's **bottom edge is pinned**
 //!
@@ -36,23 +28,12 @@
 //! restraint was right and is now unnecessary, because the box arithmetic
 //! closes:
 //!
-//! ```text
-//! Ui_DrawBox(8, (R - C) * 16 + 32, 0x1C, (0x1B - R) + C)    the tile half
-//! Ui_DrawBox(8,  R      * 16 + 32, 0x1C,  0x1B - R    )     the unit half
-//! ```
-//!
 //! `top + height = 464` for **every** value of `R`, because the `R` terms
 //! cancel. So `R` is the panel's top row in 16-pixel cells, the panel **grows
 //! upward** as its content grows, and `DAT_005651C8` (`C`) is two extra cells
 //! of head-room granted when the tile belongs to a county so the county's name
 //! can be printed above the heading. [`Layout`] is that, and [`Layout::box_at`]
 //! is the arithmetic.
-//!
-//! `R` takes eleven values across the two painters — 2, 5, 0x0A, 0x0C, 0x0E,
-//! 0x0F, 0x10, 0x11, 0x12 — and [`Layout::ALL`] has every one with the
-//! condition that produces it.
-//!
-//! # Three errors in the shell table's row, and one thing it had right
 //!
 //! > *"`FUN_0041B032` draws no `Ui_DrawBox`: it paints over the campaign map
 //! > and its two halves place their own lines."*
@@ -61,21 +42,6 @@
 //! `0x0041C1B0`. The comment reads like somebody looked at the dispatcher's own
 //! 79 bytes — which contain no drawing at all — and concluded the callees did
 //! not either. `window: None` follows from it and is wrong the same way.
-//!
-//! What the row **had right** was the refusal to place a line at a y it could
-//! not derive. That is the discipline working, and the answer it was waiting
-//! for is above.
-//!
-//! # And an error in `docs/screens-county.md`
-//!
-//! > *"…inside the branch that requires the unit to be an army of the local
-//! > player's, so the county of origin shows for your own armies only."*
-//!
-//! **False.** `Eng_DrawString(31, 9, …)` — *"An army from"* — and the group-100
-//! county name after it sit **before and outside** the ownership gate, inside
-//! `else if (kind == 1)`. **Right-clicking an enemy army shows its county of
-//! origin.** What the gate withholds is the inner inset, Formed and Wages, the
-//! moves-left line, the three buttons, the troop grid and the mercenary line.
 //!
 //! # `L2.eng` 31/21, *"Morale"*, is dead text — and a `[V]` rested on it
 //!
@@ -91,19 +57,6 @@
 //! nothing on this panel. So 31/21 is dead text exactly like 31/26, which
 //! `armies.md` §3.4 already flags, and **the `[V]` on the morale field needs a
 //! different source.** [`DEAD_LABELS`] carries all ten.
-//!
-//! # The brush is 192 pixels lower than we draw it
-//!
-//! `screens/map/mod.rs`'s `mod brush` has `ROW_Y: i32 = 184` with the comment
-//! *"before its `g_uiPopupRow` offset"*. The original **always** applies that
-//! offset and it always comes to `+192` — the field variant uses `R = 5` and
-//! adds seven cells, `(5 + 7) * 16 = 192`; the waste variant uses `R = 0x0C`
-//! and adds none, `12 * 16 = 192`. So the two variants land in the **same
-//! absolute place**, the bevel is `(40, 368)–(424, 432)` and the buttons are at
-//! **y 376…424**. [`BRUSH_ROW_Y`] is that number, and the x columns and the
-//! 48-pixel button size `map.rs` already had are exact.
-//!
-//! # The three army buttons fire on press and the brush on release
 //!
 //! `g_infoUnitButtons` (`0x004DC560`) is **kind 1** — left *press* — and
 //! `g_infoFieldBrush` (`0x004DC4D0`) is **kind 3** — left *release*. A real
@@ -122,8 +75,6 @@
 //! or destroys the army if no tile is free. It is *leave the castle*, and a
 //! name like `Army_LeaveCastle` is earned.
 //!
-//! # What is here and what is not
-//!
 //! The panel's **geometry, its layout ladder and its input arms** are here, and
 //! the unit half draws every value it has state for. The tile half's eighty-odd
 //! `L2.eng` group 30 descriptions are a table this module carries the shape of
@@ -131,8 +82,6 @@
 //! of the player's own `L2.eng`. `Icon_tmp.pl8` **is** loaded by
 //! `crate::shell::ShellAssets` and until now no frame of it was drawn anywhere;
 //! [`ICON`] is what changes that.
-//!
-//! # A field says what it is — `TileInfo_Draw`'s farmland arm
 //!
 //! A player right-clicked a field and got *"the screen that left clicking should
 //! bring … but the text for that field isn't filled in."* The panel had its box,
@@ -187,29 +136,20 @@ use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
 
-/// **The outermost pixel of a 640 × 480 screen**, which is what
-/// `Map_EdgeScroll` calls an edge: `x == 0 || x == width - 1`, and the same for
-/// `y`. See [`crate::screens::map::MapScreen::edge_direction`], which is the
-/// same predicate on the screen that owns the scroll.
 fn at_screen_edge(x: i32, y: i32) -> bool {
     x <= 0 || y <= 0 || x >= l2_view::canvas::WIDTH as i32 - 1 || y >= l2_view::canvas::HEIGHT as i32 - 1
 }
 
 pub struct InfoScreen {
     target: Target,
-    /// One line of feedback about the last thing a button did. **Ours** — the
-    /// original answers a refused disband with a message scroll we have not
-    /// built.
     status: String,
-    /// [`GARRISON_WIDGET`]'s press timer. It is the only `Widget_Test` record
-    /// on this screen — everything else here is a `Hotspot_Test` box, which
-    /// draws nothing and has no timer.
     press: Press,
 }
 
 /// **`DAT_004DD640` as a table, with the kind byte its one record carries.**
 ///
 /// `Widget_Test` kind **4**, read out of `+0x0F` of `0x004DD640`.
+///
 /// `docs/arms.json` filed it `left-press`
 /// wrong *kind*: kind 4 also shows the pressed picture and accepts a double
 /// click as a press. The repeat is inert — `FUN_00438ACC` assigns the same

@@ -4,20 +4,6 @@ use super::struct_analysis::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// **Codecs that are a pair of free functions**, named
-/// one by one.
-///
-/// `Game` is the whole of the list today and it is the reason the list exists:
-/// `l2_game::save` writes a saved game with `encode`/`encode_prefix` and reads
-/// it with `decode`/`decode_prefix`, and **`impl Encode for Game` does not
-/// exist**, so until now the type at the top of every saved file was the one
-/// type this check made no claim about at all. It was found by adding a field
-/// to `Game` and watching the check stay green.
-///
-/// Both halves of each pair are concatenated, because the field list is split
-/// across them: `kingdom` is named in the outer function and everything else in
-/// the prefix.
-///
 /// **This is the shape to copy if another such codec appears.** A free-function
 /// the prefix is not a `Canonical`
 /// value — it is just invisible to a scanner that looks for `impl Encode`, and
@@ -29,7 +15,6 @@ const FREE_FUNCTION_CODECS: &[(&str, &str, &[&str], &[&str])] = &[(
     &["fn decode(", "fn decode_prefix("],
 )];
 
-/// Add [`FREE_FUNCTION_CODECS`] to what `codec_bodies` found.
 pub(super) fn free_function_codecs(out: &mut BTreeMap<String, Codec>) {
     let files = rust_files();
     for (ty, krate, enc_heads, dec_heads) in FREE_FUNCTION_CODECS {

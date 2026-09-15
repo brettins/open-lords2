@@ -13,7 +13,6 @@ use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::Canvas;
 
-// ------------------------------------------------------------------ the box
 
 pub(crate) fn draw(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
@@ -32,14 +31,6 @@ pub(crate) fn region(c: &Canvas, r: Rect) -> Vec<u8> {
     out
 }
 
-/// **The words, in their own box** — compared region for region with a box
-/// the test draws itself from the literal string, not with a canvas.
-///
-/// With the placeholder font a glyph advances 6 pixels, so *"End your turn"*
-/// ends 78 pixels on plus `Ui_DrawText`'s trailing 4: `g_penAdvance` 82, and
-/// `0xC - (0xB0 - 82) / 16` is 7 units — a 112 × 22 box at (340, 440), one line
-/// tall.
-///
 /// Ablations: delete the second pass's text and the region loses its words;
 /// delete the fill and the first pass shows through on the map; swap `FILL`
 /// for `INK` — each goes red.
@@ -86,12 +77,9 @@ fn the_box_is_placed_and_sized_the_way_the_original_places_it() {
     ] {
         assert_eq!(tooltip::place(pointer.0, pointer.1), want, "pointer {pointer:?}");
     }
-    // One line is 22 tall and two are 40; a line of 176 is 12 units, and C
-    // division rounds (176 - 178) / 16 to zero, not to minus one.
     assert_eq!(tooltip::box_size(1, 82), (112, 22));
     assert_eq!(tooltip::box_size(2, 178), (192, 40));
     assert_eq!(tooltip::box_size(3, 176), (192, 40));
-    // (176 - 20) / 16 is 9, so 3 units.
     assert_eq!(tooltip::box_size(1, 20), (48, 22));
 }
 
@@ -126,18 +114,13 @@ fn a_two_line_tip_at_the_bottom_right_corner_stays_on_the_screen() {
         rect.x >= 0 && rect.y >= 0 && rect.x + rect.w <= 640 && rect.y + rect.h <= 480,
         "the box {rect:?} leaves the 640 x 480 screen"
     );
-    // And the outline's bottom row really is on it.
     let c = draw(&mut m, &mut g, &a);
     assert_eq!(c.at(400, 479), tooltip::INK, "the box's last row is drawn");
 }
 
-// ------------------------------------------------------------ which screens
 
 /// **`FUN_00477320`, position by position**, against literals out of the
 /// decompilation.
-///
-/// Ablations: swap the `0x223` and `0x23B` splits and the heart rows go red;
-/// read the farm list's `1` as wheat and the cattle row does.
 #[test]
 fn the_campaign_ladder_names_every_part_of_the_sidebar() {
     let mine = Sidebar { minimap_mode: 0, owned: true, farm: vec![1, 0, 2], industry: vec![6, 4, 5, 7, 3] };
@@ -172,18 +155,14 @@ fn the_campaign_ladder_names_every_part_of_the_sidebar() {
     ] {
         assert_eq!(tooltip::campaign_tip(&mine, x, y), want, "({x}, {y})");
     }
-    // An overlay up: the three statistic buttons name the mode that is on, and
-    // the fourth returns to the owners' map.
     let food = Sidebar { minimap_mode: 2, ..mine.clone() };
     assert_eq!(tooltip::campaign_tip(&food, 620, 50), 3);
     assert_eq!(tooltip::campaign_tip(&food, 620, 120), 3);
     assert_eq!(tooltip::campaign_tip(&food, 620, 140), 31);
-    // Somebody else's county: the strip, the slider and the rows say nothing.
     let theirs = Sidebar { owned: false, ..mine.clone() };
     for (x, y) in [(500, 200), (500, 280), (500, 304), (600, 424)] {
         assert_eq!(tooltip::campaign_tip(&theirs, x, y), 0, "({x}, {y})");
     }
-    // A row past the list is nothing, and so is a list value with no tip.
     let short = Sidebar { farm: vec![1], ..mine };
     assert_eq!(tooltip::campaign_tip(&short, 500, 380), 0);
 }
@@ -207,12 +186,8 @@ fn the_battle_ladder_names_the_overview_the_troops_and_the_five_buttons() {
     }
 }
 
-// ------------------------------------------------------------ the install
 
 /// **`DAT_004D6FB8`, byte for byte, out of the player's own `Lords2.exe`.**
-///
-/// The only check of [`tooltip::SCREENS`] that cannot be typed into agreement:
-/// every other test here reads the constant.
 #[test]
 fn the_screen_table_is_the_one_in_the_players_executable() {
     let Some(exe) = l2_testkit::executable() else {
@@ -223,9 +198,6 @@ fn the_screen_table_is_the_one_in_the_players_executable() {
     assert_eq!(read, tooltip::SCREENS.to_vec());
 }
 
-/// **Group 220 is our transcription, string for string**, and in the player's
-/// own body font the corner tip really is two lines — so the clamp above is a
-/// case a player meets and not one only the placeholder font makes.
 #[test]
 fn group_220_is_the_players_own_words_and_autocalc_wraps_in_the_real_font() {
     let Some(dir) = l2_testkit::install_dir() else {

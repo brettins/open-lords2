@@ -1,12 +1,6 @@
 use super::*;
 
 impl BattleRunner {
-    /// The unit's destination as a cell.
-    ///
-    /// `Order_StepAwayFromUnit` can push a destination off the map; in the
-    /// original `BattleUnit_Order` runs `Dest_FindReachableNear` on it, which
-    /// clamps. We clamp to the playable border and leave the reachability
-    /// search to the pathfinder.
     fn unit_dest(&self, unit: usize) -> (i16, i16) {
         let u = self.units.get(unit);
         (u.target_x.clamp(1, 78), u.target_y.clamp(1, 78))
@@ -22,13 +16,6 @@ impl BattleRunner {
         let (footprint, cols) = self.unit_geometry(unit, &members);
         let target = self.unit_dest(unit);
         // **`DAT_00553FE4` — "this unit was ordered onto water".**
-        // `Formation_RectIsClear` caches it off the *unit's destination* and
-        // then rejects the rectangle for the same reason, so every figure of a
-        // unit sent at the moat enters state 9 while walking to a **dry** slot
-        // beside it. Passed down, but it has to be
-        // the destination's surface and not the slot's — see
-        // [`Self::send_figure`], where reading the slot's is what made state 9
-        // unreachable.
         let dest_is_water = self.field.at(target.0 as usize, target.1 as usize).surface
             == crate::siege::SURFACE_WATER;
         if self.rect_is_clear(unit, target, members.len(), footprint, cols) {
@@ -50,7 +37,6 @@ impl BattleRunner {
 
     /// `Formation_RectIsClear` (`0x00489F9D`): every slot on the map, at the
     /// destination's elevation, holding no other unit's figure, not impassable.
-    /// A destination on water fails outright.
     fn rect_is_clear(
         &self,
         unit: usize,
@@ -66,8 +52,6 @@ impl BattleRunner {
         let rect = formation::compute_rect(target, figures, footprint, cols);
         for i in 0..figures {
             let (x, y) = rect.slot(i);
-            // The original's own bounds, which are the playable border rather
-            // than the array: 1 ..= 78.
             if !(1..=0x4E).contains(&x) || !(1..=0x4E).contains(&y) {
                 return false;
             }
@@ -143,7 +127,6 @@ impl BattleRunner {
     }
 
     /// `Formation_FindNearbySlot` (`0x0048A38E`), reduced to the field case:
-    /// radii 0…19 around the unit's destination for a usable, unclaimed cell.
     fn find_nearby_slot(
         &self,
         unit: usize,
@@ -178,16 +161,9 @@ impl BattleRunner {
     /// [`crate::siege::SURFACE_RAMPART_WALK`] (4)
     /// is only ever slotted along it; and it refuses a side-0 unit an empty
     /// cell of surface under 4 in a siege. `[V]` — 359 bytes, four parameters.
-    /// Switching the first one on here turns the
-    /// `sound_does_not_change_the_battle` canary red — the proving siege stops
-    /// producing bow cues — so it is applied only where this branch ported it,
-    /// in [`Self::dest_find_reachable_near`].
     pub(super) fn slot_is_usable(&self, unit: usize, x: i32, y: i32, elevation: u8) -> bool {
         let cell = self.field.at(x as usize, y as usize);
         let occupant = self.occupant[y as usize * DIM + x as usize];
-        // Impassable *and* occupied is accepted, which reads like a mistake and
-        // is what the code does — the two tests are `(flags & 0x90) == 0 ||
-        // occupant == 0`, then a fall-through `return 1`.
         if cell.impassable() && occupant.is_some() {
             return true;
         }
@@ -235,8 +211,6 @@ impl BattleRunner {
         if state == State::FillingMoat && !gate {
             return;
         }
-        // Deviation,
-        // left in it.
         if state == State::Melee {
             return;
         }
@@ -246,8 +220,6 @@ impl BattleRunner {
         let troop = self.fighters[fighter].troop;
         let owner = self.sim.figures[sim].owner;
 
-        // The occupant of the destination, unless it is one of ours —
-        // `g_otherBattleMan` is zeroed when the owners match.
         let enemy_there = self.occupant[y as usize * DIM + x as usize].and_then(|o| {
             let o = o as usize;
             (self.sim.figures[self.fighters[o].sim].owner != owner).then_some(o)
@@ -268,7 +240,6 @@ impl BattleRunner {
                 new_state = State::FillingMoat;
             }
         } else if self.sim.figures[sim].owner_is_human && !gate {
-            // A human's siege engine is not repositioned by a reform.
             return;
         }
 
@@ -285,16 +256,11 @@ impl BattleRunner {
         if (1..3).contains(&weapon)
             && (enemy_there.is_some() || self.units.get(unit).target_cell != 0)
         {
-            // A bow or a crossbow with somebody on the destination closes to
-            // shoot: its destination becomes its own cell.
             self.sim.figures[sim].target = enemy_there.map(|o| self.fighters[o].sim);
             new_state = State::Shooting;
             dest = (self.fighters[fighter].x, self.fighters[fighter].y);
         }
         if weapon > 2 && (1..4).contains(&cell.elevation) {
-            // A catapult aiming at low ground: the original's state 12, which
-            // is not modelled. It stands where it is, which is the observable
-            // half of it.
             dest = (self.fighters[fighter].x, self.fighters[fighter].y);
         }
 
@@ -307,7 +273,6 @@ impl BattleRunner {
         f.target = dest;
     }
 
-    // -- the per-figure tick ------------------------------------------------
 
     pub(super) fn step_one(&mut self, i: usize) {
         if !self.is_alive(i) {
@@ -319,7 +284,6 @@ impl BattleRunner {
             return;
         }
 
-        // **The phase is the animation handlers', not this loop's.**
         // `Anim_WalkA2` steps it (wrapping at 0x17) and `Anim_StrikeA2` steps
         // it for the swinging man only (0x27); `Anim_StandA2` and
         // `Anim_DrawBowA2` never do — `00480000.c:2509`, `super::anim`. Ours
@@ -329,25 +293,10 @@ impl BattleRunner {
             self.fighters[i].hold -= 1;
         }
 
-        // **The moat, before anything else.** State 9 is a whole slot of
-        // `g_manStateTable`, so the original never reaches the melee search or
-        // the mover while a figure is tipping earth; only when it has nothing
-        // to tip into does the handler fall through to walking. `true` here is
-        // "it is busy shovelling".
         if self.fill_moat_tick(i) {
             return;
         }
 
-        // A duel is a *mutual* lock. Break it when the other half is gone —
-        // which happens whenever a third figure lands the killing blow, since
-        // `melee::tick` only releases the pair it is resolving.
-        //
-        // This is not bookkeeping. `BattleUnits_RebuildFromFigures` reads state
-        // 4 to raise the unit's in-melee flag, and thirteen of the seventeen
-        // order handlers refuse to run while it is set — so one figure left
-        // locked on a corpse silently stops its **whole unit** thinking for the
-        // rest of the battle. The original's state-4 handler drops back to
-        // state 0 for the same reason.
         let sim = self.fighters[i].sim;
         if self.sim.figures[sim].state == State::Melee {
             let mutual = self.sim.figures[sim].opponent.is_some_and(|o| {
@@ -360,14 +309,7 @@ impl BattleRunner {
                 // (`0x004831D8`) runs `Anim_Strike` at its *top*, so the tick
                 // that drops a figure back to state 0 is the last tick that
                 // draws him striking; the state-0 handler then stands him.
-                // Ours left `anim` at `Motion::Attacking` and every later arm
-                // that returns early — the mover's mid-crossing return, the
-                // shooter's — left it there
-                // somewhere else went on hacking at nothing for the rest of
-                // the battle. The player's *"some men stay in the attacking
-                // animation after the fight"*.
                 //
-                // **The dropping tick is a striking tick.**
                 // `00480000.c:1384`: `BattleMan_StateMelee` calls `Anim_Strike`
                 // at its *top* and only then writes the new state, so the last
                 // tick of a duel is drawn swinging and the figure reaches state
@@ -390,9 +332,6 @@ impl BattleRunner {
             }
         }
 
-        // Already locked in a duel: face the opponent and swing — **unless he
-        // is still crossing a cell, and then he finishes it.**
-        //
         // `BattleMan_StateMelee` (`0x004831D8`): `Anim_Strike(); … Melee_Tick();
         // if ((stepFlags & 1) == 0 && BattleMan_Step(1)) Anim_Walk();`. The
         // `noInterrupt = 1` argument makes the mover count and nothing else —
@@ -409,9 +348,6 @@ impl BattleRunner {
             if !self.fighters[i].progress.free {
                 let troop = self.fighters[i].troop;
                 self.fighters[i].progress.tick(troop);
-                // `BattleMan_Step(1)` returns 1 both mid-crossing and at the
-                // landing, so the strike arm's `&& BattleMan_Step(1)` always
-                // takes `Anim_Walk` here: he is crossing, so he marches.
                 self.march(i, true);
                 return;
             }
@@ -426,9 +362,6 @@ impl BattleRunner {
                     f.progress = Progress::default();
                     self.strike(i, facing);
                 }
-                // State 4 with nobody to hit. The mutual check above normally
-                // takes this figure out of melee first; if anything ever leaves
-                // it here, it stands.
                 None => self.stand(i),
             }
             return;
@@ -441,8 +374,6 @@ impl BattleRunner {
         // returns from it while `(stepFlags & 1) == 0` — before
         // `Melee_AdjacentEnemyDir`, before `Dir_FromDelta` /
         // `BattleMan_NextPathDir`, before `BattleMan_TryStepDir`.
-        // has committed to a cell finishes the crossing: he does not look for
-        // a duel, does not re-aim, and cannot be refused half-way.
         //
         // Ours ran the whole thing every tick and entered on the last one. Two
         // visible faults fell out of that and `docs/battle.md` §13.6 counted
@@ -455,8 +386,6 @@ impl BattleRunner {
             return;
         }
 
-        // Not fighting: look for somebody adjacent, as the original's
-        // melee search does — eight neighbours, first live enemy wins.
         if let Some(enemy) = self.adjacent_enemy(i) {
             let (ex, ey) = (self.fighters[enemy].x as i32, self.fighters[enemy].y as i32);
             {
@@ -468,11 +397,6 @@ impl BattleRunner {
             }
             let facing = self.fighters[i].facing;
             self.strike(i, facing);
-            // Contact, by standing next to somebody
-            // into them. The original raises the join from the *mover*
-            // (`Cell_TryEnter` returning 999), and tells both units either way
-            // — this adjacency check gets there first when the enemy is
-            // the one who walked up.
             let (ua, ub) = (self.unit_of(i), self.unit_of(enemy));
             self.join_melee(ua);
             self.join_melee(ub);
@@ -484,19 +408,10 @@ impl BattleRunner {
         if self.fighters[i].at_target() {
             self.stand(i);
             self.fighters[i].progress = Progress::default();
-            // **A standing armed man shoots.** See [`Self::fire_tick`] for why
-            // this is the gate and what is inferred about it. It runs after
-            // `stand` because the bow draw is the one thing that overrides the
-            // standing pose from inside state 5.
             self.fire_tick(i);
             return;
         }
 
-        // **The pose is not set until the step is.** §14.5: `Anim_Walk` is
-        // called only when `BattleMan_Step` reports the figure moved, and
-        // `Anim_Stand` when it did not. This used to write `Motion::Walking`
-        // here, so a man with no route and
-        // a man whose step was refused both marched on the spot.
         let Some(next) = self.next_step(i) else {
             self.stand(i);
             return;
@@ -512,11 +427,6 @@ impl BattleRunner {
                 f.polar = crate::siege::tower_polar(f.facing, f.polar);
             }
         }
-        // **`Melee_AdjacentEnemyDir`, as far as a pot of oil.** Before a
-        // committed step `BattleMan_Step` looks round all eight neighbours for
-        // an enemy at its own height — and, unlike the melee search, **it does
-        // not skip a siege engine** — and steps at the first one it finds. When
-        // that is a pot of oil the step is the 999 arm, and the pot pours.
         if troop.index() < 7 {
             if let Some(pot) = self.adjacent_oil(i) {
                 let (ua, ub) = (self.unit_of(i), self.unit_of(pot));
@@ -527,16 +437,10 @@ impl BattleRunner {
                 return;
             }
         }
-        // **He stands until the mover says otherwise.** The free-cell arm of
-        // [`Self::enter`] plays `Anim_WalkA2`; the wall and the contact arms
-        // play `Anim_StrikeA2`; every refusal leaves this. Writing the walk
-        // here instead is what marched a barred man on the spot.
         self.stand(i);
         self.enter(i, next);
     }
 
-    /// A figure in free pursuit or closing to shoot follows its own target
-    /// — `docs/battle-ai.md` §3.3 and §4.1.
     fn retarget(&mut self, i: usize) {
         let sim = self.fighters[i].sim;
         match self.sim.figures[sim].state {
@@ -558,9 +462,6 @@ impl BattleRunner {
                 }
             }
             State::Shooting => {
-                // A figure whose chosen target is gone would stand in 17 for
-                // the rest of the battle. Returning it to idle lets its unit
-                // order it again.
                 let alive = self.sim.figures[sim]
                     .target
                     .is_some_and(|t| self.sim.figures[t].is_alive());
@@ -572,6 +473,7 @@ impl BattleRunner {
                 // the one that *leaves* state 17 — by writing **state 5**,
                 // which answers [`Self::fire_tick`]'s open question about what
                 // puts a figure into the firing state.
+                //
                 // fire-arrow cell holds its bowmen in 17 with no live target,
                 // and they acquire one there. `[V]`.
                 let cell = {
@@ -623,43 +525,19 @@ impl BattleRunner {
         }
     }
 
-    // -- missiles ------------------------------------------------------------
 
     /// **`BattleMan_FireMissile` (`0x00483337`)** — one tick of a figure that
     /// carries a bow, a crossbow or a catapult.
     ///
-    /// ```text
-    /// reload++
-    /// reload == interval - 10  ->  acquire a target, or reset to 4 and give up
-    /// reload >  interval       ->  loose, and reset
-    /// ```
-    ///
-    /// Two details that look like slips and are not. The target is acquired
-    /// **ten ticks early**,
-    /// does not shoot at all. And a failed acquisition resets the counter to
-    /// [`NO_TARGET_RESET`],
-    /// shoot at looks again almost immediately.
-    ///
-    /// **Where it is called from is ours, and it is the one inference in the
-    /// missile path.** The original fires from figure **state 5**, and what puts
-    /// a figure into state 5 was not established. Here a figure shoots when it
-    /// is alive, armed, out of melee and standing on its destination — which is
-    /// what an archer that has been ordered somewhere and arrived is doing.
     /// Marked `[I]`; the mechanism it drives is `[V]` throughout.
     fn fire_tick(&mut self, i: usize) {
         self.reload_tick(i);
-        // **The draw is held for the whole reload.** `BattleMan_FireMissile`
-        // ends `if (target != 0) Anim_DrawBow();` — the last thing it does,
-        // every tick it runs, not the tick the target was found. See
-        // [`Self::shoot`]; the pose itself comes from `swingTimer`, which is
-        // `Figure::reload_counter`.
         let sim = self.fighters[i].sim;
         if self.sim.figures[sim].target.is_some() {
             self.shoot(i);
         }
     }
 
-    /// The reload counter and the shot — `BattleMan_FireMissile` up to its tail.
     fn reload_tick(&mut self, i: usize) {
         let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
             return;
@@ -674,8 +552,6 @@ impl BattleRunner {
 
         if counter + missile::ACQUIRE_LEAD == stats.reload {
             match self.missile_target(i, stats.range as i32) {
-                // The bow is not raised here: the tail of [`Self::fire_tick`]
-                // raises it, on this tick and on every tick the target lives.
                 Some(t) => self.sim.figures[sim].target = Some(t),
                 None => {
                     let f = &mut self.sim.figures[sim];
@@ -689,9 +565,6 @@ impl BattleRunner {
             return;
         }
         self.sim.figures[sim].reload_counter = 0;
-        // The target may have died in the ten ticks since it was chosen. The
-        // original checks `other.owner == 0` and does not shoot — the
-        // reload is spent either way.
         let Some(target) = self.sim.figures[sim].target else {
             return;
         };
@@ -704,12 +577,6 @@ impl BattleRunner {
         self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
     }
 
-    /// `Missile_Spawn` plus the eight launch steps `BattleMan_FireMissile` runs
-    /// on the spot.
-    ///
-    /// The eight are not decoration: they put the missile a whole cell out
-    /// before it is ever drawn, they come out of its range budget, and **a shot
-    /// can already have hit something inside them**.
     fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
         let sim = self.fighters[shooter].sim;
         let (owner, band) = {
@@ -729,14 +596,8 @@ impl BattleRunner {
             power,
             elevation,
         ) else {
-            // All hundred are in the air. The original drops the shot silently.
             return;
         };
-        // **The shot leaves.** `BattleMan_FireMissile` plays slot 9 for a
-        // crossbow and 7 for a bow after the spawn and its launch steps, and
-        // `BattleMan_StateEngineFire` slot `0xE` for a catapult — whatever the
-        // launch steps then hit. Recorded before the steps because a shot that
-        // strikes inside them has still been loosed. See [`crate::cue`].
         self.sim.cues.loose(class);
         // **A fire arrow.** `BattleMan_FireMissile` writes `+0x44 = 1` when the
         // shooter's unit is an AI's, of side 0, and more than three of a
@@ -771,15 +632,6 @@ impl BattleRunner {
     }
 
     /// `Missile_FindTarget` (`0x004956CC`) as the firing path uses it.
-    ///
-    /// Ascending figure index, so ties break to the lowest index; a **square**
-    /// range gate but a **Manhattan** score, so the corners of the box are
-    /// reachable at twice the range; a siege engine costs `+35` and is invisible
-    /// to anything without a weapon; and the score is capped at 160
-    /// also the "nothing found" sentinel.
-    ///
-    /// Returns a *simulation* figure index, which is what a figure's `target`
-    /// holds.
     fn missile_target(&self, i: usize, range: i32) -> Option<usize> {
         let me = self.fighters[i].sim;
         let mine = self.sim.figures[me].owner;
@@ -822,9 +674,6 @@ impl BattleRunner {
             if !self.step_missile(slot) {
                 continue;
             }
-            // `Missile_UpdateAll`'s per-class arms, between the step and the
-            // countdown: **a fire goes out** on the frame its count reads 2,
-            // and **a stream of oil paints its cross** every frame it flies.
             match self.missiles.get(slot).class {
                 missile::CLASS_FIRE => {
                     if self.missiles.get(slot).ttl == fire::FIRE_RESTORE_AT {
@@ -844,8 +693,6 @@ impl BattleRunner {
                 missile::CLASS_OIL => self.oil_cross(slot),
                 _ => {}
             }
-            // The ttl countdown, and the only thing that retires a missile
-            // which has already hit. One hit per arrow falls out of this.
             let m = self.missiles.get_mut(slot);
             if m.ttl != 0 {
                 m.ttl -= 1;
@@ -858,9 +705,6 @@ impl BattleRunner {
 
     /// **`Missile_Step` (`0x00492C8B`)** — one tick of one missile: four
     /// sub-steps, and after each of them the tests that can end it.
-    ///
-    /// Returns false when the missile was retired, so the caller stops touching
-    /// the slot.
     pub(super) fn step_missile(&mut self, slot: usize) -> bool {
         // **`Missile_Step`'s first test: a fire arrow over woodland.** Once a
         // frame, on the cell the arrow starts the frame in, before anything
@@ -872,9 +716,6 @@ impl BattleRunner {
         // if (cell.surface == 0x0F && m.+0x44 != 0 &&
         //     (shooter.ownerIsHuman == 0 || m.+0x1C == m.+0x44)) { … }
         // ```
-        //
-        // An AI's arrow carries 1 and lights any wood; a human's carries the
-        // cell byte offset and lights only that cell.
         {
             let m = *self.missiles.get(slot);
             let cell = m.cell_y as usize * DIM + m.cell_x as usize;
@@ -908,9 +749,6 @@ impl BattleRunner {
         {
             let m = self.missiles.get_mut(slot);
             m.ticks_flown += 1;
-            // **Out of range.** The budget is the range in eighths of a cell and
-            // a tick is an eighth of a cell,
-            // are the same number.
             if m.ticks_flown > m.range_ticks {
                 self.missiles.free(slot);
                 return false;
@@ -930,12 +768,6 @@ impl BattleRunner {
         true
     }
 
-    /// What a missile meets in the cell it has just entered: high ground, a
-    /// siege engine's footprint, a wall, or a man.
-    ///
-    /// Every one of these is gated on `ttl == 0` in the original — a missile
-    /// that has already struck something stops testing — and that gate is what
-    /// makes one hit per missile structural.
     fn missile_cell_tests(&mut self, slot: usize) -> bool {
         if self.missiles.get(slot).ttl != 0 {
             return true;
@@ -958,9 +790,6 @@ impl BattleRunner {
             self.bridge_fire_at(m.cell_x as i32, m.cell_y as i32);
         }
 
-        // **High ground stops an arrow.** Ground more than one level above the
-        // launch point sets a sticky flag; so does an impassable cell, which is
-        // also how the original marks a siege engine's own footprint.
         {
             let m = self.missiles.get_mut(slot);
             if (m.launch_elevation as i32) + 1 < elevation as i32 {
@@ -975,8 +804,6 @@ impl BattleRunner {
             let weapon_class = m.class < 3;
             if m.blocked && weapon_class {
                 m.blocked_ticks = m.blocked_ticks.saturating_add(1);
-                // Given up on — either after long enough, or the moment the
-                // ground comes back down to where it was fired from.
                 if m.blocked_ticks > missile::BLOCKED_LIMIT || m.launch_elevation == elevation {
                     self.missiles.free(slot);
                     return false;
@@ -984,8 +811,6 @@ impl BattleRunner {
             }
         }
 
-        // **A catapult shot against a wall.** It cannot hurt a man at all, and
-        // this is the only thing it can hurt.
         // The gate is `Missile_Step`'s own — `elevation != 0 && surface == 4`,
         // masonry above ground level — in [`crate::siege::shot_damages_wall`],
         // not the `0x20` flag this used to read. The flag is the mover's
@@ -1000,8 +825,6 @@ impl BattleRunner {
             return true;
         }
 
-        // **The hit.** Whoever is standing here, read fresh — not whoever the
-        // shot was aimed at.
         if self.missiles.get(slot).class >= 3 {
             return true;
         }
@@ -1011,15 +834,12 @@ impl BattleRunner {
         let victim = victim as usize;
         let vsim = self.fighters[victim].sim;
         if !self.sim.figures[vsim].is_alive() {
-            // A dead figure neither blocks nor absorbs.
             return true;
         }
         let (owner, shooter, power, class) = {
             let m = self.missiles.get(slot);
             (m.owner, m.shooter as usize, m.power, m.class)
         };
-        // **Owner, not side.** An arrow passes straight through a friendly body
-        // without being consumed.
         if self.sim.figures[vsim].owner == owner {
             return true;
         }
@@ -1033,9 +853,6 @@ impl BattleRunner {
             missile::resolve_power(weapon, power, delta, &self.sim.figures[vsim], size_class);
         {
             let f = &mut self.sim.figures[vsim];
-            // The grudge: `Missile_Step` raises the was-hit flag and names the
-            // *shooter*, which is what `BattleUnits_RebuildFromFigures` turns
-            // into the victim's unit remembering who shot it.
             f.was_hit = true;
             f.hit_by = Some(shooter);
         }

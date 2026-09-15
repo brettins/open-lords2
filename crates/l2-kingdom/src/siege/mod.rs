@@ -1,13 +1,3 @@
-//! **Sieges on the campaign map** — laying one, building the engines, and
-//! deciding whether an assault is possible at all.
-//!
-//! `docs/armies.md` §4 traces the chain; this is it. The gate it exists to open
-//! is [`crate::conquest::can_be_entered`]: **a county holding both a castle and
-//! a garrison cannot be walked into**,
-//! take it and no way to win a game.
-//!
-//! # The chain, and where each piece is
-//!
 //! ```text
 //! Army_BeginSiege     0x004A7CA2  begin_siege     the guard
 //! Siege_Link          0x004A7E0A  link            the two back-pointers
@@ -22,8 +12,6 @@
 //! Army_PrepareForBattle 0x004AA6CA prepare_besieger / garrison_oil
 //! ```
 //!
-//! # Engines are built on the spot
-//!
 //! Nothing is carried to a siege. [`ENGINE_WORK`] is three man-season costs and
 //! [`build_tick`] spends the besieging army's whole strength on them once a
 //! season, so **an army of 400 building two towers is ready next season and the
@@ -32,31 +20,17 @@
 //! order calls [`break_siege`]. `L2.eng` 10/13 *"Lift the siege?"* is a warning,
 //! not a veto. `[V]`
 //!
-//! # What the original's own Readme says, and it agrees
-//!
-//! `Readme.txt` in the shipped install — *"LORDS OF THE REALM ROYAL EDITION
-//! Additional Notes"*, the errata the printed manual could not carry — states
-//! two of this module's rules in English:
-//!
 //! * **Capturing Counties (pg76)**: *"If a garrisoned castle is present in the
 //! county, it must be attacked instead of the county town to gain control of
 //!   the county."* That is [`crate::conquest::can_be_entered`] verbatim, and it
 //!   promotes the gate from a reading of one `if` to **[V]**.
+//!
 //! * **Besieged Castles (p.87)**: *"When one of your castles is under siege,
 //!   you may only leave the castle to engage the sieging force, and you may not
 //!   enter the castle or strengthen the garrison until the siege is lifted."*
 //!   [`garrison_is_besieged`] is that rule, and `L2.eng` 289 —
 //!   *"…As it is currently under siege !!"* — is the refusal the original
 //!   prints.
-//!
-//! # Scope
-//!
-//! Everything here is campaign arithmetic. The battle a siege produces is
-//! `l2-sim`'s,
-//! ordinary battle is; the only difference this module makes to that seam is
-//! [`assault_castle_level`], which is the argument
-//! [`crate::battle::auto_resolve`] has always taken and nothing has ever
-//! passed.
 
 mod lifecycle;
 pub use lifecycle::*;
@@ -115,38 +89,20 @@ impl Engine {
 /// `g_siegeEngineWork` (`0x004DE440`) — man-seasons one engine of each type
 /// costs. Read out of `Lords2.exe`, three `i32` followed by a zero and then
 /// string data, which is what fixes the count at three. `[V]`
-///
-/// **A ram is worth two of anything else**, and that is the whole of the
-/// trade-off the siege-preparation screen offers.
 pub const ENGINE_WORK: [i32; 3] = [200, 200, 400];
 
-/// How many of each engine the siege-preparation screen will let a player
-/// order — **four catapults, four towers, two rams**.
-///
 /// `[V]`, and new here. The screen's increment handler (`0x0043B681`) picks its
 /// ceiling from the hotspot id — `4` for hotspots 0 and 1, `2` for anything
 /// else — and refuses to increment at it; the decrement handler
 /// (`0x0043B741`) refuses at zero. Nobody had read those two functions, so
 /// `docs/armies.md` §4 knew the button existed and not what it was bounded by.
-///
-/// The cap is on the *screen*, not on the record: [`prepare`]'s AI branch
-/// writes 4 towers for the Knight without consulting it, and 3 catapults *plus*
-/// 2 towers for the Countess, which no sequence of clicks could produce at
-/// once. So this is a rule about the player
-/// original's.
 pub const ENGINE_ORDER_CAP: [i16; 3] = [4, 4, 2];
 
 /// The defender's boiling-oil count by **castle level** 0…4 — that is,
 /// `castleType - 1`. `Army_PrepareForBattle`'s mode-0 branch, a plain switch on
 /// `g_castleLevel`. `[V]`
-///
-/// The Readme's *Boiling Oil (pg94)* — *"Oil is designed for use by the
-/// besieged for defense of the castle"* — is the same statement in English:
-/// only the garrison ever gets any.
 pub const OIL_BY_CASTLE_LEVEL: [i32; 5] = [1, 2, 3, 4, 6];
 
-/// The castle level at and above which an assault **requires** siege engines.
-///
 /// `Siege_LaunchAssault`'s gate is `level < 3 || engines > 0`, and `L2.eng` 281
 /// is the same sentence: *"Your captains advise that you must build some siege
 /// engines to besiege this castle."* Level 3 is a stone castle (type 4)
@@ -157,17 +113,12 @@ pub const ENGINES_REQUIRED_FROM_LEVEL: u8 = 3;
 /// One engine type's build record — `+0x182 + e*6`, three `i16`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct EngineBuild {
-    /// `+0` — how many were ordered.
     pub ordered: i16,
-    /// `+2` — percent complete, 0…100. Derived from the other two every time
-    /// either changes, and stored because the screen prints it.
     pub percent: i16,
-    /// `+4` — man-seasons of work done against `ordered * ENGINE_WORK[e]`.
     pub work_done: i16,
 }
 
 impl EngineBuild {
-    /// The work this record still needs, or 0 once it is complete.
     pub fn remaining(&self, engine: Engine) -> i32 {
         if self.ordered < 1 {
             return 0;
@@ -180,15 +131,12 @@ impl EngineBuild {
     }
 }
 
-/// Why [`begin_siege`] refused.
-///
 /// `Army_BeginSiege` is a single four-clause `if` with no else
 /// silent in the original — the map click does nothing. Naming the four
 /// clauses is what lets the map layer print `L2.eng` 284 / 285 / 289 / 275,
 /// which `docs/armies.md` §9 pairs with exactly these conditions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SiegeRefusal {
-    /// The unit is not an army, or the slot is empty.
     NotAnArmy,
     /// The county has no garrison. `L2.eng` 285 — *"This castle is deserted my
     /// liege. Your enemies await you in the county town."*
@@ -203,15 +151,9 @@ pub enum SiegeRefusal {
     AlreadyBesieged,
 }
 
-/// The resumable cursor turn phase 2 walks. `g_siegeCursor`, `g_siegeCount`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SiegeCursor {
-    /// `g_siegeCursor` — the next unit slot [`tick_phase`] will look at.
     pub at: usize,
-    /// `g_siegeCount` — how many live besieging armies [`start_phase`] found.
-    /// The original uses it for one thing only: a battle outcome banner is
-    /// skipped when more than one siege is in progress and the battle is a
-    /// siege (`Battle_CheckOutcome`'s `g_siegeCount < 2` test).
     pub count: u32,
 }
 
@@ -227,6 +169,7 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > [`crate::industry::build_tick`] clears it — but 2 belongs to the
 /// > end-of-siege bookkeeper, `FUN_004784CA` (`0x004784CA`), which is called
 /// > from `Battle_ReturnToCampaign`'s siege arm and does this:
+///
 /// >
 /// > ```c
 /// > if (!g_battleIsSiege || (breachDamage == 0 && wallDamage == 0)) return;
@@ -242,15 +185,6 @@ pub const CASTLE_DEGRADED_BUILDING: u8 = 1;
 /// > — adding to the totals when a build was
 /// > already under way, so **a wooden castle is repaired in wood and a stone
 /// > one in stone**, and a siege on a half-built castle makes the job bigger.
-/// >
-/// > **This is [`record_castle_damage`] now**,
-/// > here — *"not reproduced, because every number comes from two battle-side
-/// > accumulators `l2-sim` does not have"* — is out of date in the part that
-/// > matters and was right about the rest. `l2-sim` keeps both accumulators;
-/// > the autocalc really does produce nothing, and that is the rule
-/// > a gap: `Battle_AutoResolve` leaves the castle unmarked and the three readers
-/// > player declines to watch leaves the castle unmarked and the three readers
-/// > below are reached only by a siege somebody **fought**.
 pub const CASTLE_DEGRADED_DAMAGED: u8 = 2;
 
 /// **What a siege left on a castle** — county `+0x1E4` … `+0x1F1`, the six
@@ -264,12 +198,6 @@ pub const CASTLE_DEGRADED_DAMAGED: u8 = 2;
 /// open, and the gate it broke is still broken. Without the round trip the six
 /// numbers would be write-only, which is `docs/decisions.md` C27's shape and
 /// the exact hole this type exists to avoid re-opening.
-///
-/// It is deliberately **not** `l2_sim::CastleDamage`, though the fields are the
-/// same six: `l2-kingdom` is below `l2-sim` in nothing and beside it in the
-/// dependency graph, and `docs/plan.md`'s one-way rule says neither simulation
-/// learns the other exists. `l2-game`'s `engagement` module owns the
-/// conversion, because it is the only crate that can see both.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SiegeScars {
     /// `+0x1E4` — `DAT_0057A0D8`, **moat cells filled in**. Five man-seasons
@@ -323,7 +251,6 @@ mod tests {
         units.spawn(a).unwrap()
     }
 
-    /// The guard, all four clauses.
     #[test]
     fn the_four_refusals_are_each_reachable() {
         let (mut counties, realms, mut units) = besieged_county();
@@ -362,7 +289,6 @@ mod tests {
         assert_eq!(begin_siege(T, &counties, &realms, &mut units, army, 4, 1), Ok(()));
     }
 
-    /// Laying a siege links both records, and lifting it unlinks both.
     #[test]
     fn the_link_is_a_pair_and_breaking_it_clears_both_halves() {
         let (counties, realms, mut units) = besieged_county();
@@ -376,7 +302,6 @@ mod tests {
         assert_eq!(units.get(counties[4].garrison_unit).unwrap().besieged_by, 0);
     }
 
-    /// `docs/armies.md` §4's worked example: 400 men, two towers, one season.
     #[test]
     fn four_hundred_men_build_two_towers_in_one_season() {
         let (counties, realms, mut units) = besieged_county();
@@ -389,15 +314,11 @@ mod tests {
         assert_eq!(units.get(army).unwrap().engines[1].percent, 100);
     }
 
-    /// And the other half of it: three rams is 1,200 man-seasons and takes
-    /// three.
     #[test]
     fn the_same_army_ordering_rams_waits_three_seasons() {
         let (counties, realms, mut units) = besieged_county();
         let army = besieger(&mut units, 400);
         begin_siege(T, &counties, &realms, &mut units, army, 4, 1).unwrap();
-        // The screen caps rams at two, so the third is written past it — this
-        // is the AI's reach, not a player's.
         units.get_mut(army).unwrap().engines[2].ordered = 3;
         recompute_build_time(&mut units, army);
         assert_eq!(units.get(army).unwrap().siege_seasons_left, 3);
@@ -407,14 +328,11 @@ mod tests {
         assert!(build_tick(&mut units, army));
     }
 
-    /// The spill: a season's men that a finished record cannot absorb go to
-/// the one that is still short
     #[test]
     fn work_spills_from_a_finished_engine_onto_an_unfinished_one() {
         let (counties, realms, mut units) = besieged_county();
         let army = besieger(&mut units, 400);
         begin_siege(T, &counties, &realms, &mut units, army, 4, 1).unwrap();
-        // One tower (200) and one ram (400): 600 man-seasons over 400 men.
         units.get_mut(army).unwrap().engines[1].ordered = 1;
         units.get_mut(army).unwrap().engines[2].ordered = 1;
         recompute_build_time(&mut units, army);
@@ -422,17 +340,11 @@ mod tests {
 
         build_tick(&mut units, army);
         let u = units.get(army).unwrap();
-        // Even share is 200 each. The tower takes all 200 and is done; the ram
-        // takes 200 of the 400 it needs, and there is nothing left to spill.
         assert_eq!(u.engines[1].percent, 100);
         assert_eq!(u.engines[2].work_done, 200);
-        // Second season: the tower is complete, so all 400 go to the ram, which
-        // needs 200. It finishes and the siege is ready.
         assert!(build_tick(&mut units, army));
     }
 
-    /// The screen's caps, which are a rule about the player and not about the
-    /// record.
     #[test]
     fn the_screen_caps_orders_at_four_four_and_two() {
         let (counties, realms, mut units) = besieged_county();
@@ -450,8 +362,6 @@ mod tests {
         }
     }
 
-    /// The gate, in the game's own words: *"you must build some siege engines
-    /// to besiege this castle."*
     #[test]
     fn a_big_castle_cannot_be_stormed_bare_handed_and_a_small_one_can() {
         assert!(can_assault(0, 0), "a palisade needs nothing");
@@ -460,7 +370,6 @@ mod tests {
         assert!(can_assault(4, 1), "one engine is enough for a royal castle");
     }
 
-    /// And an army that refuses the gate does not stall — it gives up.
     #[test]
     fn a_besieger_with_no_engines_against_a_stone_castle_lifts_its_own_siege() {
         let (mut counties, realms, mut units) = besieged_county();
@@ -472,7 +381,6 @@ mod tests {
         assert_eq!(units.get(counties[4].garrison_unit).unwrap().besieged_by, 0);
     }
 
-    /// The level is not the type, and all three arms are reachable.
     #[test]
     fn the_castle_that_is_fought_is_not_always_the_castle_that_is_owned() {
         let mut c = County::new();
@@ -488,7 +396,6 @@ mod tests {
         assert_eq!(assault_castle_level(&c), 1, "what a previous siege left standing");
     }
 
-    /// The four lords' doctrines
     #[test]
     fn every_shipped_lord_takes_a_named_branch_and_none_takes_the_default() {
         let doctrines: Vec<i32> = (1..=4).filter_map(|l| siege_doctrine(T, l)).collect();
@@ -496,8 +403,6 @@ mod tests {
         assert_eq!(siege_doctrine(T, 0), None, "the human has no doctrine");
     }
 
-    /// The Knight storms with towers alone; the Countess brings artillery
-    /// *and* the default towers, which is the cumulative rule.
     #[test]
     fn the_ai_orders_are_cumulative_and_not_alternative() {
         let (counties, mut realms, mut units) = besieged_county();
@@ -523,11 +428,9 @@ mod tests {
             (3, 2, 0),
             "the Countess: 3 catapults AND the default 2 towers"
         );
-        // 3 * 200 + 2 * 200 = 1000 man-seasons, not 600.
         assert_eq!(units.get(c).unwrap().siege_seasons_left, 3, "1000 over 400 men");
     }
 
-    /// The Countess's late ram, which needs both halves of its condition.
     #[test]
     fn the_late_ram_needs_a_big_castle_and_a_late_season() {
         let (mut counties, mut realms, mut units) = besieged_county();
@@ -550,15 +453,12 @@ mod tests {
         assert_eq!(units.get(c).unwrap().engines[2].ordered, 1);
     }
 
-    /// The pump stops on the army that is ready and leaves the cursor on it.
     #[test]
     fn the_cursor_stops_on_the_army_whose_engines_came_in() {
         let (counties, realms, mut units) = besieged_county();
         let slow = besieger(&mut units, 100);
         let fast = besieger(&mut units, 400);
         begin_siege(T, &counties, &realms, &mut units, slow, 4, 1).unwrap();
-        // Two armies cannot besiege the same castle in the original — the
-        // second link overwrites the first — so this is the shape of the sweep
         units.get_mut(slow).unwrap().besieging_county = 4;
         units.get_mut(fast).unwrap().besieging_county = 4;
         units.get_mut(slow).unwrap().engines[0].ordered = 4; // 800 over 100 men
@@ -572,21 +472,17 @@ mod tests {
         assert_eq!(units.get(slow).unwrap().siege_seasons_left, 7, "800-100 over 100");
     }
 
-    /// A stale link is broken at the top of the phase, in both directions.
     #[test]
     fn the_phase_opens_by_breaking_links_that_no_longer_agree() {
         let (counties, realms, mut units) = besieged_county();
         let army = besieger(&mut units, 400);
         begin_siege(T, &counties, &realms, &mut units, army, 4, 1).unwrap();
 
-        // The garrison marched out: the slot still names it, but it no longer
-        // names the county.
         let garrison = counties[4].garrison_unit;
         units.get_mut(garrison).unwrap().garrison_county = 0;
         start_phase(&counties, &mut units);
         assert_eq!(units.get(army).unwrap().besieging_county, 0);
 
-        // **And the garrison's back-pointer survives that turn.**
         // `Siege_ValidateLink` clears `+0x199` and touches `+0x19A` not at all;
         // the county sweep that would clear it ran *before* the validation
         // pass in the same call. So the pair takes two turn-phase-2s to come
@@ -596,7 +492,6 @@ mod tests {
         assert_eq!(units.get(garrison).unwrap().besieged_by, 0, "and gone on the next");
     }
 
-    /// The oil table, and that the attacker never gets any.
     #[test]
     fn only_the_garrison_gets_oil_and_the_count_is_the_castle_level() {
         for (level, expected) in OIL_BY_CASTLE_LEVEL.iter().enumerate() {
@@ -611,7 +506,6 @@ mod tests {
         assert_eq!((e.catapults, e.siege_towers, e.battering_rams, e.oil), (2, 0, 1, 0));
     }
 
-    /// The Readme's *Besieged Castles (p.87)* rule, both halves.
     #[test]
     fn a_besieged_garrison_cannot_be_reinforced_and_may_only_sortie() {
         let (counties, realms, mut units) = besieged_county();
@@ -624,8 +518,6 @@ mod tests {
         assert_eq!(sortie_target(&units, counties[4].garrison_unit), None);
     }
 
-    /// An army with no men neither builds nor reports itself ready — the
-    /// original's `if (menTotal > 0)` wrapping the whole body.
     #[test]
     fn a_besieger_with_no_men_never_reports_its_engines_ready() {
         let (counties, realms, mut units) = besieged_county();

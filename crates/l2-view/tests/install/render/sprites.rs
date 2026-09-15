@@ -17,32 +17,9 @@ use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
 
-/// **The cattle in the pastures, measured against `Flags1a.pl8` itself.**
-///
 /// `FUN_004071A0`'s farm arm picks
 /// `0x55 + (terrain - 0x14) * 6 + phase` for a stocked pasture and
 /// `0x67 + (terrain - 0x10) * 6 + phase` for the vestigial half nothing writes.
-/// Reading that ladder out of the decompiler gives you two frame numbers; it
-/// cannot tell you whether they point at cattle, and a canvas diff would pass
-/// on the wrong frame of the right sheet. So this asks the sheet.
-///
-/// Four claims, and each is one a measurement can refute:
-///
-/// 1. every frame [`campaign::herd_sprite`] can return for a **reachable**
-///    pasture is `58 × 30` — *exactly the near-zoom tile diamond*, so the
-///    sprite is a full-meadow overlay and not a small figure. Eighteen frames,
-///    three terrains by six phases, with no gap and no stray size;
-/// 2. every frame it returns for the **vestigial** half is a `2 × 2` stub — the
-/// art for that block, which is the second, independent
-///    reason to believe nothing ever writes terrain `0x0F … 0x12` on a farm
-///    tile;
-/// 3. the three reachable groups carry **strictly more opaque pixels** as the
-///    crowding rises. That is the claim *"a more crowded meadow has more
-///    animals on it"* stated as something the file can contradict, and it is
-///    what makes the band → frame mapping the right way round
-/// merely consistent;
-/// 4. `0x13`, the empty herd, and `0x0F` return **nothing at all** — bare grass
-///    for a county that has lost every animal.
 ///
 /// Ablating the `* 6` in [`campaign::herd_sprite`] fails claim 1 (the ladder
 /// walks into the `2 × 2` stubs); ablating the `+ 0x55` fails it too; swapping
@@ -56,7 +33,6 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
     let bytes = read(&dir, "Flags1a.pl8").expect("Flags1a.pl8");
     let sheet = Sheet::new(bytes).expect("parse");
 
-    // Claim 4, first, because the other three assume it.
     for empty in [0x0Fu8, 0x13] {
         for phase in 0..campaign::HERD_PHASES {
             assert!(
@@ -66,7 +42,6 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
         }
     }
 
-    // Claims 1 and 3: the three reachable bands.
     let tile = (l2_view::campaign::NEAR.tile_w as u16, l2_view::campaign::NEAR.tile_h as u16);
     let mut opaque_per_band = Vec::new();
     let mut frames_seen = Vec::new();
@@ -86,8 +61,6 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
             band.push(f.opaque.iter().filter(|&&o| o).count());
             frames_seen.push(frame);
         }
-        // Six phases of one scene: the animals move, the meadow does not, so
-        // the frames are close in weight without being identical.
         let (lo, hi) = (*band.iter().min().unwrap(), *band.iter().max().unwrap());
         assert!(hi > 0, "terrain {terrain:#04x} draws nothing");
         assert!(
@@ -107,7 +80,6 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
         "a more crowded meadow must carry more animals: {opaque_per_band:?}",
     );
 
-    // Claim 2: the vestigial block is padding, not a second herd.
     for terrain in 0x10u8..=0x12 {
         for phase in 0..campaign::HERD_PHASES {
             let (frame, at) = campaign::herd_sprite(terrain, phase).expect("the dead ladder");
@@ -127,10 +99,6 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
     );
 }
 
-/// **`Flags1a.pl8`'s two blocks that `docs/draws-map.md` identified, asserted against the
-/// player's own file — with every index a literal out of the decompilation.**
-///
-/// Neither block is drawn by this engine yet, and that is exactly why they are pinned now:
 /// the expensive mistake on this screen has always been building the *right* mechanism onto
 /// the *wrong* frame block (`docs/decisions.md` C49 lost four documents to it), and a block
 /// boundary is something the file can refute before any code exists.
@@ -140,8 +108,6 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
 /// cattle offset fell into once, where the probe was derived from the constant it was
 /// testing and ablation therefore proved nothing.
 ///
-/// Three claims:
-///
 /// 1. **The herd ladder saturates; it does not overflow.** `Sprite_TopIt`'s farm arm is
 ///    `frame = (content - 0x14) * 6 + phase + 0x55` guarded by
 ///    `if (2 < (byte)(content - 0x14)) return`, and `phase` is `DAT_0057D388 >> 4` with the
@@ -150,24 +116,11 @@ fn the_pasture_herd_frames_are_full_tiles_and_grow_with_the_crowding() {
 ///    while `0x67` must not be one. That is the whole of the answer to *"is the three-band
 ///    graphic against the four-band meter a live out-of-bounds?"* — it is not.
 ///
-/// 2. **`0x28 … 0x37` is one sixteen-frame `32 × 24` block**, the damage animation
-///    `Sprite_TopIt` draws over a razed dwelling (`flags 0x10`, `content 0x13`) and over an
-///    industry site shut down for three seasons or more. `0x27` before it is the last of the
-///    forty flag frames and `0x38` after it is the first `15 × 15` path ball, so the block's
-///    two boundaries are both checkable, and an index off by one breaks a size.
-///
 /// 3. **`0x79 … 0x80` is one eight-frame block** — the peasant mob's banner,
 ///    `Map_DrawArmies`' `frame = 0x79 + phase` for `unit.kind == 2`, with eight phases
 ///    because `DAT_0057D390` is `DAT_0057D378 >> 4` wrapped at `0x80`. `0x78` before it is
 ///    the last of the `2 × 2` stubs the herd test already names, and `0x81` after it is the
 ///    mercenary marker `Sprite_TopIt` draws on the town's north-east quadrant.
-///
-/// **The frames are `16 × 42`, and the first draft of this test said `32 × 24`** — the
-///    size of the *realm* flags at the head of the sheet, assumed. The
-///    file said so on the first run. Recorded because it is the whole argument for
-///    asserting a block you have not built yet: a tall narrow standard on a pole is a
-///    different picture from a wide waving banner, and nothing but the sheet was ever
-///    going to say which.
 #[test]
 fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
     let Some(dir) = asset_dir() else {
@@ -181,22 +134,17 @@ fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
         (f.width, f.height)
     };
 
-    // 1 — the herd ladder's top, from Sprite_TopIt's own arithmetic.
     let top = 2 * 6 + 5 + 0x55;
     assert_eq!(top, 0x66, "(content-0x14)*6 + phase + 0x55 tops out at 0x66");
     assert_eq!(size(top), (58, 30), "frame 0x66 is the last full-tile meadow");
     assert_ne!(size(top + 1), (58, 30), "frame 0x67 must be past the end of the meadows");
 
-    // 2 — the damage block, and both of its boundaries.
     assert_eq!(size(0x27), (32, 24), "0x27 is the fortieth flag frame");
     for f in 0x28..=0x37 {
         assert_eq!(size(f), (32, 24), "frame {f:#04x} is not part of the damage block");
     }
     assert_eq!(size(0x38), (15, 15), "0x38 is the first path ball, not damage");
 
-    // The animation burns down: warm pixels fall away and grey rises. Palette-free, so it
-    // cannot be fooled by a different Base01.256 - "warm" is the run of orange/brown entries
-// 0xC0..0xD8 the flame is drawn from, read off the sheet.
     let warm = |i: usize| {
         let f = sheet.frame(i).expect("frame");
         f.indices
@@ -212,7 +160,6 @@ fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
         warm(0x37),
     );
 
-    // 3 — the mob banner, eight phases, after the 2x2 stubs.
     assert_eq!(size(0x78), (2, 2), "0x78 is the last of the vestigial stubs");
     for f in 0x79..=0x80 {
         assert_eq!(size(f), (16, 42), "frame {f:#04x} is not part of the mob banner");
@@ -220,36 +167,6 @@ fn the_flags_sheet_damage_and_mob_banner_blocks_are_where_sprite_topit_says() {
     assert_ne!(size(0x81), (16, 42), "0x81 is the mercenary marker, not a ninth phase");
 }
 
-/// **The wheat ripens, and the file says which way.**
-///
-/// A player: *"The wheat fields don't show the wheat growing."*
-/// [`campaign::field_variant`] is the fix; this is the artwork that makes the
-/// direction a measurement. `Grain_SeasonTick` writes the
-/// crop's density band — 2, 3, 7 or 11 — onto every grain tile and derives
-/// `Terrain_Set`'s variant from it, and **all four bands share base 88**, so
-/// the variant is the only thing in the picture that moves.
-///
-/// Three claims, each refutable by the user's own `Roads1a.pl8`:
-///
-/// 1. frames **88 … 103** are sixteen tile-sized diamonds — four variants of
-///    four variations — and **104** is where the next base begins, so the run
-///    ends exactly where `field_base` says it does;
-/// 2. the count of **ripe-gold** pixels rises strictly with the variant at every
-///    one of the four `stored & 3` positions. That is *"a riper field has more
-///    ripe wheat in it"* stated as something the file can contradict, and it is
-///    what makes the band → variant mapping the right way round
-/// merely consistent;
-/// 3. the blocks on either side — fallow at 84 … 87 and pasture at 104 … 107 —
-///    carry almost none of it, which bounds the run from outside.
-///
-/// "Gold" is read off the shipped palette: `r > 140`,
-/// `g > 110`, `b < 110`, `r >= g` — and the *ramp* is what is asserted
-/// than any count, because our palette widens 6-bit VGA by 255/63 where the
-/// original multiplies by 4 and an absolute threshold would sit on that seam.
-/// Ablating the `+ field_variant(terrain) * 4`
-/// in [`campaign::field_frame`] does not fail this test — it is about the sheet,
-/// not about us — so `a_fields_picture_follows_its_crop_state` asserts
-/// the arithmetic and this asserts what the arithmetic is *for*.
 #[test]
 fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins() {
     let Some(dir) = asset_dir() else {
@@ -262,9 +179,6 @@ fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins()
 
     let gold = |frame: usize| -> usize {
         let f = sheet.frame(frame).unwrap_or_else(|| panic!("no frame {frame}"));
-        // The diamond is 58 wide; the height is 30 **plus** whatever apex rows
-        // the frame reserves, and some of this run reserves four. That is the
-        // overhang byte `maps-layers.md` §1.1a measured, not a different size.
         assert_eq!(f.width, 58, "frame {frame} is not a tile diamond");
         assert!(f.height >= 30, "frame {frame} is shorter than a tile");
         f.indices
@@ -278,7 +192,6 @@ fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins()
             .count()
     };
 
-    // 2 — four rising ramps, one per stored variation.
     for variation in 0..4usize {
         let ramp: Vec<usize> = (0..4).map(|v| gold(88 + v * 4 + variation)).collect();
         for w in ramp.windows(2) {
@@ -287,7 +200,6 @@ fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins()
                 "variation {variation}: the gold does not rise across the variants: {ramp:?}",
             );
         }
-        // 3 — and the neighbours are not wheat.
         assert!(
             gold(84 + variation) < ramp[0],
             "fallow frame {} is as gold as the youngest wheat",
@@ -300,7 +212,6 @@ fn the_four_wheat_variants_ripen_and_the_block_ends_where_the_next_base_begins()
         );
     }
 
-    // 1 — the block is sixteen frames and it ends at 104.
     assert_eq!(l2_view::campaign::field_base(2).0, 88);
     assert_eq!(l2_view::campaign::field_base(0x13).0, 104);
     assert_eq!(88 + 4 * 4, 104, "four variants of four variations tile the gap exactly");

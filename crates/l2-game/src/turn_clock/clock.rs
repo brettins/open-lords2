@@ -13,20 +13,14 @@ impl TurnClock {
         self.remaining
     }
 
-    /// Whether the clock has ended the person's turn and nothing has started it
-    /// yet.
     pub fn end_turn_pending(&self) -> bool {
         self.end_turn
     }
 
-    /// The map, carrying the request out.
     pub fn take_end_turn(&mut self) -> bool {
         core::mem::take(&mut self.end_turn)
     }
 
-    /// **`Screen_FrameInput`'s force-close guard**, which is the standing
-    /// latch and not the clock's own request:
-    ///
     /// ```c
     /// if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0)) …
     /// ```
@@ -46,8 +40,6 @@ impl TurnClock {
     /// (`docs/netcode.md`); `DAT_00553018` is the F12 debug override, whose one
     /// setter is `App_WndProc`'s `VK_F12` arm and which we do not have. With
     /// both absent the guard reduces to this one field.
-    ///
-    /// [`TurnClock::restart_pending`]: TurnClock
     pub fn force_close(&self) -> bool {
         self.restart_pending
     }
@@ -63,8 +55,6 @@ impl TurnClock {
         self.restart_pending = false;
     }
 
-    /// One fixed tick. `Turn_Tick`'s phase-4 arm when the person's turn is
-    /// live, and bookkeeping otherwise.
     pub fn tick(&mut self, f: Frame) -> Tick {
         if !self.started {
             // `Setup_StartGame` (`0x004329EC`), and the network game's two
@@ -83,13 +73,11 @@ impl TurnClock {
             return Tick::Paused;
         }
         if let Some(saved) = self.battle_saved.take() {
-            // `Battle_ReturnToCampaign(1)`:
             // `start = now + (g_optTimeLimit - DAT_0053E994) * -1000;
             //  DAT_005440C8 = DAT_0053E994;`
             self.remaining = saved;
             self.elapsed_ms = (i64::from(f.limit) - i64::from(saved)) * 1000;
         }
-        // The wall clock never stops, whatever phase the turn is in.
         self.elapsed_ms += i64::from(crate::TICK_MS);
 
         if f.turn == TurnState::Ended {
@@ -104,16 +92,11 @@ impl TurnClock {
         }
         self.was_ended = false;
 
-        // **`Turn_Tick`'s phase-4 arm, in its own order** — the countdown
-        // first, the restart after it. The order is the reproduction: see
-        // `docs/bugs.md` B99.
         if self.remaining > EXPIRED && f.limit > 0 {
             let seconds = (self.elapsed_ms / 1000).clamp(i64::from(i32::MIN), i64::from(i32::MAX));
             self.remaining = f.limit.saturating_sub(seconds as i32);
             if self.remaining < 0 {
                 self.remaining = EXPIRED;
-                // `Turn_End` is guarded on `aiStep != 999`, and a request still
-                // standing is a turn already ended.
                 if !self.end_turn {
                     self.end_turn = true;
                     self.restart_pending = true;

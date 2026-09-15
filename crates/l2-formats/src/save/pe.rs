@@ -4,10 +4,6 @@ use super::layout::*;
 use super::save::*;
 use types::*;
 
-/// Just enough PE to turn a virtual address into a file offset.
-///
-/// Deliberately minimal and dependency-free: this crate has no third-party
-/// dependencies and a save reader is no reason to acquire one.
 pub(super) struct Pe<'a> {
     bytes: &'a [u8],
     sections: Vec<(u32, u32, u32, u32)>, // vaddr, vsize, rawptr, rawsize
@@ -46,9 +42,6 @@ impl<'a> Pe<'a> {
     }
 }
 
-/// Little-endian by construction: a reader that
-/// depends on the machine's endianness is a desync waiting for a different
-/// machine.
 fn read_u32(bytes: &[u8], at: usize) -> Option<u32> {
     let s = bytes.get(at..at + 4)?;
     Some(u32::from_le_bytes([s[0], s[1], s[2], s[3]]))

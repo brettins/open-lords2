@@ -9,10 +9,6 @@ use l2_kingdom::tables::Commodity;
 use l2_scenario::Scenario;
 use l2_testkit::england;
 
-/// **The forecast a real county carries after a real season.**
-///
-/// Four claims:
-///
 /// 1. every county's forecast is exactly `min(999, (workers / divisor) * 80 /
 ///    100)` for the three unmetered commodities, or zero when one of the four
 ///    guards fails;
@@ -29,11 +25,6 @@ use l2_testkit::england;
 /// a county that fails one of them forecasts nothing
 ///    last season's number.
 ///
-/// **Ablation.** Deleting the
-/// `crate::industry::preview(…)` call at the foot of
-/// `field::refresh_estimates`'s industry loop turns claims 1 and 3 red — the
-/// forecast stays at `Industry::new()`'s zero for every county on the map.
-///
 /// Deleting the `next_season = 0` line inside `preview` was **green** against
 /// the first three claims: on England
 /// turn one every guarded county starts at zero and stays there, so nothing in
@@ -48,9 +39,6 @@ fn a_season_of_england_writes_every_county_s_industry_forecast() {
     let scenario = Scenario::from_save(&save).expect("import");
     let mut kingdom = scenario.kingdom(1);
 
-    // The fixture's own setting. Asserted
-    // with *Advanced Farming* on, the ramp is a compounding
-    // number and none of the arithmetic below would be right.
     assert!(
         !kingdom.options.advanced_farming,
         "England turn one has Advanced Farming off; the flat 80 is not the rule here"
@@ -106,8 +94,6 @@ fn a_season_of_england_writes_every_county_s_industry_forecast() {
          county failed a guard"
     );
 
-    // Claim 4. Wood is the industry the England position has switched on, so it
-    // is the only one that can be switched *off* from a non-zero forecast.
     let id = (1..=kingdom.county_count)
         .find(|&id| kingdom.counties[id].industry[0].next_season != 0)
         .expect("`non_zero` above says at least one county forecasts something");

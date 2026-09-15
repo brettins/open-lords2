@@ -10,7 +10,6 @@ use crate::screen::{Machine, ScreenId, Transition};
 /// **`FUN_0041A166(frame)`** — the intro's frame cues, and the one piece of
 /// text any film carries.
 ///
-/// `Smk_PlayLoop` calls it on every frame of `intro.smk` and of no other film.
 /// Its first act is `Eng_CopyString(300, 0)` against the literal `"English"`,
 /// seven characters — and `L2.eng` group 300 index 0 is *"English - DO NOT
 /// TRANSLATE THIS!!!!"* — so **on an English install every cue is skipped** and
@@ -18,10 +17,6 @@ use crate::screen::{Machine, ScreenId, Transition};
 /// 301's eleven lines, *"1268 AD"* onward, drawn centred across the bottom of
 /// the screen at `y = 400` in the body font, colour `0xF5`, each cleared by a
 /// 16- or 32-row fill of colour 0 at `y = 398` a few seconds later.
-///
-/// The cues are equality tests on the frame number, so this is fed every
-/// frame the decoder produces — including ones decoded to catch up and never
-/// shown, which the original's loop would have cued as well.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Subtitles {
     enabled: bool,
@@ -29,7 +24,6 @@ pub struct Subtitles {
     pub lines: [Option<usize>; 2],
 }
 
-/// `(frame, what)` — `Some((first, second))` draws, `None` clears.
 pub const CUES: [(usize, Option<(usize, Option<usize>)>); 20] = [
     (0x1D, Some((0, None))),
     (0x32, None),
@@ -49,8 +43,6 @@ pub const CUES: [(usize, Option<(usize, Option<usize>)>); 20] = [
     (0x460, None),
     (0x4C5, Some((10, None))),
     (0x4EE, None),
-    // Two slots of padding keep the table's length a round number; they can
-    // never match a frame a film has.
     (usize::MAX, None),
     (usize::MAX, None),
 ];

@@ -15,16 +15,6 @@ use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{count_noun, font, Face, Pen};
 
-/// The weather's line, which `Panel_JobGrain` and `Panel_JobCattle` both write
-/// out in full at `y = 0xC0`, advanced farming only:
-///
-/// ```c
-/// g_penAdvance = 0;
-/// if (v < 1) {
-///   if (v < 0) { Ui_DrawCount(-v, noun, 0x40, 0xc0); Eng_DrawString(77, 0x11, pen + 0x40, 0xc0); }
-///   else       { Eng_DrawString(77, 0x12, 0x40, 0xc0); }
-/// } else       { Ui_DrawCount(v, noun, 0x40, 0xc0);  Eng_DrawString(77, 0x10, pen + 0x40, 0xc0); }
-/// ```
 fn weather_line(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, v: i32, noun: usize) {
     const Y: i32 = 0xC0;
     if v < 0 {
@@ -211,7 +201,6 @@ pub(super) fn cattle(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
 ///             : 77/0xE at (0x40, 200) + Ui_DrawCount(+0x214, 0x42, pen + 0x40, 200)
 /// ```
 pub(super) fn reclamation(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County) {
-    // `(uint)(byte)field_0x204` — the byte, whatever our wider field holds.
     let fields = i32::from(c.fields_reclaiming as u8);
     let at = pen.number_in(Face::Body, canvas, 0x40, 0xB8, fields, '@', "", BODY_INK);
     say(pen, ctx, canvas, FORECAST_GROUP, if fields == 1 { 0x0C } else { 0x0D }, at, 0xB8);
@@ -251,7 +240,6 @@ pub(super) fn industry(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, jo
     let r = &c.industry[record.index()];
     if k.options.advanced_farming {
         let at = say(pen, ctx, canvas, INDUSTRY_GROUP, 0, 0x40, 0xA0);
-        // `(int)*(char *)` — the efficiency byte, signed.
         let efficiency = i32::from(r.efficiency as u8 as i8);
         pen.number_in(Face::Body, canvas, at, 0xA0, efficiency, '@', "%", BODY_INK);
     }

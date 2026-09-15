@@ -14,12 +14,6 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-/// **A row clicks on the press and is silent when it acts** — through the
-/// machine, which is the wire `audio::Director` listens to.
-///
-/// `Widget_Test`'s `Sound_RestartSlot(1)` is on the kind-5 press; the countdown
-/// that runs the handler twenty frames later plays nothing.
-///
 /// **Ablation, run:** return `0` from `OptionsScreen::take_clicks` and the first
 /// assertion goes red (`left: 0`). Deleting the countdown instead turns the
 /// second red, which is what that assertion is for: a silence after a toggle
@@ -27,7 +21,6 @@ use l2_kingdom::{Quirk, Quirks};
 #[test]
 fn a_row_clicks_on_the_press_and_is_silent_when_it_acts() {
     let (mut game, assets) = world();
-    // The machine runs the tip screens; this test is not about them.
     game.prefs.tip_screens = false;
     let before = game.prefs.music;
     let mut m = Machine::new(ScreenId::Options(Page::Sound));

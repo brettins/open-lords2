@@ -8,12 +8,8 @@ use super::military_and_movement::*;
 use super::scoring::*;
 use super::*;
 
-// ---------------------------------------------------------------------------
-// Castles
-// ---------------------------------------------------------------------------
 
 /// `L2.eng` group 71, and group 103 indices 19-24 for the options screen.
-/// `docs/kingdom.md` §1.3.
 pub const CASTLE_TYPE_COUNT: usize = 6;
 
 pub const CASTLE_NAMES: [&str; CASTLE_TYPE_COUNT] = [
@@ -28,16 +24,8 @@ pub const CASTLE_NAMES: [&str; CASTLE_TYPE_COUNT] = [
 /// The default starting castle. Every player-owned county in the shipped
 /// `lastturn.sav` has `castleType = 3`, and `L2.eng` group 103 index 22 - the
 /// value word for the "Starting Castle" option - is `keep`.
-/// `docs/kingdom.md` §7.5.
 pub const CASTLE_STARTING_TYPE: u8 = 3;
 
-/// The tax base `Tax_CollectAll` multiplies the population by, indexed by
-/// castle type 0..=5. These are **immediates in the instruction stream**, not a
-/// table (`docs/kingdom.md` §10).
-///
-/// They are the published castle tax bonuses in different units:
-/// `480/320 = 1.50`, `560/320 = 1.75`, `640/320 = 2.00`, `720/320 = 2.25`,
-/// `800/320 = 2.50` - exactly [`CASTLE_TAX_BONUS_PCT`].
 pub const CASTLE_TAX_BASE: [i32; CASTLE_TYPE_COUNT] = [320, 480, 560, 640, 720, 800];
 
 /// `g_castleTaxBonus` (`0x004D8A28`) - used only by the UI, per
@@ -48,9 +36,6 @@ pub const CASTLE_TAX_BONUS_PCT: [i32; 6] = [50, 75, 100, 125, 150, 0];
 /// The highest tax rate the player can set. **[V]** twice over: `Tax_Increase`
 /// (`0x0043AA32`) guards `taxRate < 0x32`, and [`TAX_HAPPINESS_OTHER`] holds
 /// exactly 51 entries, one per rate `0 ..= 50`.
-///
-/// It was 100 until it was read - an arithmetic bound standing in for a rule -
-/// and it lived in the *application* crate, where a rule has no business being.
 pub const MAX_TAX_RATE: i32 = 50;
 
 /// `g_taxHappinessOther` (`0x004D63D8`) - what one county's tax rate does to
@@ -59,16 +44,6 @@ pub const MAX_TAX_RATE: i32 = 50;
 /// 51 `i32` entries indexed by tax rate. `Tax_RecomputePreview` reads
 /// `g_taxHappinessOther[rate * 4]` into county `+0x16`, and
 /// `Tax_SumEmpireHappiness` sums that across the realm into a signed *byte* -
-///
-///
-/// The shape is the point, because it is nothing like a formula: **flat zero
-/// through rate 19**, then a shallow ramp reaching only −15 at the maximum.
-/// Taxing at 19% costs your other counties nothing whatsoever.
-///
-/// Transcribed by hand from the executable, which is a step that can go wrong
-/// silently - the first attempt was off by one at the start of the ramp. So
-/// `tools/oracle/kingdom.ps1` checks all 51 entries against `Lords2.exe`, and
-/// `the_tax_happiness_table_is_the_one_in_the_binary` asserts the shape here.
 pub const TAX_HAPPINESS_OTHER: [i32; MAX_TAX_RATE as usize + 1] = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //     0..9
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, //    10..19
@@ -95,10 +70,6 @@ pub const CASTLE_COST: [(i32, i32); 5] =
 /// `200,200 400,400 800,800 1500,1500 2500,2500`. Ten ints is 40 bytes and
 /// `0x004D89E8 + 40` is exactly `0x004D8A10`, where the garrison caps begin, so
 /// the stride is not in doubt. The values kingdom.md gives are right.
-///
-/// **What the second column means is unknown** and is deliberately not guessed
-/// at. Both columns hold the same number in all five rows, so nothing here can
-/// distinguish "a duplicate" from "a second quantity that happens to match".
 pub const CASTLE_WORKFORCE: [(i32, i32); 5] =
     [(200, 200), (400, 400), (800, 800), (1500, 1500), (2500, 2500)];
 

@@ -71,9 +71,6 @@ impl Encode for County {
         for job in &self.labour {
             out.i32(*job);
         }
-        // **The other three labour arrays and the industry split.** They were
-        // missing until a game save round-tripped the England position and came
-        // back with `County::new`'s defaults in all four; see [`VERSION`] 5.
         // `labour_useful` and `labour_share` are what `FUN_0044F6E7` allocates
         // *from*, so they are simulation state and not a display hint, and
         // leaving them out of the encoding left them out of the lockstep
@@ -110,7 +107,6 @@ impl Encode for County {
         out.u8(self.castle_degraded);
         out.bool(self.castle_ruined);
         out.u8(self.castle_level_left);
-        // The scars, `VERSION` 15.
         out.u16(self.siege_scars.moat_filled);
         out.u16(self.siege_scars.wall_damage);
         out.i32(self.siege_scars.breach_score);
@@ -126,14 +122,12 @@ impl Encode for County {
         out.i32(self.castle_wood_owed);
         out.i32(self.castle_wood_total);
         out.i32(self.event_population_pct);
-        // The letter's figure, `VERSION` 20.
         out.i32(self.event_population_swing);
         out.i32(self.event_grain_pct);
         out.i32(self.event_herd_pct);
         for tile in &self.field_tiles {
             out.u16(*tile);
         }
-        // The two round-robin field cursors, `VERSION` 27.
         out.u8(self.pasture_cursor);
         out.u8(self.blight_cursor);
         out.i32(self.fields_fallow);
@@ -270,7 +264,6 @@ impl Decode for County {
         c.castle_degraded = input.u8()?;
         c.castle_ruined = input.bool()?;
         c.castle_level_left = input.u8()?;
-        // The scars, `VERSION` 15.
         c.siege_scars.moat_filled = input.u16()?;
         c.siege_scars.wall_damage = input.u16()?;
         c.siege_scars.breach_score = input.i32()?;

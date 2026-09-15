@@ -8,8 +8,6 @@ impl Fighter {
         (self.x, self.y) == self.target
     }
 
-    /// Which of the two counts this figure's corpse runs on.
-    ///
     /// `BattleUnit_Create`'s `6 < troopType && troopType < 10` is the engine
     /// test — [`crate::fire::is_engine`] — and **a pot of oil is not one of
     /// them**: `FUN_0047A814` puts a spent pot into state **2**, not 15.

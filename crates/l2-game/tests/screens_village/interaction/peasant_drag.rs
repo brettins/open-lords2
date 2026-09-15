@@ -19,8 +19,6 @@ use l2_view::chrome;
 use l2_view::village;
 use l2_view::Canvas;
 
-/// The whole gesture on the grid: band a cluster, release, drop on
-/// another, and the workers land in the other cluster's job.
 #[test]
 fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
     let (mut game, assets) = world!();
@@ -32,7 +30,6 @@ fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
     let c = &game.kingdom.counties[county as usize];
     let slots = VillageScreen::slots(c);
     let icons = VillageScreen::icons(c);
-    // The fullest cluster is the one worth emptying.
     let from = (0..village::CLUSTER_COUNT)
         .max_by_key(|&i| icons[i].iter().filter(|&&v| v != 0).count())
         .unwrap();
@@ -70,17 +67,12 @@ fn a_drag_across_the_real_drop_grid_moves_the_county_s_peasants() {
 
 /// **A right click during the village's drag gesture does not leave the
 /// village.** `docs/arms.json` `0x0042FF10/carry-right-cancels`.
-///
-/// This arm was *wrong*; the screen popped from
-/// every phase, so a player who picked peasants up and changed his mind lost the
-/// village with them. `0x06`'s arm is `g_screenId = 0x02`, not 0.
 #[test]
 fn a_right_click_during_a_peasant_drag_cancels_the_drag_and_not_the_village() {
     let (mut game, assets) = world!();
     game.select(8);
     let top = 64;
 
-    // Press, travel more than nine pixels, and the band is up (screen 0x05).
     let mut m = over_the_map(ScreenId::Village(8));
     send_stack(&mut m, &mut game, &assets, Event::Click { x: 100, y: top + 60 });
     send_stack(&mut m, &mut game, &assets, Event::Pointer { x: 160, y: top + 110 });
@@ -91,8 +83,6 @@ fn a_right_click_during_a_peasant_drag_cancels_the_drag_and_not_the_village() {
         "0x05 has no right-button arm at all, so the click is swallowed"
     );
 
-    // Release: 0x06 if the band caught anybody, 0x02 if it did not. Either way
-    // a right click now must keep the village.
     send_stack(&mut m, &mut game, &assets, Event::Release { x: 160, y: top + 110 });
     send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 160, y: top + 110 });
 

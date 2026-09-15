@@ -5,8 +5,6 @@ use super::save::*;
 use types::*;
 
 impl Layout {
-    /// Walk `Save_Write`'s table. Stops at the first zero length.
-    /// game's loop does.
     pub fn from_executable(exe: &[u8]) -> Result<Layout, SaveError> {
         let pe = Pe::parse(exe)?;
         let mut blocks = Vec::new();
@@ -31,12 +29,10 @@ impl Layout {
         &self.blocks
     }
 
-    /// The size a save written from this layout must have.
     pub fn expected_len(&self) -> usize {
         self.total + CASTLE_BLOCKS * CASTLE_BLOCK
     }
 
-    /// Where a runtime address landed in the file.
     pub fn offset_of(&self, va: u32) -> Option<usize> {
         self.blocks
             .iter()

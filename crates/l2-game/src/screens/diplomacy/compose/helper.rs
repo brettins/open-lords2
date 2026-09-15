@@ -71,9 +71,6 @@ pub fn refusal(ctx: &Ctx, target: u8, kind: Kind, county: u8) -> Option<Refusal>
     None
 }
 
-/// The county under a pixel of the compose dialog's map, or `None`.
-///
-/// **`None` covers two different things**:
 /// outside the rectangle, and inside it on a pixel whose county is 0. Both
 /// return 0 from `FUN_0043B4CB`, and 0 means *"not consumed"* — so a click on
 /// the sea inside the map falls through to the corner button behind it.

@@ -46,10 +46,6 @@ fn the_length_reported_is_the_length_written() {
     assert_eq!(digest.len, 12);
 }
 
-/// The reason variable-length fields are prefixed. Without it these two
-/// states produce identical bytes and therefore identical checksums,
-/// and the detector has a blind spot
-/// move.
 #[test]
 fn adjacent_strings_cannot_be_confused_with_each_other() {
     let mut a = Canonical::recording();
@@ -64,8 +60,6 @@ fn adjacent_strings_cannot_be_confused_with_each_other() {
     assert_ne!(a.hash, b.hash);
 }
 
-/// `raw` is the escape hatch and it really does have this hazard, which
-/// is why it is documented as being for fixed-size arrays only.
 #[test]
 fn raw_bytes_are_ambiguous_by_design() {
     let mut a = Canonical::recording();
@@ -82,8 +76,6 @@ fn the_checksum_is_plain_xxhash64_of_the_bytes() {
     c.u32(0xdead_beef);
     c.str("units");
     let digest = c.finish();
-    // Reproducible with any off-the-shelf XXH64 implementation, which
-    // is why CHECKSUM_SEED is zero.
     assert_eq!(digest.hash, l2_net::xxhash64(digest.bytes.as_ref().unwrap(), CHECKSUM_SEED));
 }
 
@@ -110,12 +102,10 @@ fn hashing_and_recording_agree() {
 #[test]
 #[should_panic(expected = "exceeds u32")]
 fn a_length_beyond_u32_panics_rather_than_truncating() {
-    // Not reachable with a real collection; the guard is what matters.
     let mut c = Canonical::hashing();
     c.len32(u32::MAX as usize + 1);
 }
 
-// --- sections ---------------------------------------------------------
 
 #[test]
 fn sections_are_hashed_separately_and_in_order() {
@@ -145,8 +135,6 @@ fn a_section_with_no_bytes_still_appears() {
     assert_eq!(digest.sections[0].len, 0);
 }
 
-/// §6's localisation: the first tick where exactly one subsystem hash
-/// differs names the subsystem.
 #[test]
 fn a_single_differing_section_is_named() {
     let build = |units: u32, terrain: u32| {

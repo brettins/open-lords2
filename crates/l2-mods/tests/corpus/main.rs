@@ -1,13 +1,3 @@
-//! Validates the platform against a real game install.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-mods -- --nocapture
-//! ```
-//!
-//! Skips. No assets live
-//! in this repository and none are written by these tests: the install is
-//! mounted as a read-only layer and every file this test creates goes in a
-//! temporary directory.
 
 
 #[path = "../common/mod.rs"]

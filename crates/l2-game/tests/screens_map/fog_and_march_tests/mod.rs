@@ -27,8 +27,6 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// A fresh map screen opened on the person, then centred on `(x, y)` and drawn.
-/// Fresh, so the painted-terrain cache cannot answer for the painter.
 fn paint_at(game: &mut Game, assets: &Assets, x: u8, y: u8) -> (MapScreen, Canvas) {
     let mut screen = MapScreen::new();
     draw(&mut screen, game, assets);
@@ -37,7 +35,6 @@ fn paint_at(game: &mut Game, assets: &Assets, x: u8, y: u8) -> (MapScreen, Canva
     (screen, canvas)
 }
 
-/// How many pixels inside the map viewport differ.
 fn map_pixels_differ(a: &Canvas, b: &Canvas, clip: l2_view::Clip) -> usize {
     a.pixels
         .iter()

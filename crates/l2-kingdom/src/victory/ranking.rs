@@ -11,15 +11,6 @@ use l2_net::{Quirk, Quirks};
 
 /// `Score_RankRealms` (`0x0049AA0E`) — score, rank, and crown the last realm
 /// standing.
-///
-/// The ranking itself is [`crate::ai::rank_realms`], which was already here. This
-/// adds the three globals that function drops on the floor and the crowning at
-/// the bottom of it.
-///
-/// Five callers in the original: `Turn_Tick`'s phase 7, `Game_NewGame`,
-/// `Turn_AdvancePhase`, [`recount_strength`], and one UI path. It is **not** in
-/// `Season_Advance`'s call list — `docs/kingdom.md` §3.4 said it was and
-/// `crates/l2-kingdom/src/phase/mod.rs` already records the correction.
 pub fn rank_and_crown(
     t: &Tables,
     realms: &mut [Realm; MAX_REALMS],
@@ -39,11 +30,6 @@ pub fn rank_and_crown(
             r.opponents_remaining += 1;
         }
     }
-    // `g_rankLeader` / `g_rankTrailer` are read off the *sorted* table, but the
-    // table's live entries are exactly the in-play realms and the sort is by
-    // rank, so the first and last live entries are the rank-1 and rank-n realms.
-    // Walking ranks avoids materialising a sorted array whose order would have
-    // to be argued about (`docs/netcode.md` §3).
     for id in 1..MAX_REALMS {
         if !realms[id].in_play {
             continue;
@@ -56,15 +42,10 @@ pub fn rank_and_crown(
         }
     }
 
-    // **Switchable** — [`Quirk::EmptyGameIsWonBySlotZero`], `docs/bugs.md` B51.
-    // With nobody in play leader and trailer are both 0, `0 == 0` passes, and
-    // the original crowns `g_realms[0]`, The fixed path
-    // requires somebody to be standing before anyone is crowned.
     let crowning = r.sole_survivor()
         && (quirks.reproduces(Quirk::EmptyGameIsWonBySlotZero) || r.realms_in_play > 0);
     if crowning {
         let winner = r.leader as usize;
-        // **Switchable** — [`Quirk::DeadHumanCanStillWin`], `docs/bugs.md` B52.
         // The `else` limb is reached twice for an AI winner: `Score_RankRealms`
         // runs many times a turn, and the second call finds `crowned_once` set,
         // falls through, and sends the *human* group 225 *"Victory!"* — in a
@@ -78,8 +59,6 @@ pub fn rank_and_crown(
                 group: MSG_AI_CROWNED,
                 from: r.leader,
                 to: 0,
-                // Category 1, not 0x0E: an AI's coronation is a taunt and
-                // cannot set an outcome.
                 category: 1,
                 variant: voice_variant(&realms[winner]),
             });

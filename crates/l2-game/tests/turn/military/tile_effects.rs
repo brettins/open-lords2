@@ -16,19 +16,9 @@ use l2_kingdom::units_tick::Contact;
 use l2_kingdom::merchant::MerchantRoutes;
 use l2_kingdom::unit::{Unit, UnitKind};
 
-/// An army walking over another county's standing crop wrecks it — during a
-/// played turn, with nobody calling the mover by hand.
-///
-/// Kept well away from the road at y = 10: a field costs 6 to cross and a road
-/// costs 1, so a pathfinder given the choice goes round, and the first version
-/// of this test proved only that the flood fill works.
 #[test]
 fn an_army_crossing_a_foreign_field_wrecks_it_during_the_turn() {
     let mut g = with_a_map();
-    // A standing crop across the army's path, in a county it does not own —
-    // x 5 … 9 is county 2, and realm 2 holds it. The rest of those four
-    // columns is mountain, so the crop is the only way through: an army given
-    // a choice walks round a field, because 6 to cross beats 3 to go by.
     for x in 6..=9u8 {
         for y in 0..64u8 {
             g.kingdom.campaign.map.set_flags(x, y, flags::ROUGH);

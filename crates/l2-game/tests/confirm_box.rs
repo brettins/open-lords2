@@ -1,6 +1,3 @@
-//! **Screen `0x1E`, the yes/no box**, on the campaign map's two routes into it:
-//! the Escape key and File > Quit / File > New Game.
-//!
 //! `App_WndProc` (`0x004B29BE`) `VK_ESCAPE` is `if (g_appPhase == 3)
 //! Menu_Quit(); else g_quitRequest = 1;` — inside a game the key is the menu
 //! item, and `Menu_Quit` (`0x004343F8`) is `Ui_OpenConfirm(0, 0xA0, 0xA0,
@@ -20,8 +17,6 @@ use l2_game::Game;
 
 fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
-    // The tips hold the map's input on screen `0x27`; `tests/tips.rs` is their
-    // subject, not this file's.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
     l2_testkit::chain_neighbours!(g.kingdom);
@@ -40,9 +35,6 @@ fn send(m: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
     m.handle(event, &mut ctx);
 }
 
-/// **Kind 5**: `Widget_Test`'s branch for `g_confirmWidgets` sets `rec[0x0D] =
-/// 0x14` and returns without calling the handler, which runs from the countdown
-/// twenty frames later. So the press alone answers nothing.
 fn answer(m: &mut Machine, game: &mut Game, assets: &Assets, at: l2_game::input::Rect) {
     send(m, game, assets, Event::Click { x: at.x + 4, y: at.y + 4 });
     for _ in 0..press::DELAYED_FRAMES {
@@ -51,9 +43,6 @@ fn answer(m: &mut Machine, game: &mut Game, assets: &Assets, at: l2_game::input:
     }
 }
 
-/// The player's report: *"Escape returns to the main menu at once with no 'Exit
-/// the game?' box."*
-///
 /// **Ablated** by putting `Transition::Pop` back on the map's Escape arm: the
 /// stack is `[Campaign]` after the key and the first assertion goes red.
 #[test]
@@ -93,8 +82,6 @@ fn yes_leaves_the_game() {
     assert!(m.should_quit(), "the yes is the quit");
 }
 
-/// **The press does not answer, the countdown does.** One frame short of
-/// [`press::DELAYED_FRAMES`] the box is still up and the game still running.
 #[test]
 fn the_gauntlet_is_held_for_twenty_frames_before_the_answer() {
     let (mut game, assets) = world();
@@ -110,6 +97,7 @@ fn the_gauntlet_is_held_for_twenty_frames_before_the_answer() {
 }
 
 /// `Menu_NewGame` (`0x00433DBD`) — `Ui_OpenConfirm(1, …)`, group 10 index 1.
+///
 /// Its yes is `FUN_00433DEB`, which tears the game down; ours lands on the
 /// front end's title page.
 #[test]

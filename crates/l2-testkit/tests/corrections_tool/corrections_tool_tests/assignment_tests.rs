@@ -6,14 +6,6 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-/// **A duplicate in any series is an error**, not only in the corrections.
-///
-/// `docs/bugs.md` carried two `B69`s on `main` — a table row and a heading,
-/// fifty minutes apart — and the quirks catalogue, the only reader of that file
-/// as data, held one disposition for both and passed. The first run of this
-/// rule found it.
-///
-/// Ablated: restricting the duplicate check to the C-series passes this.
 #[test]
 fn a_duplicate_in_any_series_is_an_error() {
     let Some(tree) = Tree::new("dupe") else { return };
@@ -23,16 +15,6 @@ fn a_duplicate_in_any_series_is_an_error() {
     assert!(err(&out).contains("B2 (reproduced bug) is used 2 times"), "{}", err(&out));
 }
 
-/// **`--assign` numbers a correction everywhere and relocks.**
-///
-/// The tag is replaced in the heading, the log's prose, a source comment and a
-/// JSON string; a longer tag that begins with it is left alone and then assigned
-/// in its own turn; and the tree passes `--check` afterwards, which it cannot do
-/// unless the lock was rewritten, because two citations were created.
-///
-/// Ablated: skipping the relock fails the final `--check` with a stale lock;
-/// dropping the hyphen clause from `replaceBytes`' boundary replaces the prefix
-/// of the longer tag, and the scan-versus-bytes count refuses the write.
 #[test]
 fn assign_numbers_a_correction_across_the_tree_and_relocks() {
     let Some(tree) = Tree::new("assign") else { return };
@@ -61,11 +43,6 @@ fn assign_numbers_a_correction_across_the_tree_and_relocks() {
     assert!(out.status.success(), "the tree does not pass --check after both assignments:\n{}", err(&out));
 }
 
-/// **A dead-code placeholder is numbered in its own log's series, not by its
-/// letter.** `decisions.md` runs D1..D4 and `bugs.md`'s dead code D1..D2, so the
-/// right answer is D3 and the letter-only answer is D5.
-///
-/// Ablated: taking the series from the letter alone assigns D5.
 #[test]
 fn assign_numbers_a_dead_code_entry_in_its_own_series() {
     let Some(tree) = Tree::new("assign-d") else { return };
@@ -81,15 +58,6 @@ fn assign_numbers_a_dead_code_entry_in_its_own_series() {
     assert!(tree.run(&["--check"]).status.success());
 }
 
-/// **`--assign` reads and writes bytes.**
-///
-/// The integrator's `perl -pi` had no encoding layer, and that is the mechanism
-/// that double-encodes UTF-8. So a file carrying a BOM, CRLF endings, an
-/// em-dash, and two bytes that are not UTF-8 at all must come back identical
-/// except for the tag.
-///
-/// Ablated: reading and writing the file as a UTF-8 string turns `0xFF` and
-/// `0x97` into `ef bf bd` and fails the byte comparison.
 #[test]
 fn assign_changes_only_the_tag_bytes() {
     let Some(tree) = Tree::new("bytes") else { return };
@@ -110,8 +78,6 @@ fn assign_changes_only_the_tag_bytes() {
     assert_eq!(tree.read("notes/crlf.txt"), original("C3"), "--assign changed bytes other than the tag");
 }
 
-/// **`--assign` refuses, and changes nothing, when it cannot be right.**
-///
 /// * a tag that is not in the tree, or is not a placeholder at all;
 /// * a tag that is cited and defined nowhere, so
 ///   number from;

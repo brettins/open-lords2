@@ -10,10 +10,6 @@ use l2_game::message;
 use l2_game::screens::setup::SetupPage;
 use l2_game::Game;
 
-/// **`main.rs` and `APP_ROOT` must agree**, and they are maintained by
-/// different work — `docs/agents.md`'s one reliable shape. Reading the source
-/// is crude and it is the only artefact that cannot be fooled: a binary's
-/// constants are not importable from an integration test.
 #[test]
 fn the_root_is_the_one_the_application_starts_on() {
     let src = include_str!("../../src/main.rs");
@@ -25,13 +21,6 @@ fn the_root_is_the_one_the_application_starts_on() {
     );
 }
 
-/// **And that the application still calls the thing these tests exercise.**
-///
-/// Everything below runs [`audio::Director::listen`].
-/// about the game if the game runs it too, and the game is a binary an
-/// integration test cannot link against — so the two are held together by the
-/// one artefact both sides share, which is the source. Crude, and it is the
-/// difference between testing the feature and testing a library nobody calls:
 /// C27, nine instances, and this was the tenth.
 #[test]
 fn the_application_calls_the_director() {
@@ -47,24 +36,14 @@ fn the_application_calls_the_director() {
     );
 }
 
-/// **The bug, in the smallest form that reproduces it.**
-///
-/// Not a constructed stack: the root the application starts on, with a screen
-/// put on it the way [`Machine::apply_at`] puts one on for
-/// `Transition::Push` — which is what `SetupScreen`'s Start button returns.
-///
 /// Ablation: restore `if let Some(ScreenId::Setup(_)) = machine.ids().first()`
 /// and this goes red on every one of the twenty-odd screens.
 #[test]
 fn every_in_game_screen_over_the_front_end_is_campaign_music() {
     let game = world();
-    // The front end alone is silent, which is the half that was always right.
     let root = Machine::new(APP_ROOT);
     assert_eq!(audio::scene(&root, &game), Scene::FrontEnd);
 
-    // And every screen the game can open over it is not. The list is the
-    // screens reachable in a running game; the battlefield is excluded because
-    // it is the *other* answer and has its own test below.
     let in_game = [
         ScreenId::Campaign,
         ScreenId::County(1, l2_game::screens::county::Panel::Tax),
@@ -100,8 +79,6 @@ fn every_in_game_screen_over_the_front_end_is_campaign_music() {
     );
 }
 
-/// **The interstitial's own bed, and the only unlooped music in the game.**
-///
 /// `Screen_DrawConquest` (`0x0041E1DD`) opens with
 /// `Music_Play(g_campaignMap < 8 ? "setup.wav" : "setup2.wav", 0,
 /// g_campaignMap < 8)`, so one test covers the file and the loop flag: the
@@ -123,16 +100,12 @@ fn the_conquest_interstitial_plays_its_own_bed() {
     assert_eq!(Music::Setup.file(), "setup.wav");
     assert!(Music::Setup.loops(), "`Music_Play(…, 0, 1)` below the eighth map");
 
-    // The eighth map won: `g_campaignMap` is 8 and the screen says so.
     game.campaign.map = l2_game::victory::CAMPAIGN_LENGTH;
     assert_eq!(audio::scene(&m, &game), Scene::Conquest { ended: true });
     assert_eq!(Music::Setup2.file(), "setup2.wav");
     assert!(!Music::Setup2.loops(), "`Music_Play(…, 0, 0)` above it");
 }
 
-/// The front end's own pages stay silent however deep the stack gets, which is
-/// the clause the fix must not break: `SetupPage::Load` is the title's load
-/// screen and is not `ScreenId::SaveLoad`.
 #[test]
 fn the_front_end_is_its_own_scene_on_all_thirteen_of_its_pages() {
     let game = world();
@@ -140,20 +113,15 @@ fn the_front_end_is_its_own_scene_on_all_thirteen_of_its_pages() {
         let m = Machine::new(ScreenId::Setup(page));
         assert_eq!(audio::scene(&m, &game), Scene::FrontEnd, "{page:?}");
     }
-    // And the index, and is pushed from the title by `I`.
     let mut m = Machine::new(APP_ROOT);
     m.push(ScreenId::Index);
     assert_eq!(audio::scene(&m, &game), Scene::FrontEnd, "the index over the title");
-    // Over a running game the same screen is not the front end.
     let mut m = Machine::new(APP_ROOT);
     m.push(ScreenId::Campaign);
     m.push(ScreenId::Index);
     assert!(matches!(audio::scene(&m, &game), Scene::Campaign { .. }));
 }
 
-/// **`g_battlePhase == 2` outlives the battlefield's three screen ids**, so the
-/// scene is read off the whole stack: a panel over the
-/// field does not stop the battle music.
 #[test]
 fn the_battlefield_is_battle_music_under_whatever_is_over_it() {
     let game = world();

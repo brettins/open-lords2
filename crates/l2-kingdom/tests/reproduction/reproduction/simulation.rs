@@ -11,9 +11,6 @@ use l2_kingdom::phase::SEASON_PIPELINE;
 use l2_kingdom::tables::{health_band, Season, Tables, Weather};
 use l2_scenario::{Scenario, STARTING_HEALTH_METER};
 
-/// **`docs/kingdom.md` §9 point 3**, checked against the file
-/// against §7.2: with Advanced Farming off, every stored weather byte is 3 and
-/// every stored fertility is 0 — and the pipeline leaves them there.
 #[test]
 fn basic_farming_leaves_every_county_cloudy_with_zero_fertility() {
     let s = england!();
@@ -28,12 +25,7 @@ fn basic_farming_leaves_every_county_cloudy_with_zero_fertility() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The reproduction
-// ---------------------------------------------------------------------------
 
-/// One `Season_Advance` from the file's own starting position lands on the
-/// file's own clock, having run every documented pass in order.
 #[test]
 fn the_pipeline_reaches_the_files_clock() {
     let s = england!();
@@ -58,9 +50,6 @@ fn the_pipeline_reaches_the_files_clock() {
         })
         .collect();
     assert_eq!(report.passes, expected, "in the documented order");
-    // The weather letters are the exception: `Weather_UpdateAll` posts `0x8F`
-    // or `0x90` for a county that bands Drought or Flooding, and a new game
-    // runs that pass like any other season.
     let unexpected: Vec<_> = report
         .messages
         .iter()
@@ -76,13 +65,6 @@ fn the_pipeline_reaches_the_files_clock() {
     assert!(report.revolts.is_empty());
 }
 
-/// **Thirteen of the fourteen counties reproduce every stored field** from the
-/// starting position the save itself supplies — no reconstruction, no
-/// adjustment. The fourteenth is county 1.
-///
-/// The herd is skipped and only the herd: the save records no earlier balance
-/// to spend from. Everything the herd *feeds* still lands, which is the part
-/// that matters.
 #[test]
 fn every_county_the_save_can_feed_reproduces_every_stored_field() {
     let s = england!();
@@ -107,9 +89,6 @@ fn every_county_the_save_can_feed_reproduces_every_stored_field() {
     assert_eq!(checked, 13 * 24, "thirteen counties, twenty-four fields each");
 }
 
-/// **Start every county from the stores the season found, and the whole map
-/// reproduces — fourteen counties, twenty-five fields, no inversion.**
-///
 /// `+0x228` and `+0x254` are written by `Game_SetupRealmsAndCounties`
 /// (`0x0049BD99`) with the new-game starting grain and herd, and again by
 /// `Grain_SeasonTick` and `Herd_SeasonTick` as their first statement, *before*
@@ -118,13 +97,6 @@ fn every_county_the_save_can_feed_reproduces_every_stored_field() {
 /// [`comparison`] plus the ration split all land, for every county — including
 /// realm 5's, which [`every_county_the_save_can_feed_reproduces_every_stored_field`]
 /// has to skip and [`solve_opening`] had to invent eight sacks for.
-///
-/// **What this does not prove**: it passes with
-/// `Pass::AiManageFarms` skipped as well. On this fixture the AI's season-head
-/// pass leaves every one of these fields where the rest of the season puts
-/// them, once the stores are right — so this test is evidence about the
-/// *rewind*, and none at all about the pass. The pass is pinned by
-/// [`realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_stores`].
 ///
 /// *Ablation*: drop the `+0x254` read, so every county starts on the herd the
 /// season ended with, and realm 5's county — only that one — goes red on three
@@ -155,13 +127,6 @@ fn every_county_reproduces_from_the_stores_the_season_found() {
     assert_eq!(checked, 14 * 25);
 }
 
-/// **The whole map, every stored field.** Put back the food the season ate — the
-/// openings the previous test proves unique — and run `Season_Advance` once.
-/// Fourteen counties, twenty-six fields each: three hundred and sixty-four
-/// numbers, every one of them read out of `lastturn.sav`.
-///
-/// This is what the file at the top of this module claimed to be doing and was
-/// not.
 #[test]
 fn every_county_reproduces_every_stored_field() {
     let s = england!();
@@ -178,25 +143,13 @@ fn every_county_reproduces_every_stored_field() {
     assert_eq!(checked, 14 * 24);
 }
 
-// ---------------------------------------------------------------------------
-// The herd — `docs/kingdom.md` §13 and §13.1
-// ---------------------------------------------------------------------------
 
-/// **The staffing and crowding rules, against the file, with no inversion.**
-///
 /// `Herd_SeasonTick` ends by writing next season's forecast into `+0x268`,
 /// `+0x26C` and `+0x258` — `L2.eng` group 77's *"Calf births expected"*, *"Cow
 /// deaths expected"* and *"Change due to farming"* — from state the save also
 /// holds: the herd, what the people ate, the pasture, the cattle labour and the
 /// crowding. So the whole of `FUN_0044DA99` can be run against fourteen
 /// counties' worth of stored answers without recovering anything.
-///
-/// Fifty-six numbers, and they are not a soft test: they exercise the
-/// understaffed arm (county 1 at 98% staffing), the capped arm (county 2 at
-/// 199%), three of the four crowding bands, the Spring birth bonus, and the
-/// double subtraction of `herdEaten` that makes "change due to farming" what it
-/// is. Get the `/ 3` truncation, the `199 <` comparison or the `x 3 / 2`
-/// rounding wrong anywhere and a column moves.
 #[test]
 fn the_herds_own_forecast_reproduces_for_every_county() {
     let save = l2_testkit::england!();
@@ -207,7 +160,6 @@ fn the_herds_own_forecast_reproduces_for_every_county() {
 
     let mut checked = 0;
     for id in s.county_ids() {
-        // The crowding the importer derived, against the byte the game stored.
         assert_eq!(
             k.counties[id].herd_crowding,
             county_i32(&save, id, 0x25C),
@@ -227,8 +179,6 @@ fn the_herds_own_forecast_reproduces_for_every_county() {
     }
     assert_eq!(checked, 14 * 4);
 
-    // And the two bands the map actually visits are not the same band, so the
-    // check is not fourteen copies of one arithmetic.
     let crowdings: std::collections::BTreeSet<i32> =
         s.county_ids().map(|id| k.counties[id].herd_crowding).collect();
     assert_eq!(crowdings.into_iter().collect::<Vec<_>>(), vec![10, 20, 40]);

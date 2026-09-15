@@ -7,11 +7,6 @@ use l2_smk::{Decoder, Smk};
 use crate::message::Record;
 use crate::screen::{Machine, ScreenId, Transition};
 
-/// **The two film counters the original keeps in its data segment**, and one
-/// latch of ours for the edge `Smk_OnFinished` writes.
-///
-/// Presentation, not world: neither counter is in a save block, and neither
-/// changes anything but which of two or four pictures a player sees.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Reel {
     /// `DAT_00553ED4` — which `cap_cty` film is next. Stepped **before** it is
@@ -48,19 +43,11 @@ impl Reel {
         take
     }
 
-    /// Take the finished-film latch.
     pub fn take_finished(&mut self) -> Option<Film> {
         self.finished.take()
     }
 }
 
-/// The install's `.smk` files, by lower-cased name.
-///
-/// An index: the films are 80 MB and a game plays a few of
-/// them, so a film is read when it is asked for. Built through the same
-/// [`l2_mods::vfs::Vfs`] as every other asset, which is what makes
-/// `axmen.smk` find `AXMEN.SMK` and not `Axemen.smk` — two different files,
-/// `docs/formats/smk.md`.
 #[derive(Debug, Clone, Default)]
 pub struct FilmFiles {
     paths: BTreeMap<String, PathBuf>,
@@ -85,7 +72,6 @@ impl FilmFiles {
         self.paths.is_empty()
     }
 
-    /// Every film the install has, lower-cased, sorted.
     pub fn names(&self) -> impl Iterator<Item = &str> {
         self.paths.keys().map(String::as_str)
     }
@@ -94,8 +80,6 @@ impl FilmFiles {
         self.paths.get(&name.to_ascii_lowercase()).map(|p| p.as_path())
     }
 
-    /// **`Smk_Open`**, without the CD. `None` for a film the install does not
-    /// have or that does not parse, which is `SmackOpen` returning null.
     pub fn open(&self, name: &str) -> Option<Smk> {
         let bytes = std::fs::read(self.path(name)?).ok()?;
         match Smk::parse(bytes) {
@@ -108,14 +92,9 @@ impl FilmFiles {
     }
 }
 
-/// What one tick of a film did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Step {
     Playing,
-    /// **The last frame came due.** `Smk_PlayLoop` decodes it and does not draw
-    /// it — `if (currentFrame < frames - 1) SmackToBuffer(…)` guards the blit
-    /// and the `else` closes the film — so the last picture a player sees is
-    /// the second to last.
     Finished,
 }
 
@@ -135,23 +114,14 @@ pub enum Step {
 /// own sound — `docs/decisions.md` C193. A frame that falls due while
 /// the machine was busy is decoded and not shown, which is what `SmackWait`
 /// returning late does too.
-///
-/// What remains, measured and left: a frame is shown at the first tick
-/// *at or after* it is due, as `Smk_PlayLoop` shows it at the first poll at or
-/// after — but our poll is 16 ms and the original's is microseconds, so ours
-/// is a mean 8 ms late; and the film's audio starts on the tick its screen
-/// reaches the stack while frame 0 is decoded on the next, one tick later.
-/// Both are constant, both under a quarter of a frame, and neither compounds.
 pub struct Player {
     smk: Smk,
     decoder: Decoder,
     pub(super) ticks: u32,
-    /// The subtitle cue state; see [`Subtitles`].
     pub subtitles: Subtitles,
 }
 
 impl Player {
-    /// `Smk_Open`: the file is opened and **frame 0 is decoded at once**.
     pub fn open(smk: Smk, cued: bool) -> Result<Player, l2_smk::Error> {
         let mut decoder = smk.decoder();
         let mut subtitles = Subtitles::new(cued);
@@ -168,19 +138,16 @@ impl Player {
         &self.decoder
     }
 
-    /// The frame on screen.
     pub fn frame(&self) -> usize {
         self.decoder.frame().unwrap_or(0)
     }
 
-    /// One tick of [`crate::TICK_MS`].
     pub fn tick(&mut self) -> Result<Step, l2_smk::Error> {
         self.ticks += 1;
         let frames = self.smk.frames();
         if frames <= 1 {
             return Ok(Step::Finished);
         }
-        // Tens of microseconds, the unit the header's interval is written in.
         let elapsed = self.ticks as u64 * crate::TICK_MS as u64 * 100;
         let due = (elapsed / self.smk.header().period_10us().max(1) as u64) as usize;
         while self.frame() < due.min(frames - 1) {

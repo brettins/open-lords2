@@ -13,13 +13,6 @@ use l2_net::{
     Tick, Transport, TransportError, MAX_FRAME, MAX_OUTBOX,
 };
 
-/// A peer disconnecting mid-session.
-///
-/// The transport reports the departure; the *session* does nothing at
-/// all, because it has no clock and no opinion about what a missing
-/// peer means (D-5). Halting is the caller's decision, made here with
-/// the transport's own connection list as the evidence — which is
-/// exactly the arrangement errata 7 asks for.
 #[test]
 fn a_peer_that_disconnects_mid_session_is_seen_by_the_other() {
     let (mut a, mut b) = connected_pair(0x1234_5678);
@@ -27,7 +20,6 @@ fn a_peer_that_disconnects_mid_session_is_seen_by_the_other() {
     let agreed = b.hashes.len().min(a.hashes.len());
     assert!(agreed >= 15);
 
-    // Player 2 alt-F4s.
     drop(b);
 
     let until = deadline();
@@ -39,9 +31,6 @@ fn a_peer_that_disconnects_mid_session_is_seen_by_the_other() {
     assert_eq!(a.departed, vec![PeerId(0)]);
     assert_eq!(a.net.peers(), vec![], "and the list the caller broadcasts to is now empty");
 
-    // The session is *not* halted by any of that: waiting forever for a
-    // peer's tick is correct behaviour with no clock. The caller
-    // decides, and only the caller can.
     assert!(!a.session.is_halted());
     match a.session.advance(&mut a.sim) {
         Advance::Waiting { missing, .. } => assert_eq!(missing, vec![PlayerSlot::new(1)]),
@@ -51,14 +40,6 @@ fn a_peer_that_disconnects_mid_session_is_seen_by_the_other() {
     assert!(matches!(a.session.halt_reason(), Some(HaltReason::Left)));
 }
 
-/// A peer that connects late.
-///
-/// The host's session starts sealing packets before anyone is there to
-/// send them to; the client joins several rounds later; the backlog
-/// goes out in order and both peers converge on identical checksums.
-/// This is late join in the only form the design supports without a
-/// state snapshot (§5) — the session has not advanced, because it
-/// cannot advance without the other peer's tick 0.
 #[test]
 fn a_peer_that_connects_late_still_reaches_the_same_checksums() {
     let seed = 0xfeed_face;
@@ -83,8 +64,6 @@ fn a_peer_that_connects_late_still_reaches_the_same_checksums() {
     assert_eq!(b.errors, vec![]);
     assert!(!a.session.is_halted());
 
-    // And the result is the same one the no-network run produces: a
-    // late connection changed the wall-clock timing and nothing else.
     let expected = loopback_hashes(seed, Tick(40));
     assert_eq!(a.hashes[..40], expected[0][..40]);
 }

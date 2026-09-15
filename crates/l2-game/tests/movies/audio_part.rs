@@ -12,10 +12,6 @@ use l2_game::screens::{castle, setup};
 use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 
-/// **A film stops the bed and the bed starts over after it** — the five
-/// restart sites `docs/audio.json` now calls reproduced, heard
-/// read. The castle film's track plays in between. Ablation: make
-/// `Scene::Film` answer the campaign track
 #[test]
 fn a_film_silences_the_campaign_bed_and_it_starts_again_from_its_first_sample() {
     let (p, a) = install!();
@@ -45,8 +41,6 @@ fn a_film_silences_the_campaign_bed_and_it_starts_again_from_its_first_sample() 
     assert_eq!(buffer(&mut audio), first, "from its first sample, not from where it stopped");
 }
 
-/// **`Smk_OnFinished#1`**: back on the title page after the trailer,
-/// `setup.wav` starts over.
 #[test]
 fn the_trailer_stops_setup_wav_and_the_title_page_starts_it_over() {
     let (p, a) = install!();
@@ -73,9 +67,6 @@ fn the_trailer_stops_setup_wav_and_the_title_page_starts_it_over() {
     assert_eq!(buffer(&mut audio), first);
 }
 
-/// **`Msg_DrawWindow#21`**: the narrator reads the fall **as the film opens**,
-/// because `Smk_Play` returns with the first frame up. Ablation: delete the
-/// `voice` call from `Director::listen`.
 #[test]
 fn the_narrator_reads_an_ending_over_the_opening_of_its_film() {
     let (p, a) = install!();
@@ -147,11 +138,6 @@ fn the_narrator_reads_a_capture_over_its_film_and_the_bed_starts_over_after_it()
     send(&mut m, &mut g, &a, Event::RightClick { x: 5, y: 5 });
     tick_and_listen(&mut m, &mut g, &a, &mut audio, &mut director);
     assert_eq!(audio.film_name(), None, "SmackClose");
-    // Two counties of six is a higher band than one and `Audio::follow` picks
-    // the bed on the derivation the film's screen leaves, so the restart is a
-    // *different* track from the `scroll1.wav` the film interrupted — which is
-    // the first sample by construction: nothing was playing it to resume.
-    // The sibling test above holds the same-track half of `Music_StartCampaign`.
     let after = audio.music_name().expect("the bed is back");
     assert_ne!(after, before, "the taken county moved the player up a band");
     assert!(buffer(&mut audio).iter().any(|&s| s != 0.0), "and it is audible");

@@ -14,16 +14,11 @@ use l2_game::screens::{castle, setup};
 use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 
-/// **The four ways out of screen `0x22`, as a player makes them.** A release of
-/// either button, or any key; never a press or a move. And during start-up each
-/// one moves on a film. Ablation: make the left-release arm a `Click` arm.
 #[test]
 fn a_film_ends_on_a_release_of_either_button_or_any_key_and_not_on_a_press() {
     let (_p, a) = install!();
     let mut g = Game::new(1);
 
-    // `Smk_Play` opens the film inside the call, so a release on the very next
-    // event — before any tick — already meets a playing intro.
     let mut m = Machine::new(ScreenId::Setup(setup::SetupPage::Title));
     movie::start_up(&mut m);
     send(&mut m, &mut g, &a, Event::Release { x: 1, y: 1 });
@@ -51,25 +46,11 @@ fn a_film_ends_on_a_release_of_either_button_or_any_key_and_not_on_a_press() {
     assert_eq!(m.ids(), vec![ScreenId::Setup(setup::SetupPage::Title)], "any key: the title page");
 }
 
-/// **The release of the click that ordered the castle cannot skip the film,
-/// because when it arrives
-///
 /// `CastleBuild_Confirm` (`0x00436B59`) is record 0 of `g_castleBuildWidgets`
 /// and the record is `Widget_Test` kind 5, so `Smk_Play` runs **twenty frames
 /// after the press** — by which time the button has been let go and its release
 /// was answered by the chooser. `CastleBuild_Confirm`'s own first call
 /// (`FUN_004B18E3`) throws that click away too.
-///
-/// **This is what replaced a compensation.** `MovieScreen` used to carry a
-/// `swallow_release` flag that made the castle film ignore one left release,
-/// because `castle.rs` confirmed on the press and the release of that very
-/// click then reached the film. The flag is gone: the timing it was papering
-/// over is the original's now.
-///
-/// Ablations: move the release after the twentieth tick and the film is skipped
-/// on the line that says it is not; declare the thumbs `Press` in
-/// `castle::widgets` and the chooser answers on the press, which the screen's
-/// own debug assertion refuses.
 #[test]
 fn the_release_of_the_ordering_click_is_answered_by_the_chooser_not_the_film() {
     let (_p, a) = install!();
@@ -82,11 +63,7 @@ fn the_release_of_the_ordering_click_is_answered_by_the_chooser_not_the_film() {
         "the twentieth frame orders the castle and plays the film"
     );
 
-    // The next release is an ordinary one, and the film answers it.
     send(&mut m, &mut g, &a, Event::Release { x: ok.0, y: ok.1 });
-    // **A skip is `Smk_OnFinished`, so it goes where the end of the film goes**
-    // — `g_screenId = g_smkReturnScreen`, and `CastleBuild_Confirm` passed `0`.
-    // This used to assert `Castle(1)`, which was our pop and not the original.
     assert_eq!(m.ids(), vec![ScreenId::Campaign], "a skip lands where the end lands");
 }
 

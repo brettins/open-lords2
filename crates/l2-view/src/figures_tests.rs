@@ -1,4 +1,3 @@
-//! [`super`] - the frame layout, checked against the shipped art.
 
     use super::*;
 
@@ -13,12 +12,9 @@
 
     #[test]
     fn the_walk_offset_trails_the_cell_being_entered() {
-        // Walking north: drawn below the destination, closing on it.
         assert_eq!(walk_offset(0, 1), (0, 30));
         assert_eq!(walk_offset(0, 16), (0, 0));
-        // Walking east: drawn to the west of it.
         assert_eq!(walk_offset(2, 1), (-30, 0));
-        // Every facing's offset points opposite its movement.
         for f in 0..8u8 {
             let (dx, dy) = FACING_DELTA[f as usize];
             let (ox, oy) = walk_offset(f, 2);
@@ -34,9 +30,6 @@
             let total = FACINGS * poses_per_facing(troop) as usize + 18;
             for facing in 0..8u8 {
                 for phase in 0..=120u8 {
-                    // `Shooting` is left out on purpose: `Anim_DrawBowA2`'s
-                    // stride is 13 whatever the troop, so a pikeman drawn by it
-                    // lands past his own sheet in the binary too.
                     for anim in [Anim::Idle, Anim::Walking, Anim::Attacking, Anim::Dying] {
                         let f = frame(troop, anim, facing, phase);
                         assert!(
@@ -56,8 +49,6 @@
             let bow = matches!(troop, Troop::Archers | Troop::Crossbowmen);
             for facing in 0..8usize {
                 for phase in 0..=120u8 {
-                    // §14.5: walking is 0…5, striking is 6…, and they used to
-                    // be asserted the other way round here.
                     let w = frame(troop, Anim::Walking, facing as u8, phase) - facing * stride;
                     assert!(w < 6, "{troop:?} walk pose {w}");
                     let a = frame(troop, Anim::Attacking, facing as u8, phase) - facing * stride;
@@ -67,7 +58,6 @@
                         frame(troop, Anim::Shooting, facing as u8, swing) - facing * drawbow::STRIDE;
                     match bow {
                         true => assert!((10..13).contains(&s), "{troop:?} bow pose {s}"),
-                        // No curve, so the base and nothing else.
                         false => assert_eq!(s, drawbow::BASE, "{troop:?} has no draw curve"),
                     }
                 }
@@ -75,24 +65,17 @@
         }
     }
 
-    /// **Ablation** — the swap §14.5 corrects. Drawing the two bands the old
-    /// way round puts a striking pose where the walk belongs, and for a pikeman
-    /// (N = 8, strike band 6…7) it walks clean out of the bow band's room too.
     #[test]
     fn the_old_swapped_bands_would_fail_the_band_test() {
         let stride = poses_per_facing(Troop::Archers) as usize;
         let old_walk = 6 + STRIKE_LIGHT[0] as usize;
         assert!(old_walk >= 6, "the old walk sat in the strike band");
         assert_eq!(frame(Troop::Archers, Anim::Walking, 0, 0), 0);
-        // And the bow band is only reachable at N = 13.
         assert!(stride >= 13);
         assert!((poses_per_facing(Troop::Pikemen) as usize) < 13);
     }
 
     /// `Anim_StandA2` (`0x004872AE`): eight neighbours stand in six postures.
-    ///
-    /// **Ablation** - the old `pose N-1` gave every man of a troop the same
-    /// frame, so a standing rank was eight copies of one picture.
     #[test]
     fn a_standing_rank_stands_in_six_postures() {
         let seen: std::collections::HashSet<usize> = (0..16)
@@ -104,9 +87,6 @@
     }
 
     /// `Anim_StrikeA2` (`0x00486249`): only `role == 1` swings.
-    ///
-    /// **Ablation** - running the cycle for both men of a pair, which is what
-    /// we did, had two swordsmen hitting each other on the same tick forever.
     #[test]
     fn the_defender_of_a_pair_stands_while_the_attacker_swings() {
         for (troop, stand) in
@@ -135,7 +115,6 @@
         assert_eq!(seen.len(), 12, "4 half-facings x 3 frames");
         assert_eq!(*seen.iter().min().unwrap(), base);
         assert_eq!(*seen.iter().max().unwrap(), base + 11);
-        // Facings that share a half-facing share their frames.
         assert_eq!(
             frame(troop, Anim::Shovelling, 2, 0),
             frame(troop, Anim::Shovelling, 3, 0),
@@ -162,7 +141,6 @@
         for corpse in [24u16, 40, 80, 120] {
             assert_eq!(frame(troop, Anim::Dying, 0, pose(corpse)), base + 5, "held");
         }
-        // Shared across facings, and clear of `8N+6`.
         for facing in 0..8u8 {
             let f = frame(troop, Anim::Dying, facing, pose(11));
             assert_eq!(f, base + 2, "the six are shared by every facing");
@@ -174,9 +152,6 @@
     /// the only handler that reads `DAT_004D9C30`; `Anim_WalkA2` (`2896`) and
     /// `Anim_StandA2` (`2873`) set the rider frame to the bare facing and put
     /// the cadence on the horse.
-    ///
-    /// **Ablation**: putting walk and stand back on the strike formula gives a
-    /// riding knight the swing frames and breaks the `< 8` bound below.
     #[test]
     fn a_knight_rides_on_the_bare_facing_and_swings_from_the_table() {
         for facing in 0..8u8 {
@@ -196,9 +171,6 @@
     /// sends `troopType` 6 to `Anim_Stand()`, whose knight arm (`2896-2900`) is
     /// the bare `dirc`; `Anim_DyingA2` `3004-3006` returns with the frame
     /// untouched, and the frozen `facingDrawn` is what reaches us.
-    ///
-    /// **Ablation**: drawing either from `knight_base` puts a fallen knight in
-    /// the swing frames, which is what the strike table's base is.
     #[test]
     fn a_dead_or_shovelling_knight_wears_the_standing_frame() {
         for facing in 0..8u8 {

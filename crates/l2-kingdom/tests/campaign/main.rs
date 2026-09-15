@@ -1,21 +1,3 @@
-//! The campaign layer driven through whole seasons — `docs/armies.md`.
-//!
-//! The unit tests in `src/` each check one rule against the decompiled function
-//! it came from. This checks the things that only exist once the rules are
-//! *composed into a turn*, which is where the hooks `docs/armies.md` §6.4 calls
-//! *"the missing half"*
-//!
-//! * the starvation ladder over five consecutive seasons, including the
-//!   ordering that makes an army desert and then be billed the reduced wage in
-//!   the same season;
-//! * army food as extra mouths at the county's ration level, which is a
-//!   *multiplier* on the ration and not a flat subtraction;
-//! * the mercenary bands walking the map for a year;
-//! * `disabled_seasons` counting itself back down after a trampling;
-//! * a whole kingdom with armies in it round-tripping through a save and
-//!   playing on identically.
-//!
-//! Needs no game install: everything here is built by hand.
 
 mod starvation;
 pub use starvation::*;
@@ -37,8 +19,6 @@ use l2_kingdom::report::Message;
 use l2_kingdom::unit::{Unit, UnitKind, Units};
 use l2_kingdom::{Kingdom, MercenaryBands, Options, TroopType};
 
-/// A two-county kingdom with a map: county 1 in the west, county 2 in the east,
-/// realm 1 holding the first and nobody holding the second.
 fn kingdom() -> Kingdom {
     let mut k = Kingdom::new(0xA12);
     assert!(k.set_county_count(2));
@@ -67,9 +47,6 @@ fn kingdom() -> Kingdom {
         c.crop[1] = 400;
     }
     k.counties[1].owner = 1;
-    // **Counties 1 and 2 are neighbours.** Without an adjacency list
-    // `County_BordersRealm` says no and `County_ChangeOwner` takes its `else`
-    // branch: the county declares independence instead of changing hands.
     k.counties[1].neighbour_count = 1;
     k.counties[1].neighbours[0] = 2;
     k.counties[2].neighbour_count = 1;

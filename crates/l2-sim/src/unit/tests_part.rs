@@ -39,7 +39,6 @@ mod tests {
     #[test]
     fn a_unit_stands_at_the_centre_of_its_figures_bounding_box() {
         let (mut units, mut figs, mut pos) = one_unit(Troop::Swordsmen, 4, 3);
-        // Deliberately lopsided: the centroid and the box centre differ.
         pos[0] = (10, 10);
         pos[1] = (11, 10);
         pos[2] = (20, 30);
@@ -56,7 +55,6 @@ mod tests {
         units.recentre(1, &figs, &pos);
         let u = units.get(1);
         assert_eq!((u.target_x, u.target_y), (u.x, u.y), "seeded from the position");
-        // And it is seeded once: moving the unit does not drag the destination.
         let mut pos2 = pos.clone();
         pos2[0] = (40, 40);
         pos2[1] = (41, 40);
@@ -78,9 +76,6 @@ mod tests {
         assert_eq!(units.get(1).figures, 0);
     }
 
-    /// The grudge is fifty **frames**, and the think interval is two hundred.
-    /// Rounding it up to "until the next decision" is the mistake
-    /// `docs/battle-ai.md` §3.2 warns about, so pin the real number.
     #[test]
     fn the_memory_of_an_attacker_expires_in_fifty_frames() {
         let mut units = Units::new();
@@ -107,8 +102,6 @@ mod tests {
             units.rebuild_from_figures(&mut figs);
         }
         assert_eq!(units.get(victim).hit_memory, 0, "fifty frames, not two hundred");
-        // The attacker index survives its own expiry; the handlers gate on the
-        // countdown, not on the index.
         assert_eq!(units.get(victim).last_attacker, attacker as u16);
         assert_eq!(units.get(victim).times_hit, 1, "and it only ages once the grudge has");
         units.rebuild_from_figures(&mut figs);

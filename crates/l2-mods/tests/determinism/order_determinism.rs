@@ -4,7 +4,6 @@ use super::hashing_and_types::*;
 use common::TempDir;
 use l2_mods::{digest, Platform, Ruleset};
 
-/// The load must be reproducible: same inputs, same bytes, every time.
 #[test]
 fn the_same_mods_in_the_same_order_give_byte_identical_rules() {
     let base = TempDir::new("det-install");
@@ -28,9 +27,6 @@ fn the_same_mods_in_the_same_order_give_byte_identical_rules() {
     assert_eq!(a.rules.leaves(), b.rules.leaves());
 }
 
-/// The digest identifies the rules, not the installation. A player whose game
-/// lives on `D:` and one whose lives on `/opt` must be allowed into the same
-/// session.
 #[test]
 fn where_the_files_live_does_not_change_the_digest() {
     let one_base = TempDir::new("det-p1-install");
@@ -51,29 +47,14 @@ fn where_the_files_live_does_not_change_the_digest() {
     assert_ne!(one_base.path(), two_base.path(), "the fixture is only useful if they differ");
     assert_eq!(p1.digest(), p2.digest());
 
-    // Two separate reasons this holds, and both are load-bearing.
-    //
-    // An origin names the *layer* and the document's path *relative to that
-    // layer* — never an absolute path. So a diagnostic printed on one machine
-    // reads identically on another, and a bug report about
-    // `longbows:rules/longbows.toml:12:11` means something to whoever wrote
-    // the mod. That is a property of the origin, and it is asserted here
-    //
-    // path-independence would otherwise look like a coincidence.
     let origin = |p: &Platform| {
         p.rules.origin("battle.three_bridges.attacker.archers").unwrap().to_string()
     };
     assert_eq!(origin(&p1), "aaa:rules/aaa.toml:2:11");
     assert_eq!(origin(&p1), origin(&p2));
 
-    // And separately, origins are not in the hashed stream at all — see
-    // `digest`'s module documentation. So even a layer id that legitimately
-    // differed between two installs could not split a session.
 }
 
-/// Load order is the conflict-resolution policy, so reversing it where two
-/// mods disagree must change the answer — and must be visible in the digest,
-/// because the two players are no longer running the same rules.
 #[test]
 fn reversing_the_order_of_two_mods_that_disagree_changes_the_digest() {
     let base = TempDir::new("det-ord-install");
@@ -97,9 +78,6 @@ fn reversing_the_order_of_two_mods_that_disagree_changes_the_digest() {
     assert_ne!(forward.digest(), backward.digest());
 }
 
-/// Two orders that produce the same numbers are the same rules. The digest
-/// hashes what survived, not the history of how it got there, so two players
-/// who reordered mods that never touch each other are still compatible.
 #[test]
 fn reordering_mods_that_do_not_overlap_leaves_the_digest_alone() {
     let base = TempDir::new("det-noov-install");
@@ -119,9 +97,6 @@ fn reordering_mods_that_do_not_overlap_leaves_the_digest_alone() {
     assert_eq!(load(["aaa", "zzz"]).digest(), load(["zzz", "aaa"]).digest());
 }
 
-/// Documents inside one layer apply in sorted name order, whatever order the
-/// filesystem hands them back in. `read_dir` promises nothing, and the cheapest way to keep that
-/// filesystems this project runs on do not agree.
 #[test]
 fn documents_within_a_layer_apply_in_sorted_name_order_not_creation_order() {
     let base = TempDir::new("det-docs");
@@ -140,9 +115,6 @@ fn documents_within_a_layer_apply_in_sorted_name_order_not_creation_order() {
     assert_eq!(base_docs, vec![&"base:rules/aa-first.toml", &"base:rules/zz-last.toml"]);
 }
 
-/// Building the same document set twice in different insertion orders must
-/// give identical bytes
-/// arrival.
 #[test]
 fn the_merged_tree_is_ordered_by_key_and_not_by_arrival() {
     let mut a = Ruleset::new();

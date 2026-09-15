@@ -11,13 +11,6 @@ use l2_net::Pcg32;
 
 type Handler = fn(&mut World, usize);
 
-/// One dispatch slot.
-///
-/// The name and address are carried so that a slot can be
-/// checked against `docs/battle-ai.md` §1.3 — and so a test can say "these
-/// seven slots are the empty handler" without comparing function pointers,
-/// which `docs/netcode.md` forbids anywhere a decision is made and which is a
-/// bad habit to start in a test.
 #[derive(Clone, Copy)]
 pub struct Slot {
     pub name: &'static str,
@@ -39,11 +32,6 @@ impl core::fmt::Debug for Slot {
 }
 
 /// `g_unitOrderTableField` (`0x004D91B8`), bound `category < 5`.
-///
-/// **In a field battle, categories 5 to 8 have no handler at all** — the table
-/// has five entries and the code tests `< 5`, so an AI catapult in an open
-/// field is never given an order. Its figures still shoot; the unit never
-/// repositions. Not observed in a running game.
 pub const TABLE_FIELD: [Slot; 5] = [
     Slot::new("UnitOrder_None", 0x0048_A9C7, order_none),
     Slot::new("UnitOrder_FieldMissile", 0x0048_A9D2, field_missile),
@@ -62,15 +50,11 @@ pub const TABLE_SIEGE_ATT: [Slot; 9] = [
     Slot::new("UnitOrder_SiegeAttCatapult", 0x0048_DB84, siege_att_catapult),
     Slot::new("UnitOrder_SiegeAttTower", 0x0048_DDC7, siege_att_tower),
     Slot::new("UnitOrder_SiegeAttRam", 0x0048_DFBB, siege_att_ram),
-    // Oil is a defender's weapon, so the attacker's slot for it is empty.
     Slot::new("UnitOrder_None", 0x0048_A9C7, order_none),
 ];
 
 /// `g_unitOrderTableSiegeDef` (`0x004D91F8`), bound `category < 11`.
 ///
-/// The three stubs at 5, 6 and 7 line up exactly with `g_raiseOrderSiege`: a
-/// castle garrison holds no catapult, siege tower or ram. Two unrelated
-/// structures in the binary agreeing about which troops a garrison never has.
 /// **[V]**
 pub const TABLE_SIEGE_DEF: [Slot; 11] = [
     Slot::new("UnitOrder_None", 0x0048_A9C7, order_none),
@@ -86,14 +70,6 @@ pub const TABLE_SIEGE_DEF: [Slot; 11] = [
     Slot::new("UnitOrder_SiegeDefWallMissileB", 0x0048_E2C8, siege_def_wall_missile_b),
 ];
 
-/// **Which of the eighteen handlers a unit dispatches to**, or `None` when its
-/// category is past its table's bound and it is given no order at all.
-///
-/// One function so that `update_all_units` and anything asking *"is this
-/// handler reachable?"* cannot disagree — which matters, because fourteen of
-/// the seventeen were unreachable for as long as nothing could produce a siege,
-/// and the only honest way to say they are reachable now is to name the
-/// position that reaches each one.
 pub fn handler_for(is_siege: bool, side: crate::Side, category: u8) -> Option<Slot> {
     let category = category as usize;
     if !is_siege {
@@ -106,17 +82,6 @@ pub fn handler_for(is_siege: bool, side: crate::Side, category: u8) -> Option<Sl
 }
 
 /// `Battle_UpdateAllUnits` (`0x00489401`), once per frame.
-///
-/// The order of operations is the original's and it matters: the strength
-/// advantage is recomputed *before* any unit thinks, each unit is recentred on
-/// its figures *before* its handler runs, and the reform countdown runs
-/// **outside** the human-control guard — so a player's units reform
-/// too.
-///
-/// Returns the units whose reform countdown reached zero and which
-/// `BattleUnit_NeedsReform` accepts. Reforming assigns figures to formation
-/// slots on a battlefield, so it belongs to whoever owns positions; this crate
-/// says *which* units want it and stops there.
 pub fn update_all_units(
     units: &mut Units,
     figures: &mut [Figure],
@@ -142,8 +107,6 @@ pub fn update_all_units(
                 let mut world = World { units, figures, positions, field, ai };
                 (slot.run)(&mut world, cur);
             } else {
-                // Out of the table's bound: no order at all. In a field battle
-                // that is every category from 5 to 8.
                 ai.record(cur, Action::NoThink);
             }
         } else {

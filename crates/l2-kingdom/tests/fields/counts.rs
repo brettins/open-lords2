@@ -8,8 +8,6 @@ use l2_kingdom::{Kingdom, MAX_FIELDS};
 use l2_scenario::Scenario;
 use l2_testkit::england;
 
-/// The ladder, against the save's own arithmetic, on every county.
-///
 /// The `[V]` this earns is precise: 168 field tiles across fourteen counties,
 /// three counts each, every one of them the file's.
 #[test]
@@ -30,9 +28,6 @@ fn the_terrain_ladder_reproduces_every_county_s_stored_field_counts() {
     assert_eq!(tiles_seen, 168, "the England map's fourteen counties own 168 field tiles");
 }
 
-/// **The premise.** Nobody starts with a grain field, so the brush is the only
-/// way the player's economy ever begins.
-///
 /// A scenario value, not an invariant (`docs/decisions.md` C23): it is a fact
 /// about how this game opens, and it is asserted here so that a future position
 /// which *does* ship sown fields fails this and gets read
@@ -47,14 +42,6 @@ fn no_county_of_the_england_position_has_a_single_grain_field() {
     }
 }
 
-/// Every field tile a county claims is inside its own county on the map, and no
-/// two counties claim the same tile.
-///
-/// This is the *map's* half of the same reading: if the byte-offset-to-index
-/// conversion in `l2-scenario` were out by a factor of eight, or the county
-/// plane were being read at the wrong byte of the eight-byte tile record, the
-/// tiles would land in other counties and this would say so. Neither could be
-/// caught by the counts alone, because a wrong tile still has *a* terrain byte.
 #[test]
 fn every_field_tile_lies_in_its_own_county_and_belongs_to_nobody_else() {
     let save = england!();

@@ -1,19 +1,3 @@
-//! **The fog of war against the bits the original wrote.**
-//!
-//! `l2_kingdom::explore` reads the seen bit's writers out of the decompilation.
-//! That is a claim about code; this file holds it against *data*. A saved game
-//! carries bank bit `0x20` in its `g_tiles` block exactly where the original's
-//! writers put it, so the rules, run over the same position, have to land on
-//! the same bits.
-//!
-//! **What the corpus can and cannot settle, stated.** The England turn-one
-//! fixture settles the county rule *exactly* — at turn one the local player has
-//! a county and no army, so every seen bit in it came from one call. The battle
-//! and turn saves carry armies that have walked, and nothing in a save records
-//! the path, so for those the rules give a **lower bound**: every tile they
-//! must have set is set. That checks the army square's radius from below and
-//! cannot check it from above; `crates/l2-kingdom/tests/explore.rs` holds the
-//! 6 to the decompiled literal instead.
 
 use l2_formats::maps::MapSet;
 use l2_formats::save::Save;
@@ -34,11 +18,9 @@ fn file_bits(save: &Save) -> Vec<bool> {
         .collect()
 }
 
-/// What the rules say the local player must have seen of a saved position:
 /// every county he holds with its border (`FUN_0046DFD5`), and thirteen by
 /// thirteen round every army of his where it now stands (`Unit_Step`'s reveal
 /// at the tile centre it stopped on, or `Army_Create`'s if it never moved).
-/// Returns the plane and how many armies went into it.
 fn predicted(s: &Scenario) -> (Explored, usize) {
     let local = s.local_player;
     let mut e = Explored::new();
@@ -57,20 +39,10 @@ fn predicted(s: &Scenario) -> (Explored, usize) {
     (e, armies)
 }
 
-/// **At turn one the rules reproduce the file bit for bit.**
-///
 /// Only one writer can have run for the local player: `Game_SetupRealmsAndCounties`'
 /// last statement, `FUN_0046DFD5(startCounty)` — the county and a one-tile
 /// border. The fixture's local player has no army (its *Army size* was none), so
 /// the prediction is that one call and the file must be exactly it.
-///
-/// **And the option was off.** The fixture's `g_optExploration` is 0 and the
-/// bits are there anyway: none of the writers tests the option. That is what
-/// lets a player turn the fog on in the middle of a game and see the ground his
-/// armies have already walked.
-///
-/// Ablation: `COUNTY_BORDER` set to 0 in `l2_kingdom::explore` — the prediction
-/// loses the ring and this names every tile of it.
 #[test]
 fn the_england_fixtures_seen_bits_are_exactly_the_players_county_and_its_border() {
     let save = l2_testkit::england!();
@@ -98,12 +70,6 @@ fn the_england_fixtures_seen_bits_are_exactly_the_players_county_and_its_border(
     assert!(seen > county_tiles, "the border is in the file too: {seen} seen, {county_tiles} in the county");
 }
 
-/// **Every saved game has seen at least what the rules say it must.**
-///
-/// Four saves from later in a game, with the local player's armies out on the
-/// map. Each army's square and each county's bordered block must be in the file.
-/// Whatever else is set is the history of where the armies walked, which a save
-/// does not record, so this is a lower bound and says so.
 #[test]
 fn every_saved_game_has_seen_its_counties_and_round_its_armies() {
     let mut armies_checked = 0;
@@ -124,10 +90,6 @@ fn every_saved_game_has_seen_its_counties_and_round_its_armies() {
     assert!(armies_checked > 0, "no save had an army of the local player's to check a square round");
 }
 
-/// **The import carries the file's bits to the local player, and to nobody
-/// else** — a `.sav` cannot say what anybody else has seen, because every writer
-/// is guarded on `g_localPlayer`. And the kingdom built from the scenario holds
-/// the same plane, which is what the painters read.
 #[test]
 fn the_import_gives_the_files_bits_to_the_local_player_alone() {
     let save = l2_testkit::england!();
@@ -146,13 +108,6 @@ fn the_import_gives_the_files_bits_to_the_local_player_alone() {
     assert_eq!(k.campaign.explored, s.explored);
 }
 
-/// **A new game shows each realm its start county and the border round it, and
-/// nothing else** — `Map_InitScenario` cleared the plane and
-/// `Game_SetupRealmsAndCounties` revealed one county. The England fixture above
-/// is the same call made by the original, and it came out exactly this shape.
-///
-/// Ablation: the reveal loop in `Scenario::from_map_world` — every realm's
-/// count is 0.
 #[test]
 fn a_new_game_shows_each_realm_its_start_county_with_its_border_and_nothing_else() {
     let Some(bytes) = l2_testkit::read_install("L2_maps.dat") else {

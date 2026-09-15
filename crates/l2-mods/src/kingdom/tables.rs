@@ -10,12 +10,6 @@ use l2_kingdom::tables::{
     CASTLE_TYPE_COUNT, HERD_CROWDING_COUNT, TAX_LADDER_RUNGS,
 };
 
-/// Build a [`Tables`] out of a merged ruleset.
-///
-/// Every value is required. There are no defaults here on purpose: a kingdom
-/// rule that silently falls back to a built-in number is a rule a mod cannot
-/// tell it failed to set,
-/// author can see what took effect.
 pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     let mut t = Tables::DEFAULT;
 
@@ -27,12 +21,8 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     t.grain = GrainTable {
         yield_per_sack: int(rs, "kingdom.grain.yield_per_sack", 0, 10_000)?,
         max_sacks_per_field: int(rs, "kingdom.grain.max_sacks_per_field", 0, 10_000)?,
-        // Divisors. Zero is a division by zero in `Grain_Sow`, not a rebalance.
         labour_divisor_advanced: int(rs, "kingdom.grain.labour_divisor_advanced", 1, 10_000)?,
         labour_divisor_basic: int(rs, "kingdom.grain.labour_divisor_basic", 1, 10_000)?,
-        // Multipliers, not divisors: `Grain_Grow` and `Grain_Harvest` cap the
-        // crop at `labour * this`. Zero is a county that can never tend or
-        // reap anything, which is a legitimate — if bleak — ruleset.
         grow_per_worker_advanced: int(rs, "kingdom.grain.grow_per_worker_advanced", 0, 10_000)?,
         harvest_per_worker_advanced: int(
             rs,
@@ -63,12 +53,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     t.ration_happiness_offset = int(rs, "kingdom.happiness.ration_offset", -100, 100)?;
 
     t.ale = AleTable {
-        // `buy_ale` divides the population by this, so zero is a division by
-// zero.
         step_pct: int(rs, "kingdom.happiness.ale_step_pct", 1, 10_000)?,
-        // The rung count and the cumulative cap are one number,
-        // the original. Zero means ale buys nothing, which is a rebalance and
-        // not a crash, so it is allowed.
         max: int(rs, "kingdom.happiness.ale_max", 0, 100)?,
     };
 
@@ -87,22 +72,12 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             health_delta[band] = narrow(rs, &format!("{base}.health_delta"), value, -1000, 1000)?;
         }
         t.ration[index] = RationRow {
-            // A divisor of zero divides by zero in `Ration_Apply`.
             divisor: int(rs, &format!("{base}.divisor"), 1, 10_000)?,
             multiplier: int(rs, &format!("{base}.multiplier"), 0, 10_000)?,
             health_delta,
         };
     }
 
-    // Five bounds, not four. The table is `{bound, band}` pairs in the binary's
-// own layout,
-    // `tools/oracle/kingdom.ps1` checks that against the executable.
-    //
-    // The ruleset carries only the bounds, because in the shipped table the band
-    // column always equals its own row index (10,0  35,1  65,2  90,3  100,4).
-    // That is a property of the data, not a rule,
-// bands would need the format to grow a column
-    // accident.
     let bands = t.health_band_ladder.len();
     let ladder = rs.integer_array("kingdom.health.band_ladder", bands)?;
     for i in 0..bands {
@@ -156,9 +131,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             WeatherRow { herd_pct: int(rs, &format!("{base}.herd_pct"), -100, 100)? };
     }
 
-    // The empire tax term, one row per rate. The length is the tax ceiling and
-// is therefore structure: a document with a different
-    // number of rows is describing a game whose tax panel stops somewhere else.
     let tax = rs.integer_array("kingdom.tax.happiness_other", t.tax_happiness_other.len())?;
     for (rate, &value) in tax.iter().enumerate() {
         t.tax_happiness_other[rate] =
@@ -186,11 +158,8 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         );
     }
     t.herd = HerdTable {
-        // Zero is not a division by zero - `PctOf` guards it - but it does mean
-        // "a herd needs no tending at all", which is a rebalance and allowed.
         labour_per_head: int(rs, "kingdom.herd.labour_per_head", 0, 10_000)?,
         staffing_max: int(rs, "kingdom.herd.staffing_max", 0, 10_000)?,
-        // The shortfall is divided by this, so zero really would divide by zero.
         understaffing_divisor: int(rs, "kingdom.herd.understaffing_divisor", 1, 10_000)?,
         crowding,
         small_bonus,
@@ -202,8 +171,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             1_000_000,
         )?,
         no_pasture_divisor: int(rs, "kingdom.herd.no_pasture_divisor", 1, 1_000_000)?,
-        // 0 is the original's `No Season` and disables the bonus, which is how
-        // a ruleset says "calves arrive evenly all year".
         calving_season: int(rs, "kingdom.herd.calving_season", 0, 4)? as u8,
         culling_season: int(rs, "kingdom.herd.culling_season", 0, 4)? as u8,
         season_bonus: (
@@ -216,10 +183,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         starting_type: int(rs, "kingdom.castle.starting_type", 0, CASTLE_IDS.len() as i64 - 1)?
             as u8,
         tax_base: [0; 6],
-        // Six slots, five used: the binary stores a trailing zero after each of
-        // these tables, and that 24-byte stride is what places the next one.
-// The shape is kept so the arrays still match the
-        // addresses `tools/oracle/kingdom.ps1` reads.
         tax_bonus_pct: [0; 6],
         cost: [(0, 0); 5],
         workforce: [(0, 0); 5],
@@ -231,8 +194,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         check_index(rs, &base, index)?;
         castle.tax_base[index] = int(rs, &format!("{base}.tax_base"), 0, 1_000_000)?;
         if index == 0 {
-            // Type 0 is "no castle": it has a tax base and nothing else to
-            // build, garrison or pay for.
             continue;
         }
         let b = index - 1;
@@ -241,9 +202,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             int(rs, &format!("{base}.cost_wood"), 0, 1_000_000)?,
             int(rs, &format!("{base}.cost_stone"), 0, 1_000_000)?,
         );
-        // Both columns take the mod's single value, matching the shipped table
-        // where the two are always equal. The second column's meaning has never
-// been traced, so it is carried.
         let workforce = int(rs, &format!("{base}.workforce"), 0, 1_000_000)?;
         castle.workforce[b] = (workforce, workforce);
         castle.garrison_cap[b] = int(rs, &format!("{base}.garrison_cap"), 0, 1_000_000)?;
@@ -281,7 +239,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         check_index(rs, &base, index)?;
         t.commodity[index] = CommodityRow {
             job: int(rs, &format!("{base}.job"), 0, t.job.count as i64 - 1)? as usize,
-            // A divisor of zero divides by zero in `Industry_Produce`.
             divisor: int(rs, &format!("{base}.divisor"), 1, 10_000)?,
             base_efficiency: int(rs, &format!("{base}.base_efficiency"), 0, 10_000)?,
         };
@@ -306,7 +263,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     let ai_divisors = rs.integer_array("kingdom.wages.divisor_ai", 3)?;
     let mut divisor_ai = [0i32; 3];
     for (i, &v) in ai_divisors.iter().enumerate() {
-        // Wages are `men / divisor`.
         divisor_ai[i] = narrow(rs, "kingdom.wages.divisor_ai", v, 1, 10_000)?;
     }
     t.wages = WageTable {
@@ -374,18 +330,12 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
                 format!("row {i} is lord {}; the rows are in lord order", i + 1),
             ));
         }
-        // `castle_gold` is one threshold per castle type 1..=5, and a zero means
-// that type is never offered to this lord — so the Baron and
-        // the Countess never build a royal castle at any treasury.
         let gold = rs.integer_array(&format!("{base}.castle_gold"), CASTLE_TYPE_COUNT - 1)?;
         let mut castle_gold = [0i32; CASTLE_TYPE_COUNT - 1];
         for (t, &v) in gold.iter().enumerate() {
             castle_gold[t] = narrow(rs, &format!("{base}.castle_gold"), v, 0, 1_000_000)?;
         }
 
-        // The lord's weapon programme: six weapon types, stepped through by AI
-        // turn step 12. Out-of-range entries would index past the weapon table,
-        // so the bound is the table's length.
         let rota = rs.integer_array(&format!("{base}.weapon_rota"), 6)?;
         let mut weapon_rota = [0usize; 6];
         for (i, &v) in rota.iter().enumerate() {
@@ -399,19 +349,12 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             weapon_rota,
             tax_ladder: int(rs, &format!("{base}.tax_ladder"), 0, AI_TAX_LADDER_COUNT as i64 - 1)?
                 as usize,
-            // A zero increment divides by zero in the gift ratchet.
             gift_increment: int(rs, &format!("{base}.gift_increment"), 1, 1_000_000)?,
             help_price: int(rs, &format!("{base}.help_price"), 0, 1_000_000)?,
             grudge_tolerance: int(rs, &format!("{base}.grudge_tolerance"), 0, 10_000)?,
-            // A zero interval would offer every turn, which is a rebalance
-            // so it is allowed.
             offer_interval: int(rs, &format!("{base}.offer_interval"), 0, 10_000)?,
             help_population_floor: int(rs, &format!("{base}.help_population_floor"), 0, 1_000_000)?,
             muster_pct: int(rs, &format!("{base}.muster_pct"), 0, 100)?,
-            // The five fields AI steps 7, 9 and 10 read
-            // (`l2_kingdom::ai_army`). A zero patience musters every turn and
-            // a zero raid interval raids every turn; both are rebalances
-            // so the low bound is open.
             muster_patience: int(rs, &format!("{base}.muster_patience"), 0, 10_000)?,
             muster_arms: int(rs, &format!("{base}.muster_arms"), 0, 1_000_000)?,
             garrison_min_population: int(
@@ -421,9 +364,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
                 1_000_000,
             )?,
             raid_interval: int(rs, &format!("{base}.raid_interval"), 0, 255)?,
-            // The tax rate a written-off county is set to. Bounded by
-            // `MAX_TAX_RATE` because it is written straight into
-            // `County::tax_rate`, which indexes the tax-happiness table.
             abandon_tax_rate: int(
                 rs,
                 &format!("{base}.abandon_tax_rate"),
@@ -439,8 +379,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
             siege_doctrine: int(rs, &format!("{base}.siege_doctrine"), 0, 255)?,
             // `Ai_TradeForCounty` (`0x0049E39B`): personality `+0x78`, `+0x7C`
             // and the three reserves `+0x84`/`+0x88`/`+0x8C`.
-            // buys weapons on any positive treasury and a zero reserve sells
-            // the realm bare; both are rebalances, so the low bound is open.
             trade_gold_floor: int(rs, &format!("{base}.trade_gold_floor"), 0, 1_000_000)?,
             weapon_buy_qty: int(rs, &format!("{base}.weapon_buy_qty"), 0, 1_000_000)?,
             reserve_wood: int(rs, &format!("{base}.reserve_wood"), 0, 1_000_000)?,
@@ -484,7 +422,6 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
         input_offsets[i] = int(rs, &format!("{base}.offset"), 0, u16::MAX as i64)? as u16;
         weights[i] = (
             int(rs, &format!("{base}.numerator"), -1_000_000, 1_000_000)?,
-            // A denominator of zero divides by zero in `Score_RankRealms`.
             int(rs, &format!("{base}.denominator"), 1, 1_000_000)?,
         );
     }

@@ -15,13 +15,6 @@ use l2_game::Game;
 use l2_sim::runner::{Army, BattleRunner};
 use l2_sim::{Cues, Troop, SIDE_A, SIDE_B};
 
-/// **Every call the battlefield's ladder can make, pinned.** Twenty-two sites,
-/// seventeen files, and the verb each one uses: every bank slot is
-/// drop-if-busy on its own buffer, and the wall coming down and the bridge
-/// catching are the one-shot buffer.
-///
-/// A new arm makes this red with the request it added — which is how the six
-/// that fire, oil, the tower and the high rampart added arrived here.
 #[test]
 fn the_battle_ladder_is_twenty_two_calls_and_seventeen_files() {
     let every = Cues::of_every_occasion();
@@ -76,12 +69,9 @@ fn the_battle_ladder_is_twenty_two_calls_and_seventeen_files() {
             "sword5.wav",
         ]
     );
-    // And a tick in which nothing happened asks for nothing.
     assert!(audio::battle_requests(&every, &every).is_empty());
 }
 
-/// **Every cry a player can hear ships, and the ones D34 says cannot be asked
-/// for are the ones that do not** — including two the bug list said were real.
 #[test]
 fn every_reachable_cry_ships_and_nine_unreachable_names_do_not() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -102,9 +92,6 @@ fn every_reachable_cry_ships_and_nine_unreachable_names_do_not() {
     for n in &reachable {
         assert!(find(&dir, n).is_some(), "{n} is reachable and does not ship");
     }
-    // The three cells of every `_M` row that class 3 can never select. Seven
-    // are `_F1` and two are cell 14, which `docs/bugs.md` D34 used to say always
-    // named a real file.
     for n in [
         "Peas_F1.wav", "Cros_F1.wav", "Mace_F1.wav", "Swor_F1.wav", "Pike_F1.wav", "Arch_F1.wav",
         "Knig_F1.wav", "Swor_U3.wav", "Arch_U3.wav",
@@ -114,7 +101,6 @@ fn every_reachable_cry_ships_and_nine_unreachable_names_do_not() {
     }
 }
 
-/// **`TROOP_CRIES` is the executable's table**, cell for cell.
 #[test]
 fn the_troop_cry_table_is_the_one_at_0x004db0d0() {
     let exe = l2_testkit::executable!();
@@ -135,13 +121,6 @@ fn the_troop_cry_table_is_the_one_at_0x004db0d0() {
     }
 }
 
-/// **The throttle is the original's and nothing else.** `Sound_PlayFile` has
-/// one buffer: a cry over a cry is dropped, a cry over the narrator is dropped,
-/// and **the take a dropped cry would have played is spent** — because the
-/// counter steps before the drop.
-///
-/// Played through the director, from orders given as events. Ablation: move
-/// the busy test in `Audio::play_file` after the load and `peas_p3.wav` is heard.
 #[test]
 fn a_cry_over_a_cry_is_dropped_and_its_take_is_spent() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -168,8 +147,6 @@ fn a_cry_over_a_cry_is_dropped_and_its_take_is_spent() {
     assert!(sound.heard().contains(&"peas_u2.wav"), "the selection's cry: {:?}", sound.heard());
     drain(&mut sound, "peas_u2.wav");
 
-    // Two orders inside one tick. The first is take 1; the second is take 2,
-    // asked for while take 1 is sounding, and dropped.
     let ground = pixel(live(&g), empty_cell(live(&g)));
     click_at(&mut m, &mut g, &a, ground);
     click_at(&mut m, &mut g, &a, ground);
@@ -178,13 +155,11 @@ fn a_cry_over_a_cry_is_dropped_and_its_take_is_spent() {
     assert!(!sound.heard().contains(&"peas_p3.wav"), "a cry over a cry was played");
     drain(&mut sound, "peas_p2.wav");
 
-    // The next order is take 3, not take 2: the dropped cry spent its take.
     click_at(&mut m, &mut g, &a, ground);
     director.listen(&mut sound, &m, &g);
     assert!(sound.heard().contains(&"peas_p4.wav"), "{:?}", sound.heard());
     assert!(!sound.heard().contains(&"peas_p3.wav"), "the dropped take came back");
 
-    // And the narrator holds the same buffer.
     drain(&mut sound, "peas_p4.wav");
     assert!(sound.play_file("S021_01.wav", true), "the narrator, into an idle buffer");
     assert!(!sound.play_file("Knig_E2.wav", true), "a cry played over the narrator");

@@ -31,7 +31,6 @@ impl History {
         }
     }
 
-    /// How many seasons are held, up to [`crate::tables::HISTORY_SEASONS`].
     pub fn len(&self) -> usize {
         self.len
     }
@@ -40,22 +39,12 @@ impl History {
         self.len == 0
     }
 
-    /// Write this season's line for counties 1..=16 and advance the ring.
-    ///
-    /// The original's loop is `for (c = 1; c < 0x11; c++)` — **counties 1..=16
-    /// unconditionally**, not `1..=g_countyCount` — so the slots above the map's
-    /// county count are filled with whatever the unused records hold, which is
-    /// zero. Reproduced, because it is what a reader of the ring has to expect.
     pub fn record(&mut self, counties: &[County]) {
         let slot = &mut self.entries[self.head];
         for c in 1..=crate::tables::HISTORY_COUNTIES {
             let county = &counties[c];
             slot[c - 1] = HistoryEntry {
                 population: county.population,
-                // The original stores a signed byte. Happiness is clamped
-                // 0..=100 by `Happiness_UpdateAll`, so the narrowing is safe
-// here
-                // come to depend on a range the original does not have.
                 happiness: county.happiness as i8,
             };
         }
@@ -73,7 +62,6 @@ impl History {
         }
     }
 
-    /// One county's history, oldest season first. `county` is 1-based.
     pub fn county(&self, county: usize) -> Vec<HistoryEntry> {
         if county < 1 || county > crate::tables::HISTORY_COUNTIES {
             return Vec::new();
@@ -86,7 +74,6 @@ impl History {
             .collect()
     }
 
-    /// The most recent season recorded, or `None` before the first.
     pub fn latest(&self) -> Option<&[HistoryEntry; crate::tables::HISTORY_COUNTIES]> {
         if self.len == 0 {
             return None;

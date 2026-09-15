@@ -1,20 +1,6 @@
 //! **The two battle screens** — `Screen_BattlePrompt` (`0x00422D22`, screen
 //! `0x12`) and `Screen_BattleResult` (`0x00422FF1`, screen `0x13`).
 //!
-//! *"A Battle is to be fought. Will you take the field?"* is the question the
-//! engine has never been able to ask. [`crate::turn::end_turn`] answered
-//! [`Answer::Decline`](crate::engagement::Answer::Decline) — the original's own
-//! autocalc branch — because there was no screen to ask on, and every battle in
-//! a played turn was therefore settled by arithmetic. These are the screens.
-//!
-//! # They are one painter with two endings
-//!
-//! Both draw the same window, the same medallion, the same two shields, the
-//! same two lord names and the same seven-row roster; they differ in one
-//! heading, one paragraph, and what the player can click. So they are one
-//! module and two [`Screen`] impls over shared drawing, which is what the
-//! original is:
-//!
 //! ```text
 //!                                 0x12                      0x13
 //! Ui_DrawBoxBorder(1, …)          0x20,0x30,0x1A,0x19       same
@@ -26,8 +12,6 @@
 //! roster FUN_004224E7             mode 0                    mode 1
 //! buttons                         thumb up / thumb down     the OK corner
 //! ```
-//!
-//! # The painter, address by address
 //!
 //! Transcribed from `Screen_BattlePrompt` (`0x00422D22`); `Screen_BattleResult`
 //! (`0x00422FF1`) is the same list with `Ui_OkButton(400, 400, 0)` in place of
@@ -79,19 +63,9 @@
 //! `menTotal` either — both are [`crate::engagement::roster_of`] and
 //! `draw_roster`'s `totals` now. C189.
 //!
-//! Three transcription slips came out of writing this listing: the noun column
-//! is `0x3E + 0x7D` = **187** and this module had 185, the parenthesised
-//! *before* column on the right is `0x3E + 0x146` = **388** and this module had
-//! 390, and the **two troop icons a row** — `Misc_cty.pl8` frames `0x2F + row`
-//! at x 147 and 307 — were not drawn at all.
-//!
-//! # Border set **1**
-//!
 //! `FUN_004093E0` is not `Ui_DrawBox`. It is the *other* frame kit, and passing
 //! set 0 draws a visibly wrong window — [`Pen::window`]'s last argument is 1 for
 //! both of these and 0 for almost everything else in the game.
-//!
-//! # Two things the original draws that are not here, and one it does not
 //!
 //! * **The lords' names.** `g_playerNames` **is** modelled — `Game::player_names`,
 //!   filled by `Player_SetHuman` (`0x0049BAE9`) for the person and by
@@ -103,15 +77,7 @@
 //!   exactly that. **The original's test is `owner == 6`**, because 6 is the
 //!   peasant faction's owner byte; ours is `owner == 0`, because
 //!   `l2_kingdom::realm` numbers realms 1..=5 and reserves 0 for nobody.
-//! The **medallion is not a face** and this module used to say it was: it is
-//!   `icon_tmp.pl8` frame `0x37`, one picture, with `0x38` for a siege, and it
-//!   is drawn here now — as are the two shields at frame `0x30 + shieldIndex`,
-//!   where `Battle_ChooseSettlement` substitutes **6** for a zero shield.
-//! * **`Defence_Disband` at the end of the painter.** The original's `0x13`
-//!   mutates the world from its draw function. Ours cannot, by design —
-//!   [`Screen::draw`] takes `&Ctx` — and it does not need to:
-//!   [`crate::engagement`] already runs `battle::disband_defence` on the resolve
-//!   path, which is where the rule belongs.
+//!
 //! * **A victory sentence.** There isn't one. `L2.eng` group 81 carries *"are
 //!   victorious." / "have been defeated." / "have been crushed." / "have been
 //!   annihilated."* and group 80 carries *"The army of" / "The people of" / "The
@@ -121,8 +87,6 @@
 //!   that composed *"The army of X have been crushed"* out of them would be
 //!   inventing a sentence the game never printed. Recorded here because the
 //!   strings look exactly like an instruction to do it.
-//!
-//! # Where the outcome banner lives
 //!
 //! Not on `0x13`. `L2.eng` group 82's seven heading/body pairs belong to
 //! `Screen_BattleOutcome`, screen `0x2B`, which is a separate screen this module
@@ -148,11 +112,6 @@
 //!     FUN_0040328E(82, outcome * 2 + 1, 0x30, 0x158, 0x180, 100, 0x20, 0x1A0, body)
 //! ```
 //!
-//! **The three `Ui_OkButton` calls are one per branch**, not three buttons, and
-//! only two coordinates exist between them: (416, 256) for the short window and
-//! (416, 352) for the tall one. Ten draw call sites and **at most four run in a
-//! frame**.
-//!
 //! `Battle_SelectOutcomeBanner` (`0x00478419`) writes `g_battleOutcome` and only
 //! ever writes **0…5**: `siege ? (localWon ? (Awon ? 2 : 4) : (Awon ? 5 : 3))
 //!: (localWon ? 0: 1)`. The seventh pair, 12/13,
@@ -161,11 +120,6 @@
 //! all seven are reachable.** `docs/battle.md` does not name them; the seven
 //! are `L2.eng` 82's pairs at 0/1 won, 2/3 lost, 4/5 siege won, 6/7 siege lost,
 //! 8/9 siege lifted, 10/11 castle lost, 12/13 the conflict is over.
-//!
-//! [`crate::engagement::BattleReport::outcome`] already answers
-//! which pair, so that screen is a painter and no more reverse engineering; this
-//! one prints the pair's heading under its own so that the result of a battle is
-//! not silently lost while `0x2B` does not exist.
 
 mod render;
 pub use render::*;
@@ -203,7 +157,6 @@ pub const GROUP_OWNERLESS: usize = 99;
 pub const NOUN_BASE: usize = 0x34;
 /// `L2.eng` group 100 — the county names, `map_slot * 20 + county`.
 pub const GROUP_COUNTY: usize = 100;
-/// Group 8 index `0x48`/`0x49` — *"Total man"* / *"Total men"*.
 pub const NOUN_TOTAL: usize = 0x48;
 
 /// `FUN_004093E0(0x20, 0x30, 0x1A, 0x19)` — **border set 1**, 26 × 25 cells of
@@ -212,31 +165,18 @@ pub const BOX_X: i32 = 0x20;
 pub const BOX_Y: i32 = 0x30;
 pub const BOX_COLS: i32 = 0x1A;
 pub const BOX_ROWS: i32 = 0x19;
-/// Which frame kit. See the module header: **not** zero.
 pub const BOX_SET: usize = 1;
 
 pub fn window() -> Rect {
     Rect::new(BOX_X, BOX_Y, BOX_COLS * 16, BOX_ROWS * 16)
 }
 
-/// `Ui_DrawCentred(100, …, 0x84, 0x42, 0x132, …)` — the county's name.
 const COUNTY: (i32, i32, i32) = (0x84, 0x42, 0x132);
-/// `Eng_DrawString(group, …, 0x8E, 0x56, heading, …)`.
 const HEADING: (i32, i32) = (0x8E, 0x56);
 /// `FUN_0040328E(0x50, …, 0x8E, 0x7A, …)` — the wrapped paragraph.
 const PARAGRAPH: (i32, i32) = (0x8E, 0x7A);
-/// `Ui_DrawBevelRect(0x34, 0x44, 0x52, 0x52)` — the medallion's recess. Four
-/// lines and **no fill**; see [`crate::screens::siege::bevel_rect`].
 const MEDALLION: Rect = Rect::new(0x34, 0x44, 0x52, 0x52);
-/// `File_ReadChunk("icon_tmp.pl8", …)` — the sheet both screens read whole and
-/// then blit three frames of.
 pub const MEDALLION_SHEET: &str = "Icon_tmp.pl8";
-/// `Sprite_WGenSprite(0x37 | 0x38, 0x35, 0x45)` — one frame for a field battle
-/// and another for a siege, inside the recess at (52, 68).
-///
-/// **Unverified against the artwork**: nothing in this tree has looked at what
-/// frames 55 and 56 of `icon_tmp.pl8` are, only that the painter picks
-/// between them on `g_battleIsSiege`.
 pub const MEDALLION_BATTLE: usize = 0x37;
 pub const MEDALLION_SIEGE: usize = 0x38;
 pub const MEDALLION_AT: (i32, i32) = (0x35, 0x45);
@@ -247,7 +187,6 @@ pub const SHIELD_FRAME0: usize = 0x30;
 pub const OWNERLESS_SHIELD: usize = 6;
 pub const SHIELD_A: (i32, i32) = (0x7A, 0xB4);
 pub const SHIELD_B: (i32, i32) = (0x142, 0xB4);
-/// The two lord names, each centred in 200 pixels.
 const LORD_A: (i32, i32, i32) = (40, 160, 200);
 const LORD_B: (i32, i32, i32) = (240, 160, 200);
 
@@ -265,26 +204,16 @@ const COL_NOUN: i32 = 0x3E + 0x7D; // 187, and this module had 185
 const COL_B_ICON: i32 = 0x3E + 0xF5; // 307
 const COL_B_AFTER: i32 = 0x3E + 0x118; // 342
 const COL_B_BEFORE: i32 = 0x3E + 0x146; // 388, and this module had 390
-/// `Pl8_DrawFrame(g_miscCtySheet, 0x2F + row, …)` — the seven campaign troop
-/// icons, drawn **twice a row**, once for each side, at the row's own y with no
-/// `+ 4`.
 const TROOP_ICON_FRAME0: usize = 0x2F;
-/// `Ui_DrawCount(total, 0x48, x, 404)` for each side, after the seven rows.
 const TOTAL_Y: i32 = 404;
 const TOTAL_A_X: i32 = 82;
 const TOTAL_B_X: i32 = 282;
 
 /// The two widgets of `DAT_004DDBB0`, **box-relative**
 /// holds them: `(x, y, System.pl8 frame, side)`.
-///
-/// Frames 29 and 31 are a mailed hand giving a thumb **up** and a thumb
-/// **down** — not a tick and a cross; `docs/screens-county.md` §4.2 decoded
-/// them. Every yes/no in the game draws this same pair,
-/// `screens/saveload.rs` has the identical two constants.
 pub const TAKE_THE_FIELD: (i32, i32, usize, i32) = (BOX_X + 300, BOX_Y + 68, 29, 32);
 pub const DECLINE: (i32, i32, usize, i32) = (BOX_X + 340, BOX_Y + 68, 31, 32);
 
-/// `Ui_OkButton(400, 400, 0)` — the result screen's corner.
 pub const OK: (i32, i32) = (400, 400);
 
 pub fn widget_rect(w: (i32, i32, usize, i32)) -> Rect {

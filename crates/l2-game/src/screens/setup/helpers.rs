@@ -9,8 +9,6 @@ use crate::setup::SetupOptions;
 use crate::shell::{self, font, Pen};
 use crate::text::{self, TextField};
 
-/// `Edit_Begin(&g_options, 0x10, 0xC0, 0)` — the name field's own three
-/// arguments, in one place because three call sites open it.
 pub(super) fn begin_name(seed: &str) -> TextField {
     TextField::begin(seed, text::NAME_MAX_TYPED, text::NAME_MAX_PIXELS, text::Kind::Text)
 }
@@ -30,25 +28,15 @@ pub(super) fn outline_rect(canvas: &mut Canvas, r: Rect, colour: u8) {
     canvas.fill_rect(r.x + r.w - 1, r.y, 1, r.h, colour);
 }
 
-/// What a rectangle on one of these pages does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) enum Action {
-    /// The n'th menu item or button of this page.
     Item(usize),
-    /// Open custom-game option n's drop-down.
     Open(usize),
-    /// Choose value n from the open drop-down.
     Choose(usize),
-    /// The n'th visible row of the map list.
     Map(usize),
-    /// Page 12's battle list, category strip, side swap, handicap seesaw and
-    /// scroll arrows — `crate::screens::setup::skirmish`, where each arm's
-    /// address is. `Item` still carries the three buttons along the bottom.
     Skirmish(SkirmishArm),
 }
 
-/// The five things page 12 answers that are not one of its three buttons, and
-/// the one page 13 answers. The payload is the original's `g_uiHotspotId`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum SkirmishArm {
     /// `FUN_0043D929`, hotspot 0…5.

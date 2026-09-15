@@ -1,16 +1,10 @@
-//! **The job popup's five bodies, the county-event letter and the tile
-//! panel's three, drawn with the game's own fonts and words.**
-//!
 //! The tile panel's castle and field arms draw `L2.eng` groups 71 and 77 out
 //! of a county — `TileInfo_DrawCastle` shares
 //! `Castle_DrawStatusBlock` with `FUN_00414220` — so they are measured with
 //! these helpers.
 //!
-//! ```text
-//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-game --test job_bodies
-//! ```
-//!
 //! C164 carried the figures these painters draw and left the painters as stubs.
+//!
 //! Every assertion below is **one figure or one word, in its own box, at the
 //! painter's own coordinates** — never a whole-canvas diff, which can pass when a
 //! panel's height changes too. Every coordinate that starts a line is a literal
@@ -18,14 +12,6 @@
 //! own measure and `Ui_DrawText`'s two rules (C155): a character with no glyph
 //! advances four, and every call adds a four-pixel trailer. Nothing here is
 //! computed from a constant in `screens/job.rs` or `screens/message.rs`.
-//!
-//! **What the fixtures hold, and so what is weak.** Advanced farming is off in
-//! every save on this machine, and the grain sown, grown and harvested, field
-//! reclamation, every castle under construction and all four event and weather
-//! figures are zero in every save. Where a figure is zero on disk the test takes
-//! the road the game takes to make it non-zero — painting fields and advancing
-//! seasons, ordering a castle, firing an event and running the season's tick —
-//! and the few that stay zero say so beside the assertion.
 
 
 use l2_game::game::Assets;
@@ -45,7 +31,6 @@ use l2_kingdom::tables::{
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------------- setup
 
 macro_rules! install_assets {
     () => {{
@@ -84,7 +69,6 @@ pub use events_and_letters::*;
 mod tile_panel;
 pub use tile_panel::*;
 
-/// The popup for one job of one county, drawn on its own.
 fn draw_job(game: &mut Game, assets: &Assets, county: usize, job: usize) -> Canvas {
     let mut screen = JobScreen::new(county as u8, job);
     let mut canvas = Canvas::screen();
@@ -93,7 +77,6 @@ fn draw_job(game: &mut Game, assets: &Assets, county: usize, job: usize) -> Canv
     canvas
 }
 
-/// The painters' ink, `0x3F`, and `Ui_DrawDelta`'s `colourNeg`, `0xF9`.
 const INK: u8 = 0x3F;
 const NEG: u8 = 0xF9;
 
@@ -113,8 +96,6 @@ fn eng(a: &Assets, group: usize, index: usize) -> String {
     s
 }
 
-/// Whether `s`, drawn in `f`, sits on the canvas with its origin at exactly
-/// `(x, y)`: every set pixel of a probe rendered in the same face is `colour`.
 fn is_at(canvas: &Canvas, f: &Font, s: &str, colour: u8, x: i32, y: i32) -> bool {
     let (w, h) = (f.width(s).max(1), f.height(s).max(1));
     let mut probe = Canvas::new(w as usize, h as usize);
@@ -138,8 +119,6 @@ fn is_at(canvas: &Canvas, f: &Font, s: &str, colour: u8, x: i32, y: i32) -> bool
     any
 }
 
-/// Every x on row `y` where `s` sits — the failure message's answer to *then
-/// where is it?*
 fn xs_on_row(canvas: &Canvas, f: &Font, s: &str, colour: u8, y: i32) -> Vec<i32> {
     (0..canvas.width as i32).filter(|&x| is_at(canvas, f, s, colour, x, y)).collect()
 }
@@ -165,8 +144,6 @@ fn advance(f: &Font, s: &str) -> i32 {
         + 4
 }
 
-/// `Eng_DrawString(group, index, x, y)`: the word at `x`. Returns where the
-/// next piece starts.
 #[track_caller]
 fn word_at(canvas: &Canvas, a: &Assets, group: usize, index: usize, x: i32, y: i32) -> i32 {
     let s = eng(a, group, index);
@@ -188,9 +165,6 @@ fn count_at(canvas: &Canvas, a: &Assets, value: i32, noun: usize, x: i32, y: i32
     noun_x + advance(f, &noun)
 }
 
-/// A signed row's value: `Ui_DrawDelta(v, 0, " ", " ", 0x128, y)` puts the sign
-/// and digits at `0x130`, in `0xF9` when negative; a zero row is
-/// `Ui_DrawNumber(0, '@', " ", 0x130, y)`, whose digit is one column further.
 #[track_caller]
 fn signed_at(canvas: &Canvas, a: &Assets, value: i32, y: i32) {
     let f = body(a);
@@ -201,9 +175,6 @@ fn signed_at(canvas: &Canvas, a: &Assets, value: i32, y: i32) {
     }
 }
 
-/// The first county a predicate picks, or a setup failure naming what was
-/// wanted. The fixtures' realm assignment is rolled per game
-/// the property it needs.
 #[track_caller]
 fn county_where(k: &Kingdom, what: &str, pick: impl Fn(&l2_kingdom::county::County) -> bool) -> usize {
     (1..=k.county_count)
@@ -211,8 +182,6 @@ fn county_where(k: &Kingdom, what: &str, pick: impl Fn(&l2_kingdom::county::Coun
         .unwrap_or_else(|| panic!("setup: no county in this fixture is {what}"))
 }
 
-/// Paint every fallow field of one county to grain, one brush stroke a tile —
-/// `Field_SetType`, which is the only way a player makes a county sow.
 fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
     let tiles: Vec<usize> = k
         .field_tiles(county)

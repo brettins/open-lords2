@@ -1,11 +1,3 @@
-//! **`tools/decisions/corrections.js`, asked about trees built to break it.**
-//!
-//! The tool guards every merge: it numbers the two logs' entries, checks their
-//! citations, and assigns the placeholders branches write. CI runs its `--check`
-//! against this tree, which says the tree is clean and says nothing about
-//! whether the tool can see the things it exists to see. That second question is
-//! this file's, and each test is a shape that
-//!
 //! * **a heading the tool cannot read** — two branches wrote a Markdown heading
 //!   over a placeholder, and C146's em-dash arrived double-encoded, so its
 //!   correction did not exist to the tool and three citations pointed at nothing
@@ -16,13 +8,7 @@
 //! * **assignment by `perl -pi`** — the integrator's only command for it, and a
 //!   tool with no encoding layer is what double-encodes UTF-8.
 //!
-//! Each test builds a small tree in the temp directory and points the tool at it
-//! with `--root`. Placeholders are assembled at run time by [`tag`], because this
-//! file is itself in the tree `corrections.js --check` scans, and a literal one
-//! here would be reported as unassigned.
-//!
 //! Every test states the ablation that turns it red; they were run, not assumed.
-//! Skipped when, as `keyed_json.rs` is: CI has one.
 
 mod corrections_tool_tests;
 pub use corrections_tool_tests::*;
@@ -39,7 +25,6 @@ fn repo() -> PathBuf {
         .to_path_buf()
 }
 
-/// A placeholder, assembled so that this file does not contain one.
 fn tag(letter: char, slug: &str) -> String {
     format!("{letter}NEW-{slug}")
 }
@@ -103,7 +88,6 @@ struct Tree {
 }
 
 impl Tree {
-    /// The base tree, relocked. `None` when.
     fn new(name: &str) -> Option<Tree> {
         Command::new("node").arg("--version").output().ok()?;
         let dir = std::env::temp_dir().join(format!("l2-corrections-{}-{name}", std::process::id()));
@@ -151,7 +135,6 @@ impl Tree {
         assert!(out.status.success(), "--relock failed on a tree built to pass:\n{}", err(&out));
     }
 
-    /// Every file and its bytes, to show a refusal changed nothing.
     fn snapshot(&self) -> BTreeMap<PathBuf, Vec<u8>> {
         fn walk(dir: &Path, out: &mut BTreeMap<PathBuf, Vec<u8>>) {
             for e in std::fs::read_dir(dir).unwrap().flatten() {
@@ -179,13 +162,10 @@ fn err(out: &Output) -> String {
     format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr))
 }
 
-/// The line a string sits on in a tree file, 1-based, for asserting that an
-/// error names it.
 fn line_of(text: &str, needle: &str) -> usize {
     text.lines().position(|l| l.contains(needle)).expect("the needle is in the file") + 1
 }
 
-/// Asserts `--check` fails because of rule 7, naming `file:line`.
 fn assert_malformed(tree: &Tree, file: &str, needle: &str, why: &str) {
     let out = tree.run(&["--check"]);
     let e = err(&out);

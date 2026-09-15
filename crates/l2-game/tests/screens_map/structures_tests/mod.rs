@@ -27,16 +27,6 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// A sprite's **exact ink**, found anywhere on the canvas.
-///
-/// The same idea as [`find_text`] and for the same reason: render the thing
-/// Being looked for: keep the pixels it paints.
-/// pattern. A PL8 blit copies only its opaque bytes, so a match is the frame's
-/// own palette indices standing where the frame was blitted — several hundred
-/// of them for a flag. That cannot arise from terrain.
-///
-/// Every place this frame's artwork stands, and how many opaque pixels had to
-/// agree to make each one a match.
 fn sprite_positions(
     canvas: &Canvas,
     frame: &l2_formats::pl8::DecodedFrame,
@@ -66,7 +56,6 @@ fn sprite_positions(
     (found, wanted.len())
 }
 
-/// The first of them, scanning rows then columns.
 fn find_sprite(
     canvas: &Canvas,
     frame: &l2_formats::pl8::DecodedFrame,
@@ -75,7 +64,6 @@ fn find_sprite(
     found.first().map(|&p| (p, ink))
 }
 
-/// The map centred on a county's town, drawn.
 fn town_view(game: &mut Game, assets: &Assets, county: u8) -> (MapScreen, Canvas) {
     let mut screen = MapScreen::new();
     {

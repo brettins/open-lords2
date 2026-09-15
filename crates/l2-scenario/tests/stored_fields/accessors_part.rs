@@ -9,20 +9,12 @@ use l2_formats::save::{Save, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, REALM_STRID
 use l2_kingdom::Kingdom;
 use l2_scenario::Scenario;
 
-/// The kingdom's value for one element of one row: `(kingdom, county or realm
-/// id, element)`.
 type Get = fn(&Kingdom, usize, usize) -> i64;
 
 fn at(id: &'static str, get: Get) -> (&'static str, Get) {
     (id, get)
 }
 
-/// **Where each claimed row lives in a loaded kingdom.**
-///
-/// Written by the same hand as the inventory, which `docs/agents.md` warns is
-/// the shape of a check that lies
-/// neither list is what it is compared against. Both are held to the bytes the
-/// original wrote.
 pub(super) fn accessors() -> Vec<(&'static str, Get)> {
     vec![
         at("County+0x000", |k, i, _| k.counties[i].event_fired as i64),
@@ -75,8 +67,6 @@ pub(super) fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x15D", |k, i, _| k.counties[i].ration_achieved as i64),
         at("County+0x15E", |k, i, _| k.counties[i].ration_wanted as i64),
         at("County+0x15F", |k, i, _| k.counties[i].ration_split as i64),
-        // `Ration_Apply`'s *Fed* row, in the file's order dairy, grain, meat;
-        // `people_fed` returns grain, meat, dairy.
         at("County+0x16C", |k, i, e| {
             let (grain, meat, dairy) = l2_kingdom::ration::people_fed(&k.tables, &k.counties[i]);
             [dairy, grain, meat][e] as i64
@@ -91,7 +81,6 @@ pub(super) fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x1A0", |k, i, _| k.counties[i].merchant_visits as i64),
         at("County+0x1A4", |k, i, _| k.counties[i].merchant_count as i64),
         at("County+0x1A5", |k, i, _| k.counties[i].merchant_unit as i64),
-        // A `char` in the original: the byte, not the whole quotient.
         at("County+0x1A6", |k, i, _| {
             l2_kingdom::industry::castle_seasons_left(&k.tables, &k.counties[i]) as u8 as i64
         }),
@@ -160,8 +149,6 @@ pub(super) fn accessors() -> Vec<(&'static str, Get)> {
         at("County+0x297", |k, i, e| k.counties[i].industry[e].enabled as i64),
         at("County+0x29E", |k, i, e| k.counties[i].industry[e].capacity as i64),
         at("County+0x2A0", |k, i, e| k.counties[i].industry[e].total as i64),
-        // The snapshot is not a field of `Industry`:
-        // the pass takes, so the snapshot is what makes that difference.
         at("County+0x2A4", |k, i, e| {
             let ind = &k.counties[i].industry[e];
             (ind.total - ind.output) as i64

@@ -25,25 +25,18 @@
 //! }
 //! ```
 //!
-//! Four things in that are worth stating flat
-//! somebody could get wrong:
-//!
 //! * **A missile's position is already in pixels.** `+0x0A`/`+0x0C` are
 //!   thirty-seconds of a cell and a battle tile is 32 pixels, so the sub-cell
 //! unit and the screen pixel are the same unit — [`crate::scene::TILE`]. No
 //!   scaling anywhere.
+//!
 //! * `BattleFigure_Draw` subtracts half the
 //!   sprite width on both axes; this adds `tileSize / 2` and nothing else
 //!   (`DAT_004E5D44 = param_11 / 2`, stored by `FUN_004BC020`). Reproduced
 //!
-//! * **Class 7 — the boiling-oil stream — is never drawn.** `docs/battle.md`
-//!   §17.2 already said *"invisible to the renderer"*; this is the function
-//!   that makes it so. What a player sees of a pour is the fire it leaves.
 //! * **Ten to a cell.** Both ends of the list give up after ten
 //! (`Missile_LinkToCell`, `0x0046EFBE`, and the counter here)
 //!   missile standing on one cell is not drawn.
-//!
-//! # Which frame
 //!
 //! | class | frame | written by |
 //! |---|---|---|
@@ -64,7 +57,6 @@
 //! **81** frames: 0…7 arrows, 8…15 bolts, 16 the catapult shot, 17…24 the
 //! debris, 25…40 the fire, and 33 + `shield * 8` + 0…7 the animated banner
 //! `FUN_004BD574` draws — six shields ending at frame 80. Nothing spare.
-//! `tests/install.rs`.
 
 use l2_sim::missile::{Missile, CLASS_DEBRIS, CLASS_FIRE, CLASS_OIL};
 
@@ -76,15 +68,13 @@ pub const MISSILE_SHEET: &str = "A2_miss.pl8";
 /// `9 < n`, and `Missile_LinkToCell` gives up walking the list after ten too.
 pub const CELL_LIST_LIMIT: usize = 10;
 
-/// `g_missileStats[class][4]` — the frame the flight direction is added to.
 /// Row 0 is the "no class" row and is never used. **[V]**
 pub const SPRITE_BASE: [usize; 4] = [0, 0, 8, 16];
 
-/// **A catapult shot has one picture, not eight.** `BattleMan_FireMissile`
-/// writes `dir + base`; `BattleMan_StateEngineFire` writes `base` alone.
 pub const DIRECTIONAL_CLASSES: [u8; 2] = [1, 2];
 
 /// `DAT_004D9950`, indexed by the debris record's `+0x3C` countdown `>> 1`.
+///
 /// The countdown starts at [`l2_sim::missile::DEBRIS_TTL`] (`0x78`), so the
 /// walk is index 60 down to 0 and the picture runs 17 → 24 as the rubble
 /// settles. 61 entries is all `>> 1` can reach; the eight zeros after them are
@@ -125,8 +115,6 @@ pub const FIRE_JITTER: [(i32, i32); 16] = [
     (-6, 7),
 ];
 
-/// The frame a live missile shows, or `None` when nothing is drawn for it.
-///
 /// `None` is [`CLASS_OIL`] — the one class `FUN_004BEED4` steps over — and any
 /// class outside the five it knows.
 pub fn frame(m: &Missile) -> Option<usize> {
@@ -137,9 +125,6 @@ pub fn frame(m: &Missile) -> Option<usize> {
         }
         c if c == CLASS_FIRE => {
             let f = FIRE_FRAMES[(m.ttl.max(0) as usize >> 4).min(FIRE_FRAMES.len() - 1)] as usize;
-            // `Missile_UpdateAll`'s class-5 arm links the record to its cell
-            // only while the frame is positive
-            // is not on any draw list.
             (f > 0).then_some(f)
         }
         c if (c as usize) < SPRITE_BASE.len() && c > 0 => {
@@ -150,8 +135,6 @@ pub fn frame(m: &Missile) -> Option<usize> {
     }
 }
 
-/// **Which of the sixteen jitters a burning cell takes this frame.**
-///
 /// The original's `DAT_004E5B1C` is a render-side global: pre-incremented once
 /// per fire *drawn*, wrapped at 16, and never reset, so the same cell takes a
 /// different offset every frame and the flame shimmers. A counter that
@@ -159,11 +142,6 @@ pub fn frame(m: &Missile) -> Option<usize> {
 /// `crates/l2-view/src/lib.rs` says it is a reader and nothing else — the
 /// existing test that draws one state twice and demands an identical canvas is
 /// that rule, enforced.
-///
-/// So the tick stands in for the global: same sixteen offsets, same wrap, same
-/// shimmer, one advance a frame. Ours is a
-/// function of simulation state; the original's is a function of how many
-/// fires have ever been painted. Nothing else about the fire differs.
 pub fn jitter(tick: u32, nth_fire_this_frame: usize) -> (i32, i32) {
     FIRE_JITTER[(tick as usize + nth_fire_this_frame + 1) % FIRE_JITTER.len()]
 }
@@ -178,8 +156,6 @@ mod tests {
         Missile { owner: 1, class, dir, ttl, ..Missile::default() }
     }
 
-    /// The three weapon bases
-    /// direction.
     #[test]
     fn a_bow_and_a_bolt_point_where_they_fly_and_a_catapult_shot_does_not() {
         for d in 0..8u8 {
@@ -194,8 +170,6 @@ mod tests {
         assert_eq!(frame(&shot(CLASS_OIL, 0, 16)), None);
     }
 
-    /// Debris walks 17 → 24 as its countdown runs out, and every index the
-    /// countdown can reach is inside the table.
     #[test]
     fn debris_settles_from_seventeen_to_twenty_four() {
         assert_eq!(frame(&shot(CLASS_DEBRIS, 0, missile::DEBRIS_TTL)), Some(17));
@@ -217,7 +191,6 @@ mod tests {
         assert_eq!(0x280 >> 4, FIRE_FRAMES.len() - 1);
     }
 
-    /// Every frame this module can ask for is inside `A2_miss.pl8`'s 81.
     #[test]
     fn no_frame_this_module_asks_for_is_past_the_sheet() {
         const FRAMES_IN_A2_MISS: usize = 81;
@@ -232,14 +205,12 @@ mod tests {
         }
     }
 
-    /// A real shot out of `l2_sim`, so the field names cannot drift apart.
     #[test]
     fn a_missile_the_simulation_spawned_has_a_frame() {
         let mut ms = Missiles::new();
         let slot =
             missile::spawn(&mut ms, 1, WeaponClass::Bow, 3, (10, 10), (20, 10), 50, 0).unwrap();
         let f = frame(ms.get(slot)).unwrap();
-        // Due east is facing 2 in `l2_sim::facing`.
         assert_eq!(f, 2, "an arrow flying east should be frame 2");
         assert_eq!(Troop::Archers.index(), 5, "the troop order has not moved");
     }

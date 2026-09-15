@@ -7,9 +7,6 @@ use crate::realm::MAX_REALMS;
 
 /// `Territory_BlockContains` (`0x0044B4D0`) — is this county already in a block
 /// of **its own owner**?
-///
-/// The scan stops at the first slot with owner 0, which is the whole reason the
-/// block list has to stay dense.
 fn block_contains(blocks: &Blocks, counties: &[County], county: u8) -> bool {
     let owner = counties[county as usize].owner;
     for block in blocks.0.iter() {
@@ -25,10 +22,6 @@ fn block_contains(blocks: &Blocks, counties: &[County], county: u8) -> bool {
 
 /// `Territory_ExtendBlock` (`0x0044B391`) — add `county` to the **first** block
 /// of the same owner that already holds one of its neighbours.
-///
-/// Returns false if no block will take it. It never merges, and a full block
-/// (twenty members) silently refuses — the inner loop finds no free slot and
-/// falls out to the next block.
 fn extend_block(blocks: &mut Blocks, counties: &[County], county: u8) -> bool {
     let owner = counties[county as usize].owner;
     for block in blocks.0.iter_mut() {
@@ -74,25 +67,6 @@ pub fn is_neighbour(counties: &[County], county: u8, other: u8) -> bool {
 
 /// `Territory_BuildBlocks` (`0x0044B042`) — partition every owned county into
 /// contiguous same-owner blocks.
-///
-/// The loop, exactly:
-///
-/// ```c
-/// placed = 0; sweeps = 0;
-/// while (placed < owned && ++sweeps < 100) {
-///     placed = 0; progress = false;
-///     for (c = 1; c <= countyCount; c++)
-///         if (owned(c)) { if (inBlock(c)) placed++;
-///                         else if (extend(c)) progress = true; }
-///     for (c = 1; c <= countyCount && !progress; c++)
-///         if (owned(c) && !inBlock(c) && newBlock(c)) progress = true;
-/// }
-/// ```
-///
-/// **A fresh block is opened only when a whole sweep extended nothing.** That
-/// is what keeps a block from being started for a county that a later sweep
-/// would have attached to an existing one, and it is why the pass converges on
-/// the connected components even though `extend` never merges.
 pub fn build_blocks(counties: &[County], county_count: usize) -> Blocks {
     let mut blocks = Blocks::empty();
     let owned = |c: usize| c < counties.len() && counties[c].owner != 0;

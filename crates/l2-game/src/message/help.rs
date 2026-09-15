@@ -24,15 +24,14 @@
 //! }
 //! ```
 //!
-//! Three things in it are worth naming:
-//!
 //! * **the stored `w` and `h` are cells, not pixels.** Every other arm stores
 //!   pixels and divides by sixteen at the `FUN_004093E0` call; this one stores
 //! the divided value and multiplies it back for the button and the text
 //!   width. [`frame`] returns pixels, like every other [`Frame`].
+//!
 //! * **the count table is indexed by the whole group id.** `DAT_004D6A8C + group
 //!   * 4`, whose group-291 entry is the `0x004D6F18` the symbol table names.
-//! * **the paragraph step is four pixels, not a paragraph's height.**
+//!
 //!   `FUN_0040328E` itself adds `0x10` per line it wrapped to `DAT_005CD4F8`
 //!   (`00400000.c`: `else { local_20 += 0x10; DAT_005cd4f8 += 0x10; }`), so the
 //! `+ 4` here is the gap *between* paragraphs and the lines account for
@@ -44,6 +43,7 @@ use super::Frame;
 /// `group - 291`, `w` and `h` in 16-pixel cells.
 ///
 /// `[V]` read out of `Lords2.exe` at the address, all six:
+///
 /// group 291 is the FAQ index page and gets the short box, 292…295 the four
 /// answers and all four get the same tall one, 296 the dead CD check.
 const GEOM: [(i32, i32, i32, i32); 6] = [
@@ -63,7 +63,6 @@ const GEOM: [(i32, i32, i32, i32); 6] = [
 /// `L2.eng` has been edited draws what the *exe* says.
 const PARAGRAPHS: [usize; 6] = [1, 5, 5, 5, 10, 1];
 
-/// The first group with a record, so index `group - FIRST`. `0x123`.
 pub const FIRST: u16 = 291;
 
 /// **The gap between two paragraphs**, `DAT_005CD4F8 = DAT_005CD4F8 + 4`. The
@@ -71,14 +70,11 @@ pub const FIRST: u16 = 291;
 /// `FUN_0040328E`.
 pub const PARAGRAPH_GAP: i32 = 4;
 
-/// Where the window goes, in pixels — `None` for a group with no record, which
-/// is every group but 291…296.
 pub fn frame(group: u16) -> Option<Frame> {
     let (x, y, w, h) = *GEOM.get(group.checked_sub(FIRST)? as usize)?;
     Some(Frame { x, y, w: w * 16, h: h * 16 })
 }
 
-/// How many of the group's strings the arm draws as paragraphs, index 1 up.
 pub fn paragraphs(group: u16) -> usize {
     group
         .checked_sub(FIRST)
@@ -87,9 +83,6 @@ pub fn paragraphs(group: u16) -> usize {
         .unwrap_or(0)
 }
 
-/// The heading's baseline and centring width — `Ui_DrawCentred(group, 0, x +
-/// 0x10, y + 0x16, w - 0x20, &g_fontHeading, …)`. Sixteen *pixels* of inset and
-/// **0x16**, not the 0x14 the other arms use.
 pub fn heading(f: Frame) -> (i32, i32, i32) {
     (f.x + 0x10, f.y + 0x16, f.w - 0x20)
 }
@@ -122,9 +115,6 @@ fn transcribed(group: u16, index: usize) -> &'static str {
 /// **Our transcription of groups 291…295**, for an install whose `L2.eng`
 /// cannot be read — the same fallback shape as [`crate::tip::words`]'s, and
 /// held against the file by `tests/messages`.
-///
-/// Index 0 of each is the heading; the rest are the paragraphs, in order.
-/// Group 296 is not here: nothing in this build posts it.
 pub const TEXT: &[(u16, &[&str])] = &[
     (
         291,

@@ -1,22 +1,8 @@
-//! **`conquest::find_defender` against the bytes of a real saved game.**
-//!
-//! ```text
-//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" LORDS2_DIR="F:\games\Lords of the Realm II" \
-//!   cargo test -p l2-kingdom --test defence
-//! ```
-//!
-//! # Why this file exists
-//!
 //! `County_FindDefendingArmy` (`0x0046D42C`) was modelled for months as *"the
 //! lowest-numbered army of the county's owner standing in the county"*, with the
 //! function itself unread. When it was read, **both halves were wrong**: the
 //! scope is a 4×4 tile block around the county *town*, and the tie-break is the
 //! largest army.
-//!
-//! The unit tests beside the function in `src/conquest/mod.rs` state the geometry.
-//! This file states the thing the geometry was checked against: that
-//! `battle-before.sav` really does hold a position where the two readings
-//! **disagree**.
 //!
 //! That is `docs/decisions.md` C12 (a test that cannot fail) turned around: the
 //! old reading and the new one are both run here, on the same bytes, and they
@@ -32,8 +18,6 @@ const UNIT_BASE: u32 = 0x0052_F0B0;
 const UNIT_STRIDE: u32 = 0x1A4;
 const UNIT_SLOTS: u32 = 150;
 
-/// One occupied slot of the original's unit array, as the four fields this
-/// file needs. `docs/armies.md` §1.1 and §1.3.
 struct SaveUnit {
     slot: u32,
     owner: u8,
@@ -65,13 +49,6 @@ fn units_of(save: &Save) -> Vec<SaveUnit> {
         .collect()
 }
 
-/// **The disagreement, on the bytes.**
-///
-/// `battle-before.sav` county 2 is owned, its town anchor is (31, 50), and its
-/// owner's only army stands at (30, 46) — one column left of the anchor and
-/// four rows north of it. The old reading returns that army; the original, and
-/// now [`conquest::find_defender`], returns nothing, so the county levies a
-/// fresh defence.
 #[test]
 fn battle_before_holds_a_county_whose_army_is_too_far_from_its_town_to_defend_it() {
     let save: Save = l2_testkit::fixture!("battle-before.sav");
@@ -104,7 +81,6 @@ fn battle_before_holds_a_county_whose_army_is_too_far_from_its_town_to_defend_it
     let county_base = l2_formats::save::COUNTY_BASE + 2 * l2_formats::save::COUNTY_STRIDE as u32;
     assert_eq!(save.i32_at(county_base + 0x1BC).unwrap(), army.slot as i32, "and the link back");
 
-    // Now the two readings, on the same position.
     let mut counties: [County; MAX_COUNTIES] = core::array::from_fn(|_| County::new());
     counties[2].owner = owner;
     counties[2].anchor_x = saved.anchor_x;
@@ -116,14 +92,12 @@ fn battle_before_holds_a_county_whose_army_is_too_far_from_its_town_to_defend_it
     u.county = army.county;
     let slot = units.spawn(u).expect("a unit array with room");
 
-    // The reading this crate used to carry.
     let old = units
         .iter()
         .find(|(_, u)| u.kind == UnitKind::Army && u.owner == owner && u.county == 2)
         .map(|(i, _)| i);
     assert_eq!(old, Some(slot), "the old reading finds the army (g_units slot {})", army.slot);
 
-    // The function.
     assert_eq!(
         conquest::find_defender(&units, &counties, 2),
         None,
@@ -131,9 +105,6 @@ fn battle_before_holds_a_county_whose_army_is_too_far_from_its_town_to_defend_it
     );
 }
 
-/// The window is not vacuously empty on this map: the same army moved to the
-/// town's own anchor tile *is* found. Without this, the test above would pass
-/// for a function that always returned `None`.
 #[test]
 fn the_same_army_standing_on_the_town_does_defend_it() {
     let save: Save = l2_testkit::fixture!("battle-before.sav");

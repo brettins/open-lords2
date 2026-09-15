@@ -1,8 +1,3 @@
-//! **The turn timer** — `g_optTimeLimit`'s countdown, the two draws it makes,
-//! and the turn it ends.
-//!
-//! # What it is, from the binary
-//!
 //! **A per-turn time limit on the person's own turn, in single player as well
 //! as in a network game.** **[D]** throughout unless marked, addresses the GOG
 //! build's.
@@ -16,18 +11,22 @@
 //!   `Campaign_LoadEntry` forces it to 0 — **so the campaign never has one, and
 //!   a single-player custom game has one only if the person chose it.** See
 //!   [`crate::setup`].
+//!
 //! * **The clock.** Two globals: `DAT_005440C8`, whole seconds left, and
 //!   `_DAT_00568D9C`, the `timeGetTime()` the count started from. `Turn_Tick`
 //!   (`0x0049A010`) recomputes the first from the second **in its phase-4 arm
 //!   only** — the players' turn — as `g_optTimeLimit - (now - start) / 1000`,
 //!   and nothing in phases 5, 6, 7, 1, 2 or 3 touches either.
+//!
 //! * **Running out.** Below zero the same arm writes `-1`, calls `Turn_End`
 //!   (`0x0043AC23`) — the End Turn button's own handler, which ends **the local
 //!   player's** turn and nobody else's — and repaints the End Turn strip.
+//!
 //! * **Starting again.** `Turn_End` leaves `DAT_0055403C` at 2 in single
 //!   player. The phase-4 arm's third clause, `1 < DAT_0055403C && aiStep !=
 //!   999`, then resets the count to the full limit the first frame the person's
 //!   next turn is live (a network game waits a further 2.5 s after phase 1).
+//!
 //! * **The draw.** `FUN_0041A639`, once a frame from `Battle_Frame`, never from
 //!   a painter:
 //!
@@ -40,7 +39,6 @@
 //!   }
 //!   ```
 //!
-//!   **`aiStep == 999` is one half of an `||`, not the guard.**
 //!   `docs/draws-map.md` §5.11 and `docs/decisions.md` C140 both wrote the
 //!   condition as `g_optTimeLimit > 0 && aiStep == 999`, which draws the timer
 //!   only *after* the person has ended his turn — exactly backwards for a
@@ -52,21 +50,6 @@
 //! **centres** (C119), and both spaces are inside the measure (C140). **[V]**
 //! on the suffix and the table below, both read from the image.
 //!
-//! # The trap, and the mapping that avoids it
-//!
-//! Our turn model is the original's rotated. Its phase 4 *is* the interactive
-//! phase with the person parked at `aiStep == 1`; ours parks him on the map
-//! with the machine at phase 1 and runs 1 … 7 inside one press of End Turn, so
-//! between turns **every** realm's counter is already at or past 999. So
-//! nothing here reads `ai_step`:
-//!
-//! * *"the local player's `aiStep == 999`"* is a turn in flight that is not an
-//!   idle battle — [`crate::turn::players_turn_ended`] — or a `Turn_End` the
-//! clock has asked for and the map has not yet carried out;
-//! * *"`Turn_Tick`'s phase-4 arm"* is every tick on which that is false.
-//!
-//! # What is reproduced and what is not
-//!
 //! Reproduced, each with a test in this module: the arithmetic (a 30-second
 //! limit ends the turn on the tick that passes **31** seconds, and `0` is never
 //! drawn); the restart; the countdown running **before** the restart in the
@@ -75,8 +58,6 @@
 //! (`Battle_Start` saves `DAT_005440C8 + 10` into `DAT_0053E994`,
 //! `Battle_ReturnToCampaign(1)` rebases the start on it); and a siege assault
 //! zeroing `DAT_0055403C` so that the next turn does not restart the count.
-//!
-//! **Not reproduced, and said here**
 //!
 //! * the count carrying on through the rest of phase 4 after End Turn while the
 //!   AI realms finish stepping — ours freezes it at the click, because our
@@ -90,15 +71,6 @@
 //! * `FUN_004976A1`, the in-game load's `DAT_005440C8 += 10`. A game loaded
 //!   here starts the count at the full limit, which is what `Setup_StartGame`'s
 //!   own two lines do.
-//!
-//! # Determinism
-//!
-//! **No clock is read.** The original's `timeGetTime()` difference is counted
-//! here in fixed ticks of [`crate::TICK_MS`], so the same inputs run out on the
-//! same tick every time. The clock is session state on [`Game`], not world
-//! state: it is not in the save — the original restarts it on a start and on a
-//! load — and not in the lockstep digest, and the only thing it can do to the
-//! world is press End Turn, which is a person's input.
 
 mod clock;
 pub use clock::*;
@@ -114,55 +86,35 @@ use crate::game::Game;
 use crate::screen::{Ctx, ScreenId};
 use crate::shell::{font, Pen};
 
-/// `Pl8_DrawFrame(g_miscCtySheet, 0x60, …)` — the plate behind the number.
 pub const FRAME: usize = 0x60;
-/// `0x194` — the plate's x. **Inside the map viewport**, 74 pixels left of the
-/// sidebar, which is the only thing on the campaign screen that is.
 pub const FRAME_X: i32 = 0x194;
-/// `0x1AE`.
 pub const FRAME_Y: i32 = 0x1AE;
-/// `Ui_DrawNumberRight(…, 0x1A8, 0x1BA, 0x32, …)` — the box the number is
-/// centred in.
 pub const NUMBER_X: i32 = 0x1A8;
 pub const NUMBER_Y: i32 = 0x1BA;
 pub const NUMBER_W: i32 = 0x32;
-/// The lead, `' '`.
 pub const LEAD: char = ' ';
 /// `&DAT_004D41D0` — `20 00 00 00` in `.data`, a single space. **[V]**
 pub const SUFFIX: &str = " ";
-/// `0x3F`, the body text colour.
 pub const COLOUR: u8 = 0x3F;
 /// `Battle_Start` (`0x004778A0`): `DAT_0053E994 = DAT_005440C8 + 10`.
 pub const BATTLE_GRACE: i32 = 10;
-/// What `Turn_Tick` writes when the count goes below zero.
 pub const EXPIRED: i32 = -1;
 
-/// Where the person's turn is, as the clock needs to know it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TurnState {
-    /// His own turn: the original's phase 4 with his counter below 999.
     Players,
-    /// **Still his own turn**, with a battle raised on an ordinary frame
-    /// suspended over it. `Turn_Tick` runs under the prompt screen — it is
-    /// `g_battlePhase`, not the screen, that stops it.
     Idle,
-    /// He has ended it and the turn is being run: `aiStep == 999`.
     Ended,
 }
 
-/// Everything the clock reads in one tick, so the clock itself reads nothing
-/// else and can be driven by a test with no world at all.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Frame {
-    /// `g_optTimeLimit`, seconds.
     pub limit: i32,
     pub turn: TurnState,
-    /// `g_battlePhase != 0` — a battlefield is up and `Turn_Tick` is not called.
     pub battle: bool,
 }
 
 impl Frame {
-    /// This tick's frame, read off the game.
     pub fn of(game: &Game) -> Frame {
         let turn = if crate::turn::players_turn_ended(game) {
             TurnState::Ended
@@ -175,18 +127,12 @@ impl Frame {
     }
 }
 
-/// What one tick did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tick {
-    /// The count moved.
     Running,
-    /// **`Turn_End`.** The count went below zero on this tick.
     Expired,
-    /// The next turn is live and the count went back to the full limit.
     Restarted,
-    /// The person's turn is over and the turn is being run; phase 4 is not.
     Waiting,
-    /// A battlefield is up.
     Paused,
 }
 
@@ -200,20 +146,13 @@ pub struct TurnClock {
     started: bool,
     /// `DAT_005440C8`: whole seconds left, or [`EXPIRED`].
     remaining: i32,
-    /// `timeGetTime() - _DAT_00568D9C`, counted in ticks. Signed, because a
-    /// fought battle rebases it and the rebase can put it before zero.
     elapsed_ms: i64,
     /// `DAT_0055403C > 1`: a `Turn_End` has happened and the count has not yet
     /// been restarted for the turn after it.
     restart_pending: bool,
     /// `DAT_0053E994`, while a battlefield is up.
     battle_saved: Option<i32>,
-    /// The previous tick's [`TurnState::Ended`], so the edge into a turn — which
-    /// is always a `Turn_End` — is seen once.
     was_ended: bool,
-    /// **`Turn_End`, asked for by the clock and not yet carried out.** The map
-    /// is the only screen that can start a turn; see
-    /// [`crate::screen::Machine::update`].
     end_turn: bool,
 }
 
@@ -221,7 +160,6 @@ pub struct TurnClock {
 mod tests {
     use super::*;
 
-    /// Ticks in `ms` milliseconds, as the clock counts them.
     fn ticks_for(ms: u32) -> u32 {
         ms.div_ceil(crate::TICK_MS)
     }
@@ -238,9 +176,6 @@ mod tests {
         last
     }
 
-    /// **A thirty-second limit runs out when thirty-one seconds have passed**,
-    /// and `0` is a whole second in which nothing is drawn and nothing ends.
-    ///
     /// `DAT_005440C8 = limit - elapsed / 1000` goes 30, 29 … 1, 0, and the test
     /// is `< 0`; the draw's is `0 < DAT_005440C8`. The tick numbers are
     /// written out: with 16
@@ -272,15 +207,10 @@ mod tests {
     /// `Screen_FrameInput`'s twenty-seven guard sites close their screen for the
     /// **whole turn in between**, not for the one frame the clock ran out on.
     ///
-    /// `Machine::run_turn_clock` tested [`TurnClock::end_turn_pending`], which
-    /// is raised only by the clock and is taken by the map as soon as the map is
-    /// on top; both differences are asserted here.
-    ///
     /// **Ablation, run:** make `force_close` return `self.end_turn` and the
     /// first block goes red at once — ending the turn by hand raises no request.
     #[test]
     fn the_force_close_latch_stands_for_the_whole_turn_and_not_only_for_the_request() {
-        // 1 — ended by hand, with no limit at all, so the clock raises nothing.
         let mut c = TurnClock::default();
         assert_eq!(c.tick(players(0)), Tick::Running);
         assert!(!c.force_close(), "a live turn closes nothing");
@@ -289,17 +219,13 @@ mod tests {
         assert!(c.force_close(), "Turn_End writes DAT_0055403C whichever door it came through");
         assert!(!c.end_turn_pending(), "and it is NOT the clock's request: there is no limit");
 
-        // 2 — and it stands for every frame of the turn that follows.
         assert_eq!(run(&mut c, ended, 500), Tick::Waiting);
         assert!(c.force_close(), "still standing 500 ticks into the turn");
 
-        // 3 — cleared by the restart, on the first live frame and not before.
         assert_eq!(c.tick(players(0)), Tick::Restarted);
         assert!(!c.force_close(), "Turn_Tick's restart is the one writer that clears it");
     }
 
-    /// No limit is `g_optTimeLimit == 0`: the countdown's guard fails, nothing is
-    /// drawn and nothing ends, however long the person sits there.
     #[test]
     fn no_limit_never_counts_and_never_ends_a_turn() {
         let mut c = TurnClock::default();
@@ -308,15 +234,12 @@ mod tests {
         assert_eq!(c.value(0, false, false), None);
     }
 
-    /// **The count is up during the person's own turn, frozen while his ended
-    /// turn runs, and back at the full limit when the next one is live.**
     #[test]
     fn the_count_restarts_when_the_next_turn_is_live_and_not_before() {
         let mut c = TurnClock::default();
         run(&mut c, players(60), ticks_for(10_000));
         assert_eq!(c.value(60, false, false), Some(50));
 
-        // End Turn with 50 left: the turn runs for four seconds.
         let ended = Frame { turn: TurnState::Ended, ..players(60) };
         assert_eq!(run(&mut c, ended, ticks_for(4_000)), Tick::Waiting);
         assert_eq!(c.value(60, true, false), Some(50), "frozen at the click, and still drawn");
@@ -325,41 +248,26 @@ mod tests {
         assert_eq!(c.value(60, false, false), Some(60));
     }
 
-    /// **`B99`: the countdown runs before the restart.**
-    ///
-    /// The start is not moved while the ended turn runs, so the first frame of
-    /// the next turn computes `limit - (time he took + time the turn took)`. If
-    /// that is below zero the same frame calls `Turn_End` — on a counter
-    /// `Turn_BeginPlayersTurn` has just set to 0 — and the restart clause, which
-    /// comes after it, then sees `aiStep == 999` and does nothing. The next turn
-    /// is over before the person has seen it.
     #[test]
     fn a_turn_ended_early_hands_its_running_time_to_the_next_turn() {
         let ended = |limit| Frame { turn: TurnState::Ended, ..players(limit) };
 
-        // Twenty seconds of thinking and ten of turn: 30 s, which is not < 0.
         let mut c = TurnClock::default();
         run(&mut c, players(30), ticks_for(20_000));
         run(&mut c, ended(30), ticks_for(10_000));
         assert_eq!(c.tick(players(30)), Tick::Restarted);
 
-        // Twenty and twelve: 32 s, and the next turn ends on its first frame.
         let mut c = TurnClock::default();
         run(&mut c, players(30), ticks_for(20_000));
         run(&mut c, ended(30), ticks_for(12_000));
         assert_eq!(c.tick(players(30)), Tick::Expired, "the countdown runs first");
         assert!(c.end_turn_pending());
 
-        // That turn runs; the one after it gets the full limit back, because
-        // the count is -1 and only the restart clause is left to run.
         run(&mut c, ended(30), 10);
         assert_eq!(c.tick(players(30)), Tick::Restarted);
         assert_eq!(c.value(30, false, false), Some(30));
     }
 
-    /// `Battle_Start` saves the count plus ten and `Battle_ReturnToCampaign(1)`
-    /// rebases the start on it, so a fought battle costs no time and gives ten
-    /// seconds back.
     #[test]
     fn a_fought_battle_stops_the_count_and_gives_ten_seconds_back() {
         let mut c = TurnClock::default();
@@ -388,8 +296,6 @@ mod tests {
         assert_eq!(c.value(240, false, false), Some(138));
     }
 
-    /// **An idle battle is still the person's own turn.** The prompt is a
-    /// screen, `g_battlePhase` is 0 under it, and the count goes on.
     #[test]
     fn the_count_runs_under_a_battle_prompt_raised_on_an_ordinary_frame() {
         let mut c = TurnClock::default();
@@ -398,10 +304,6 @@ mod tests {
         assert!(c.end_turn_pending());
     }
 
-    /// The table's zeroes, spot-checked against what each screen is: the map,
-    /// the village, the county panels and the court are drawn over; the
-    /// diplomacy page, the armoury, both battle screens and the setup pages
-    /// are not. `docs/draws-map.md` §5.6.
     #[test]
     fn the_timer_is_drawn_over_the_map_and_its_insets_and_not_over_the_pages() {
         use crate::screens::county::Panel;

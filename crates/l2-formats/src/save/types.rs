@@ -4,12 +4,6 @@ use super::*;
 
 
 /// One realm's view of one other realm — realm `+0x84 + other * 0x10`.
-///
-/// **Read out of the file's own bytes
-/// `l2_kingdom::realm::Pair`.** The stride and the five offsets come from the
-/// original's access pattern; the two structures agreeing is then evidence,
-/// where building one from the other would have proved only that we ported our
-/// understanding twice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct DiploPair {
     /// `+0x00` — the standing, `Diplo_Init`'s 5 for an in-play AI and 0 for a
@@ -34,7 +28,6 @@ pub struct DiploPair {
     pub help_price_multiple: u8,
 }
 
-/// A realm as the England turn-one fixture holds it. Index 0 is never a realm.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Realm {
     pub index: usize,
@@ -45,6 +38,7 @@ pub struct Realm {
     pub is_human: bool,
     pub lord: u8,
     /// `+0x0A` — which shield and flag colour this realm flies.
+    ///
     /// `Game_SetupRealmsAndCounties` initialises it to the realm id,
     /// game has `shield_index == index`; a custom game's colour picker
     /// (`0x0049CE1F`, a free-slot pool) permutes it, which is the only case
@@ -64,12 +58,10 @@ pub struct Realm {
     pub wood: i32,
     pub weapons: [i32; WEAPON_TYPES],
     /// `+0x84 + other * 0x10` — this realm's view of each other realm.
-    /// Index 0 is unused, matching the realm array.
     pub pairs: [DiploPair; REALM_RECORDS],
 }
 
 impl Realm {
-    /// A realm somebody is playing. Realm 0 is an array slot.
     pub fn in_play(&self) -> bool {
         self.index != 0 && self.strength != 0
     }
@@ -90,9 +82,6 @@ impl Realm {
 /// * `Player_SetHuman` writes it only when the caller passes something other
 ///   than `999`, which is the single-player sentinel;
 /// * `Net_ReadField(&DAT_00553d50 + realm * 0x2c, 4)` puts it on the wire.
-///
-/// So every single-player save has it zero in all six slots, which is what the
-/// eleven fixtures and the installs' own saves show.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Player {
     pub index: usize,
@@ -113,23 +102,15 @@ pub struct Player {
 }
 
 impl Player {
-    /// The name as text, stopping at the terminator the way every reader in the
-    /// binary does.
-    ///
-    /// The trailing spaces a typed name is padded with are kept: the original
-    /// draws the bytes it stored.
     pub fn name(&self) -> String {
         self.name.iter().take_while(|b| **b != 0).map(|b| *b as char).collect()
     }
 
-    /// Whether anything ever wrote a name here. Slot 0 never has one.
     pub fn is_named(&self) -> bool {
         self.name[0] != 0
     }
 }
 
-/// One `g_units` record: an army, a peasant mob, a merchant or a transport.
-///
 /// **They are one array on purpose.** The type byte at `+0x08` is the only
 /// thing that tells them apart, and three offsets carry a different field per
 /// type — `+0x14F` is an army's name index and a merchant's route number,
@@ -213,20 +194,10 @@ pub struct Unit {
 }
 
 impl Unit {
-    /// A slot that holds a unit. `Unit_Spawn` marks a free slot with owner 0,
-    /// and the type byte is 0 there too; both are tested
-/// half-cleared reads as free
-    /// would send to `Unit_TickNone`.
     pub fn is_live(&self) -> bool {
         self.index != 0 && self.owner != 0 && self.kind != 0
     }
 
-    /// The path steps that are live, **in travel order**.
-    ///
-    /// The original stores them backwards and counts `path_len` down to zero,
-    /// so entry `path_len − 1` is the next tile. Reversed here because that is
-    /// the order anything walking them wants, and the reversal is the whole of
-    /// the difference.
     pub fn path(&self) -> Vec<(u8, u8)> {
         let n = (self.path_len as usize).min(UNIT_PATH_STEPS);
         self.path[..n].iter().rev().copied().collect()
@@ -249,7 +220,6 @@ impl Unit {
         self.tile_of_offset() == Some((self.x, self.y))
     }
 
-    /// A merchant's route number — the same byte an army uses for its name.
     pub fn route(&self) -> u8 {
         self.name_index
     }
@@ -260,13 +230,10 @@ impl Unit {
     }
 }
 
-/// The scalars `Save_Write` stores outside `g_counties` and `g_realms`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Globals {
     pub county_count: i32,
     pub scenario_index: i32,
-    /// `g_localPlayer` — the realm a person is driving. **1** in the shipped
-    /// save, which owns county 8 and nothing else.
     pub local_player: i32,
     pub season: i32,
     pub season_next: i32,
@@ -278,7 +245,6 @@ pub struct Globals {
     pub opt_advanced_farming: i32,
     pub opt_armies_eat: i32,
     pub opt_exploration: i32,
-    /// `g_optTimeLimit` — **seconds**, not the drop-down's index. 0 is no limit.
     pub opt_time_limit: i32,
     /// `0x0053F268` — **how many AI lords the game was started with.**
     ///
@@ -293,15 +259,9 @@ pub struct Globals {
     pub weather_county: i32,
 }
 
-/// A county as the England turn-one fixture holds it.
-///
-/// Only fields whose meaning is established in `docs/kingdom.md` are read. The
-/// record is `0x300` bytes and most of it is still unnamed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct County {
     pub index: usize,
-    /// Realm number, or 0 for unowned. **Not** a human/AI flag — the shipped
-    /// save has five owned counties, one for each of realms 1 to 5.
     pub owner: u8,
     pub health_band: i8,
     pub health_meter: i8,
@@ -365,15 +325,12 @@ pub struct County {
 }
 
 impl County {
-/// The neighbour ids present, in stored order.
     pub fn neighbours(&self) -> &[u8] {
         &self.neighbours[..(self.neighbour_count as usize).min(NEIGHBOUR_SLOTS)]
     }
 }
 
 impl County {
-/// Records 0, 15 and 16 are array slots: zero
-    /// population, zero everything.
     pub fn is_county(&self) -> bool {
         self.population > 0 || self.owner != 0
     }

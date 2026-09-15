@@ -18,10 +18,6 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
 
     let run = |quirks: Quirks| {
         let mut c = County::new();
-        // One person, the worst health band and no happiness, in Winter. Births:
-        // Pct(1, Pct(100, 25)) = 0, floored to 1. Deaths: Pct(1, 35 + 8) = 0,
-        // floored to 1, +2 for Diseased, and +1 because the scaled birth rate
-        // of 25 is below 43. So 1 + 1 − 4 = −2, and the `pop < 1` arm runs.
         c.population = 1;
         c.health_band = 0;
         c.happiness = 0;
@@ -37,8 +33,6 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
     assert_eq!(deaths_b, 1, "fixed: the one person who died");
 }
 
-/// **B16 has one face, and `docs/bugs.md` describes it.**
-///
 /// This test used to say the opposite — that the season a county loses its last
 /// person lands on, and the negative number only appears the season
 /// after, over a county that is already empty — and backed it with a survey that
@@ -50,10 +44,6 @@ fn b16_an_extinct_county_reports_negative_deaths_or_the_people_it_lost() {
 /// happiness has scaled it (C170), so at low happiness the extra
 /// person is a death and the county records a negative count on the season it
 /// dies — exactly B16's *"`deaths = pop` with `pop` already negative"*.
-///
-/// An empty county then goes on recording a negative number every season, and
-/// the fixed path never records one at all. The survey below is the old one
-/// turned round, so that the retraction is asserted.
 #[test]
 fn b16_the_negative_number_appears_on_the_season_the_county_dies() {
     let (faithful, fixed) = pair(Quirk::ExtinctCountyRecordsNegativeDeaths);
@@ -66,7 +56,6 @@ fn b16_the_negative_number_appears_on_the_season_the_county_dies() {
         l2_kingdom::population::update_one(T, &mut c, Season::Winter, quirks);
         c.deaths
     };
-    // Births floored to 1; deaths floored to 1, +2, +1: 0 + 1 − 4.
     assert_eq!(empty(faithful), -3, "reproduced: minus three people died in an empty county");
     assert_eq!(empty(fixed), 0, "fixed: nobody was there to die");
 
@@ -102,9 +91,6 @@ fn b16_the_negative_number_appears_on_the_season_the_county_dies() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// B17 — the AI unrest ladder has a dead band from happiness 1 to 10
-// ---------------------------------------------------------------------------
 
 /// **Every value in the band, not one of them.** C26 exactly: the dead band is
 /// ten inputs wide and a fixture that used only happiness 5 would say nothing
@@ -133,9 +119,6 @@ fn b17_an_ai_county_in_the_dead_band_is_frozen_or_climbs() {
     }
 }
 
-/// **The three rungs either side of the band are untouched.** A fix that moved
-/// the walk-down instead, or that widened the reset, would change these — and
-/// would be a third ladder belonging to neither setting.
 #[test]
 fn b17_the_rest_of_the_ai_ladder_is_identical_either_way() {
     let (faithful, fixed) = pair(Quirk::AiUnrestDeadBand);

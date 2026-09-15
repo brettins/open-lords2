@@ -1,20 +1,5 @@
-//! **The pointer click — when it sounds, and far more often, when it does not.**
-//!
 //! `Widget_Test` (`0x0040DA1E`) plays `Sound_RestartSlot(1)` — `click3.wav` —
 //! from inside the hit test, at exactly two sites `[V]`:
-//!
-//! ```c
-//! if (kind == 4) { if (g_mouseLeftPressed || g_mouseLeftDoubleClick) { Sound_RestartSlot(1); … call handler … }
-//!                  if (!g_mouseLeftDown) return 0;  … the auto-repeat: handler, NO sound … }
-//! if (kind == 5) { if (!(g_mouseLeftPressed || g_mouseLeftDoubleClick)) return 0;
-//!                  Sound_RestartSlot(1); rec[0x0D] = 0x14; return hit;   /* handler fires 20 frames later, silently */ }
-//! ```
-//!
-//! **A test that only checks that a click sounds cannot see the defect worth
-//! having a test for**: a spinner that clicks on every auto-repeat pulse is the
-//! same *"one reproduced trigger"* in `docs/audio.json` as one that clicks once,
-//! and it is thirty-three clicks a second in a player's ear. So most of this
-//! file is the silent cases:
 //!
 //! | gesture | original | asserted here |
 //! |---|---|---|
@@ -26,15 +11,7 @@
 //! | kinds 1 and 3 (`Hotspot_Test`) | silent | `the_hotspot_kinds_are_silent`
 //! | `Ui_OkButtonClicked` (`0x0040E7E4`) | silent | `the_ok_buttons_are_silent` |
 //!
-//! These drive [`Machine::handle`] and [`Machine::update`] and read
-//! [`Machine::clicks`], which is the wire `audio::Director` listens to. That the
-//! wire reaches a speaker is `tests/audio_wiring.rs`'s
-//! `a_widget_press_is_heard_once_and_a_hotspot_press_is_not`, which needs the
-//! install; nothing here does.
-//!
 //! # The ablations
-//!
-//! Each test names the change that turns it red, and each was run.
 
 use l2_game::game::Assets;
 use l2_game::input::{Event, Rect};
@@ -78,15 +55,6 @@ fn centre(r: Rect) -> (i32, i32) {
     (r.x + r.w / 2, r.y + r.h / 2)
 }
 
-/// **The spinner clicks once, however long it is held.**
-///
-/// The tax arrow is `g_taxWidgets` kind 4. The press clicks; the hold keeps
-/// stepping the tax on `REPEAT_GATE`'s ramp and every one of those steps goes
-/// through `Widget_Test`'s hold branch, which has no `Sound_RestartSlot` in it.
-///
-/// The repeat is asserted to have *happened* before its silence is asserted,
-/// because a hold that never repeated would pass the silence for free.
-///
 /// **Ablations, run:** delete `self.click()` from `Press::press` and the first
 /// assertion goes red; add a `self.click()` on the fire path of `Press::tick`
 /// and the last one does.
@@ -110,18 +78,11 @@ fn the_spinner_clicks_once_however_long_it_is_held() {
     }
     assert!(steps >= 4, "the hold must have repeated for its silence to mean anything: {steps}");
     assert_eq!(m.clicks(), 1, "{steps} auto-repeat pulses, and the original plays nothing on any of them");
-    // And letting go does not smuggle one out. A click counted on the hold but
-    // not carried by the tick would be drained by the next event — so this is
-    // the half that sees it wherever it was counted.
     send(&mut m, &mut g, &a, Event::Release { x: up.0, y: up.1 });
     tick(&mut m, &mut g, &a);
     assert_eq!(m.clicks(), 1, "the release produced a click the hold had been holding");
 }
 
-/// **A double click is a press for kind 4, so it clicks.** Windows sends
-/// `WM_LBUTTONDBLCLK` *instead of* the second `WM_LBUTTONDOWN`, and
-/// `Widget_Test` tests `g_mouseLeftPressed || g_mouseLeftDoubleClick` in front of
-/// the sound — so a fast double click on a spinner is two clicks and two steps.
 #[test]
 fn a_double_click_on_a_spinner_is_a_second_click() {
     let (mut g, a) = world();
@@ -133,15 +94,6 @@ fn a_double_click_on_a_spinner_is_a_second_click() {
     assert_eq!(m.clicks(), 2);
 }
 
-/// **A press that closes its own screen is still heard.**
-///
-/// The message scroll's prompts are kind-4 widgets whose handler dismisses the
-/// window, so the screen that counted the click is popped *by the same event*.
-/// `Widget_Test` plays the sound before it calls the handler; ours reproduces
-/// that order by draining the count in `Machine::handle` before the transition
-/// is applied. A per-screen count summed over the live stack would lose exactly
-/// these presses — the ones that change what the player is looking at.
-///
 /// **Ablation, run:** take the count after `apply_at` instead of before it and
 /// this goes red — the screen is gone and its count with it.
 #[test]
@@ -163,17 +115,6 @@ fn a_press_that_closes_its_own_screen_is_still_counted() {
     assert_eq!(m.clicks(), 1, "the thumb that closed the window still clicked");
 }
 
-/// **A gauntlet clicks on the press and not when it acts.**
-///
-/// Kind 5's `Sound_RestartSlot(1)` is on the press; the handler runs out of the
-/// countdown loop twenty frames later and that loop plays nothing. Asserted on
-/// `Press` directly and through both of its entry points, because the
-/// diplomacy screen's six verb buttons call `Press::press_delayed` by hand
-///
-///
-/// **Ablation, run:** delete `self.click()` from `Press::press_delayed` and the
-/// two loud assertions go red; add one on `Press::tick`'s delayed fire and the
-/// silent one does.
 #[test]
 fn a_gauntlet_clicks_on_the_press_and_not_when_it_acts() {
     let table = [Widget::new(Rect::new(0, 0, 32, 32), Kind::Delayed)];
@@ -188,17 +129,12 @@ fn a_gauntlet_clicks_on_the_press_and_not_when_it_acts() {
     assert_eq!(fired, Some(0), "the handler ran twenty ticks on");
     assert_eq!(p.take_clicks(), 0, "and nothing sounded when it did");
 
-    // The hand-rolled entry point, as `DiplomacyScreen::handle` uses it.
     p.press_delayed(0);
     assert_eq!(p.take_clicks(), 1);
 }
 
-/// **`Hotspot_Test`'s three kinds are silent** — the majority of the interface.
-///
 /// `Hotspot_Test` (`0x0040E3EE`) has no `Sound_RestartSlot` anywhere in it,
 /// and `Widget_Test`'s own kind 2 arm is the toggle, which also plays nothing.
-/// Driven through the kinds' own gestures so that each one's handler provably
-/// ran: a silence that never fired would prove nothing.
 ///
 /// **Ablation, run:** make the `Kind::Press` arm of `Press::event` call the
 /// click and the first assertion goes red.
@@ -223,11 +159,6 @@ fn the_hotspot_kinds_are_silent() {
     assert_eq!(p.take_clicks(), 0, "kind 2 fired {pulses} more times and was silent throughout");
 }
 
-/// **The campaign sidebar is `Hotspot_Test` kind 1, and opening a screen from it
-/// is silent.** Through the machine,
-/// all — which is the point: a hotspot cannot click because it has no path to
-/// the only thing that counts.
-///
 /// **This one cannot be ablated from `press.rs`**, and that is a finding about
 /// the shape: `MapScreen` owns no `Press`, so no
 /// edit to the click's rule reaches it. What would turn it red is a screen
@@ -249,8 +180,6 @@ fn the_sidebar_opens_screens_without_a_sound() {
     assert!(opened >= 3, "the sidebar must actually have opened screens: {opened} of 5");
 }
 
-/// **`Ui_OkButtonClicked` is silent, and so is the message scroll's corner.**
-///
 /// The county panel's corner closes on the release (`Ui_OkButtonClicked`,
 /// `0x0040E7E4`, 26 call sites, no sound); the message scroll's corner closes
 /// on the press through `Msg_HandleInput`'s own 48 × 48 test,

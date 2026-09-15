@@ -7,7 +7,6 @@ use crate::packet::{Hello, Mismatch};
 use crate::transport::PeerId;
 
 impl Lobby {
-    /// Open a game. The host always takes the slot in its own [`Hello`].
     pub fn host(identity: Hello, name: impl Into<String>) -> Result<Lobby, LobbyError> {
         let name = check_name(name.into(), &Roster::default())?;
         let mut roster = Roster::default();
@@ -28,7 +27,6 @@ impl Lobby {
         })
     }
 
-    /// Prepare to join one. Nothing is sent until [`Lobby::greet`].
     pub fn join(identity: Hello, name: impl Into<String>) -> Result<Lobby, LobbyError> {
         let name = check_name(name.into(), &Roster::default())?;
         Ok(Lobby {
@@ -58,8 +56,6 @@ impl Lobby {
         self.started.as_ref()
     }
 
-    /// Queue our introduction. Clients only — a host introduces itself by
-    /// existing.
     pub fn greet(&mut self) -> Result<(), LobbyError> {
         if self.role != Role::Client {
             return Err(LobbyError::WrongRole);
@@ -74,7 +70,6 @@ impl Lobby {
         Ok(())
     }
 
-    /// Take the next message to send, or `None`.
     pub fn next_outgoing(&mut self) -> Option<Outgoing> {
         if self.outbox.is_empty() {
             None
@@ -83,7 +78,6 @@ impl Lobby {
         }
     }
 
-    /// Say whether we are ready. The host applies it locally; a client asks.
     pub fn set_ready(&mut self, ready: bool) -> Result<(), LobbyError> {
         if self.started.is_some() {
             return Err(LobbyError::AlreadyStarted);
@@ -108,7 +102,6 @@ impl Lobby {
         Ok(())
     }
 
-    /// Host only. Begin, if everyone is ready.
     pub fn start(&mut self) -> Result<Start, LobbyError> {
         if self.role != Role::Host {
             return Err(LobbyError::WrongRole);
@@ -128,7 +121,6 @@ impl Lobby {
         Ok(start)
     }
 
-    /// A peer's connection dropped.
     pub fn peer_left(&mut self, peer: PeerId) -> LobbyEvent {
         if let Some(i) = self.seats.iter().position(|(p, _)| *p == peer) {
             let (_, slot) = self.seats.remove(i);
@@ -139,7 +131,6 @@ impl Lobby {
         LobbyEvent::Nothing
     }
 
-    /// Feed in a message that arrived from `peer`.
     pub fn receive(
         &mut self,
         peer: PeerId,
@@ -159,8 +150,6 @@ impl Lobby {
                 self.started = Some(start.clone());
                 Ok(LobbyEvent::Started(start))
             }
-            // A refusal is a message too: the host tells us why
-            // dropping the connection and leaving us to guess.
             (Role::Client, Message::Refused(reasons)) => Err(LobbyError::Incompatible(reasons)),
 
             _ => Err(LobbyError::WrongRole),
@@ -172,17 +161,6 @@ impl Lobby {
             return Err(LobbyError::AlreadyStarted);
         }
 
-        // Compatibility first, before any state changes, so a refused peer
-        // leaves no trace in the roster.
-        //
-        // `Mismatch::SameSlot` is deliberately dropped here, and it is the one
-        // thing in this function worth arguing about. `Hello::check` is written
-        // for a direct two-peer handshake, where nobody has the authority to
-        // move anyone, so a shared slot claim is fatal. A lobby *does* have that
-        // authority — it reseats the joiner below. Refusing instead would also
-        // be inconsistent: two clients both claiming slot 2 are already reseated
-        // without complaint, so refusing only the one that happened to collide
-        // with the host would be an accident of who opened the game.
         let mismatches: Vec<Mismatch> = self
             .identity
             .check(&join.hello)
@@ -208,9 +186,6 @@ impl Lobby {
             }
         };
 
-        // The claimed slot is honoured when free, otherwise the lowest free one
-        // is assigned. Honouring a claim keeps "player 2 reconnects into slot 2"
-        // working; falling back keeps two simultaneous joiners from colliding.
         let slot = if self.roster.get(join.hello.slot).is_none() {
             join.hello.slot
         } else {

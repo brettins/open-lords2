@@ -27,14 +27,9 @@ use l2_kingdom::tables::{
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-// ------------------------------------------------------------------- grain
 
-// -------------------------------------------------------------- blacksmith
 
-/// Our zero-based job 7, the blacksmith — `g_jobPanelJob == 8`.
 const JOB_BLACKSMITH: usize = 7;
-/// `g_weaponCost[5]` — armour, **4 wood and 18 iron**, the only row whose two
-/// costs differ enough to tell a transposed pair apart at a glance.
 const ARMOUR: usize = 5;
 /// `DAT_004D29C8[5]` — group 8's singular index for armour, whose plural at 29
 /// is *"Armour"* again.

@@ -14,23 +14,12 @@ const MERC_BANDS: u32 = 0x0056_8DC0;
 const MERC_STRIDE: u32 = 0x14;
 const MERC_IN_PLAY: u32 = 0x0055_4030;
 
-/// **Every mercenary band in every save reaches the kingdom holding the file's
-/// walk, and every county's offer is `Mercenary_OfferInCounty` over it.**
-///
-/// A loaded game used to have no bands in play at all, so the raise-army screen
-/// never offered one and the town square never showed one. The comparison is
-/// the kingdom against the **bytes**, band by band, and two of the assertions
-/// are the table checking itself:
-///
 /// * a band that offered itself this season has **just reloaded its countdown
 ///   and stepped one past the county it stands in**, with no wrap — the tail of
 ///   `Mercenary_AdvanceAll`'s offer branch — which ties `+0x03`, `+0x04`,
 ///   `+0x06` and `+0x07` together on every offering band on disk;
 /// * county `+0x1AD` is the **lowest-numbered** unhired band offered there, and
 ///   `siege-old_turn.sav` puts bands 2 and 3 in county 1 at once.
-///
-/// **Ablation, run:** delete `k.campaign.mercenaries = self.mercenaries.clone()`
-/// from `Scenario::skeleton` and the in-play assertion fails on the first save.
 #[test]
 fn every_mercenary_band_reaches_the_kingdom_and_every_offer_is_its_cache() {
     let saves = saves!();
@@ -93,9 +82,6 @@ fn every_mercenary_band_reaches_the_kingdom_and_every_offer_is_its_cache() {
     );
 }
 
-/// The four one-End-Turn pairs on disk — `crates/l2-game/tests/differential.rs`
-/// establishes which files are a turn apart, and it is not the pairs their names
-/// suggest.
 const TURN_PAIRS: [(&str, &str); 4] = [
     ("safeturn.sav", "old_turn.sav"),
     ("old_turn.sav", "battle-before.sav"),
@@ -103,14 +89,6 @@ const TURN_PAIRS: [(&str, &str); 4] = [
     ("siege-old_turn.sav", "siege-lastturn.sav"),
 ];
 
-/// **One season of `Mercenary_AdvanceAll` over a save lands on the next save's
-/// band table and county offers, exactly.**
-///
-/// The strongest check the band import has, because nothing in it is ours
-/// agreeing with ours: the *after* table was written by the original a turn
-/// later. It covers all three walk branches on data — a band that only counts
-/// down, one that wraps past the last county, and one that offers itself (four
-/// offers across the pairs, including the two-band collision in county 1).
 #[test]
 fn one_season_of_the_mercenary_walk_lands_on_the_next_saves_table() {
     for (before, after) in TURN_PAIRS {
@@ -134,12 +112,8 @@ fn one_season_of_the_mercenary_walk_lands_on_the_next_saves_table() {
     }
 }
 
-/// A band whose constant fields disagree with the roster is refused: the kingdom
-/// keeps those in the roster, so importing the rest would price the band at a
-/// number the file does not hold.
 #[test]
 fn a_mercenary_band_that_disagrees_with_the_roster_is_refused() {
-    // Band 1's price, 1800 = 0x708: its low byte, one higher.
     refusal_over_every_save(
         |_| MERC_BANDS + MERC_STRIDE + 0x0C,
         0x09,
@@ -156,8 +130,6 @@ fn a_mercenary_band_offered_off_the_map_is_refused() {
     );
 }
 
-/// Slot 1 is a merchant in every save on the machine — the merchants take the
-/// low slots — and a merchant cannot carry a band.
 #[test]
 fn a_mercenary_band_hired_by_something_that_does_not_carry_it_is_refused() {
     refusal_over_every_save(
@@ -172,7 +144,6 @@ fn a_band_count_past_twelve_is_refused() {
     refusal_over_every_save(|_| MERC_IN_PLAY, 13, |_| ImportError::MercenaryBandCount(13));
 }
 
-/// The raise-army screen indexes the roster with the county's byte.
 #[test]
 fn a_county_offering_a_band_that_is_not_in_play_is_refused() {
     refusal_over_every_save(

@@ -11,7 +11,6 @@ use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 
 impl Unit {
-    /// A blank unit of a kind, at a tile, owned by a realm.
     pub fn new(kind: UnitKind, owner: u8, x: u8, y: u8) -> Unit {
         Unit {
             owner,
@@ -60,8 +59,6 @@ impl Unit {
         (self.x, self.y)
     }
 
-    /// Moves the unit has left this season, never negative — a trample can
-    /// overshoot the allowance and the panel would otherwise print a negative.
     pub fn moves_left(&self) -> i32 {
         (self.move_allowance - self.moves_used).max(0)
     }
@@ -70,15 +67,10 @@ impl Unit {
         self.garrison_county != 0
     }
 
-    /// The men in the band, or 0. Mercenaries are **already inside**
-    /// [`Unit::men`] — `Mercenary_Hire` adds them there — so this is not extra
-    /// strength, it is the part of the total that leaves in one piece.
     pub fn mercenary_men(&self) -> i32 {
         self.mercenaries.map_or(0, Mercenaries::men)
     }
 
-    /// The sprite bank `Army_Tick` picks: 0 under 301 men, 1 under 601, 2 above.
-    ///
     /// `[V]` on the thresholds and the arithmetic — the banks `0x48`, `0x60`格
     /// and `0x78` are 24 apart
     /// instructions are `CMP …, 300` / `CMP …, 600` with `JG`. **`[I]` that the
@@ -95,11 +87,8 @@ impl Unit {
         }
     }
 
-    /// **Which sprite sheet this unit is drawn from** — 0 for
-    /// `g_spriteSheetA` (`Sprite1a.pl8` / `Sprite2a.pl8`), 1 for
-    /// `g_spriteSheetB`.
-    ///
     /// `Map_DrawArmies` (`0x00408438`) makes this choice in one line:
+    ///
     /// `if (kind == 4) sheet = B;`. A merchant is drawn from **sheet A**, the
     /// same file as the armies — only a transport uses B. `[D]`
     pub fn sprite_sheet(&self) -> usize {
@@ -110,25 +99,8 @@ impl Unit {
     /// which the type's tick handler writes and `Map_DrawArmies` reads
     /// unmodified.
     ///
-    /// ```c
-    /// Army_Tick     / Mob_Tick:  frame = bank + 3 * ((facing + 1) & 7) + walk[phase];
-    /// Merchant_Tick / Transport_Tick: frame =  6 * ((facing + 1) & 7) + phase;
-    /// ```
-    ///
     /// with `walk` = `g_unitWalkFrames` (`0x004D6A78`) = `[0, 1, 2, 1]` and the
     /// merchant's `g_merchantWalkFrames` (`0x004D6AB8`) = `[0, 1, 2, 3, 4, 5]`.
-    /// The bank is [`SPRITE_BANKS`] by [`Unit::size_class`] for an army and
-    /// [`MOB_SPRITE_BANK`] for a mob; a merchant and a transport have no bank
-    /// at all, because their sheets hold nothing else.
-    ///
-    /// **The rotation is `facing + 1`, not `facing`** — all four handlers, and
-    /// `docs/screens.md` §5 had it as `3*facing`.
-    ///
-    /// The counts close against the shipped sheets: 8 facings × 3 walk frames =
-    /// 24, which is the spacing of the three army banks (`0x48`, `0x60`,
-    /// `0x78`) and of the mob's `0x90`; 8 × 6 = 48, which is exactly the
-    /// 40 × 32 run at the front of `Sprite1a.pl8` and the whole of
-    /// `Sprite1b.pl8`.
     pub fn sprite_frame(&self, phase: usize) -> usize {
         let dir = ((self.facing as usize) + 1) & 7;
         match self.kind {
@@ -162,10 +134,6 @@ impl Unit {
     /// Single player. The network game's `+4` would make it `+0x149 / 4`, and
     /// that step is not selectable yet — see
     /// [`SUBTILE_STEP_NET`](crate::tables::SUBTILE_STEP_NET).
-    ///
-    /// **No rule reads it.** The four tick handlers turn it into the figure's
-    /// frame through [`UNIT_WALK_FRAMES`] or [`MERCHANT_WALK_FRAMES`] — see
-    /// [`Unit::sprite_frame`] — and nothing else in the binary looks at it.
     pub fn walk_phase(&self) -> usize {
         usize::from(self.sub_tile / crate::tables::SUBTILE_STEP_SOLO)
     }
@@ -182,12 +150,6 @@ impl Unit {
     /// `Army_StrengthScore` (`0x004AB2AA`) — what the AI and the autocalc
     /// compare.
     ///
-    /// ```text
-    /// score = Σ troops[t] * weight[t]  +  band.men * weight[band.troop]
-    /// if (score < 1) score = 1; else score += 20;
-    /// ```
-    ///
-    /// **`docs/armies.md` §7 said *"+ 20 if non-zero"* and missed the floor.**
     /// An army with no men at all scores **1**, not 0, so "stronger than
     /// nothing" is never free: the AI's ratio comparisons cannot divide by
     /// zero, and there is a 20-point step between an empty army and an army of
@@ -207,9 +169,6 @@ impl Unit {
         }
     }
 
-    /// The sum of the seven counts plus the band. **Not** what any rule uses —
-    /// every rule reads [`Unit::men`] — but the invariant `Army_Create` and
-    /// `Army_Combine` maintain, and therefore worth being able to assert.
     pub fn troop_total(&self) -> i32 {
         self.troops.iter().sum::<i32>() + self.mercenary_men()
     }
@@ -218,17 +177,6 @@ impl Unit {
     /// seven counts, but **only from a count that exceeds
     /// [`DESERTION_MIN_TROOPS`]**, and subtract the same total from
     /// [`Unit::men`].
-    ///
-    /// The floor is what stops a starving army from vanishing: ten men of a
-    /// type never desert, so an army of seven tens shrinks to nothing slowly
-    /// and then stops. The same function is `docs/kingdom.md` §7.4's
-/// bankruptcy penalty, so it lives on the record
-    /// [`starve`].
-    ///
-    /// Returns the men lost.
-    ///
-    /// [`DESERTION_PCT`]: crate::tables::DESERTION_PCT
-    /// [`DESERTION_MIN_TROOPS`]: crate::tables::DESERTION_MIN_TROOPS
     pub fn desert(&mut self) -> i32 {
         let mut lost = 0;
         for t in 0..TROOP_TYPES {

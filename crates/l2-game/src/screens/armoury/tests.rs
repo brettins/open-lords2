@@ -15,9 +15,6 @@ use crate::widget;
 mod tests {
     use super::*;
 
-    /// The eight racks are a row: same sprite y, same number y, and the eight
-    /// sprite x's are strictly increasing once sorted — which is the check that
-    /// the slot-to-x scramble in [`RACKS`] is a scramble and not a typo.
     #[test]
     fn the_racks_are_one_row_across_the_bottom_of_the_screen() {
         let mut xs: Vec<i32> = RACKS.iter().map(|r| r.1).collect();
@@ -31,15 +28,11 @@ mod tests {
         }
         assert!(xs[7] + 76 <= 640, "the last rack runs off the screen");
 
-        // Read left to right the frames are 6, 7, 8, 9, 10, 11, 12, 13: the
-        // sheet's own order, which is what makes the slot column the odd one.
         let mut by_x: Vec<(i32, usize)> = RACKS.iter().map(|r| (r.1, r.0)).collect();
         by_x.sort_unstable();
         assert_eq!(by_x.iter().map(|p| p.1).collect::<Vec<_>>(), vec![6, 7, 8, 9, 10, 11, 12, 13]);
     }
 
-    /// Slot 7 is in the table and the painter never reaches it. If somebody
-    /// "fixes" the loop bound, this says what they changed.
     #[test]
     fn the_totals_rack_is_dead_code_in_the_original() {
         assert_eq!(RACKS_DRAWN, 7, "FUN_004181EB's guard is `if (6 < i) return`");
@@ -47,8 +40,6 @@ mod tests {
         assert!(RACKS_DRAWN < RACKS.len(), "the last record is never drawn");
     }
 
-    /// Every hotspot names a real troop type, the six between them name all six
-    /// weapon types once, and each sits under the rack it opens.
     #[test]
     fn each_rack_hotspot_covers_the_rack_it_opens() {
         let mut seen: Vec<u8> = RACK_HOTSPOTS.iter().map(|h| h.4).collect();
@@ -62,16 +53,11 @@ mod tests {
         }
     }
 
-    /// The three boxes do not overlap each other, do not overlap the racks, and
-    /// each contains the label the painter centres inside it. Three
-    /// wrong-screen bugs have reached this player through a near-miss on a hit
-    /// box; this is the one for these three.
     #[test]
     fn the_three_buttons_are_disjoint_and_hold_their_own_labels() {
         let boxes = [CREATE_BOX, CHANGE_BOX, CANCEL_BOX];
         for (i, a) in boxes.iter().enumerate() {
             assert!(a.x + a.w <= 640 && a.y + a.h <= 480, "button {i} is off screen");
-            // The label's hundred-pixel column starts inside the box.
             assert!(a.x <= LABEL_X && LABEL_X < a.x + a.w, "button {i}'s label starts outside it");
             assert!(a.y <= LABEL_Y[i] && LABEL_Y[i] < a.y + a.h, "button {i}'s label is not in it");
             for (j, b) in boxes.iter().enumerate().skip(i + 1) {
@@ -87,15 +73,10 @@ mod tests {
                 );
             }
         }
-        // 0x21E + 100 runs two pixels past the screen; the boxes stop at 634,
-        // which is `Ui_DrawCentred` being given a column wider than the room
-// that is left.
         assert_eq!(LABEL_X + LABEL_W - 640, 2, "the painter's column overhangs by two");
         assert_eq!(CREATE_BOX.x + CREATE_BOX.w, 634, "and the hotspot stops short of it");
     }
 
-    /// The four buttons are inside the rack window, in a row, and none of them
-    /// touches the corner picture that closes it.
     #[test]
     fn the_four_rack_buttons_are_inside_the_window_and_clear_of_the_ok() {
         let w = rack_window();
@@ -119,8 +100,6 @@ mod tests {
         assert_eq!(BUTTONS[0], Button::EquipOne, "and record 0's body is the plus");
     }
 
-    /// Every wall position is on the screen, and the six of them are the six
-    /// weapon slots in order.
     #[test]
     fn the_weapons_on_the_walls_are_six_and_in_slot_order() {
         for (slot, &(frame, x, y)) in WALL.iter().enumerate() {
@@ -129,7 +108,6 @@ mod tests {
         }
     }
 
-    /// The item sheets are five colours in six slots, and slot 0 is slot 1.
     #[test]
     fn a_realm_with_no_banner_gets_the_same_sheet_as_realm_one() {
         assert_eq!(items_sheet(0), items_sheet(1));

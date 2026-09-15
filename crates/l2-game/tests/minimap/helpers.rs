@@ -27,15 +27,12 @@ pub(crate) fn draw(screen: &mut MapScreen, game: &mut Game, assets: &Assets) -> 
     canvas
 }
 
-/// Click one of the four buttons in the strip beside the minimap.
 pub(crate) fn click(screen: &mut MapScreen, game: &mut Game, assets: &Assets, button: usize) {
     let r = MINIMAP_MODE_BUTTONS[button];
     let mut ctx = Ctx { game, assets };
     screen.handle(Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
 }
 
-/// The distinct colours drawn over the land pixels of the counties in `want` —
-/// shades 11..=13 only, so the selected county's `0x20` never enters.
 pub(crate) fn land_colours(canvas: &Canvas, m: &Minimap, want: &BTreeSet<u8>) -> BTreeSet<u8> {
     let mut seen = BTreeSet::new();
     for y in 0..MINIMAP_DIM {
@@ -50,7 +47,6 @@ pub(crate) fn land_colours(canvas: &Canvas, m: &Minimap, want: &BTreeSet<u8>) ->
     seen
 }
 
-/// The counties in the raster whose `band` — one of the three ratings — is `b`.
 pub(crate) fn with_band(
     game: &Game,
     m: &Minimap,
@@ -63,7 +59,6 @@ pub(crate) fn with_band(
         .collect()
 }
 
-/// Every county id that has land pixels in this raster.
 pub(crate) fn counties_in_raster(m: &Minimap) -> Vec<u8> {
     let mut ids: Vec<u8> = m
         .counties
@@ -78,16 +73,12 @@ pub(crate) fn counties_in_raster(m: &Minimap) -> Vec<u8> {
     ids
 }
 
-/// Give the local player every county, and put each one in a known state so a
-/// band is reached on purpose.
 pub(crate) fn hand_the_player_everything(game: &mut Game) -> Vec<usize> {
     let ids: Vec<usize> = (1..=game.kingdom.county_count as usize).collect();
     for &id in &ids {
         let player = game.player;
         let c = &mut game.kingdom.counties[id];
         c.owner = player;
-        // Fed, and neither short of workers nor carrying any slack, so every
-        // rating but the one a test sets is the "draw nothing" band 6.
         c.ration_achieved = 3;
         c.ration_wanted = 3;
         c.labour = [0; JOB_COUNT];

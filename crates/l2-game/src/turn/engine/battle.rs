@@ -15,9 +15,6 @@ use l2_kingdom::{Kingdom, SeasonReport};
 use crate::engagement::{self, Answer, BattleReport, SiegePhase};
 use crate::game::Game;
 
-/// File a settled battle: recount the losing realm, then onto the turn's list
-/// and onto the one screen `0x13` has still to show.
-///
 /// **The recount is `Realm_RecountStrength` (`0x0049B42B`), the last statement
 /// of both of `Battle_ReturnToCampaign`'s branches**, and it is one of only
 /// four places in the original where a realm can be eliminated — the only one
@@ -33,9 +30,6 @@ use crate::game::Game;
 /// called it from either. `docs/decisions.md` C71.
 pub(crate) fn record(game: &mut Game, report: Option<BattleReport>) {
     let Some(report) = report else { return };
-    // `County_ChangeOwner`'s letters. They are posted inside
-    // `Battle_ReturnToCampaign`, before the `Realm_RecountStrength` at its
-    // bottom,
     crate::arrival::post_captures(game, &report.aftermath.captures);
     game.recount_realm(report.aftermath.loser_owner);
     if let Some(p) = game.turn.as_mut() {
@@ -44,7 +38,6 @@ pub(crate) fn record(game: &mut Game, report: Option<BattleReport>) {
     }
 }
 
-/// The unit sweep raised a battle: ask about it, or fight it now.
 pub(super) fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
     let settlement = l2_kingdom::battle::settlement(
         &game.kingdom.campaign.units,
@@ -66,7 +59,6 @@ pub(super) fn raise_battle(game: &mut Game, e: Encounter, interactive: bool) {
     );
 }
 
-/// Read the two records into a [`Question`] while both still exist.
 pub(crate) fn question_for(
     game: &Game,
     attacker: usize,
@@ -84,25 +76,11 @@ pub(crate) fn question_for(
         })
     };
     let (attacker_owner, attacker_men, besieged, a_human, attacker_roster) = read(attacker);
-    // The defender's `ownerIsHuman` is deliberately **not** read:
-    // `Battle_ChooseSettlement` never looks at it, and reading it is what the
-    // paraphrase below replaced got wrong.
     let (defender_owner, defender_men, _, _, defender_roster) = read(defender);
     let county = if is_siege { besieged } else { units.get(defender).map_or(0, |u| u.county) };
     // **`g_battleChoiceOwner`**, and this is `Battle_ChooseSettlement`
 // (`0x004A6A30`), because the paraphrase was
     // wrong in the one case that mattered:
-    //
-    // ```c
-    // g_battleChoiceOwner = 0;
-    // if (units[armyA].owner == localPlayer) g_battleChoiceOwner = 1;
-    // if (units[armyB].owner == localPlayer)
-    //     g_battleChoiceOwner = units[armyA].ownerIsHuman ? 2 : 1;
-    // ```
-    //
-    // Two `if`s, not an `else if` chain, and **the B arm overrides the A arm**.
-    // Read it out loud: *a human defender attacked by an AI holds the choice
-    // himself.* Only two humans put the choice in the other man's hands.
     //
     // > **What this cost.** The version here tested `!d_human` where the
     // > original tests `!a_human`,
@@ -115,11 +93,8 @@ pub(crate) fn question_for(
     // > an AI could not end his turn.** It was unreachable until phase 2 could
     // > raise a siege prompt, which is the shape `docs/agents.md` C27 keeps
     // > describing: a defect nobody could get to is a defect nobody finds.
-    // > `docs/decisions.md` `C80`.
     //
-    // It is also the gate on every garrison verb there is: the defender's
-    // drawbridge button lives on the battlefield, and until this was right no
-    // besieged human could reach the battlefield at all.
+    // > `docs/decisions.md` `C80`.
     let me = game.player;
     let mut choice_owner = 0u8;
     if me == attacker_owner {
@@ -144,7 +119,6 @@ pub(crate) fn question_for(
     }
 }
 
-/// Settle the question on the table, whichever kind it is, and clear it.
 pub(crate) fn settle_question(game: &mut Game, q: Question, answer: Answer) {
     let Some(p) = game.turn.as_mut() else { return };
     p.question = None;
@@ -166,8 +140,6 @@ pub(crate) fn settle_question(game: &mut Game, q: Question, answer: Answer) {
     match engagement::resolve(&mut game.kingdom, attack, q.county, answer, seed) {
         Some(report) => record(game, Some(report)),
         None => {
-// Not resolvable — a slot is no longer a unit. Reported.
-            // swallowed,
             if let Some(p) = game.turn.as_mut() {
                 p.pending_battles.push(Encounter {
                     mover: q.attacker,

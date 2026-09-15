@@ -12,13 +12,6 @@ use l2_kingdom::tables::{health_band, Tables};
 use l2_kingdom::{Kingdom, Options};
 use l2_kingdom::tables::{Commodity, JOB_COUNT};
 
-/// The two ways one of these new rules can be impossible
-/// unbalanced, both refused at load with the file and line that wrote them.
-///
-/// `ale_step_pct` divides the population, so zero is a division by zero in
-/// `buy_ale`; a ninth rung is a ladder the
-/// simulation's array cannot hold. Neither is clamped, because a clamped rule
-/// is one a mod author cannot see failed.
 #[test]
 fn an_impossible_new_kingdom_rule_is_refused_with_the_line_that_wrote_it() {
     let refusal = |name: &'static str, rules: &str| -> String {

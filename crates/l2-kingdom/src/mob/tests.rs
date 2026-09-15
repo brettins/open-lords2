@@ -10,11 +10,6 @@ fn county(owner: u8, happiness: i32) -> County {
     c
 }
 
-/// **The ladder and both edges of each band.** 9/10 and 29/30 are the two
-/// comparisons; the letter is chosen on the happiness the mob found.
-///
-/// Ablation: swap `happiness < WRETCHED` for `<= WRETCHED` and the 10 row goes
-/// red; swap `< TROUBLED` for `<= TROUBLED` and the 30 row does.
 #[test]
 fn a_mob_says_one_of_three_things_by_the_moods_it_walked_into() {
     let cases: [(i32, u16, bool); 6] = [
@@ -40,8 +35,6 @@ fn a_mob_says_one_of_three_things_by_the_moods_it_walked_into() {
     }
 }
 
-/// The `owner == 0` branch: the county byte and nothing else.
-///
 /// Ablation: drop the `c.owner == 0` guard and this goes red.
 #[test]
 fn a_mob_crossing_into_neutral_land_says_nothing() {
@@ -50,9 +43,6 @@ fn a_mob_crossing_into_neutral_land_says_nothing() {
     }
 }
 
-/// The plain arm: ten off happiness, ten off the *"From events"* line, no
-/// unrest touched.
-///
 /// Ablation: drop the `shown_events -= HAPPINESS_TOLL` and the second column
 /// goes red; drop the toll and the first does.
 #[test]
@@ -65,10 +55,6 @@ fn the_calm_county_pays_ten_and_nothing_else() {
     assert_eq!((c.happiness, c.shown_events, c.unrest), (40, -3, 0));
 }
 
-/// The middle arm raises unrest to 1, and **only from 0** — a county already at
-/// 3 is left where it is.
-///
-/// Ablation: drop the `unrest == 0` test and the second row reads 1.
 #[test]
 fn the_troubled_county_is_put_on_unrest_one_but_never_pushed_further() {
     for (before, after) in [(0u8, 1u8), (1, 1), (3, 3)] {
@@ -80,13 +66,6 @@ fn the_troubled_county_is_put_on_unrest_one_but_never_pushed_further() {
     }
 }
 
-/// The wretched arm with **no** revolt — `County_RaiseRevolt` found nowhere to
-/// put a mob. Happiness is still below ten when the toll is re-read, so it
-/// floors: `shownEvents -= happiness`, `happiness = 0`. Unrest is untouched;
-/// only the revolt clears it.
-///
-/// Ablation: make the toll unconditional `-10` and happiness reads `-6`,
-/// `shown_events` `-10`.
 #[test]
 fn a_wretched_county_with_nowhere_to_revolt_is_floored_not_debited() {
     let mut c = county(2, 4);
@@ -97,13 +76,6 @@ fn a_wretched_county_with_nowhere_to_revolt_is_floored_not_debited() {
     assert_eq!((c.happiness, c.shown_events, c.unrest), (0, 0, 2));
 }
 
-/// **A revolt leaves the county happier than it found it.** Thirty on, then the
-/// re-read takes the `-10` arm: `happiness + 20`. And the
-/// unrest counter is cleared, the one write in the whole function that is not
-/// happiness.
-///
-/// Ablation: reuse the pre-revolt happiness for the toll test and this reads 0;
-/// drop `unrest = 0` and the third column reads 4.
 #[test]
 fn a_revolt_puts_thirty_back_and_the_toll_then_cannot_floor_it() {
     let mut c = county(2, 4);
@@ -115,12 +87,6 @@ fn a_revolt_puts_thirty_back_and_the_toll_then_cannot_floor_it() {
     assert_eq!((c.happiness, c.shown_events, c.unrest), (24, 14, 0));
 }
 
-/// **The trailing `happiness < 0` clamp cannot fire on a crossing**, and that
-/// is a finding: every arm that reaches it has either just
-/// set happiness to 0 or taken ten off a value of at least ten. A negative
-/// happiness is zeroed by the *floor* arm one statement earlier, and
-/// `shownEvents` is credited the negative it took away.
-///
 /// Ablation: drop the floor arm's `shown_events -= happiness` and the second
 /// assert goes red; the clamp itself has no probe because nothing can reach it.
 #[test]

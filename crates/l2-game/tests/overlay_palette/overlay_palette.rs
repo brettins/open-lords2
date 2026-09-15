@@ -12,8 +12,6 @@ use l2_sim::runner::{Army, BattleRunner};
 use l2_sim::Troop;
 use l2_view::Canvas;
 
-/// **Tip 209 over the raise-army screen.** `Tip_Update`'s `0x17` arm, twenty
-/// frames after the screen opens, the first time in a game.
 #[test]
 fn the_raise_army_screen_keeps_the_armourys_colours_behind_its_first_tip() {
     let a = assets!();
@@ -93,8 +91,6 @@ fn the_raise_army_screen_keeps_the_armourys_colours_behind_its_first_tip() {
     }
 }
 
-/// A live battle between a human (realm 1) and an AI (realm 2), paused, with
-/// both deployment markers on one screen.
 fn battle() -> LiveBattle {
     let mut layer = vec![0u8; l2_sim::terrain::CELLS];
     layer[36 * l2_sim::terrain::DIM + 40] = 0x04;
@@ -114,19 +110,6 @@ fn battle() -> LiveBattle {
     live
 }
 
-/// **A message that opens over the battlefield asks for the battlefield's
-/// palette.** The battlefield is one of `Msg_Pump`'s screens, so a notice still
-/// in the ring when a battle begins opens straight over it, and the scroll
-/// names no palette of its own.
-///
-/// **This one stops at the name, and why is a second defect, not this one.**
-/// `T32_bat1.256` is read into `Assets::battle` (`l2_view::scene::BattleAssets`)
-/// and **not** into the shell's palette map, which is the only place
-/// `Machine::present` looks — so the name resolves to nothing and the presenter
-/// falls back to the campaign palette for *every* battlefield frame, window or
-/// no window. That is the player's *"blue grainy madness"*, it predates this
-/// change, and it is left to the battlefield's own work. When it is fixed, this
-/// test should present and compare colours the way the one above does.
 #[test]
 fn a_message_that_opens_over_the_battlefield_asks_for_the_battlefields_palette() {
     let a = Assets::placeholder();
@@ -151,28 +134,11 @@ fn a_message_that_opens_over_the_battlefield_asks_for_the_battlefields_palette()
     );
 }
 
-/// **A screen change between drawing and presenting would flash one frame**,
-/// and the shell's guard is the only thing that stops it.
-///
-/// `main.rs` draws when `Machine::take_dirty` says something changed, asks the
-/// window to redraw, and presents when `RedrawRequested` comes back. Anything
-/// `winit` delivers in between — a click, a key — reaches `Machine::handle` and
-/// can change the page; `Machine::present` then reads the palette off the
-/// **live** stack while the canvas still holds the page before it. That is this
-/// file's defect in reverse: the old page's indices under the new page's
-/// colours.
-///
 /// `present` cannot be made to remember instead. `Screen::fade` and a film's
 /// `live_palette` both change **with no redraw at all** — the end-of-turn fade
 /// is entirely a palette effect (`FUN_004B0CB4`) — so a presenter that used the
 /// palette of the last draw would freeze both. The order is the fix, and it
 /// belongs where the order is.
-///
-/// Two halves, because the shell is a binary:
-///
-/// * the flash is **measured** here, on `Machine::present`;
-/// * the guard is read out of `main.rs`, the one artefact the application and
-///   this test share — as `tests/movies.rs` reads the start-up call.
 ///
 /// **Ablation:** delete the `take_dirty` guard from `App::present` and the
 /// second half goes red; make `Machine::present` ignore the live stack and the
@@ -199,7 +165,6 @@ fn a_page_change_between_the_draw_and_the_present_would_flash() {
     g.selected = 1;
 
     let mut m = Machine::new(ScreenId::Campaign);
-    // The frame the shell drew: the campaign map, in the campaign palette.
     let mut canvas = Canvas::screen();
     {
         let ctx = Ctx { game: &mut g, assets: &a };
@@ -208,13 +173,10 @@ fn a_page_change_between_the_draw_and_the_present_would_flash() {
     let mut drawn = vec![0u8; 640 * 480 * 4];
     m.present(&a, &canvas, &mut drawn);
 
-    // R between `request_redraw` and `RedrawRequested`: the levy window, which
-    // reads `Armoury.256`.
     send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('r')));
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)), "the page changed, the canvas did not");
     assert!(m.take_dirty(), "and the change marked the machine dirty - what the guard keys on");
 
-    // Presenting the same canvas now is the flash.
     let mut flashed = vec![0u8; 640 * 480 * 4];
     m.present(&a, &canvas, &mut flashed);
     let differing = PROBES.iter().filter(|&&p| shown(&drawn, p) != shown(&flashed, p)).count();
@@ -224,7 +186,6 @@ fn a_page_change_between_the_draw_and_the_present_would_flash() {
          so this test cannot see a flash"
     );
 
-    // And the guard is in the shell, where the order is.
     let main_rs = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs"),
     )

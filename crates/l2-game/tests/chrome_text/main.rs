@@ -1,15 +1,3 @@
-//! **The text a player looks at constantly**: the menu bar's clock and treasury,
-//! and the front end's title page.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test chrome_text
-//! ```
-//!
-//! Every assertion here is *install-gated on purpose*. The defect this file was
-//! written for is invisible without the real fonts: with no install every `Pen`
-//! method falls back to `l2_view::text` and a screen that never calls a `Pen` at
-//! all looks exactly like one that does. `docs/agents.md` — *five defects this
-//! week existed only against real assets*.
 
 
 use std::path::PathBuf;
@@ -61,16 +49,6 @@ pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) 
     canvas
 }
 
-/// Where a string drawn in `font` at `colour` sits on the canvas, by its exact
-/// pattern of set pixels.
-///
-/// **This is the whole instrument, and it is why these tests can be about the
-/// game's own fonts.** `screens.rs`'s `find_text` renders the probe in
-/// `l2_view::text`, our 5 × 7 font — so it can only ever find text drawn in
-/// *that* font, and a screen that switched to `Fntl2_14.pl8` would make it
-/// return `None` while looking like a missing draw call. Here the probe is
-/// rendered with the same [`Font`] the assertion claims drew it, so finding it
-/// **is** the claim "this was drawn in this face".
 fn find_in(canvas: &Canvas, f: &Font, s: &str, colour: u8) -> Option<(i32, i32)> {
     find_styled(
         canvas,
@@ -84,17 +62,11 @@ fn find_in(canvas: &Canvas, f: &Font, s: &str, colour: u8) -> Option<(i32, i32)>
     )
 }
 
-/// The same, for a string the painter draws with a [`Style`] of its own.
-///
 /// **The title page needs this and it is not a nicety.** `FUN_0041EA14` sets
 /// `DAT_0058FE2C` around the heading, which draws `A` … `Z` in **colour 1**
 /// instead of the caller's — so *"Lords of the Realm 2"* is two colours, and a
 /// probe that expects one finds nothing while the line is plainly on screen.
-/// Matching the probe's own per-pixel colours is the claim *"drawn in this
-/// face, in this mode"*, which is stronger than either half.
 fn find_styled(canvas: &Canvas, f: &Font, s: &str, style: &Style) -> Option<(i32, i32)> {
-    // Probe on 0, which no style below writes, and pad a row above and below so
-    // an embossed probe has somewhere to put its shadows.
     let w = f.width(s).max(1);
     let h = f.height(s).max(1) + 2;
     let mut probe = Canvas::new(w as usize, h as usize);
@@ -107,11 +79,6 @@ fn find_styled(canvas: &Canvas, f: &Font, s: &str, style: &Style) -> Option<(i32
     if wanted.is_empty() {
         return None;
     }
-    // **Inclusive on both bounds.** The build stamp sits with its last row two
-    // pixels off the bottom, which is exactly the offset an exclusive range
-    // cannot reach — the check reported the stamp missing while a screenshot
-    // showed it, which is a false negative in a test written to catch a false
-    // positive.
     for oy in 0..=(canvas.height as i32 - h) {
         'next: for ox in 0..=(canvas.width as i32 - w) {
             for &(x, y, c) in &wanted {
@@ -119,13 +86,10 @@ fn find_styled(canvas: &Canvas, f: &Font, s: &str, style: &Style) -> Option<(i32
                     continue 'next;
                 }
             }
-            // `+ 1` undoes the padding row, so the answer is the `y` the
-            // painter passed.
             return Some((ox, oy + 1));
         }
     }
     None
 }
 
-// ------------------------------------------------------- the menu bar's chrome
 

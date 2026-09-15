@@ -19,29 +19,8 @@ use l2_mods::Platform;
 use l2_view::village as vill;
 use l2_view::{campaign, Canvas};
 
-// --------------------------------------------------------------- a new game
 
-/// **A new England opens with its start counties staffed, forecasting, and
-/// with the mines the original leaves off, off.**
-///
-/// Through the setup page: England, *Start*. Three claims, each against the
-/// original.
-///
 /// 1. **The switches are `Game_SetupRealmsAndCounties`' loop** (`0x0049BD99`):
-///    `for (i = 0; i < 4; i++) if (i != 2 && hasResource[i]) { enabled[i] = 1;
-///    break; }` — one industry per start county, the first of wood, iron and
-///    stone, never the smithy and never a mine beside a forest. The map shows
-///    the same byte: every site is `base + enabled`.
-/// 2. **The person's county is `england-turn1.sav`'s person's county**, job for
-///    job, forecast for forecast. That save is the original's own turn one. Its
-///    seat is rolled, so the counties differ; the start row does not, and every
-///    number below came out equal. Before this change ours had **no foresters,
-///    155 idle, and all four forecasts zero**, because nothing had computed an
-///    industry ceiling before the opening season's `Labour_AllocateAll` —
-/// `Industry_ProduceAll`'s estimates were not ported
-///    herd went into `Herd_SeasonTick` unminded, because
-///    `Game_SetupRealmsAndCounties`' two allocation rounds were not either.
-/// 3. **The wood row draws it** on the first frame of the campaign.
 ///
 /// 4. **Every county's herd is the save's** — owned *and* unowned, as the
 ///    sorted multiset `(cattle ceiling, pasture, crowding, herd, people)`,
@@ -50,8 +29,6 @@ use l2_view::{campaign, Canvas};
 /// `0x0044D913`) and ours ran neither,
 ///    opening crowding 10 into the opening `Herd_SeasonTick` and bred at the
 ///    low-crowding rate: the person's came out 109 against the save's 101.
-///    Only the AI's were right, and by accident — `Ai_ManageFarmsAll` calls
-///    `Herd_UpdateCrowding` for its own counties.
 ///
 /// **The unowned counties used to come out at 44 head against the save's 67**,
 /// because they entered the tick with no cattle labour at all. What staffs them
@@ -71,14 +48,6 @@ use l2_view::{campaign, Canvas};
 /// over every county, which re-prices the season against the herd that survived
 /// `Herd_SeasonTick` (95 head in, 67 out, 13 eaten) and drops the ceiling from
 /// 386 to the save's 323. [`Pass::ArmyRecountTroops`].
-///
-/// **Ablations, four run.** Delete the `settle_start_county` loop from
-/// `Settings::apply_to`: red at claim 2 (280 cattle, 47 idle). Empty the
-/// estimates in `Kingdom::industry`: red at claim 2 (no foresters). Delete the
-/// `herd_update_crowding` call from `Settings::apply_to`: red at claim 4, our
-/// person's county 109 against the save's 101. Delete the
-/// `reset_county_for_new_game` loop from `Settings::apply_to`: red at claim 4,
-/// the nine unowned counties on 44 head against 67.
 #[test]
 fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     let assets = assets!();
@@ -91,7 +60,6 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         setup.update(&mut ctx);
     }
-    // England is row 0 of the map list.
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         setup.handle(Event::Click { x: MAP_LIST_X + 20, y: MAP_LIST_Y + MAP_LIST_ROW / 2 }, &mut ctx);
@@ -106,7 +74,6 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     );
     assert!(!game.kingdom.options.advanced_farming);
 
-    // 1 — the switches, the rule and the picture.
     let mut owned = 0;
     for id in game.kingdom.county_ids() {
         let c = &game.kingdom.counties[id];
@@ -128,7 +95,6 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     }
     assert_eq!(owned, 5);
 
-    // 2 — the person's county, against the original's person's county.
     let theirs = oracle
         .kingdom
         .county_ids()
@@ -149,8 +115,6 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     assert_eq!(o.grain_change_expected, t.grain_change_expected, "the grain forecast");
     assert_eq!(o.herd, t.herd, "the person's herd after the opening season");
 
-    // 4 — the cattle of **every** county, owned or not, as a sorted multiset
-    // because the seats are rolled.
     let cattle = |k: &l2_kingdom::Kingdom| {
         let mut rows: Vec<(i32, i32, i32, i32, i32)> = k
             .county_ids()
@@ -167,7 +131,6 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     assert_eq!(mine.len(), oracle.kingdom.county_ids().count(), "England's counties, owned and not");
     assert_eq!(mine, cattle(&oracle.kingdom), "(cattle ceiling, pasture, crowding, herd, people)");
 
-    // and the milkmaids and the idle with them, for **every** county.
     let staffed = |k: &l2_kingdom::Kingdom| {
         let mut rows: Vec<(i32, i32)> = k
             .county_ids()
@@ -181,7 +144,6 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     };
     assert_eq!(staffed(&game.kingdom), staffed(&oracle.kingdom), "(milkmaids, idle) every county");
 
-    // 3 — drawn.
     let wood = t.industry[Commodity::Wood.index()].next_season;
     assert!(wood > 0, "the original's person forecasts wood on turn one");
     game.select(ours as u8);
@@ -190,10 +152,7 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
     assert!(drawn_in_row(&canvas, &assets, wood, 0, 1), "the wood row draws the original's +{wood}");
 }
 
-// ------------------------------------------------------------ the switch
 
-/// **Switching a smithy on redraws every other smithy of the realm.**
-///
 /// `Industry_ToggleFromMap` (`0x0043D309`) ends with `FUN_00448648(owner)`,
 /// `Industry_LabourEstimate(c, weapons)` over every county the realm holds —
 /// the Readme's *"turning a blacksmith on will reduce the resources available
@@ -201,22 +160,11 @@ fn a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one() {
 /// clicked county only, so the other smithy kept a ceiling and a forecast
 /// computed from a stockpile it no longer had to itself.
 ///
-/// `siege-lastturn.sav`: the person holds counties 1, 2 and 3 with every smithy
-/// off and 50 iron. Press county 2's smithy on the map, then county 1's.
-/// The claim is **idempotence**: after the second press, county 2's weapons
-/// figures are already what a fresh `Industry_LabourEstimate` gives — and they
-/// are not what they were after the first, so the claim is not vacuous.
-///
-/// **What moves on this save is the ceiling, not the forecast**, measured:
 /// county 2's useful blacksmiths halve from 180 to 90 and its forecast is 4
 /// either side, because four is what its own staffing makes before either
 /// quota binds. The ceiling is what `FUN_004106C4` draws the row's ringed
 /// frame from (`useful < workers`), and what the season's allocation obeys. The
 /// forecast is still checked on the canvas.
-///
-/// **Ablation, run:** delete `self.refresh_blacksmiths(owner)` from
-/// `Kingdom::toggle_industry` — red at the idempotence assertion, `(90, 4)`
-/// fresh against `(180, 4)` stale.
 #[test]
 fn switching_one_smithy_on_redraws_the_realms_other_smithy() {
     let assets = assets!();
@@ -275,7 +223,6 @@ fn switching_one_smithy_on_redraws_the_realms_other_smithy() {
     );
     assert_ne!(now, first, "county 1's smithy took nothing from county 2's, so this proves nothing");
 
-    // Drawn, on county 2's sidebar.
     game.select(2);
     let rows = county_screen::industry_rows(&game.kingdom.counties[2]);
     let row = rows.iter().position(|&s| s == 7).expect("the smithy row is listed");

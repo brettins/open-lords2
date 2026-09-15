@@ -23,32 +23,11 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-// --- a unit walking across a tile, and the balls in front of it ---------------
-//
-// A player, on build `A5B112C2B`: *"The army marching animation is jumping from
-// square to square, I remember there being an animation and some interpolation
-// between walking squares."* And on `73DF34969`: *"The balls of the army
-// movement are missing the gold ball of action, it's just a grey ball like I
-// can't get there when I attack a town."*
-//
 // Every expected number below is a literal out of `Lords2.exe` — the walk
 // tables at `0x004D8108`/`0x004D8188` and `0x004D8308`/`0x004D8388`,
 // `g_unitWalkFrames`, `Map_DrawPathMarker`'s `(0x14, 6)` and `0x4E` — and none
 // is computed from the constant it is checking.
-//
-// **Ablations, run on this branch** — each line changed, and what went red:
-//
-// | changed | red |
-// |---|---|
-// | `walk: (0, 0)` in `map.rs`'s `unit_sprite` | `a_marching_army_…` at tick 1 |
-// | `UnitFrames::frame` always answering from the record (no one-tick lag) | `a_marching_army_…` at tick 1 (75 → 81) |
-// | `sprite_frame(0)` for `walk_phase()` in `UnitFrames::written` | `a_marching_army_…` at tick 6 (82 → 81) |
-// | `movement::step` stopping the unit on the commit that empties its path | `a_marching_army_…` at tick 1 (`moving` already false), `units_tick::tests::the_wait_follows_the_units` (17 against 25) |
-// | the `hides_tile` test in `draw_units` | `a_unit_walking_into_the_dark_…` |
-// | `action` passed as `false` to `path_marker_frame` | `a_march_hovered_onto_an_enemy_town_…` |
-// | the centred placement `draw_path_marker` used to have | `a_march_hovered_onto_an_enemy_town_…` |
 
-/// Whether every pixel a frame paints stands, exactly, with its top-left at `at`.
 fn ink_at(canvas: &Canvas, art: &l2_formats::pl8::DecodedFrame, at: (i32, i32)) -> bool {
     let (w, h) = (art.width as i32, art.height as i32);
     let mut any = false;
@@ -71,9 +50,6 @@ fn ink_at(canvas: &Canvas, art: &l2_formats::pl8::DecodedFrame, at: (i32, i32)) 
     any
 }
 
-/// Where `Map_DrawArmies` stands a figure **at rest** on a tile: the tile
-/// origin, plus `(g_mapTileHalfStep, g_mapHalfPitch)`, plus the kind's nudge,
-/// then `x -= w/2; y -= h`. Nothing here reads a walk table.
 fn at_rest(screen: &MapScreen, tile: (u8, u8), nudge: (i32, i32), art: &l2_formats::pl8::DecodedFrame) -> (i32, i32) {
     let (row, col) = campaign::tile_to_cell(tile.0 as usize, tile.1 as usize);
     let (sx, sy) = campaign::cell_to_screen(screen.viewport(), screen.zoom(), row, col);
@@ -81,11 +57,6 @@ fn at_rest(screen: &MapScreen, tile: (u8, u8), nudge: (i32, i32), art: &l2_forma
     (sx + z.half_pitch + nudge.0 - art.width as i32 / 2, sy + z.half_pitch + nudge.1 - art.height as i32)
 }
 
-/// The first tile, rows then columns well inside the map, whose **east**
-/// neighbour is open ground too and for which `ok(from, to)` holds — open
-/// meaning no plane-0 bit a step or a painter reads, so a unit crosses it at the
-/// open-ground pace and nothing but the unit is drawn over it — with no unit
-/// within three tiles of either.
 fn open_step_east(game: &Game, ok: impl Fn(usize, usize) -> bool) -> Option<((u8, u8), (u8, u8))> {
     use l2_kingdom::map::{flags, index};
     let map = &game.kingdom.campaign.map;
@@ -110,24 +81,13 @@ fn open_step_east(game: &Game, ok: impl Fn(usize, usize) -> bool) -> Option<((u8
     None
 }
 
-/// **An army part-way across a tile is drawn where the original draws it, with
-/// the frame the original draws it with, at both zooms — tick by tick, for one
-/// whole open-ground crossing.**
-///
-/// The army starts facing north on a tile of the person's own county and is
-/// ordered one tile east. What the binary says happens, and what each row of
-/// `MARCH` below asserts:
-///
 /// * **Tick 1 commits the tile.** `Unit_Spawn` leaves the latch set, so the
 ///   first tick enters `(x + 1, y)`, turns the unit east and writes `+0x149 =
 ///   1`. The figure is drawn **at the new tile, dragged back by index 1** —
 ///   `(−28, −14)` near, `(−5, −2)` far — which stands it two pixels right and
 ///   one down of where it stood at rest on the tile it left. **And still facing
 ///   north**, frame 75: `Army_Tick` wrote `+0x07` before `Unit_Step` turned it.
-/// * **Open ground admits one tick in four**, and each admission adds 2, so the
-///   figure moves on ticks 5, 9 … 29 through indices 3 … 15 and its frame
-///   follows **one tick later**, through `g_unitWalkFrames` = `0, 1, 2, 1, 0, 1,
-///   2, 1`: 81, 82, 83, 82, 81, 82, 83, 82.
+///
 /// * **Tick 33 reaches the tile's edge**, `+0x149` goes back to 0 and, the path
 ///   being empty, the unit stops — standing exactly on its tile — and tick 34 is
 ///   the standing frame, 81.
@@ -185,7 +145,6 @@ fn a_marching_army_is_drawn_part_way_across_its_tile_with_the_originals_walk_fra
             .unwrap_or_else(|| panic!("zoom {}: sprite sheet A frame {n}", z.id))
     };
 
-    // `0x48 + 3 * ((facing + 1) & 7) + g_unitWalkFrames[phase]`, typed.
     const NORTH: usize = 75; // facing 0, phase 0
     const STAND: usize = 81; // facing 2, walk frame 0
     const MID: usize = 82; //   facing 2, walk frame 1
@@ -254,24 +213,10 @@ fn a_marching_army_is_drawn_part_way_across_its_tile_with_the_originals_walk_fra
     }
 }
 
-/// **`Map_DrawArmies`' fog test is on the tile the unit is walking *into*.**
-///
 /// `Unit_MoveInFacing` (`0x00466D84`) unlinks the unit from the tile it is
 /// leaving and links it to the next one **at the commit**, before a single
 /// sub-step of the crossing is drawn, and `Map_DrawArmies` is reached from the
 /// render pass of the tile the unit is linked to, behind that tile's seen bit.
-/// So a unit walking out of sight vanishes on the tick it commits — though its
-/// figure would have stood a whole tile back, over ground the person can see —
-/// and one walking into sight is drawn for the whole crossing, over the dark.
-///
-/// A merchant, because a merchant walks blind: `Unit_Step` reveals round an
-/// **army** only, so its own step cannot light the tile it walks into — and a
-/// person's army never walks into the dark at all, because it lit the square
-/// round the tile it is leaving before it left.
-///
-/// Stated as equalities: at every sub-step of the crossing, the map viewport
-/// with the merchant and without it. **The control** lights the tile it walked
-/// into and requires the same merchant, at the same sub-steps, to be on the map.
 #[test]
 fn a_unit_walking_into_the_dark_is_hidden_for_its_whole_crossing_and_one_walking_out_is_not() {
     use l2_kingdom::{Unit, UnitKind};
@@ -283,7 +228,6 @@ fn a_unit_walking_into_the_dark_is_hidden_for_its_whole_crossing_and_one_walking
             .expect("a seen tile with an unseen one east of it")
     };
 
-    // (from, to, whether the crossing is drawn)
     for (from, to, shown) in [(lit, dark, false), (dark, lit, true)] {
         let mut g = game.clone();
         let mut trader = Unit::new(UnitKind::Merchant, l2_kingdom::units_tick::OWNERLESS, from.0, from.1);
@@ -334,33 +278,7 @@ fn a_unit_walking_into_the_dark_is_hidden_for_its_whole_crossing_and_one_walking
     }
 }
 
-/// **The gold ball of action, where the original puts it — and grey only where
-/// the original greys.** Driven through the screen stack: arrows to scroll,
-/// a click on the army, the pointer over an enemy county's town.
-///
 /// `Map_DrawPathMarker` (`0x004081A6`):
-///
-/// ```c
-/// local_14 = flags & 0x50;
-/// if ((flags & 0x80) != 0 && content != 0x14) local_14 = 1;
-/// n = g_moveDistLocal[tile] - 1;  if (allowance - used < n) n = 0;
-/// frame = local_14 == 0 ? 0x38 + n : 0x4E;
-/// g_drawX += 0x14;  g_drawY += 6;                   /* no centring */
-/// ```
-///
-/// A town costs 100 to enter, so its own cost is always past the budget and the
-/// cost arm greys it — the player's *"just a grey ball like I can't get there"*
-/// — but the town's flag bit is tested first. The army stands two or three tiles
-/// from the town on plain ground, so every ball before the town is a cost ball,
-/// and the route is asserted twice: with a full allowance (each step is `0x38 +
-/// its cost`, the town gold) and with no moves left (each step grey, **the town
-/// still gold**). The costs come from the flood fill, which is not what is under
-/// test; the frame arithmetic and the `(0x14, 6)` are, and they are typed.
-///
-/// **Not asserted, and why:** that an enemy *army* draws an ordinary cost ball.
-/// The binary says it does — `local_14` reads no unit — but the army's own
-/// figure is drawn after the balls and stands over its tile's ball, so no pixel
-/// of it can be seen.
 #[test]
 fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_of_reach_are_grey() {
     use l2_kingdom::map::{coords, flags, index, MAP_TILES};
@@ -368,13 +286,10 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     let (mut game, assets) = world!();
     let player = game.player;
     let map = game.kingdom.campaign.map.clone();
-    // Plain: no bit `local_14` reads, and walkable.
     let plain = |t: usize| {
         map.county[t] != 0
             && map.flags[t] & (flags::IMPASSABLE | flags::CASTLE | flags::PLOT | flags::SETTLEMENT) == 0
     };
-    // An enemy county's town tile, and a stand two or three tiles from it whose
-    // route there crosses only plain ground inside the army's fifteen moves.
     let cost = map.cost_map();
     let mut chosen = None;
     'search: for t in 0..MAP_TILES {
@@ -412,7 +327,6 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     }
     let (town, stand, steps) = chosen.expect("an enemy county's town a short plain march from somewhere");
 
-    // Nothing else of the world's may stand over the balls.
     let crowd: Vec<usize> = game
         .kingdom
         .campaign
@@ -431,8 +345,6 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     army.owner_is_human = true;
     let army = game.kingdom.campaign.units.spawn(army).expect("a free unit slot");
 
-    // The machine's map screen, and a second one as its ruler: both open on
-    // the person's town and are scrolled by the same keys.
     let mut m = Machine::new(ScreenId::Campaign);
     let mut ruler = MapScreen::new();
     draw_stack(&mut m, &mut game, &assets);
@@ -468,7 +380,6 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
 
     let sheet = assets.map.flag_sheet(&campaign::NEAR).expect("Flags1a.pl8");
     let ball = |n: usize| sheet.frame(n).unwrap_or_else(|| panic!("Flags1a.pl8 frame {n:#x}"));
-    // `g_drawX + 0x14`, `g_drawY + 6` from the tile origin. Typed.
     let at = |t: (u8, u8)| {
         let (row, col) = campaign::tile_to_cell(t.0 as usize, t.1 as usize);
         let (x, y) = campaign::cell_to_screen(ruler.viewport(), ruler.zoom(), row, col);
@@ -477,8 +388,6 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     const GREY: usize = 0x38;
     const GOLD: usize = 0x4E;
 
-    // The army's own figure is drawn after the balls and stands over those of
-    // the tiles behind it: they cannot be seen, so they are not asked about.
     let figure = assets.map.sprite_sheet(&campaign::NEAR, 0).and_then(|s| s.frame(0x48)).expect("an army frame");
     let (fx0, fy0) = at_rest(&ruler, stand, (0, -4), &figure);
     let clear = |t: (u8, u8)| {
@@ -524,15 +433,6 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
 /// }
 /// FUN_0041b032();
 /// ```
-///
-/// Both halves of the third guard are asserted: bare ground of another county
-/// selects it and recentres on that county's **town**, and a unit standing on
-/// ground of a third county selects nothing, because the panel that comes up
-/// is about the army. The information panel opens either way.
-///
-/// Ablated, each red on its own assertion: the whole block removed — the
-/// selection stays where it started; the `g_pickedTileUnit == 0` guard dropped
-/// — the unit's county is selected where nothing should move.
 #[test]
 fn right_clicking_another_countys_ground_selects_it_and_a_unit_on_it_does_not() {
     let (mut game, assets) = world!();
@@ -541,7 +441,6 @@ fn right_clicking_another_countys_ground_selects_it_and_a_unit_on_it_does_not() 
     let here = game.selected;
     assert!(here != 0, "setup: the game opens with a county selected");
 
-    // Another county with a town square, and a tile of it nothing stands on.
     let empty_tile = |game: &Game, id: u8| {
         let map = &game.kingdom.campaign.map;
         (0..map.county.len()).find(|&t| {
@@ -566,21 +465,16 @@ fn right_clicking_another_countys_ground_selects_it_and_a_unit_on_it_does_not() 
         "the right click still opens the information panel on the tile"
     );
     assert_eq!(game.selected, there, "and it selected the county the tile belongs to");
-    // `Map_CentreOnTile(townTile)` — the town, not the tile that was clicked.
     let (tx, ty) = l2_kingdom::map::coords(town);
     assert!(
         campaign::tile_centre(screen.viewport(), screen.zoom(), tx as usize, ty as usize).is_some(),
         "the view moved to county {there}'s town square"
     );
 
-    // **The third guard.** Put an army on ground of a third county and right
-    // click it: the unit half comes up and the selection does not move.
     let (elsewhere, ground) = (1..=game.kingdom.county_count as u8)
         .filter(|&id| id != there)
         .find_map(|id| Some((id, empty_tile(&game, id)?)))
         .expect("a third county with an empty tile");
-    // **A merchant, because the fixture has six and no army** — the guard is
-    // `g_pickedTileUnit != 0` and says nothing about the kind.
     let unit = game
         .kingdom
         .campaign

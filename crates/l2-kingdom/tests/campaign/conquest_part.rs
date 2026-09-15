@@ -13,13 +13,8 @@ use l2_kingdom::report::Message;
 use l2_kingdom::unit::{Unit, UnitKind, Units};
 use l2_kingdom::{Kingdom, MercenaryBands, Options, TroopType};
 
-// ---------------------------------------------------------------------------
-// Conquest, and the save
-// ---------------------------------------------------------------------------
 
-/// The one thing the whole layer exists to produce, driven through the kingdom
 ///: an army that reaches a defenceless county's
-/// castle takes it, and the realm's county count follows.
 #[test]
 fn an_army_that_reaches_a_castle_takes_the_county() {
     let mut k = kingdom();
@@ -42,8 +37,6 @@ fn an_army_that_reaches_a_castle_takes_the_county() {
     assert_eq!(k.campaign.units.get(id).unwrap().moves_used, conquest::ATTACK_MOVE_COST);
 }
 
-/// A county that can defend itself produces a battle instead, and the layer
-/// hands the pair over.
 #[test]
 fn a_county_that_can_defend_itself_produces_a_battle_and_keeps_its_owner() {
     let mut k = kingdom();

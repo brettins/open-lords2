@@ -9,16 +9,6 @@ use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::{Season, Tables, Weather};
 use l2_kingdom::{Quirk, Quirks};
 
-/// **The quirk set is inside the per-tick lockstep digest.**
-///
-/// `l2_kingdom::save::checksum` is `Canonical::hash_of(kingdom)` and is the
-/// number two peers exchange every tick. If a quirk did not reach it, two
-/// players with different settings would agree on every checksum they exchanged
-/// while computing different games — which is the exact defect this engine
-/// exists to replace, arrived at from the other direction. `docs/netcode.md` §6.
-///
-/// Asserted for **every** quirk, one at a time, because a bitfield that lost one
-/// bit on the way out would still change the hash for the other thirteen.
 #[test]
 fn the_quirk_set_is_inside_the_lockstep_digest() {
     let base = furnished_kingdom(21);
@@ -36,8 +26,6 @@ fn the_quirk_set_is_inside_the_lockstep_digest() {
     }
 }
 
-/// The `options` section is where it lands, so a desync dump names the right
-/// subsystem.
 #[test]
 fn a_quirk_difference_shows_up_as_the_options_section() {
     let base = furnished_kingdom(22);
@@ -56,8 +44,6 @@ fn a_quirk_difference_shows_up_as_the_options_section() {
     );
 }
 
-/// **A saved game remembers which bugs it was played with.**
-///
 /// Not a formality: a save that dropped the field would reload a fixed game as a
 /// faithful one, and the county figures would start drifting from the ones the
 /// player left. `docs/decisions.md` C30's shape, for the sixth time.
@@ -73,12 +59,6 @@ fn a_saved_game_remembers_which_bugs_it_was_played_with() {
     }
 }
 
-/// **Two kingdoms that differ only in their quirks really do play differently.**
-///
-/// The end-to-end claim, made once over the whole season pipeline
-/// per rule: run the same world forward under both settings and the states
-/// diverge. A switch that only changed a flag would pass every test above that
-/// calls one rule directly and fail this one.
 #[test]
 fn the_same_world_played_faithfully_and_fixed_ends_up_in_two_different_states() {
     let mut faithful = furnished_kingdom(24);
@@ -96,12 +76,7 @@ fn the_same_world_played_faithfully_and_fixed_ends_up_in_two_different_states() 
     );
 }
 
-// ---------------------------------------------------------------------------
-// Fixtures
-// ---------------------------------------------------------------------------
 
-/// A quirk set with some of each, so the tri-state parent's middle is exercised
-/// by the save round trip too.
 fn mixed() -> Quirks {
     let mut q = Quirks::FAITHFUL;
     q.set_reproduced(Quirk::HarvestIgnoresLabourCap, false);
@@ -110,11 +85,6 @@ fn mixed() -> Quirks {
     q
 }
 
-/// A small kingdom with enough in it that a season does something.
-///
-/// **Nothing here asserts on a field this function writes.** It sets the world
-/// up and the tests read what `advance_season` and the rule functions leave
-/// behind — `docs/agents.md`'s rule about fixtures that check themselves.
 pub(crate) fn furnished_kingdom(seed: u64) -> Kingdom {
     let mut k = Kingdom::new(seed);
     k.county_count = 8;

@@ -11,9 +11,6 @@ use l2_sim::siege::{
 };
 use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 
-/// **The four surfaces a siege turns on
-/// round.**
-///
 /// This test used to assert `SURFACE_BREACH == 4` and `SURFACE_RAMPART == 5`
 /// and it was wrong about the first: nothing in `Lords2.exe` writes surface 4
 /// outside the castle build's flood classifier, and a breach leaves **5**
@@ -26,8 +23,6 @@ fn a_smashed_wall_joins_the_bailey_and_a_collapsed_one_does_not() {
     assert_eq!(SURFACE_RAMPART_WALK, 4, "what Siege_FindCellSurface4 hunts");
     assert_eq!(siege::SURFACE_COLLAPSED, 9, "what Wall_Collapse leaves");
 
-    // The accumulator is chosen by where the attacker *stands*, and 5 is the
-    // one that picks the rampart's 5,000.
     let mut s = SiegeState::castle(2);
     for _ in 0..siege::RAMPART_HITS - 1 {
         siege::strike_wall(&mut s, SURFACE_BAILEY, false);
@@ -36,22 +31,17 @@ fn a_smashed_wall_joins_the_bailey_and_a_collapsed_one_does_not() {
         siege::strike_wall(&mut s, SURFACE_BAILEY, false),
         siege::WallBlow::RampartBreached
     );
-    // Standing on the rampart walk is *not* standing on a 5, so it feeds the
-    // gate — which is the whole content of the correction.
     let mut g = SiegeState::castle(2);
     siege::strike_wall(&mut g, SURFACE_RAMPART_WALK, false);
     assert_eq!(g.gate_hits, 1);
     assert_eq!(g.rampart_hits, 0);
 }
 
-/// **`Wall_Smash` opens a nine-cell-wide hole, and `Wall_Collapse` opens one
-/// cell and leaves a different mark.** They are two routines, not one.
 #[test]
 fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
     let mut field = siege::our_castle(2);
     let wall_before = field.cells.iter().filter(|c| c.flags & FLAG_WALL != 0).count();
 
-    // The south wall of `our_castle(2)` runs along y = 34 through x = 40.
     let opened = siege::smash_walls(&mut field, 40, 34, siege::SMASH_RADIUS);
     assert_eq!(opened, 9, "a 9 x 9 centred on one wall cell meets nine of them");
     let wall_after = field.cells.iter().filter(|c| c.flags & FLAG_WALL != 0).count();
@@ -67,8 +57,6 @@ fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
         );
     }
 
-    // A collapse is one cell, at ground level, on surface 9, and it bills the
-    // orthogonal neighbours still at 5.
     let mut field = siege::our_castle(2);
     let mut s = SiegeState::castle(2);
     let cell = 34 * 80 + 40;
@@ -86,17 +74,12 @@ fn a_breach_is_nine_cells_wide_and_a_collapse_is_one() {
     );
 }
 
-/// **Damage is a count on a surface, not the `0x20` flag.**
-///
 /// `Missile_Step`'s class-3 gate (`0x00492C8B`, `docs/battle.md` §17.7) is
 /// `elevation != 0 && surface == 4 && frame > 2`
 /// into the cell's byte `+0`. Ours read `flags & 0x20`, which no surface-4 cell
 /// carries — and `UnitOrder_SiegeAttCatapult` (`0x0048DB84`) aims at surface 4
 /// (`nearest_surface(.., 4, ..)`, the original's `Siege_FindCellSurface4`,
 /// `0x00496566`). Every aimed shot therefore counted nothing.
-///
-/// Ablation: put `flags & FLAG_WALL != 0` back in front of
-/// `siege::shot_damages_wall` and the walk rows here go false.
 #[test]
 fn a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag() {
     let field = siege::our_castle(2);
@@ -117,8 +100,6 @@ fn a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag() {
     c.flags &= !FLAG_WALL;
     assert!(siege::shot_damages_wall(&c), "and the flag is not what said so");
 
-    // The original's own `elevation != 0`
-    // masonry: the bailey, and the rubble a collapse leaves at elevation 0.
     let mut low = field.cells[34 * 80 + 40].clone();
     low.elevation = 0;
     assert!(!siege::shot_damages_wall(&low));
@@ -127,25 +108,14 @@ fn a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag() {
         o.surface = s;
         assert!(!siege::shot_damages_wall(&o), "surface {s} is not masonry");
     }
-    // `Wall_Smash` joins the cell to the bailey, so it stops counting because
-    // its surface changed —.
     let mut smashed = siege::our_castle(2);
     siege::smash_walls(&mut smashed, 40, 34, siege::SMASH_RADIUS);
     assert!(!siege::shot_damages_wall(&smashed.cells[34 * 80 + 40]));
 }
 
-/// **And in a real siege the cell the catapult aims at is the one that takes
-/// the damage.** `UnitOrder_SiegeAttCatapult` sends the engine at a surface-4
-/// cell and surface 4 carries no `0x20`, so under the flag gate every shot that
-/// arrived where it was aimed counted nothing: the walk's byte `+0` stayed at
-/// the builder's seed of 1 for the whole siege. Ablation: restore
-/// `flags & FLAG_WALL != 0 && elevation != 0` in `BattleRunner::step_missile`
-/// and `walk` here goes to 0 while the curtain's count survives.
 #[test]
 fn a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at() {
     let mut r = storming_party(2);
-    // Masonry only: a ditch's byte is the *fill* counter, seeded at the water
-    // id 11 and raised by `BattleMan_StateFillMoat`.
     let damaged = |r: &BattleRunner, s: u8| {
         r.field.cells.iter().filter(|c| c.terrain > 1 && c.surface == s).count()
     };
@@ -161,7 +131,4 @@ fn a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at() {
     assert!(walk > 0, "and the flag-free walk it was aimed at is what holds the count");
 }
 
-// ---------------------------------------------------------------------------
-// The headline: a besieger who can win
-// ---------------------------------------------------------------------------
 

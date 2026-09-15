@@ -4,8 +4,6 @@ use super::ladders::*;
 use super::*;
 
 impl Tables {
-/// The numbers above, gathered. Assembled *from* the constants
-    /// retyped.
     pub const DEFAULT: Tables = Tables {
         food: FoodTable {
             dairy_per_head: DAIRY_PER_HEAD,
@@ -80,9 +78,6 @@ impl Tables {
         health_band_ladder: HEALTH_BAND_LADDER,
         population: PopulationTable {
             birth_rate_ladder: BIRTH_RATE_LADDER,
-            // The four thresholds `happiness_birth_factor` compares against,
-            // plus its `else`. The catch-all threshold is never read; it is
-            // written as `i32::MAX`
             happiness_factor_ladder: [(26, 25), (51, 50), (76, 75), (100, 100), (i32::MAX, 120)],
         },
         weather: [
@@ -327,13 +322,6 @@ impl Tables {
             ],
         },
         score: ScoreTable {
-            // Inclusive lower bounds, richest first. **All three live brackets
-            // pay 50**, because the shipped `Score_RankRealms` tests 2,000
-            // first and jumps away, so the 100 and 200 arms are unreachable —
-            // see [`score_gold_bracket`], which carries the disassembly. The
-            // thresholds are kept so that a ruleset wanting the ladder the
-            // table was clearly designed for changes three numbers and nothing
-            // else.
             gold_brackets: [(10_001, 50), (5_001, 50), (2_001, 50), (0, 0)],
             weights: SCORE_WEIGHTS,
             input_offsets: SCORE_INPUT_OFFSETS,

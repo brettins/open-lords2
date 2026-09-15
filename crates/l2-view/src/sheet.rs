@@ -1,13 +1,3 @@
-//! A PL8 file with its frames decoded once and kept.
-//!
-//! `Pl8::parse` borrows its bytes and `decode` re-decodes on every call, which
-//! is right for a validator sweeping a corpus and wrong for a renderer that
-//! draws the same 1,120 tiles sixty times a second. A sheet owns its bytes and
-//! decodes each frame at most once.
-//!
-//! Decoding is lazy: a troop sprite sheet holds up to 122 frames and a battle
-//! shows a handful of them, so paying for all of them up front would be worse
-//! than the repeated decode it replaces.
 
 use std::cell::RefCell;
 
@@ -29,10 +19,6 @@ impl Sheet {
         self.count
     }
 
-    /// Decode frame `index`, caching it. Returns `None` for an index past the
-    /// end or a frame this decoder cannot read, so a renderer degrades to a
-    /// hole — a battle should still be watchable when one
-    /// sprite is unreadable.
     pub fn frame(&self, index: usize) -> Option<DecodedFrame> {
         if index >= self.count {
             return None;
@@ -50,8 +36,6 @@ impl Sheet {
 mod tests {
     use super::*;
 
-    /// A minimal in-memory PL8: one raw 2x2 frame. Enough to exercise the
-    /// cache without touching the game install.
     fn tiny_pl8() -> Vec<u8> {
         let mut v = vec![0u8; 8 + 16];
         v[0] = 0; // storage family: raw

@@ -24,8 +24,6 @@ fn every_shipped_troops_file_seeds_a_ruleset_that_reads_back() {
         let Ok(bytes) = vfs.read(file) else { continue };
         let table = parse_troops_eng(&bytes).unwrap_or_else(|e| panic!("{file}: {e}"));
 
-        // docs/formats/eng.md: the engine clamps the four siege columns to 9,
-        // and no shipped file exceeds it.
         for row in 0..ROWS {
             for g in 0..5 {
                 for s in 0..2 {
@@ -49,7 +47,6 @@ fn every_shipped_troops_file_seeds_a_ruleset_that_reads_back() {
         println!("{file}: {} battles seeded", rules.battles.len());
     }
     if seeded == 0 {
-        // Only the Windows release shipped these; see docs/formats/eng.md.
         l2_testkit::skip!("no TROOPS*.ENG in {dir} - skipping");
     }
 }
@@ -58,8 +55,6 @@ fn every_shipped_troops_file_seeds_a_ruleset_that_reads_back() {
 fn a_mod_layered_on_the_real_install_changes_one_number_and_nothing_else() {
     let dir = skip_without_install!();
 
-    // Seed a base ruleset into a temporary directory. Nothing is written to
-    // the install, and nothing generated here is ever committed.
     let base = TempDir::new("seeded");
     let mut vfs = Vfs::new();
     vfs.push_layer("scan", &dir).unwrap();
@@ -70,8 +65,6 @@ fn a_mod_layered_on_the_real_install_changes_one_number_and_nothing_else() {
     let table = parse_troops_eng(&troops).expect("seed");
     base.write("rules/troops.toml", &to_rules_toml(&table, &names, "TROOPS2.ENG"));
 
-    // Read the seeded ruleset back through the platform, with no mods, to get
-    // the "before" picture.
     let plain = Platform::builder().base(base.path()).build().expect("seeded rules load");
     let before_rules = TroopRules::from_ruleset(&plain.rules).expect("seeded rules validate");
     assert_eq!(before_rules.battles.len(), ROWS);
@@ -101,7 +94,6 @@ fn a_mod_layered_on_the_real_install_changes_one_number_and_nothing_else() {
     assert_eq!(p.report().overrides.len(), 1);
     println!("{}", p.report());
 
-    // Unchanged difficulty behaviour on real numbers.
     let normal = after.army(b, "normal", Side::Attacker);
     let easy = after.army(b, "very_easy", Side::Attacker);
     assert_eq!(easy[0], normal[0] * 116 / 100);
@@ -128,10 +120,6 @@ fn the_example_mod_only_changes_rules_that_the_real_game_actually_has() {
         .build()
         .expect("the documented example loads against real data");
 
-    // Count the leaves the example sets, then insist that every one of them
-    // *overrode* something. A leaf that merely got added means the example
-    // named a battle, side or troop that does not exist - a typo the merge
-    // would otherwise accept in silence.
     let text = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("example-mods/longbows/rules/longbows.toml"),
     )
@@ -148,18 +136,12 @@ fn the_example_mod_only_changes_rules_that_the_real_game_actually_has() {
     assert!(p.report().dangling_deletes.is_empty());
     assert!(p.report().type_changes.is_empty());
 
-    // And it still validates as a troop table.
     let rules = TroopRules::from_ruleset(&p.rules).expect("still valid");
     assert_eq!(rules.battle("three_bridges").unwrap().attacker[5], 120);
     assert_eq!(rules.difficulty("very_hard").unwrap().scale_percent, 65);
 
-    // Its `unit.*` half reaches the simulation table, over a ruleset seeded
-    // from a real install.
     assert_eq!(p.troop_table().unwrap().stats(l2_sim::Troop::Archers).armour, 4);
 
-    // The two reports, printed against real data. `docs/modding.md` §7 quotes
-    // this output, so `-- --nocapture` is how to check the document still
-    // matches what the code says.
     println!("--- report ---\n{}", p.report());
     println!("--- effects ---\n{}", p.effect_report());
     println!("--- digest --- {}", l2_mods::digest_hex(&p.rules));

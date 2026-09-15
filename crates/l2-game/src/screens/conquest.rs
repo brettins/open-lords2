@@ -1,22 +1,11 @@
-//! Screen `0x1C` — the campaign interstitial between two maps.
-//!
-//! # `docs/screens-county.md` §1 called this "the front end". It is not.
-//!
 //! That row was written from the two files the painter loads — `gateway.pl8`
 //! and `panels2.pl8` — which are indeed the front end's artwork. The strings
 //! settle it the other way. `FUN_0041E1DD` draws **`L2.eng` group 36**, and
 //! group 36 is:
 //!
-//! ```text
-//!  0  "Congratulations!!"          4  "You have lost."
-//!  1  "You have conquered"         5  "You have failed to conquer"
-//!  2  "Events move on apace …"     6  "Until this country falls under your"
-//!  3  "…now awaits you in"         7  "rule there can be no thought"
-//!                                  8  "of further conquests, my lord."
-//! ```
-//!
 //! with two map names out of group 101 between them: the one just fought over
 //! (`DAT_00553E78`) and, on a win, the one coming next (`g_scenarioIndex`).
+//!
 //! **[V]** — three branches, each of which reads as one whole sentence, and the
 //! `g_scenarioIndex` lookup only happens in the branch that mentions a *next*
 //! country.
@@ -26,11 +15,6 @@
 //! through 15 instead — *"The whole of Christendom … now lies firmly within
 //! your iron fist. You are just too good at this! So may we suggest the custom
 //! game option…"* Eight maps, and the counter is compared against 8.
-//!
-//! So `0x1C` is the screen between two campaign maps, and the front end proper
-//! is [`super::setup`] page 1. `docs/screens-county.md` is corrected.
-//!
-//! # The painter, address by address
 //!
 //! ```text
 //! Screen_DrawConquest():                                        0x0041E1DD
@@ -57,21 +41,12 @@
 //!   Palette_Set(0x4EA8A0)
 //! ```
 //!
-//! **Twenty-two `Ui_DrawCentred` call sites and no other primitive**, split
-//! 6 / 6 / 10 across three branches that cannot both run, so the most this
-//! screen ever puts on the glass in one frame is ten lines and a window. All
-//! twenty-two are reproduced below, branch for branch.
-//!
-//! # Group 36 has nineteen strings and the painter draws sixteen
-//!
 //! Indices **16, 17 and 18** — *"You have mastered the first challenge."*,
 //! *"To continue your campaign however"*, *"you must buy Lords2 !!"* — are the
 //! **demo's** nag, and `grep` over the whole decompilation finds no consumer of
 //! group 36 outside this painter and no reference to those three indices at
 //! all. They are dead text in the retail build, the same shape as `L2.eng`
 //! 31/21 *"Morale"*. `[V]`
-//!
-//! # The background is one `read()`, not a draw call
 //!
 //! `FUN_00408FCB(name, lines)` (`0x00408FCB`) is
 //! `File_ReadChunk(name, g_backBufferBits, g_screenStride * lines, 0x18)` —
@@ -86,12 +61,6 @@
 //! calls and is still a full screen of artwork, and why a draw-call census over
 //! the twenty-six pixel primitives has to count backgrounds separately rather
 //! than treat a zero as a missing screen.
-//!
-//! # What the shell shows
-//!
-//! All three outcomes, because a shell with no campaign progress behind it has
-//! no reason to prefer one, and because the point of walking the interface is
-//! to see what the interface can say. The keyboard and a click cycle them.
 
 use l2_view::Canvas;
 
@@ -104,22 +73,16 @@ use crate::victory::ConquestBranch;
 /// (0…15). Verified against the words: index 0 is *"Congratulations!!"*, 4
 /// *"You have lost."*, 9 *"The whole of Christendom (along with a"*.
 pub const GROUP: usize = 36;
-/// Group 101, the sixty map names. Verified against the words: index 0 is
-/// *"England"*, 6 *"Europe"*, and 24 onward are the placeholders *"map no
-/// 25"* … *"map no 60"*.
 pub const GROUP_MAPS: usize = 101;
 /// The highest index group 101 has, and the clamp every lookup here uses.
 pub const MAX_MAP: usize = 59;
 /// `File_ReadChunk("gateway.256", …)` then `FUN_00408FCB("gateway.pl8", 0x1E0)`
 /// — the palette and the whole 640 × 480 ground.
 pub const BACKGROUND: &str = "Gateway.pl8";
-/// The palette that goes with it.
 pub const PALETTE: &str = "Gateway.256";
 /// `File_ReadChunk("panels2.pl8", …)`, the sheet `FUN_00409346` takes the
 /// window's frame and interior out of.
 pub const WINDOW_SHEET: &str = "Panels2.pl8";
-/// The seven-line run of the campaign-end branch, and its 20-pixel pitch —
-/// `Ui_DrawCentred(36, 9 + n, 0x70, 0x80 + 0x14 * n, …)`.
 pub const FINISHED_FIRST: usize = 9;
 pub const FINISHED_LAST: usize = 15;
 pub const FINISHED_PITCH: i32 = 0x14;
@@ -132,17 +95,12 @@ const BOX_Y: i32 = 8;
 const BOX_COLS: i32 = 0x1A;
 const BOX_ROWS_SHORT: i32 = 0x0E;
 const BOX_ROWS_LONG: i32 = 0x12;
-/// Every line is centred in 416 pixels from the same x.
 const TEXT_W: i32 = 0x1A0;
 
-/// Which of the three things this screen can say.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Outcome {
-    /// The map was taken and another follows. Group 36 lines 0–3.
     Won,
-    /// The map was lost. Lines 4–8.
     Lost,
-    /// The eighth map was taken; the campaign is over. Lines 0, 1, 9–15.
     Finished,
 }
 
@@ -160,10 +118,6 @@ impl Outcome {
 
 pub struct ConquestScreen {
     outcome: Outcome,
-    /// Whether the game's own ending has been read yet. A screen is built with
-    /// no [`Ctx`], so the adoption happens on the first tick instead — and it
-    /// happens **once**, or the arrow keys would be overwritten every frame and
-    /// the shell would stop being walkable.
     adopted: bool,
 }
 
@@ -176,12 +130,6 @@ impl ConquestScreen {
         self.outcome
     }
 
-    /// Take the branch from the game if the game has one.
-    ///
-    /// A game that is still in play has nothing to say here — that is the shell
-    /// walking the screen — so the cycling default stands. A game that has ended
-    /// decides, and `l2_game::victory::Campaign::branch` is the decision:
-    /// the outcome plus whether the campaign counter has reached eight.
     fn adopt(&mut self, ctx: &Ctx) {
         if self.adopted {
             return;
@@ -280,8 +228,6 @@ impl Screen for ConquestScreen {
                 pen.heading_centred(canvas, BOX_X, 0x58, TEXT_W, &name, font::TEXT);
                 body(canvas, 2, 0x80);
                 body(canvas, 3, 0x98);
-                // The next map: `g_scenarioIndex`, which in the original has
-                // already been advanced by the time this is drawn.
                 let next = a.text(GROUP_MAPS, (map + 1).min(MAX_MAP)).to_string();
                 pen.heading_centred(canvas, BOX_X, 0xB0, TEXT_W, &next, font::TEXT);
             }
@@ -297,7 +243,6 @@ impl Screen for ConquestScreen {
                 head(canvas, 0, 0x20);
                 body(canvas, 1, 0x40);
                 pen.heading_centred(canvas, BOX_X, 0x58, TEXT_W, &name, font::TEXT);
-                // Seven lines, twenty apart.
                 for (n, i) in (FINISHED_FIRST..=FINISHED_LAST).enumerate() {
                     body(canvas, i, 0x80 + n as i32 * FINISHED_PITCH);
                 }
@@ -318,7 +263,6 @@ mod tests {
 
     #[test]
     fn the_long_outcome_needs_the_taller_box() {
-        // Seven lines from y = 0x80, twenty apart, end at 0x80 + 6*20 = 0xF8.
         let last = 0x80 + 6 * 0x14;
         assert!(last < BOX_Y + BOX_ROWS_LONG * 16, "the last line must be inside the box");
         assert!(last > BOX_Y + BOX_ROWS_SHORT * 16, "and outside the short one");

@@ -15,10 +15,7 @@ use l2_game::screens::{castle, setup};
 use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 
-// ================================================================== install
 
-/// **Every film a trigger names ships**
-/// played are named. Ablation: misspell a table entry.
 #[test]
 fn every_trigger_names_a_film_the_install_ships() {
     let (_p, a) = install!();
@@ -35,7 +32,6 @@ fn every_trigger_names_a_film_the_install_ships() {
     assert_eq!(
         unplayed,
         vec![
-            // The one file `Lords2.exe` never names: it asks for `axmen.smk`.
             "axemen.smk",
             // `DAT_0057A0F0`'s table, the third battle mode.
             "bat_los5.smk",

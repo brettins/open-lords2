@@ -1,4 +1,3 @@
-//! The rule-document reader.
 
 use l2_mods::value::Value;
 use l2_mods::reader::parse;

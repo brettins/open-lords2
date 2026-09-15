@@ -35,17 +35,12 @@ impl Screen for NoblesScreen {
         Some(PALETTE)
     }
 
-    /// `grtnoble.pl8` is a raw 640 × 480 page read straight into the display
-    /// buffer, so this covers whatever opened it.
     fn is_overlay(&self) -> bool {
         false
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            // `Screen_FrameInput`'s epilogue, which runs on every screen but
-            // `0x12`: a press inside the minimap raster selects that county,
-            // recentres the map and sets `g_screenId = 0`.
             // arm: 0x0042FF10/minimap-under-the-standings left-press
             Event::Click { x, y } if l2_view::chrome::minimap_hit_area().contains(x, y) => {
                 Transition::Pass
@@ -55,11 +50,6 @@ impl Screen for NoblesScreen {
             // `g_nobleCategory = g_uiHotspotId; g_redrawRequest = 2;
             // FUN_004B3994(g_uiHotspotId);`.
             //
-            // The category is on the [`crate::game::Game`] and not on this
-            // screen for the reason `docs/audio.json` gives for the castle
-            // chooser's silence: a selection a screen keeps to itself is
-            // invisible to [`crate::audio::Director`], so the spoken name
-            // could not be reproduced. The original's is a global too.
             // arm: 0x0043524E/standings-category left-press
             Event::Click { x, y } if TABS.iter().any(|t| t.contains(x, y)) => {
                 let hit = TABS.iter().position(|t| t.contains(x, y)).unwrap_or(0);
@@ -70,17 +60,15 @@ impl Screen for NoblesScreen {
             // `Ui_OkButtonClicked()` (`0x0040E7E4`) — a left release in the
             // 24 x 24 corner box — then `g_screenId = 0`: **the map**, not the
             // court the button was pressed on, so the court goes with it.
+            //
             // `docs/decisions.md` C190's `Goto` is that destination.
+            //
             // arm: 0x0042FF10/standings-ok left-release
             Event::Click { x, y } if OK.contains(x, y) => {
                 Transition::Goto(ScreenId::Campaign)
             }
-            // `g_mouseRightReleased`, anywhere, tested before the OK — and it
-            // writes the same `g_screenId = 0`.
             // arm: 0x0042FF10/standings-right right-release
             Event::RightClick { .. } => Transition::Goto(ScreenId::Campaign),
-            // **Ours**: the arm has no keyboard test. It stands in for the
-            // corner picture, so it leaves where the corner picture leaves.
             // arm: ours/standings-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => {
                 Transition::Goto(ScreenId::Campaign)
@@ -106,7 +94,6 @@ impl Screen for NoblesScreen {
         let category = (ctx.game.nobles_category as usize).min(CATEGORIES - 1);
         let s = rank(&ctx.game.kingdom.realms, category, ctx.game.kingdom.year);
 
-        // The five columns, in the original's own seating order.
         for (slot, &realm) in COLUMN_REALM.iter().enumerate() {
             let Some(r) = ctx.game.kingdom.realms.get(realm as usize) else { continue };
             if !r.in_play {
@@ -114,9 +101,6 @@ impl Screen for NoblesScreen {
             }
             let x = COLUMN_X[slot];
             let top = (100 - s.pct[realm as usize]) * PIXELS_PER_PERCENT;
-            // `Sprite_WGenSprite(shieldIndex - 1, …)` out of `flags.pl8`. A
-            // shield of 0 would index -1 in the original; ours skips, and a
-            // realm in play always has one.
             let frame = (r.shield_index as usize).wrapping_sub(1);
             if let Some(f) = a.sheet(FLAGS).and_then(|sheet| sheet.frame(frame)) {
                 canvas.blit(&f, x, top + FLAG_TOP);
@@ -127,14 +111,10 @@ impl Screen for NoblesScreen {
             }
         }
 
-        // The marker under the tab being looked at — **the category's, not the
-        // leader's**. See the module docs.
         if let Some(f) = a.sheet(FLAGS).and_then(|sheet| sheet.frame(MARKER_FRAME)) {
             canvas.blit(&f, TAB_X[category], MARKER_Y);
         }
 
-        // *"Most counties,"* and then either the leader's name or
-        // *"undecided."*, two pixels past where the label ended.
         let x = pen.eng(canvas, GROUP, category, LINE_AT.0, LINE_AT.1, font::TEXT);
         if s.decided() {
             let name = super::super::message::lord_name(ctx, s.leader);

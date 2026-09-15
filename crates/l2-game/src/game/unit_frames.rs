@@ -23,6 +23,7 @@ use l2_kingdom::county::MAX_RATION_SPLIT;
 /// `Army_Tick` (`0x0046521F`), `PeasantMob_Tick`, `Merchant_Tick` and
 /// `Transport_Tick` all write the sprite frame from the unit's facing and walk
 /// phase **first**, and only then call `Unit_Step`, which is what moves both.
+///
 /// `Map_DrawArmies` (`0x00408438`) reads the frame out of `+0x07` and the
 /// position out of `+0x09` and `+0x149` as they stand. So on every tick a unit
 /// steps, **the figure is drawn one walk phase behind where it is** — and on the
@@ -34,23 +35,11 @@ use l2_kingdom::county::MAX_RATION_SPLIT;
 /// which picture a merchant was showing would be playing the same game. So the
 /// handlers' write is taken here, around the sweep, by [`Game::sweep_units`],
 /// and read back by the painter through [`Game::unit_frame`].
-///
-/// **A held frame is believed only while nothing else has touched the unit.**
-/// The original draws whatever the last tick wrote, even after a merge, a levy
-/// or a garrison has changed the record under it — and on a fresh slot that is
-/// frame 0, the merchant's first picture. That is not reproduced: the frame is
-/// held with the pose the sweep left the unit in, and a unit whose pose has moved
-/// since is drawn from its record as it stands.
 #[derive(Debug, Clone)]
 pub struct UnitFrames {
     held: [Option<HeldFrame>; l2_kingdom::unit::MAX_UNITS],
 }
 
-/// **Always equal.** Two games are the same game whatever picture a figure is
-/// showing — the argument that keeps a frame index out of the lockstep digest
-/// keeps it out of `Game`'s equality too. Without it a reloaded game, whose
-/// first sweep has not run yet, is "different" from the one it was saved from
-/// by exactly the frames `tests/save.rs` has no business comparing.
 impl PartialEq for UnitFrames {
     fn eq(&self, _: &Self) -> bool {
         true
@@ -65,7 +54,6 @@ struct HeldFrame {
     pose: Pose,
 }
 
-/// Everything [`l2_kingdom::Unit::sprite_frame`] and the walk offset read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Pose {
     kind: l2_kingdom::UnitKind,
@@ -99,8 +87,6 @@ impl UnitFrames {
         out
     }
 
-    /// Keep those writes beside the pose the sweep left each unit in. A slot
-    /// whose unit is not the kind it was on the way in is not the same unit.
     pub(super) fn hold(
         &mut self,
         written: [Option<(l2_kingdom::UnitKind, usize)>; l2_kingdom::unit::MAX_UNITS],

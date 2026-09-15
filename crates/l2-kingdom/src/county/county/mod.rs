@@ -10,13 +10,6 @@ use crate::tables::{
     JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT,
 };
 
-/// A county.
-///
-/// Field names follow `docs/kingdom.md`'s names, and each carries the original
-/// offset it was identified at. Fields *not* in the document's table of 52 are
-/// marked **engine state** — they are things the rules provably need that the
-/// document does not place, and they are almost certainly among the ~150
-/// untraced offsets.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct County {
     // --- identity, happiness and health (docs/kingdom.md §1.1) -------------
@@ -80,6 +73,7 @@ pub struct County {
     pub unrest: u8,
     /// `+0x21` — the "warned" flag `Unrest_UpdateAll` clears at happiness
 /// >= 30, so message `0x92` fires once.
+    ///
     /// `docs/kingdom.md` §6 describes the flag without giving its offset, and
     /// this said *engine state* for that reason: `Unrest_UpdateAll`
     /// (`0x0044AA41`) is the only reader and writer of `+0x21`, sets it under
@@ -137,12 +131,6 @@ pub struct County {
     pub tax_shown: i32,
     /// `+0x1F4` — **an unowned county's own treasury.**
     ///
-    /// A county with no lord still farms, still taxes and still trades. Its tax
-/// is banked here, the style-0 neutral pass
-    /// tops it up by 100 ([`crate::ai_farm::NEUTRAL_PURSE_TOP_UP`]), and
-    /// [`crate::trade::trade`] pays out of it whenever the realm argument is 0 —
-    /// which is every trade `Ai_BuyGood` makes on behalf of an unowned county.
-    ///
     /// **`[V]`
     ///
     /// * The banker is **`Tax_CollectAll` itself** (`0x0044B59B`), not
@@ -150,7 +138,7 @@ pub struct County {
     ///   `Territory_BlockContains`. Its last statement is
     ///   `if (realm == 0) county.purse += county.taxCollected;` against the
     /// `else` that credits `realm.gold` and the two realm accumulators.
-    ///   [`crate::tax::bank`] is that branch.
+    ///
     /// * *"It is 0 in every fixture"* was **false**, and it is the sentence
     ///   that kept the neutral counties from shopping. Read out of the six
     ///   one-turn-apart saves at `+0x1F4`: county 1 carries 186, 297, 260 and
@@ -171,11 +159,6 @@ pub struct County {
     pub merchant_count: i32,
     /// `+0x1A5` — **the unit index of the last merchant counted here**, whose
     /// morale prices the county's stall.
-    ///
-    /// `Ai_BuyGood` reads `g_units[county.merchantUnit].morale` and marks the
-/// stall price up by it, so it is half of what
-    /// a sack of grain costs. Two merchants in one county leaves the *higher*
-/// index, because the recount overwrites.
     pub merchant_unit: u8,
     /// `+0x1A0` — **the lifetime count of merchant visits** to this county.
     ///
@@ -197,21 +180,16 @@ pub struct County {
     ///   `Grain_Sow` / `Grain_Grow` / `Grain_Harvest` at each, and stores the
     ///   *first* count that reaches the best result. Grain's floor and ceiling
     ///   come out of the same search and are therefore equal.
+    ///
     /// * **Cattle** (`FUN_0044DD4D`) walks the same range through
     ///   `Herd_BirthsAndDeaths` and stores the **first count at which births
     ///   less deaths stops being negative** — break-even — or, if the herd
     ///   cannot break even at any staffing, the least-bad count.
+    ///
     /// * **Every other job** writes [`LABOUR_NO_FLOOR`]: reclamation
     ///   (`Field_ReclaimEstimate`, `0x0044C278`), castle building
     /// (`Castle_BuildEstimate`, `0x00450E46`) and the four industries
     ///   (`FUN_0044F318`) all set it to −1, meaning *no requirement*.
-    ///
-    /// Two things read it
-    /// the worker count **red** when `labour < labour_wanted`, and
-    /// `Village_RebuildIcons` draws the shortfall as extra, unselectable icons
-    /// in the cluster. Nothing in the season pipeline reads it — it is a
-    /// *recommendation*, computed by the passes that know, for the player and
-    /// for the auto-allocator to act on.
     pub labour_wanted: [i32; JOB_COUNT],
     /// `+0xC4 + job*0x0C + 0x08` — **the useful ceiling**: the worker count
     /// past which more workers do the job no good.
@@ -220,22 +198,6 @@ pub struct County {
     /// display hint: the labour allocator (`FUN_0044F6E7`) fills each of slots
     /// 0..=7 **up to this number and no further**, and drops what is left over
     /// into [`crate::tables::JOB_IDLE_TOWNSFOLK`].
-    ///
-    /// Its writers, and their sentinels:
-    ///
-    /// | job | value |
-    /// |---|---|
-    /// | grain | the fewest farmers that reach the best yield |
-    /// | cattle | the staffing that **maximises** births less deaths |
-    /// | reclamation | the work left in all reclaimable fields, capped 200 each |
-    /// | castle building | the work the current build still needs |
-    /// | iron, stone, wood | [`LABOUR_UNBOUNDED`] — more miners always help |
-    /// | blacksmith | the smiths that turn the most iron into weapons |
-    ///
-    /// and **0 whenever the county has no such resource**, which is how a
-    /// county with no mine ends up with no miners without the slot ever going
-    /// away. [`LABOUR_UNSET`] means the estimate
-    /// allocator reads it as 0.
     pub labour_useful: [i32; JOB_COUNT],
     /// `+0x130 + job*0x04` — **eight percentages, one per job**
     /// allocator's only instruction about where people should go.
@@ -245,15 +207,8 @@ pub struct County {
     /// `i` in 3..8, which is the array written out. They are **two groups that
     /// each sum to 100**, not one that sums to 100:
     ///
-    /// * jobs 0, 1, 2 — grain, cattle, reclamation — share the *farm*
-    ///   workforce;
-    /// * jobs 3 … 7 — castle, iron, stone, wood, blacksmith — share the
-    ///   *industry* workforce;
-    /// * job 8, *Idle townsfolk*, has no share and takes whatever is left.
-    ///
     /// Both defaults close: `FUN_004514F8` sets 33 / 50 / 17 and 0 / 0 / 0 /
     /// 100 / 0, and `FUN_0045158B` sets 33 / 50 / 17 and 40 / 15 / 15 / 15 / 15.
-    /// Each half is exactly 100 in both.
     ///
     /// `docs/screens-county.md` §9 listed `+0x130`, `+0x134` and `+0x138` as
     /// "seen, not understood" and guessed they belonged to the field-painting
@@ -266,7 +221,7 @@ pub struct County {
     /// farm = population - industry` and fills the two halves from their own
 /// percentages. `FUN_0044FF4A` writes it back from what was
     /// assigned, counting **half** the idle as industry:
-    /// `PctOf(pop - grain - cattle - reclamation - idle + idle/2, pop)`.
+    ///
     /// A fresh county starts on 25 (`FUN_00451150`).
     pub industry_share: i32,
     /// `+0x90 + i*2` — reclamation progress of each field, 0..=800.
@@ -302,28 +257,12 @@ pub struct County {
     pub friendly_troops: i32,
     pub enemy_troops: i32,
     /// `+0x1AD` — **the mercenary band on offer here**, 1..=12, or 0 for none.
-    ///
-/// A one-slot cache: `Mercenary_AdvanceAll` rewrites it
-    /// every season with the lowest-numbered unhired band standing in the
-    /// county, so if two land together the higher-numbered one is invisible.
-    /// See [`crate::mercenary`].
     pub mercenary_offer: u8,
     /// `+0x1BC` — the unit slot of the army **garrisoning this county's
     /// castle**, or 0.
-    ///
-/// Half of the pair that decides whether a county can be walked
-    /// into: `Army_AttackCounty`'s guard passes when the county has no castle,
-    /// **or** no garrison, or a garrison belonging to the attacker. See
-    /// [`crate::conquest::can_be_entered`].
     pub garrison_unit: usize,
     /// `+0x2F4` — the levy surcharge, added to the happiness cost of every
     /// subsequent levy raised in this county.
-    ///
-    /// [`crate::levy::create_army`] writes [`crate::tables::LEVY_SURCHARGE`] and
-    /// [`crate::happiness::decay_levy_surcharge`] takes 5 off it a season, so
-    /// raising a second army out of the same county inside three seasons costs
-    /// noticeably more than the first. `docs/armies.md` §6.1 records the write
-    /// and says the decay *"was not traced"*; it is traced now.
     pub levy_surcharge: i32,
     /// `+0x1C0` — 0 none, 1 palisade, 2 motte and bailey, 3 Norman keep,
     /// 4 stone castle, 5 royal castle.
@@ -334,18 +273,7 @@ pub struct County {
     /// > **This field was backwards here until the castle chooser was written,
     /// > and every reader in the crate was already right.** `Castle_Order`
     /// > (`0x00436D02`) has exactly one write in the whole binary:
-    /// >
-    /// > ```c
-    /// > if (county.castleType != 0) county.castleBuilding = county.castleType;
-    /// > county.castleType = newType;          /* immediately, not on completion */
-    /// > ```
-    /// >
-    /// > So `castleType` is the castle you are *getting* from the moment you
-    /// > order it, and `castleBuilding` is the one you *had*. Nothing ever
-    /// > clears it, which is safe because every reader is gated on
-    /// > [`County::castle_degraded`] being non-zero.
-    /// >
-    /// > Read that way, four readers stop being odd and start being obvious:
+    ///
     /// > `Tax_CollectAll` charges the **standing** castle while work is under
     /// > way and 0 if there was none ([`crate::tax`]);
     /// > [`crate::siege::assault_castle_level`] fights the **standing** castle,
@@ -360,26 +288,14 @@ pub struct County {
     /// `+0x1C3` — **castle work in progress**, and it is a *byte with three
     /// values*, not a flag.
     ///
-    /// | value | meaning |
-    /// |---:|---|
-    /// | 0 | nothing under way |
-    /// | 1 | a castle is being **built or upgraded** — [`crate::siege::CASTLE_DEGRADED_BUILDING`] |
-    /// | 2 | a castle is being **repaired after a siege** — [`crate::siege::CASTLE_DEGRADED_DAMAGED`] |
-    ///
-    /// > **This was a `bool` and `docs/kingdom.md` §4.1 said the flag *"was not
-    /// > traced"*.** Three readers settle it and each names a different value.
     /// > The castle-build season pass (`0x00450C48`) branches on **2** to send
 /// > message `0xA3` variant 1 and to skip the
     /// > garrison top-up, so 2 is *repair* and 1 is *new work*.
+    ///
     /// > [`crate::siege::assault_castle_level`] reads **1** as *"fight the
     /// > castle being built"* and **2** as *"fight what a previous siege left
     /// > standing"*. And the map's info panel (`0x00414...`) prints a different
     /// > line for each. `[D]`
-    ///
-    /// Every existing reader tests it against zero — `Tax_CollectAll` charges
-    /// the *lower* of type and building while it is non-zero, and
-    /// [`crate::labour::ceilings`] opens the castle job while it is non-zero —
-    /// so widening the field changes no behaviour those two have.
     pub castle_degraded: u8,
     /// `+0x1C2` — **the castle is ruined**. `L2.eng` 165 names it, and
     /// `Army_BeginSiege` refuses to lay a siege while it is set: there is
@@ -387,7 +303,6 @@ pub struct County {
     pub castle_ruined: bool,
     /// `+0x1F9` — the castle level **left standing** after a siege knocked one
     /// down, read only when [`County::castle_degraded`] is 2.
-    /// [`crate::siege::assault_castle_level`] is its one reader here.
     pub castle_level_left: u8,
     /// `+0x1E4` … `+0x1F1` — **what the last siege left**, written by
     /// [`crate::siege::record_castle_damage`] and read back by
@@ -398,30 +313,11 @@ pub struct County {
     /// `+0x1B0` — **the castle-building switch**, thrown from the map the same
     /// way an industry is: [`crate::industry::toggle_from_map`] with
     /// [`crate::industry::MapToggle::Castle`].
-    ///
-    /// `Labour_Allocate` gates castle building on this *and* on
-    /// [`County::castle_degraded`]. [`crate::labour::ceilings`] applies only
-    /// the second, and deliberately: the switch has three UI writers in the
-    /// original and no AI writer at all, so gating on it here would stop every
-    /// AI realm building a castle — a rule that is right for the original's
-    /// human player and wrong for everybody else in it. The field exists so the
-    /// map button has something to move; the gate is not added until the
-    /// original's own AI path for it is found.
     pub castle_switch: bool,
     /// `+0x1C4` — **how far the current castle work has got, 0…100.**
-    ///
-    /// Not a derived figure: `Castle_BuildTick` writes it every season and the
-    /// tile stamp reads it (`< 50` is scaffolding, `>= 50` is a half-built
-    /// castle), so two seasons of the same castle look different on the map.
-    /// Completion is `> 99`, tested on the byte.
     pub castle_percent: u8,
     /// `+0x1CC` / `+0x1D8` — **man-work still outstanding**
     /// work was ordered at.
-    ///
-    /// The original counts *down*: [`crate::industry::order_castle`] sets both
-    /// to `g_castleWorkforce[level]` and each season's castle labour is
-    /// subtracted from the first. A siege adds to **both**, which is how a
-    /// repair becomes a bigger job than the castle it is repairing.
     pub castle_work_left: i32,
     pub castle_work_total: i32,
     /// `+0x1D0` / `+0x1DC` — **stone still owed**
@@ -442,10 +338,6 @@ pub struct County {
     pub castle_wood_total: i32,
     /// `+0x1FB`, `+0x1FC`, `+0x1FD` — percentage swings to population, grain
     /// and herd from a random event.
-    ///
-    /// The population byte is a percentage of the season's **deaths** (when
-    /// negative) or **births** (when positive), not of the county — see
-    /// [`County::event_population_swing`].
     pub event_population_pct: i32,
     pub event_grain_pct: i32,
     pub event_herd_pct: i32,
@@ -458,6 +350,7 @@ pub struct County {
     /// Written by `Population_UpdateAll` (`0x00449EF3`) in **every** county
     /// every season — zero unless `+0x1FB` is non-zero — as
     /// `Pct(deaths or births, |pct|) + 10`, capped at `Pct(population, 20)`.
+    ///
     /// [`crate::population::update_one`] is that code. `[V]`: those two
     /// functions are the only readers and writers of the offset in the binary.
     ///
@@ -468,15 +361,6 @@ pub struct County {
     /// `g_countyFieldTiles + county * 0x50 + slot * 4` (`0x0053EA00`) — **the
     /// twenty map tiles that are this county's fields**, or 0 for an empty
     /// slot.
-    ///
-    /// Not part of the county record in the original, but per-county and
-    /// twenty-wide, so it lives here. The original stores a **byte offset**
-    /// into its eight-byte-per-tile array; this stores the tile index, which is
-    /// that offset divided by eight and is what [`crate::map`] indexes by.
-    ///
-    /// This is the primary state the five counts below are derived from — see
-    /// [`crate::field`]. Save block 12 is 1,360 bytes = 17 × 80 exactly, which
-    /// is where the width comes from.
     pub field_tiles: [u16; MAX_FIELDS],
     /// `+0x15A` — the round-robin slot the pasture sweeps last stopped on.
     ///
@@ -491,10 +375,6 @@ pub struct County {
     /// `+0x15A` in the original and kept separate here.
     pub blight_cursor: u8,
     /// `+0x1FF` — read positively by the fertility rule.
-    ///
-    /// **Derived.** [`crate::field::recount`] is the only thing that should
-    /// write any of the five counts; they are a cache over
-    /// [`County::field_tiles`] and the map's terrain plane.
     pub fields_fallow: i32,
     /// `+0x200` — **not read by the fertility rule at all.**
     pub fields_cattle: i32,
@@ -505,35 +385,17 @@ pub struct County {
     /// `0x17` and `0x18` a drought or a flood leaves behind for one season.
     pub fields_waste: i32,
     /// `+0x204` — fields under reclamation.
-    ///
-/// The one count with a *rule* attached: it is what
-    /// `Field_SetType` tests to decide whether field reclamation gets a share
-    /// of the farm workforce at all.
     pub fields_reclaiming: i32,
     /// `+0x208` — -100..=100.
     pub fertility: i32,
     /// `+0x21B`.
     pub weather: Weather,
     /// `+0x21D` — the accumulator the weather band is computed from.
-    ///
-    /// `docs/kingdom.md` types this `i8`. It is held as `i32` here and clamped
-    /// to the `i8` range on every write, because the documented update can push
-    /// a county past 127 in one season (`delta + localModifier` on top of the
-    /// global `delta`) and an `i8` would wrap a drought into a flood.
     pub dryness: i32,
     /// `+0x224` — sacks in store.
     pub grain: i32,
     /// `+0x240`, `+0x244`, `+0x248` — **the seed, the standing crop, and this
     /// season's harvest.**
-    ///
-    /// This document used to call them *"the growing crop at its three
-    /// stages"*, and they are not that. `Grain_SeasonTick` writes `crop[0]`
-/// once a year, at sowing, as the sacks that went into the
-    /// ground; `crop[1]` is the **one** word the whole year's crop lives in,
-    /// rewritten in place by every `Grain_Grow`; and `crop[2]` is cleared at
-    /// the top of every season and holds what the harvest brought in. So the
-    /// crop is one running number with a sowing figure in front of it and a
-    /// harvest figure behind it, not three stages. See [`crate::land`].
     pub crop: [i32; 3],
     /// `+0x202` — **how many grain fields were sown**, kept so that losing a
     /// field mid-year cuts the crop.
@@ -561,18 +423,12 @@ pub struct County {
     /// show. `docs/stored-fields.json` filed it as *"a second copy of +0x202
     /// that only the tile graphic reads"*; three functions read it and two
     /// write it. `[D]`, and not derivable from `+0x202` and `fieldsGrain`:
+    ///
     /// destroy a field, then paint two more
     /// `docs/decisions.md` C195.
     pub fields_grain_standing: i32,
     /// `+0x1A7` — `Grain_Sow` could not afford one sack a field and fell back
     /// to sowing a token handful.
-    ///
-    /// `Grain_SeasonTick` reads it immediately afterwards and records the
-/// county's field usage as **1** when it is set.
-    /// It is deliberately *not* cleared on `Grain_Sow`'s two early exits — no
-    /// store, or nobody on the fields —
-    /// carries last year's flag. That is the original's; nothing observable
-    /// depends on it, because the crop is 0 either way.
     pub sow_shortfall: bool,
     /// `+0x250` — head of livestock.
     pub herd: i32,
@@ -600,37 +456,19 @@ pub struct County {
     /// (`0x00413590`) and `TileInfo_DrawGrain` (`0x0041CB3A`) print under
     /// `L2.eng` group 77.
     ///
-    /// `grain_weather_change` is the season's stage **after** its weather band
-    /// less **before** it — `crop[0]` at sowing, `crop[1]` while growing,
-    /// `crop[2]` at harvest — signed, and drawn (advanced farming only) as 77/16
-    /// *"gained last season, due to weather."*, 77/17 *"lost …"* or 77/18
-    /// *"Weather had no effect last season."*
-    ///
     /// `grain_event_change` is the **magnitude** of the event's percentage of the
     /// store. The painter chooses 77/25 *"eaten by rats."* or 77/26 *"found as
 /// surplus."* from the event id, and
     /// `Msg_DrawWindow` (`0x0047309E`) prints the same number in the *Rats!!*
-    /// and *Grain found.* letters.
     ///
     /// Both written by [`crate::land::grain_season_tick`], which is
     /// `Grain_SeasonTick` (`0x0044C8AE`): the event figure zeroed at the top of
     /// every county's tick, the weather figure in whichever season branch runs.
-    /// **Nothing reads either back**, so neither can move the simulation; they
-    /// are carried because without them a loaded game prints *"no effect"* for a
-    /// season the original prints a number for. **Zero in every county of every
-    /// save on this machine** — all eighteen stand in *Cloudy* weather with no
-    /// grain event live — so the import is compared only against zero.
     pub grain_weather_change: i32,
     pub grain_event_change: i32,
     /// `+0x270` and `+0x274` — **the same pair for the herd**, printed by
     /// `Panel_JobCattle` (`0x00413B30`) and `TileInfo_DrawHerd` (`0x0041D299`).
     ///
-    /// `herd_weather_change` is `Pct(herd, g_herdWeatherPct[weather])`, signed,
-    /// and **forced to 0 by the No Bull event** — it is stored after that
-    /// override. `herd_event_change` is the magnitude of the event's percentage
-    /// of the herd, which the painter words as 77/20 *"died of disease."*, 77/21
-    /// *"taken by wolves."*, 77/22 *"had to be put down."* or 77/23 *"born, over
-    /// expectations."* by the event id; zero for No Bull, which has no figure.
     /// Written by [`crate::land::herd_season_tick`], which is `Herd_SeasonTick`
     /// (`0x0044D60D`). Zero in every save on this machine, for the same reason.
     pub herd_weather_change: i32,
@@ -638,66 +476,18 @@ pub struct County {
     /// `+0x230`, `+0x2FC` and `+0x22C` — **the grain row's three forecasts**,
     /// and `crop[2]` is the fourth.
     ///
-    /// A player: *"Sidebar doesn't show grain being planted as a negative
-    /// number."* He is right, and he is describing **Spring**. These are the
-    /// numbers that say so, and until now nothing in this workspace computed
-/// any of them — so the sign question never arose.
-    ///
     /// They are the **tail** of `Grain_LabourEstimate` (`0x0044D374`), after the
     /// search loop that [`crate::land::grain_labour_estimate`] reproduces:
-    ///
-    /// ```c
-    /// staff = county.labour[0].workers; /* the real staffing */
-    /// county.field_0x230 = Grain_Sow(county, staff, county.grain);
-    /// if (season == 4)                county.crop[2]     = Grain_Harvest(county, staff, crop[1]);
-    /// if (season == 2 || season == 3) county.field_0x2FC = Grain_Grow   (county, staff, crop[1]);
-    ///
-    /// if      (season == 1) county.field_0x22C = -county.field_0x230 - county.grainEaten;
-    /// else if (season == 4) county.field_0x22C =  county.crop[2]     - county.grainEaten;
-    /// else                  county.field_0x22C = -county.grainEaten;
-    /// ```
-    ///
-    /// from it.** The loop calls `Grain_Sow(county, workers, grain − grainEaten)`
-    /// and the tail calls `Grain_Sow(county, staff, grain)` — a different third
-    /// argument and a different worker count. That is the whole reason
-/// [`crate::land::grain_preview`] exists as a second pass
-    /// value the estimate returns.
-    ///
-    /// **Encoded, deliberately
-    /// *derived* — every estimate round recomputes them from state the digest
-    /// already carries — so they cannot diverge on their own and could have been
-    /// left out. They are in anyway, for the reason the three cattle fields
-    /// above them are: **nothing re-runs the estimate round on load**,
-    /// reloaded game would show a blank produce row until the next turn ended,
-    /// and a blank row is exactly the defect this field exists to fix. A field
-    /// that is cheap to carry and visible when absent is carried.
     pub grain_sown_expected: i32,
     pub grain_grown_expected: i32,
     pub grain_change_expected: i32,
     /// `+0x20C` and `+0x214` — **the reclamation row's two figures**, written by
     /// [`crate::land::reclaim_preview`], which is `Field_ReclaimEstimate`'s
     /// tail.
-    ///
-    /// A player: *"the figure is missing in the sidebar — it draws the serf
-    /// reclaiming, but not the +1 I'm used to."* The `+1` is
-    /// `reclaim_fields_finishing`, and it is a count of **fields that will be
-    /// finished next season**, not of work done: the original simulates the
-    /// coming season's labour over the twenty slots from the nearest-to-finished
-    /// field and counts each one that crosses 800. A field that finishes hands
-    /// its surplus to the next, so one gang can complete two.
-    ///
-    /// `reclaim_seasons_to_next` is the same row's second number, and it is
-/// computed from the **full** staffing
-    /// above had left over — the original re-reads `labour[2].workers`.
-    ///
-    /// Encoded on the same reasoning as the grain forecasts above: derived,
-    /// recomputed by every estimate round, and visibly blank for a turn if a
-    /// load defaulted them.
     pub reclaim_fields_finishing: i32,
     pub reclaim_seasons_to_next: i32,
     /// `+0x294 + c*0x18` — per-commodity production records.
     pub industry: [Industry; 4],
-    /// **Engine state.** Which weapon the blacksmith is making.
     /// `docs/kingdom.md` §7.4 says weapons are credited to
     /// `realm +0x140 + type*4` without saying what picks `type`.
     pub weapon_type: usize,
@@ -715,7 +505,6 @@ pub struct County {
     /// **`[V]`** — `docs/symbols.md` records that `+0x1FE` holds only 0, 1 and
     /// 9 across the England turn-one fixture, which is exactly the set of
     /// values `AI_PERSONALITY_FARM_STYLE` can produce.
-    /// [`crate::ai_farm`] is the whole rule.
     pub farm_style: u8,
     /// `+0x1A8` — an **untraced gate**: when non-zero, `Tax_CollectAll` takes
     /// nothing at all (`docs/kingdom.md` §4.1).

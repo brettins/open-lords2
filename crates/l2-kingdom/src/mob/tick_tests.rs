@@ -8,8 +8,6 @@ use crate::unit::{Unit, UnitKind};
 use crate::units_tick::{Posted, OWNERLESS};
 use crate::Options;
 
-/// Counties 1 and 2 either side of x = 32, a road along y = 10. County 2 is
-/// realm 2's, which gives the letter somebody to be addressed to.
 fn kingdom(happiness: i32) -> Kingdom {
     let mut k = Kingdom::new(0x2E5);
     assert!(k.set_county_count(2));
@@ -57,10 +55,6 @@ fn walk(k: &mut Kingdom, kind: UnitKind, owner: u8) -> Vec<Posted> {
     posted
 }
 
-/// **A mob walking into a contented county posts 156 and costs it ten.**
-///
-/// Ablation: delete the `UnitKind::PeasantMob` arm in `step_one` and both
-/// asserts go red; delete the `settle` call and only the second does.
 #[test]
 fn a_mob_crossing_a_border_writes_to_the_counties_owner_and_takes_ten() {
     let mut k = kingdom(70);
@@ -77,12 +71,6 @@ fn a_mob_crossing_a_border_writes_to_the_counties_owner_and_takes_ten() {
     assert_eq!(k.counties[2].shown_events, -10);
 }
 
-/// **A wretched county is raised by the mob that walked in**: letter 154, the
-/// county leaves its owner, the population loses the men who joined, and the
-/// thirty back puts happiness at `4 + 30 - 10`.
-///
-/// Ablation: drop the `make_county_independent` and the owner stays 2; drop the
-/// `population -= men` and it stays 500.
 #[test]
 fn a_mob_entering_a_wretched_county_raises_it_and_leaves_it_independent() {
     let mut k = kingdom(4);
@@ -101,11 +89,6 @@ fn a_mob_entering_a_wretched_county_raises_it_and_leaves_it_independent() {
     assert_eq!((k.counties[2].happiness, k.counties[2].unrest), (24, 0));
 }
 
-/// **The letter belongs to the mob and to nothing else.** An army crossing the
-/// same border is `Unit_EnterCounty`'s business — it is not its destination
-/// county and county 2 is owned, so the army says nothing at all; a merchant
-/// says nothing anywhere.
-///
 /// Ablation: widen the kind test to `is_combatant()` and the army row goes red.
 #[test]
 fn an_army_and_a_merchant_crossing_the_same_border_say_none_of_this() {

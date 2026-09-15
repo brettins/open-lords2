@@ -46,8 +46,6 @@ fn a_march_onto_your_own_army_asks_to_combine_and_yes_merges_them() {
     );
 }
 
-/// **No is the halt that was there before the question** — both armies stand,
-/// and nothing is asked again.
 #[test]
 fn a_march_onto_your_own_army_answered_no_leaves_both_armies_standing() {
     let (mut g, a, mut m) = on_the_map();

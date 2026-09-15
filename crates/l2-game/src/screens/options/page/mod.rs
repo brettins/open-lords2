@@ -20,7 +20,6 @@ use crate::shell::{self, font, Pen};
 /// strings.
 pub const GROUP_ADVANCED: usize = 50;
 /// `L2.eng` group 51 — *"Sounds"*, *"Music"*, *"Sound effects"*, *"Speech"*.
-/// Exactly four strings. Verified against the words.
 pub const GROUP_SOUND: usize = 51;
 /// `L2.eng` group 52 — *"Display options"*, *"Animations"*, *"Full screen"*,
 /// *"(F5 key re-sizes window to 640x480)"*. Exactly four. Verified against the
@@ -42,14 +41,9 @@ pub const GROUP_ON_OFF: usize = 19;
 /// 8bpp. `docs/formats/eng.md` §5 names that function as its consumer.
 pub const FULL_SCREEN_REFUSAL: u16 = 0x104;
 
-/// Group 52 index 3, the windowed-mode hint, and the one row of these four
-/// panels that is drawn conditionally.
 pub const DISPLAY_F5_NOTE: usize = 3;
-/// The F5 note's own baseline — `Eng_DrawString(52, 3, 0x48, 0x108, body)`,
-/// which is 24 pixels left of every other row on the panel.
 pub const DISPLAY_F5_NOTE_AT: (i32, i32) = (0x48, 0x108);
 
-/// What a row switches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Setting {
     /// `g_optAdvancedFarming` (`0x0053F25C`), `Opt_ToggleAdvancedFarming`
@@ -89,17 +83,13 @@ pub enum Setting {
     StartGameHelp,
 }
 
-/// One row of one panel.
 #[derive(Debug, Clone, Copy)]
 pub struct Row {
     /// The `L2.eng` index within the page's group. Index 0 is the heading, so a
     /// row is never 0.
     pub label: usize,
-    /// The label's baseline, from the painter.
     pub label_at: (i32, i32),
-    /// The state word's x. Its y is the label's.
     pub state_x: i32,
-    /// The 24 × 24 widget's top-left, from the widget table in `.data`.
     pub widget_at: (i32, i32),
     /// **The kind byte at `+0x0F` of the row's widget record**, and every one
     /// of the twelve is **5**: `Widget_Test` shows the pressed picture on the
@@ -107,60 +97,40 @@ pub struct Row {
     /// of its countdown loop. `node tools/oracle/kinds.js` lists all twelve
     /// under `widget 5`, and `crates/l2-game/tests/arms.rs` reads the byte out
     /// of the player's own `Lords2.exe`.
-    ///
-    /// Ours acted on the click until this field existed — the same defect a
-    /// player reported of the yes/no gauntlets (*"clicking yes/no is instant
-    /// whereas the game waited"*), on a screen nobody had inventoried.
     pub kind: Kind,
     pub words: Words,
     pub setting: Setting,
 }
 
 impl Row {
-    /// The widget's hit box — 24 × 24 at the record's own corner, and **the only
-    /// hot rectangle on the row**.
     pub fn hit(&self) -> Rect {
         Rect::new(self.widget_at.0, self.widget_at.1, WIDGET, WIDGET)
     }
 
-    /// The row as a record of the table [`Press::event`] walks.
     pub fn widget(&self) -> Widget {
         Widget::new(self.hit(), self.kind)
     }
 
-    /// Whether this engine can honour the row.
-    ///
     /// Two cannot, and they are drawn anyway. *Full screen* is a DirectDraw
     /// mode switch in a program that is a `winit` window — and in the original
     /// it is already a permanent *Yes* on any desktop that is not 8bpp, because
     /// `Display_Init` (`0x0042E5C0`) forces it. *Start game help* opens
     /// `l2help.hlp` through `WinHelpA`, a Windows 3.1 help file and a Windows
     /// API that has not shipped since Vista.
-    ///
-    /// **, in the disabled colour with the reason
-    /// under the panel: a reproduction that silently loses two of its eleven
-    /// rows is a reproduction nobody can check against a screenshot.
     pub fn supported(&self) -> bool {
         !matches!(self.setting, Setting::FullScreen | Setting::StartGameHelp)
     }
 }
 
-/// `Ui_OkButton`'s corner picture, and every options widget, is 24 × 24.
 pub(super) const WIDGET: i32 = 24;
 
 /// **`System.pl8` frame 25**, the `+0x04` base frame of all twelve widget
 /// records (`node tools/oracle/kinds.js`: `f25` on every `Opt_*` row), and
 /// `Widget_Draw` (`0x0040CFD2`) draws `base + 1` while the press timer runs.
-///
-/// Ours drew `Ui_OkButton`'s mode-1 picture, frame `0x10`, which is no record's
-/// frame: it was chosen to look like a button
-/// table.
 pub const WIDGET_FRAME: usize = 25;
 
 /// Screen `0x39` — `Screen_AdvancedOptions` (`0x00414F68`), `L2.eng` group 50.
 ///
-/// **Four rows, not three.** `docs/bugs.md` §6.4 says *"the original ships three
-/// behaviour switches"* and names Advanced Farming, Foraging and Exploration.
 /// Group 50 holds **five** strings — a heading and four rows — and the widget
 /// table `g_advancedOptWidgets` holds **four** records. *"Fight humans only?"*
 /// is the fourth, it is on this panel, and it changes a rule
@@ -214,6 +184,7 @@ const ADVANCED: &[Row] = &[
 /// (`g_options+0x3C`, `+0x40`, `+0x44`) are written to the preferences file on
 /// every exit and read by one function whose only caller passes the mode that
 /// draws none of them. Inventing a mixer here would be inventing a surface.
+///
 /// `[V]`
 const SOUND: &[Row] = &[
     Row {
@@ -301,9 +272,6 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0x100),
         state_x: 0x120,
         widget_at: (288, 252),
-        // No `arm!`: `docs/arms.json` files `Opt_GameHelpContents` `missing`,
-        // and a marker says an arm is in the tree. The kind is still the
-        // record's.
         kind: Kind::Delayed,
         words: Words::YesNo,
         setting: Setting::StartGameHelp,

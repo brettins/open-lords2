@@ -11,28 +11,17 @@ use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::Tables;
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------------------
-// 1. The report
-// ---------------------------------------------------------------------------
 
-/// **The bug, as reported.** A person on the start menu types their name and it
-/// appears.
 #[test]
 fn typing_a_name_reaches_the_field() {
     let (mut game, assets) = bare();
     let mut m = name_page(&mut game, &assets);
     assert_eq!(field_of(&m), "Player1", "the field opens seeded — Edit_Begin(&g_options, …)");
 
-    // `Edit_Begin` puts the caret at 0 and the default is OVERWRITE, so the
-    // first thing a person sees is their typing replacing the default name.
     type_into(&mut m, &mut game, &assets, "Richard");
     assert_eq!(field_of(&m), "Richard", "seven characters over seven");
 }
 
-/// **Overwrite is the default, and Delete is how a person gets out of it.**
-///
-/// Reproduced: `g_editInsert` starts at zero and zero is
-/// the overwrite branch. `docs/bugs.md` B79.
 #[test]
 fn a_short_name_leaves_the_tail_of_the_old_one_until_delete_or_insert() {
     let (mut game, assets) = bare();
@@ -45,16 +34,12 @@ fn a_short_name_leaves_the_tail_of_the_old_one_until_delete_or_insert() {
     }
     assert_eq!(field_of(&m), "Ed", "VK_DELETE clears the tail");
 
-    // The other way out is the Insert key.
     let mut m = name_page(&mut game, &assets);
     press(&mut m, &mut game, &assets, Key::Insert);
     type_into(&mut m, &mut game, &assets, "Ed");
     assert_eq!(field_of(&m), "EdPlayer1");
 }
 
-/// **A space is a character and `I` is a letter**, on the one page that has a
-/// field — and both were live bugs the moment the field arrived, because
-/// `main.rs` sends the `WM_KEYDOWN` half too and the screen was acting on it.
 #[test]
 fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
     let (mut game, assets) = bare();
@@ -65,7 +50,6 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
     assert!(!pushed(&ts), "and the I did not also open the screen index");
     assert_eq!(m.page(), SetupPage::Shield, "and the space did not also press a button");
 
-    // Off the name page they mean what they meant before: `I` is the index.
     let (mut game, assets) = bare();
     let mut title = SetupScreen::new(SetupPage::Title);
     let mut ctx = Ctx { game: &mut game, assets: &assets };
@@ -73,19 +57,11 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
     assert!(matches!(t, Transition::Push(_)), "the title page still has its keyboard");
 }
 
-// ---------------------------------------------------------------------------
-// 2. The field into the game
-// ---------------------------------------------------------------------------
 
-/// **The hand-off the six previous instances of this bug all failed at.**
-///
 /// Typing into a field that nothing reads is the same defect as
 /// `castle_degraded`, which was written by nothing. *Start* runs
 /// `Player_SetHuman` (`0x0049BAE9`), and this asserts on `Game::player_names`
 /// after driving the whole page — the name is never assigned by the test.
-///
-/// Install-gated because *Start* builds a world out of `L2_maps.dat` and
-/// refuses when it cannot.
 ///
 /// **Page 4 is reached through the campaign chooser, and that is not
 /// incidental.** `FUN_00433155`'s *Continue* arm only starts a game when
@@ -94,8 +70,6 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
 /// title menu's *Multiple players*, which is one of the arms that **clears**
 /// that flag, so after that arm was reproduced it was pressing a button that
 /// correctly does not start anything. The name still has to survive the trip:
-/// `Setup_ChooseCampaign` re-seeds the field on arrival, so *"Aethelred"* is
-/// typed after page 4 is open.
 #[test]
 fn start_puts_the_typed_name_into_the_realm() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -108,8 +82,6 @@ fn start_puts_the_typed_name_into_the_realm() {
     let mut screen = SetupScreen::new(SetupPage::Title);
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        // "Single player", "Play Now!", then the left-hand campaign — the
-        // three items that are already highlighted, so Enter three times.
         screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
         assert_eq!(screen.page(), SetupPage::Options);
         screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
@@ -125,7 +97,6 @@ fn start_puts_the_typed_name_into_the_realm() {
     }
     assert_eq!(screen.name(), "Aethelred");
 
-    // *Continue* — the second of page 4's two captions, at (0x150, 0xD7).
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         screen.handle(Event::Click { x: 0x150 + 40, y: 0xD7 + 8 }, &mut ctx);
@@ -140,8 +111,6 @@ fn start_puts_the_typed_name_into_the_realm() {
     );
 
     // **And the other five slots are the AI lords', from `L2.eng` group 7.**
-    // The index is the LORD, not the realm — `docs/diplomacy.md` §0.1 — so this
-    // also checks the array is not simply indexed by slot.
     let others: Vec<String> = (0..MAX_REALMS)
         .filter(|r| *r != player)
         .map(|r| game.player_names[r].as_str())
@@ -157,7 +126,4 @@ fn start_puts_the_typed_name_into_the_realm() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// 3. The file
-// ---------------------------------------------------------------------------
 

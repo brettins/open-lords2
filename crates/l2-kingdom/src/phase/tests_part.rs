@@ -19,8 +19,6 @@ mod tests {
         assert_eq!(Phase::SeasonEnd.next(), Phase::NeutralCounties, "7 wraps to 1");
     }
 
-    /// The cycle, walked with everything settling immediately. Seven phases,
-    /// and back to where it started.
     #[test]
     fn a_full_cycle_visits_every_phase_in_order_exactly_once() {
         let mut m = TurnMachine::new();
@@ -50,8 +48,6 @@ mod tests {
     #[test]
     fn a_unit_phase_starts_its_work_before_it_can_end() {
         let mut m = TurnMachine { phase: Phase::ArmyMovement, step: 0, ..TurnMachine::new() };
-        // Even with the units already settled, the first call is the one that
-        // kicks off the work.
         let first = m.tick(true);
         assert!(first.started);
         assert_eq!(first.advanced_to, None, "must not skip its own handler");
@@ -86,8 +82,6 @@ mod tests {
         assert_eq!(Phase::Merchants.wait(), PhaseWait::Units(UnitKind::Merchant));
     }
 
-    /// The four ordering dependencies the economy silently relies on.
-    /// `docs/kingdom.md` §3.4: **the order is the rule**.
     #[test]
     fn the_pipeline_order_encodes_every_dependency_the_formulas_need() {
         let before = |a: Pass, b: Pass| a.order() < b.order();
@@ -107,10 +101,6 @@ mod tests {
         assert!(before(Pass::RationApply, Pass::RationPreview), "and the preview really is second");
     }
 
-    /// **The blacksmith runs before the mines.** The obvious reading — mine the
-    /// ore, then forge it — is wrong,
-    /// runs weapons over every county first, so a season's weapons are paid for
-    /// out of the *previous* season's ore.
     #[test]
     fn the_industry_passes_run_in_the_order_the_driver_calls_them() {
         let runs: Vec<Commodity> = SEASON_PIPELINE
@@ -127,12 +117,6 @@ mod tests {
         assert!(order(Commodity::Weapons) < order(Commodity::Wood));
     }
 
-    /// **Four passes here are not `Season_Advance`'s calls**, whatever
-    /// `docs/kingdom.md` §3.4 says of the first: `Score_RankRealms` has five
-    /// callers and none of them is the season,
-    /// belong to `Turn_Tick`'s seventh phase alongside it. All four are kept
-    /// in the pipeline because the work has to happen somewhere, and flagged so
-    /// nobody reads the array as a transcription.
     #[test]
     fn four_passes_here_are_not_things_season_advance_calls() {
         let extra: Vec<Pass> =
@@ -150,13 +134,9 @@ mod tests {
         assert!(is_in_season_advance(Pass::RationPreview), "and the preview really is last");
     }
 
-    /// The correction to `docs/armies.md` §2.1, as an ordering assertion: phase
-    /// 7 walks the mercenaries **before** it gives the armies their moves back.
     #[test]
     fn the_mercenaries_walk_before_the_armies_get_their_moves_back() {
         assert!(Pass::MercenaryAdvance.order() < Pass::UnitsResetMoves.order());
-        // …and both are after everything the season itself does, because the
-        // season runs inside the same phase.
         assert!(Pass::RationPreview.order() < Pass::MercenaryAdvance.order());
     }
 

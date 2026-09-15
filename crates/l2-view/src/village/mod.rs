@@ -1,37 +1,12 @@
-//! The village — the county's own picture, and where peasants are moved.
-//!
 //! Screen `0x02`. `Village_Draw` (`0x00412143`) is one of the thirty-nine cases
 //! in `Screen_Draw`, and it is **an inset over the campaign map**, not a page:
+//!
 //! it repaints the map — `FUN_004050C0` → `FUN_004CFB08` → `Map_DrawFrame` —
 //! and then blits a 363 x 320 picture over it. Nothing clears the screen, so
 //! the menu bar, the county sidebar and a band of map either side of the
 //! picture stay visible, which is how a player describes it as a dialogue.
-//! Floating over *that* is the job popup (screen `0x0F`).
 //!
-//! This module said the opposite until a player opened the game and looked.
 //! `docs/decisions.md` C22 records the inference and why it was wrong.
-//!
-//! Everything in this module is layout and artwork. The county's state stays in
-//! `l2-kingdom` and the state machine in `l2-game`; what is here is the
-//! geometry, which is the part read out of `Lords2.exe` and its files.
-//!
-//! # The picture, and what stays visible around it
-//!
-//! ```text
-//!  x=0                                                478       640
-//!  y=0   ┌──────────────────────────────────────────────┬─────────┐
-//!        │                  menu bar                    │         │  none of this
-//!  y=24  ├────────┬───────────────────────────┬─────────┤ county  │  is touched
-//!        │        │                           │         │ sidebar │
-//!  y=64  │  map   │      vill.pl8 frame 0     │   map   │         │
-//!        │        │   363 x 320 at (64, 64)   │         │         │
-//!        │        │  eight clusters of icons  │         │         │
-//!  y=384 ├────────┴───────────────────────────┴─────────┤         │
-//!        │                    map                       │         │
-//!  y=480 └──────────────────────────────────────────────┴─────────┘
-//!          |<------------- the 480 x 320 band ---------->|
-//!                     saved and restored at (0, 64)
-//! ```
 //!
 //! `g_villageTopY` is **64**, or **132** with *Advanced Farming* on, which is
 //! what makes room for `villtops.pl8` — six 363 x 70 frames, one per weather,
@@ -39,9 +14,6 @@
 //! frames and `L2.eng` group 66 has exactly six weather names, and
 //! `Village_Draw` indexes both with the same county byte.
 //!
-//! # The drop grid, which is a file
-//!
-//! Peasants are dropped by pointing at the *picture*, not at a rectangle.
 //! `FUN_004398F5` reads
 //!
 //! ```c
@@ -56,17 +28,14 @@
 //! which is a 24-byte header plus 45 x 40 exactly. The byte is the cluster,
 //! 1-based, clamped to 8. **`[V]`**
 //!
-//! # The icons
-//!
-//! One icon is `ceil(population / 25)` people.
 //! twenty-five slots. `Misc_cty.pl8` frames 0 … 0x16 are the icons — twenty-
 //! three 16 x 32 frames that `docs/screens-county.md` §9 guessed were "almost
 //! certainly the top menu bar", marked `[I]` and never checked. They are not.
+//!
 //! **`[V]`**: [`ICON_VALUE`] is the shipped table at `0x004D6808`, its nine
 //! entries are nine (normal, highlighted) pairs, and the four frames it never
 //! names — 5, 6, 11 and 12 — are exactly the four frames in that range of the
 //! shipped file that are **2 x 2 stubs**.
-//! icons, nineteen 16 x 32 frames, nothing left over.
 
 mod layout;
 pub use layout::*;
@@ -78,15 +47,8 @@ pub use art::*;
 use crate::sheet::Sheet;
 use crate::Canvas;
 
-/// The eight peasant clusters. Seven jobs and *Idle townsfolk*: iron and stone
-/// **share** cluster 0, because a county's mine and its quarry are drawn at the
-/// same spot — `villani2.pl8` frames 0x2B and 0x28, both at `(0x4C, top + 0x0C)`.
-///
-/// This used to name `Misc_cty.pl8`. The frames were right and the file was
-/// wrong; [`RESOURCE_BUILDINGS`] has `Village_Draw`'s three calls verbatim.
 pub const CLUSTER_COUNT: usize = 8;
 
-/// Twenty-five icon slots to a cluster, one twenty-fifth of the county each.
 pub const ICONS_PER_CLUSTER: usize = 25;
 
 /// `g_jobClusterOrigins` (`0x004D85A8`) — eight `{i32 x, i32 y}` pairs, before
@@ -125,15 +87,8 @@ pub const ICON_OFFSETS: [(i32, i32); ICONS_PER_CLUSTER] = [
 ];
 
 /// `g_jobClusterToSlot` (`0x004D6780`) — which labour slot each cluster is.
-///
-/// Cluster 0 reads **stone**, and [`slot_for_cluster`] overrides it to iron for
-/// a county with a mine and no quarry. That single case is what pins industry 1
-/// as iron and industry 3 as stone (`docs/screens-county.md` §6.4).
 pub const CLUSTER_TO_SLOT: [usize; CLUSTER_COUNT] = [5, 0, 1, 3, 6, 7, 8, 2];
 
-/// The cluster that is *Idle townsfolk*, and the one special case in three of
-/// the icon builders: its icons are always drawn in the surplus frame, because
-/// idle people **are** the surplus.
 pub const IDLE_CLUSTER: usize = 6;
 
 /// **Ten** cluster numbers, because `Village_BalanceAll` (`0x00439EDB`) loops
@@ -143,27 +98,15 @@ pub const IDLE_CLUSTER: usize = 6;
 /// words past `g_jobClusterToSlot` are the head of `DAT_004D67A0`, and they are
 /// **4** and **6**, read out of the shipped `Lords2.exe` at `0x004D67A0` by
 /// `crates/l2-view/tests/install/main.rs`.
-/// also balances slot 4, *Iron mining* — which no cluster 0 … 7 reaches unless
-/// the county's cluster 0 has been overridden to it — and balances slot 6,
-/// *Wood cutting*, a second time. Whether the original meant to reach iron or
-/// merely ran off the end of its table, the effect is that the gesture covers
-/// **all nine slots**, and a faithful reimplementation has to loop the same ten.
 pub const CLUSTER_TO_SLOT_BALANCE: [usize; 10] = [5, 0, 1, 3, 6, 7, 8, 2, 4, 6];
-/// Where the ten words above start,
-/// user's own executable.
 pub const CLUSTER_TO_SLOT_VA: u32 = 0x004D_6780;
 
 /// `Village_Draw`: `FUN_0040A682(0, 0x40, g_villageTopY)`.
 pub const SCENE_X: i32 = 64;
-/// `g_villageTopY` with *Advanced Farming* off.
 pub const SCENE_Y: i32 = 64;
-/// `g_villageTopY` with it on — 68 pixels lower, which is where `villtops.pl8`
-/// goes.
 pub const SCENE_Y_ADVANCED: i32 = 132;
-/// `villtops.pl8` is drawn at this y whichever mode is on.
 pub const TOPS_Y: i32 = 64;
 
-/// `vill.pl8` frame 0, out of the shipped file's own frame table.
 pub const SCENE_W: i32 = 363;
 pub const SCENE_H: i32 = 320;
 
@@ -177,38 +120,25 @@ pub const SCENE_H: i32 = 320;
 /// function copies **dwords**: it advances the framebuffer pointer
 /// `g_spriteWidth` times as an `undefined4 *` — 0x78 x 4 = **480 bytes**, one
 /// byte a pixel — and then adds `0xA0` = 160 more to reach the next row.
+///
 /// `480 + 160 = 640`, which is the screen stride exactly, so the width is 480
 /// pixels and not 120. Its twin `FUN_004B3EC0` copies the other way.
-///
-/// So the village's reach stops at **x = 480** and at
-/// `g_villageTopY + 320`. The menu bar (y 0 … 23) and all but the first two
-/// columns of the county sidebar (x 478 … 639) are outside it — 480 is a dword
-/// boundary and 478 is not, which is the whole of why it overshoots by two.
-/// The picture itself is narrower still — 363 wide from x = 64 —
-/// campaign map shows on both sides of it even inside the band.
 pub const BAND_X: i32 = 0;
 pub const BAND_W: i32 = 480;
-/// `g_spriteHeight`, which is a plain row count.
 pub const BAND_H_SAVED: i32 = 320;
 /// What `FUN_004B3F0A`'s second argument leaves for the rest of the row.
 pub const BAND_ROW_REMAINDER: i32 = 0xA0;
-/// The screen stride the two must add up to.
 pub const SCREEN_STRIDE: i32 = 640;
 
-/// `vill_gd8.pl8`: 45 columns and 40 rows of 8 x 8 pixels, covering
-/// x `0x40 … 0x1A8` and y `top … top + 0x140`.
 pub const GRID_COLS: usize = 45;
 pub const GRID_ROWS: usize = 40;
 pub const GRID_CELL: i32 = 8;
 pub const GRID_LEN: usize = GRID_COLS * GRID_ROWS;
-/// The 24 bytes of `vill_gd8.pl8` before its single frame's data.
 const GRID_DATA_OFFSET: usize = 0x18;
 
-/// `Village_DrawCluster`: an icon is drawn at `origin + offset + this`.
 pub const ICON_DX: i32 = -2;
 pub const ICON_DY: i32 = -24;
 
-/// `Ui_OkButton(0x180, g_villageTopY + 0x118, 1)`.
 pub const OK_X: i32 = 384;
 pub const OK_DY: i32 = 280;
 
@@ -221,25 +151,11 @@ pub const BAND_X_MAX: i32 = 0x1FF;
 pub const BAND_H: i32 = 0x178;
 
 /// `g_peasantIcons` values, from `0x004D6808`, indexed by **labour slot**.
-///
-/// The stored byte is the frame *plus one*; `Village_DrawCluster` draws
-/// `value - 1`, and `+ 1` again while the icon is selected — so each entry
-/// names a (normal, highlighted) pair. Slot 8 is 2, which is the same pair the
-/// surplus icons use.
 pub const ICON_VALUE: [u8; 9] = [4, 8, 10, 14, 16, 18, 20, 22, 2];
 
-/// Where the nine dwords above start,
-/// user's own executable.
-///
-/// It is nine **dwords**, not nine bytes: 4 8 10 14 16 18 20 22 2.
 pub const ICON_VALUE_VA: u32 = 0x004D_6808;
 
-/// The icon for a worker the job **wants and has not got**. Never selectable —
-/// `Village_BoxSelect` skips value 1 explicitly, because those people are not
-/// there to be moved.
 pub const ICON_SHORTFALL: u8 = 1;
-/// The icon for a worker **past the job's useful ceiling**, and for every idle
-/// townsman.
 pub const ICON_SURPLUS: u8 = 2;
 
 /// `DAT_004D6830` — the order the twenty-five slots of a single-state cluster
@@ -251,48 +167,16 @@ pub const FILL_ORDER: [u8; ICONS_PER_CLUSTER] = [
 
 /// `DAT_004D6850` and `DAT_004D6860` — the two orders a cluster showing **both**
 /// states fills in, the second offset ten slots along.
-///
-/// They partition the grid exactly: the first has thirteen real thresholds and
-/// lands in slots 0 … 12, the second has twelve and lands in slots 13 … 24, and
-/// 13 + 12 = 25 with no slot claimed twice. `99` is a threshold no count
-/// reaches.
 pub const FILL_ORDER_MAIN: [u8; 15] = [8, 5, 2, 7, 10, 6, 3, 1, 4, 9, 11, 12, 13, 99, 99];
 pub const FILL_ORDER_OTHER: [u8; 15] = [99, 99, 99, 12, 10, 11, 8, 5, 4, 7, 9, 3, 1, 2, 6];
 /// Where `FILL_ORDER_OTHER`'s slots start. `FUN_00451A5D` writes them through
 /// `g_peasantIcons + 10`.
 const OTHER_BASE: usize = 10;
-/// Below thirteen of each, the two orders above are used; at or above it the
-/// cluster fills from both ends instead.
 const MIXED_LIMIT: i32 = 13;
 
-// ------------------------------------------------------------------- artwork
 
-/// **The three buildings `Village_Draw` paints on top of the scene**, in the
-/// order it paints them, each one gated on the county having that resource.
-///
 /// `[V]` — `Village_Draw` (`0x00412143`), read out of the corpus verbatim:
-///
-/// ```c
-/// if (county.industry[0].hasResource) Pl8_DrawFrame(villani2, 0x29, 0xac, top + 0xe5);
-/// if (county.industry[3].hasResource) Pl8_DrawFrame(villani2, 0x28, 0x4c, top + 0x0c);
-/// if (county.industry[1].hasResource) Pl8_DrawFrame(villani2, 0x2b, 0x4c, top + 0x0c);
-/// ```
-///
-/// Three things it settles,
-///
-/// * **The sheet is `villani2.pl8`, not `Misc_cty.pl8`.** This module's own
-///   doc comment on [`CLUSTER_COUNT`] named `Misc_cty` frames `0x2B` and `0x28`
-///   and it was wrong about the file; the frame numbers were right.
-/// * **The lumber camp is a third building.** Wood is industry 0 and it has a
-///   building of its own, at the bottom right of the scene — the pairing that
-///   was documented was only the two that share a spot.
-/// * **The mine is drawn *after* the quarry at the same position.** A county
-///   holding both would show the mine, and no county on any shipped map holds
-///   both — see `crates/l2-scenario/tests/import/main.rs`, where iron and stone come
-///   out complementary in thirteen of England's fourteen counties and absent in
-///   the fourteenth.
 pub const RESOURCE_BUILDINGS: [(usize, usize, i32, i32); 3] = [
-    // (industry record, villani2 frame, x, y relative to g_villageTopY)
     (0, 0x29, 0xAC, 0xE5),
     (3, 0x28, 0x4C, 0x0C),
     (1, 0x2B, 0x4C, 0x0C),
@@ -301,56 +185,32 @@ pub const RESOURCE_BUILDINGS: [(usize, usize, i32, i32); 3] = [
 /// One animated overlay of `Village_Animate` (`0x00412421`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Overlay {
-    /// Which `has_resource` gates it, or `None` for one that always runs.
     pub industry: Option<usize>,
-    /// `true` for `villani1.pl8`, `false` for `villani2.pl8`.
     pub villani1: bool,
-    /// The first of the run; the counter is added to it.
     pub first: usize,
-    /// How many frames the counter cycles through.
     pub frames: usize,
-    /// Where it goes, `y` relative to `g_villageTopY`.
     pub at: (i32, i32),
-    /// Which pulse steps this one's counter — [`PULSE_FAST_MS`] or
-    /// [`PULSE_SLOW_MS`].
     pub period_ms: u32,
 }
 
 /// **Every overlay `Village_Animate` (`0x00412421`) draws, in its own order.**
+///
 /// **[V]** — read out of the corpus verbatim.
 ///
-/// ```c
-/// Pl8_DrawFrame(villani2, c293c + 0x19, 0x50,  top + 0xaf);
-/// Pl8_DrawFrame(villani2, c2940 + 0x21, 0x72,  top + 0xc3);
-/// Pl8_DrawFrame(villani2, c294c + 0x0f, 0x16e, top + 0x125);
-/// if (industry[0].hasResource) Pl8_DrawFrame(villani2, c2944 + 7, 0xf3, top + 0x104);
-/// if (industry[3].hasResource) Pl8_DrawFrame(villani2, c2930,     0xa3, top + 0x1b);
-/// if (industry[1].hasResource) Pl8_DrawFrame(villani1, c2938,     0xa4, top + 0xc);
-/// ```
-///
-/// Three things this settles:
-///
-/// * **Three of the six are unconditional.** Every village animates, whatever
-///   the county holds. The three that were written down here previously were
-///   only the resource-gated half.
 /// * **`villani1.pl8` is the iron mine's animation, and that is its only use in
 ///   the binary.** It is loaded by `Village_Draw` beside `villani2.pl8` and
 ///   read by exactly one blit — this one. Nothing else in the corpus touches
 ///   `DAT_0053E918`, the buffer it goes into. That answers a standing question
 ///   in this module: the file is not spare, it is one eighteen-frame loop.
-/// * **The two counters that are not here are not drawn anywhere.**
+///
 ///   `Village_Animate` also steps `DAT_004D2934` (0 … 0x14) and `DAT_004D2948`
 ///   (0 … 0x0F), and `RefsTo` finds no other reader of either address in the
 ///   whole executable. Two animations were cut and their clocks were left
 ///   running. `docs/bugs.md` has the row.
 pub const OVERLAYS: [Overlay; 6] = [
-    // The three that always run. `docs/screens-county.md` has no names for
-    // them; what they are is a matter for somebody looking at the sheet.
     Overlay { industry: None, villani1: false, first: 0x19, frames: 8, at: (0x50, 0xAF), period_ms: PULSE_SLOW_MS },
     Overlay { industry: None, villani1: false, first: 0x21, frames: 7, at: (0x72, 0xC3), period_ms: PULSE_FAST_MS },
     Overlay { industry: None, villani1: false, first: 0x0F, frames: 10, at: (0x16E, 0x125), period_ms: PULSE_SLOW_MS },
-    // …and the three over the buildings of [`RESOURCE_BUILDINGS`], in the
-    // same industry order.
     Overlay { industry: Some(0), villani1: false, first: 7, frames: 8, at: (0xF3, 0x104), period_ms: PULSE_SLOW_MS },
     Overlay { industry: Some(3), villani1: false, first: 0, frames: 7, at: (0xA3, 0x1B), period_ms: PULSE_SLOW_MS },
     Overlay { industry: Some(1), villani1: true, first: 0, frames: 18, at: (0xA4, 0x0C), period_ms: PULSE_SLOW_MS },
@@ -396,53 +256,30 @@ pub const PULSE_SLOW_MS: u32 = 160;
 /// }
 /// ```
 ///
-/// So a rung fires on the **first tick at least 20 ms after the last gate**,
-/// and on a 16 ms tick that is every second tick — 32 ms, not 20. Every rung
-/// above it is that much slower: 80 ms is eight of our ticks, not five.
 /// `docs/decisions.md` C179, which found it in the armoury walker.
 pub const GATE_MS: u32 = 20;
 
-/// How many gates make one 80 ms pulse — the first divider of the chain.
 pub const PULSE80_GATES: u32 = PULSE_FAST_MS / GATE_MS;
 
-/// **The two counters `Village_Animate` steps and nothing reads.**
-///
 /// Their periods, for anyone who goes looking: `DAT_004D2934` wraps at `0x14`
 /// (21 frames) on the slow pulse and `DAT_004D2948` at `0x0F` (16 frames) on
 /// the fast one. Kept here because "we did not find a consumer" is a claim
 /// somebody will want to re-check, and the addresses are the way to do it.
 pub const DEAD_COUNTER_PERIODS: [(u32, usize); 2] = [(PULSE_SLOW_MS, 21), (PULSE_FAST_MS, 16)];
 
-/// **The village's animation clock. Display state, and nothing else.**
-///
-/// `docs/netcode.md` D-12: nothing below `l2-game` may read a wall clock, and
-/// no part of the lockstep digest may depend on what an animation is showing.
-/// This counts *fixed ticks* handed to it by the caller and converts them to
-/// the original's two millisecond pulses; it is owned by a screen, is not in
-/// any save, is not hashed, and two clients whose villages are on different
-/// frames are not desynchronised — they are looking at the same county.
-///
 /// It is deliberately not `Copy`: a clock that can be duplicated is a clock
 /// that gets stepped twice. `docs/decisions.md` C63.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct AnimationClock {
-    /// Milliseconds since the last gate. Zeroed, never decremented: the
-    /// original sets `stamp = now`. See [`GATE_MS`].
     elapsed_ms: u32,
-    /// Gates since the last 80 ms pulse, 0 … [`PULSE80_GATES`].
     gates: u32,
-    /// The two pulse counters, `[fast, slow]`, each counting pulses rather
-    /// than frames — an overlay takes its own frame as `counter % frames`.
     pulses: [u32; 2],
 }
 
-/// The village's own files, none of which any other screen loads.
 pub struct VillageArt {
     scene: Sheet,
     tops: Option<Sheet>,
     grid: Vec<u8>,
-    /// `villani2.pl8` — the quarry, the mine and the lumber camp, and five of
-    /// the six animated overlays.
     animation_b: Option<Sheet>,
     /// `villani1.pl8` — **the iron mine's eighteen-frame loop, and nothing
     /// else.** `Village_Draw` loads it into `DAT_0053E918` and the single
@@ -455,7 +292,6 @@ pub struct VillageArt {
 mod tests {
     use super::*;
 
-    /// The two mixed-state fill orders partition the twenty-five slots exactly:
     /// thirteen real thresholds in the first, twelve in the second, no slot
     /// claimed by both, and none left over. That is the check that the ten-slot
     /// offset in `FUN_00451A5D` is an offset and not an overrun.
@@ -473,8 +309,6 @@ mod tests {
         all.sort_unstable();
         assert_eq!(all, (0..25).collect::<Vec<_>>(), "every slot exactly once");
 
-        // And each is a permutation of 1..=n, so every count from 1 to the
-        // limit lights exactly one more icon.
         let mut a: Vec<u8> = FILL_ORDER_MAIN.iter().copied().filter(|&v| v != 99).collect();
         a.sort_unstable();
         assert_eq!(a, (1..=13).collect::<Vec<u8>>());
@@ -487,11 +321,6 @@ mod tests {
     /// the first tick 20 ms after the last and then sets `stamp = now`. At the
     /// 16 ms tick a gate is two ticks, so the 80 ms pulse is eight ticks and
     /// the 160 ms one sixteen — not five and ten. C179.
-    ///
-    /// **Ablation.** Carry the remainder (`elapsed_ms -= GATE_MS`, or the
-    /// `while self.elapsed_ms >= PULSE_FAST_MS` loop this replaced) and 240
-    /// ticks give 48 fast pulses instead of 30, the same 1.6 the armoury
-    /// walker ran at.
     #[test]
     fn the_pulse_chain_drops_its_remainder_at_every_rung() {
         const TICK_MS: u32 = 16;
@@ -508,12 +337,10 @@ mod tests {
         assert_eq!(first, [8, 16], "80 ms is eight ticks at a 16 ms tick, 160 ms is sixteen");
         assert_eq!(clock.pulses, [30, 15], "240 ticks, against the 48 and 24 a carry gives");
 
-        // One long tick is one gate, not the four its milliseconds would buy.
         let mut slow = AnimationClock::new();
         assert!(!slow.tick(1000), "a 1000 ms tick is one gate and no pulse");
         assert_eq!(slow.pulses, [0, 0]);
 
-        // And on the original's own 20 ms frame the rungs are their names.
         let mut exact = AnimationClock::new();
         for _ in 0..PULSE80_GATES {
             exact.tick(GATE_MS);
@@ -532,8 +359,6 @@ mod tests {
         );
     }
 
-    /// The single-state order is a permutation of 1 ..= 25, which is what makes
-    /// "n workers" and "n icons" the same statement.
     #[test]
     fn the_single_state_fill_order_is_a_permutation_of_all_twenty_five() {
         let mut v = FILL_ORDER.to_vec();
@@ -550,27 +375,16 @@ mod tests {
         }
     }
 
-    /// The icon arithmetic, at the three states the job popup colours.
     #[test]
     fn a_job_shows_a_shortfall_a_surplus_or_neither() {
-        // Eighteen workers of a wanted twenty-five, four people to an icon:
-        // five icons of people and two of the seven missing.
         assert_eq!(icon_counts(18, 25, 25, 4), (5, -2));
-        // Comfortably inside both bounds: no second state at all.
         assert_eq!(icon_counts(18, 10, 25, 4), (5, 0));
-        // Past the ceiling: the surplus is split off the normal count rather
-        // than added to it, so the cluster still shows five icons in total.
         assert_eq!(icon_counts(18, 0, 10, 4), (3, 2));
-        // A job the county cannot do at all rounds the surplus up,
-        // icon is still drawn.
         assert_eq!(icon_counts(18, 0, 0, 4), (0, 5));
         assert_eq!(icon_counts(0, 0, 0, 4), (0, 0));
         assert_eq!(icon_counts(18, 25, 25, 0), (0, 0), "a county with no people has no icons");
     }
 
-    /// A cluster never shows more icons than it has slots, at any staffing a
-    /// county could reach: one icon is `ceil(pop / 25)` people, so twenty-five
-    /// icons is the whole county by construction.
     #[test]
     fn no_staffing_overflows_a_clusters_twenty_five_slots() {
         for pop in [1i32, 25, 26, 100, 435, 2000] {
@@ -590,9 +404,6 @@ mod tests {
         }
     }
 
-    /// Idle townsfolk are always drawn in the surplus icon, whatever their
-    /// slot's own icon would be — the one cluster with a special case, in all
-    /// three of the original's fillers.
     #[test]
     fn the_idle_cluster_always_draws_the_surplus_icon() {
         let mut icons = [0u8; ICONS_PER_CLUSTER];
@@ -603,8 +414,6 @@ mod tests {
         assert!(icons.iter().filter(|&&v| v != 0).all(|&v| v == ICON_SURPLUS));
     }
 
-    /// Cluster 0 is the one that changes job with the county, and the one that
-    /// refuses to open a popup when the county has neither resource.
     #[test]
     fn cluster_zero_is_the_quarry_the_mine_or_nothing() {
         assert_eq!(slot_for_cluster(0, true, false), 5, "a quarry");
@@ -617,8 +426,6 @@ mod tests {
             assert!(cluster_is_clickable(c, false, false), "cluster {c} never refuses");
             assert_eq!(slot_for_cluster(c, false, false), CLUSTER_TO_SLOT[c]);
         }
-        // The eight clusters cover eight of the nine slots; the ninth is
-        // whichever of iron and stone the county does not have.
         let mut slots = CLUSTER_TO_SLOT.to_vec();
         slots.sort_unstable();
         assert_eq!(
@@ -628,7 +435,6 @@ mod tests {
         );
     }
 
-    /// Every icon of every cluster lands inside the picture.
     #[test]
     fn every_icon_of_every_cluster_is_inside_the_village_picture() {
         for top in [SCENE_Y, SCENE_Y_ADVANCED] {

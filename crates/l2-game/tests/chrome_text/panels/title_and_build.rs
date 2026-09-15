@@ -19,10 +19,6 @@ use l2_mods::Platform;
 use l2_view::Canvas;
 
 /// **`FUN_0041EA14` puts the title at `y = 0x1E`, and we put it at `0x20`.**
-///
-/// Two pixels, and it is the sort of number that is only ever wrong because
-/// nobody read the painter's arguments back. The subtitle beside it — `0x3A` —
-/// was right all along, which is what made the pair worth checking.
 #[test]
 fn the_title_page_draws_the_game_s_own_name_where_the_painter_puts_it() {
     let Some(dir) = install() else {
@@ -65,10 +61,6 @@ fn the_title_page_draws_the_game_s_own_name_where_the_painter_puts_it() {
     );
 }
 
-/// **The build stamp is inside the canvas, in the plain face.** Three earlier
-/// versions of this check were each true of something adjacent — see
-/// `docs/agents.md`. This one asserts the two things anybody wanted: every
-/// pixel it writes is on screen, and it is not drawn in a blackletter face.
 #[test]
 fn the_build_stamp_is_legible_and_on_screen() {
     let Some(dir) = install() else {
@@ -95,5 +87,4 @@ fn the_build_stamp_is_legible_and_on_screen() {
     );
 }
 
-// ------------------------------------------------------------------- a look
 

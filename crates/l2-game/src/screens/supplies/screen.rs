@@ -20,13 +20,8 @@ impl SuppliesScreen {
         }
     }
 
-    /// One widget's handler, whether it was reached from the press
-    /// ([`crate::press::Kind::Repeat`]) or from the countdown
-    /// ([`crate::press::Kind::Delayed`]).
     pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
-            // The two spinners' own arms are marked on [`Cart::minus`] and
-            // [`Cart::plus`], which is where their rule lives.
             i if i < THUMB_UP_INDEX => {
                 let row = &ROWS[i / 2];
                 if i % 2 == 0 {
@@ -53,8 +48,6 @@ impl SuppliesScreen {
         self.to
     }
 
-    /// `Sidebar_Button`'s seeding, done on the first frame because that is when
-    /// the screen first sees a [`Ctx`].
     fn open(&mut self, ctx: &Ctx) {
         if self.opened {
             return;
@@ -119,8 +112,6 @@ impl Screen for SuppliesScreen {
         ScreenId::Supplies(self.to)
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
-    /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
@@ -140,9 +131,6 @@ impl Screen for SuppliesScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // `Screen_FrameInput`'s epilogue: a press in the minimap raster
-        // selects that county and returns to the map. The shell wrapper did
-        // this for all seven shells; graduating them lost it.
         // arm: 0x0042FF10/minimap-under-supplies left-press
         if let Event::Click { x, y } = event {
             if l2_view::chrome::minimap_hit_area().contains(x, y) {
@@ -151,21 +139,15 @@ impl Screen for SuppliesScreen {
         }
         let Event::Click { x, y } = event else {
             return match event {
-                // `Screen_FrameInput`'s only other gesture on this screen.
                 // arm: 0x0042FF10/supplies-right right-release
                 Event::RightClick { .. } => Transition::Pop,
-                // **Ours.**
                 // arm: ours/supplies-keyboard-close key
                 Event::KeyDown(Key::Escape) => Transition::Pop,
-                // The release ends a hold and the pointer leaving a spinner
-                // stops it repeating. No widget here is a release widget, so
-                // nothing can fire.
                 Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
                     let fired = self.press.event(&widgets(), event);
                     debug_assert!(fired.is_none(), "no supplies widget is a release widget");
                     Transition::Stay
                 }
-                // **A double click reaches the eight widgets and nothing else.**
                 // `Screen_HandleInput`'s `0x18` arm is `Hotspot_Test` on the two
                 // icons — kind 1, `g_mouseLeftPressed` alone — then
                 // `Widget_Test` on the six widgets, kinds 4 and 5, whose guards
@@ -181,34 +163,24 @@ impl Screen for SuppliesScreen {
                 _ => Transition::Stay,
             };
         };
-        // `Screen_DrawWidgets` tests the two icon hotspots **before** the six
-        // widgets, so the toggle wins wherever they overlap. They do not, but
-        // the order is the original's.
         for row in &ROWS {
             if row.toggle.contains(x, y) {
                 self.cart.toggle(row.id);
                 return Transition::Stay;
             }
         }
-        // The six spinners and the two thumbs, each with its own kind: the
-        // spinners fire here and go on firing while held, the thumbs fire from
-        // [`Screen::update`] twenty ticks later.
         let table = widgets();
         if let Some(i) = self.press.event(&table, event) {
             return self.fire(ctx, i);
         }
         if table.iter().any(|w| w.rect.contains(x, y)) {
-            // A thumb was pressed and is counting down. It has consumed the
-            // click; nothing below may also answer it.
             return Transition::Stay;
         }
         // `FUN_0043B412(0x60, 0x68)` — the minimap pick, which is the only
         // way the destination ever moves.
+        //
         // arm: 0x0043B412/supplies-pick left-press
         if MINIMAP_HIT.contains(x, y) {
-            // `Minimap::county_at` subtracts the SIDEBAR hit origin, so the
-            // pixel is rebased onto it here
-            // raster being written.
             if let Some(m) = ctx.assets.minimap(ctx.game.map_slot) {
                 let id = m.county_at(
                     x - MINIMAP_HIT.x + l2_view::chrome::MINIMAP_HIT_X,
@@ -223,8 +195,6 @@ impl Screen for SuppliesScreen {
         Transition::Stay
     }
 
-    /// `Widget_Test`'s per-frame pass: the spinners' ramp and the thumbs'
-    /// twenty-frame countdown.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         for i in self.press.tick() {
             let t = self.fire(ctx, i);
@@ -236,9 +206,6 @@ impl Screen for SuppliesScreen {
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
-        // `open` is deferred to the first draw for the same reason the map's
-        // `ensure` is: the screen is built from a `ScreenId` and does not see
-        // the game until it is given one.
         let mut me = std::mem::replace(self, SuppliesScreen::new(self.to));
         me.open(ctx);
         *self = me;
@@ -253,8 +220,6 @@ impl Screen for SuppliesScreen {
         };
         pen.window(canvas, BOX.0, BOX.1, BOX.2, BOX.3, BOX.4);
 
-        // The minimap, at the position the original draws it — two pixels away
-        // from where it tests it.
         if let Some(m) = ctx.assets.minimap(ctx.game.map_slot) {
             let owner = |c: u8| ctx.game.kingdom.counties.get(c as usize).map_or(0, |c| c.owner);
             l2_view::chrome::draw_minimap_at(
@@ -279,7 +244,6 @@ impl Screen for SuppliesScreen {
         pen.body(canvas, TO_NAME_AT.0, TO_NAME_AT.1, &to, font::TEXT);
         pen.eng(canvas, GROUP, DISPATCH, DISPATCH_AT.0, DISPATCH_AT.1, font::TEXT);
 
-        // The per-frame half.
         pen.box_interior(canvas, WELL.x, WELL.y, 0x14, 5);
         pen.inset(canvas, WELL);
         // `Widget_Draw`'s `base + 1` while `+0x0D` runs. The index is

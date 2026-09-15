@@ -15,9 +15,7 @@ use crate::shell::{font, Face, Pen};
 /// painter from it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Target {
-    /// `g_pickedTileUnit != 0` — the unit half.
     Unit(usize),
-    /// A tile index — the tile half.
     Tile(usize),
 }
 
@@ -25,7 +23,6 @@ pub enum Target {
 pub const UNIT_GROUP: usize = 31;
 /// `L2.eng` group 30 — the tile panel's, 88 of them.
 pub const TILE_GROUP: usize = 30;
-/// Group 100, county names, twenty per scenario.
 pub const COUNTY_GROUP: usize = 100;
 
 /// **The ten strings of group 31 that nothing in the binary draws**, with 21
@@ -37,8 +34,6 @@ pub const COUNTY_GROUP: usize = 100;
 /// `else if (local_20 != 6)`.
 pub const DEAD_LABELS: [usize; 10] = [1, 3, 4, 6, 7, 10, 11, 19, 21, 26];
 
-/// The panel's top row in 16-pixel cells, with the head-room the tile half
-/// grants a county tile.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Layout {
     /// `DAT_00553D2C`.
@@ -48,22 +43,16 @@ pub struct Layout {
 }
 
 impl Layout {
-    /// `Ui_DrawBox(8, (row − headroom) * 16 + 32, 0x1C, (0x1B − row) + headroom)`
-    /// — **and `top + height` is 464 for every one of them.**
     pub fn box_at(self) -> Rect {
         let top = (self.row - self.headroom) * 16 + 32;
         let rows = (0x1B - self.row) + self.headroom;
         Rect::new(8, top, 0x1C * 16, rows * 16)
     }
 
-    /// Where a y written as `row * 16 + k` in the decompilation lands.
     pub fn y(self, k: i32) -> i32 {
         self.row * 16 + k
     }
 
-    /// Every value the two painters take, with what produces it. The unit
-    /// half's three never grant head-room; the tile half's grant it except for
-    /// sea and a village.
     pub const ALL: [(&'static str, Layout); 11] = [
         ("army, yours", Layout { row: 2, headroom: 0 }),
         ("farmland, your county, a real field", Layout { row: 5, headroom: 2 }),
@@ -86,9 +75,6 @@ pub enum TileKind {
     Road,
     Sea,
     Village,
-    /// The `0x10` arm's other half — a dwelling plot whose terrain byte is not
-    /// [`VILLAGE_GRAPHIC`]. `Map_ResolvePick` blanks the flags when it is
-    /// *zero*, so this is a plot that once held something.
     RuinedVillage,
     Mountain,
     Woodland,

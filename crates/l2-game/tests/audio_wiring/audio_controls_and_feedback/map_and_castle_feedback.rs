@@ -17,14 +17,6 @@ use l2_game::Game;
 /// every one of the five buttons and picks the slot off the terrain it is
 /// about to paint: `0x13` → 4 `moo_2.wav`, `2` → 7 `wheat.wav`, and `1`, `0`
 /// and `0x19` → 6 `fallow.wav`.
-///
-/// Driven through the panel's own handler at the pixels the hotspot table
-/// gives, with [`audio::Director`] between the two ticks — the brush closes
-/// the panel (`g_screenId = 0`), so the tile it painted is gone from the stack
-/// by the tick that hears it.
-///
-/// **Ablation, run:** delete the `hear_the_brush` call in `Director::listen`
-/// and all four arms go red.
 #[test]
 fn the_field_brush_sounds_what_it_paints() {
     use l2_game::screens::info::{Target, BRUSH_DIM, BRUSH_FIELD_X, BRUSH_ROW_Y, BRUSH_WASTE_X};
@@ -36,7 +28,6 @@ fn the_field_brush_sounds_what_it_paints() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let assets = Assets::placeholder();
 
-    // brush x, the terrain the tile starts on, and what the original plays.
     let arms: [(i32, bool, u8, &str); 4] = [
         (BRUSH_FIELD_X[1], true, terrain::FALLOW, "wheat.wav"),
         (BRUSH_FIELD_X[2], true, terrain::FALLOW, "moo_2.wav"),
@@ -47,8 +38,6 @@ fn the_field_brush_sounds_what_it_paints() {
         let mut audio = Audio::headless(&platform.vfs);
         let mut director = audio::Director::new();
         let mut game = world();
-        // Twenty fields for county 1, which `world` gives the player. The flag
-// `field::set_type` refuses a tile that is in no slot.
         let tile = {
             let map = &mut game.kingdom.campaign.map;
             let c = &mut game.kingdom.counties[1];
@@ -56,7 +45,6 @@ fn the_field_brush_sounds_what_it_paints() {
                 let (x, y) = (10 + slot % 5, 20 + slot / 5);
                 map.set_flags(x, y, flags::FARMLAND);
                 map.terrain[l2_kingdom::map::index(x, y)] = from;
-                // The panel takes the county off the *map*, not off the slot.
                 map.county[l2_kingdom::map::index(x, y)] = 1;
                 c.set_field_tile(slot as usize, Some(l2_kingdom::map::index(x, y)));
             }
@@ -66,9 +54,6 @@ fn the_field_brush_sounds_what_it_paints() {
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
         machine.push(ScreenId::Info(Target::Tile(tile)));
-        // The panel's own arrival sound is `scroll1.wav`; none of the brush's
-        // three is heard until a button is hit. (`heard` is a set, so this is
-        // membership and not a sequence.)
         const BRUSH_WAVS: [&str; 3] = ["moo_2.wav", "wheat.wav", "fallow.wav"];
         director.listen(&mut audio, &machine, &game);
         assert!(
@@ -103,14 +88,6 @@ fn the_field_brush_sounds_what_it_paints() {
 /// **The castle chooser's five pictures say their own names** —
 /// `CastleBuild_Select` (`0x00436B22`), whose last statement is
 /// `FUN_004B3940(g_uiHotspotId)`: `S071_02.wav + hotspot * 0x10`.
-///
-/// The selection is the screen's own field, so the screen reports the line on
-/// `Game::spoken` and `Director::listen` plays it — the channel six other
-/// screen-local `Sound_PlayFile` sites already use.
-///
-/// **Ablations, run:** delete the `ctx.game.spoken = …` in `castle.rs`'s click
-/// arm and every level goes silent; index `PICKED_CASTLE` by anything but the
-/// hotspot and the wrong file is asserted against.
 #[test]
 fn picking_a_castle_picture_speaks_that_castles_name() {
     use l2_game::screens::castle;
@@ -154,16 +131,8 @@ fn picking_a_castle_picture_speaks_that_castles_name() {
     }
 }
 
-/// **The wreck** — `dest_ind.wav`, all six `Sound_RestartSlot(3)` sites, heard
-/// by `Director::hear_the_wreck` off the content plane it diffs.
-///
 /// One army, one foreign dwelling plot: `Unit_BurnDwelling` (`0x00468AE2`)
 /// writes content `0x10` → `0x13` and the sound follows on the next listen.
-///
-/// **Ablations, run:** put the plot in the army's own county and the burn does
-/// not fire, so neither does the sound (second arm); change a farmland tile's
-/// crop stage instead and the plane has moved with nothing wrecked (third arm).
-/// Deleting the `hear_the_wreck` call from `Director::listen` reds the first.
 #[test]
 fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
     use l2_kingdom::map::{flags, terrain};
@@ -172,7 +141,6 @@ fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
     };
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
 
-    // county owner, whether the step burns, and whether it sounds.
     let arms: [(u8, bool, bool); 2] = [(2, true, true), (1, false, false)];
     for (county_owner, burns, sounds) in arms {
         let mut audio = Audio::headless(&platform.vfs);
@@ -197,7 +165,6 @@ fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
             u.path = vec![(11, 10)];
             army = k.campaign.units.spawn(u).expect("a slot for the army");
         }
-        // Seed the plane; the first tick is silent by construction.
         director.listen(&mut audio, &machine, &game);
         assert!(!audio.heard().contains(&"dest_ind.wav"), "the first tick is silent");
 
@@ -226,7 +193,6 @@ fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
         );
     }
 
-    // A crop growing moves the same plane and wrecks nothing.
     let mut audio = Audio::headless(&platform.vfs);
     let mut director = audio::Director::new();
     let mut game = world();

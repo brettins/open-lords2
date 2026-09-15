@@ -17,12 +17,6 @@ use crate::tables::{
 use l2_net::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 
 impl Encode for History {
-    /// All four hundred slots, not only the live ones.
-    ///
-    /// The ring is 400 × 16 × `{i32, i8}` and writing it whole costs 32,000
-    /// bytes. Writing only the live window would be smaller and would need the
-    /// reader to reconstruct which slots the writer considered empty — an
-    /// invariant restated in a second place, which is how the two drift apart.
     fn encode(&self, out: &mut Canonical) {
         out.u32(self.head as u32);
         out.u32(self.tail as u32);
@@ -63,7 +57,4 @@ pub(crate) fn decode_history(input: &mut Reader<'_>) -> Result<History, LoadErro
     Ok(history)
 }
 
-// ---------------------------------------------------------------------------
-// The ruleset fingerprint
-// ---------------------------------------------------------------------------
 

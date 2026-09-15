@@ -19,18 +19,6 @@ use l2_view::Canvas;
 /// (`FUN_004BD574`, `0x004BD574`), reached from the overlap pass
 /// `FUN_004BD355` on cell byte `+2` bit `0x80` with the frame byte zero.
 ///
-/// The gate closes on itself: `Battlefield_BuildCastle`'s code-6 arm is the
-/// only writer of that bit on a castle, and frame byte 0 is the only byte
-/// either structure table files under code 6 — so the cell the pass sends to
-/// the banner is the keep and nothing else.
-///
-/// Two halves,
-///
-/// * `shield * 8 + counter + 0x21` over six shields and eight phases must land
-///   inside `A2_miss.pl8` and end on its last frame, 80;
-/// * the keep cell's pixels must move when the banner is passed, and nothing
-///   else on the screen may.
-///
 /// Ablation, run: drop the `cell.gfx == 0` half of `scene::banner_cell` — red,
 /// *"285 of 570 changed pixels moved outside the keep cell"*: the decoy cell
 /// below carries the bit with a frame byte of its own, which in the original
@@ -81,8 +69,6 @@ fn the_keep_flies_the_garrisons_banner() {
     let moved = bare.diff_count(&flown);
     assert!(moved > 0, "the banner painted nothing on the keep");
 
-    // It is one sprite over one cell: everything that moved must lie in the
-    // 32-pixel box the blit is centred in, plus the sprite's own overhang.
     let (px, py) = (
         scene::ORIGIN_X + (kx as i32 - cam.x as i32) * scene::TILE,
         scene::ORIGIN_Y + (ky as i32 - cam.y as i32) * scene::TILE,
@@ -104,7 +90,6 @@ fn the_keep_flies_the_garrisons_banner() {
     }
     assert_eq!(outside, 0, "{outside} of {moved} changed pixels moved outside the keep cell");
 
-    // And the eight phases are eight pictures, not one drawn eight times.
     let mut seen: Vec<Canvas> = Vec::new();
     for phase in 0..scene::BANNER_PHASES {
         let mut c = Canvas::screen();
@@ -118,24 +103,6 @@ fn the_keep_flies_the_garrisons_banner() {
 
 /// **A wall being shot visibly breaks up** — `Missile_Step`'s class-3 arm
 /// (`0x00492C8B`) into `Battlefield_Draw32`'s second pass (`0x004BCBDC`).
-///
-/// ```c
-/// if (cell.elevation < 4) { cell.terrain++; if (0xF < cell.terrain) Wall_Collapse(cell); }
-/// ```
-///
-/// **Cell byte `+0` is not a terrain id on a castle — it is the damage
-/// counter**, and it is the *same byte* the overlay draws with at
-/// `frame = cell[+0] + 0x8B` out of slot 1. `T32_stn2.pl8` frames `0x8C … 0x9A`
-/// are one rubble pile growing from a speck to a full tile.
-///
-/// This crate kept the count in a `wall_hits` vector beside the field: the
-/// arithmetic was right, the wall came down on the right shot, and **nothing
-/// between the first shot and the last changed on screen**. A filling ditch
-/// already animated, for the one reason that `fill_moat_tick` writes
-/// `cell.terrain`.
-///
-/// Ablation, run: put the increment back in a side vector — red, *"the damage
-/// overlay did not move"*.
 #[test]
 fn a_wall_under_the_catapult_breaks_up_in_the_picture() {
     let dir = l2_testkit::install!();
@@ -145,8 +112,6 @@ fn a_wall_under_the_catapult_breaks_up_in_the_picture() {
 
     use l2_sim::proving;
     let mut r = proving::deploy();
-    // The proving castle's far wall stands at 4, which `Missile_Step` refuses
-    // to count against. Three is the tallest a shot may chip.
     for x in proving::HIGH_WALL_X {
         r.field.cells[proving::HIGH_WALL_Y as usize * DIM + x as usize].elevation = 3;
     }
@@ -191,7 +156,6 @@ fn a_wall_under_the_catapult_breaks_up_in_the_picture() {
         moved <= (scene::TILE * scene::TILE) as usize,
         "{moved} pixels moved for a one-cell overlay"
     );
-    // The frame is the byte, so the picture walks with every further shot.
     assert!(
         two.frame(scene::OVERLAY_BASE + damaged as usize).is_some(),
         "T32_stn2.pl8 carries frame {:#X}",

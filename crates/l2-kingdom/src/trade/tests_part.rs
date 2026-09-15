@@ -12,7 +12,6 @@ use l2_net::{Quirk, Quirks};
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
     use crate::tables::Tables;
@@ -30,9 +29,6 @@ mod tests {
         k
     }
 
-    /// `Merchant_Trade`'s `County_EnsurePasture`: a county with no pasture gets
-    /// one made for the cattle it just bought — the fallow field after the
-    /// cursor first, and a grain field once the fallow are gone.
     #[test]
     fn buying_cattle_into_a_county_with_no_pasture_converts_a_field_in_cursor_order() {
         let mut k = kingdom();
@@ -44,13 +40,9 @@ mod tests {
         let q = quote(T, Good::Cattle, 100);
         trade(&mut k, Order::buy(Good::Cattle, 1, q, 1, 1)).unwrap();
         let tile = |k: &Kingdom, slot| k.counties[1].field_tile(slot).unwrap();
-        // `Herd_UpdateCrowding` runs after and restocks the picture, so the
-        // test asks the ladder, not the byte.
         assert_eq!(crate::field::classify(k.campaign.map.terrain[tile(&k, 1)]), crate::field::FieldType::Pasture);
         assert_eq!(k.counties[1].pasture_cursor, 1);
 
-        // Sell the pasture back to grain by hand and buy again: with no fallow
-        // left the sweep takes the grain field after the cursor.
         for slot in 0..4 {
             let t = tile(&k, slot);
             k.campaign.map.terrain[t] = crate::field::terrain::GRAIN;
@@ -63,9 +55,6 @@ mod tests {
         assert_eq!(k.counties[1].crop[1], 300, "one field's share of the standing crop");
     }
 
-    /// The headline: at the merchant's shipped morale of 100 the buy price is
-    /// exactly twice the sell price, for every good but ale — which is the
-    /// manual's *"30/60"* and the published guides' doubled table, both.
     #[test]
     fn a_merchant_at_full_morale_charges_double_what_he_pays() {
         for good in ALL_GOODS {
@@ -75,7 +64,6 @@ mod tests {
                 assert_eq!(q.markup(), 0, "ale is exempt from the markup");
                 assert_eq!(q.buy, q.sell);
             } else if q.sell == 0 {
-                // Sheep and wool: the floor of one crown is all there is.
                 assert_eq!(q.buy, 1, "{good:?}");
             } else {
                 assert_eq!(q.buy, q.sell * 2, "{good:?}");
@@ -83,9 +71,6 @@ mod tests {
         }
     }
 
-/// The floor bites before the exemption does, so ale needs the
-    /// exemption at all: a base of 1 at any morale below 100 would still be
-    /// marked up by the minimum crown.
     #[test]
     fn the_markup_never_rounds_away_to_nothing() {
         for morale in 0..=100 {
@@ -107,8 +92,6 @@ mod tests {
         assert_eq!(k.realms[1].gold, before - 10 * q.buy);
     }
 
-    /// The refusal is all-or-nothing: an order a crown too dear moves neither
-    /// goods nor money.
     #[test]
     fn an_unaffordable_order_is_refused_whole() {
         let mut k = kingdom();
@@ -117,7 +100,6 @@ mod tests {
         let before = (k.realms[1].gold, k.counties[1].grain);
         assert_eq!(trade(&mut k, Order::buy(Good::Grain, 10, q, 1, 1)), Err(Refusal::NotEnoughGold));
         assert_eq!((k.realms[1].gold, k.counties[1].grain), before);
-        // One fewer fits exactly.
         assert!(trade(&mut k, Order::buy(Good::Grain, 9, q, 1, 1)).is_ok());
     }
 
@@ -152,8 +134,6 @@ mod tests {
         assert_eq!(k.realms[1].weapons, [3; WEAPON_TYPE_COUNT]);
     }
 
-    /// Sheep and wool are carried, priced and quotable, and nothing moves them.
-/// This is the dead end being demonstrated.
     #[test]
     fn sheep_and_wool_can_be_named_and_cannot_be_moved() {
         let mut k = kingdom();
@@ -164,22 +144,17 @@ mod tests {
             let gold = k.realms[1].gold;
             let r = trade(&mut k, Order::buy(good, 5, q, 1, 1)).unwrap();
             assert_eq!(r.moved, 0, "{good:?} went somewhere");
-            // The crowns still move: the buy arm has no branch for the good but
-            // it always pays. At a base price of 0 the floor of one crown is
-            // the whole bill.
             assert_eq!(r.crowns, 5);
             assert_eq!(k.realms[1].gold, gold - 5);
         }
     }
 
-    /// Ale is bought and drunk in the same instruction: no store, happiness now.
     #[test]
     fn ale_becomes_happiness_and_is_never_stored() {
         let mut k = kingdom();
         k.counties[1].happiness = 50;
         let q = quote(T, Good::Ale, 100);
         assert_eq!(q.buy, 1, "a barrel is a crown");
-        // population 1000.
         let r = trade(&mut k, Order::buy(Good::Ale, 300, q, 1, 1)).unwrap();
         assert_eq!(r.ale_happiness, 3);
         assert_eq!(r.moved, 0);
@@ -187,7 +162,6 @@ mod tests {
         assert_eq!(k.realms[1].gold, 1000 - 300);
     }
 
-/// Ale cannot be sold, and the limit is what says so.
     #[test]
     fn ale_has_no_sale_limit_at_all() {
         let k = kingdom();
@@ -196,8 +170,6 @@ mod tests {
         assert_eq!(min_qty(&k.counties, &k.realms, Good::Cattle, 1, 1), -50);
     }
 
-    /// The arrows' two clamps, which are the whole of what the panel can ask
-    /// for: gold over the buy price above, and the store below.
     #[test]
     fn the_arrows_clamp_to_the_treasury_above_and_the_store_below() {
         let k = kingdom();
@@ -208,7 +180,6 @@ mod tests {
         assert_eq!(max_buy(1000, 0), 0, "a free good does not divide by zero");
     }
 
-    /// An unowned county pays out of its own purse, and neither guard fires.
     #[test]
     fn an_unowned_county_trades_out_of_its_purse_and_is_never_refused() {
         let mut k = kingdom();
@@ -216,20 +187,14 @@ mod tests {
         k.counties[1].purse = 5;
         k.counties[1].population = 0;
         let q = quote(T, Good::Grain, 100);
-        // Far more than the purse holds, and it goes through.
         let r = trade(&mut k, Order::buy(Good::Grain, 100, q, 0, 1)).unwrap();
         assert_eq!(r.moved, 100);
         assert_eq!(k.counties[1].purse, 5 - 100 * q.buy, "the purse goes negative");
-        // And it can sell grain it does not have: the sale is not refused, and
-        // the crowns are banked for sacks that were never there.
         k.counties[1].grain = 0;
         let purse = k.counties[1].purse;
         let r = trade(&mut k, Order::sell(Good::Grain, 10, q, 0, 1)).unwrap();
         assert_eq!(r.moved, -10);
         assert_eq!(k.counties[1].purse, purse + 10 * q.sell);
-        // **The store is left at −10**, and the county has been paid for ten
-        // sacks that were never there.
-        //
         // > This line read `assert_eq!(grain, 0)`, with a comment explaining
         // > that *"the tail's `Ration_Apply` then pulled it back to 0 — `sacks =
         // > min(wanted, grain)` is negative against a negative store, so
@@ -241,13 +206,11 @@ mod tests {
         // > binary ever pulled the number back. The explanation was reasoning
         // > about a defect of ours as though it were a rule of the game's, and
         // > the test that held it in place was written from the same reading.
+        //
         // > `docs/decisions.md` C149; `docs/bugs.md` B11a.
         assert_eq!(k.counties[1].grain, -10, "the store really does go negative");
     }
 
-    /// The four realm accumulators, which are the state a trade exists to
-    /// produce for `docs/hypotheses.json`. Both of each pair take the same
-    /// number, and nothing here resets either.
     #[test]
     fn a_trade_writes_both_accumulators_of_the_pair_it_belongs_to() {
         let mut k = kingdom();

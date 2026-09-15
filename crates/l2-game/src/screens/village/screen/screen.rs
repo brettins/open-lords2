@@ -33,11 +33,6 @@ impl Screen for VillageScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // **The sidebar stays live with the village open**, and it is the arm
-        // itself that says so.
-        // `Screen_FrameInput`'s `g_screenId == 0x02` ladder runs six guards
-        // before it reaches a single village verb:
-        //
         // ```c
         // if (Minimap_ModeButtonClicked()   ||   /* FUN_0043292d, the four minimap modes */
         //     Sidebar_ButtonClicked()       ||   /* FUN_00432967, the six sidebar buttons */
@@ -63,20 +58,10 @@ impl Screen for VillageScreen {
         // when it ends. That is [`Phase::Idle`] below, and it is the kind of
         // detail that reads as intermittent to a player and gets "fixed" into
         // uniformity by mistake. C59.
-        //
-        // A player checked it against the original: *"The slider does indeed
-        // still work with town square open and causes no issues."* It did not
-        // work in ours, because [`crate::screen::Machine`] offered input to the
-        // top screen and stopped. [`Transition::Pass`] is what that cost.
         if self.phase == Phase::Idle && Self::belongs_to_the_sidebar(event) {
             return Transition::Pass;
         }
         match event {
-            // **The right button does two different things and this did one.**
-            //
-            // The village is three screen ids in the original, and two of them
-            // have a right-button arm:
-            //
             // ```c
             // /* 0x02, idle */              if (rightReleased) { g_screenId = 0; ... }
             // /* 0x06, carrying peasants */ if (rightReleased) { g_screenId = 0x02;
@@ -84,18 +69,11 @@ impl Screen for VillageScreen {
             //                                    FUN_004120E0(); FUN_00432893(1); }
             // ```
             //
-            // —
-            // stays in the village, and only a right click on the idle village
-            // leaves it. (`0x05`, the rubber band, has no right arm at all: the
-            // band ends on the *release* of the left button and nothing else.)
-            //
             // This popped the screen from every phase, which meant a player who
             // picked up peasants and changed his mind lost the village as well
             // as the selection. **A wrong arm,
             // nothing looked broken** — `docs/decisions.md` C76.
             //
-            // Escape is ours and mirrors whichever of the two applies; the
-            // original has no key here at all.
             // arm: 0x0042FF10/village-right-leaves right-release
             // arm: 0x0042FF10/carry-right-cancels right-release
             Event::RightClick { .. } => {
@@ -106,14 +84,10 @@ impl Screen for VillageScreen {
                     return Transition::Stay;
                 }
                 if self.phase == Phase::Band {
-                    // 0x05 has no right arm. The band is still being drawn and
-                    // the click is not one of its two exits, so it is swallowed.
                     return Transition::Stay;
                 }
                 return Transition::Pop;
             }
-            // **Ours, and counted.** No key reaches screen `0x02`, `0x05` or
-            // `0x06` in the original.
             // arm: ours/village-keyboard key
             Event::KeyDown(Key::Escape) => {
                 if self.phase == Phase::Idle {
@@ -130,8 +104,6 @@ impl Screen for VillageScreen {
                     self.box_select(&*ctx);
                 } else if self.phase == Phase::Idle {
                     if let Some((ax, ay)) = self.anchor {
-                        // The nine-pixel dead zone: below it this is still a
-                        // click, and a click opens the job popup.
                         if (x - ax).abs() >= vill::DRAG_DEAD_ZONE
                             || (y - ay).abs() >= vill::DRAG_DEAD_ZONE
                         {
@@ -147,6 +119,7 @@ impl Screen for VillageScreen {
             // `Village_ClickJob` in `Screen_FrameInput`'s screen-`0x02` ladder,
             // which is the order kept here: a drag in progress wins, then the
             // double click, then — only once it has settled — the job popup.
+            //
             // arm: 0x00439DF0/double-click-balances double-click
             Event::DoubleClick { x, y } => {
                 self.pointer = (x, y);
@@ -181,6 +154,7 @@ impl Screen for VillageScreen {
                 // the press**, on all twenty-six of `Screen_FrameInput`'s
                 // calls. Ours answered on the press here, which is a player's
                 // *"the game waited on mouse-up"* from the other side.
+                //
                 // arm: 0x0040E7E4/village-corner-closes left-release
                 if VillageScreen::ok_button(VillageScreen::top_y(&*ctx)).contains(x, y) {
                     return Transition::Pop;
@@ -198,8 +172,6 @@ impl Screen for VillageScreen {
                         }
                     }
                     Phase::Idle => {
-                        // A press that never travelled nine pixels is a click,
-                        // and a click opens the job popup — but **not yet**.
                         // The original arms `DAT_004E65E8` here and opens the
                         // popup only when 300 ms have gone by without a second
                         // press (`Village_ClickJob` reads `DAT_004EABF0`, which
@@ -208,6 +180,7 @@ impl Screen for VillageScreen {
                         // where it lands. Ownership is not tested: you cannot
                         // reach the village of a county you do not hold in the
                         // first place.
+                        //
                         // arm: 0x0043A123/click-opens-the-job-popup left-release
                         if self.anchor.take().is_some() {
                             self.pending_click = Some((x, y, Self::CLICK_SETTLE_TICKS));
@@ -221,13 +194,7 @@ impl Screen for VillageScreen {
         Transition::Stay
     }
 
-    /// The pending click's clock, and the one thing on this screen that happens
-    /// without an event arriving.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        // **The animation clock, and it runs whatever else this tick does.**
-        // `Village_Animate` is called from `Screen_DrawWidgets` — the overlay
-        // pass that runs after `Screen_Draw` on every frame the village is
-        // up — so it is not gated on anything the player did.
         self.animated = self.clock.tick(Self::TICK_MS);
         let Some((x, y, left)) = self.pending_click else { return Transition::Stay };
         if left > 1 {
@@ -241,14 +208,10 @@ impl Screen for VillageScreen {
         }
     }
 
-    /// Repaint when an animation moved, and not otherwise.
     fn take_redraw(&mut self) -> bool {
         core::mem::take(&mut self.animated)
     }
 
-    /// **The village is an inset.** `Village_Draw` never clears — it repaints
-    /// the campaign map and blits over it — so the map screen underneath is
-    /// painted first by [`crate::screen::Machine::draw`].
     fn is_overlay(&self) -> bool {
         true
     }
@@ -256,15 +219,10 @@ impl Screen for VillageScreen {
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let ink = &ctx.assets.ink;
         let top = VillageScreen::top_y(ctx);
-        // **No clear.** Everything below paints inside the picture at
-        // (64, top) or inside the 480 x 320 band the original saves and
-        // restores around it; the menu bar, the county sidebar and the map
-        // either side belong to whatever is underneath.
 
         let art = ctx.assets.village.as_ref();
         let drew = art.is_some_and(|a| a.draw_scene(canvas, top));
         if !drew {
-            // OURS: a flat field, for an install with no vill.pl8.
             canvas.fill_rect(vill::SCENE_X, top, vill::SCENE_W, vill::SCENE_H, ink.panel);
             widget::frame(
                 canvas,
@@ -276,17 +234,8 @@ impl Screen for VillageScreen {
             if ctx.game.kingdom.options.advanced_farming {
                 art.map(|a| a.draw_tops(canvas, c.weather.index() as usize));
             }
-            // **The quarry, the mine and the lumber camp**, before the
-            // peasants, which is `Village_Draw`'s own order — the icons stand
-            // in front of the buildings.
             let has = VillageScreen::resource_flags(c);
             art.map(|a| a.draw_resources(canvas, has, top));
-            // **`Village_Animate`'s overlays go on top of the buildings and
-            // under the peasants.** The original calls `Village_Draw` once and
-            // `Village_Animate` from `Screen_DrawWidgets` afterwards, so the
-            // moving parts are painted over the still ones; the icons are
-            // redrawn from the saved band every frame and stay in front of
-            // both.
             art.map(|a| a.draw_animations(canvas, has, top, &self.clock));
             self.draw_clusters(ctx, canvas, c, top, drew);
         }
@@ -310,24 +259,15 @@ impl Screen for VillageScreen {
         // else, clamps the box to the band area and calls the rectangle outline
         // at `0x00403CF4` in colour `0x20`. See [`VillageScreen::band_rect`] for
         // the clamp and the colour.
-        //
-        // The captions below are still ours, and still debug overlay only.
         let debug = ctx.game.prefs.debug_overlay;
         if self.phase == Phase::Band {
             if let Some(r) = self.band_rect(top) {
-                // The literal index is right only on the original's palette, so
-                // an install with no chrome falls back to our own ink — the
-                // rule `county::draw_strip` already follows for
-                // `CountyStrip_Draw`'s black `0x3F`.
                 let band_ink =
                     if ctx.assets.chrome.is_some() { BAND_INK } else { ink.highlight };
                 widget::frame(canvas, r, band_ink);
             }
         }
 
-        // OURS: the original's village carries no text at all. Ours goes
-        // **inside the picture**, in the two rows at the top and bottom of it,
-        // because everything outside belongs to the screen underneath.
         let mid = vill::SCENE_X + vill::SCENE_W / 2;
         let caption = match self.phase {
             Phase::Carry => format!("CARRYING {} - CLICK A JOB", self.drag_count),
@@ -341,7 +281,6 @@ impl Screen for VillageScreen {
             text::draw_centred(canvas, mid, line, s, colour);
             line -= 12;
         };
-        // A missing file is a fallback's warning and stays; the rest is ours.
         if ctx.assets.village.as_ref().is_none_or(|a| !a.has_grid()) {
             say(canvas, "NO DROP GRID - VILL_GD8.PL8 MISSING", ink.bad);
         }

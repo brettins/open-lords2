@@ -1,16 +1,3 @@
-//! Screen `0x1F` — game setup, and the thirteen sub-pages `g_setupPage`
-//! selects.
-//!
-//! # This is the front end
-//!
-//! `docs/screens-county.md` §1 called `0x1C` *"the front end"*. It is not, and
-//! [`super::conquest`] says what it is. The screen a player of the
-//! original meets first is **this one, page 1**: `Ui_DrawCentred(11, 0, …)` is
-//! *"Lords of the Realm 2"* over `gateway.pl8`, with *"The siege is on"* under
-//! it and four items in `panels2.pl8` recesses.
-//!
-//! # The thirteen pages
-//!
 //! **[D]** `FUN_0041E7E1` (`0x0041E7E1`) is one `if`/`else if` chain on
 //! `g_setupPage` (`0x005530F0`) with thirteen arms, and `FUN_0041E61D`
 //! (`0x0041E61D`) is the background loader in front of it. Together they are
@@ -35,8 +22,6 @@
 //! **[V]** for every row that names an `L2.eng` group; the string reads as what
 //! the page is.
 //!
-//! # Which pages a single player can reach
-//!
 //! **[V]**, from every write of `g_setupPage` in the corpus, and it changes how
 //! two rows above should be read:
 //!
@@ -47,22 +32,20 @@
 //!   put to a **host**, and its `g_netIsMaster == 0` arm — a smaller window and
 //!   the wrapped 39.3 *"Please wait while the session creator decides what type
 //!   of game to play."*, with no buttons at all — is what a **joiner** sees.
+//!
 //!   `g_netIsMaster` (`0x00553248`) is in `.bss`, so it is 0 until DirectPlay
 //!   writes it. Nothing in single player ever does.
+//!
 //! * **Page 8 is multiplayer-only** for the same reason, and pages 11 and 13
 //!   are only reached with `DAT_0055302C == 3` (the skirmish choice).
+//!
 //! * `FUN_0041E7E1`'s ladder has thirteen arms and
 //!   none of them is 0, and so does `Screen_DrawWidgets`'s. `g_setupPage` 0 is
 //!   the `.bss` initial value and every writer sets 1..=13.
-//! * **Pages 9 and 10 have a `Screen_Draw` arm and no `Screen_DrawWidgets`
-//!   arm, and both are reachable.** That combination is what made screen `0x28`
-//! suspicious, and here it is benign: an open drop-down and the no-CD notice
-//!   are both static, so there is nothing for the per-frame pass to repaint.
+//!
 //!   Page 9 is written by `FUN_00432xxx`'s drop-down opener (`DAT_00553E5C =
 //!   g_setupPage; g_setupPage = 9`) and page 10 by two arms of the page-1
 //!   handler.
-//!
-//! # The painter, address by address
 //!
 //! Two ladders, and **both run**: `FUN_0041E7E1` from `Screen_Draw` on a
 //! repaint, and `Screen_DrawWidgets`'s own `0x1F` arm every frame. Coordinates
@@ -315,28 +298,18 @@ use crate::text::{self, TextField};
 /// `L2.eng` group 11 — the front end's own strings, from index 0
 /// *"Lords of the Realm 2"* to index 49.
 pub const GROUP: usize = 11;
-/// Group 39, the expansion pack's two choices.
-/// `Eng_Seek(7, realm.lord)` — *"The Knight, The Baron, The Countess, The
-/// Bishop, No player"*. Five strings, indexed by the lord.
 pub const LORD_TITLE_GROUP: usize = 7;
 
 pub const GROUP_EXPANSION: usize = 39;
-/// Group 40, the load/save captions.
 pub const GROUP_FILE: usize = 40;
-/// Group 101, the sixty map names `g_scenarioIndex` indexes.
 pub const GROUP_MAPS: usize = 101;
-/// Group 102, the twelve custom-game option labels.
 pub const GROUP_OPTIONS: usize = 102;
-/// Group 103, their 46 values.
 pub const GROUP_VALUES: usize = 103;
 
 /// `DAT_00553F98`, the lobby's head count. One person, in this build.
 const HUMAN_PLAYERS: usize = 1;
 
-/// `panels2.pl8` — the box kit these pages draw their windows from. It has the
-/// same frame layout as `Panels.pl8` (`docs/screens-county.md` §4.1).
 const BOX_SHEET: &str = "Panels2.pl8";
-/// `misc_sel.pl8` — `g_miscCtySheet` while the setup screen is up.
 pub(super) const ICON_SHEET: &str = "Misc_sel.pl8";
 
 #[cfg(test)]
@@ -353,11 +326,9 @@ mod tests {
 
     #[test]
     fn the_twelve_option_runs_cover_group_103_with_one_string_left_over() {
-        // The counts come out of the drop-down table as rows minus two.
         for i in 0..12 {
             assert_eq!(OPTION_COUNT[i], OPTION_LIST[i].2 as usize - 2, "option {i}");
         }
-        // Every run ends where the next begins, except the gap at index 4.
         for i in 0..11 {
             let end = OPTION_BASE[i] + OPTION_COUNT[i];
             let next = OPTION_BASE[i + 1];
@@ -367,7 +338,6 @@ mod tests {
         let used: usize = OPTION_COUNT.iter().sum();
         assert_eq!(used, 45);
         assert_eq!(OPTION_BASE[11] + OPTION_COUNT[11], 46, "the last run ends at the group's end");
-        // The one gap is "one", which Nobles skips: it starts at "two".
         let gaps: Vec<usize> =
             (0..11).filter(|&i| OPTION_BASE[i + 1] != OPTION_BASE[i] + OPTION_COUNT[i]).collect();
         assert_eq!(gaps, vec![1], "exactly one gap, after Exploration");
@@ -377,7 +347,6 @@ mod tests {
     fn the_option_grid_is_four_columns_of_three() {
         let xs: Vec<i32> = OPTION_CELLS.iter().map(|c| c.0).collect();
         assert_eq!(xs, vec![170, 170, 170, 290, 290, 290, 410, 410, 410, 530, 530, 530]);
-        // Every drop-down opens at its own box's x.
         for i in 0..12 {
             assert_eq!(OPTION_LIST[i].0, OPTION_CELLS[i].0, "option {i}");
         }
@@ -409,9 +378,6 @@ mod tests {
         }
     }
 
-    /// `ScenarioList_Draw`'s scroll bar is 44 pixels of track whatever the
-    /// scroll position, because the thumb absorbs the rounding.
-    ///
     /// **[V] **: `PctOf` returns 0
     /// when the total is 0, so a machine with no `MAPnn.PL8` gets a thumb the
     /// full length of the track and five rows of *"England"*.

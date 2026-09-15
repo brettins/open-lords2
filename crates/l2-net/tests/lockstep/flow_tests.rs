@@ -8,8 +8,6 @@ use l2_net::{
     Message, PeerId, PlayerSlot, Fixed, Session, SessionError, Tick, Transport,
 };
 
-/// §4: a command issued during tick `N` executes on tick `N + 2`, so
-/// every peer has both peers' commands for a tick before it runs it.
 #[test]
 fn a_command_executes_after_the_input_delay() {
     let mut table = Table::new(Config::battle(), 2, 1);
@@ -25,8 +23,6 @@ fn a_command_executes_after_the_input_delay() {
     assert_eq!(table.peers[0].session.staged(), 0);
 }
 
-/// The priming packets. With a delay of two, ticks 0 and 1 must be
-/// sealed before anything can run, and both are necessarily empty.
 #[test]
 fn the_first_packets_prime_the_pipeline() {
     let sim = ToySim::new(1, 2);
@@ -47,9 +43,6 @@ fn the_first_packets_prime_the_pipeline() {
     assert_eq!(third.commands.len(), 1);
 }
 
-/// §4: every peer sends one packet per tick, **including when it has no
-/// commands**, because without it "no input" and "player disconnected"
-/// are indistinguishable.
 #[test]
 fn a_packet_is_sent_every_tick_even_with_nothing_to_say() {
     let mut table = Table::new(Config::battle(), 2, 1);
@@ -57,16 +50,10 @@ fn a_packet_is_sent_every_tick_even_with_nothing_to_say() {
 
     let simulated = table.peers[0].hashes.len() as u32;
     assert!(simulated >= 9, "only {simulated} ticks ran");
-    // One packet per tick, contiguous from zero, with no gaps — a gap
-    // is a peer that said nothing
-    // distinguish from a disconnection.
     let expected: Vec<Tick> = (0..table.peers[0].sealed.len() as u32).map(Tick).collect();
     assert_eq!(table.peers[0].sealed, expected);
     assert!(table.peers[0].sealed.len() as u32 >= simulated);
 
-    // Drained fully, the peer has sealed exactly up to its current tick
-    // plus the input delay — which is what "everyone has everyone's
-    // commands before they are needed" means in one line.
     while let Some(packet) = table.peers[0].session.next_packet() {
         assert!(packet.commands.is_empty());
         table.peers[0].sealed.push(packet.tick);
@@ -77,10 +64,7 @@ fn a_packet_is_sent_every_tick_even_with_nothing_to_say() {
     );
 }
 
-// --- the kingdom layer is the same machine ------------------------------
 
-/// §5, run through the same code as §4 with `input_delay = 0`. Five
-/// players, one step per turn, commands ordered by slot.
 #[test]
 fn the_kingdom_layer_is_the_same_mechanism_with_different_numbers() {
     let mut table = Table::new(Config::kingdom(), 5, 0x10ad);
@@ -102,7 +86,6 @@ fn the_kingdom_layer_is_the_same_mechanism_with_different_numbers() {
         assert!(!peer.session.is_halted());
     }
 
-    // Commands were applied in slot order, not arrival order.
     let replay = table.peers[0].session.replay().unwrap();
     let turn_one = replay.commands_at(Tick(1));
     assert_eq!(turn_one.len(), 5);
@@ -110,11 +93,7 @@ fn the_kingdom_layer_is_the_same_mechanism_with_different_numbers() {
     assert_eq!(slots, vec![0, 1, 2, 3, 4]);
 }
 
-// --- checksum cadence ---------------------------------------------------
 
-/// §6's fallback: keep hashing every tick, exchange less often. The
-/// divergence is still caught, just later — and the history ring is
-/// what makes "later" still useful.
 #[test]
 fn a_sparser_exchange_still_catches_a_divergence() {
     let mut config = Config::battle();
@@ -127,7 +106,6 @@ fn a_sparser_exchange_still_catches_a_divergence() {
     assert!(table.peers[0].session.is_halted());
     let divergence = table.peers[0].session.divergence().unwrap();
     assert_eq!(divergence.tick.0 % 4, 0, "only exchanged ticks can be compared");
-    // Every tick is still hashed, so the ring can localise it.
     let history = table.peers[0].session.history();
     assert!(history.hash_at(divergence.tick.minus(1)).is_some());
 }

@@ -6,8 +6,6 @@ use l2_kingdom::diplomacy::Letter;
 use l2_kingdom::victory::{self, Ending, Outcome, OutcomeStep};
 use crate::game::Game;
 
-/// One 24-byte ring record — `Msg_Enqueue`'s eight parameters, in memory order.
-///
 /// | offset | field | |
 /// |---|---|---|
 /// | `+0x00` | [`Record::to`] | recipient realm; **0 is everybody** |
@@ -39,7 +37,6 @@ pub struct Record {
 }
 
 impl Record {
-    /// An empty slot. `Msg_Pump` tests `group == 0` and nothing else.
     pub fn is_empty(&self) -> bool {
         self.group == 0
     }
@@ -50,7 +47,6 @@ impl Record {
         self.variant as usize + 1
     }
 
-    /// Which layout `Msg_DrawWindow` picks for this record.
     pub fn shape(&self) -> Shape {
         Shape::of(self.category)
     }
@@ -58,11 +54,6 @@ impl Record {
     /// Whether this record carries a question — the four categories
     /// `Msg_DismissUnlessQuestion` (`0x00476710`) refuses to close
     /// `Msg_HandleInput` runs a `Widget_Test` for.
-    ///
-    /// **The two lists are the same four and that is checkable
-    /// assumed**: `0x11`, `0x0A`, `0x0B`, `0x0C`. See
-    /// [`MessageQueue::dismiss_unless_question`] and
-    /// [`Record::answer_widgets`].
     pub fn is_question(&self) -> bool {
         matches!(
             self.category,
@@ -73,14 +64,6 @@ impl Record {
         )
     }
 
-    /// The yes/no pair this record draws, or `None`.
-    ///
-    /// Category `0x0C` is the awkward one and it is awkward in the original
-    /// too: `Msg_DrawDiplomacy` draws a widget for **three** of its eleven
-    /// groups and `Msg_HandleInput` tests exactly those three, so
-    /// [`Record::is_question`] is true for the whole category and this is false
-    /// for eight of its groups. A right-click still closes those eight; there is
-/// nothing to click.
     pub fn answer_widgets(&self) -> Option<Prompt> {
         match self.category {
             category::GARRISON_PROMPT => Some(Prompt::Garrison),
@@ -118,10 +101,6 @@ impl From<Ending> for Record {
             to: e.to,
             from: e.from,
             group: e.group,
-            // **Not zero.** `Ending::variant` was added for this: groups 194
-            // and 195 hold sixteen lord-flavoured lines apiece and the ending
-            // chain picks one. Dropping it here is how every lord in the game
-            // would come to say the Knight's first line.
             variant: e.variant,
             category: e.category,
             county: 0,
@@ -132,8 +111,6 @@ impl From<Ending> for Record {
 }
 
 impl Record {
-    /// Back to the ending the victory rules read. They consult `group` and
-    /// `from` and nothing else — see [`l2_kingdom::victory::outcome_of`].
     pub fn as_ending(&self) -> Ending {
         Ending {
             group: self.group,
@@ -164,19 +141,13 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
         category::PAY_PROMPT | category::ALLIANCE_PROMPT => Frame::new(0x10, 0x80, 0x1C0, 0xF0),
         category::CAPTURE => Frame::new(0x20, 0xA0, 0x1A0, 0xC0),
         category::ENDING => Frame::new(0x10, 0x80, 0x1C0, 0xE0),
-// **The one arm whose height is a rule**, and it
-        // was written down here and then not applied — every event drew in the
-        // short box, so the sixteen high-numbered events lost 0x20 of window and
-        // had their corner button, and its 48 × 48 hit box, 0x20 too high.
-        //
         // `[V]`, the arm's own first statement:
+//
         // `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0: 0xE0;` — and the
         // *taller* box is the sixteen with **no** number line, which is the
         // opposite of what the note here claimed. The eight short ones
         // (`0x87`…`0x8E`) draw a count at `y + 0x90`, 0x30 clear of the bottom;
         // the tall ones spend the extra on body text.
-        //
-        // The id is the group, so the record carries it.
         category::EVENT => Frame::new(0x20, 0xA0, 0x1A0, event_height(record.group)),
         // `Msg_DrawWindow`'s category-0x13 arm, whose four numbers come out of
         // `g_helpWindowGeom` (`0x004D6EB8`) at `(group - 0x123) * 0x10`. A
@@ -189,10 +160,6 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
     Some(f)
 }
 
-/// `Msg_DrawWindow`'s category-`0x0F` height: `(short)eventId < 0x12E ? 0xC0 :
-/// 0xE0`. The comparison is **signed 16-bit** on the county's stored id, so an
-/// id that is not an event's at all — 0, the id a county that never drew one
-/// carries — takes the short box.
 pub fn event_height(group: u16) -> i32 {
     if (group as i16) < 0x12E {
         0xC0
@@ -205,15 +172,10 @@ pub fn event_height(group: u16) -> i32 {
 /// `0x1C0` wide.
 pub const PARAGRAPH_WIDTH: i32 = 0x1A0;
 
-/// **Where a tip window's parts go** — `Msg_DrawWindow`'s categories
-/// `0x05`…`0x09`, the one layout whose size is computed from its text.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Paragraphs {
-    /// The box, and so the OK button: [`Frame::ok_button`].
     pub frame: Frame,
-    /// `Eng_DrawString(group, 0, x + 0x10, y + 0x14, heading)`.
     pub heading: (i32, i32),
-    /// The top of each paragraph, drawn at `x + 0x10`.
     pub tops: Vec<i32>,
 }
 
@@ -233,18 +195,6 @@ pub struct Paragraphs {
 /// for (…) { FUN_0040328E(group, i + 1, x + 0x10, y + h, …); h += 0x10; }
 /// Ui_OkButton(x + w - 0x30, height + y - 0x30, 0);
 /// ```
-///
-/// Three things in it are not what a reader would write:
-///
-/// * **the text is measured by drawing it.** The first loop paints every
-///   paragraph at one fixed height before the box exists, and only the running
-///   total survives; the box then paints over the lot. It is not reproduced as
-///   paint, because nothing of it is visible.
-/// * **the box's height includes its own top.** `height = h + y`
-///   moved down by the short-text rule also grows by the same 64 pixels.
-/// * **a short tip is pushed down 64 pixels** when the measured height is below
-/// `0x61`
-///   one-sentence tips.
 pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
     const X: i32 = 0x10;
     const W: i32 = 0x1C0;
@@ -268,20 +218,6 @@ pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
 /// **`FUN_0040328E`'s line breaking** (`0x0040328E`), with `FUN_004036F9`
 /// (`0x004036F9`) as the word measure. `glyph` is `FUN_004015B9`'s width of one
 /// non-space character in the font the text is drawn in.
-///
-/// Not [`crate::shell::Pen::wrap`]
-///
-/// * **a space is four pixels, whatever the font**, and it is measured as part
-/// of the word *after* it — so a word fits only if it fits with its leading
-///   space, even at the start of a line where that space is then not drawn;
-/// * **the test is strict**: a line that would come out exactly `width` wide
-///   breaks;
-/// * **`$` separates words and has no width**; a character below `0x20` has no
-///   width and does not separate;
-/// * a word wider than a whole line is never placed
-///   empty lines until its own guard of 99 gives out.
-///
-/// Always at least one line, because the draw is inside the loop.
 pub fn break_lines(text: &str, width: i32, glyph: impl Fn(char) -> i32) -> Vec<String> {
     let chars: Vec<char> = text.chars().skip_while(|c| (*c as u32) < 0x20).collect();
     let mut at = 0;

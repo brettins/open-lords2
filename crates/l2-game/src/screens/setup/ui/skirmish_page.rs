@@ -13,10 +13,6 @@ impl SetupScreen {
         let s = &self.skirmish;
 
         // **`FUN_00421005`** — six rows at `(0x1D4, 0xB9 + 16n)`, 0x85 by 0x10.
-        // The lit row is a `0x3F` bar with `0x66` text and the others are the
-        // other way round. The names are `BATTLES.ENG`'s, three strings per
-        // battle, and nothing reads that file yet — so the bars are here and
-        // the words are not.
         for n in 0..ROWS_SHOWN {
             if s.top + n >= s.rows {
                 break;
@@ -27,6 +23,7 @@ impl SetupScreen {
         }
         // **The scrollbar is three segments** (`00420000.c:401-416`): the gap
         // above the thumb and the gap below it in `0x66`, the thumb in `0x3F`.
+        //
         // All three are `Pct(0x3C, PctOf(n, DAT_0053F0D4))`, and the thumb is
         // not `Pct` of six — it is `0x3C` less the other two, so it carries
         // both roundings. Each is drawn only when it is not zero.
@@ -49,6 +46,7 @@ impl SetupScreen {
         }
 
         // **`FUN_004207C3`** — the four categories, the chosen one in `0x20`.
+        //
         // `L2.eng` 11/0x14 is the castle row, 0x15 and 0x16 the two field
         // rows, and the fourth is the `.skr` file's own name, or 11/0x23 when
         // there is none. Top to bottom the categories are 2, 0, 1, 3.
@@ -68,6 +66,7 @@ impl SetupScreen {
         }
 
         // **`FUN_004209C1`** — the two names, the two roles and the strengths.
+        //
         // The two name boxes come first (`00420000.c:244-245`): `DAT_00553D80`
         // at x 0xE and `DAT_00553DAC` at x 0x118, both `FUN_004025D7`-centred
         // in 0x96. They are realm 1's and realm 2's, keyed to the realm and
@@ -97,7 +96,6 @@ impl SetupScreen {
         // `DAT_0051FAD0`, which `Skirmish_FillArmies` recomputes on every one
         // of this page's arms.
         //
-        // The boxes are realm 1's and realm 2's, like the names above them:
         // `FUN_004209C1` (`00420000.c:277-289`) puts the local strength
         // `DAT_0051FBBC` in the left box when `g_localPlayer == 1` and in the
         // right box when it is 2, and `DAT_0051FAD0` in the other. Realm 1 is

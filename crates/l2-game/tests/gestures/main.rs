@@ -1,22 +1,4 @@
-//! **The gesture kinds, driven through the screens that answer them.**
-//!
-//! `crates/l2-game/src/press/mod.rs` has unit tests for the state machine and
-//! `crates/l2-game/tests/press.rs` pins the ramp's 48 bytes against the
-//! player's own `Lords2.exe`.
-//! wrong, which is a screen that owns a [`Press`] and never asks it anything:
-//! `docs/arms.json` marked nineteen arms `reproduced` under a kind none of them
-//! had, and every test in the tree passed.
-//!
-//! So these tests drive `Machine::handle` and `Machine::update` with the same
-//! `Event` values `main.rs` produces, and assert on **what the player sees**:
-//! the number does not move until the countdown expires, the arrow keeps
-//! stepping while it is held, the picture changes while it is down.
-//!
 //! # The ablations
-//!
-//! Each test names the line that must be deleted to turn it red, because a test
-//! written against a passing tree has never been observed failing
-//! (`docs/agents.md`).
 
 mod gestures;
 pub use gestures::*;
@@ -61,7 +43,6 @@ fn on(r: Rect) -> (i32, i32) {
     (r.centre_x(), r.y + r.h / 2)
 }
 
-/// The tax panel, open on county 1.
 fn tax_panel() -> (Game, Assets, Machine) {
     let (g, a) = world();
     let m = Machine::new(ScreenId::County(1, Panel::Tax));

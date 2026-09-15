@@ -19,11 +19,6 @@ use l2_kingdom::realm::MAX_REALMS;
 /// **The *Army Size* option raises a garrison** — `FUN_0049BD99`'s
 /// `g_startArmySize` arm (`0x0049BF9E`), rows 0 and 3 of `g_startTroops`
 /// (`0x004DC110`) on England.
-///
-/// Row 0 is all zeroes and raises nothing; row 3 is `{0,0,0,100,100,100,0}` —
-/// 300 men, in the realm's own start county, and the county keeps its people
-/// because the arm pre-credits the population before `Levy_DebitPopulation`
-/// takes it back.
 #[test]
 fn army_size_raises_the_starting_garrison() {
     let assets = assets!();
@@ -39,8 +34,6 @@ fn army_size_raises_the_starting_garrison() {
             .expect("England builds");
         settings.apply_to(&mut game);
 
-        // The world the scenario builds already carries merchants, so this
-        // counts armies only.
         let armies: Vec<usize> = game
             .kingdom
             .campaign
@@ -62,25 +55,18 @@ fn army_size_raises_the_starting_garrison() {
                 "row {row}: the garrison stands in its own realm's county",
             );
             assert_eq!(u.home_county, u.county, "row {row}: home county");
-            // `County_FindFreeRoadTile` / `County_FindFreeOpenTile` search the
-            // county's anchor, and `Unit_Spawn` demands `(flags & 0xFC) == 0`.
             let f = game.kingdom.campaign.map.flags_at(u.x, u.y);
             let bare = !(l2_kingdom::map::flags::ROAD | l2_kingdom::map::flags::BOUNDARY);
             assert_eq!(f & bare, 0, "row {row}: the muster tile is bare");
-            // The surcharge `Army_Create` writes is undone by the next line.
             assert_eq!(game.kingdom.counties[county].levy_surcharge, 0, "row {row}: surcharge");
         }
 
-        // The pre-credit cancels `Levy_DebitPopulation` exactly: the
-        // county-status row's population survives the garrison.
         for c in game.kingdom.county_ids() {
             assert_eq!(
                 game.kingdom.counties[c].population, settings.county.population,
                 "row {row}: county {c} kept its people",
             );
         }
-        // `Levy_ConsumeWeapons` ran against a zeroed armoury in the original, so
-        // the armoury row survives the garrison intact.
         for id in 1..MAX_REALMS {
             if game.kingdom.realms[id].in_play {
                 assert_eq!(game.kingdom.realms[id].weapons, settings.armoury, "row {row}: armoury");

@@ -13,8 +13,6 @@ use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::Canvas;
 
-/// **A second of rest, which is sixty-three of our ticks, and not sixty-two.**
-///
 /// `FUN_00477131`: `999 < (int)(timeGetTime() - stamp)`, the stamp written on
 /// the frame the mouse last changed. At 16 ms a tick, 62 ticks is 992 ms and 63
 /// is 1,008. The tick that *sees* the move writes the stamp and is not counted.
@@ -35,13 +33,9 @@ fn end_turn_names_itself_on_the_sixty_third_still_tick_and_not_the_sixty_second(
     let s = shown(&m).expect("the sixty-third still tick shows it");
     assert_eq!(s.id, 14, "End Turn's id in FUN_00477320");
     assert_eq!(tooltip::words(&a.shell, s.id), "End your turn");
-    // 560 >= 321, so 220 to the left; 470 >= 241, so 30 above.
     assert_eq!((s.x, s.y), (340, 440));
 }
 
-/// **Moving resets the rest; moving while a tip is up takes it away — and the
-/// frame that takes it away does not restart the second.**
-///
 /// `FUN_004770B8` hides without touching the stamp, and `FUN_00477131` writes
 /// the stamp only on a frame the mouse changed *while no tip is up*. So a
 /// one-tick nudge of a tip leaves the stamp where the tip's own resolve put
@@ -57,7 +51,6 @@ fn moving_resets_the_rest_and_moving_under_a_tip_takes_it_away() {
     point(&mut m, &mut g, &a, END_TURN.0, END_TURN.1);
     tick(&mut m, &mut g, &a);
     ticks(&mut m, &mut g, &a, 40);
-    // A move forty ticks in: the whole second starts again.
     point(&mut m, &mut g, &a, END_TURN.0 + 1, END_TURN.1);
     tick(&mut m, &mut g, &a);
     ticks(&mut m, &mut g, &a, 62);
@@ -65,21 +58,17 @@ fn moving_resets_the_rest_and_moving_under_a_tip_takes_it_away() {
     tick(&mut m, &mut g, &a); // tick S: shown, and stamped
     assert_eq!(shown(&m).map(|s| s.id), Some(14));
 
-    // A move under the tip, on tick S + 1: gone.
     point(&mut m, &mut g, &a, END_TURN.0 + 2, END_TURN.1);
     tick(&mut m, &mut g, &a);
     assert_eq!(shown(&m), None, "FUN_004770B8 hides it");
-    // Still again. The stamp is still S's, so ticks S + 2 … S + 62 are early…
     for n in 2..=62 {
         tick(&mut m, &mut g, &a);
         assert_eq!(shown(&m), None, "tick S + {n}");
     }
-    // …and S + 63 is a second after the tip's own resolve, not after the nudge.
     tick(&mut m, &mut g, &a);
     let s = shown(&m).expect("the hide wrote no stamp");
     assert_eq!((s.id, s.x), (14, END_TURN.0 + 2 - 220), "at the new place");
 
-    // Up a whole second, then nudged once: back on the next still tick.
     ticks(&mut m, &mut g, &a, 63);
     point(&mut m, &mut g, &a, END_TURN.0 + 3, END_TURN.1);
     tick(&mut m, &mut g, &a);
@@ -87,14 +76,11 @@ fn moving_resets_the_rest_and_moving_under_a_tip_takes_it_away() {
     tick(&mut m, &mut g, &a);
     assert_eq!(shown(&m).map(|s| s.x), Some(END_TURN.0 + 3 - 220), "no rest after a one-tick nudge");
 
-    // A button is a mouse change too.
     send(&mut m, &mut g, &a, Event::RightClick { x: END_TURN.0 + 3, y: END_TURN.1 });
     tick(&mut m, &mut g, &a);
     assert_eq!(shown(&m), None, "g_mouseInputChanged is set by a button");
 }
 
-/// **The option off shows nothing, and the flip back on re-arms the rest.**
-///
 /// `FUN_00476E95` is `if (g_optToolTips != 0) { … }` round everything, and
 /// `Opt_ToggleToolTips` writes `_DAT_004EA830 = 0` — so the tick after the
 /// option comes back on shows the tip with no second of rest.
@@ -115,7 +101,6 @@ fn the_option_off_shows_nothing_and_turning_it_on_shows_the_tip_at_once() {
     ticks(&mut m, &mut g, &a, 200);
     assert_eq!(shown(&m), None, "g_optToolTips is 0");
 
-    // Back on, and the pointer moves: that frame stamps and shows nothing.
     let toggle = |g: &mut Game| {
         let mut ctx = Ctx { game: g, assets: &a };
         options::toggle(Setting::ToolTips, &mut ctx);
@@ -126,12 +111,6 @@ fn the_option_off_shows_nothing_and_turning_it_on_shows_the_tip_at_once() {
     tick(&mut m, &mut g, &a);
     assert_eq!(shown(&m), None, "a changed frame stamps");
 
-    // Off and on again, two ticks after that stamp: nowhere near a second. The
-    // tip shows anyway, because the flip zeroed the stamp.
-    //
-    // **This test was green with the rearm deleted** when it flipped back on
-    // after the 200 ticks above: by then the stamp was old whatever the flip
-    // did. Ablation is what found that.
     toggle(&mut g);
     tick(&mut m, &mut g, &a);
     toggle(&mut g);
@@ -139,10 +118,6 @@ fn the_option_off_shows_nothing_and_turning_it_on_shows_the_tip_at_once() {
     assert_eq!(shown(&m).map(|s| s.id), Some(14), "Opt_ToggleToolTips zeroed the stamp");
 }
 
-/// **And off means nothing is drawn**, even with a tip that was already up.
-///
-/// Ablation: remove the `prefs.tool_tips` test in `tooltip::draw` and the box
-/// region comes out identical to the one drawn with the option on.
 #[test]
 fn the_option_off_draws_no_box() {
     let (mut g, a, mut m) = campaign();
@@ -162,12 +137,6 @@ fn the_option_off_draws_no_box() {
 
 /// **`DAT_004D6FB8`: the sidebar's tips follow it onto the screens that sit on
 /// it, and nowhere else.**
-///
-/// A county panel (`0x15`) is a campaign-ladder screen; the other lords
-/// (`0x0B`) and a tip screen (`0x27`) are not.
-///
-/// Ablation: make `ladder_of` answer the campaign ladder for every byte and the
-/// two `None` rows go red.
 #[test]
 fn a_county_panel_keeps_the_sidebar_tips_and_the_other_lords_and_a_tip_screen_do_not() {
     for (over, want) in [
@@ -195,12 +164,6 @@ fn a_county_panel_keeps_the_sidebar_tips_and_the_other_lords_and_a_tip_screen_do
 /// **A repaint takes the tip away and the ordinary rule brings it back** —
 /// `Screen_Draw`'s `FUN_0047703A`, which keeps the stamp.
 ///
-/// The county panel is a campaign-ladder screen, so the only thing that can
-/// take End Turn's tip away when it opens is the repaint. Ten ticks after the
-/// tip went up its stamp is ten ticks old, so it stays away until the second is
-/// up — sixty-three ticks after the stamp — and a repaint a second later
-/// brings it straight back.
-///
 /// Ablations: remove the `drop_tip` call in `Machine::run_tooltips` and the
 /// first `None` goes red; stamp the drop in `Tooltips::drop_tip` and the last
 /// assertion does.
@@ -226,5 +189,4 @@ fn opening_a_screen_drops_the_tip_and_its_own_stamp_brings_it_back() {
     assert_eq!(shown(&m), None, "0x0B has no tips at all");
 }
 
-// ------------------------------------------------------------ the ladders
 

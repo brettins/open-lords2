@@ -20,11 +20,6 @@ use l2_view::chrome::{
 };
 use l2_view::Canvas;
 
-/// **The four buttons are not radio buttons.** `Minimap_ModeButton` takes a
-/// mode button only while the overlay is off, and once it is on the fourth
-/// button turns the overlay off. So going from
-/// food to happiness takes three clicks, not one — and the pixels say which
-/// mode is up.
 #[test]
 fn a_mode_button_does_nothing_while_another_mode_is_up() {
     let (mut game, assets, raster) = world!();
@@ -35,14 +30,11 @@ fn a_mode_button_does_nothing_while_another_mode_is_up() {
     let owners = land_colours(&draw(&mut screen, &mut game, &assets), &raster, &mine);
     let zoom_at_rest = *screen.zoom();
 
-    // Into food, where every county is fed: the whole map is band 6, so the
-    // land goes back to the bare raster.
     click(&mut screen, &mut game, &assets, 1);
     let food = land_colours(&draw(&mut screen, &mut game, &assets), &raster, &mine);
     assert_eq!(food, BTreeSet::from([11u8, 12, 13]), "the owner tint is gone");
     assert_ne!(food, owners);
 
-    // Pressing happiness now must do nothing at all.
     click(&mut screen, &mut game, &assets, 2);
     assert_eq!(
         land_colours(&draw(&mut screen, &mut game, &assets), &raster, &mine),
@@ -50,7 +42,6 @@ fn a_mode_button_does_nothing_while_another_mode_is_up() {
         "a mode button is ignored while a mode is up"
     );
 
-    // The fourth button leaves the overlay.
     click(&mut screen, &mut game, &assets, 3);
     assert_eq!(
         land_colours(&draw(&mut screen, &mut game, &assets), &raster, &mine),
@@ -59,14 +50,10 @@ fn a_mode_button_does_nothing_while_another_mode_is_up() {
     );
     assert_eq!(*screen.zoom(), zoom_at_rest, "and does not toggle the zoom on the way");
 
-    // Now that the overlay is off, the same button *is* the zoom toggle.
     click(&mut screen, &mut game, &assets, 3);
     assert_ne!(*screen.zoom(), zoom_at_rest, "button 4 in mode 0 is the zoom");
 }
 
-/// The selected county's brightest shade is `0x20` **in every mode**: the
-/// original tests the selection before it dispatches on the mode, so the marker
-/// survives an overlay.
 #[test]
 fn the_selected_county_keeps_its_marker_in_every_mode() {
     let (mut game, assets, raster) = world!();
@@ -81,8 +68,6 @@ fn the_selected_county_keeps_its_marker_in_every_mode() {
             click(&mut screen, &mut game, &assets, b);
         }
         let canvas = draw(&mut screen, &mut game, &assets);
-        // Shade 10 of the selected county, which `land_colours` deliberately
-        // skips, is the one the marker replaces.
         let mut marked = 0;
         for y in 0..MINIMAP_DIM {
             for x in 0..MINIMAP_DIM {
@@ -104,9 +89,6 @@ fn the_selected_county_keeps_its_marker_in_every_mode() {
     }
 }
 
-/// The mode strip and the mode badge are the original's own `Misc_cty` frames
-/// and they are drawn: `0x5C` at (611, 32) with no overlay, `0x5B` in its place
-/// with one, and the mode's badge at (485, 30).
 #[test]
 fn the_mode_strip_and_badge_are_drawn_beside_the_minimap() {
     let (mut game, assets, _raster) = world!();
@@ -118,8 +100,6 @@ fn the_mode_strip_and_badge_are_drawn_beside_the_minimap() {
     click(&mut screen, &mut game, &assets, 2);
     let after = draw(&mut screen, &mut game, &assets);
 
-    // Every pixel the two frames paint — a blitter copies only
-    // non-zero indices, so "painted" is "not 0" on a blank canvas.
     let mut alone = Canvas::screen();
     assert!(art.draw_minimap_side(&mut alone, MinimapMode::Happiness));
     assert!(art.draw_minimap_badge(&mut alone, MinimapMode::Happiness));

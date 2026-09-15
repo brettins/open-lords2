@@ -4,9 +4,6 @@
 //! it drew (`screens/county.rs`: *"Nothing here reads `L2.eng`; the workspace
 //! has no decoder for it"*). That is the one thing a shell screen must not do,
 //! because the whole value of a shell is that its text is the original's text.
-//! So here is the decoder, in forty lines.
-//!
-//! # The format
 //!
 //! **[V]** Eight bytes of header, then a table of one 32-bit slot per group,
 //! of which only the **low 24 bits** are used — a file offset. The table's own
@@ -19,27 +16,17 @@
 //! slots, group 101 is exactly the sixty map names `g_scenarioIndex` indexes,
 //! and group 21's six ration levels are the six `l2-kingdom` already knows.
 //!
-//! # Index 0 is a label
-//!
 //! `Eng_DrawString(group, index, …)` (`0x00402D37`) skips `index` NUL
 //! terminators and then skips any byte below `0x20`, so a group may be laid out
 //! with control bytes between its entries and the indices still come out dense.
-//! [`Eng::get`] does the same.
 //!
 //! By convention index 0 of a group is a descriptive heading and 1..N are its
 //! entries — group 87 is *"Ration"*, *"Wanted:"*, *"Achieved:"*, … — but it is
 //! only a convention and several groups (11, 103) are flat lists.
 
-/// The strings, owning their bytes.
 pub struct Eng {
     bytes: Vec<u8>,
-    /// One file offset per slot, straight out of the table.
     offsets: Vec<usize>,
-    /// **The whole file with every byte as the `char` of the same number** —
-    /// `0x82` is `'\u{82}'` — so a string with a byte above `0x7F` in it comes
-    /// back as a string.
-    ///
-    /// The number is what matters and the name of the character does not:
     /// `Ui_DrawText` (`0x00402637`) indexes `g_glyphWidths` with the byte, and
     /// so does [`super::font::Font`] with `c as u32`. Whether the file's high
     /// bytes *mean* Latin-1 or code page 437 is not decided here.
@@ -51,8 +38,6 @@ pub struct Eng {
     /// bullets of *"What should I do each turn?"*, each opening with `0xB7` —
     /// and all nine read as missing, and `group(295)` stopped at two.
     decoded: String,
-    /// Where byte `i` of `bytes` begins in `decoded`, with one entry past the
-    /// end.
     starts: Vec<u32>,
 }
 
@@ -84,13 +69,10 @@ impl Eng {
         Ok(Eng { bytes, offsets, decoded, starts })
     }
 
-    /// How many slots the table has. Groups `1 ..= count() - 1` are addressable.
     pub fn count(&self) -> usize {
         self.offsets.len()
     }
 
-    /// One group's bytes, or `None` for a group the table does not cover or
-    /// whose run is empty — several slots in the shipped file are.
     fn group_bytes(&self, group: usize) -> Option<(usize, &[u8])> {
         let start = *self.offsets.get(group)?;
         let end = match self.offsets.get(group + 1) {
@@ -103,12 +85,6 @@ impl Eng {
         Some((start, &self.bytes[start..end]))
     }
 
-    /// String `index` of `group`:
-    /// skip `index` NUL terminators, then skip any byte below `0x20`.
-    ///
-    /// Returns `None` for an index past the end, so
-    /// a caller can tell "the group is shorter than I thought" from "the game
-    /// really does draw nothing here".
     pub fn get(&self, group: usize, index: usize) -> Option<&str> {
         let (start, run) = self.group_bytes(group)?;
         let mut p = 0usize;
@@ -125,8 +101,6 @@ impl Eng {
             return None;
         }
         let end = run[p..].iter().position(|&b| b == 0).map_or(run.len(), |n| p + n);
-        // Byte for byte: see `decoded`. A byte below 0x80 is one `char` of the
-        // same number in either reading, so every ASCII string is unchanged.
         let from = self.starts[start + p] as usize;
         let to = self.starts[start + end] as usize;
         Some(&self.decoded[from..to])
@@ -138,7 +112,6 @@ impl Eng {
         self.get(group, index).unwrap_or("")
     }
 
-    /// Every string of a group, in order, stopping at the first gap.
     pub fn group(&self, group: usize) -> Vec<&str> {
         let mut out = Vec::new();
         let mut i = 0;
@@ -157,7 +130,6 @@ impl Eng {
 mod tests {
     use super::*;
 
-    /// Build a file in the shipped layout: header, slot table, then the runs.
     fn synth(groups: &[&[&str]]) -> Vec<u8> {
         let slots = groups.len();
         let table = 8 + slots * 4;

@@ -23,8 +23,6 @@ use l2_game::shell::{font, Eng};
 use l2_game::Game;
 use l2_view::Canvas;
 
-/// **The measure and the draw disagree about `'@'`.**
-///
 /// `FUN_004014F0` (`0x004014F0`) charges 4 for `0x20` and nothing for any other
 /// empty `g_glyphWidths` entry; `Ui_DrawText` (`0x00402637`) advances
 /// `local_14 = 4` for all of them. `Font::width` charged 4 for `'@'`.

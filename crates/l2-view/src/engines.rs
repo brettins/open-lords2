@@ -7,8 +7,6 @@
 //! `BattleFigure_Draw` (`0x004BDC31`). What is different is everything about
 //! *which* picture.
 //!
-//! # One sheet for all four
-//!
 //! `FUN_00480F8B` (`0x00480F8B`) assigns every figure its sheet pointer at the
 //! start of a battle. Troop types 0…6 take one of the thirty-six
 //! `a2<colour>_<troop>.pl8` files; **troop types 7, 8, 9 and 10 all take
@@ -18,8 +16,6 @@
 //!
 //! A catapult's *arm* is a second sprite from a second pair of files,
 //! `catarm1.pl8` and `catarm2.pl8`, slots 9 and 10. **[V]**
-//!
-//! # The frame map, and it closes
 //!
 //! Three functions write a siege engine's frame — `FUN_00488436` (reached from
 //! `Anim_WalkA2`), `FUN_00488793` (from `Anim_StrikeA2`, `Anim_StandA2`,
@@ -38,19 +34,6 @@
 //! | 31 … 34 | a docked tower's stair, over the men | `FUN_004BD759` |
 //! | 35 … 40 | a pot of oil, idling | `(animPhase >> 3) + 0x23` |
 //! | 42 … 45 | a pot of oil, pouring | `(polarDirc >> 1) + 0x2A` |
-//!
-//! `Engine.pl8` holds exactly **46** frames
-//! 45. `Catarm1.pl8` and `Catarm2.pl8` hold exactly **20** each, and four
-//! facings of five arm poses is twenty. Frame 41 is the only one nothing
-//! reaches. `tests/install.rs` asserts the counts against the install.
-//!
-//! # What our simulation has instead of a state byte
-//!
-//! The original forks on `g_battleMen[].state`; `l2_sim` has
-//! [`l2_sim::Motion`], four values, and this module maps onto it. Two of those
-//! mappings are inferences and both are named where they are made:
-//! [`frame`]'s `Motion::Dying` arm for a spent pot, and
-//! [`ram_strips`]'s `Motion::Attacking` for state 14.
 
 use l2_sim::{Motion, Troop};
 
@@ -62,11 +45,10 @@ pub const ENGINE_SHEET: &str = "Engine.pl8";
 /// second otherwise, which is what makes four facings of artwork cover eight.
 pub const ARM_SHEETS: [&str; 2] = ["Catarm1.pl8", "Catarm2.pl8"];
 
-/// Poses per facing in one `Catarm` file — `horseFrame = dirc * 5`, wrapped by
-/// `-0x14` for the far half. Four facings of five is the file's twenty frames.
 pub const ARM_POSES: usize = 5;
 
 /// `g_horseWalkCycle` (`0x004D9C08`), forty bytes, indexed by `animPhase >> 2`.
+///
 /// `FUN_0048895E` reuses the horse's curve for the catapult arm: a slow
 /// 0 → 1 → 2 → 3 arc over the eighty ticks after the shot. **[V]** from the
 /// bytes; entries 28 … 39 hold 4, which the catapult's eighty-tick window
@@ -81,11 +63,8 @@ pub const ARM_CYCLE: [u8; 40] = [
 /// `animPhase` runs 1 … 80 after the shot and `>> 2` reaches 20.
 pub const ARM_SWING_TICKS: u16 = 80;
 
-/// The pot's idle loop: `animPhase + 1`, wrapped past `0x2F`, then `>> 3`.
-/// Six pictures over forty-eight ticks.
 const OIL_IDLE_PERIOD: u16 = 0x30;
 const OIL_IDLE_BASE: usize = 0x23;
-/// The pour: `(polarDirc >> 1) + 0x2A`, four pictures, one per orthogonal.
 const OIL_POUR_BASE: usize = 0x2A;
 
 /// The ram's beam counter, `FUN_0048895E`: `animPhase - 1`, clamped back up to
@@ -107,10 +86,8 @@ pub fn body_y_nudge(troop: Troop) -> i32 {
     }
 }
 
-/// The `engine.pl8` frame for a siege engine's body, or `None` for a troop
-/// that is not one.
-///
 /// `polar` is figure `+0x168`, the debug panel's `polar dirc` — 0, 2, 4 or 6.
+///
 /// `phase` is the figure's own animation counter, the original's `+0x0E`.
 ///
 /// **The oil fork is the one inference here.** `FUN_0047A814` puts a pot that
@@ -123,12 +100,10 @@ pub fn body_y_nudge(troop: Troop) -> i32 {
 /// on both frame formulas.
 pub fn frame(troop: Troop, anim: Motion, facing: u8, polar: u8, phase: u8) -> Option<usize> {
     Some(match troop {
-        // `dirc + 5`, in all three handlers.
         Troop::Catapults => 5 + (facing % 8) as usize,
         // `(polarDirc >> 1) + 1`. `FUN_00488436` recomputes the polar facing
         // first; that is `l2_sim::siege::tower_polar`, and simulation state.
         Troop::SiegeTowers => 1 + (polar % 8) as usize / 2,
-        // One picture, every facing, every state.
         Troop::BatteringRams => 0,
         Troop::Oil => match anim {
             Motion::Dying => OIL_POUR_BASE + (polar % 8) as usize / 2,
@@ -146,20 +121,10 @@ pub fn arm_sheet(facing: u8) -> usize {
     usize::from(facing % 8 >= 4)
 }
 
-/// **The catapult's arm** — sheet [`arm_sheet`], frame
-/// `(dirc % 4) * 5 + g_horseWalkCycle[swing >> 2]`.
-///
 /// `swing` is ticks since this catapult loosed. In the original that is
 /// `swingTimer - 100`, counted by `BattleMan_StateEngineFire` from the shot up
 /// to 179 and then wrapped; `FUN_0048895E` holds `animPhase` at zero until the
 /// shot, so the arm is still while the crew winds and arcs over afterwards.
-///
-/// **Our counter is not the original's.** `l2_sim`'s catapult runs through
-/// `BattleRunner::fire_tick`, whose `reload_counter` resets to zero **at** the
-/// loose and climbs to the weapon's 100-tick interval — the same zero point as
-/// the original's `animPhase`, over a shorter window. Clamping at
-/// [`ARM_SWING_TICKS`] keeps the arm inside the arc the original draws instead
-/// of walking into `g_horseWalkCycle`'s tail, which belongs to a horse.
 pub fn arm_frame(facing: u8, swing: u16) -> usize {
     let base = (facing % 8) as usize % 4 * ARM_POSES;
     base + ARM_CYCLE[(swing.min(ARM_SWING_TICKS) >> 2) as usize] as usize
@@ -168,13 +133,6 @@ pub fn arm_frame(facing: u8, swing: u16) -> usize {
 /// **The ram beating on a gate** — `FUN_004BEAB9` (`0x004BEAB9`), two more
 /// frames of `engine.pl8` above and below the carriage, and only while the
 /// figure is in **state 14**, `BattleMan_StateRamGate`.
-///
-/// Returns `((upper frame, dy), (lower frame, dy))`, both `dy` relative to the
-/// same cell corner the body is drawn from — the painter restores `g_drawX` /
-/// `g_drawY` before it calls this. The x offset is the ordinary
-/// `16 - width / 2`; the y offsets are **`-width / 2 - 0x10`** and
-/// **`-width / 2 + 0x56`**, and neither carries the `+ 8` every other battle
-/// sprite has.
 ///
 /// `FUN_0048895E` counts the beam **down**: `animPhase - 1`, clamped back to
 /// `0x8F` on underflow, `>> 4`, so the strip index walks 8 → 0 over 144 ticks
@@ -202,16 +160,8 @@ pub fn ram_strips(anim: Motion, phase: u8) -> Option<((usize, i32), (usize, i32)
 /// `0x80` on the centre. Those four centre codes are `0x49`, `0x4C`, `0x61`
 /// and `0x64` — read out of the table at `0x004D9DD0` — and they are exactly
 /// the four `FUN_004BD759` answers. **[V]** on both sides.
-///
-/// Our `Battlefield` carries no byte `+2`, so the `0x80` gate is unavailable;
-/// [`crate::scene::dock_overlay`] reads `flags & 1` instead, which
-/// `l2_sim::siege::lay_tower_ramp` sets on the same nine cells and nothing
-/// else in the crate sets at all. **That gate matters**: the field tileset's
-/// hill range covers 64 … 111, so codes 73, 76, 97 and 100 are ordinary hill
-/// tiles too
 pub const DOCK_OVERLAY: [(u8, usize); 4] = [(0x49, 0x1F), (0x4C, 0x20), (0x61, 0x21), (0x64, 0x22)];
 
-/// The `engine.pl8` frame a docked tower's centre cell draws, if it is one.
 pub fn dock_overlay_frame(gfx: u8) -> Option<usize> {
     DOCK_OVERLAY.iter().find(|(code, _)| *code == gfx).map(|(_, f)| *f)
 }
@@ -220,8 +170,6 @@ pub fn dock_overlay_frame(gfx: u8) -> Option<usize> {
 mod tests {
     use super::*;
 
-    /// The frame count of each shipped file, so the arithmetic can be checked
-    /// with no install. `tests/install.rs` asserts these against the files.
     pub(crate) const ENGINE_FRAMES: usize = 46;
     pub(crate) const ARM_FRAMES: usize = 20;
 
@@ -248,8 +196,6 @@ mod tests {
         }
     }
 
-    /// The carriage occupies 5 … 12, one per facing
-    /// per orthogonal — the two blocks the frame map closes with.
     #[test]
     fn the_carriage_is_eight_facings_and_the_tower_is_four() {
         let carriage: Vec<_> =
@@ -262,7 +208,6 @@ mod tests {
         assert_eq!(tower, vec![1, 2, 3, 4]);
     }
 
-    /// Idling is six pictures and pouring is four, and they do not overlap.
     #[test]
     fn a_pot_idles_in_six_pictures_and_pours_in_four() {
         let idle: std::collections::BTreeSet<_> =
@@ -276,8 +221,6 @@ mod tests {
         assert!(pour.iter().all(|f| !idle.contains(f)));
     }
 
-    /// Four facings of five poses, twice — every arm frame is inside one
-    /// `Catarm` file
     #[test]
     fn the_arm_is_four_facings_of_five_poses_in_each_of_two_files() {
         for facing in 0..8u8 {
@@ -290,13 +233,11 @@ mod tests {
         assert_eq!(arm_sheet(3), 0);
         assert_eq!(arm_sheet(4), 1);
         assert_eq!(arm_sheet(7), 1);
-        // The far half wraps onto the same four bases: `dirc * 5 - 0x14`.
         for d in 0..4u8 {
             assert_eq!(arm_frame(d, 0), arm_frame(d + 4, 0));
         }
     }
 
-    /// The arm is still at the shot and arcs over afterwards.
     #[test]
     fn the_arm_holds_at_rest_until_the_shot_and_then_swings() {
         assert_eq!(arm_frame(0, 0) % ARM_POSES, 0, "at rest when the counter is zero");
@@ -305,7 +246,6 @@ mod tests {
         assert!(poses.windows(2).all(|w| w[1] >= w[0]), "the arc never runs backwards: {poses:?}");
     }
 
-    /// Nine pictures, walking down, and both strips stay inside the sheet.
     #[test]
     fn a_ram_beating_a_gate_walks_nine_pictures_downward() {
         assert!(ram_strips(Motion::Walking, 0).is_none(), "only while it is beating");

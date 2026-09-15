@@ -1,5 +1,3 @@
-//! **A living man must never be drawn dead** — the player's 2026-09-14 report,
-//! "a dead sprite but he was still alive".
 
 use super::*;
 use super::blank_field;
@@ -62,7 +60,6 @@ fn a_man_shovelling_earth_into_the_moat_is_alive_and_not_a_corpse() {
         assert_eq!(r.fighters[0].anim, Motion::Shovelling);
         assert!(!r.corpse_gone(0), "a living man was cleared away as a body");
     }
-    // `animPhase += 1` clamped at 0x5F, which is what walks the three frames.
     assert!(r.fighters[0].phase <= 0x5F);
 }
 
@@ -70,9 +67,6 @@ fn a_man_shovelling_earth_into_the_moat_is_alive_and_not_a_corpse() {
 /// every `troopType` the band misses — of 0 … 6 that is 6 alone — *before*
 /// `animPhase += 1` and *before* `facingDrawn = dirc`, so a shovelling knight
 /// holds both.
-///
-/// **Ablation**: step them anyway and the knight walks a band drawn for men on
-/// foot, his drawn facing following `dirc` while his frame does not.
 #[test]
 fn a_shovelling_knight_holds_his_phase_and_his_drawn_facing() {
     let mut r = BattleRunner::deploy_armies(

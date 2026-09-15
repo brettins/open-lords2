@@ -25,6 +25,7 @@ use paint::*;
 
 /// **`g_minimapModeButtons` (`0x004DC620`) — the four icons in the strip beside
 /// the minimap**, `Misc_cty` frame `0x5C` (29 × 123) at (611, 32).
+///
 /// `FUN_0043292D` tests them at offset (610, 32) and `Minimap_ModeButton`
 /// (`0x0043AB76`) handles all four.
 ///
@@ -34,14 +35,6 @@ use paint::*;
 /// [`chrome::MINIMAP_RATING_RAMP`]). The fourth is **the zoom toggle** in mode
 /// 0 and **the way back out of an overlay** in every other mode; it is the
 /// control `docs/screens.md` §7 says we replaced with the `Z` key.
-/// [`MapScreen::minimap_mode_button`] has the whole of that behaviour.
-///
-/// The second record's `y1` is `0x42` where the pattern wants `0x3F`, so band 2
-/// is 34 pixels tall and overlaps band 3's first two rows. `Hotspot_Test`
-/// returns on the first match, so y 96 and 97 select mode 2. **That is the
-/// original's own data**, transcribed.
-/// What our status line calls each overlay. **Ours** — the original labels them
-/// only with the button icons
 ///
 /// **`L2.eng` does have words for them, and this comment said it did not.** The
 /// original's tooltip layer (`FUN_00476E95`, gated on `g_optToolTips`) resolves
@@ -68,26 +61,11 @@ impl SidebarButton {
     }
 }
 
-/// What one of them does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SidebarAction {
-    /// The `g_screenId` the table's handler sets. Four of the five are still
-    /// [`crate::screens::shells`] entries, so the button reaches the original's
-    /// own artwork
-    /// fifth is the raise-army screen, which is built. See
-    /// [`sidebar_destination`].
     Screen(u8),
 }
 
-/// The slider's own arithmetic, verbatim: left of the track steps down by four,
-/// right of it up by four, and on the track the value is
-/// `((x - 531) * 2) & 0xFC` — masked, so it lands on a multiple of four.
-///
-/// **The three zones are half-open
-/// original is `if (mx < 0x213) down; else if (mx < 0x252) track; else up;` —
-/// so x = 594 steps the share **up**. This read `x > 594` and put that one
-/// column on the track instead: a wrong arm.
-/// kind nothing looks broken about.
 pub fn split_from_click(x: i32, current: i32) -> i32 {
     let next = if x < 531 {
         current - 4

@@ -7,7 +7,6 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::sync::Arc;
 
-/// Parse a rule document. `source` is the name used in diagnostics.
 pub fn parse(text: &str, source: &str) -> PResult<Spanned<Value>> {
     let src: Arc<str> = Arc::from(source);
     let mut p = Parser {
@@ -25,7 +24,6 @@ pub fn parse(text: &str, source: &str) -> PResult<Spanned<Value>> {
 }
 
 impl<'a> Parser<'a> {
-    // ---- position helpers -------------------------------------------------
 
     fn origin(&self) -> Origin {
         Origin::new(self.source.clone(), self.line, (self.i - self.line_start + 1) as u32)
@@ -47,9 +45,6 @@ impl<'a> Parser<'a> {
         self.s[self.i..].starts_with(pat)
     }
 
-    /// Advance one byte, tracking line breaks. Callers only ever step over
-    /// ASCII structure or whole UTF-8 sequences copied wholesale, so this
-    /// never lands inside a character for the purposes of slicing.
     fn bump(&mut self) {
         if self.b[self.i] == b'\n' {
             self.line += 1;
@@ -66,7 +61,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Spaces and tabs only.
     fn skip_inline_ws(&mut self) {
         while matches!(self.peek(), Some(b' ') | Some(b'\t')) {
             self.bump();
@@ -84,7 +78,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Whitespace, newlines and comments — used between statements.
     fn skip_trivia(&mut self) {
         loop {
             match self.peek() {
@@ -95,8 +88,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// After a statement: allow trailing spaces and a comment, then demand a
-    /// newline or end of input. This is what catches `a = 1 b = 2`.
     fn expect_line_end(&mut self) -> PResult<()> {
         self.skip_inline_ws();
         self.skip_comment();
@@ -114,7 +105,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // ---- top level --------------------------------------------------------
 
     fn run(&mut self) -> PResult<Table> {
         let mut root = Table::new();
@@ -144,7 +134,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// `[a.b]` or `[[a.b]]`. Returns the new current path.
     fn parse_header(&mut self, root: &mut Table) -> PResult<Vec<String>> {
         let origin = self.origin();
         let array = self.peek_at(1) == Some(b'[');
@@ -203,15 +192,12 @@ impl<'a> Parser<'a> {
                     origin,
                 });
             }
-            // Force the table into existence even if it stays empty.
             descend(root, &path, &origin)?;
         }
         Ok(path)
     }
 
-    // ---- keys -------------------------------------------------------------
 
-    /// A dotted key: `a`, `"a b"`, `a.b.c`.
     fn parse_key(&mut self) -> PResult<Vec<String>> {
         let mut parts = Vec::new();
         loop {
@@ -242,7 +228,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // ---- values -----------------------------------------------------------
 
     fn parse_value(&mut self) -> PResult<Spanned<Value>> {
         let origin = self.origin();
@@ -336,7 +321,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // ---- strings ----------------------------------------------------------
 
     fn parse_basic_string(&mut self) -> PResult<String> {
         self.bump(); // opening quote
@@ -356,7 +340,6 @@ impl<'a> Parser<'a> {
                 Some(_) => {
                     let start = self.i;
                     self.bump();
-                    // Copy any continuation bytes of a multi-byte character.
                     while matches!(self.peek(), Some(c) if c & 0xC0 == 0x80) {
                         self.bump();
                     }
@@ -429,8 +412,6 @@ impl<'a> Parser<'a> {
             match self.peek() {
                 None => return self.err("unterminated multi-line string"),
                 Some(b'\\') if self.escapes_line_end() => {
-                    // A backslash at end of line swallows the newline and the
-                    // whitespace that follows it.
                     self.bump();
                     while matches!(self.peek(), Some(b' ') | Some(b'\t') | Some(b'\r') | Some(b'\n'))
                     {
@@ -479,7 +460,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// A newline immediately after the opening delimiter is not content.
     fn trim_leading_newline(&mut self) {
         if self.peek() == Some(b'\r') && self.peek_at(1) == Some(b'\n') {
             self.bump_n(2);
@@ -488,7 +468,6 @@ impl<'a> Parser<'a> {
         }
     }
 
-    // ---- numbers ----------------------------------------------------------
 
     fn parse_number(&mut self) -> PResult<Value> {
         let start = self.i;
@@ -496,7 +475,6 @@ impl<'a> Parser<'a> {
             self.bump();
         }
 
-        // Radix prefixes, which have no sign, no fraction and no exponent.
         if self.peek() == Some(b'0') {
             if let Some(radix) = match self.peek_at(1) {
                 Some(b'x') | Some(b'X') => Some(16),
@@ -540,9 +518,6 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // `1979-05-27` and `07:32:00` are valid TOML and are not accepted
-        // here. Saying so beats "expected end of line", which is what the
-        // caller would otherwise report two characters later.
         if matches!(self.peek(), Some(b'-') | Some(b':')) {
             return self.err("dates and times are not part of the rule syntax");
         }

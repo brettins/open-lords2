@@ -12,11 +12,6 @@ use mixer::Mixer;
 use track::{BattleCycle, BattleKind, Music};
 use wav::Sound;
 
-/// Open the default output device and hand it the mixer.
-///
-/// Split out so that every way this can go wrong arrives at one `Err` and one
-/// message. `cpal` reports "no host", "no device" and "no supported config" as
-/// three different shapes; downstream they are all "run silent".
 pub(super) fn start_device(mixer: Arc<Mutex<Mixer>>) -> Result<cpal::Stream, String> {
     let host = cpal::default_host();
     let device = host
@@ -33,10 +28,6 @@ pub(super) fn start_device(mixer: Arc<Mutex<Mixer>>) -> Result<cpal::Stream, Str
     let config: cpal::StreamConfig = supported.config();
     let err = |e| eprintln!("sound: stream error: {e}");
 
-    // The callback fills a stereo scratch buffer and then spreads it over
-    // however many channels the device has. A device with more than two gets
-    // the pair on its first two and silence elsewhere, which is the right
-    // answer for a game whose source material is at most stereo.
     macro_rules! stream {
         ($sample:ty, $to:expr) => {{
             let mixer = Arc::clone(&mixer);
@@ -49,8 +40,6 @@ pub(super) fn start_device(mixer: Arc<Mutex<Mixer>>) -> Result<cpal::Stream, Str
                         scratch.resize(frames * 2, 0.0);
                         match mixer.lock() {
                             Ok(mut m) => m.fill(&mut scratch),
-                            // Poisoned or contended: silence for this buffer
-                            // inside the audio thread.
                             Err(_) => scratch.iter_mut().for_each(|s| *s = 0.0),
                         }
                         for (i, frame) in out.chunks_mut(channels.max(1)).enumerate() {

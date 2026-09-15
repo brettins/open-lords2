@@ -13,9 +13,6 @@ use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
 
-/// `if (v == 0) Ui_DrawNumber(0, '@', " ", 0x108, y) else Ui_DrawDelta(v, 0, " ",
-/// " ", 0x108, y, body, 0x3F, 0xF9)` — the five signed lines of both reports.
-///
 /// The zero is drawn, not skipped: mode 0 would draw nothing, and the painters
 /// test for it first and print `0` instead. Every one of the ten string
 /// arguments (`&DAT_004D4240` … `&DAT_004D4278`) is a single space, read out
@@ -27,26 +24,12 @@ fn report_value(pen: &Pen, canvas: &mut Canvas, y: i32, value: i32) {
         pen.number_in(body, canvas, X, y, 0, '@', " ", font::TEXT);
         return;
     }
-    // `Ui_DrawText(prefix, x, y, font, sign ? colourNeg : colourPos)`, then the
-    // number at `x + g_penAdvance` with `'-'` or `'+'` in the lead.
     let colour = if value < 0 { REPORT_NEG } else { font::TEXT };
     let next = pen.body(canvas, X, y, " ", colour);
     let lead = if value < 0 { '-' } else { '+' };
     pen.number_in(body, canvas, next, y, value.abs(), lead, " ", colour);
 }
 
-/// **The weather's line**, which `TileInfo_DrawGrain` and `TileInfo_DrawHerd`
-/// both write out in full at `row * 0x10 + 0xA4`, advanced farming only:
-///
-/// ```c
-/// g_penAdvance = 0;
-/// if (v < 1) {
-///   if (v < 0) { Ui_DrawCount(-v, noun, 0x28, y); Eng_DrawString(77, 0x11, pen + 0x28, y); }
-///   else       { Eng_DrawString(77, 0x12, 0x28, y); }
-/// } else       { Ui_DrawCount(v, noun, 0x28, y);  Eng_DrawString(77, 0x10, pen + 0x28, y); }
-/// ```
-///
-/// The same three arms `job::weather_line` draws at `0xC0` from column `0x40`.
 fn weather_line(pen: &Pen, canvas: &mut Canvas, y: i32, v: i32, noun: usize) {
     const X: i32 = 0x28;
     let a = pen.assets;
@@ -63,8 +46,6 @@ fn weather_line(pen: &Pen, canvas: &mut Canvas, y: i32, v: i32, noun: usize) {
 }
 
 /// **`TileInfo_DrawGrain` (`0x0041CB3A`)** — the wheat field's report, owner only.
-///
-/// # The store line and the weather line
 ///
 /// ```c
 /// if (county.field_0x278 == 0) Eng_DrawString(77, 0x18, 0x28, row*16 + 0x94);   /* no outside factors */
@@ -84,8 +65,6 @@ pub(super) fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: La
     let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
         pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)
     };
-    // `Ui_DrawCount(labour[0].workers, 0x20, 0x68, row*16 + 0x68, body, colour)` —
-    // *"Farmers"* — and the store, `Ui_DrawCount(grain, 2, 0x128, …)`, *"Sacks"*.
     pen.count(canvas, 0x68, l.y(0x68), c.labour[0], 0x20, workers_colour(c, 0));
     pen.count(canvas, 0x128, l.y(0x68), c.grain, 2, font::TEXT);
     if k.options.advanced_farming {
@@ -115,7 +94,6 @@ pub(super) fn draw_grain_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: La
     }
 
     if k.season_next == 1 {
-        // Facing Spring: the seed and what it will yield.
         let x = pen.count(canvas, 0x28, l.y(0xC0), c.grain_sown_expected, 2, font::TEXT);
         say(canvas, x, l.y(0xC0), 1);
         let yielding = c.grain_sown_expected * k.tables.grain.yield_per_sack;
@@ -154,7 +132,6 @@ pub(super) fn draw_herd_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Lay
     let say = |canvas: &mut Canvas, x: i32, y: i32, index: usize| {
         pen.body(canvas, x, y, &words(a, REPORT_GROUP, index), font::TEXT)
     };
-    // *"Dairy maids"* and *"Animals"*.
     pen.count(canvas, 0x68, l.y(0x68), c.labour[1], 0x22, workers_colour(c, 1));
     pen.count(canvas, 0x128, l.y(0x68), c.herd, 4, font::TEXT);
     if c.fields_cattle != 0 {
@@ -191,7 +168,6 @@ pub(super) fn draw_herd_report(ctx: &Ctx, pen: &Pen, canvas: &mut Canvas, l: Lay
     pen.count(canvas, 0x108, l.y(0xC0), c.herd_births_expected, 4, font::TEXT);
     say(canvas, 0x28, l.y(0xD0), 6);
     pen.count(canvas, 0x108, l.y(0xD0), c.herd_deaths_expected, 4, font::TEXT);
-    // *"Change due to farming"* is computed inline and never stored.
     say(canvas, 0x28, l.y(0xE0), 7);
     report_value(pen, canvas, l.y(0xE0), c.herd_births_expected - c.herd_deaths_expected);
     say(canvas, 0x28, l.y(0xF0), 0x1B);

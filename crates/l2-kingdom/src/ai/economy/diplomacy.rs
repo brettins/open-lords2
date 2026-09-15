@@ -15,28 +15,13 @@ use crate::tables::{
 
 /// Step 13 — `AI_Taunt` (`0x004A13A6`).
 ///
-/// **`docs/kingdom.md` §3.2 has this step as *"offer or break an alliance"*. It
-/// is not.** Alliances are step 2's business; step 13 is a two-stage gloat, and
-/// the only thing it changes about the game state is a timer, a stage byte and
-/// the voice rotation.
-///
-/// * Only a realm ranked **first** taunts at all (`rank < 2`).
 /// * **Stage 0** — above 39% of the map, count to 8, then send *"How are you
 ///   doing?"* (`L2.eng` group 193) to **every** live human realm, reset the
 ///   timer and go to stage 1.
+///
 /// * **Stage 1** — above 27% of the map, and only if the realm in **last
 ///   place** is human and is not this realm's ally, count to 8, then send
 ///   *"Helpful advice."* (group 192) to that realm and go back to stage 0.
-///
-/// The two thresholds are `>` on 0x27 and 0x1B
-/// timer`, so it is the **ninth** consecutive qualifying turn that sends. The
-/// timer only advances on a turn the share threshold is met
-/// slips below 39% pauses.
-///
-/// `trailer` is the last-placed realm — `g_rankTrailer`, which the original
-/// keeps as a global and which is derived by the caller from
-/// [`rank_realms`]. `out` collects the letters; the caller decides what to do
-/// with them
 pub fn taunt(realm: &mut Realm, realm_id: u8, realms_snapshot: &[Realm], trailer: u8) -> Vec<Taunt> {
     let mut sent = Vec::new();
     if realm.rank >= 2 {

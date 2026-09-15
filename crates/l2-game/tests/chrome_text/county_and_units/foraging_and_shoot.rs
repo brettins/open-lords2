@@ -19,9 +19,6 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// **The fourth thing *Army foraging* gates is the unit panel's own lines**, and
-/// ours drew none of them — not even the army's body line.
-///
 /// `UnitPanel_Draw` (`0x0041B19D`), the `kind == 1` arm: with `g_optArmiesEat`
 /// off the body is one line at `row * 0x10 + 0x70`; with it on the body moves to
 /// `+0x5E` and the supply state (31/23…26) and the starvation band
@@ -48,8 +45,6 @@ fn army_foraging_moves_the_unit_panels_body_line_and_adds_two() {
     // `FUN_0041BEFE` puts a local player's army on row 2.
     const ROW: i32 = 2;
     let line = |i: usize| assets.shell.text(0x1F, i).to_string();
-    // 31/16 is an own army's body, 31/23 "Fed in your county.", 31/29 the
-    // third starvation band.
     let (text, fed, starving) = (line(0x10), line(0x17), line(0x1B + 2));
     assert!(!fed.is_empty() && !starving.is_empty(), "L2.eng 31/23 and 31/29");
 
@@ -99,7 +94,6 @@ fn shoot() {
     let canvas = draw(&mut screen, &mut game, &assets);
     save(&canvas, &assets.palette, "menubar");
 
-    // The three drop-downs, over the map, for the row-pitch measurement.
     for menu in 0..3usize {
         let mut m = l2_game::screen::Machine::new(l2_game::screen::ScreenId::Campaign);
         m.push(l2_game::screen::ScreenId::MenuBar(menu));

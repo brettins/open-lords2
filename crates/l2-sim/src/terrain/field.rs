@@ -2,8 +2,6 @@
 //! the third of the original's three builders and the one a battle fought out
 //! in the country uses.
 //!
-//! # Where the field comes from
-//!
 //! Not from the campaign tile, and not from a seed: from a **picture**. The
 //! builder opens `batfield.pl8` and reads one frame's 6,400 raw bytes as an
 //! 80 x 80 plane, one source byte per cell. **[V]** — the two reads are
@@ -16,6 +14,7 @@
 //!
 //! and the string table at `0x004D9103` holds four 14-byte names — index 0
 //! `batfield.pl8`, 1 `stnfield.pl8`, 2 `batfiel2.pl8`, 3 `stnfiel2.pl8`.
+//!
 //! `DAT_0057A0F0`, the skirmish flag, picks 0 or 2. **[V]**, read out of the
 //! binary's `.data`.
 //!
@@ -25,24 +24,10 @@
 //! `playlist[DAT_005653F8]`, a cursor that steps one field per battle and
 //! wraps at `0x2E`. `Net_WriteField(&DAT_0057CAE0, 0x30)` sends the whole
 //! playlist to every peer, so it is shared game state, not a local roll.
+//!
 //! **[V]** on all three sites. We hold no per-game playlist yet, so
 //! [`FieldSheets::pick`] takes the map from the battle seed instead — **ours**,
 //! and the only part of this module.
-//!
-//! # What it does with the bytes
-//!
-//! Four passes, of which the last two are literally the `.skr` builder's — see
-//! [`super::graphics_pass`] and [`super::bridge_pass`]. The first two are this
-//! file:
-//!
-//! 1. **Translate**, with two *range* arms the `.skr` builder does not have
-//!    (`0x20..=0x3F` and `0x50..=0x5F` carry their frame in the source byte)
-//!    and a **pass-through** default, which is what makes the deployment
-//!    markers below work at all.
-//! 2. **Read the markers**, which are two-cell-tall pairs, not the `.skr`
-//!    builder's single cells.
-//!
-//! # Elevation
 //!
 //! **`Battlefield_BuildRandom` never writes cell byte `+4`.** `docs/battle.md`
 //! §3 says elevation "must come from" this builder or the castle's; only the
@@ -56,7 +41,6 @@ use super::*;
 /// builders' second `File_ReadChunk`.
 pub const RASTER_BYTES: usize = CELLS;
 
-/// The open fields of one `batfield.pl8`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldSheets {
     rasters: Vec<Vec<u8>>,
@@ -73,8 +57,6 @@ impl FieldSheets {
 
     /// Read the PL8 directory — 16 bytes a frame, a 24-bit data offset at
     /// `+0x0C` — and take `0x1900` bytes at each. Stops at the first frame
-    ///
-    /// and its ordinary artwork begins.
     pub fn parse(bytes: &[u8]) -> Option<FieldSheets> {
         let dir = bytes.get(..1000.min(bytes.len()))?;
         let mut rasters = Vec::new();
@@ -82,8 +64,6 @@ impl FieldSheets {
             let at = map * 0x10 + 0x0C;
             let Some(b) = dir.get(at..at + 3) else { break };
             let off = b[0] as usize | (b[1] as usize) << 8 | (b[2] as usize) << 16;
-            // Offset 0 is the file's own header, never a frame: an empty
-            // directory record, and the end of the terrain frames.
             if off == 0 {
                 break;
             }
@@ -113,29 +93,16 @@ impl FieldSheets {
     }
 }
 
-/// Terrain ids that only the open-field builder writes.
 pub mod field_id {
-    /// A deployment marker's north cell, side 0. Two tall; the cell two to the
-    /// east carries the slot number as `0x40 + slot`.
     pub const MARKER_SIDE0: u8 = 0x14;
-    /// The same for side 4.
     pub const MARKER_SIDE4: u8 = 0x1E;
-    /// Source byte `7` — the west half of a two-cell rally marker.
     pub const RALLY_WEST: u8 = 0x28;
-    /// Source byte `8` — its east half.
     pub const RALLY_EAST: u8 = 0x29;
 }
 
-/// Build the open field from one `batfield.pl8` raster.
-///
-/// `seed` drives only [`super::graphics_pass`]'s LFSR, so it moves grass
-/// variants and nothing a figure can walk into.
 pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
     assert_eq!(raster.len(), RASTER_BYTES, "a batfield.pl8 field is exactly 80 x 80 bytes");
 
-    // Pass 1 - the translation table of `docs/battle.md` §3.0. Two arms write
-    // the frame and the impassable flag here and are then skipped by pass 3;
-    // the default is **pass-through**, not open ground.
     let mut cells = vec![Cell::default(); CELLS];
     for (cell, &b) in cells.iter_mut().zip(raster.iter()) {
         cell.terrain = match b {
@@ -197,8 +164,6 @@ pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
         }
     }
 
-    // Passes 3 and 4 - shared with `Battlefield_BuildFromSkr`, with the rocks
-    // arm off: this builder gave ids 3 and 6 their frame in pass 1.
     let terrain: Vec<u8> = cells.iter().map(|c| c.terrain).collect();
     graphics_pass(&mut cells, &terrain, seed, false);
     bridge_pass(&mut cells);

@@ -1,39 +1,9 @@
-//! **The census of install-gated tests**, so that a silent skip stops being
-//! the failure mode.
-//!
-//! # The problem
-//!
-//! `cargo test --workspace` on this machine and `cargo test --workspace` with
-//! `LORDS2_DIR` and `LORDS2_FIXTURES` pointing nowhere — which is what CI does —
-//! print **the same** `N passed; 0 failed`, whatever `N` is that week. The two
-//! runs assert wildly different amounts and are indistinguishable from their
-//! output, because a gated test that finds no game prints a line to stderr and
-//! returns green.
-//!
-//! The gap is [`GATED_TOTAL`] tests, which this file names.
-//!
-//! Nobody notices a test that stops existing. The reproduction against a real
-//! save, the renderer against real sprites, the scenario against the England
-//! fixture — the project's strongest evidence — did not run on CI at all, and
-//! nothing said so.
-//!
-//! # The mechanism
-//!
-//! Every gate in the workspace goes through a macro in `l2-testkit`. This test
-//! reads the source of every test file, counts the gated test functions per
-//! file and per gate, and asserts the result against [`INVENTORY`] below. It
-//! runs everywhere, needs no game, and cannot itself be skipped.
-//!
 //! So: **add a gated test tomorrow and this goes red** until the inventory is
 //! updated, which is a one-line diff that makes the new gate visible in the
 //! history. Remove a gate and it goes red the same way. The number is small
 //! enough to argue with, which is the point — 91 of 946 test functions were
 //! install-gated before anybody counted, and 42 of them resolved the install
 //! through a hard-coded path copied between files.
-//!
-//! It also prints, on every run, how many of those gates the current
-//! environment satisfies. A run that asserted a third of what it looks like it
-//! asserted now says so.
 
 mod scanner;
 pub use scanner::*;
@@ -43,25 +13,13 @@ pub use assertions::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// Which gate a test sits behind, in the order a test body is searched. The
-/// order is the precedence: a test that takes both the fixture and the install
-/// is counted against the fixture, because that is the stronger requirement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Gate {
-    /// `l2_testkit::england!()` — needs the England turn-one fixture.
     England,
-    /// `l2_testkit::fixture!(..)` — needs one named save from `LORDS2_FIXTURES`.
     Fixture,
-    /// `l2_testkit::saves!()` — needs at least one save from anywhere.
     Saves,
-    /// `l2_testkit::executable!()` — needs `Lords2.exe`.
     Executable,
-    /// `l2_testkit::install!()`, or a local helper built on
-    /// `l2_testkit::install_dir()`.
     Install,
-    /// A `l2_testkit::skip!` on some other condition — a file missing from an
-    /// install that is otherwise present, say. Counted, because a skip is a
-    /// skip.
     Other,
 }
 
@@ -77,8 +35,6 @@ impl Gate {
         }
     }
 
-    /// Is this gate satisfied in the environment the test process is running
-    /// in? `Other` cannot be decided from outside the test, so it is `None`.
     fn satisfied(self) -> Option<bool> {
         match self {
             Gate::England => {
@@ -93,11 +49,6 @@ impl Gate {
     }
 }
 
-/// **The inventory. Update it deliberately.**
-///
-/// `(file, gate, number of gated `#[test]` functions)`, sorted. A line here is
-/// a statement that this many tests in this file do not run without that
-/// input.
 const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/battle_fixtures.rs", "fixture", 3),
     ("crates/l2-formats/tests/corpus.rs", "install", 5),
@@ -334,8 +285,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
 
 pub(crate) const GATED_TOTAL: usize = 623;
 
-/// The needles that name a gate, strongest first. A body containing several is
-/// counted against the first that matches.
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),
     ("england_turn1(", Gate::England),
@@ -352,7 +301,6 @@ const NEEDLES: &[(&str, Gate)] = &[
     ("l2_testkit::skip!(", Gate::Other),
 ];
 
-/// The census itself.
 #[test]
 fn the_install_gated_tests_are_the_ones_we_have_written_down() {
     let found = scan();

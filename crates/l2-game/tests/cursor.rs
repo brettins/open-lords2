@@ -1,26 +1,7 @@
-//! **The mouse pointer changes, and the village is where a player noticed it
-//! did not.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" LORDS2_FIXTURES="E:\dev\lords2-fixtures" \
-//!   cargo test -p l2-game --test cursor
-//! ```
-//!
 //! `Cursor_Set` (`0x004B1CF3`) is the binary's only caller of `SetCursor`;
 //! `Battle_Frame` (`0x004B99C0`) is its only caller and chooses two ways — the
 //! battlefield hover ladder, and `g_cursorByScreen[g_screenId]` (`0x004E3098`)
 //! for everything else. `docs/screens.md` §9.
-//!
-//! The village occupies **three** screen ids and the table reads all three
-//! differently: `0x02` idle is the question mark, `0x05` the rubber band falls
-//! through to the arrow, `0x06` the carried selection is the peasant figure. A
-//! player reported the question mark missing and, unprompted, *"only when
-//! you're not selecting"* — which is the table, row for row.
-//!
-//! **Ablation, run:** `VillageScreen::mode_screen_id` answering `None` turns
-//! `the_band_is_the_plain_arrow` and `carrying_a_selection_is_the_peasant` red
-//! (both fall back to `0x02`'s question mark); `cursor::by_screen` answering
-//! `Pointer::Arrow` for everything turns three of the four red.
 
 use std::path::PathBuf;
 
@@ -57,8 +38,6 @@ fn handle(m: &mut Machine, game: &mut Game, assets: &Assets, e: Event) {
     m.handle(e, &mut ctx);
 }
 
-/// `g_cursorByScreen` is a constant of the image and needs no install: 64
-/// dwords, five of them non-zero.
 #[test]
 fn the_table_is_its_five_non_zero_rows() {
     for screen in 0u8..64 {
@@ -73,7 +52,6 @@ fn the_table_is_its_five_non_zero_rows() {
         };
         assert_eq!(by_screen(screen), want, "g_cursorByScreen[{screen:#04x}]");
     }
-    // The kinds `Cursor_Set` switches on.
     assert_eq!(Pointer::Question.kind(), 2);
     assert_eq!(Pointer::Peasant.kind(), 12);
     assert_eq!(Pointer::Scythe.kind(), 14);
@@ -100,11 +78,6 @@ fn every_kind_names_one_of_the_seven_pictures() {
     }
 }
 
-/// **The pictures themselves**, out of the player's own executable.
-///
-/// Seven groups, every one of them 32 × 32 — the size the original drew a
-/// pointer at, and the size the shell now scales with the canvas instead of
-/// leaving to the desktop.
 #[test]
 fn the_executable_holds_seven_cursors() {
     let Some(dir) = install() else {
@@ -122,27 +95,20 @@ fn the_executable_holds_seven_cursors() {
         assert_eq!(p.rgba.len(), 32 * 32 * 4, "cursor {}", p.id);
         let drawn = p.rgba.chunks(4).filter(|px| px[3] != 0).count();
         assert!(drawn > 20, "cursor {} draws {drawn} pixels", p.id);
-        // `g_cursorCross` and `g_cursorCrossTarget` are hotspot (10, 10),
-        // `g_cursorRing` (9, 9), and the three arrow-cornered ones (0, 0).
         let hot = match p.id {
             102 | 103 => (10, 10),
             104 => (9, 9),
             _ => (0, 0),
         };
         assert_eq!((p.hot_x, p.hot_y), hot, "cursor {}", p.id);
-        // Rows come out of the DIB bottom-up and go back top-down: the four
-        // arrow-cornered pictures have their tip ON their (0, 0) hotspot, so
-        // that pixel is drawn and a flipped decode would show it clear.
         if hot == (0, 0) {
             assert_ne!(p.rgba[3], 0, "cursor {} draws its own hotspot", p.id);
         }
     }
-    // Scaled with the canvas: 3× is 96 × 96 with the hotspot carried along.
     let ring = pics.iter().find(|p| p.id == 104).expect("g_cursorRing").scaled(3);
     assert_eq!((ring.width, ring.height, ring.hot_x, ring.hot_y), (96, 96, 27, 27));
 }
 
-/// **The pointer over the town square, and off it again.**
 #[test]
 fn the_village_is_the_question_mark_and_the_map_is_not() {
     let (mut game, assets) = world!();
@@ -154,7 +120,6 @@ fn the_village_is_the_question_mark_and_the_map_is_not() {
     m.push(ScreenId::Village(county));
     assert_eq!(m.pointer(&game), Pointer::Question, "the village idle: 0x02, kind 2");
 
-    // Off it: the OK button closes the village and the arrow comes back.
     let ok = l2_game::screens::village::VillageScreen::ok_button(vill::SCENE_Y);
     // `Ui_OkButton` is hit-tested on the left **release** (`FUN_0040E7E4`).
     handle(&mut m, &mut game, &assets, Event::Click { x: ok.x + 4, y: ok.y + 4 });
@@ -163,7 +128,6 @@ fn the_village_is_the_question_mark_and_the_map_is_not() {
     assert_eq!(m.pointer(&game), Pointer::Arrow, "and the pointer is the plain arrow again");
 }
 
-/// `0x05` — the band is being drawn, and the table gives that row nothing.
 #[test]
 fn the_band_is_the_plain_arrow() {
     let (mut game, assets) = world!();
@@ -180,8 +144,6 @@ fn the_band_is_the_plain_arrow() {
     assert_eq!(m.pointer(&game), Pointer::Arrow);
 }
 
-/// `0x06` — a selection in hand is the peasant figure, the peasants you are
-/// carrying.
 #[test]
 fn carrying_a_selection_is_the_peasant() {
     let (mut game, assets) = world!();

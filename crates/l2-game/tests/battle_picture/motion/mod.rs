@@ -23,5 +23,4 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-// ------------------------------------------------------------- the jump count
 

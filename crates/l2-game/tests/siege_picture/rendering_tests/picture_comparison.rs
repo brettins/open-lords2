@@ -15,15 +15,8 @@ use l2_sim::Troop;
 use l2_view::scene::{self, Ground};
 use l2_view::Canvas;
 
-/// **The install's own sheets, drawn.** A level-4 siege and a field battle of
-/// the same shape are painted through the whole screen stack; the two pictures
-/// must differ over most of the viewport, and the siege's must have no holes.
-///
 /// The probe is the viewport `FUN_004BC020` stores — `x 0…480`, `y 24…472` —
 /// written out
-///
-/// Ablation, run: `Ground::for_battle` answering `Field` always — red, 212,253
-/// of 215,040 viewport pixels never painted.
 #[test]
 fn a_siege_and_a_field_battle_of_the_same_shape_are_different_pictures() {
     let dir = l2_testkit::install!();

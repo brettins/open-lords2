@@ -1,43 +1,17 @@
-//! The job popup — one of nine jobs, and the workers on it.
-//!
 //! `Panel_JobDetail` (`0x00412B33`), screen `0x0F`.
-//!
-//! # This game has two overlay mechanisms, and this is the one with a frame
-//!
-//! Worth stating outright, because the absence of the other one reads as
-//! evidence and is not. A screen here can float over what is beneath it in two
-//! quite different ways:
 //!
 //! * **A framed window** — `Ui_DrawBox` (`0x00409397`) with `Ui_DrawBoxBorder`
 //!   and `Ui_DrawBoxInterior`, a kit of 16-pixel cells out of `Panels.pl8`.
-//!   The four county panels and this one are drawn that way.
-//! * **A raw blit** — a single sprite straight into the framebuffer at a fixed
-//!   origin, with no frame and no clear. **The village is that**, at (64, 64).
 //!
 //! So *"`Village_Draw` contains no `Ui_DrawBox` call"* says nothing about
 //! whether the village is a page: it says only that the village is the other
 //! kind. Reading it as evidence for a full screen is exactly the mistake
 //! `docs/decisions.md` C22 records.
 //!
-//! This one is a floating `Ui_DrawBox` over whatever opened it, and it can be
-//! opened from two places:
 //! a click on a village cluster (`FUN_0043A123`) or a click on a job row in the
 //! campaign sidebar (`0x00438E3B`). It returns to whichever it was —
 //! `DAT_005533F4` remembers — so this is a screen the machine pushes
 //!.
-//!
-//! # What the original draws, and what is here
-//!
-//! **This is nine panels sharing one painter, and the number that says so is
-//! 5 against 113.** `Panel_JobDetail`'s own body makes five draw calls; its
-//! tree makes 113, because it dispatches to one of five body painters on
-//! `g_jobPanelJob`. Per *frame* the original makes five plus whichever body
-//! runs, so job 3 (field reclamation) is 11 draws and job 2 (cattle) is 34.
-//! Summing the tree counts nine panels at once and is the wrong denominator for
-//! any single one of them.
-//!
-//! # The painter, address by address
-//!
 //! ```text
 //! Panel_JobDetail():                                            0x00412B33
 //!   if (g_jobPanelJob == 0) return                     nothing at all
@@ -73,31 +47,14 @@
 //! 9** — thirteen cells for grain and cattle, eleven for castle building, nine
 //! for the rest. `DAT_004D2974`, the `iconvill.pl8` frame per job: **0, 2, 3,
 //! 5, 6, 7, 8, 9, 10**, with job 9 overridden to `0x10` in the painter itself.
+//!
 //! `L2.eng` group 74 index 1…9 is what fixes the nine slots' order:
-//! *Grain farming. Cattle farming. Field reclamation. Castle building. Iron
-//! mining. Stone quarrying. Wood cutting. Blacksmith. Idle townsfolk.* Index 0,
-//! *"Idle people."*, is unreachable — the painter returns on job 0.
 //!
 //! `Ui_DrawCount(n, job * 2 + 0x1E)` picks the singular or plural noun out of
 //! group 8, whose pairs at 32, 34, 36 … 48 are *Farmer*, *Dairy maid*, *Serf*,
 //! *Builder*, *Miner*, *Quarrier*, *Forester*, *Blacksmith*, *Peasant* — job
 //! `j` (1-based) takes pair `j * 2 + 30`, which for job 1 is 32. **[V]** against
 //! the shipped `L2.eng`.
-//!
-//! **That count is drawn in one of three colours**, and it is the reason this
-//! screen exists here at all:
-//!
-//! ```c
-//! colour = 0x3F;
-//! if (labour[job]   < wanted[job]) colour = 0xF9;   // short
-//! else if (useful[job] < labour[job]) colour = 0xFC; // wasted
-//! ```
-//!
-//! Those are the second and third words of the labour record, which this
-//! project imported as nothing until now. The village draws the same two facts
-//! as ghost and surplus icons; this draws them as a colour and a number.
-//!
-//! # Job 8 is not this panel at all, and that is the audit's finding here
 //!
 //! The blacksmith takes the *other* branch of every `if` in the painter. It
 //! draws **no** `Ui_DrawBox(0x30, 0x60, …)`, no icon recess, no group-74 title
@@ -137,19 +94,7 @@
 //!   Gfx_MarkSpriteDirty(0x58, 0x9D, 8, 8, 1)
 //! ```
 //!
-//! `scratch` still holds `hearth.pl8` from `Panel_JobBlacksmith`'s second load,
-//! and `Hearth.pl8` has **17 frames: 0 … 10 are eleven 69 × 52 fire frames and
-//! 11 … 16 are six hearth pictures, one per weapon** — which is exactly the
-//! `weapon + 0xB` the painter draws and exactly the `% 11` the animator cycles.
 //! The sheet's own frame table is the check on both. **[V]**
-//!
-//! So screen `0x0F` is really *two* pages that happen to share an id, and this
-//! module draws both: the small window for eight jobs and [`blacksmith`] for the
-//! ninth.
-//!
-//! # The weapon choice, which is the only control on any of the nine
-//!
-//! A player: *"I can't choose what type of weapon my blacksmiths are making."*
 //!
 //! `Screen_HandleInput` (`0x004BA9C8`) hit-tests six hotspots over the smithy
 //! picture and only when the job is the blacksmith —
@@ -164,7 +109,6 @@
 //! so an enumeration of the dispatcher alone scored this zero without
 //! it ever appearing as a miss — `docs/decisions.md` C61's denominator note.
 //!
-//! And the page says so in words, from the player's own file:
 //! **`Panel_JobBlacksmith` is `L2.eng` group 75's only consumer in the whole
 //! binary**, and index 0 is *"Click on a weapon to change production."* A group
 //! with one consumer *is* that screen's vocabulary (`CLAUDE.md` rule 6); this is
@@ -175,8 +119,6 @@
 //! position,
 //! here only one ever runs per frame, and the mechanical count of 2 is a count
 //! of *call sites*.
-//!
-//! # The five bodies, and the words they are made of
 //!
 //! The five body painters below are the original's, call for call. Each draws
 //! **absolute** screen coordinates, and each
@@ -192,22 +134,15 @@
 //! | 4, 5, 6 industry | [`industry`] = `Panel_JobIndustry` (`0x00412E6B`) | 12 | 76, 8 |
 //! | 7 blacksmith | [`blacksmith`] = `Panel_JobBlacksmith` (`0x00413155`) | 21 | **75**, 74, 76, 8 |
 //!
-//! **Group 77 has six consumers, 76 two and 71 four**, so none of them is this
-//! popup's alone; what makes them its vocabulary is that the popup draws them
-//! and nothing of ours drew them before. **Group 75 is the exception and has
-//! exactly one**, [`blacksmith`], which makes it that page's specification
-//! `docs/formats/eng.md` §5.
-//!
 //! Every `Ui_DrawCount` here is `'@'` and `""` (C155), and the three suffixes
 //! that are not were read out of the shipped exe: `Panel_JobIndustry`'s
 //! efficiency is `&DAT_004D3E74` = `"%"`, `Panel_JobReclamation`'s count is
 //! `&DAT_004D3EE0` = `""`, and `Castle_DrawStatusBlock`'s tax bonus is
 //! `&DAT_004D4290` = `" %"` beside a barracks figure of `&DAT_004D4294` = `" "`.
+//!
 //! Every zero row's `Ui_DrawNumber(0, '@', …)` and every `Ui_DrawDelta` prefix
 //! and suffix in the grain and cattle bodies — `&DAT_004D3EA4` …
 //! `&DAT_004D3EDC`, fifteen pointers — holds `" "`. **[V]**
-//!
-//! # `g_penAdvance`, and why the chains below are plain
 //!
 //! A line such as `Ui_DrawCount(v, 2, 0x40, y)` followed by
 //! `Eng_DrawString(77, 1, g_penAdvance + 0x40, y)` is one sentence: the second
@@ -215,12 +150,9 @@
 //! `Ui_DrawDelta` (`0x00402E0C`) both **save `g_penAdvance`, zero it, draw, and
 //! add the saved value back**,
 //! places its own noun from its own start and never counts the pen twice.
+//!
 //! Every [`Pen`] method returns the absolute x of the next glyph, which is that
 //! sum already. **[V]**, both bodies read.
-//!
-//! # What is still not drawn here
-//!
-//! # What is marked dirty, and when
 //!
 //! **[V]**, four bodies read. Drawing is never gated: every painter draws into
 //! the back buffer whenever it is called, and a mark decides only whether the
@@ -236,7 +168,9 @@
 //! (the weapon change), so the whole-frame mark is an *opening and a choice*,
 //! never a per-frame cost. The only per-frame marker is the fire, and
 //! `Screen_DrawWidgets` (`0x004BA26E`) runs it under one guard:
+//!
 //! `else if (g_screenId == 0x0F) { if (g_jobPanelJob == 8) FUN_00413526(); }`.
+//!
 //! **A job popup that is not the blacksmith marks nothing after it opens** —
 //! `FUN_00413526` is itself behind `if (g_pulse80 != 0)`, so even the fire is
 //! silent between pulses.
@@ -245,7 +179,6 @@
 //!   (`0x0041DA2F`), which draws it at `(8, 0x30, row)` for a castle under
 //!   construction on the player's own tile. `screens/info.rs`'s layout ladder
 //!   has no castle arm to call it from — it returns row `0x0A` for nothing.
-//!   **Not this module's** — it is `info.rs`'s, and it is left alone here.
 
 use crate::screen::{Ctx, Dirty, Screen, ScreenId, Transition};
 mod screen;
@@ -267,7 +200,6 @@ use l2_kingdom::tables::{
 use l2_view::chrome::system;
 use l2_view::Canvas;
 
-/// `Ui_DrawBox(0x30, 0x60, …)` — the window's origin and its width in cells.
 const BOX_X: i32 = 48;
 const BOX_Y: i32 = 96;
 const BOX_COLS: i32 = 25;
@@ -276,8 +208,6 @@ const BOX_COLS: i32 = 25;
 /// original's 1-based job number. Slot 0 here is job 1.
 const BOX_ROWS: [i32; JOB_COUNT] = [13, 13, 9, 11, 9, 9, 9, 9, 9];
 
-/// `Eng_DrawString(0x4A, job, 0x80, 0x6A, …)` and
-/// `Ui_DrawCount(n, job*2+30, 0x80, 0x88, …)`.
 const NAME_X: i32 = 128;
 const NAME_Y: i32 = 106;
 const COUNT_Y: i32 = 136;
@@ -294,10 +224,6 @@ pub const COUNT_NOUN_GROUP: usize = 8;
 pub const WORKER_NOUN_0: usize = 32;
 pub const WORKER_NOUN_STRIDE: usize = 2;
 
-/// **The forge fire's clock**, which is `Tick_Pulses`' 80 ms pulse — the same
-/// one the armoury's torches run on, so the divider chain is
-/// [`super::armoury`]'s and not a second copy. See [`super::armoury::Anim`] for
-/// why a 20 ms gate on a 16 ms tick is 32 ms and not 20.
 #[derive(Debug, Default)]
 struct Forge {
     acc_ms: u32,
@@ -307,7 +233,6 @@ struct Forge {
 }
 
 impl Forge {
-    /// One fixed tick; `true` when the fire moved.
     fn tick(&mut self) -> bool {
         self.acc_ms += super::armoury::TICK_MS;
         if self.acc_ms < super::armoury::PULSE_MS {
@@ -324,25 +249,17 @@ impl Forge {
     }
 }
 
-/// The three colours `Panel_JobDetail` passes to `Ui_DrawCount`, as literal
-/// palette indices.
 const COUNT_RIGHT: u8 = 0x3F;
 const COUNT_SHORT: u8 = 0xF9;
 const COUNT_WASTED: u8 = 0xFC;
 
-/// What the count's colour says about the job.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Staffing {
-    /// `labour < wanted` — colour `0xF9`, the same red a missed ration uses.
     Short,
-    /// `useful < labour` — colour `0xFC`, a second warning state.
     Wasted,
-    /// Colour `0x3F`, which is every other line on every other panel.
     Right,
 }
 
-/// The colour rule out of `Panel_JobDetail`, in the original's own order: short
-/// is tested first,
 pub fn staffing(c: &County, job: usize) -> Staffing {
     let (have, wanted, useful) = (c.labour[job], c.labour_wanted[job], c.labour_useful[job]);
     if have < wanted {
@@ -357,9 +274,6 @@ pub fn staffing(c: &County, job: usize) -> Staffing {
 pub struct JobScreen {
     county: u8,
     job: usize,
-    /// The blacksmith page's fire. Ticks on every job and is only drawn on
-/// job 7,
-    /// one `g_jobPanelJob`.
     forge: Forge,
     /// **`Gfx_MarkDirty`'s accumulator for this page.** `Panel_JobDetail`
     /// (`0x00412B33`) marks the whole frame as its third statement, before it
@@ -400,9 +314,6 @@ mod tests {
         c
     }
 
-    /// County 1 of the shipped save reads exactly this way: its cattle are
-    /// short and its foresters are not, and the two statements come from two
-    /// different words of the same twelve-byte record.
     #[test]
     fn the_colour_rule_is_the_two_words_the_record_carries() {
         let c = county();
@@ -415,7 +326,6 @@ mod tests {
         c2.labour[JOB_CATTLE_FARMING] = 302;
         assert_eq!(staffing(&c2, JOB_CATTLE_FARMING), Staffing::Right, "exactly right");
 
-        // -1 and 100,000 are the two sentinels, and neither can ever fire.
         let mut c3 = County::new();
         c3.labour_wanted = [LABOUR_NO_FLOOR; JOB_COUNT];
         c3.labour_useful = [LABOUR_UNBOUNDED; JOB_COUNT];
@@ -427,9 +337,6 @@ mod tests {
         }
     }
 
-    /// Every one of the nine windows is on screen and holds its own corner —
-    /// **except the blacksmith's**, whose corner is at (448, 448) because the
-    /// blacksmith is not this window at all.
     #[test]
     fn every_job_window_is_on_screen_and_holds_its_own_ok_button() {
         for job in 0..JOB_COUNT {
@@ -443,8 +350,6 @@ mod tests {
             assert!(ok.x >= w.x && ok.x + ok.w <= w.x + w.w, "job {job}: the corner escapes in x");
             assert!(ok.y >= w.y, "job {job}: the corner is below the box's top");
         }
-        // The two farm jobs get the tallest windows, which is where their own
-        // reports go.
         assert_eq!(BOX_ROWS[0], 13);
         assert_eq!(BOX_ROWS[1], 13);
         assert_eq!(BOX_ROWS[3], 11, "castle building is the third-tallest");
@@ -453,6 +358,7 @@ mod tests {
     /// **`g_jobPanelRows` (`0x004D29A0`), verbatim**, and the blacksmith's
     /// separate corner. The literals are pinned from the binary's own bytes —
 /// `0, 13, 13, 9, 11, 9, 9, 9, 9, 9` for jobs 0…9, one-based.
+    ///
     /// computed from [`BOX_ROWS`], so ablating the table turns this red.
     #[test]
     fn the_blacksmith_is_the_one_job_that_is_not_this_window() {
@@ -474,7 +380,6 @@ mod tests {
         }
     }
 
-    /// **`Castle_DrawStatusBlock`'s two tables, as the painter indexes them.**
     /// Every expected number is a literal: the words at `0x004D8A0C + type*4`
     /// and `0x004D8A24 + type*4` read out of the shipped `Lords2.exe` —
     /// `c4 09 00 00 96 00 00 00` and `00 00 00 00 32 00 00 00` — and the rest of
@@ -495,8 +400,6 @@ mod tests {
 
     /// **`Ui_DrawCount(n, job * 2 + 0x1E)` on `L2.eng` group 8**, whose pairs
     /// are singular then plural. Checked against the shipped file's own words:
-    /// 32/33 *Farmer(s)*, 34/35 *Dairy maid(s)*, … 48/49 *Peasant(s)*. The
-    /// index arithmetic is the assertion; the transcription is the fallback.
     #[test]
     fn the_worker_noun_is_group_eight_at_job_times_two_plus_thirty() {
         assert_eq!(COUNT_NOUN_GROUP, 8);

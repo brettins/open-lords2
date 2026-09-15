@@ -7,16 +7,6 @@
 //! and [`message::frame_of`] had no answer for them, so each one fell through
 //! to the tip painter and came up as a plain notice with one string of a
 //! five-paragraph group. `docs/decisions.md` C231.
-//!
-//! Two differences from the original are on purpose and neither is visible:
-//!
-//! * **the OK button is drawn last**, not before the text. The arm draws it
-//!   second; the corner it draws in is `(x + w - 0x30, y + h - 0x30)`, which no
-//!   paragraph reaches, so the order cannot show. Ours comes from
-//!   [`super::MessageScreen::draw`]'s one call for every arm.
-//! * **the heading is `Ui_DrawCentred` in `&g_fontHeading`** and so is
-//!   [`Pen::heading_centred`], not [`Pen::eng_centred`] — that one is the body
-//!   face, and this call site names the other.
 
 use l2_view::Canvas;
 
@@ -24,9 +14,6 @@ use crate::message::{self, help};
 use crate::screen::Ctx;
 use crate::shell::{font, Pen};
 
-/// The heading, then `paragraphs(group)` wrapped paragraphs stepping down by
-/// their own line count plus [`help::PARAGRAPH_GAP`].
-///
 /// [`Pen::body_wrapped`] returns the height it painted — sixteen pixels a line,
 /// which is what `FUN_0040328E` adds to `DAT_005CD4F8` itself — so the
 /// accumulator here is the original's to the pixel.

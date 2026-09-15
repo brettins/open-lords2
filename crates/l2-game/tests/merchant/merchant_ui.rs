@@ -16,12 +16,6 @@ use l2_kingdom::tables::Tables;
 use l2_kingdom::trade::{self, Good};
 use l2_mods::Platform;
 
-/// **The stall's hit test is `mercgrid.pl8`**, and the shipped file names
-/// twelve goods.
-///
-/// The grid is artwork, so this needs an install — and it checks the one thing
-/// a table of rectangles could never tell us: that sheep and wool are on no
-/// cell of the stall at all.
 #[test]
 fn the_stall_reads_mercgrid_and_it_names_twelve_goods() {
     let (mut game, assets) = world!();
@@ -44,7 +38,6 @@ fn the_stall_reads_mercgrid_and_it_names_twelve_goods() {
         "sheep (3) and wool (5) are on no cell of the merchant's stall",
     );
 
-    // And clicking one of those cells opens the panel on that good.
     let (gx, gy) = (0..480)
         .step_by(8)
         .flat_map(|y| (0..640).step_by(8).map(move |x| (x, y)))
@@ -56,12 +49,8 @@ fn the_stall_reads_mercgrid_and_it_names_twelve_goods() {
     assert_eq!(t, Transition::Push(ScreenId::Trade(merchant, 1)), "grain opens the grain panel");
 }
 
-/// **A click in the body does not close the merchant.** A player reported that
-/// it did; that was the shell, which takes any click as a dismissal.
-///
 /// The original's two exits are the corner hotspot — `Ui_OkButtonClicked`
 /// (`0x0040E7E4`), a 24 x 24 box on a *left release* — and a right release.
-/// Both are asserted here, in both directions, on both screens.
 ///
 /// **And the corner is the RELEASE, which this test asserted in its own prose
 /// and not in its code.** It sent an `Event::Click`, and so did both screens'
@@ -106,8 +95,6 @@ fn only_the_corner_hotspot_and_a_right_click_close_the_merchant() {
         "and so does a right click",
     );
 
-    // The panel, the same way: a click inside the window that is on none of its
-    // six widgets does nothing, and its corner is a release too.
     let mut panel = TradeScreen::new(merchant, Good::Grain.id() as u8);
     let inside = (PANEL.x + 8, PANEL.y + 8);
     let panel_corner = (PANEL_OK.x + 4, PANEL_OK.y + 4);
@@ -126,13 +113,6 @@ fn only_the_corner_hotspot_and_a_right_click_close_the_merchant() {
     );
 }
 
-/// **The mouseover shows the ware's two prices**, which is the tooltip the
-/// player said the original had and we did not.
-///
-/// It is asserted as a difference on the canvas.
-/// plaque back: pointing at a ware must paint something that pointing at the
-/// background does not, and moving to a *different* ware must paint something
-/// different again.
 #[test]
 fn hovering_a_ware_draws_its_price_plaque_and_the_background_draws_none() {
     let (mut game, assets) = world!();

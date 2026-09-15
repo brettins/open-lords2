@@ -1,20 +1,12 @@
-//! **Screen `0x1E` — the yes/no box**, as the campaign's menu bar and its
-//! Escape key reach it.
-//!
 //! `Ui_OpenConfirm` (`0x0040E6F2`) is four arguments — prompt index, `x`, `y`,
 //! callback — and its body is `g_confirmPrompt = prompt; g_confirmX/Y = …;
 //! g_confirmCallback = cb; g_screenId = 0x1E;` before `Screen_ConfirmBox`
 //! (`0x0040CCFA`) paints. A screen of its own, so nothing under it runs: that
 //! is why this is a screen here too, and not a flag on the map.
 //!
-//! The box is the battlefield's twin — same geometry, same two gauntlets, same
-//! twenty-frame kind-5 countdown — so the constants and the widget table are
-//! [`crate::screens::battlefield`]'s and are not copied.
-//!
-//! Two callers arrive here:
-//!
 //! * `Menu_Quit` (`0x004343F8`) — `Ui_OpenConfirm(0, 0xA0, 0xA0,
 //!   FUN_0043441C)`, group 10 index 0, *"Exit the game?"*.
+//!
 //! * `Menu_NewGame` (`0x00433DBD`) — `Ui_OpenConfirm(1, 0xA0, 0xA0,
 //!   FUN_00433DEB)`, group 10 index 1, *"Start a new game?"*.
 //!
@@ -30,7 +22,6 @@
 //! the game ?"*, a `0x12 × 9` window at `(0x80, 0xA0)` with its lines at
 //! `x 0x90`, `y 0xB8/0xE0/0x108`. **No caller reaches it** in the xref, and
 //! neither quit path above leads to it; it is recorded here and left alone
-//!
 
 use l2_view::Canvas;
 
@@ -49,12 +40,8 @@ pub const QUIT_PROMPT: usize = 0;
 /// `L2.eng` group 10 index 1, *"Start a new game?"* — `Menu_NewGame`'s.
 pub const NEW_GAME_PROMPT: usize = 1;
 
-/// Where the prompt is printed: `Screen_ConfirmBox` draws it a cell and a half
-/// inside the window, the same inset the battlefield's box uses.
 const PROMPT_INSET: i32 = 0x20;
 
-/// **Which question is up** — the identity of the screen, because in the
-/// original it is `g_confirmCallback` and the two callbacks are two functions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Ask {
     /// `Menu_Quit` → `FUN_0043441C`.
@@ -83,11 +70,8 @@ impl Ask {
     }
 }
 
-/// The open box.
 pub struct ConfirmScreen {
     ask: Ask,
-    /// [`CONFIRM_WIDGETS`]' press timer — the twenty frames the gauntlet is
-    /// held down before the answer. `Widget_Test` kind 5.
     press: Press,
     redraw: bool,
 }
@@ -100,16 +84,11 @@ impl ConfirmScreen {
     /// `Ui_ConfirmClicked` (`0x00434E1F`) is `g_confirmAnswer = g_uiHotspotId;
     /// (*g_confirmCallback)();` — index 0 is the thumb up, index 1 the thumb
     /// down.
-    ///
-    /// No is `g_screenId = g_screenIdSaved` in **both** callbacks: back to
-    /// whatever asked, which is the pop.
     fn answer(&mut self, yes: bool) -> Transition {
         if !yes {
             return Transition::Pop;
         }
         match self.ask {
-            // `g_quitRequest = 1`. The `lom.256` send-off on screen `0x45` is
-            // not built — see the module note.
             Ask::Quit => Transition::Quit,
             // **Inferred.** `FUN_00433DEB`'s single-player yes is
             // `DAT_005C9274 = 1; DAT_005AEB8C = 0; FUN_004B11CE();` — the game
@@ -130,18 +109,10 @@ impl Screen for ConfirmScreen {
         "Confirm - screen 0x1E".into()
     }
 
-    /// `Screen_ConfirmBox` paints the box and nothing else: whatever was
-    /// underneath is still on screen.
     fn is_overlay(&self) -> bool {
         true
     }
 
-    /// **Kind 5, and the press does not answer.** `Widget_Test`'s kind-5 branch
-    /// sets `rec[0x0D] = 0x14` and returns without calling the handler; the
-    /// handler runs from the countdown, which is [`Screen::update`].
-    ///
-    /// Nothing else is live — the box is modal — so every other event is
-    /// swallowed here
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         let fired = self.press.event(&CONFIRM_WIDGETS, event);
         if fired.is_some() || self.press.busy() {

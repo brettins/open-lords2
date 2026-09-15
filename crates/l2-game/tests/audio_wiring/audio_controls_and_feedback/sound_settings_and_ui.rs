@@ -13,10 +13,6 @@ use l2_game::message;
 use l2_game::screens::setup::SetupPage;
 use l2_game::Game;
 
-/// **The Sounds page had no effect on anything audible.** `screens::options`
-/// writes `game.prefs`; `Audio` kept a second copy of the same three flags that
-/// nothing ever wrote. `App::listen` pushes one into the other, and this is
-/// that push, driven the way the event loop drives it.
 #[test]
 fn turning_music_off_on_the_sounds_page_stops_the_music() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -45,26 +41,17 @@ fn turning_music_off_on_the_sounds_page_stops_the_music() {
     audio.mix(&mut buf);
     assert!(buf.iter().all(|s| *s == 0.0), "and the mixer is still producing samples");
 
-// And back on, which the original re-derives.
     game.prefs.music = true;
     listen!();
     assert_eq!(audio.music_name().as_deref(), Some("scroll1.wav"), "Music: On did not resume");
 }
 
-/// **The pointer click reaches a speaker, once per press — and not from a
-/// hotspot.**
-///
 /// `tests/click.rs` asserts when [`Machine::clicks`] moves; this asserts that
 /// [`audio::Director::listen`] turns the movement into `click3.wav` and nothing
 /// else into it. `Widget_Test` (`0x0040DA1E`) is the only function in the game
 /// whose click sound is live — the other two sites are dead code
 /// (`docs/audio.json`) — and it sounds on the **initial press** of a kind-4 or
 /// kind-5 widget only.
-///
-/// The held half is the one worth having: the buffer is drained with
-/// [`Audio::mix`] until the click has finished, and then the arrow is held for
-/// two seconds of ticks. A click on any repeat pulse would put `click3.wav`
-/// back in the mixer, and `is_playing` would see it on that very tick.
 ///
 /// **Ablations, run:** delete the `self.hear_the_click(..)` call in
 /// `Director::listen` and the loud assertion goes red; make `hear_the_click`
@@ -79,8 +66,6 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     let mut audio = Audio::headless(&platform.vfs);
     let mut director = audio::Director::new();
 
-    // **The sidebar, which is `Hotspot_Test` kind 1.** Each button on a fresh
-    // machine, so that every one of them is pressed from the map.
     let mut opened = 0;
     for b in l2_game::screens::map::SIDEBAR_BUTTONS {
         let mut game = world();
@@ -98,7 +83,6 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     }
     assert!(opened >= 1, "no sidebar button opened anything, so the silence proves nothing");
 
-    // **The tax arrow, which is `Widget_Test` kind 4.**
     let mut game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
@@ -117,7 +101,6 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     assert!(audio.heard().contains(&"click3.wav"), "the press was silent; heard {:?}", audio.heard());
     assert!(audio.is_playing("click3.wav"), "and it is sounding now");
 
-    // Let it finish. A second of samples at a time, and no more than ten.
     let mut buf = vec![0f32; 44_100 * 2];
     for _ in 0..10 {
         if !audio.is_playing("click3.wav") {
@@ -127,7 +110,6 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     }
     assert!(!audio.is_playing("click3.wav"), "click3.wav never finished");
 
-    // Hold for two seconds of ticks.
     let mut steps = 0;
     for t in 0..125 {
         let before = game.kingdom.counties[1].tax_rate;

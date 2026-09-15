@@ -11,8 +11,6 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::county::{self, Panel};
 use l2_game::Game;
 
-/// **The castle chooser's corner picture closes on the release, not the press.**
-///
 /// `Screen_FrameInput`'s `0x1B` arm is `Ui_OkButtonClicked()` (`0x0040E7E4`),
 /// whose first statement is `if (g_mouseLeftReleased == 0) return 0;`. The
 /// marker in `castle.rs` said `left-release` and the code read `Event::Click`.
@@ -34,8 +32,6 @@ fn the_castle_choosers_corner_closes_on_the_release() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the release closes it");
 }
 
-/// **The raise-army screen's corner picture closes on the release too.**
-///
 /// `Screen_FrameInput`'s `0x17` arm asks `Levy_SliderClick()` (`0x00435CEF`)
 /// first — which cannot answer a release: its arrow branches want
 /// `g_mouseLeftPressed || g_mouseLeftDoubleClick` and its track branch

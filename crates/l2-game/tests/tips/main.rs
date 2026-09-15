@@ -1,9 +1,3 @@
-//! **The tip screens, played.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test tips
-//! ```
-//!
 //! `Tip_Update` (`0x00476AA7`), `Tip_Show` (`0x00476DA9`) and `FUN_00476E21`
 //! (`0x00476E21`), none of which existed here: the advice a new player gets,
 //! its words, and the forty narration files that read it out. `crate::tip` has
@@ -31,7 +25,6 @@ use l2_game::tip::{self, Tips, View};
 use l2_game::Game;
 use l2_kingdom::units_tick::Incursion;
 
-// ---------------------------------------------------------------------- setup
 
 fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     let mut ctx = Ctx { game: g, assets: a };
@@ -51,12 +44,10 @@ pub(crate) fn world() -> Game {
     g
 }
 
-/// A running game on the campaign map, with nothing posted.
 fn campaign() -> (Game, Assets, Machine) {
     (world(), Assets::placeholder(), Machine::new(ScreenId::Campaign))
 }
 
-/// Tick until `Tip_Show` posts, and say on which tick it did.
 fn ticks_until_posted(m: &mut Machine, g: &mut Game, a: &Assets, limit: usize) -> Option<usize> {
     let before = g.tips.shows();
     for n in 1..=limit {
@@ -72,7 +63,6 @@ fn open_group(g: &Game) -> Option<u16> {
     g.messages.open().map(|r| r.group)
 }
 
-/// `Msg_HandleInput`'s right-button branch: `Msg_Dismiss`, whatever it is.
 fn right_click() -> Event {
     Event::RightClick { x: 5, y: 5 }
 }
@@ -81,7 +71,6 @@ fn view(screen: u8) -> View {
     View { enabled: true, in_play: true, screen: Some(screen), ..View::default() }
 }
 
-/// A `Tips` whose start-up twenty frames have already run out.
 fn armed() -> Tips {
     let mut t = Tips::new();
     let elsewhere = View { enabled: true, in_play: true, screen: None, ..View::default() };
@@ -92,5 +81,4 @@ fn armed() -> Tips {
     t
 }
 
-// ------------------------------------------------------------------ the ladder
 

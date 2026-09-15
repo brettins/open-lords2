@@ -1,22 +1,3 @@
-//! Deriving the base ruleset from the player's own game files.
-//!
-//! ## Why this exists at all
-//!
-//! OpenXcom ships its rulesets. We cannot: a `rules/troops.toml` holding the
-//! 3,885 numbers of `TROOPS.ENG` is a transcription of a shipped game file, and
-//! `CLAUDE.md` rule 1 says game data does not enter this repository. So the
-//! base ruleset is **generated on the player's machine from the copy of the
-//! game they already own**, into their own data directory, and only the
-//! generator is version-controlled.
-//!
-//! That turns out to be the better design anyway. The generated file is a
-//! plain, commented, human-readable document sitting on disk next to the mods,
-//! so the first thing a would-be mod author can do is open the base rules and
-//! read them — which is exactly how people learn to mod OpenXcom.
-//!
-//! ## On decoding
-//!
-//! `l2-formats` owns decoding, and this module does not duplicate any of it:
 //! `TROOPS*.ENG` is plain text, and the engine's own reader (`FUN_0042AC0C`)
 //! is "skip to the first `*`, then take every decimal token and ignore
 //! everything else". That is the ten lines below. When `l2_formats::eng`
@@ -25,24 +6,13 @@
 
 use std::fmt::Write as _;
 
-/// 35 battles, matching the 35 built-in battles of `BATTLES.ENG`.
 pub const ROWS: usize = 35;
-/// Very easy, Easy, Normal, Hard, Very hard.
 pub const GROUPS: usize = 5;
-/// Attacker then defender.
 pub const SIDES: usize = 2;
-/// Pe Xb Ma Sw Pi Ar Kn Ca To Ra Oi.
 pub const COLUMNS: usize = 11;
-/// `35 * (1 + 5 * 2 * 11)`.
 pub const TOKEN_COUNT: usize = ROWS * (1 + GROUPS * SIDES * COLUMNS);
-/// The index of the "Normal" difficulty group — the only one whose numbers the
-/// engine keeps.
 pub const NORMAL_GROUP: usize = 2;
 
-/// The eleven columns. Names for 0-6 come from the two-letter header and the
-/// unit set; 7-10 are the siege columns the engine clamps to 9, and their
-/// individual identities are **inferred** from the abbreviations
-/// verified. `docs/formats/eng.md` marks the same distinction.
 pub const TROOP_COLUMNS: [(&str, &str, &str, bool); COLUMNS] = [
     ("peasants", "Pe", "Peasants", false),
     ("crossbows", "Xb", "Crossbowmen", false),
@@ -57,8 +27,6 @@ pub const TROOP_COLUMNS: [(&str, &str, &str, bool); COLUMNS] = [
     ("oil", "Oi", "Boiling oil", true),
 ];
 
-/// The difficulty curve the 1996 binary applies in code, lifted into data.
-/// `(id, order, scale_percent)`.
 pub const DIFFICULTIES: [(&str, i64, i64); GROUPS] = [
     ("very_easy", 0, 116),
     ("easy", 1, 108),
@@ -69,13 +37,8 @@ pub const DIFFICULTIES: [(&str, i64, i64); GROUPS] = [
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SeedError {
-    /// No `*` marker: not a `TROOPS*.ENG` at all.
     NoMarker,
-    /// The token count did not close. `docs/formats/eng.md` shows all three
-    /// shipped files hitting 3,885 exactly, so anything else is a different
-    /// file or a corrupted one.
     TokenCount { found: usize, expected: usize },
-    /// A token that does not fit an `i64`, i.e. not really a number.
     BadToken(String),
 }
 
@@ -93,15 +56,12 @@ impl std::fmt::Display for SeedError {
 
 impl std::error::Error for SeedError {}
 
-/// The raw table.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RawTroopTable {
     pub advantage: [i64; ROWS],
-    /// `[battle][difficulty group][side][column]`.
     pub counts: Box<[[[[i64; COLUMNS]; SIDES]; GROUPS]; ROWS]>,
 }
 
-/// Scan the decimal tokens after the first `*`.
 pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
     let start = bytes.iter().position(|&b| b == b'*').ok_or(SeedError::NoMarker)?;
     let mut tokens: Vec<i64> = Vec::with_capacity(TOKEN_COUNT);
@@ -131,8 +91,6 @@ pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
     };
     let mut t = tokens.into_iter();
     for row in 0..ROWS {
-        // The engine clamps the advantage to 0..10 on read, so the generated
-        // rules record what the game
         table.advantage[row] = t.next().unwrap().clamp(0, 10);
         for g in 0..GROUPS {
             for s in 0..SIDES {
@@ -145,11 +103,6 @@ pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
     Ok(table)
 }
 
-/// The 35 built-in battle names from `BATTLES.ENG`.
-///
-/// The file is CR/LF text that the engine flattens by turning every byte below
-/// `0x20` into a NUL and then reads as `(short, full, description)` triples.
-/// Only the short name is wanted here, as the source of a readable rule id.
 pub fn battle_names(bytes: &[u8]) -> Vec<String> {
     let fields: Vec<String> = bytes
         .split(|&b| b < 0x20)
@@ -160,7 +113,6 @@ pub fn battle_names(bytes: &[u8]) -> Vec<String> {
     fields.chunks(3).filter(|c| c.len() == 3).map(|c| c[0].clone()).collect()
 }
 
-/// A readable, stable rule id: `"Three Bridges"` -> `"three_bridges"`.
 pub fn slug(name: &str) -> String {
     let mut out = String::with_capacity(name.len());
     let mut last_sep = true;
@@ -182,10 +134,6 @@ pub fn slug(name: &str) -> String {
     out
 }
 
-/// Render the base `rules/troops.toml`.
-///
-/// `names` may be short of 35 entries — the DOS install has no `BATTLES.ENG`
-/// at all — in which case the remaining battles get `battle_NN` ids.
 pub fn to_rules_toml(table: &RawTroopTable, names: &[String], source_file: &str) -> String {
     let mut out = String::new();
     let _ = writeln!(
@@ -226,7 +174,6 @@ pub fn to_rules_toml(table: &RawTroopTable, names: &[String], source_file: &str)
     for row in 0..ROWS {
         let name = names.get(row).cloned().unwrap_or_else(|| format!("Battle {}", row + 1));
         let mut id = slug(&name);
-        // Ids must be unique even if two battles share a short name.
         if used.contains(&id) {
             id = format!("{id}_{row}");
         }
@@ -249,7 +196,6 @@ pub fn to_rules_toml(table: &RawTroopTable, names: &[String], source_file: &str)
     out
 }
 
-/// Quote a string for the rule syntax.
 pub fn quote(s: &str) -> String {
     let mut out = String::with_capacity(s.len() + 2);
     out.push('"');

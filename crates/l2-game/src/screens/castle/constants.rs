@@ -15,15 +15,12 @@ use crate::shell::{self, font, Pen};
 pub const BACKDROP: &str = "Cas_back.pl8";
 /// `FUN_0040AE12("caspics.pl8", …)` then `Blit_Raster` — the big preview.
 pub const PICS: &str = "Caspics.pl8";
-/// `File_ReadChunk("cas_bits.pl8", g_villani2Sheet, 150000)` — the plates, the
-/// selection marks and the two material captions.
 pub const BITS: &str = "Cas_bits.pl8";
 
 /// `DAT_004D2DD0` — the `caspics.pl8` frame for each selection, **one-based,
 /// and 0 means no picture**. Selection 1, the motte and bailey, has none.
 pub const PICTURE_FRAME: [usize; 5] = [1, 0, 2, 3, 4];
 
-/// `Blit_Raster(buf, 0x9E, 0x14, 0x140, 200)`.
 pub const PICTURE: Rect = Rect::new(0x9E, 0x14, 0x140, 200);
 
 /// `DAT_004D2DE8`, `{frame, x, y}` five times — `cas_bits.pl8` frames 0…4, all
@@ -37,21 +34,15 @@ pub const NAME_PLATE: [(usize, i32, i32); 5] =
 pub const SELECTED_MARK: [(usize, i32, i32); 5] =
     [(5, 24, 325), (6, 103, 297), (7, 231, 292), (8, 307, 277), (9, 462, 285)];
 
-/// `cas_bits.pl8` frame `0x0A` at (0x208, 0x5C) — the words *"of stone
-/// needed,"* as **artwork**, so [`STONE_NEEDED`] is unused here.
 pub const STONE_CAPTION: usize = 0x0A;
-/// The same for the wood, frame `0x0B` at (0x208, 0x7C).
 pub const WOOD_CAPTION: usize = 0x0B;
 pub const CAPTION_X: i32 = 0x208;
 pub const STONE_CAPTION_Y: i32 = 0x5C;
 pub const WOOD_CAPTION_Y: i32 = 0x7C;
-/// The two numbers, `Ui_DrawNumber(v, '@', "", 0x230, …)`.
 pub const MATERIAL_NUM_X: i32 = 0x230;
 pub const STONE_NUM_Y: i32 = 0x60;
 pub const WOOD_NUM_Y: i32 = 0x80;
 
-/// `cas_bits.pl8` frame `0x0C` — *the castle you already have*, drawn over its
-/// strip only when one stands.
 pub const STANDING_MARK: usize = 0x0C;
 /// `DAT_004D2E64`, indexed by the **standing castle type** 1…5, and the painter
 /// subtracts ten from it. Slot 0 is never read: `castleType == 0` skips the
@@ -67,29 +58,20 @@ pub const NAME_AT: (i32, i32) = (0x1F6, 0x18);
 pub const NAME_WIDTH: i32 = 0xA0;
 pub const NAME_LINE: i32 = 0x18;
 
-/// The workforce sentence, four calls on four lines.
 pub const WILL_TAKE_AT: (i32, i32) = (0x20C, 0xB4);
 pub const WORKFORCE_AT: (i32, i32) = (0x1F2, 0xC4);
 pub const SEASON_AT: (i32, i32) = (0x1FC, 0xD4);
 pub const TO_BUILD_AT: (i32, i32) = (0x20C, 0xE4);
 
-/// `Ui_DrawBox(0x70, 0x1AC, 0x1A, 3)` — border set **0**, in 16-pixel cells, so
-/// 416 × 48 at (112, 428).
 pub const TAX_PLAQUE: (i32, i32, i32, i32) = (0x70, 0x1AC, 0x1A, 3);
 pub const BOOSTS_TAX_AT: (i32, i32) = (0x90, 0x1B4);
 pub const START_AT: (i32, i32) = (0xE0, 0x1C8);
-/// `Ui_DrawBox(8, 200, 8, 3)` — 128 × 48 at (8, 200).
 pub const BARRACKS_PLAQUE: (i32, i32, i32, i32) = (8, 200, 8, 3);
 pub const BARRACKS_AT: (i32, i32) = (0xC, 0xD2);
 pub const GARRISON_AT: (i32, i32) = (0xC, 0xE2);
 
-/// `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)` — the corner
-/// picture, `System.pl8` frame `0x10`. It is drawn by `Screen_CastleBuild`
-/// itself and is **not** one of the two widgets below.
 pub const CORNER_OK: Rect = Rect::new(640 - 0x1C, 480 - 0x1C, 24, 24);
 
-/// `System.pl8` frames 29 and 31 — the mailed hand, thumb up and thumb down.
-/// Every yes/no pair in the game draws these two; `docs/screens-county.md` §4.2.
 pub const THUMB_UP: usize = 29;
 pub const THUMB_DOWN: usize = 31;
 
@@ -103,7 +85,6 @@ pub const TYPE_BOUNDS: [(i32, i32, i32, i32); 5] = [
     (415, 270, 618, 415),
 ];
 
-/// One of the five, as a rectangle.
 pub fn type_rect(level: usize) -> Rect {
     let (x1, y1, x2, y2) = TYPE_BOUNDS[level.min(4)];
     Rect::new(x1, y1, x2 - x1 + 1, y2 - y1 + 1)
@@ -114,21 +95,13 @@ pub fn type_rect(level: usize) -> Rect {
 /// **The table is exactly two records long**, which is what the count of 2 the
 /// `0x1B` arm passes should be checked against: `0x004DDB80 + 2 * 24` is
 /// `0x004DDBB0`, and that is the base `Screen_DrawWidgets`' `0x12` arm passes.
-/// So unlike `g_sendSuppliesWidgets` there is **no cut row here**.
 pub const OK: Rect = Rect::new(432, 440, 32, 32);
-/// …and record 1, the cross, hotspot 0.
 pub const CANCEL: Rect = Rect::new(472, 444, 32, 32);
 
-/// **`g_castleBuildWidgets` as a table: two kind-5 records** — the module
-/// header has said *"two kind-5 sprites"* since the table was decoded, and
-/// `node tools/oracle/kinds.js` files `CastleBuild_Confirm` under `widget 5`.
 /// `[V]` The thumb goes down on the press and the order is placed twenty
 /// frames later. This screen answered a raw click, so it acted at once, drew no
 /// pressed picture and played no click — the yes/no box's defect, a second
 /// time, on a screen that
-///
-/// Each `arm!` is the marker and the kind. Index 0 is hotspot 1, index 1
-/// hotspot 0.
 pub(super) fn widgets() -> [Widget; 2] {
     [
         Widget::new(OK, crate::arm!("0x00436B59/castle-build-confirm", Delayed)),

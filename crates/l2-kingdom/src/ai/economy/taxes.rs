@@ -13,27 +13,6 @@ use crate::tables::{
     AI_WEAPON_ROTA_ORDER,
 };
 
-/// `AI_SetTaxRates`' first half — set every county the realm owns to the rate
-/// its happiness earns, on one of four ladders.
-///
-/// `realm_lord` is the owning realm's `lord` byte, and `realm` **0 means the
-/// unowned counties**, which phase 1 (`docs/kingdom.md` §3.1) runs once a turn
-/// with [`crate::tables::AiTable::tax_ladder_neutral`]. An AI realm uses the
-/// ladder its lord's personality names — see [`Tables::ai_tax_ladder`].
-///
-/// The four ladders are the piece `docs/kingdom.md` §8.2 says exists and does
-/// not give. What they say, in one line each:
-///
-/// * **neutral** — eight rungs from 0% below 20 happiness up to 12% at 90;
-/// * **ladder 0** — the greediest, 15% on anything at 80 or above;
-/// * **ladder 1** — ladder 0 softened, topping out at 12%;
-/// * **ladder 2** — the gentlest and the one three of the four lords use:
-///   nothing at all below 60 happiness, and 10% only above 95.
-///
-/// A *neutral* county is taxed harder at low happiness than any AI
-/// taxes its own — 1% at 20 happiness where every lord's ladder charges
-/// nothing below 30. Nobody is collecting it, though: `Tax_CollectAll` banks an
-/// unowned county's take into the county itself.
 pub fn set_tax_rates(
     t: &Tables,
     counties: &mut [County],
@@ -46,9 +25,6 @@ pub fn set_tax_rates(
     } else {
         t.ai_tax_ladder(realm_lord)
     };
-// A lord with no personality record sets no rates at all.
-    // falling back to a ladder that. See
-    // `crate::tables::AI_PERSONALITY_COUNT`.
     let Some(ladder) = ladder else { return };
     for id in 1..=county_count {
         if counties[id].owner != realm {
@@ -74,9 +50,6 @@ pub fn set_tax_rates(
 /// meanHappiness  = sumHappiness / countyCount;         /* +0x0C */
 /// meanHealth     = sumHealth / countyCount;            /* +0x58 */
 /// ```
-///
-/// Every division is guarded on `countyCount != 0` and writes 0 instead
-/// realm about to be eliminated does not divide by zero.
 ///
 /// `armies` and `total_men` come from the unit array, which is not this
 /// crate's; the caller supplies them and they land in `+0x2C` and `+0x54`.

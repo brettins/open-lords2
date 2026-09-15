@@ -25,9 +25,6 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// Zooming out reaches the rest of the map, and scrolling moves the near view.
-/// Both halves matter: a viewport that could not move would be the minimap the
-/// user complained about, in a smaller rectangle.
 #[test]
 fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
     let (mut game, assets) = world!();
@@ -42,13 +39,9 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
         far_visible > near_visible,
         "the far view shows {far_visible} counties and the near one {near_visible}"
     );
-    // At the far zoom's pinned origin all fourteen are reachable.
-    // The original disables scrolling there.
     assert_eq!(far_visible, 14);
     assert!(before.diff_count(&far) > 10_000, "and it is a different picture");
 
-    // Back in, and now scroll. One step is one map tile, so the origin moves by
-    // exactly one lattice column and the picture must change.
     send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
     let home = screen.viewport();
     let a = draw(&mut screen, &mut game, &assets);
@@ -58,11 +51,6 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
     assert!(a.diff_count(&b) > 10_000, "scrolling one column must repaint the map");
 }
 
-/// The minimap is the original's own raster out of `MAPnn.PL8`, and clicking it
-/// selects the county under the pixel *and* moves the viewport onto it.
-///
-/// This is the one place we use the original's algorithm and reach its
-/// answer: `Minimap_Click` reads the same county byte out of the same file.
 #[test]
 fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
     let (mut game, assets) = world!();
@@ -72,8 +60,6 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
     draw(&mut screen, &mut game, &assets);
     let visible = pick_counts(&screen);
 
-    // A minimap pixel of a county that is *not* in the opening view, so "the
-    // map moved onto it" cannot pass by accident.
     let (mx, my) = (0..128)
         .flat_map(|y| (0..128).map(move |x| (x, y)))
         .map(|(x, y)| (x + chrome::MINIMAP_HIT_X, y + chrome::MINIMAP_HIT_Y))
@@ -89,8 +75,6 @@ fn clicking_the_minimap_selects_that_county_and_brings_it_into_view() {
     assert_eq!(game.selected, county, "the raster decides which county");
     assert_ne!(screen.viewport(), before, "and the map moves");
 
-    // Having moved, that county is now on screen — which is what "centred"
-    // The origin's changing does not imply this.
     draw(&mut screen, &mut game, &assets);
     assert!(pick_counts(&screen)[county as usize] > 0, "county {county} is now in view");
 }

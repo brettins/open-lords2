@@ -1,30 +1,3 @@
-//! xxHash64 against the reference implementation's own values.
-//!
-//! Every vector in the first section is somebody else's number. They
-//! are the test vectors from `twox-hash`, which states that its
-//! implementation is verified against the reference C implementation —
-//! so what is being checked here is not "does our hasher agree with
-//! itself" but "does our hasher agree with the rest of the world".
-//! That distinction is the whole reason for vendoring
-//! depending: a vendored algorithm with nobody else's vectors is just
-//! a private hash function with a misleading name.
-//!
-//! The vectors were chosen by whoever wrote them to cover the branches
-//! that a transcription gets wrong, and they do:
-//!
-//! | input | what it exercises |
-//! |---|---|
-//! | empty | the short path, and the `len` fold |
-//! | one byte | the single-byte tail loop |
-//! | 14 bytes | the 8-byte and 4-byte tail steps and two stray bytes |
-//! | 100 bytes | three full 32-byte blocks and a 4-byte tail |
-//! | a non-zero seed | the accumulator initialisation |
-//! | `u64::MAX - PRIME64_5` | the wrap in `seed + PRIME5` |
-//!
-//! A bug in the tail handling only fires on inputs of particular
-//! lengths, which is exactly the kind of bug that passes a "hash the
-//! same thing twice" check and then produces a checksum nobody else in
-//! the world agrees with.
 
 use l2_net::{xxhash64, XxHash64};
 
@@ -62,22 +35,13 @@ fn a_hundred_bytes_with_a_seed() {
     assert_eq!(xxhash64(&bytes, OTHER_SEED), 0x567e_355e_0682_e1f1);
 }
 
-/// The seed is added to `PRIME64_5` on the short path. This one is
-/// chosen so that the addition wraps, which a transcription using
-/// checked or saturating arithmetic would get wrong — and would get
-/// wrong only for seeds nobody would think to test.
 #[test]
 fn a_seed_that_makes_the_short_path_wrap() {
     let seed = u64::MAX - 0x27D4_EB2F_1656_67C5;
     assert_eq!(xxhash64(b"x", seed), 0xf953_d52c_12a9_f5fb);
 }
 
-// --- streaming -------------------------------------------------------
 
-/// Streaming must equal oneshot for *every* way of splitting the input,
-/// because that is what `Canonical` relies on: it writes a state field
-/// by field and the resulting checksum must be the one a peer computes
-/// from the same bytes delivered differently.
 #[test]
 fn every_split_of_an_input_hashes_the_same() {
     let bytes: Vec<u8> = (0..200u32).map(|i| (i * 7) as u8).collect();
@@ -110,9 +74,6 @@ fn empty_writes_change_nothing() {
     assert_eq!(hasher.len(), 3);
 }
 
-/// `finish` takes `&self`, so a caller can take an intermediate digest
-/// and carry on. If that ever mutated the state it would corrupt every
-/// section digest in `Canonical`.
 #[test]
 fn finishing_does_not_disturb_the_hasher() {
     let mut hasher = XxHash64::new();
@@ -133,13 +94,7 @@ fn the_length_is_tracked() {
     assert!(!hasher.is_empty());
 }
 
-// --- the properties a checksum
 
-/// The whole job of a state checksum is that any one-bit difference
-/// changes the output. FNV-1a was rejected in `docs/netcode.md` §6
-/// precisely because its avalanche on long runs of structured,
-/// mostly-zero records — which is what a serialised unit array is — is
-/// poor. So test on exactly that kind of input.
 #[test]
 fn a_single_bit_in_a_field_of_zeros_changes_everything() {
     let zeros = [0u8; 512];
@@ -159,8 +114,6 @@ fn a_single_bit_in_a_field_of_zeros_changes_everything() {
     }
 }
 
-/// Length must be part of the hash. Without it, a state with one extra
-/// zeroed record at the end would checksum identically to one without.
 #[test]
 fn trailing_zeros_are_not_invisible() {
     assert_ne!(xxhash64(&[0u8; 16], 0), xxhash64(&[0u8; 17], 0));
@@ -168,8 +121,6 @@ fn trailing_zeros_are_not_invisible() {
     assert_ne!(xxhash64(b"", 0), xxhash64(&[0u8; 1], 0));
 }
 
-/// Different seeds must give different hashes for the same input, on
-/// both the short and the long path.
 #[test]
 fn the_seed_matters_on_both_paths() {
     assert_ne!(xxhash64(b"short", 0), xxhash64(b"short", 1));
@@ -177,9 +128,6 @@ fn the_seed_matters_on_both_paths() {
     assert_ne!(xxhash64(&long, 0), xxhash64(&long, 1));
 }
 
-/// No collisions across a large sweep of small, structurally similar
-/// inputs — the population a state checksum
-/// states differ by one field of one record.
 #[test]
 fn no_collisions_across_a_sweep_of_similar_states() {
     let mut seen: Vec<u64> = Vec::with_capacity(20_000);

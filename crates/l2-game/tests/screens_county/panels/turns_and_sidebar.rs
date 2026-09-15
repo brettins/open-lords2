@@ -30,8 +30,6 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// County 1 belongs to realm 5. The strip says so, all four panels still open,
-/// and every order is refused — by the mouse as well as by the keyboard.
 #[test]
 fn another_realms_county_can_be_looked_at_and_not_ordered() {
     let (mut game, assets) = world!();
@@ -42,15 +40,12 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     // The name at (480, 180)
     // 165, then group 15's two lines and the owner at 240 / 260 / 280 — all
     // four in the body font and in the owning realm's own colour.
+    //
     // **The pen is the realm's shield colour**, `g_realmColour[shield]`, which
     // is what `CountyStrip_Draw` passes for all three lines. Not `Ink::realm`
     // and not the realm id — see `sovereign_lines` below and C62.
     let shield = game.kingdom.realms[5].shield_index;
     let realm5 = l2_view::chrome::realm_pen(shield).expect("realm 5 flies a shield");
-    // **The lord's real name, out of the save.** This read `"REALM 5"` while
-    // nothing filled `g_playerNames`; the save's own player table does now, so
-    // the line says what the original's says. The near miss is another realm's
-    // Lord.
     let lord5 = game.player_names[5].as_str().to_owned();
     let lord4 = game.player_names[4].as_str().to_owned();
     assert!(!lord5.is_empty() && lord5 != lord4, "the fixture names its lords: {lord5:?}");
@@ -65,9 +60,6 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     // `message::lord_name` with the court and the battle prompt: the save's
     // player table (`Game::player_names`) first, then `L2.eng` group 7 by the
     // realm's **lord**, which is the pair `Game_NewGame` seeds the array from.
-    // This fixture's save names its lords, so here it is the **table** that
-    // answers — which is what the equality below pins, and it is the seam
-    // between the shared accessor and the table that now fills it.
     let lord = l2_game::screens::message::lord_name(&Ctx { game: &mut game, assets: &assets }, 5);
     assert_eq!(lord, lord5, "the shared accessor answers realm 5 out of the save's table");
     assert!(!lord.starts_with("REALM "), "realm 5's lord is named, and it said {lord:?}");
@@ -87,21 +79,13 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     assert_eq!(game.kingdom.counties[1].ration_split, 0, "and neither does the slider");
 }
 
-/// End turn, from the map, with the mouse — and the numbers move on screen.
-///
-/// This is the whole slice in one test: a England turn-one scenario, a real map, a click
-/// on a button, `l2-kingdom`'s season pipeline, and the changed numbers read
-/// back off the canvas.
 #[test]
 fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
     let (mut game, assets) = world!();
-    // `TURN n` is our counter and debug overlay only; it is how this test reads
-    // the turn off the picture.
     game.prefs.debug_overlay = true;
     let mut screen = MapScreen::new();
     game.select(8);
     let before = draw(&mut screen, &mut game, &assets);
-    // The year and the season, in the face `Screen_DrawMenuBar` passes.
     assert!(find_body(&before, &assets, " 1268 ", font::TEXT).is_some());
     assert!(find_body(&before, &assets, "Winter", font::TEXT).is_some());
     assert!(find_text(&before, "TURN 1", assets.ink.dim).is_some());
@@ -140,8 +124,6 @@ fn ending_the_turn_from_the_map_moves_the_numbers_and_the_screen_follows() {
     );
 }
 
-/// The turn also runs through the machine, from the keyboard, with the county
-/// panel's own numbers following. Four turns, so a season wrap is included.
 #[test]
 fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     let (mut game, assets) = world!();
@@ -150,7 +132,6 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     for _ in 0..4 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         m.handle(Event::KeyDown(Key::Char('E')), &mut ctx);
-        // Four turns, and each of them takes the frames it takes.
         let before = game.kingdom.turn_count;
         let mut done_at = None;
         for n in 1..2_000u32 {
@@ -179,16 +160,6 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     );
 }
 
-/// **The sidebar stays live with the village open — and goes dead mid-drag.**
-///
-/// A player, having gone and checked against the original: *"The slider does
-/// indeed still work with town square open and causes no issues."* He is right,
-/// and `Screen_FrameInput`'s `g_screenId == 0x02` arm says so before any
-/// village verb is reached — six guards, all of them the campaign map's
-/// sidebar, `Labour_SplitSliderDrag` fourth among them. It did not work in
-/// ours, because [`Machine::handle`] offered input to the top screen and
-/// stopped there.
-///
 /// The second half is the half a person would never think to check, and it is
 /// The reason this is a test: the `0x05`
 /// (banding) and `0x06` (carrying) arms test **no sidebar guard at all**, so
@@ -207,7 +178,6 @@ fn the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag() {
     m.push(ScreenId::Village(county));
     assert_eq!(m.depth(), 2, "the village is an inset over the map, not a replacement");
 
-    // The press lands on the split slider's track, through the village.
     {
         let mut c = Ctx { game: &mut game, assets: &assets };
         m.handle(Event::Click { x: 561, y: 270 }, &mut c);
@@ -223,9 +193,6 @@ fn the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag() {
     }
     assert_eq!(share(&game), 20, "the drag tracks the pointer over the village too");
 
-    // A click on the village's own half of the screen must NOT reach the map:
-    // `Map_Click` is not in the `0x02` ladder. The county under the inset is
-    // whatever it was; nothing selects a new one.
     let before = game.selected;
     {
         let mut c = Ctx { game: &mut game, assets: &assets };
@@ -233,8 +200,6 @@ fn the_sidebar_slider_still_works_with_the_village_open_but_not_mid_drag() {
     }
     assert_eq!(game.selected, before, "a click on the map round the inset is not a map click");
 
-    // And the drag states. Reaching `Phase::Band` needs a press inside the
-    // village's own area and nine pixels of travel.
     let mut screen = VillageScreen::new(county);
     let top = {
         let ctx = Ctx { game: &mut game, assets: &assets };

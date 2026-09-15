@@ -20,10 +20,6 @@ use crate::turn::{self, TurnStep};
 /// **Ours**, and it looks it: flat cells and a block per man, for an install
 /// with no `T32_bat1.pl8`. `docs/decisions.md` C21 — a stub that is visibly ours
 /// beats one that looks finished.
-///
-/// The blocks stand where the artwork's men would —
-/// `l2_view::scene::figure_origin`, `BattleMan_Step`'s cell and trail — so the
-/// placeholder walks the way the picture does.
 pub(super) fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
     canvas.fill_rect(VIEW.x, VIEW.y, VIEW.w, VIEW.h, ink.background);
@@ -54,17 +50,11 @@ pub(super) fn draw_placeholder_field(canvas: &mut Canvas, live: &LiveBattle, ink
 /// tests, painted by `FUN_004BC51A` (`0x004BC51A`) and scheduled by
 /// [`Overview`].
 ///
-///
 /// `FUN_004BC51A` draws two things: a terrain tile
 /// per cell and a man over it. **[V]** That nothing *else* writes inside
 /// `(0x1E0, 0x18)`–`(0x280, 0xB8)` is **[I]**: `Screen_DrawBattlefield`'s three
 /// `Misc_bat.pl8` blits all start at `y 0xB8` or below
 /// in `DAT_004D31F4` is at `y 185`.
-///
-/// `have_sheets` is false on an install that does not ship `T2_bat1.pl8` beside
-/// the executable — the older DOS tree does not — and on
-/// [`crate::game::Assets::placeholder`]. Then the panel is a flat fill and a dot
-/// a side, which is ours and is marked as ours.
 pub(super) fn draw_overview(
     canvas: &mut Canvas,
     panel: &Overview,
@@ -93,10 +83,6 @@ pub(super) fn draw_overview(
     }
 }
 
-/// **The right column's own artwork, `Misc_bat.PL8` through
-/// `g_miscCtySheet`.** False when the install does not ship the file, and then
-/// the caller keeps the plates and buttons that are ours.
-///
 /// `Screen_DrawBattlefield` (`0x004233F7`) lays the column down in one run,
 /// and every one of the five frames is drawn at the position in its own
 /// `Pl8` header:
@@ -120,6 +106,7 @@ pub(super) fn draw_overview(
 /// is the way round nothing about the names suggests: both are
 /// `g_units[army] + 0x02`, and `g_battleArmyB` — the one on the *right*, at
 /// `0x230` — is the side-0 army, `l2_view::scene`'s `BattleBanner_Draw` note.
+///
 /// So the left plate is [`l2_sim::SIDE_B`]. **[V]**
 ///
 /// `FUN_00423530` ends with the two living-men counts on frame 2's plate:
@@ -153,7 +140,6 @@ pub(super) fn draw_column_chrome(
         c.draw_misc_bat(canvas, mb::PAUSE_LIT, 0x1E1, 0x1C1);
     }
     c.draw_misc_bat(canvas, mb::RETREAT_LIT, 0x201, 0x1C1);
-    // Colour 0x20, not the 0x3F the rest of the column writes in.
     p.body_centred(canvas, 0x1FA, 0x1A6, 0x38, &men.0.to_string(), 0x20);
     p.body_centred(canvas, 0x24A, 0x1A6, 0x38, &men.1.to_string(), 0x20);
     true
@@ -175,11 +161,11 @@ pub(super) fn draw_column_chrome(
 /// `DAT_00553220` *is* 0x1E there, so `FUN_004239D5` returns at its first
 /// test. The `0x14` / `0xC` step left is room for a third digit.
 ///
-/// **Nothing outlines the picked figure on the field.**
 /// `Ui_DrawRectOutline` (`0x00403CF4`) has fourteen callers; the only one on a
 /// battle screen is `Battlefield_DrawBand` (`0x0041298A`), the rubber band,
 /// which draws the *drag* box in colour `0x20` and is gated on
 /// `g_screenId == 0x2A`. Being held shows in this column and nowhere else.
+///
 /// **[V]** on the caller set.
 pub(super) fn draw_banner_plates(
     canvas: &mut Canvas,
@@ -213,8 +199,6 @@ pub(super) fn draw_banner_plates(
     true
 }
 
-/// One banner per figure the player holds, in the layout the count picks —
-/// **ours**, and only where `Misc_bat.PL8` is not: see [`draw_banner_plates`].
 pub(super) fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let picked = live.runner.selected_fighters(live.owner);
     let layout = BannerLayout::for_count(picked.len());

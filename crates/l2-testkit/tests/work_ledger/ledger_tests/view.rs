@@ -5,21 +5,6 @@ use super::*;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
-/// **Every figure is `main`'s, and the ledger's provenance is the ledger's.**
-///
-/// The first version of the view read the inventories out of whatever checkout
-/// the tool sat in while its header said `main 76a0437`: run from an agent's
-/// worktree, it quoted that worktree's differential and census under main's
-/// name, and called a file main had "not on this base". It also stamped the
-/// ledger with the *tool's* HEAD, which is a different file's history.
-///
-/// So this builds a repository whose working tree **disagrees with its `main`
-/// on every inventory** — each figure is changed, and `stored-fields.json` is
-/// deleted — and whose ledger has uncommitted changes and was last committed
-/// one commit *before* HEAD. Every figure in the view must be main's, and the
-/// ledger line must name the ledger's own last commit and its uncommitted
-/// state. A copy of the tool that reads the working tree reports the worktree's
-/// numbers, and a copy that borrows HEAD names the wrong commit; both go red.
 #[test]
 fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_commit() {
     let root = root();
@@ -66,7 +51,6 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
         )
     };
 
-    // --- main, as committed ------------------------------------------------
     copy("tools/pm/work.js");
     copy("tools/figures/figures.js");
     put("docs/arms.json", &arms(&["reproduced", "reproduced", "missing"]));
@@ -105,7 +89,6 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
     git(&["commit", "-q", "-m", "a later commit"]).expect("second commit");
     let head = String::from_utf8_lossy(&git(&["rev-parse", "HEAD"]).unwrap().stdout).trim()[..7].to_string();
 
-    // --- the working tree, disagreeing with main on everything ----------------
     put("docs/arms.json", &arms(&["reproduced", "reproduced", "reproduced", "reproduced"]));
     put("docs/audio.json", &audio(&["reproduced", "reproduced", "reproduced"]));
     std::fs::remove_file(repo.join("docs/stored-fields.json")).unwrap();
@@ -156,7 +139,6 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
     );
 }
 
-/// A ledger with one defect per row, and one row with none.
 const BROKEN: &str = r##"{
   "about": "a ledger broken on purpose, one defect per row",
   "states": {"open": "known", "in-flight": "being worked"},
@@ -222,10 +204,7 @@ fn a_broken_ledger_fails_and_names_every_broken_row() {
     );
 }
 
-// ---- the feature checklist and the player's page ----------------------------
 
-/// A ledger with a row for every section of the player's page, and prose in
-/// every row that must never reach that page.
 const PAGE_LEDGER: &str = r##"{
   "about": "a fixture ledger with a row in every section of the player's page",
   "states": {"in-flight": "a", "queued-merge": "b", "awaiting-user": "c", "open": "d", "deferred": "e", "abandoned": "f"},
@@ -243,8 +222,6 @@ const PAGE_LEDGER: &str = r##"{
 }
 "##;
 
-/// A clean feature list with one feature in each status: two of five graded
-/// features done, one out of scope, and one missing feature no row covers.
 const PAGE_FEATURES: &str = r##"{
   "about": "a fixture feature list",
   "statuses": {"done": "a", "partial": "b", "missing": "c", "not-assessed": "d", "out-of-scope": "e"},
@@ -260,7 +237,6 @@ const PAGE_FEATURES: &str = r##"{
 }
 "##;
 
-/// A feature list with one defect per feature, and one feature with none.
 const BROKEN_FEATURES: &str = r##"{
   "about": "a feature list broken on purpose, one defect per feature",
   "statuses": {"done": "a", "partial": "b", "missing": "c", "not-assessed": "d", "out-of-scope": "e"},
@@ -281,8 +257,6 @@ const BROKEN_FEATURES: &str = r##"{
 }
 "##;
 
-/// The `id` of every row of a file kept one row per line, which both
-/// `docs/work.json` and `docs/features.json` are.
 fn row_ids(text: &str) -> Vec<String> {
     text.lines()
         .filter_map(|l| l.trim_start().strip_prefix("{\"id\": \""))
@@ -362,13 +336,6 @@ fn a_broken_feature_list_fails_and_names_every_broken_feature() {
     );
 }
 
-/// **The player's page shows every feature and every unmerged row exactly
-/// once, a missing feature as missing, computed counts, and none of the prose.**
-///
-/// Built in a scratch repository whose `main` holds the inventories and the
-/// fixture checklist, so the page is generated. Then the real `docs/features.json` and the real ledger are
-/// real `main`. Then the real `docs/features.json` and the real ledger are
-/// drawn through the same tool, and every one of their ids is counted.
 #[test]
 fn the_players_page_shows_every_feature_and_every_open_row_once_and_no_prose() {
     let root = root();

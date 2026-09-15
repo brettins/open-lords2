@@ -10,16 +10,11 @@ use crate::county::{County, MAX_COUNTIES};
 use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 
-/// Why [`combine`] refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CombineRefusal {
-    /// Together they would exceed [`crate::tables::ARMY_MAX_MEN`]. The original
-    /// says nothing at all in this case — no message is raised.
     TooMany,
     /// Both carry a mercenary band. `L2.eng` **167**: *"Cannot combine armies.
-    /// The mercenaries in these armies will not fight together."*
     TwoMercenaryBands,
-    /// One of the slots is empty, or is not an army.
     NotAnArmy,
 }
 
@@ -34,16 +29,6 @@ pub enum CombineRefusal {
 ///
 /// **`[V]` 1500 is exact**, and it is the player's *"maximum army size is about
 /// 1500"*. What the merge takes:
-///
-/// * `men` and the seven troop counts are summed;
-/// * `movesUsed` takes **the higher of the two**
-///   into a spent one is spent;
-/// * the band, if only one side has it, moves across whole;
-/// * the siege links move across
-///
-/// Returns the men in the merged army, or why it refused. The caller destroys
-/// `from`: this function only moves what is on the two records, because
-/// `Army_Destroy` needs the realm array and this does not.
 pub fn combine(units: &mut Units, into: usize, from: usize) -> Result<i32, CombineRefusal> {
     let (a, b) = match (units.get(into), units.get(from)) {
         (Some(a), Some(b)) if a.kind == UnitKind::Army && b.kind == UnitKind::Army => (a, b),
@@ -57,16 +42,6 @@ pub fn combine(units: &mut Units, into: usize, from: usize) -> Result<i32, Combi
     }
     let absorbed = units.remove(from).expect("checked just above");
     let into_unit = units.get_mut(into).expect("checked just above");
-    // **The higher, not the lower.** `docs/armies.md` §2.7 says the merge
-    // "takes the *lower* of the two `movesUsed`", which reads as a refund and
-    // is the opposite of what the code does:
-    //
-    // ```c
-    // if ((char)movesUsed[from] < (char)movesUsed[into]) v = movesUsed[into];
-    // else                                               v = movesUsed[from];
-    // movesUsed[into] = v;
-    // ```
-    //
     // Both arms select the maximum. Merging a fresh army into a spent one
     // leaves the result spent
     // which is a real tactical rule

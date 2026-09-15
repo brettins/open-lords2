@@ -19,17 +19,12 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-/// **A save is refused while a battle is live, and it is refused out loud.**
-///
 /// `Menu_SaveGame` (`0x00433F49`) is reachable from `0x29` and does not test
 /// `g_battlePhase` — the original saves mid-battle, because its `.sav` is a
 /// memory dump. Ours is a versioned format that does not encode
 /// `LiveBattle`, and `crate::save::decode` puts `battle: None` back, so the
 /// file would quietly lose the fight. `docs/arms.json`
 /// `ours/save-refuses-mid-battle`.
-///
-/// The discrimination is the same screen with the battle taken away: it must
-/// save. A refusal that fired on every save would pass the first half alone.
 #[test]
 fn saving_is_refused_while_a_battle_is_live() {
     let Some((assets, _p)) = install() else {
@@ -52,7 +47,6 @@ fn saving_is_refused_while_a_battle_is_live() {
         let ctx = Ctx { game: &mut g, assets: &assets };
         menubar::titles(&ctx)
     };
-    // File > Save: the bar, then row 2 of `g_menuBarItems`' first item table.
     let at = (titles[0].x + titles[0].w / 2, titles[0].y + titles[0].h / 2);
     send(&mut m, &mut g, &assets, Event::Pointer { x: at.0, y: at.1 });
     send(&mut m, &mut g, &assets, Event::Click { x: at.0, y: at.1 });
@@ -95,10 +89,6 @@ fn saving_is_refused_while_a_battle_is_live() {
         "the box closed on a refusal, so the player was told nothing"
     );
 
-    // **And what it says.** Group 40 index 4 is the heading the painter draws;
-    // the detail under it has to name the thing being lost, so a player who
-    // reads it knows the battle is not in the file. The same refusal, reached
-    // on a screen the test holds, because `Machine` hands out no screen.
     {
         let mut screen = l2_game::screens::saveload::SaveLoadScreen::new(
             l2_game::screens::saveload::Mode::Save,
@@ -129,14 +119,6 @@ fn saving_is_refused_while_a_battle_is_live() {
         );
     }
 
-    // **The discrimination**: the same screen and the same keystrokes with no
-    // battle live. A refusal that fired on every save would pass the half above
-    // on its own.
-    //
-// A fresh machine under the open box,
-    // because a battlefield that loses its battle answers `Transition::Pop`,
-    // and a pop from *under* another screen truncates the stack — which is the
-    // original's single `g_screenId` byte and would take the save box with it.
     let mut plain = Machine::new(ScreenId::SaveLoad(l2_game::screens::saveload::Mode::Save));
     g.battle = None;
     typed(&mut plain, &mut g);
@@ -158,14 +140,6 @@ fn saving_is_refused_while_a_battle_is_live() {
 /// untidy, because `FUN_0047A814` puts a spent pot into state **2** and the
 /// state-2 tick is what draws `FUN_0048895E`'s pour frames 42 … 45. A pot that
 /// had poured therefore held its pouring picture for ever.
-///
-/// The pot is killed through the simulation — `men = 0`, which is what
-/// `Melee_Tick` leaves — so the runner's own death arm starts the count.
-///
-/// Ablation: return `false` from `BattleRunner::corpse_gone` — red, *"the pot
-/// is still on the field 120 frames after it died"*. Return
-/// `ENGINE_CORPSE_FRAMES` from `Fighter::corpse_frames`, which is state 15's
-/// count and not the pot's — red at the same line.
 #[test]
 fn a_corpse_is_cleared_away_after_eighty_frames() {
     let Some((assets, platform)) = install() else {
@@ -193,8 +167,6 @@ fn a_corpse_is_cleared_away_after_eighty_frames() {
         (f.x, f.y)
     };
 
-    // `Melee_Tick`'s end of it: the men are gone, and the runner's own death
-    // arm moves the figure into the corpse state on the next step.
     let sim_index = live(&g).runner.fighters[pot].sim;
     g.battle.as_mut().unwrap().runner.sim.figures[sim_index].men = 0;
 
@@ -206,7 +178,6 @@ fn a_corpse_is_cleared_away_after_eighty_frames() {
         let l = live(&g);
         let f = &l.runner.fighters[pot];
         assert_eq!((f.x, f.y), (px, py), "a corpse does not move");
-        // `(polarDirc >> 1) + 0x2A` — the picture state 2 draws a pot with.
         let index = 0x2A + (f.polar % 8) as usize / 2;
         let sprite = engine.frame(index).expect("the pour frame decodes");
         let (cx, cy) = (f.x as i32 - l.cam.0, f.y as i32 - l.cam.1);
@@ -227,8 +198,6 @@ fn a_corpse_is_cleared_away_after_eighty_frames() {
 
     assert!(pour_seen, "the dead pot never showed its collapse picture at all");
     let gone = first_gone.expect("the pot is still on the field 120 frames after it died");
-    // The count starts on the tick the death arm sees, one frame after the men
-    // were zeroed, and the picture goes with the frame that reaches the bound.
     assert!(
         (l2_sim::runner::CORPSE_FRAMES as usize..=l2_sim::runner::CORPSE_FRAMES as usize + 3)
             .contains(&gone),
@@ -246,19 +215,11 @@ fn a_corpse_is_cleared_away_after_eighty_frames() {
 /// reader of the flag, beside `CastleBuild_Confirm` (`0x00436B59`),
 /// `Msg_DrawWindow` (`0x0047309E`) and `Battle_CheckOutcome` (`0x00477DFC`),
 /// and the only one whose answer is pixels.
-///
-/// The probe is the band between the two windows' tops, y 48 … 144, which the
-/// short window never reaches. Compared against the same frame with no banner
-/// at all, so a band the field paints by itself cannot pass either half.
-///
-/// Ablation: drop `ctx.game.prefs.animations` from `animated` — red, *"the
-/// short window painted the tall window's band"*.
 #[test]
 fn the_outcome_box_is_the_tall_one_only_when_animations_are_on() {
     let Some((assets, _p)) = install() else {
         l2_testkit::skip!("no game install, so no window art");
     };
-    // y 0x30 … 0x90: the tall window's own height, above the short one's top.
     let band = |c: &Canvas| {
         let mut v = Vec::new();
         for y in 0x30..0x90usize {

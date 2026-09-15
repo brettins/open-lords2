@@ -6,16 +6,12 @@ use l2_net::Fixed;
 
 #[test]
 fn multiplication_truncates_toward_zero() {
-    // 1/3 * 3 loses the last bit
     let third = Fixed::from_ratio(1, 3);
     assert_eq!(third.raw(), 21_845);
     assert_eq!((third * f(3)).raw(), 65_535);
     assert_eq!(((-third) * f(3)).raw(), -65_535);
 }
 
-/// The property the whole rounding choice is about. An asymmetric rule
-/// makes a unit walking left lose a different amount per tick from one
-/// walking right.
 #[test]
 fn multiplication_and_division_are_symmetric_about_zero() {
     let mut rng = l2_net::Pcg32::from_seed(0x5eed);
@@ -34,8 +30,6 @@ fn multiplication_and_division_are_symmetric_about_zero() {
 
 #[test]
 fn mul_round_goes_to_nearest_halves_away_from_zero() {
-    // 1.5 * 1.0 has no rounding; pick values whose product lands
-    // exactly on a half-step.
     let three_halves = Fixed::from_raw(98_304); // 1.5
     let one_third = Fixed::from_ratio(1, 3);
     assert_eq!(three_halves.mul_round(one_third).raw(), 32_768);
@@ -46,14 +40,11 @@ fn mul_round_goes_to_nearest_halves_away_from_zero() {
 
 #[test]
 fn div_round_goes_to_nearest_halves_away_from_zero() {
-    // 1 / 3 = 0.333…; the exact value is 21845.333 raw units.
     assert_eq!(Fixed::ONE.div_trunc(f(3)).raw(), 21_845);
     assert_eq!(Fixed::ONE.div_round(f(3)).raw(), 21_845);
-    // 1 / 6 = 10922.666 raw units, which rounds up.
     assert_eq!(Fixed::ONE.div_trunc(f(6)).raw(), 10_922);
     assert_eq!(Fixed::ONE.div_round(f(6)).raw(), 10_923);
     assert_eq!((-Fixed::ONE).div_round(f(6)).raw(), -10_923);
-    // Exactly a half: 1 / 131072 in raw units is 0.5.
     let half_step = Fixed::from_raw(3);
     assert_eq!(half_step.div_round(f(2)).raw(), 2);
     assert_eq!(half_step.div_trunc(f(2)).raw(), 1);
@@ -71,7 +62,6 @@ fn checked_division_by_zero_is_none() {
     assert_eq!(f(1).checked_div(Fixed::ZERO), None);
 }
 
-// --- overflow ---------------------------------------------------------
 
 #[test]
 fn addition_saturates_at_both_ends() {
@@ -87,8 +77,6 @@ fn multiplication_saturates() {
     assert_eq!(Fixed::MAX * f(-2), Fixed::MIN);
     assert_eq!(Fixed::MIN * f(2), Fixed::MIN);
     assert_eq!(Fixed::MIN * f(-2), Fixed::MAX);
-    // The single largest intermediate: MIN * MIN in i64 is 2^62, which
-    // must not overflow before the shift.
     assert_eq!(Fixed::MIN * Fixed::MIN, Fixed::MAX);
 }
 
@@ -101,8 +89,6 @@ fn division_saturates() {
 
 #[test]
 fn negation_of_the_minimum_saturates_rather_than_wrapping() {
-    // The asymmetry of two's complement: -MIN is not representable.
-    // Wrapping would give MIN back, which is the classic sign bug.
     assert_eq!(-Fixed::MIN, Fixed::MAX);
     assert_eq!(Fixed::MIN.abs(), Fixed::MAX);
     assert_eq!(Fixed::MIN.checked_neg(), None);
@@ -119,9 +105,6 @@ fn checked_operations_report_what_saturating_ones_hide() {
     assert_eq!(f(6).checked_div(f(3)), Some(f(2)));
 }
 
-/// Saturation must be identical whatever the build profile, because
-/// two peers on different profiles must agree. Rust's own `+` would
-/// panic here in debug and wrap in release; this asserts we do neither.
 #[test]
 fn overflow_behaves_the_same_in_debug_and_release() {
     let sum = Fixed::MAX + Fixed::ONE;
@@ -131,13 +114,9 @@ fn overflow_behaves_the_same_in_debug_and_release() {
 
 #[test]
 fn mul_ratio_does_not_saturate_in_the_middle() {
-    // MAX * 3 / 4 overflows if the multiply is done first in 32 bits,
-    // and saturates to MAX if the operations are done separately.
     let expected = Fixed::from_raw((i32::MAX as i64 * 3 / 4) as i32);
     assert_eq!(Fixed::MAX.mul_ratio(3, 4), expected);
     assert_ne!(Fixed::MAX.mul_ratio(3, 4), Fixed::MAX);
-    // Done as two operations, the multiply saturates first and the
-    // three-quarters is taken of the wrong number.
     assert_eq!((Fixed::MAX * f(3)) / f(4), Fixed::from_raw(i32::MAX / 4));
 }
 

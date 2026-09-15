@@ -6,14 +6,6 @@ use crate::fixed::Fixed;
 use crate::hash::XxHash64;
 
 impl Encode for crate::rng::Pcg32 {
-    /// Sixteen bytes: state then increment.
-    ///
-    /// The generator belongs *in* the simulation state (D-3) and is
-    /// therefore part of the checksum. That is deliberate and it is
-    /// what makes §6's advice about the PRNG section work: a peer that
-    /// has drawn a different number of random values shows a divergence
-    /// in this field on the very next tick, before the consequence has
-    /// had time to spread through the rest of the state.
     fn encode(&self, out: &mut Canonical) {
         let (state, increment) = self.parts();
         out.u64(state);

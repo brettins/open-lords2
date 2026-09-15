@@ -22,11 +22,6 @@ use crate::unit::{ArmyNames, UnitKind, Units};
 /// if (garrison) FUN_00437535(garrison, county);
 /// ```
 ///
-/// **Switching all four industries off is the mechanism, not a flourish.** It
-/// is what turns the county's four industry ceilings to zero,
-/// re-allocation on the next line is what moves those people into *Idle
-/// townsfolk*.
-///
 /// County `+0x07`, the owner's shield byte, is presentation and [`County`] has
 /// no such field; the garrison hand-off is `FUN_00437535`, which lives in the
 /// unit layer and is left to the caller.
@@ -52,9 +47,6 @@ pub fn make_independent(
     }
     crate::labour::allocate(&mut counties[id]);
     crate::ration::apply(t, &mut counties[id], r.armies_eat, r.sowing);
-    // `County_RefreshEstimates(county, g_seasonNext)` with the owner it now
-    // has, which is nobody: realm 0 owns no blacksmith, so the share is what a
-    // neutral county's share is.
     let share = crate::industry::weapon_shares(t, counties, r.county_count, 0);
     let neutral = Realm::new();
     let realm = realms.first().unwrap_or(&neutral);
@@ -97,24 +89,11 @@ fn hand_off(
 /// `County_ChangeOwner` (`FUN_004A72FE`, `0x004A72FE`) — the county changes
 /// hands.
 ///
-/// ```c
-/// realm[new].countyCount++;
-/// ...messages, one of nine, by how many counties the taker now holds...
-/// county.owner  = new;
-/// penalty = realm[new].isHuman ? difficulty * 20 + 10 : 30;
-/// if (county.happiness < penalty) { shownEvents -= happiness; happiness = 0; }
-/// else                            { happiness -= penalty; shownEvents -= penalty; }
-/// county.shield = realm[new].shield;
-/// realm[new].peakCounties = max(peakCounties, countyCount);
-/// ```
-///
 /// Two things worth naming. **The conquest penalty is drawn on the *"From
 /// events"* line** (`+0x17`, `L2.eng` group 85 index 9), not on the army line —
 /// so a county the player has just taken shows its resentment where a plague or
 /// a fire would show. And the same clamp shape as the levy: the panel is
 /// debited what was taken.
-///
-/// # The letter, and why it is reported
 ///
 /// Between the recount and the owner write the original posts one of thirteen
 /// letters, and **which one depends on `g_localPlayer`** — the taker is told
@@ -147,8 +126,6 @@ fn hand_off(
 /// }
 /// ```
 ///
-/// # The `else` branch — a county too far to govern
-///
 /// **A county that borders none of the taker's lands, taken by a realm that
 /// already holds one, is not given to the taker at all**: the taker is posted
 /// 129 and the county is made independent. `[V]`,
@@ -157,13 +134,8 @@ fn hand_off(
 /// does not write the shield and does not raise the peak. The one thing it does
 /// is [`make_independent`], so this function needs a [`Restore`].
 ///
-/// [`Capture::governable`] carries the test out to the letter layer, which
-/// picks 129 for the taker and nothing for anyone else.
 /// `docs/decisions.md` C197.
 ///
-/// Returns what the letter is chosen from, the penalty included.
-///
-/// **Its first statement is the fog of war's**:
 /// `if (newOwner == g_localPlayer) FUN_0046DFD5(county);` — the county taken is
 /// seen, with a one-tile border, by the realm that took it. Before any of the
 /// bookkeeping and whatever the option says; `crate::explore` has the table of
@@ -183,9 +155,6 @@ pub fn change_owner(
 ) -> Capture {
     explored.reveal_county(new_owner, map, county);
     let is_human = realms.get(new_owner as usize).is_some_and(|r| r.is_human);
-    // `Realm_UpdateTotals(newOwner)`, the function's second statement: the
-    // taker's holding as the map stands **before** this county is written.
-    // Records above `g_countyCount` are zero, so owner 0, so never counted.
     let held_before = counties
         .iter()
         .skip(1)
@@ -207,10 +176,6 @@ pub fn change_owner(
     let Some(c) = counties.get_mut(county as usize) else { return capture };
     capture.old_owner = c.owner;
 
-    // `else { if (newOwner == g_localPlayer) Msg(0x81); County_MakeIndependent(county); }`
-    // — the whole of the branch. Nothing below this line runs for it: no
-    // count, no penalty, no shield, no peak. The letter is the caller's, from
-    // [`Capture::governable`].
     if !governable {
         let garrison = c.garrison_unit;
         make_independent(t, counties, realms, county, map, restore);
@@ -260,11 +225,6 @@ pub fn change_owner(
         capture.garrison = Some(hand_off(map, counties, realms, units, garrison, county));
     }
 
-    // `if (peak < countyCount) peak = countyCount` — the function's last
-    // statement, inside the governable branch, with `countyCount` the recount
-    // plus one. **Plus one, not the true count**: a second call on a county the
-    // taker already holds counts it twice, and `Battle_ReturnToCampaign` makes
-    // that second call when a beaten garrison also carried a defence mark.
     if governable {
         if let Some(r) = realms.get_mut(new_owner as usize) {
             let after = capture.held_after();
@@ -296,7 +256,4 @@ pub fn recount_realm_counties(counties: &[County; MAX_COUNTIES], realms: &mut [R
     }
 }
 
-// ---------------------------------------------------------------------------
-// Reaching the castle building
-// ---------------------------------------------------------------------------
 

@@ -8,17 +8,12 @@
 //! and *"Start with a simple castle design, then upgrade as your materials and
 //! builders increase."* — the only two occurrences of `design` in `L2.eng`, and
 //! `Lords2.exe` holds none at all.
-//! choice is one integer 0..4, and `docs/plan.md` §8 has the rest of the case.
 //!
 //! It was one of the shells in [`crate::screens::shells`]: it drew a window and
 //! did nothing. It is **the only place a player can order a castle**, and a
 //! county with no castle cannot be besieged, so without it half the campaign
 //! layer had no way in — `docs/decisions.md` C27's shape
 //! [`l2_kingdom::County::castle_degraded`] had no reachable writer.
-//!
-//! # The five buttons and the OK, from the widget tables
-//!
-//! Two tables, and neither had been decoded:
 //!
 //! ```text
 //! g_castleTypeWidgets  0x004DC818  five kind-1 rectangles -> CastleBuild_Select
@@ -34,13 +29,6 @@
 //! to 618 with no gap. So *"five buttons and an OK"* is literally a row of five
 //! castles you point at. The selection is `DAT_0056D898`, a plain 0…4 that
 //! [`crate::screens::map`]'s sidebar seeds from the county's own castle.
-//!
-//! # The painter, address by address
-//!
-//! Two functions, and **20 of the 22 draws are in the second one**, which
-//! `Screen_Draw` never calls: `Screen_DrawWidgets`' `0x1B` arm runs
-//! `Screen_CastleBuildPanel(); Widget_Draw(0, 0, &g_castleBuildWidgets, 2)`
-//! every frame. An enumeration that read the painter would report two.
 //!
 //! ```text
 //! Screen_CastleBuild(firstFrame):                              0x00419789
@@ -78,11 +66,6 @@
 //!   Eng_DrawString(71, 0xC, pen + 0xE, 0xE2)  "troops."
 //! ```
 //!
-//! **`71/6` *"of stone needed,"* and `71/7` *"of wood needed."* are not on this
-//! screen.** `docs/screens-county.md` §11.2 attaches them to the two
-//! `Ui_DrawNumber` lines; the panel draws `cas_bits.pl8` frames `0x0A` and
-//! `0x0B` there instead — the captions are **artwork**, at x 520 with the
-//! number at x 560 after them. The two strings are alive elsewhere:
 //! `Castle_DrawStatusBlock` (`0x0041DEDB`), the map-information panel's castle
 //! block, is their only consumer. [`STONE_NEEDED`] and [`WOOD_NEEDED`] name
 //! them here so the next reader does not go looking on this screen.
@@ -93,13 +76,6 @@
 //! and 0x13 — and neither 0 nor 0xA *"Build this castle"*. Index 0 of a group
 //! is the group's own label (`docs/formats/eng.md` §5) and this heading is
 //! painted into `cas_back.pl8`; 0xA is very likely a tooltip and is **[I]**.
-//! Our shell drew index 0 as a caption of our own, which was an invention twice
-//! over — the words and the font.
-//!
-//! **The stone and the wood are net of the castle already standing** — the panel
-//! subtracts `g_castleMaterial[existing type]` before printing, which is the
-//! same difference [`l2_kingdom::industry::order_castle`] charges, and it can
-//! come out negative. It is printed as it comes.
 //!
 //! # `caspics.pl8` has four pictures for five castles  **[V]**
 //!
@@ -110,17 +86,6 @@
 //! `4 x 320 x 200` exactly — four rasters for four used slots, so the table and
 //! the file close on each other and the gap is the original's, not a misread.
 //!
-//! # The five strips are hit rectangles over painted artwork
-//!
-//! `g_castleTypeWidgets` is tested with `Hotspot_Test`, never drawn: nothing in
-//! either function paints the row of five castles at y 270…415. They are in
-//! `cas_back.pl8`. What the panel *does* draw over them is one `cas_bits.pl8`
-//! frame per selection — [`SELECTED_MARK`], frames 5…9 at five different
-//! positions — and, when a castle already stands, frame `0x0C` at
-//! [`STANDING_MARK_X`]`[type] - 10`.
-//!
-//! # The OK button's two refusals, and the one it does not have
-//!
 //! `CastleBuild_Confirm` (`0x00436B59`) has exactly two guards, both of which
 //! close the screen with a message:
 //!
@@ -130,9 +95,6 @@
 //! * the type picked is **smaller** — message `0x122`, `L2.eng` **290**: *"Your
 //!   current castle is stronger than the one you propose to upgrade to, my
 //!   lord."*
-//!
-//! You may order a royal castle with an empty
-//! store; see [`l2_kingdom::industry::order_castle`] for what that buys you.
 
 mod constants;
 pub use constants::*;
@@ -156,25 +118,14 @@ use crate::shell::{self, font, Pen};
 
 /// `L2.eng` group 71 — the literal first argument of all six `Eng_DrawString`
 /// sites in `Screen_CastleBuildPanel` and of its one `FUN_0040328E`.
-///
-/// **Verified against the words, not against the indices existing.** Group 71
-/// reads 0 *"Select a castle to build"*, 1…5 the five castle names in the order
-/// [`l2_kingdom::tables::CASTLE_COST`] costs them, 6 *"of stone needed,"*,
-/// 7 *"of wood needed."*, 8 *"will take"*, 9 *"to build."*, 0xB *"Barracks
-/// for"*, 0xC *"troops."*, 0xF *"Start construction?"*, 0x10 *"Boosts tax
-/// revenues by"*. Every one of those is a fragment of a sentence this panel
-/// assembles, which is the check `docs/draws.md` §6 says existence is not.
 pub const GROUP: usize = 71;
 
-/// **Not drawn by this screen, and by nothing else in the binary.** The heading
-/// is painted into `cas_back.pl8`; index 0 is the group's own label.
 pub const TITLE: usize = 0;
 /// 1…5, `FUN_0040328E(71, sel + 1, …)`.
 pub const NAME_BASE: usize = 1;
 /// **Not drawn here.** `Castle_DrawStatusBlock` (`0x0041DEDB`) draws it; this
 /// panel puts `cas_bits.pl8` frame [`STONE_CAPTION`] in its place.
 pub const STONE_NEEDED: usize = 6;
-/// **Not drawn here** — see [`STONE_NEEDED`]; the artwork is [`WOOD_CAPTION`].
 pub const WOOD_NEEDED: usize = 7;
 pub const WILL_TAKE: usize = 8;
 pub const TO_BUILD: usize = 9;
@@ -191,7 +142,4 @@ pub const BUILDER_NOUN: usize = 0x26;
 /// season regardless of type, which is a rule stated only by this draw call.
 pub const SEASON_NOUN: usize = 0x42;
 
-// ---------------------------------------------------------------------------
-// the three sheets
-// ---------------------------------------------------------------------------
 

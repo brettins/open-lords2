@@ -12,11 +12,6 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::Game;
 use l2_kingdom::victory::Outcome;
 
-/// **The scroll appears on the campaign map and the corner button closes it.**
-///
-/// `Msg_Pump` pulls, `Msg_DrawWindow` lays the window out, `Ui_OkButton` puts
-/// its picture in the bottom-right corner, and `Msg_HandleInput` hit-tests a
-/// 48 × 48 box round it.
 #[test]
 fn a_message_appears_on_the_map_and_the_corner_button_closes_it() {
     let (mut g, a, mut m) = world();
@@ -37,8 +32,6 @@ fn a_message_appears_on_the_map_and_the_corner_button_closes_it() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the map is back");
 }
 
-/// The **right** button closes it too, from anywhere — the arm the original
-/// tests before it tests anything else.
 #[test]
 fn the_right_button_closes_it_from_anywhere() {
     let (mut g, a, mut m) = world();
@@ -50,8 +43,6 @@ fn the_right_button_closes_it_from_anywhere() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
 }
 
-/// **A left click on the map closes a notice and the map does nothing else.**
-/// `Map_Click`'s whole body is inside `if (g_messageGroup == 0)`.
 #[test]
 fn a_left_click_on_the_map_closes_a_notice_and_selects_nothing() {
     let (mut g, a, mut m) = world();
@@ -60,14 +51,11 @@ fn a_left_click_on_the_map_closes_a_notice_and_selects_nothing() {
     post(&mut g, notice(0x92));
     open_the_scroll(&mut m, &mut g, &a);
 
-    // The middle of the viewport: somewhere the map would ordinarily act on.
     send(&mut m, &mut g, &a, Event::Click { x: 200, y: 200 });
     assert!(!g.messages.is_open(), "the click closed the scroll");
     assert_eq!(g.selected, 0, "and the map did not act on it");
 }
 
-/// …and **a question survives that click**, which is the half that keeps a
-/// stray click from answering a lord.
 #[test]
 fn a_left_click_on_the_map_leaves_a_question_standing() {
     let (mut g, a, mut m) = world();
@@ -82,9 +70,6 @@ fn a_left_click_on_the_map_leaves_a_question_standing() {
     assert_eq!(m.top_id(), Some(ScreenId::Message));
 }
 
-/// **The message never times out in single player.** `Msg_Pump` clamps the
-/// timer to 1, so the scroll waits — two thousand ticks
-/// is more than the whole timer and it is still up.
 #[test]
 fn in_single_player_the_scroll_waits_for_ever() {
     let (mut g, a, mut m) = world();
@@ -98,9 +83,6 @@ fn in_single_player_the_scroll_waits_for_ever() {
     assert_eq!(m.top_id(), Some(ScreenId::Message));
 }
 
-/// **…and in a network game it goes on its own after 399 ticks**, which is the
-/// same code with `g_multiplayer` set. Without this the timeout branch is a rule
-/// with no way in.
 #[test]
 fn in_a_network_game_the_scroll_closes_itself() {
     let (mut g, a, mut m) = world();
@@ -113,16 +95,10 @@ fn in_a_network_game_the_scroll_closes_itself() {
         tick(&mut m, &mut g, &a);
         ticks += 1;
     }
-    // Pinned: 2000 - 0x641 = 399 decrements leave the timer at 0x641, and the
-    // 400th puts it below. Written out
-    // constants the code under test reads.
     assert_eq!(ticks, 400, "2000 down past 0x641, and it is gone");
     assert!(!g.messages.is_open());
 }
 
-/// **Opening another screen throws the message away.** `Msg_Pump`'s else
-/// branch,
-/// part of the interface.
 #[test]
 fn walking_into_another_screen_loses_the_message() {
     let (mut g, a, mut m) = world();
@@ -130,18 +106,13 @@ fn walking_into_another_screen_loses_the_message() {
     open_the_scroll(&mut m, &mut g, &a);
     assert!(g.messages.is_open());
 
-    // Pushed from outside,
-    // screen the interface can only reach through three clicks.
     m.push(ScreenId::Village(3));
     tick(&mut m, &mut g, &a);
     assert!(!g.messages.is_open(), "the village dismissed it unread");
 }
 
-// -------------------------------------------------------- 2. answer a lord
 
 
-/// **A letter clicked away on the map is a `Msg_Dismiss` like any other.**
-///
 /// `Map_Click` (`0x0043CE1A`) with a message up is
 /// `Msg_DismissUnlessQuestion` (`0x00476710`), and that calls **`Msg_Dismiss`**
 /// (`0x00476768`) — not the two lines that clear the window. So the click
@@ -162,22 +133,14 @@ fn the_win_letter_clicked_away_on_the_map_still_ends_the_game() {
         g.recount_realm(realm);
     }
 
-    // Away from the 48 × 48 corner box at (400, 336), so `Msg_HandleInput`
-    // passes the click down to the map.
     let mut seen: Vec<u16> = Vec::new();
     for _ in 0..24 {
-        // A map click leaves the window's screen on the stack to pop itself,
-        // where the corner button's `Transition::Pop` takes it off at once.
         let Some(group) = g.messages.open().map(|r| r.group) else {
             tick(&mut m, &mut g, &a);
             continue;
         };
         seen.push(group);
         send(&mut m, &mut g, &a, Event::Click { x: 8, y: 470 });
-        // The original leaves for `0x1C` on this dismissal and stops taking map
-        // clicks; ours returns `Transition::Stay` from `Map_Click`'s arm, so the
-        // ring goes on serving and every further dismissal would step the
-        // campaign again. Left alone: the screen change is the caller's.
         if g.outcome().is_over() {
             break;
         }

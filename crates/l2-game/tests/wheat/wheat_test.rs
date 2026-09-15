@@ -15,8 +15,6 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::{campaign, Canvas};
 
-/// **A sown field draws the original's wheat frame after every End Turn of a
-/// year, at both zooms, on a lit tile.**
 #[test]
 fn a_sown_field_draws_the_originals_wheat_frame_in_every_season_of_a_year() {
     let (mut game, assets) = world!();
@@ -34,14 +32,6 @@ fn a_sown_field_draws_the_originals_wheat_frame_in_every_season_of_a_year() {
         .map(|(tile, _)| tile)
         .collect();
     assert!(!fallow.is_empty(), "the player's county has fallow to sow");
-    // **Seed in the granary — the one number this file places.** The England
-    // turn-one county's store is empty (printed below): sown as it stands, the
-    // crop is zero all year and the original draws variant 0 in every season
-    // too, so a picture.
-    // A player who sows buys the seed first — and **before** painting, because
-    // the brush's own `Labour_Allocate` / `County_RefreshEstimates` round is
-    // what puts farmers on the fields, and it sizes the grain ceiling from the
-    // store. Seeded after the brush, the fields get nobody and sow nothing.
     // Everything the picture reads — the crop words, `+0x206`, the terrain
     // byte — is still written by the brush and the four End Turns below.
     let store = game.kingdom.counties[county as usize].grain;
@@ -63,10 +53,6 @@ fn a_sown_field_draws_the_originals_wheat_frame_in_every_season_of_a_year() {
         })
         .expect("a grain tile");
 
-    // Our own markers over the selected county's fields are not the original's
-    // (`map.rs`, "Ours: the player's own county's fields, marked") and at the far
-    // zoom one covers the whole tile. Look at the map with another county
-    // selected, so the tile carries only what the original draws.
     let elsewhere = game.kingdom.county_ids().find(|&id| !game.is_players(id as u8)).expect("a county not the player's");
 
     let mut machine = Machine::new(ScreenId::Campaign);

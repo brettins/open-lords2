@@ -16,14 +16,6 @@ use l2_kingdom::units_tick::Contact;
 use l2_kingdom::merchant::MerchantRoutes;
 use l2_kingdom::unit::{Unit, UnitKind};
 
-/// **The one the whole item is about.** An army is ordered to move *through the
-/// game*, the player ends the turn, and the army is somewhere else afterwards.
-///
-/// Nothing here reaches into `l2-kingdom`'s mover: the order goes through
-/// [`Game::order_unit_move`], and the walking
-/// is done by the turn machine. Before this work `end_turn` answered every unit
-/// wait `true`, and the army would have finished the turn exactly where it
-/// started.
 #[test]
 fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
     let mut g = with_a_map();
@@ -40,8 +32,6 @@ fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
     // *nothing in the seven phases waits on the human's armies* — phase 2 is
     // sieges, phase 4 is the AI's. So how far it gets is how long the phases
     // happen to take, and the claim this test exists for is the one above it:
-    // the turn machine ticks the unit sweep at all. It used to answer every
-    // unit wait `true` and the army finished the turn where it started.
     //
     // `mid.0 < 20` is the pacing assertion and it is the one to ablate: make
     // `cross_sub_tile` return `true` unconditionally and the army arrives
@@ -60,19 +50,14 @@ fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
     // across it**. `[V]`, and it is the reason the fixture below is the shape
     // it is: a player watches his army walk during his own turn (phase 4 has
     // no clock but the turn timer) and presses End Turn after it has arrived.
-    // A test that presses End Turn in the same breath as the order is not a
-    // shortcut, it is a different scenario.
     assert!(!g.kingdom.campaign.units.get(id).unwrap().moving, "phase 7 stopped it");
 
-    // Ordered again and given the frames a player gives it, it arrives.
     g.order_unit_move(id, (20, 10)).expect("still on the road");
     march(&mut g);
     let to = g.kingdom.campaign.units.get(id).unwrap().tile();
     assert_eq!(to, (20, 10), "and it arrived");
 }
 
-/// A unit the player does not own takes no orders, and the refusal changes
-/// nothing.
 #[test]
 fn another_realms_army_refuses_the_players_orders() {
     let mut g = with_a_map();

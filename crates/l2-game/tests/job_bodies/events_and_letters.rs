@@ -19,7 +19,6 @@ use l2_kingdom::tables::{
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// Run the machine until the message scroll is up.
 fn open_the_scroll(m: &mut Machine, game: &mut Game, assets: &Assets) {
     for _ in 0..8 {
         let mut ctx = Ctx { game: &mut *game, assets };
@@ -49,34 +48,17 @@ fn letter(game: &mut Game, assets: &Assets, county: usize) -> Canvas {
     canvas
 }
 
-/// **An event's toll is a number and a word, on the popup and in the letter.**
-///
 /// *Rats* on a county with grain and *Mad cows* on one with a herd, each fired
 /// by `l2_kingdom::event::fire` and turned into a figure by the season's own
 /// tick — `Grain_SeasonTick` writes `+0x278` and `Herd_SeasonTick` `+0x274` —
 /// so no figure here is typed. Then, for each:
-///
-/// * the job popup's `0xB0` row: `Ui_DrawCount(figure, noun, 0x40, 0xB0)` and
-///   77/0x19 *"eaten by rats."* or 77/0x14 *"died of disease."*;
-/// * the letter, `Msg_DrawWindow`'s category `0x0F` arm in a window at
-///   `(0x20, 0xA0)`: the group's label centred in `(0x30, 0x180)` on `0xC0`, and
-///   the same count and word at `(0x40, 0x130)`.
-///
-/// Ablations, run: `draw_event`'s `pen.eng(…word…)` deleted → *"eaten by
-/// rats."* not at `(0x94, 0x130)`; the popup's `0x87` word deleted → the same
-/// not at `(0x94, 0xB0)`; `Shape::Event => draw_event` removed, so
-/// `draw_notice` draws the letter → *"Rats!!"* not at `(0xC7, 0xC0)`, because
-/// the notice puts the county's name there.
 #[test]
 fn a_random_event_s_toll_is_drawn_on_the_popup_and_in_its_letter() {
     let (mut game, assets) = england_world!();
     let quirks = game.kingdom.options.quirks;
 
-    // Rats. The player's own county: the letter is posted only when
-    // `county.owner == g_localPlayer`
     let me = game.player;
     let rats = county_where(&game.kingdom, "the player's", |c| c.owner == me);
-    // Stocking the barn is setup; the figure below is still the rule's.
     game.kingdom.counties[rats].grain = 1_000;
     {
         let t = game.kingdom.tables;
@@ -100,7 +82,6 @@ fn a_random_event_s_toll_is_drawn_on_the_popup_and_in_its_letter() {
     let at = count_at(&canvas, &assets, c.grain_event_change, 2, 0x40, 0x130);
     word_at(&canvas, &assets, 77, 0x19, at, 0x130);
 
-    // Mad cows, on a fresh position so the first letter is not still up.
     let (mut game, assets) = england_world!();
     let me = game.player;
     let cows = county_where(&game.kingdom, "the player's and grazing 40 head", |c| {
@@ -126,9 +107,6 @@ fn a_random_event_s_toll_is_drawn_on_the_popup_and_in_its_letter() {
     word_at(&canvas, &assets, 77, 0x14, at, 0x130);
 }
 
-/// **Wedding fever's number line, which used to be the one the painter left
-/// blank.**
-///
 /// `siege-aftersie.sav` holds a county whose stored event is `0x8E` and whose
 /// `eventFired` is still set, because nobody ever selected it —
 /// `Event_RollAll` does not clear the latch and `FUN_00448D7E` is the only thing
@@ -139,11 +117,6 @@ fn a_random_event_s_toll_is_drawn_on_the_popup_and_in_its_letter() {
 /// *"extra births."* after it. `+0x2F8` is `County::event_population_swing`,
 /// imported (`docs/stored-fields.json`, `County+0x2F8`), so the figure is the
 /// save's own.
-///
-/// Ablations, run: the `0x8E` arm's `Line::Number` deleted → *"extra births."*
-/// not on row `0x130`; `Shape::Event => draw_event` removed → *"Wedding
-/// fever."* not at `(0x93, 0xC0)`, because `draw_notice` puts the county's name
-/// there.
 #[test]
 fn the_two_population_events_draw_the_swing_the_season_computed() {
     for (kind, id, word, season) in [
@@ -157,7 +130,6 @@ fn the_two_population_events_draw_the_swing_the_season_computed() {
         {
             let t = game.kingdom.tables;
             let c = &mut game.kingdom.counties[county];
-            // Both guards want 100 people, and Wedding fever wants happiness 30.
             c.population = c.population.max(600);
             c.happiness = c.happiness.max(40);
             let mut purse = RealmPurse::default();
@@ -177,16 +149,11 @@ fn the_two_population_events_draw_the_swing_the_season_computed() {
         // `DAT_004D7054`, both `" "`) carries the pen to the word.
         let f = body(&assets);
         expect_at(&canvas, f, &swing.to_string(), INK, 0x40 + 4, 0x130);
-        // One `Ui_DrawText` over lead + digits + suffix, so one trailer.
         let x = 0x40 + advance(f, &format!("@{swing} "));
         word_at(&canvas, &assets, 77, word, x, 0x130);
     }
 }
 
-/// **The stale letter the original's own player never read.**
-///
-/// `siege-aftersie.sav` holds a county whose stored `eventId` is `0x8E` and
-/// whose `eventFired` is *still set*, several seasons after the Wedding fever:
 /// `Event_RollAll` does not clear the latch and `FUN_00448D7E` is the only thing
 /// that does, so the letter waited for a click that never came.
 ///
@@ -216,5 +183,4 @@ fn a_letter_left_waiting_for_seasons_prints_a_figure_its_season_has_zeroed() {
     word_at(&canvas, &assets, 77, 0x1E, 0x40 + advance(f, "@0 "), 0x130);
 }
 
-// ---------------------------------------------------------------- industry
 

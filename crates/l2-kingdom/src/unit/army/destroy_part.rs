@@ -13,25 +13,14 @@ use crate::tables::Tables;
 /// `Army_Destroy` (`0x004AA039`) — free the slot and put the realm back in
 /// order.
 ///
-/// Three things happen besides the slot being cleared
-/// naive `remove` would leave the kingdom wrong:
-///
 /// 1. the garrison or siege link is broken, in whichever direction it points;
 /// 2. the realm's name counter at `+0x2D + nameIndex` is **decremented by
 ///    one**;
 /// 3. the realm's wage bill is recomputed from what is left.
 ///
-/// > **`docs/armies.md` §6.3 says `Army_Destroy` *"reverses the name
-/// > counter"*. It does not.** `Army_PickName` adds **2** and this subtracts
-/// > **1**, so every army a realm has ever raised leaves a permanent +1 on its
-/// > name's counter. The effect is real and visible: names are not recycled
-/// > evenly forever — a name that has been used and lost is still slightly
-/// > less likely to come up again than one that has never been used.
 /// > Corrected in the document. `[D]`
 pub fn destroy(t: &Tables, units: &mut Units, realms: &mut [Realm; MAX_REALMS], names: &mut ArmyNames, id: usize, difficulty: u8) -> Option<Unit> {
     let unit = units.get(id)?.clone();
-    // Break the links in whichever direction they point. A garrison names its
-    // county; a besieger names the county whose garrison points back at it.
     if unit.garrison_county == 0 {
         if unit.besieging_county != 0 {
             for (_, other) in units.iter_mut() {

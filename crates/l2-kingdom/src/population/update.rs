@@ -7,10 +7,6 @@ use crate::math::pct;
 use crate::tables::{Season, Tables};
 use l2_net::{Quirk, Quirks};
 
-/// One county's population pass.
-///
-/// `season` is `g_season` — the season now *beginning*, which is what makes
-/// `g_deathRateBySeason[4] = 8` the Winter figure.
 pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirks) {
     county.pop_last = county.population;
 
@@ -46,6 +42,7 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
 
     // The random-event swing — `Population_UpdateAll` (`0x00449EF3`), the
     // eighteen lines after the `+1` above. Only two handlers write `+0x1FB`:
+    //
     // *Plague* (`FUN_00448F6F`, −20 … −40) and *Wedding fever* (`FUN_004491F0`,
     // +30 … +60). `[V]` — every write to the byte in the binary is one of those
     // eight or one of the two clears.
@@ -54,7 +51,6 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     // read `Pct(population, pct)` until C169, which made a Winter
     // plague on 1,000 people in health band 2 at happiness 50 kill 200 extra
     //
-    //
     // ```c
     // county.+0x2F8 = 0;
     // if (pct < 0)      county.+0x2F8 = Pct(deaths, -pct) + 10;
@@ -62,9 +58,6 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     // if (cap < county.+0x2F8) county.+0x2F8 = cap;
     // if (pct < 0) deaths += county.+0x2F8; else if (pct > 0) births += county.+0x2F8;
     // ```
-    //
-    // The base is the natural figure **after** the `+1`/`+2` adjustments, and
-    // the stored value is what the letter prints (`County::event_population_swing`).
     let p = county.event_population_pct;
     county.event_population_swing = 0;
     if p < 0 {
@@ -85,15 +78,6 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
     county.population += births - deaths;
     if county.population < 1 {
         births = 0;
-        // Written
-        // here,
-        // see the errata note in the crate documentation.
-        //
-        // **Switchable** - [`Quirk::ExtinctCountyRecordsNegativeDeaths`],
-        // `docs/bugs.md` B16. The fixed path records the people who
-        // died, which is what the county had before the pass: the negation
-        // that reading suggests was lost is put back
-        // statement rewritten, so the shape of the original stays visible.
         deaths = if quirks.reproduces(Quirk::ExtinctCountyRecordsNegativeDeaths) {
             county.population
         } else {
@@ -102,7 +86,6 @@ pub fn update_one(t: &Tables, county: &mut County, season: Season, quirks: Quirk
         county.population = 0;
     }
 
-    // "Zeroed by Population_UpdateAll and filled elsewhere."
     county.army = 0;
 
     county.population -= county.emigrants;
@@ -147,7 +130,6 @@ fn change_reason(county: &County) -> ChangeReason {
     best
 }
 
-/// `Population_UpdateAll` over the whole kingdom, in index order.
 pub fn update_all(
     t: &Tables,
     counties: &mut [County],

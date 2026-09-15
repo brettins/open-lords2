@@ -2,15 +2,10 @@
 //! `Battlefield_BuildCastle` (`0x0047C4BA`), `Battlefield_ReadStructureLayer` and the six
 //! surface passes of `Battlefield_ClassifySurfaces`.
 //!
-//! Until this module existed the besieged castle was
-//! [`crate::siege::our_castle`]: a square ring whose wall stood one cell high.
 //! Two mechanics that are built and tested could therefore never fire in a
 //! real siege, because both want a wall **two** high — boiling oil
 //! (`UnitOrder_SiegeDefOil`, elevation `>= 2`) and a siege tower's dock
 //! (`FUN_00491492`, elevation `== 2` exactly, [`crate::siege::DOCK_WALL_ELEVATION`]).
-//! They fired only in `crate::proving`, which builds its own scenery.
-//!
-//! # Where the castle is
 //!
 //! `stnfield.pl8` — `s_Q_Q_Qbatfield_pl8` at `0x004D9103`, a 14-byte-stride
 //! string table whose name field starts at `+5`, indexed **1** for a campaign
@@ -30,8 +25,6 @@
 //! 80 x 80 and uncompressed. The shipped `Stnfield.pl8` is 64,168 bytes —
 //! 168 of header and directory plus exactly ten 6,400-byte layers.
 //!
-//! # What the two layers are
-//!
 //! * the **frame** layer is `cell[+3]` directly, read through the 256-entry
 //!   structure table ([`crate::siege::STRUCTURE_STONE`] / `_WOOD`) for its
 //!   height, its passability and its structure code;
@@ -39,8 +32,6 @@
 //!   the twelve deployment slots a side, the wall-slot groups, the approach
 //! lanes and the castle's reference cell — every one of which
 //!   [`crate::AiField`] had marked `[I]` because this function was unread.
-//!
-//! Nothing here reads a file. The caller hands over the bytes.
 
 mod builder;
 pub use builder::*;
@@ -59,7 +50,6 @@ use crate::AiField;
 /// calls.
 pub const LAYER_BYTES: usize = CELLS;
 
-/// The two layers of one castle.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CastleSheet {
     /// Directory `+0x0C` — cell byte `+3`, with `0xED`/`0xEE`/`0xEF` as escapes.
@@ -68,7 +58,6 @@ pub struct CastleSheet {
     pub structures: Vec<u8>,
 }
 
-/// Every castle in one of the two layout files.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct CastleSheets {
     sheets: Vec<CastleSheet>,
@@ -79,13 +68,8 @@ impl CastleSheets {
     /// 1 of the builder's string table.
     pub const FILE: &'static str = "stnfield.pl8";
     /// The skirmish file, index 3 — `DAT_0057A0F0` picks it. Not loaded here:
-    /// nothing in this engine fights a skirmish yet.
     pub const SKIRMISH_FILE: &'static str = "stnfiel2.pl8";
 
-    /// The five campaign castles, in `g_castleLevel` order. `castle * 0x20` is
-    /// the directory entry,
-    /// this stops at the first entry whose two offsets do not both hold a whole
-    /// layer
     pub fn parse(bytes: &[u8]) -> Option<CastleSheets> {
         let dir = bytes.get(..1000.min(bytes.len()))?;
         let u24 = |at: usize| -> Option<usize> {
@@ -135,9 +119,6 @@ pub struct CastleTables {
     /// `0x44` and `0x47`. [`crate::AiField::wall_slot`] models the first three.
     pub wall_slot: [[(i16, i16); 16]; 4],
     /// `0x0055CD90 + row * 0x20` — six rows of four lanes, from marker `0x0F`.
-    /// Row 2 is the castle's reference cell written into all four lanes
-    /// (kind `0x43`), row 3 is the staging table `Battlefield_BuildCastle`
-    /// itself reads back, and row 4 is never written by any shipped layout.
     pub approach: [[(i16, i16); 4]; 6],
 }
 
@@ -145,8 +126,6 @@ pub struct CastleTables {
 mod tests {
     use super::*;
 
-    /// A layer of nothing but open ground is a field with no castle in it, and
-    /// the classifier still has to give every cell a surface.
     #[test]
     fn an_empty_layer_classifies_to_open_field() {
         let sheet = CastleSheet {
@@ -156,11 +135,9 @@ mod tests {
         let field = build(2, &sheet);
         assert!(field.cells.iter().all(|c| c.surface == SURFACE_FIELD));
         assert!(field.cells.iter().all(|c| c.elevation == 0));
-        // Every cell came off slot 1 — `t32_stn2`, the ground sheet.
         assert!(field.cells.iter().all(|c| c.tileset() == 1));
     }
 
-    /// `parse` stops where the file does
     #[test]
     fn a_truncated_layout_file_yields_no_castles() {
         assert!(CastleSheets::parse(&[0u8; 40]).is_none());

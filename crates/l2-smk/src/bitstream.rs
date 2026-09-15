@@ -4,10 +4,7 @@ use super::decode::*;
 use super::audio::*;
 use std::fmt;
 
-// --------------------------------------------------------------- bits
 
-/// **Least significant bit first**, within bytes taken in order — the order
-/// every Smacker bitstream is written in.
 pub(super) struct Bits<'a> {
     data: &'a [u8],
     pub(super) pos: usize,
@@ -40,25 +37,12 @@ impl<'a> Bits<'a> {
     }
 }
 
-// ------------------------------------------------------------- trees
 
-/// A tree reference: an index into `nodes`, or a leaf.
 const LEAF: u32 = 0x8000_0000;
-/// On a big tree's leaf: *"use recency slot n"*, n in the low two bits.
 const CACHED: u32 = 0x4000_0000;
 
-/// How deep a tree may nest before the file is called malformed. A 16-bit
-/// tree over a real frame is a few dozen levels; this is a guard against
-/// recursion on a corrupt file, not a property of the format.
 const MAX_DEPTH: usize = 512;
 
-/// **An 8-bit tree.** The low- and high-byte trees inside every big tree, and
-/// every audio delta tree.
-///
-/// On disk: one bit saying whether the tree is there; then the tree
-/// depth-first, `1` for a branch (its `0` child first) and `0` followed by an
-/// 8-bit value for a leaf; then a `0` bit closing it. An absent tree decodes
-/// every symbol as zero and costs no bits.
 #[derive(Debug, Clone)]
 pub(super) struct Tree8 {
     nodes: Vec<[u32; 2]>,
@@ -104,17 +88,6 @@ impl Tree8 {
     }
 }
 
-/// **A 16-bit tree** — MMap, MClr, Full or Type — with its three-value cache.
-///
-/// On disk: a presence bit; the low-byte and high-byte 8-bit trees; three
-/// 16-bit **escape** values; the tree itself, depth-first as [`Tree8`] but with
-/// every leaf's value spelled as a low-tree code followed by a high-tree code;
-/// a closing `0` bit.
-///
-/// A leaf whose value equals escape *n* is not that value: it means *"the n-th
-/// most recent value this tree produced"*. After every decode, a value that is
-/// not already the most recent is pushed onto the front of the three and the
-/// oldest falls off. The three reset to zero at the start of every frame.
 #[derive(Debug, Clone)]
 pub(super) struct Tree16 {
     nodes: Vec<[u32; 2]>,

@@ -9,10 +9,6 @@ use crate::tables::{
     JOB_WOOD_CUTTING,
 };
 
-/// Each job's ceiling as the allocator sees it: the stored
-/// [`County::labour_useful`], with [`crate::county::LABOUR_UNSET`] read as
-/// zero and every job whose resource the county has not got forced to zero.
-///
 /// The gates are `FUN_0044F6E7`'s own, and they are the *enable* byte
 /// (`+0x297 + c*0x18`) — an
 /// industry switched off allocates nobody even where the ore is.
@@ -54,15 +50,11 @@ pub fn ceilings(county: &County) -> [i32; JOB_COUNT] {
     // progress", and `Tax_CollectAll` charging the *lower* castle while it is
     // set says the same thing.
     gate(JOB_CASTLE_BUILDING, county.castle_degraded != 0, &mut out);
-    // Idle townsfolk has no ceiling and takes the remainder.
     out[JOB_IDLE_TOWNSFOLK] = 0;
     out
 }
 
 /// One pass of `FUN_0044F6E7` over one county.
-///
-/// Clears all nine records and refills them. Returns the number of people left
-/// idle, which is also what lands in [`crate::tables::JOB_IDLE_TOWNSFOLK`].
 pub fn allocate(county: &mut County) -> i32 {
     let ceiling = ceilings(county);
     let pop = county.population;
@@ -73,9 +65,6 @@ pub fn allocate(county: &mut County) -> i32 {
 
     spend(county, &ceiling, &mut farm_pool, &FARM_QUOTA_ORDER, &FARM_ROUND, FARM_TAIL);
 
-    // Farm leftovers smaller than one icon are handed to industry
-    // left to become idle. `popBand` is the county's own icon size, so this is
-    // "less than one peasant icon's worth".
     if farm_pool < county.pop_band {
         industry_pool += farm_pool;
         farm_pool = 0;
@@ -95,7 +84,6 @@ pub fn allocate(county: &mut County) -> i32 {
     idle
 }
 
-/// One half of the allocator: quotas first, then the uneven round robin.
 fn spend(
     county: &mut County,
     ceiling: &[i32; JOB_COUNT],
@@ -114,9 +102,6 @@ fn spend(
         }
     }
 
-    // `do { ... } while (ceiling[tail] <= labour[tail]); labour[tail]++;`
-    // wrapped in `while (0 < pool)`.
-    // because the original's four gotos do not translate.
     let mut progress = *pool >= 1;
     'outer: while *pool > 0 {
         loop {

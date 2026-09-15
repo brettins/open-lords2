@@ -1,18 +1,3 @@
-//! **Ours, not the game's.** The demo's index of every screen there is.
-//!
-//! Nothing like this exists in `Lords2.exe`. It is here because most of the
-//! twenty-nine screens `docs/screens-county.md` §1 identifies cannot yet be
-//! *reached*: the court opens off a sidebar button that needs a selected
-//! county, the siege screen needs a siege, the ratings screen needs a battle to
-//! have happened. A click-through demo whose screens cannot be clicked to is
-//! not a demo, so this is the door to all of them.
-//!
-//! It is drawn in `l2_view::text` — **our** 5 × 7 font, never `Fntl2_14.pl8` —
-//! and titled as ours, so that a screenshot of it can never be mistaken for
-//! something the original drew. Every other screen in this crate is trying to
-//! look like the game; this one is deliberately not.
-//!
-//! Press `I` on the campaign map, or `I` on the front end's title page.
 
 use l2_view::{text, Canvas};
 
@@ -23,7 +8,6 @@ use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::screens::setup::SetupPage;
 use crate::widget;
 
-/// One row: what it is called, where it goes, and whether it goes anywhere.
 struct Row {
     label: String,
     to: Option<ScreenId>,
@@ -33,7 +17,6 @@ const COL_W: i32 = 300;
 const ROW_H: i32 = 13;
 const TOP: i32 = 44;
 const LEFT: i32 = 12;
-/// Two columns of this many rows each.
 const PER_COL: usize = 32;
 
 pub struct IndexScreen {
@@ -49,59 +32,23 @@ impl IndexScreen {
         push("-- IMPLEMENTED --".into(), None);
         push("0x00 CAMPAIGN MAP".into(), Some(ScreenId::Campaign));
         push("0x14/15/16/19 COUNTY PANELS".into(), Some(ScreenId::County(1, crate::screens::county::Panel::Tax)));
-        // `0x02` is being written by another agent. This is the hook and
-        // nothing else: no `ScreenId` for it is invented here, because the
-        // agent that owns the screen owns its id.
         push("0x02 THE VILLAGE (ANOTHER AGENT)".into(), None);
-        // Unit 1 is a stand-in: the screen takes the besieging army's slot, and
-        // from the index It
-        // draws an empty order and a zero countdown, which is what the original
-        // shows the instant a siege is laid.
         push("0x1D SIEGE PREPARATIONS".into(), Some(ScreenId::Siege(1)));
-        // The same stand-in argument as the siege screen's, for the same
-        // reason: from the index
-        // army to take one from. `0x17` on county 1 draws the no-offer layout
-        // with a zero levy; `0x11` on a slot with no army in it says so.
         push("0x17 RAISE AN ARMY".into(), Some(ScreenId::RaiseArmy(1)));
-        // The other half of it, and the half that raises the army. From the
-        // index the levy is whatever the last one left, so an armoury opened
-        // cold shows a levy of nobody with every rack full — which is exactly
-        // what the original shows before a slider has been touched.
         push("0x0A THE ARMOURY".into(), Some(ScreenId::Armoury(1)));
         push("0x0D THE SWORD RACK".into(), Some(ScreenId::Rack(1, 3)));
         push("0x11 ARMY DIVISION".into(), Some(ScreenId::Divide(1)));
-        // The same stand-in again, and here it shows something the screen
-        // itself is about: unit 1 is not a merchant from the index
-        // morale reads 0 and every buy price falls to the markup's floor of one
-        // crown. That is the formula working, not a placeholder — reached from
-        // the map the unit is a merchant at morale 100 and the prices double.
         push("0x08 THE MERCHANT".into(), Some(ScreenId::Merchant(1)));
         push("0x0C TRADE GOODS (GRAIN)".into(), Some(ScreenId::Trade(1, 1)));
         push("0x0B THE OTHER LORDS".into(), Some(ScreenId::Diplomacy));
-        // The compose dialog has three shapes and the index reaches all three,
-        // because they are three painters and three widget tables
-        // three states of one. Rival 2 is a stand-in the same way unit 1 is
-        // above: from the index
         push("0x1A   DISPATCH A GIFT".into(), Some(ScreenId::DiploCompose(2, 0)));
         push("0x1A   A LETTER".into(), Some(ScreenId::DiploCompose(2, 1)));
         push("0x1A   ASK AN ALLY FOR HELP".into(), Some(ScreenId::DiploCompose(2, 5)));
         push("0x35 LOAD A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Load)));
         push("0x36 SAVE A CONQUEST".into(), Some(ScreenId::SaveLoad(SaveLoadMode::Save)));
-        // The last seven shells. Four take no argument; the other three take a
-        // county or a right-click target and get the same stand-in the siege
-        // and merchant rows above take, for the same reason.
         push("0x04 MAP INFO: A UNIT".into(), Some(ScreenId::Info(crate::screens::info::Target::Unit(1))));
         push("0x04 MAP INFO: A TILE".into(), Some(ScreenId::Info(crate::screens::info::Target::Tile(0))));
         push("0x09 THE COURT".into(), Some(ScreenId::Court));
-        // `0x0B` is listed once, above, as *"THE OTHER LORDS"*. It used to be
-        // listed here a second time as *"DIPLOMACY"*, and `screen.rs` matched
-        // it twice to go with it — the pilot's second finding recurring
-        // (`docs/draws.md` §2, *a screen was in the index twice*). The two
-        // names are also why the audit was told to verify every screen name
-        // against its painter: *the court* is the realm's balance sheet and
-        // *the other lords* is the diplomacy screen, and the pair had been
-        // filed together on the strength of sitting next to each other in the
-        // sidebar.
         push("0x18 SEND SUPPLIES".into(), Some(ScreenId::Supplies(1)));
         push("0x20 THE STANDINGS".into(), Some(ScreenId::Nobles));
         push("0x25 ABOUT".into(), Some(ScreenId::About));
@@ -141,8 +88,6 @@ impl IndexScreen {
             .find(|&i| self.rows[i].to.is_some() && self.rect(i).contains(x, y))
     }
 
-    /// Step to the next row that goes somewhere, so the headings cannot be
-    /// landed on.
     fn step(&mut self, by: i32) {
         let n = self.rows.len();
         for _ in 0..n {
@@ -167,7 +112,6 @@ impl Default for IndexScreen {
     }
 }
 
-/// What each setup page is, in this index's words.
 fn setup_name(p: SetupPage) -> &'static str {
     match p {
         SetupPage::Title => "TITLE MENU",
@@ -304,10 +248,6 @@ mod tests {
         for p in SetupPage::ALL {
             assert!(dests.contains(&ScreenId::Setup(p)), "setup page {}", p.number());
         }
-        // **The shell section is gone**, because the table is empty. What
-        // replaces it is the graduated list: every id that ever had a row must
-        // be reachable from here under its own name, or the demo has lost a
-        // door that used to exist.
         for &(id, module) in crate::screens::shells::GRADUATED {
             if let Some(to) = crate::screens::shells::screen_for(id) {
                 assert!(

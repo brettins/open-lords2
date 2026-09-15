@@ -29,19 +29,6 @@ impl Kingdom {
     ///   }
     /// ```
     ///
-    /// It is the same shape as `PeasantMob_AdvanceAll`, which is already
-    /// implemented as [`Kingdom::begin_unit_phase`]'s phase-5 arm — the AI's
-    /// armies are the mobs' mechanism with a six-way mission dispatch in front
-    /// of it.
-    ///
-    /// **The routing is `Direct`, not `PreferRoads`.** `Unit_OrderMove` — the
-    /// player's path — tries roads first and falls back; this call passes
-    /// mode 0 outright. So the claim in [`crate::movement::Routing`] that *"AI
-    /// armies prefer roads and the player's do not"* is true of the
-    /// *order-move* entry point and **false of the AI's own driver**, which is
-/// the one that moves AI armies every turn. Both readings are of
-    /// the binary; they are about two different functions.
-    ///
     /// Unit `+0x14E`, cleared before each re-path, is a *pass through the
     /// castle site* flag: `Unit_TryEnterTile` masks off the settlement bit
     /// while it is set, which is what stops a garrison just turned out of a
@@ -78,11 +65,6 @@ impl Kingdom {
     }
 
     /// `FUN_004A57AC` — dispatch one army's mission.
-    ///
-    /// Returns whether the unit wants a fresh path. **An unrecognised mission
-    /// byte is rewritten to [`Mission::SEEK_ENEMY`] and the unit is not moved
-    /// this turn** — so a freshly spawned army, whose byte is 0, loses exactly
-    /// one turn and then behaves as an attacker.
     fn run_mission(&mut self, unit: usize, report: &mut MoveReport) -> bool {
         let Some(mission) = self.campaign.units.get(unit).map(|u| u.mission) else { return false };
         match mission {
@@ -104,11 +86,6 @@ impl Kingdom {
     /// [`Mission::RAID`] — `FUN_004A58F4`. Re-aim at the target county's
     /// nearest standing crop, every turn, unless the unit is camped outside a
     /// castle.
-    ///
-    /// Re-aiming *every* turn is what makes a raid destructive out of
-    /// proportion to its size: the party is fifty men who cannot fight, but it
-    /// walks a fresh line to the nearest surviving crop each season and
-    /// tramples everything it crosses.
     fn mission_raid(&mut self, unit: usize) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
         if u.besieging_county != 0 {
@@ -124,13 +101,6 @@ impl Kingdom {
     }
 
     /// [`Mission::ASSIST_ALLY`] — `FUN_004A599D`.
-    ///
-    /// Re-validate the ally's request; a request that no longer stands demotes
-    /// the unit to [`Mission::SEEK_ENEMY`] and **runs that handler in the same
-    /// tick**, so no turn is lost. Otherwise close on the nearest enemy in the
-    /// ally's county, but only within [`ASSIST_ALLY_RADIUS`] — an army too far
-/// away does nothing at all this turn, which
-    /// is a real difference from [`Mission::HOLD_HOME`].
     fn mission_assist_ally(&mut self, unit: usize) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
         if u.besieging_county != 0 {
@@ -168,28 +138,11 @@ impl Kingdom {
     /// [`Mission::SEEK_ENEMY`] — `FUN_004A5B1F`, the default war mission and
     /// the largest of the six.
     ///
-    /// Four things in order:
-    ///
     /// 1. **Intercept.** An enemy army within [`SEEK_ENEMY_RADIUS`] that is
     ///    not this realm's ally, and that is either *not itself on this
     ///    mission* or is to the east. The `x` test is a tie-break that stops
     ///    two attacking armies chasing each other for ever: whichever is
     ///    further west gives chase. `[I]` on the intent, `[D]` on the code.
-    /// 2. **Keep the standing order** if the county it names is still somebody
-    ///    else's and still borders this realm.
-    /// 3. Otherwise, if the army is standing somewhere it cannot attack —
-    ///    its own county, or one that does not touch its realm — **pick a new
-    ///    target** and go.
-    /// 4. Otherwise it is standing in a hostile county that borders its realm:
-    ///    **attack where it stands**, unless that county belongs to its ally,
-    ///    in which case pick another.
-    ///
-    /// **Two defects are reproduced.** In arm 4 the unit's
-    /// [`crate::unit::Unit::dest_county`] is *not* updated, so it walks into the county it
-    /// is in while its stored order still names the county arm 2 rejected; and
-    /// if the ally case finds nothing, the aim is taken at **county 0**, which
-    /// falls through to county 0's anchor. Both are in the decompilation and
-    /// neither is tidied here.
     ///
     /// A third is *not* reproduced because it cannot be: the original calls
     /// `FUN_00467F2E` between arms 3 and 4 and **discards the result** — the
@@ -203,7 +156,6 @@ impl Kingdom {
         let (owner, my_x, order, here) = (u.owner, u.x, u.dest_county, u.county);
         let ally = self.realms.get(owner as usize).map_or(0, |r| r.ally);
 
-        // 1 — intercept.
         let (d, other) = nearest_enemy_army(&self.campaign.units, unit);
         if d < SEEK_ENEMY_RADIUS {
             if let Some(o) = other.and_then(|o| self.campaign.units.get(o)) {
@@ -218,7 +170,6 @@ impl Kingdom {
             }
         }
 
-        // 2 — the standing order still stands.
         if order != 0
             && self.counties.get(order as usize).is_some_and(|c| c.owner != owner)
             && county_borders_realm(&self.counties, order, owner)
@@ -227,7 +178,6 @@ impl Kingdom {
             return true;
         }
 
-        // 3 — nowhere to attack from here: choose again.
         let here_owner = self.counties.get(here as usize).map_or(0, |c| c.owner);
         if here_owner == owner || !county_borders_realm(&self.counties, here, owner) {
             let next = pick_next_target(
@@ -247,7 +197,6 @@ impl Kingdom {
             return true;
         }
 
-        // 4 — attack where it stands. `dest_county` is deliberately left alone.
         let mut target = here;
         if ally == here_owner {
             target = pick_next_target(
@@ -266,16 +215,6 @@ impl Kingdom {
     }
 
     /// [`Mission::HOLD_HOME`] — `FUN_004A5F0A`.
-    ///
-    /// The same intercept test as [`Mission::SEEK_ENEMY`] but restricted to
-    /// [`crate::unit::Unit::home_county`] and with five times the radius
-    /// ([`HOLD_HOME_RADIUS`]) — and, unlike the ally mission, **it always
-    /// returns something to do**: nothing to intercept means walk back to the
-    /// county it is posted to.
-    ///
-    /// "Home county" is not always where the army was raised: step 7's
-    /// abandonment branch overwrites it with the realm's muster county, which
-    /// is what turns a written-off county's levy into a retreat.
     fn mission_hold_home(&mut self, unit: usize) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
         if u.besieging_county != 0 {
@@ -302,19 +241,6 @@ impl Kingdom {
     }
 
     /// [`Mission::JOIN_GARRISON`] — `FUN_004A6270`.
-    ///
-    /// Re-check every turn that the castle this army was sent to is still
-    /// worth walking to: it must still have room for **all** of the army, be
-    /// standing, not be under construction, and still belong to the realm. Any
-    /// of those failing sends it to
-    /// [`first_castle_with_room`] instead.
-    /// army is **disbanded** — its men go back into a county and its weapons
-    /// back into the armoury.
-    ///
-    /// **The original returns 1 even after disbanding**, so its caller then
-    /// flood-fills from a record `Army_Destroy` has already cleared. Here the
-/// slot is empty and the re-path finds nothing to do.
-    /// same observable outcome by a route that cannot read freed memory.
     fn mission_join_garrison(&mut self, unit: usize, report: &mut MoveReport) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
         let (owner, men, target) = (u.owner, u.men, u.dest_county);
@@ -364,14 +290,6 @@ impl Kingdom {
     }
 
     /// [`Mission::GARRISON`] — `FUN_004A60B9`, *"should I still be in here?"*
-    ///
-    /// A garrison whose county still belongs to its realm does **nothing at
-    /// all** — the common case.
-    /// nearly always. Once the county is lost, the garrison is turned out
-    /// ([`Kingdom::evict_garrison`]) and demoted to [`Mission::SEEK_ENEMY`],
-    /// and in the one case where the castle is still standing and unruined it
-    /// is also sent straight at the **county town** — i.e. it walks out of the
-    /// castle to take the county back.
     fn mission_garrison(&mut self, unit: usize, report: &mut MoveReport) -> bool {
         let Some(u) = self.campaign.units.get(unit) else { return false };
         let (owner, county) = (u.owner, u.dest_county);
@@ -405,12 +323,7 @@ impl Kingdom {
 
     /// `FUN_00437535` — turn a garrison out of its castle onto the nearest
     /// free tile, or destroy it if there is nowhere to stand.
-    ///
-    /// The link is cleared on **both** sides — the unit's
-    /// [`crate::unit::Unit::garrison_county`] and the county's
-    /// [`crate::county::County::garrison_unit`] — and a besieger waiting outside is reported
     ///; see [`Eviction`].
-    ///
     /// **`[I]` on the search.** The original calls `Map_FindFreeTileNear`,
     /// whose radius this crate has not read; the box walk here is the one
     /// [`crate::levy::muster_tile`] and [`crate::merchant::find_free_road_tile`]
@@ -464,8 +377,6 @@ impl Kingdom {
     }
 }
 
-/// Any free, passable tile within three of `from`. See
-/// [`Kingdom::evict_garrison`].
 fn free_tile_near(map: &CampaignMap, units: &Units, (ax, ay): (u8, u8)) -> Option<(u8, u8)> {
     for r in 1..=3i32 {
         let (x0, y0) = ((ax as i32 - r).max(0), (ay as i32 - r).max(0));

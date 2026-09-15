@@ -12,7 +12,6 @@ use l2_net::{Quirk, Quirks};
 
 /// `PctOf(a, b) = a * 100 / b` — `FUN_00404DC1`, the companion to
 /// [`crate::math::pct`]. Zero denominator gives zero.
-/// does.
 #[inline]
 pub fn pct_of(a: i32, b: i32) -> i32 {
     if b == 0 {
@@ -23,28 +22,6 @@ pub fn pct_of(a: i32, b: i32) -> i32 {
 }
 
 /// `FUN_0044F248` — the efficiency ramp `docs/kingdom.md` §12 lists as unknown.
-///
-/// ```c
-/// if (g_optAdvancedFarming == 0) return 80;
-/// if (workers == 0)              return 0;
-/// increment = base;
-/// if (capacity < workers) increment = Pct(base, PctOf(capacity, workers));
-/// eff = lastEfficiency + increment;
-/// if (eff > 100)  eff = 100;
-/// if (eff < base) eff = base;      /* the floor is the base, not zero */
-/// return eff;
-/// ```
-///
-/// Three things fall out of it
-///
-/// * the efficiency **compounds season on season**, so an industry is worth
-///   more the longer it has been running and a county that is conquered and
-///   restarted is not;
-/// * **overstaffing is self-defeating** — past `capacity` the increment is
-///   scaled by `capacity / workers`, so twice the workers ramp at half the
-/// rate, and the season's raw output rises while the improvement slows;
-/// * with *Advanced Farming* off none of it happens and every industry sits at
-///   a flat 80%, which is more than five times the base.
 ///
 /// `[V]` on all of it; the `advanced_farming` global is `0x0053F25C`, the same
 /// one `Grain_Sow` and `Fertility_Update` branch on.
@@ -85,9 +62,6 @@ pub fn efficiency_ramp(
 /// thing bounding a mine is the county's workers — up to 999 units a season,
 /// which no plausible workforce reaches.
 ///
-/// For **weapons** it is a real quantity: the realm's wood and iron each
-/// divided by a denominator the driver computes across the whole realm, so
-/// every county's blacksmith gets a share of one stockpile.
 /// first county emptying it. Those two denominators are [`WeaponShare`], and
 /// they are no longer `[D]`.
 pub fn resource_limit(
@@ -104,10 +78,6 @@ pub fn resource_limit(
     if c == Commodity::Weapons {
         let weapon = county.weapon_type.min(WEAPON_TYPE_COUNT - 1);
         let (wood, iron) = (t.weapon[weapon].wood, t.weapon[weapon].iron);
-        // Written the way the original writes it — `(stock * cost / share) /
-        // cost`, multiplying by the cost and dividing by it again. That is not
-        // a no-op once `share` exceeds 1: it rounds the share down to a whole
-// weapon's worth of stock. Kept.
         let quota = |stock: i32, cost: i32, share: i32| {
             ((stock as i64 * cost as i64 / share.max(1) as i64) / cost as i64) as i32
         };
@@ -150,7 +120,6 @@ pub fn weapon_shares(
     WeaponShare { wood: share.wood.max(1), iron: share.iron.max(1) }
 }
 
-/// What one commodity's pass would produce, before it is credited anywhere.
 pub fn output(
     t: &Tables,
     county: &County,
@@ -166,32 +135,6 @@ pub fn output(
 
 /// `Industry_LabourEstimate` (`0x0044F318`) — **one industry's labour
 /// ceiling.**
-///
-/// Returns `(wanted, useful)`,
-/// has one.
-///
-/// ```c
-/// wanted[slot] = -1; useful[slot] = 0;
-/// if (owner == 0) return;                      /* a neutral county mines nothing */
-/// limit = resourceLimit(county, industry, owner, 0);
-/// if (limit <= 0 || popBand == 0) return;
-/// if (industry != weapons) { useful[slot] = 100000; return; }
-/// best = -1;
-/// for (w = 0; w < population + popBand; w += popBand) {     /* one icon at a time */
-///     n = min(w, population);
-///     made = min(Pct(n / divisor, efficiencyRamp(county, industry, n, base)), limit);
-///     if (best < made) { best = made; useful[slot] = n; }
-/// }
-/// ```
-///
-/// **Three things this makes concrete.** The owner test
-/// county's wood ceiling is 0 and an owned one's is 100,000, which is the whole
-/// difference between the shipped save's county of foresters and its county of
-/// idlers. The search steps by **`popBand`**, one peasant icon, not by one
-/// person — so the blacksmith's ceiling is always a multiple of the icon size.
-/// And the blacksmith is the only industry with a real ceiling at all: wood,
-/// iron and stone are bounded by [`RESOURCE_LIMIT_UNLIMITED`]'s 999 units of
-/// output.
 ///
 /// `weapon_share` is [`weapon_shares`] for the owning realm; the original calls
 /// `FUN_0044F15B` afresh inside every `resourceLimit`, so it is the *current*
@@ -243,12 +186,6 @@ pub fn labour_estimate(
     (crate::county::LABOUR_NO_FLOOR, ceiling)
 }
 
-/// **`Industry_LabourEstimate`'s tail** — the number the sidebar's industry row
-/// draws,
-///
-/// [`labour_estimate`] above is the search loop. This is what the original
-/// writes *after* it,
-///
 /// ```c
 /// county[0x2A8 + industry*0x18] = 0;                    /* before the guard */
 /// if (owner == 0) return;
@@ -262,32 +199,6 @@ pub fn labour_estimate(
 /// county[0x2A8 + industry*0x18] = made;                 /* [County::next_season] */
 /// ```
 ///
-/// # The efficiency it multiplies by is the loop's, not the one it just
-/// computed
-///
-/// `local_28` is assigned **inside** the search loop and read after it, so it
-/// holds the ramp at the loop's *last* trial —
-/// `n == population`, whatever the county's actual staffing is. `iVar3`, the
-/// ramp at the real worker count, is computed on the line before and used only
-/// for the efficiency write.
-///
-/// So the row forecasts `Pct(workers / divisor, ramp(population))`: **the
-/// output the real workforce would make at the efficiency a full workforce
-/// would earn.** With *Advanced Farming* off the ramp is a flat 80 either way
-/// and the two are the same number; with it on, an understaffed mine's forecast
-/// differs by exactly the ramp's difference. `docs/bugs.md` B97.
-/// It is reproduced, because it is what the player is shown.
-///
-/// **The difference has a fixed sign, and it is the opposite of the one the
-/// word "full" suggests.** [`efficiency_ramp`] scales its increment by
-/// `capacity * 100 / n`, so it is non-increasing in `n`; the staffing is a
-/// subset of the population,
-/// **understates**. This was written as *optimistic* here and in
-/// `docs/bugs.md` before anybody put an inequality on it —
-/// `crates/l2-kingdom/tests/industry_forecast/main.rs` is that inequality.
-///
-/// # The efficiency write-back, and why it does not compound
-///
 /// C136 held it back because `County_RefreshEstimates` runs **four times**
 /// inside `Industry_ToggleFromMap` alone. It is idempotent: the ramp reads
 /// county `+0x29C` ([`crate::county::Industry::last_efficiency`]) and the
@@ -295,8 +206,6 @@ pub fn labour_estimate(
 /// other. Four refreshes ramp from the same season-old number and land on the
 /// same answer. With *Advanced Farming* off the ramp is a flat 80 for every
 /// staffing, so the write moves nothing.
-///
-/// # What is deliberately not here, and why
 ///
 /// * **County `+0x280` … `+0x28C`.** This said *"nothing reads them and no draw
 /// call does either"*,
@@ -316,7 +225,6 @@ pub fn preview(
     // `*(undefined4 *)(county * 0x300 + 0x53fc58 + industry * 0x18) = 0;` is
     // the function's **first** statement, outside every guard —
 // that fails one of the three tests below forecasts nothing.
-    // keeping last season's number.
     county.industry[index].next_season = 0;
     if county.owner == 0 || county.pop_band == 0 {
         return;
@@ -326,10 +234,6 @@ pub fn preview(
         return;
     }
     let row = t.commodity[index];
-    // `local_28` at the loop's exit. The trial that sets it last is always the
-    // one with `n == population`: the loop runs `w = 0, band, 2*band, …` while
-    // `w < population + band` and clamps `n = min(w, population)`, so the final
-    // `n` is `population` for every population and every band, including zero.
     let loop_efficiency = efficiency_ramp(
         t,
         county.industry[index].last_efficiency,
@@ -351,8 +255,6 @@ pub fn preview(
         row.base_efficiency,
         advanced_farming,
     );
-    // `if (limit < made) made = limit;` and nothing else — no floor, because
-    // neither term can be negative.
     county.industry[index].next_season = pct(workers / row.divisor, loop_efficiency).min(limit);
 }
 
@@ -380,24 +282,6 @@ pub fn refresh(
     preview(t, county, c, realm, weapon_share, advanced_farming);
 }
 
-/// One `Industry_Produce` pass: ramp the efficiency, produce, credit the realm,
-/// and add to the county's running total.
-///
-/// A pass on an industry that is counting down a disablement produces nothing,
-/// zeroes the running total and steps the counter — and reinstates the industry
-/// when the counter reaches zero. That branch is the whole `else` of
-/// `Industry_Produce`.
-///
-/// Weapons are the one commodity that *spends*: the blacksmith's output is
-/// capped by what [`WEAPON_COST`] can be paid for out of the realm's wood and
-/// iron. The original debits `made * cost` from each stockpile with **no clamp
-/// at all** — it relies on [`resource_limit`]'s realm-wide share to keep the
-/// total demand inside the stock,
-/// denominator that reliance holds: `(stock * cost / Σcost) / cost` is at most
-/// `stock / Σcost`, so the whole realm's smithies together can never ask for
-/// more wood or iron than there is. The clamp below is therefore **provably
-/// redundant** against a correct share, and it is kept only as a floor against
-/// a caller that passes [`WeaponShare::UNSHARED`].
 pub fn produce(
     t: &Tables,
     county: &mut County,
@@ -409,7 +293,6 @@ pub fn produce(
     produce_with_share(t, county, realm, c, advanced_farming, share)
 }
 
-/// [`produce`], with the realm-wide weapon share [`resource_limit`] describes.
 pub fn produce_with_share(
     t: &Tables,
     county: &mut County,
@@ -419,8 +302,6 @@ pub fn produce_with_share(
     weapon_share: WeaponShare,
 ) {
     let index = c.index();
-    // The snapshot the panel's "produced this season" line is the difference
-    // against, taken before anything else happens.
     let previous_total = county.industry[index].total;
 
     if county.industry[index].disabled_seasons != 0 {

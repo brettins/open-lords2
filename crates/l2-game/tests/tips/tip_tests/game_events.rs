@@ -15,12 +15,8 @@ use l2_game::tip::{self, Tips, View};
 use l2_game::Game;
 use l2_kingdom::units_tick::Incursion;
 
-/// **The switch silences the tips, and every flip re-arms them.**
 /// `Opt_ToggleTipScreens` is `g_optTipScreens = !g_optTipScreens;
 /// FUN_00476A5D();` — the reset runs on the flip off as well as on.
-///
-/// Ablation: delete `ctx.game.tips.reset()` in `options::toggle` and the last
-/// two assertions go red.
 #[test]
 fn the_tip_screens_switch_silences_them_and_every_flip_rearms_them() {
     let (mut g, a, mut m) = campaign();
@@ -48,10 +44,6 @@ fn the_tip_screens_switch_silences_them_and_every_flip_rearms_them() {
     assert_eq!(g.tips.delay(), 20);
 }
 
-/// **The invasion flag**: set for the local player's army only, answered by the
-/// ladder's last arm on a screen no other arm names — and cleared before
-/// `Tip_Show` is asked, so on screen `0x27` the tip is lost.
-/// `docs/bugs.md` B101.
 #[test]
 fn the_local_players_incursion_raises_the_invasion_tip_and_screen_0x27_swallows_it() {
     let mut t = armed();
@@ -71,10 +63,6 @@ fn the_local_players_incursion_raises_the_invasion_tip_and_screen_0x27_swallows_
     assert!(!g.tips.shown(211), "so the tip waits for the next crossing");
 }
 
-/// **The flag reaches the tips from a real march.** The simulation reports the
-/// crossing; `turn::tick_units_only` is the door the frame loop uses.
-///
-/// Ablation: delete `game.tips.note_incursions` in `tick_units_only`.
 #[test]
 fn an_army_marching_out_of_its_own_county_sets_the_flag() {
     use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
@@ -116,5 +104,4 @@ fn an_army_marching_out_of_its_own_county_sets_the_flag() {
     assert!(g.tips.invaded(), "DAT_00553210: the local player's army entered a county it does not own");
 }
 
-// ------------------------------------------------------ with the player's game
 

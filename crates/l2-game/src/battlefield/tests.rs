@@ -37,15 +37,12 @@ mod tests {
         assert_eq!(BannerLayout::for_count(19).slots, 50);
         assert_eq!(BannerLayout::for_count(80).slots, 50);
 
-        // Table entries 0, 1, 3 of the twelve-slot layout.
         assert_eq!(BANNERS_FEW.rect(0), Rect::new(488, 189, 45, 50));
         assert_eq!(BANNERS_FEW.rect(1), Rect::new(541, 189, 45, 50));
         assert_eq!(BANNERS_FEW.rect(3), Rect::new(488, 244, 45, 50));
-        // Entries 12, 13, 15 of the table are slots 0, 1, 3 of the second.
         assert_eq!(BANNERS_SOME.rect(0), Rect::new(488, 186, 45, 35));
         assert_eq!(BANNERS_SOME.rect(1), Rect::new(541, 186, 45, 35));
         assert_eq!(BANNERS_SOME.rect(3), Rect::new(488, 223, 45, 35));
-        // Entries 30, 31, 36 are slots 0, 1, 6 of the third.
         assert_eq!(BANNERS_MANY.rect(0), Rect::new(484, 185, 22, 18));
         assert_eq!(BANNERS_MANY.rect(1), Rect::new(510, 185, 22, 18));
         assert_eq!(BANNERS_MANY.rect(6), Rect::new(484, 204, 22, 18));
@@ -67,8 +64,6 @@ mod tests {
         assert_eq!((OVERVIEW.x, OVERVIEW.y), (OVERVIEW_ORIGIN_X, OVERVIEW_ORIGIN_Y));
         assert_eq!((OVERVIEW.w, OVERVIEW.h), (OVERVIEW_SIDE as i32, OVERVIEW_SIDE as i32));
         assert_eq!(OVERVIEW_SCALE * l2_sim::terrain::DIM as i32, OVERVIEW_SIDE as i32);
-        // And it ends exactly where `Screen_DrawBattlefield` puts `Misc_bat.pl8`
-        // frame 0, at `(0x1E0, 0xB8)`.
         assert_eq!(OVERVIEW.y + OVERVIEW.h, 0xB8);
     }
 
@@ -88,8 +83,6 @@ mod tests {
         assert!(VIEW.contains(479, 471));
     }
 
-    /// **The hit test and the picture agree about where the field is.**
-    ///
     /// `docs/decisions.md` C61's other lesson: every campaign-map test ran on
     /// `Assets::placeholder`, the one configuration in which a broken hit test
     /// and the picture agree. Here they are two modules — `l2-view`'s renderer
@@ -110,9 +103,6 @@ mod tests {
         assert_eq!(VIEW.h, scene::VIEW_ROWS as i32 * scene::TILE);
     }
 
-    /// The camera the renderer is handed is the one the hit test converts from,
-    /// clamp included — a camera clamped on one side and not the other is the
-    /// same defect one step later.
     #[test]
     fn the_camera_clamps_the_same_way_on_both_sides() {
         for (x, y) in [(-5, -5), (0, 0), (40, 40), (200, 200)] {

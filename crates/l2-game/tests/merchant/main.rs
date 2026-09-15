@@ -1,13 +1,3 @@
-//! **The merchant, driven** — the two screens against the England fixture and
-//! a real install, headlessly.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test merchant
-//! ```
-//!
-//! `crates/l2-kingdom/src/trade/mod.rs` tests the rule; this tests that a *player*
-//! can reach it — the clicks land on the original's own widget rectangles, and
-//! what changes is the county's store and the realm's treasury.
 
 
 use std::path::PathBuf;
@@ -60,8 +50,6 @@ pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) 
     canvas
 }
 
-/// A screen pixel that is on **no** ware and on no corner button — the "body"
-/// a click must not dismiss.
 fn empty_spot(assets: &Assets) -> (i32, i32) {
     (0..480)
         .step_by(8)

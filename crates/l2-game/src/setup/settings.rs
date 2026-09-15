@@ -7,10 +7,6 @@ use l2_kingdom::unit::TROOP_TYPES;
 use crate::game::Game;
 
 impl Settings {
-    /// The six rule flags, as `l2-kingdom` wants them. This half is complete:
-    /// every one of the six reaches a rule, or is carried in the save because
-    /// nothing may read it yet and a save that forgot it would be a save that
-    /// guessed.
     pub fn kingdom_options(&self) -> l2_kingdom::kingdom::Options {
         l2_kingdom::kingdom::Options {
             difficulty: self.difficulty,
@@ -24,13 +20,6 @@ impl Settings {
     }
 
     /// **`FUN_0049BD99` over a world that is already built.**
-    ///
-    /// The original's version runs on a map it has just loaded, so it also
-    /// seats the realms — `g_playerStartTable` decides who gets which county —
-    /// and raises each realm's garrison with `Army_Create`. This one runs on a
-    /// world [`crate::scenario`] built from a save, which already has its
-    /// counties owned, so it does the part that is the *options'*: the stores,
-    /// the treasury, the armoury, the castle, and how many lords are in play.
     ///
     /// | `FUN_0049BD99` does | here |
     /// |---|---|
@@ -46,17 +35,12 @@ impl Settings {
         game.kingdom.options = self.kingdom_options();
 
         // **`County_Reset` (`0x00451150`)'s tail, and it has to be first.**
+        //
         // `Game_NewGame` runs the whole of `County_Reset` before `FUN_0049BD99`,
         // so its `Labour_Allocate` deals at *its own* opening numbers — 150
         // people, 40 head — which the county-status loop below then overwrites
         // without reallocating. `Scenario::from_map` reproduced the numbers and
         // not the six calls that close the loop; this is them.
-        // [`Kingdom::reset_county_for_new_game`] carries the reading.
-        //
-        // It is the only allocation an *unowned* county gets before the opening
-        // season — `settle_start_county` below is the start counties' — so
-        // without it the neutral half of the map went into `Herd_SeasonTick`
-        // with no milkmaids: 0 cattle labour against `england-turn1.sav`'s 323.
         for id in game.kingdom.county_ids() {
             game.kingdom.reset_county_for_new_game(id);
         }
@@ -110,7 +94,6 @@ impl Settings {
             realm.wages = 0;
         }
 
-        // A county whose owner has just been dropped is nobody's.
         for id in game.kingdom.county_ids() {
             let owner = game.kingdom.counties[id].owner as usize;
             if owner < MAX_REALMS && dropped[owner] {
@@ -143,6 +126,7 @@ impl Settings {
             // person's England county came out at 109 head against the save's
             // 101, and only the AI's counties were right because
             // `Ai_ManageFarmsAll` calls `Herd_UpdateCrowding` for its own.
+            //
             // The recount is the binary's line and finds nothing to move on this
             // path — the world came from a save with its fields already counted;
             // ablating it alone leaves the suite green.
@@ -157,27 +141,6 @@ impl Settings {
 
         // **The starting garrison** — `FUN_0049BD99`'s `g_startArmySize` arm
         // (`0x0049BF9E`)
-        //
-        // ```c
-        // if (g_startArmySize != 0) {
-        //     basket[7].chosen = 0;
-        //     for (t = 0; t < 7; t++) {
-        //         basket[t].chosen  = g_startTroops[row][t];
-        //         basket[7].chosen += g_startTroops[row][t];
-        //         county.population += g_startTroops[row][t];   /* pre-credit */
-        //     }
-        //     Army_Create(realm, county, 0, 0);
-        //     county.levySurcharge = 0;
-        //     realm.gold += g_units[g_lastUnitIndex].wages;
-        // }
-        // ```
-        //
-        // Row 0 of `g_startTroops` is all zeroes — *no army* raises nothing. The
-        // pre-credit cancels `Levy_DebitPopulation` exactly
-        // the county no people; happiness costs 0, no mercenaries
-        // surcharge `Army_Create` writes is undone. `l2_kingdom::levy::create_army`
-        // is the levy screen's own path, entered here with a basket built from
-        // the table instead of from the slider.
         //
         // `FUN_0049BD99` runs the two lines after `Army_Create` unconditionally,
         // so a failed spawn adds a stale `g_lastUnitIndex`' wages; ours runs them
@@ -250,10 +213,6 @@ impl Settings {
         // in-play AI realm and 0 for a person or a dropped one, so it has to
         // run *after* the loop above has decided which realms exist. Run it
         // before and every dropped realm would open with an opinion.
-        //
-        // This is the whole answer to *"what writes `Pair::standing` in a real
-        // game?"* — `docs/agents.md`'s rule that a field is only tested if
-        // something a test reads was written by something the game runs.
         game.kingdom.init_diplomacy();
 
         for (id, realm) in game.kingdom.realms.iter().enumerate() {

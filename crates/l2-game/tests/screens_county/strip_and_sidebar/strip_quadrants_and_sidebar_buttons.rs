@@ -29,11 +29,6 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// **The four county panels are reachable from the map, and each from its own
-/// quadrant.** `CountyStrip_Click` is the whole navigation into them; the map
-/// screen used to carry one button of ours instead, which opened the county
-/// screen on whichever panel it defaulted to — so a player could reach the tax
-/// panel and no other.
 #[test]
 fn each_quadrant_of_the_strip_opens_its_own_panel_from_the_campaign_map() {
     let (mut game, assets) = world!();
@@ -49,7 +44,6 @@ fn each_quadrant_of_the_strip_opens_its_own_panel_from_the_campaign_map() {
         );
         assert_eq!(t, Transition::Push(ScreenId::County(8, panel)), "{panel:?}'s own quadrant");
     }
-    // The thermometer's dead band opens nothing — the gap exists for the bar.
     let t = send(&mut screen, &mut game, &assets, Event::Click { x: 558, y: 200 });
     assert_eq!(t, Transition::Stay, "the health bar is deliberately not clickable");
 }
@@ -73,9 +67,6 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
             &assets,
             Event::Click { x: r.x + r.w / 2, y: r.y + r.h / 2 },
         );
-        // `map::sidebar_destination` is the one place a graduated screen is
-        // Named, this asks it:
-        // `0x17` is the raise-army screen now, and it takes the county.
         assert_eq!(
             t,
             Transition::Push(map::sidebar_destination(id, 8)),
@@ -84,8 +75,6 @@ fn the_five_sidebar_buttons_each_open_the_screen_the_original_opens() {
         );
     }
 
-    // Three of the five are gated on the county being yours.
-    // `Sidebar_Button` gates them. County 1 belongs to realm 5.
     game.select(1);
     for b in map::SIDEBAR_BUTTONS {
         let r = b.rect();

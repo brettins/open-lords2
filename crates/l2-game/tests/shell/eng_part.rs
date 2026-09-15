@@ -17,7 +17,6 @@ use l2_game::shell::{font, Eng};
 use l2_game::Game;
 use l2_view::Canvas;
 
-// ------------------------------------------------------- against the install
 
 #[test]
 fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
@@ -25,28 +24,22 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
         eprintln!("skipping: no game install");
         return;
     };
-    // The front end. If these three are right, page 1 is the front end and
-    // `docs/screens-county.md`'s old row for 0x1C was wrong.
     assert_eq!(e.get(11, 0), Some("Lords of the Realm 2"));
     assert_eq!(e.get(11, 2), Some("Single player"));
     assert_eq!(e.get(11, 4), Some("Exit game"));
     assert_eq!(e.get(11, 5), Some("Your options"));
     assert_eq!(e.get(11, 6), Some("Play Now!"));
 
-// The conquest screen, which 0x1C is.
     assert_eq!(e.get(36, 0), Some("Congratulations!!"));
     assert_eq!(e.get(36, 1), Some("You have conquered"));
     assert_eq!(e.get(36, 4), Some("You have lost."));
 
-    // The custom game's twelve options and the values they index.
     assert_eq!(e.get(102, 0), Some("Advanced Farming"));
     assert_eq!(e.get(102, 11), Some("Fight?"));
     assert_eq!(e.get(103, 0), Some("off"));
     assert_eq!(e.get(103, 45), Some("all"));
     assert_eq!(e.group(103).len(), 46, "the twelve runs cover 45 of these");
 
-    // **And every index the last seven screens draw is a string that exists.**
-    //
     // This walked `SHELLS` until the table emptied. The claim it was making -
     // *a group and index this engine draws must be a group and index the
     // player's own `L2.eng` has* - is worth more than the table it walked, so
@@ -79,12 +72,6 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(court::GROUP, court::COURT_OF), Some("Court of"));
     assert_eq!(e.get(court::GROUP, court::ARMS), Some("Arms"), "and nothing draws it");
 
-// **Every row the screen can draw, taken from the screen
-    // list beside it.** This used to name eight constants belonging to a stub;
-    // the stub was replaced by the real screen in the same merge and its
-    // constants went with it. Asking `Menu::rows()` means a menu that gains a
-    // row is covered here without anyone remembering — the difference between a
-    // test that checks the screen and one that checks a copy of what it was.
     let rows: std::collections::BTreeSet<usize> = [
         diplomacy::Menu::NoAlly,
         diplomacy::Menu::Allied,
@@ -131,7 +118,6 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(diplomacy::GROUP, diplomacy::LAST_GIFT), Some("Last gift was"));
     assert_eq!(e.get(diplomacy::GROUP, diplomacy::GIFT_OF), Some("Gift of"));
     assert_eq!(e.get(diplomacy::GROUP, diplomacy::DISPATCH), Some("Dispatch ?"));
-    // 72/11 + kind - 1, the four letters, in `g_diploKind` order.
     let letters: Vec<&str> =
         (0..4).map(|k| e.get(diplomacy::GROUP, diplomacy::LETTER_BASE + k).unwrap()).collect();
     assert_eq!(
@@ -144,7 +130,6 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
         ],
         "g_diploKind 1..=4"
     );
-    // 72/15 + k, and the prompt pair that follows it.
     assert_eq!(e.get(diplomacy::GROUP, diplomacy::REQUEST_BASE), Some("Plead for help from"));
     assert_eq!(
         e.get(diplomacy::GROUP, diplomacy::REQUEST_BASE + 1),
@@ -155,14 +140,9 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
         assert!(e.get(diplomacy::GROUP, diplomacy::REQUEST_PICKED + k).is_some());
     }
     // `Ui_DrawCount(value, 0, …)`: group 8's crown pair, singular then plural.
-    // The **plural** is what a zero amount takes, which is the half a
-    // reimplementation gets wrong.
     assert_eq!(e.get(l2_game::shell::COUNT_NOUN_GROUP, diplomacy::CROWN_NOUN), Some("Crown."));
     assert_eq!(e.get(l2_game::shell::COUNT_NOUN_GROUP, diplomacy::CROWN_NOUN + 1), Some("Crowns."));
 
-    // **The front end, page by page.** Every one of these is the literal
-    // argument to a `Ui_DrawCentred` or `Eng_DrawString` in the thirteen
-    // painters, so the words are the check and not the existence.
     assert_eq!(e.get(setup::GROUP, 1), Some("\"The siege is on\""), "page 1's subtitle");
     let title: Vec<&str> =
         setup::TITLE_ITEMS.iter().map(|&i| e.get(setup::GROUP, i).unwrap()).collect();
@@ -197,9 +177,6 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
         Some("Please wait while the session creator decides what type of game to play."),
         "page 6 as a joiner sees it - the arm this engine does not draw"
     );
-    // Page 3 and page 13, and **the string page 3 used to draw and must not**:
-    // 40/8 belongs to the skirmish file box, 40/5 is page 3's heading, and the
-    // status line under page 3's list is 40/2, drawn only mid-load.
     assert_eq!(e.get(setup::GROUP_FILE, 5), Some("Loading a game."), "page 3's heading");
     assert_eq!(e.get(setup::GROUP_FILE, 2), Some("Loading game. Please wait."), "and its status");
     assert_eq!(e.get(setup::GROUP_FILE, 6), Some("Click on a skirmish file to load."), "page 13");
@@ -210,7 +187,6 @@ fn l2_eng_says_what_every_screen_in_the_table_claims_it_says() {
     assert_eq!(e.get(setup::GROUP, 37), Some("Back"));
     assert_eq!(e.get(setup::GROUP, 38), Some("Cust."));
     assert_eq!(e.get(setup::GROUP, 39), Some("Norm."), "the arm on DAT_0056899C");
-    // Page 10, whose five indices are 16, 17, 18, 48, 49 - not 16..=20.
     assert_eq!(e.get(setup::GROUP, 16), Some("No Lords of the Realm CD"));
     assert_eq!(e.get(setup::GROUP, 48), Some("Siege Pack"), "drawn in colour 1, not 0x3F");
     assert!(e.get(setup::GROUP, 49).unwrap().contains("Siege pack CD"));
@@ -235,7 +211,6 @@ fn the_option_runs_name_the_values_a_player_of_the_game_would_recognise() {
     assert_eq!(values(4), vec!["easy", "normal", "hard", "impossible"], "Difficulty");
     assert_eq!(values(8), vec!["100", "500", "1000", "2500", "5000"], "Crowns");
     assert_eq!(values(11), vec!["humans", "all"], "Fight?");
-    // The one string nothing reaches.
     assert_eq!(e.get(103, 4), Some("one"));
 }
 

@@ -1,15 +1,7 @@
-//! **A game that can be won and a game that can be lost.**
-//!
-//! Until this file existed a game of Lords of the Realm II in this workspace ran
-//! for ever: `Realm::is_eliminated` and `Realm::in_play` were both implemented
-//! and tested, and nothing read either one as an ending.
-//!
 //! Each test here drives a whole turn through the real phase machine — no
 //! reaching into the ending chain and calling it directly — and asserts on the
 //! two things the original ends a game with: the outcome byte `DAT_0053F0C4`,
 //! and which of screen `0x1C`'s three sentences the campaign asks for.
-//!
-//! The positions are constructed. Forty turns of a real game is not a test.
 
 use l2_game::screen::{Ctx, Screen, ScreenId};
 use l2_game::screens::conquest::{ConquestScreen, Outcome as Branch};
@@ -17,9 +9,6 @@ use l2_game::victory::{ConquestBranch, Track};
 use l2_game::{turn, Game};
 use l2_kingdom::victory::Outcome;
 
-/// Five realms on a fourteen-county map, realm 1 human. Nobody owns anything
-/// yet; each test hands out the counties itself, because *who holds what* is the
-/// whole input to the ending chain.
 pub(crate) fn five_realms() -> Game {
     let mut g = Game::new(0x51EED);
     g.player = 1;
@@ -38,9 +27,6 @@ pub(crate) fn five_realms() -> Game {
     }
     for realm in 1..=5usize {
         g.kingdom.realms[realm].in_play = true;
-        // Non-zero, so that the recount's `strength != 0` guard lets each realm
-        // be looked at once. This is the state a realm is in the moment before
-        // it loses its last county.
         g.kingdom.realms[realm].strength = 3;
         g.kingdom.realms[realm].gold = 1000;
         g.kingdom.realms[realm].lord = realm as u8 - 1;
@@ -57,12 +43,7 @@ fn give(g: &mut Game, counties: std::ops::RangeInclusive<usize>, realm: u8) {
     l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
 }
 
-// ---------------------------------------------------------------------------
-// Won
-// ---------------------------------------------------------------------------
 
-/// **The whole map is the player's, and one turn ends the game.**
-///
 /// Four AI realms are recounted at zero and raise group 194 apiece; the last of
 /// those leaves one realm standing, which is the human, so `Score_RankRealms`
 /// crowns it and enqueues group 225. Showing 225 is `DAT_0053F0C4 = 10`.
@@ -85,7 +66,6 @@ fn holding_every_county_wins_the_game() {
     assert!(g.kingdom.realms[1].crowned_once, "realm +0xED, the one-shot guard");
 }
 
-/// The win advances the campaign and names the next country.
 #[test]
 fn a_win_steps_the_campaign_on_to_the_next_map() {
     let mut g = five_realms();
@@ -94,12 +74,6 @@ fn a_win_steps_the_campaign_on_to_the_next_map() {
     assert_eq!(g.campaign.current().map(|m| m.scenario), Some(17), "Quaintville");
 
     turn::end_turn(&mut g).expect("the machine comes round");
-    // **The step into 0x1C is `Msg_Dismiss`'s, not the turn's.** `crate::message::drain`
-    // is the headless stand-in for the frame loop and it dismisses the victory
-    // message, which is where `Campaign_EnterConquest` runs -- so the counter has
-    // already moved by the time `end_turn` returns and this asks for the BRANCH
-    // Calling `enter_conquest_screen` here a second
-    // time is what turned this test red, correctly.
     assert_eq!(g.campaign.branch(), ConquestBranch::Won);
     assert_eq!(g.campaign.map, 1);
     assert_eq!(g.campaign.current().map(|m| m.scenario), Some(12), "Rose");
@@ -107,7 +81,6 @@ fn a_win_steps_the_campaign_on_to_the_next_map() {
     assert_eq!(g.campaign.current().map(|m| (m.difficulty, m.gold)), Some((0, 2500)));
 }
 
-/// The eighth win is the end of the campaign, not the end of a map.
 #[test]
 fn the_last_win_of_a_campaign_asks_for_the_long_branch() {
     let mut g = five_realms();
@@ -120,12 +93,7 @@ fn the_last_win_of_a_campaign_asks_for_the_long_branch() {
     assert!(g.campaign.is_complete());
 }
 
-// ---------------------------------------------------------------------------
-// Lost
-// ---------------------------------------------------------------------------
 
-/// **The player holds nothing, and one turn ends the game.**
-///
 /// The human is recounted at zero at the top of phase 4 — `AI_RunTurnStep` runs
 /// step 0 for every realm, the human included — and raises group 224 with
 /// `from == g_localPlayer`, which is `DAT_0053F0C4 = 11`.
@@ -133,8 +101,6 @@ fn the_last_win_of_a_campaign_asks_for_the_long_branch() {
 fn holding_nothing_loses_the_game() {
     let mut g = five_realms();
     give(&mut g, 1..=14, 2);
-    // Realm 2 has everything; 3, 4 and 5 die alongside the player, so the loss
-    // has to survive three other eliminations in the same queue.
     let outcome = turn::end_turn(&mut g).expect("the machine comes round");
 
     assert_eq!(outcome.outcome, Outcome::Lost);
@@ -159,13 +125,7 @@ fn a_loss_replays_the_same_map() {
     assert_eq!(g.campaign.current(), before, "the same country, to be fought again");
 }
 
-// ---------------------------------------------------------------------------
-// Neither
-// ---------------------------------------------------------------------------
 
-/// The ordinary turn: nobody dies, nothing ends, and the queue is empty
-/// afterwards. Without this the two tests above would pass on a chain that
-/// declared a winner every turn.
 #[test]
 fn a_turn_in_which_nobody_dies_ends_nothing() {
     let mut g = five_realms();
@@ -186,8 +146,6 @@ fn a_turn_in_which_nobody_dies_ends_nothing() {
     }
 }
 
-/// Five turns of an unfinished game stay unfinished, and the counter does not
-/// creep. `docs/plan.md` §0: the defects that matter appear under repetition.
 #[test]
 fn an_unfinished_game_stays_unfinished_over_several_turns() {
     let mut g = five_realms();
@@ -204,12 +162,7 @@ fn an_unfinished_game_stays_unfinished_over_several_turns() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The screen
-// ---------------------------------------------------------------------------
 
-/// The interstitial draws the branch the game reached
-/// shell's cycling default.
 #[test]
 fn the_conquest_screen_takes_its_branch_from_the_game() {
     for (owner, expected) in [(1u8, Branch::Won), (2u8, Branch::Lost)] {
@@ -226,8 +179,6 @@ fn the_conquest_screen_takes_its_branch_from_the_game() {
     }
 }
 
-/// A game still in play leaves the screen on its own default, so walking the
-/// shell still shows all three sentences.
 #[test]
 fn a_game_still_in_play_leaves_the_shell_cycling() {
     let mut g = five_realms();
@@ -238,9 +189,6 @@ fn a_game_still_in_play_leaves_the_shell_cycling() {
     assert_eq!(screen.outcome(), Branch::Won, "the default the index screen walks");
 }
 
-// ---------------------------------------------------------------------------
-// The campaign table
-// ---------------------------------------------------------------------------
 
 #[test]
 fn the_second_campaign_starts_at_australia() {

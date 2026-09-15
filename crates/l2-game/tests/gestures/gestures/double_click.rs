@@ -11,8 +11,6 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::county::{self, Panel};
 use l2_game::Game;
 
-/// **A double click on a repeating button fires once and does not hold.**
-///
 /// `App_WndProc` (`0x004B29BE`) answers `WM_LBUTTONDBLCLK` (`0x203`) with
 /// `DAT_004EADA1 |= 1` and nothing else; only `0x201` sets the down bit. So
 /// `g_mouseLeftDown` is clear for as long as the second press is held, and
@@ -37,9 +35,6 @@ fn a_double_click_on_a_repeating_button_fires_once_and_does_not_hold() {
 /// prompt's table — kind 4, pressed or double-clicked — and its 48 × 48 corner
 /// opens `if (g_mouseLeftPressed == 0) { uVar1 = 0; }`. `[V]` This screen passed
 /// every double click down, prompt or not.
-///
-/// **Ablation, run:** delete the message screen's `Event::DoubleClick` arm and
-/// the prompt stays up.
 #[test]
 fn a_double_click_on_a_prompt_thumb_answers_it() {
     let (mut g, a) = world();
@@ -60,17 +55,12 @@ fn a_double_click_on_a_prompt_thumb_answers_it() {
     assert_eq!(m.clicks(), 1, "Widget_Test's press, so it clicks");
 }
 
-/// **A double click on the ration slider's track does not start a drag.**
-///
 /// `Ration_SliderClick` (`0x0043A379`) has two doors: the arrows want
 /// `g_mouseLeftPressed || g_mouseLeftDoubleClick`,
 /// `g_mouseLeftDown && g_mouseInputChanged`. `App_WndProc` (`0x004B29BE`)
 /// answers `WM_LBUTTONDBLCLK` with `DAT_004EADA1 |= 1` and nothing else — only
 /// `WM_LBUTTONDOWN` sets the down bit — so after a double click the button is
 /// not down and moving the pointer moves nothing.
-///
-/// Ours latched `slider_held` on the double click, so the thumb then followed
-/// the cursor with the button up.
 ///
 /// **Ablation, run:** put `self.slider_held = true;` back in the
 /// `Event::DoubleClick` arm of `CountyScreen::handle` and the second assertion
@@ -85,7 +75,6 @@ fn a_double_click_on_the_ration_slider_does_not_leave_a_drag_running() {
     let (low, high) = (track.x + 10, track.x + 90);
     let y = track.y + track.h / 2;
 
-    // The double click still jumps the value: the arm is entered on either flag.
     send(&mut m, &mut g, &a, Event::DoubleClick { x: low, y });
     assert_eq!(g.kingdom.counties[1].ration_split, 10, "the double click still jumps");
 
@@ -95,16 +84,11 @@ fn a_double_click_on_the_ration_slider_does_not_leave_a_drag_running() {
         "a double click must not leave the drag latched on",
     );
 
-    // A real press does latch it, which is the other half of the same field.
     send(&mut m, &mut g, &a, Event::Click { x: low, y });
     send(&mut m, &mut g, &a, Event::Pointer { x: high, y });
     assert_eq!(g.kingdom.counties[1].ration_split, 90, "and the press does drag");
 }
 
-/// **A double click on the supplies thumb down restarts its twenty frames and
-/// then leaves.** `Screen_HandleInput`'s `0x18` arm runs `Widget_Test` on
-/// `g_sendSuppliesWidgets`, kinds 4 and 5, whose guards read the double click;
-/// the icon hotspots and the minimap pick read `g_mouseLeftPressed` alone.
 /// `[V]` This screen dropped it.
 ///
 /// **Ablation, run:** disable the supplies screen's `Event::DoubleClick` arm and
@@ -132,10 +116,8 @@ fn a_double_click_on_the_supplies_thumb_down_leaves_twenty_ticks_later() {
 /// half into the unit half.** `0x04`'s arm tests the corner and the brush
 /// (releases), then `FUN_00438A91`'s `Widget_Test` kind 4, then the unit
 /// buttons (`Hotspot_Test` kind 1); only the widget reads the double click.
-/// `[V]` This screen dropped it.
 ///
-/// **Ablation, run:** delete the information panel's `Event::DoubleClick` arm
-/// and the panel stays on the tile.
+/// `[V]` This screen dropped it.
 #[test]
 fn a_double_click_on_the_garrison_widget_opens_the_garrison() {
     use l2_game::screens::info::{Target, GARRISON_WIDGET};

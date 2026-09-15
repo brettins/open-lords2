@@ -16,9 +16,6 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
 
-/// The `+` and `−` move **one man**, which is the granularity the original's
-/// two smallest buttons have and the thing our screen used to get wrong by
-/// moving ten. The arrow keys are ours and do the same.
 #[test]
 fn the_plus_and_minus_on_a_rack_move_exactly_one_man() {
     let (mut g, a, mut m) = on_the_map();
@@ -41,14 +38,6 @@ fn the_plus_and_minus_on_a_rack_move_exactly_one_man() {
     assert_eq!(g.levy.basket.unequipped(), 300);
 }
 
-/// **`Create` works from inside a rack, and `Change` and `Cancel` do not** —
-/// `Hotspot_Test(0, 0, &g_armouryHotspots, 7)` on screen `0x0D` against the
-/// armoury's own 9, so record 6 is reached and records 7 and 8 are not.
-///
-/// It is the one place [`Transition::Pass`] earns its keep in this file: the
-/// button belongs to the armoury, the rack declines the click,
-/// underneath acts — **at its own depth**, so the rack goes with it
-/// being left on a stack above a screen that has closed.
 #[test]
 fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
     let (mut g, a, mut m) = on_the_map();
@@ -59,7 +48,6 @@ fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
     let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
     let sword_click = ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2);
 
-    // Change and Cancel are dead on 0x0D: the screen stays exactly where it is.
     click(&mut m, &mut g, &a, sword_click);
     for dead in [armoury::CHANGE_BOX, armoury::CANCEL_BOX] {
         click(&mut m, &mut g, &a, on(dead));
@@ -76,8 +64,6 @@ fn create_reaches_through_an_open_rack_and_the_other_two_buttons_do_not() {
     assert_eq!(unit.troops[TroopType::Swordsman.index()], 200);
 }
 
-/// **A hit box that misses.** Every pixel of every rack hotspot opens that rack
-/// and no other, and no pixel of the three right-hand buttons opens any rack.
 /// `docs/decisions.md` C58: three wrong-screen bugs have reached this player
 /// through a near-miss, so the boxes are walked.
 #[test]
@@ -99,8 +85,6 @@ fn no_pixel_of_the_armoury_opens_the_wrong_thing() {
             click(&mut m, &mut g, &a, on(armoury::RACK_OK));
         }
     }
-    // The three buttons are outside every rack, and Change is the one that goes
-// back.
     click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
 }

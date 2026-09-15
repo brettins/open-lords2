@@ -13,7 +13,6 @@ use l2_net::{Quirk, Quirks};
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
     use crate::unit::Unit;
@@ -40,7 +39,6 @@ mod tests {
         units.spawn(Unit::new(UnitKind::Army, owner, 0, 0));
     }
 
-    // --- strength ----------------------------------------------------------
 
     #[test]
     fn strength_is_three_a_county_and_one_an_army() {
@@ -64,7 +62,6 @@ mod tests {
 
     #[test]
     fn the_count_cannot_overflow_its_byte() {
-        // Sixteen counties and a hundred and fifty armies is 198.
         let (mut counties, _, mut units) = world();
         own(&mut counties, &(1..=16).collect::<Vec<_>>(), 1);
         for _ in 1..=150 {
@@ -73,7 +70,6 @@ mod tests {
         assert_eq!(strength(&counties, 16, &units, 1), 198);
     }
 
-    // --- elimination -------------------------------------------------------
 
     #[test]
     fn a_realm_with_nothing_left_is_eliminated_and_an_ai_says_so() {
@@ -92,7 +88,6 @@ mod tests {
         realms[1].is_human = true;
         let msg = recount_strength(&mut realms, &counties, 14, &units, 1, 1);
         assert_eq!(msg.map(|m| m.group), Some(MSG_DEFEAT));
-        // `from == to == me` is what makes `outcome_of` call it a loss.
         assert_eq!(msg.map(|m| (m.from, m.to)), Some((1, 1)));
     }
 
@@ -115,7 +110,6 @@ mod tests {
         assert!(realms[2].in_play);
         assert_eq!(realms[2].strength, 3);
 
-        // A realm with no counties but one army is still alive.
         realms[3].strength = 3;
         army(&mut units, 3);
         assert_eq!(recount_strength(&mut realms, &counties, 14, &units, 3, 1), None);
@@ -127,7 +121,6 @@ mod tests {
         let (counties, mut realms, units) = world();
         assert!(recount_strength(&mut realms, &counties, 14, &units, 2, 1).is_some());
         let rotation = realms[2].voice_rotation;
-        // Second time round the guard `strength != 0` fails and nothing happens.
         assert_eq!(recount_strength(&mut realms, &counties, 14, &units, 2, 1), None);
         assert_eq!(realms[2].voice_rotation, rotation, "no second message, no second rotation");
     }
@@ -139,7 +132,6 @@ mod tests {
         assert_eq!(recount_strength(&mut realms, &counties, 14, &units, 99, 1), None);
     }
 
-    // --- ranking and crowning ----------------------------------------------
 
     #[test]
     fn opponents_remaining_excludes_the_local_player() {
@@ -179,7 +171,6 @@ mod tests {
         assert!(realms[1].crowned_once);
     }
 
-    /// The one-shot guard, and what it does on the *second* call.
     #[test]
     fn a_lone_ai_taunts_once_and_then_hands_the_human_a_victory() {
         let (_, mut realms, _) = world();
@@ -206,7 +197,6 @@ mod tests {
         assert!(out[0].sets_outcome());
     }
 
-    /// The degenerate case the comparison lets through.
     #[test]
     fn with_nobody_in_play_the_leader_and_the_trailer_are_both_the_array_slot() {
         let (_, mut realms, _) = world();
@@ -223,7 +213,6 @@ mod tests {
         assert!(realms[0].crowned_once, "the array slot is written, exactly as it is there");
     }
 
-    // --- the outcome -------------------------------------------------------
 
     #[test]
     fn group_225_is_a_win_whatever_else_is_true() {
@@ -248,13 +237,11 @@ mod tests {
         assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::Set(Outcome::InPlay));
     }
 
-    /// The mainline human victory: it is this branch, not `Score_RankRealms`.
     #[test]
     fn the_last_ais_death_notice_with_no_opponents_left_enqueues_the_victory() {
         let msg = Ending { group: MSG_AI_ELIMINATED, from: 3, to: 0, category: CATEGORY_ENDING, variant: 0 };
         let r = Ranking { opponents_remaining: 0, ..Ranking::default() };
         assert_eq!(outcome_of(msg, 1, r, Q), OutcomeStep::EnqueueVictory);
-        // …and that message is then a win.
         assert_eq!(
             outcome_of(victory_message(1), 1, r, Q),
             OutcomeStep::Set(Outcome::Won),
@@ -262,8 +249,6 @@ mod tests {
         );
     }
 
-    /// Both realms die at once and the original calls it a win. Strange, and
-    /// reproduced.
     #[test]
     fn dying_at_the_same_moment_as_the_last_opponent_is_scored_a_win() {
         let msg = Ending { group: MSG_DEFEAT, from: 1, to: 1, category: CATEGORY_ENDING, variant: 0 };

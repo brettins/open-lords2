@@ -1,39 +1,8 @@
-//! `unit.*` — the battle-simulation combat constants, as rules.
-//!
 //! This is the half of the platform `docs/decisions.md` C11 is really about.
-//! The skirmish army table in [`crate::troops`] came out of `TROOPS*.ENG`, a
-//! file the original at least *read*; these numbers were never in a file at
-//! all. `docs/battle.md` §6.1 read them out of the instruction stream of
-//! `Lords2.exe`
-//! the binary. Here they are eleven tables in a document.
-//!
-//! # Why `unit.*` and not `troop.*`
-//!
-//! The two namespaces describe the same eleven things and are deliberately
-//! kept apart, because they have different authorities and different
-//! lifetimes:
-//!
-//! * `troop.<id>` says where a type sits in the eleven columns of
-//!   `TROOPS*.ENG` and what the skirmish battles start with. It is **generated
-//!   on the player's machine** from their own copy of the game, and it does
-//!   not exist at all on an install that never shipped those files.
-//! * `unit.<id>` says what a soldier does when it swings. It is **ours**,
-//!   shipped with the engine, and present on every install.
-//!
-//! Merging them into one table would mean a file that is half generated and
-//! half authored, and a mod author could not tell by looking which half
-//! regenerating would overwrite. The ids are the same in both, and
-//! [`crate::core`] has a test that they stay the same.
 
 use crate::ruleset::{RuleError, Ruleset};
 use l2_sim::{Troop, TroopStats, TroopTable, ALL_TROOPS};
 
-/// The rule id of each troop type, in [`ALL_TROOPS`] order.
-///
-/// These are the ids `TROOPS*.ENG`'s two-letter column header gives, so
-/// `troop.archers` and `unit.archers` are the same soldier. `crossbows` rather
-/// than `crossbowmen` because the file's header says `Xb`, and a mod author
-/// typing one of these has already met the other.
 pub const UNIT_IDS: [&str; ALL_TROOPS.len()] = [
     "peasants",
     "crossbows",
@@ -48,31 +17,16 @@ pub const UNIT_IDS: [&str; ALL_TROOPS.len()] = [
     "oil",
 ];
 
-/// The id of one troop type.
 pub fn unit_id(troop: Troop) -> &'static str {
     UNIT_IDS[troop.index()]
 }
 
-/// The troop type an id names.
 pub fn troop_for_id(id: &str) -> Option<Troop> {
     UNIT_IDS.iter().position(|&u| u == id).map(|i| ALL_TROOPS[i])
 }
 
-/// The largest value the simulation's `u16` fields can hold.
 const MAX_STAT: i64 = u16::MAX as i64;
 
-/// Build a [`TroopTable`] out of a merged ruleset.
-///
-/// Every type must be present: unlike the army table, where an absent troop
-/// legitimately means "none of those", an absent `recovery` would mean a
-/// figure that can be struck every tick. A missing rule here is a mistake, and
-/// the error names the rule
-/// rule is the thing that is missing and no single file is to blame.
-///
-/// Ranges are checked and refused. `recovery = 0` is the
-/// one that matters: it is a divisor-shaped value in the melee loop and a
-/// figure with no recovery interval is struck on every tick by every
-/// neighbour, which reads as a hang.
 pub fn troop_table(rs: &Ruleset) -> Result<TroopTable, RuleError> {
     let mut table = TroopTable::DEFAULT;
     for troop in ALL_TROOPS {
@@ -104,8 +58,6 @@ pub fn troop_table(rs: &Ruleset) -> Result<TroopTable, RuleError> {
             }
             melee_attack[band] = value as u16;
         }
-        // Best band first. The original's bands are a degradation ladder, and
-        // a rising one would make a weakened figure hit harder.
         for band in 1..4 {
             if melee_attack[band] > melee_attack[band - 1] {
                 return Err(range_err(
@@ -129,7 +81,6 @@ pub fn troop_table(rs: &Ruleset) -> Result<TroopTable, RuleError> {
             exchange: rs.integer_in(&format!("{base}.exchange"), 0, MAX_STAT)? as u16,
         };
         table.stats[troop.index()] = stats;
-        // Zero would be an infinite kill loop in `take_hits`.
         table.hits_per_casualty[troop.index()] =
             rs.integer_in(&format!("{base}.hits_per_casualty"), 1, MAX_STAT)? as u16;
     }
@@ -147,11 +98,6 @@ fn range_err(rs: &Ruleset, path: &str, message: String) -> RuleError {
     }
 }
 
-/// Render a [`TroopTable`] as the document [`troop_table`] reads back.
-///
-/// This is how `rulesets/core/rules/units.toml` is produced, and a test
-/// asserts the shipped file is exactly this text — so the document and
-/// `l2_sim::TroopTable::DEFAULT` cannot drift apart in either direction.
 pub fn render_toml(table: &TroopTable) -> String {
     use std::fmt::Write as _;
     let mut out = String::new();

@@ -16,9 +16,6 @@ use l2_game::Game;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// **`Menu_HitTitle` measures the words**, so the 32-pixel gap between two
-/// titles is dead bar.
-///
 /// Install-gated by `world!`, so the widths are the shipped `Fntl2_14.pl8`'s
 /// Through the shipped `L2.eng`'s own captions.
 #[test]
@@ -42,8 +39,6 @@ fn the_menu_bar_titles_are_their_own_words_wide_with_a_dead_gap_between_them() {
     assert!(menubar::title_at(&ctx, t[1].x + 1, 18).is_none(), "y 18 is past 6 + 12");
 }
 
-/// **The menu bar opens, hovers, picks and closes** - the four arms of screen
-/// `0x32`, driven as a player drives them.
 #[test]
 fn the_menu_bar_opens_a_dropdown_and_its_items_reach_their_screens() {
     let (mut game, assets) = world!();
@@ -52,7 +47,6 @@ fn the_menu_bar_opens_a_dropdown_and_its_items_reach_their_screens() {
         menubar::titles(&ctx)
     };
 
-    // Menu_OpenDropdown: a press on a title.
     let mut m = Machine::new(ScreenId::Campaign);
     send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[0].x + 2, y: 10 });
     assert_eq!(m.top_id(), Some(ScreenId::MenuBar(0)), "the File menu is open");
@@ -78,15 +72,12 @@ fn the_menu_bar_opens_a_dropdown_and_its_items_reach_their_screens() {
     send_stack(&mut m, &mut game, &assets, Event::Click { x: dead.x + 4, y: dead.y + dead.h + 2 });
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "a press between two rows closes the menu");
 
-    // And the right button closes it.
     let mut m = Machine::new(ScreenId::Campaign);
     send_stack(&mut m, &mut game, &assets, Event::Click { x: titles[1].x + 2, y: 10 });
     send_stack(&mut m, &mut game, &assets, Event::RightClick { x: 300, y: 300 });
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
 }
 
-/// **The Options and Help menus reach the four option screens**, which had no
-/// route into them but the index screen.
 #[test]
 fn the_options_menu_reaches_the_four_option_screens() {
     let (mut game, assets) = world!();
@@ -110,17 +101,11 @@ fn the_options_menu_reaches_the_four_option_screens() {
 
 /// **Help > *"How do I…"* and its four siblings put a help message on the
 /// ring**, which is what `Menu_HelpHowDoI` (`0x0043480C`) does:
-/// `Msg_Enqueue(0, g_localPlayer, 0x123, 0, 0x13, 0, 0, 0)` then
-/// `g_screenId = g_menuPrevScreen`. Five consecutive ids, `0x123` … `0x127`,
-/// all category `0x13`.
 ///
 /// **`l2help.hlp` is a different mechanism and is out of scope.** The only
 /// `WinHelpA` in the interface is `Opt_GameHelpContents` (`0x00434942`) on the
 /// help-options page, and a `winit` window cannot open a Windows 3.1 help
 /// file. These five are `L2.eng`, not the help file.
-///
-/// **Ablation, run:** return `Transition::Stay` without the enqueue and the
-/// ring stays empty.
 #[test]
 fn the_five_help_topics_put_their_message_on_the_ring() {
     let (mut game, assets) = world!();
@@ -142,38 +127,9 @@ fn the_five_help_topics_put_their_message_on_the_ring() {
     }
 }
 
-/// **The menu bar's shields are the realms still to move.**
-///
 /// A player: *"I think in the original game the shield icons at the top meant
 /// that players hadn't ended their turn."* They did. `Screen_DrawMenuBar`
 /// (`0x00419C78`):
-///
-/// ```c
-/// for (i = 1; i < 6; i++)
-///     if ((g_realms[i].strength != 0) && (g_realms[i].aiStep < 999)) {
-///         Pl8_DrawFrame(g_miscCtySheet, g_realms[i].shieldIndex + 0x55, slot * 0x10 + 0x10e, 4);
-///         slot++;
-///     }
-/// ```
-///
-/// The expected band is built **out of those literals** — frame `0x55 +
-/// shield`, `x = 0x10E + 0x10 * slot`, `y = 4` — on a bare menu-bar
-/// background, and compared with what the campaign map drew. Nothing in the
-/// probe goes through `Chrome::draw_banner` or `turn::realm_turn_ended`.
-///
-/// Three states:
-///
-/// 1. **the person's own turn — every living realm's shield is up**, even with
-///    every counter at or past 999, which is where a finished turn leaves them.
-///    This is the inversion trap: a literal `ai_step < 999` draws none.
-/// 2. **End Turn pressed** — the person's shield is gone even with his counter
-///    at 0, and of the AI realms only the one still stepping remains, **closed
-///    up into slot 0** although it is the highest-numbered realm;
-/// 3. **everybody finished** — the bar is empty.
-///
-/// Ablations, each observed red: `ai_step < 999` literally in `draw_menu_bar`
-/// (claim 1); the `realm_turn_ended` clause deleted (claim 2); `slot`
-/// Advanced for every realm (claim 2).
 #[test]
 fn the_menu_bar_shields_are_the_realms_still_to_move() {
     let (mut game, assets) = world!();
@@ -187,7 +143,6 @@ fn the_menu_bar_shields_are_the_realms_still_to_move() {
     assert!(ais.len() >= 2, "England seats more than one lord, or this test asserts nothing");
     let colours = game.realm_colour;
 
-    // The five slots: 13 x 16 frames from x 270 at 16-pixel steps, y 4.
     let band = |c: &Canvas| -> Vec<u8> {
         let mut out = Vec::new();
         for y in 4..20usize {
@@ -207,7 +162,6 @@ fn the_menu_bar_shields_are_the_realms_still_to_move() {
         band(&c)
     };
 
-    // 1 — the person's own turn, with every counter where the last turn left it.
     game.kingdom.realms[human].ai_step = l2_kingdom::AI_STEP_DONE;
     for &id in &ais {
         game.kingdom.realms[id].ai_step = l2_kingdom::AI_STEP_DONE + 1;
@@ -221,7 +175,6 @@ fn the_menu_bar_shields_are_the_realms_still_to_move() {
          leaves every counter at 999 or 1000",
     );
 
-    // 2 — End Turn, from the map, with the mouse.
     send(&mut screen, &mut game, &assets, Event::Click { x: 500, y: 470 });
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
@@ -245,7 +198,6 @@ fn the_menu_bar_shields_are_the_realms_still_to_move() {
          up over every realm that has finished",
     );
 
-    // 3 — and when the last realm finishes, the bar is empty.
     game.kingdom.realms[still].ai_step = l2_kingdom::AI_STEP_DONE;
     let finished = draw(&mut screen, &mut game, &assets);
     assert!(band(&finished) == expected(&[]), "every realm has finished, so no shield is up");

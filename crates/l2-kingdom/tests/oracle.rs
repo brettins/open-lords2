@@ -1,18 +1,3 @@
-//! **The economy tables, against the bytes in `Lords2.exe`.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-kingdom --test oracle
-//! ```
-//!
-//! # Why this file exists
-//!
-//! `crates/l2-kingdom/src/tables/mod.rs` is 1,200 lines of hand-transcribed
-//! literals, each with an address in its doc comment and none with a check. The
-//! addresses were read once, by hand, out of a decompiler; the numbers were
-//! typed once, by hand, into Rust. `tools/oracle/kingdom.ps1` reads the same
-//! tables out of the executable and **prints them to a console**, where nothing
-//! compares them to anything.
-//!
 //! `docs/decisions.md` C10 (the manual is wrong twice), C12 (a test that cannot
 //! fail), C17 (the answer was in the code and we looked at the data) and C20 (a
 //! test named after a file it never opened) are four instances of one
@@ -22,20 +7,9 @@
 //! Normal rations at health band 3, so 25 of the 30 entries in
 //! `g_healthDeltaTable` have never been read by any test.
 //!
-//! # What makes this different from the reproduction test
-//!
-//! The reproduction checks that our *rules* land on a real save's numbers, which
-//! is strong evidence about the rules that the save exercises. This checks that
-//! our *tables* are the executable's, including every row the save never
-//! touches. They fail in different ways and neither replaces the other.
-//!
-//! Two addresses are asserted by arithmetic as well as by content, because
-//! `tools/oracle/kingdom.ps1`'s comments pin several table *lengths* that way:
 //! `0x004D6520 + 40` is exactly where `g_healthHappiness` begins, so the health
 //! band ladder is five pairs and not six.
 
-// The loops below index by `[rationLevel][healthBand]` on purpose: those are the
-// table's own coordinates and a failure message that names them is the point.
 #![allow(clippy::needless_range_loop)]
 
 use l2_kingdom::field::{FIELD_BRUSHES, WASTE_BRUSHES};
@@ -59,9 +33,6 @@ const CASTLE_FREE_ARCHERS_VA: u32 = 0x004D_8A40;
 const WEAPON_COST_VA: u32 = 0x004D_8990;
 const GOOD_SELL_PRICE_VA: u32 = 0x004D_8910;
 
-/// `g_healthBandLadder` — **five** `{inclusive upper bound, band}` pairs, not
-/// four. The top band is an explicit `(100, 4)` entry.
-///
 /// The count is fixed by arithmetic and not by belief: five pairs is forty
 /// bytes, and `0x004D6520 + 40` is exactly `0x004D6548`, where
 /// `g_healthHappiness` begins — asserted below, and again by that table's own
@@ -83,12 +54,6 @@ fn the_health_ladder_and_its_length_are_the_bytes_in_the_executable() {
     assert_eq!(h.i32_at(5), 0, "the sixth slot is the pad that pins the length");
 }
 
-/// `g_healthDeltaTable` — `int[6][5]`, indexed `[rationLevel][healthBand]`.
-///
-/// **Twenty-five of these thirty entries are never read by any other test**,
-/// because every county in the England turn-one position sits on Normal
-/// rations at band 3. This is the only thing in the suite that would notice a
-/// transposed row.
 #[test]
 fn the_health_delta_table_is_the_bytes_in_the_executable() {
     let exe = l2_testkit::executable!();
@@ -109,8 +74,6 @@ fn the_health_delta_table_is_the_bytes_in_the_executable() {
     eprintln!("g_healthDeltaTable: 30 values match the executable");
 }
 
-/// `g_rationTable` — six `{divisor, multiplier}` pairs, and
-/// `g_birthRateLadder` — twenty `{population, percent}` pairs.
 #[test]
 fn the_ration_and_birth_ladders_are_the_bytes_in_the_executable() {
     let exe = l2_testkit::executable!();
@@ -123,16 +86,12 @@ fn the_ration_and_birth_ladders_are_the_bytes_in_the_executable() {
     let read: Vec<(i32, i32)> = (0..20).map(|i| (b.i32_at(i * 2), b.i32_at(i * 2 + 1))).collect();
     assert_eq!(read, BIRTH_RATE_LADDER.to_vec(), "g_birthRateLadder");
 
-    // A ladder that is not monotone would be read wrong by any search that
-    // stops at the first match, which is what the rule does.
     for w in BIRTH_RATE_LADDER.windows(2) {
         assert!(w[0].0 <= w[1].0, "the birth ladder is not sorted by population");
     }
     eprintln!("g_rationTable and g_birthRateLadder match the executable");
 }
 
-/// The single-array tables: the weather's swing on the herd, the tax happiness
-/// curve, the two castle columns, the weapon costs and the merchant prices.
 #[test]
 fn the_flat_economy_tables_are_the_bytes_in_the_executable() {
     let exe = l2_testkit::executable!();
@@ -176,13 +135,6 @@ fn the_flat_economy_tables_are_the_bytes_in_the_executable() {
     eprintln!("six flat economy tables match the executable");
 }
 
-/// **The ruleset a mod overrides is the same data these tables hold.**
-///
-/// `Tables::DEFAULT` is what the simulation runs on;
-/// `tables::HEALTH_DELTA` and friends are what this file compares against the
-/// binary. If the two ever came apart the oracle above would be checking
-/// something the engine does not use — which is the same failure as checking a
-/// constant against a second copy of itself.
 #[test]
 fn the_default_ruleset_is_built_from_the_tables_the_oracle_checked() {
     let t = &Tables::DEFAULT;
@@ -199,12 +151,7 @@ fn the_default_ruleset_is_built_from_the_tables_the_oracle_checked() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// The field brush
-// ---------------------------------------------------------------------------
 
-/// The two hotspot tables `Map_Click` puts up when a field is clicked, and the
-/// share table `Labour_ToggleShare` indexes.
 const FIELD_BRUSH_MENU_VA: u32 = 0x004D_C4D0;
 const WASTE_BRUSH_MENU_VA: u32 = 0x004D_C530;
 const SHARE_TABLE_VA: u32 = 0x004D_6768;
@@ -216,8 +163,6 @@ const HOTSPOT_RECORD: usize = 24;
 /// `Field_SetType` a player can reach.
 const FIELD_BRUSH_HANDLER: i32 = 0x0043_8B02;
 
-/// **The five field brushes are the executable's, not ours.**
-///
 /// `docs/screens-county.md` §9 guessed that county `+0x130`/`+0x134`/`+0x138`
 /// were the field brush; they are the first three of the eight job percentages,
 /// and the brush is these two hotspot tables. Reading them settles it with
@@ -275,9 +220,5 @@ fn the_share_table_is_the_executables_and_its_head_is_a_hundred_over_n_plus_one(
     for n in 0..5 {
         assert_eq!(SHARE_TABLE[n], 100 / (n as i32 + 1), "entry {n}");
     }
-    // Entries 5..8 are `{0, 5, 0}` and are **not** that sequence. Nothing can
-    // index them: `Labour_ToggleShare` counts non-zero shares among three jobs,
-    // so `n` is at most 2 when it is called. Asserted so that a reader who
-    // notices the break knows it was looked at.
     assert_eq!(&SHARE_TABLE[5..], &[0, 5, 0]);
 }

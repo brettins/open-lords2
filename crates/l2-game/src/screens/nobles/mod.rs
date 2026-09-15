@@ -1,21 +1,6 @@
 //! **The standings** — `Screen_GreatestNoble` (`0x0041593B`), `g_screenId`
 //! `0x20`.
 //!
-//! # It is a bar chart of five flagpoles, not a table
-//!
-//! `docs/screens-county.md` calls it *"the standings"* and `docs/draws.md`
-//! filed it as a standings **table**.
-//! *"suspiciously few"*. The page is five banners on five
-//! poles, each raised to that realm's **percentage of the leader's** score in
-//! one category, with the seven categories as tabs along the bottom and one
-//! line of text naming the category and whoever leads it.
-//!
-//! The player's report was *"I can't click the Greatest Nobles button in the
-//! treasury view"*
-//! with `Transition::Stay` because there was nothing to go to.
-//!
-//! # The painter, address by address
-//!
 //! ```text
 //! Screen_GreatestNoble(firstFrame):                             0x0041593B
 //!   Restore_WorkingDir(); DAT_0053F050 = 0            campaign sprite mode
@@ -42,12 +27,6 @@
 //!   Gfx_MarkAllDirty(); Gfx_Present(1); Palette_Set(grtnoble.256)
 //! ```
 //!
-//! **`Screen_DrawWidgets` has no `0x20` arm** — checked across all of its arms
-//! — so this painter is the whole of the screen
-//! by `grtnoble.pl8` itself.
-//!
-//! # `flags.pl8` has **six** frames
-//!
 //! `docs/draws.md`'s sheet note said frame 5 was *"for the leader"*. It is
 //! not: `Sprite_WGenSprite(5, …)` is indexed by `g_nobleCategory` through
 //! [`TAB_X`], not by the leading realm, and its x values are the seven tab
@@ -56,9 +35,6 @@
 //! looking at. `C194`.
 //!
 //! # The metric, category by category — `FUN_00415E42` (`0x00415E42`)
-//!
-//! Undocumented anywhere before this. A realm out of play scores 0 in every
-//! category; otherwise, by `g_nobleCategory`:
 //!
 //! | # | `L2.eng` 35 | realm field | ours |
 //! |---|---|---|---|
@@ -90,19 +66,6 @@
 //! else           { pct[r] = 50 for every in-play realm; }
 //! ```
 //!
-//! **`best <= v`
-//! realm index**, and with every value zero the leader is realm 5. It never
-//! shows, because the same function then calls the category undecided; it is
-//! reproduced anyway, because [`Standings::leader`] is what the line would
-//! print if either flag were ever cleared under a tie.
-//!
-//! **The bars are a percentage of the leader, not of a maximum**, so the
-//! leader's pole is always full height and a realm with nothing is a bare
-//! pole. When every realm is level the bars are set to **50**,
-//! which is the one place the original draws a number it did not compute.
-//!
-//! # The seven tabs — `Hotspot_Test(0, 0, &g_nobleTabs, 7)`
-//!
 //! `Screen_HandleInput`'s `0x20` arm
 //! has. The table is at `0x004DC890`, seven 24-byte records read out of
 //! `Lords2.exe`:
@@ -119,12 +82,10 @@
 //! category, repaints, and **speaks its own name**: `S035_01.wav` …
 //! `S035_07.wav`, the files named after the `L2.eng` group this screen draws.
 //!
-//! # The way out
-//!
 //! `Screen_FrameInput`'s `0x20` arm is the county panels' shape exactly: a
 //! turn ending under it force-closes it, otherwise a right release anywhere or
 //! `Ui_OkButtonClicked` (`0x0040E7E4`) in the corner box sets `g_screenId = 0`.
-//! `0` is the **map**. The court that raised the page is unwound with it.
+//!
 //! `[V]`, both exits write the same byte.
 //!
 //! That is `docs/decisions.md` C190's `Transition::Goto(Campaign)` — *go to
@@ -146,8 +107,6 @@
 //! (`Score_RankAndRefreshAll`, `0x00435211`) is `Score_RankRealms()` then
 //! `Realm_UpdateTotals(r)` for r in 1..=5 — the totals five of the six score
 //! inputs are read from, rebuilt for every realm, before the page is drawn.
-//! Without it the page would show the standings as they stood at the last AI
-//! turn. See [`recount`].
 
 mod types;
 pub use types::*;
@@ -174,23 +133,17 @@ pub const TROOPS: usize = 2;
 pub const CROWNS: usize = 3;
 pub const HAPPINESS: usize = 4;
 pub const PEOPLE: usize = 5;
-/// *"Greatest noble,"* — the overall standing, and see [`GREATEST_NOBLE_YEAR`].
 pub const GREATEST_NOBLE: usize = 6;
-/// Index 7, *"undecided."*, drawn in place of a name when nothing leads.
 pub const UNDECIDED: usize = 7;
 
 pub const CATEGORIES: usize = 7;
 
-/// The full-screen page and its palette.
 pub const BACKGROUND: &str = "Grtnoble.pl8";
 pub const PALETTE: &str = "Grtnoble.256";
-/// The banners. Six frames: 0…4 are 51 × 92 and frame
-/// [`MARKER_FRAME`] is 23 × 60.
 pub const FLAGS: &str = "Flags.pl8";
 pub const MARKER_FRAME: usize = 5;
 
 /// `g_nobleColumnX` (`0x004D2B40`) — entries 1…5, the x of each **column**.
-/// Entry 0 is zero and is never read; the loop runs 1…5.
 pub const COLUMN_X: [i32; 5] = [39, 167, 294, 424, 552];
 /// `g_nobleColumnRealm` (`0x004D2B58`) — which realm stands in each column,
 /// and **it is not the realm order**: realm 1 is placed in the middle.
@@ -199,31 +152,21 @@ pub const COLUMN_REALM: [u8; 5] = [5, 3, 1, 2, 4];
 /// `g_nobleTabX` (`0x004D2B20`) — the marker's x per category. 38 apart, and
 /// eight pixels right of each tab's own [`TABS`] left edge.
 pub const TAB_X: [i32; CATEGORIES] = [54, 92, 130, 168, 206, 244, 282];
-/// `Sprite_WGenSprite(5, …, 0x173)`.
 pub const MARKER_Y: i32 = 0x173;
 
-/// `Sprite_WGenSprite(shield - 1, x, (100 - pct) * 2 + 0x2D)`.
 pub const FLAG_TOP: i32 = 0x2D;
-/// The pole runs from the banner's own bottom edge — `(100 - pct) * 2 + 0x89`,
-/// which is [`FLAG_TOP`] plus the banner's 92 rows — down to [`POLE_BOTTOM`].
 pub const POLE_TOP: i32 = 0x89;
 pub const POLE_BOTTOM: i32 = 0x158;
 /// Four one-pixel `FUN_00403A8F` lines: `(dx, colour)`. A pole, lit from the
 /// left. **`FUN_00403A8F` is not one of the audit's 26 primitives**, which is
 /// why a bar chart of up to twenty lines counted as zero draw calls.
 pub const POLE: [(i32, u8); 4] = [(0x17, 0x10), (0x18, 0x12), (0x19, 0x14), (0x1A, 0x12)];
-/// A bar is two pixels of height per percent, so 100% is 200 pixels.
 pub const PIXELS_PER_PERCENT: i32 = 2;
-/// What [`rank`] writes into every in-play realm when the category is level.
 pub const LEVEL_BAR_PCT: i32 = 50;
 
-/// `Eng_DrawString(35, category, 0x148, 0x1BE, body)`
-/// past where it ended — `g_penAdvance + 0x14A` against a label at `0x148`.
 pub const LINE_AT: (i32, i32) = (0x148, 0x1BE);
 pub const NAME_DX: i32 = 0x14A - 0x148;
 
-/// `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x1C, 1)` — **mode 1**,
-/// `System.pl8` frame `0x10`, computed from the screen size.
 pub const OK: Rect = Rect::new(640 - 0x1C, 480 - 0x1C, 24, 24);
 pub const OK_MODE: usize = 1;
 
@@ -250,17 +193,13 @@ const fn tab(x0: i32, x1: i32) -> Rect {
 /// every realm in the *Greatest noble* category, so the overall standing is
 /// *"undecided."* for the first two years of every game.
 pub const GREATEST_NOBLE_YEAR: i32 = 0x4F6;
-/// The flat score every realm takes before that year.
 pub const GREATEST_NOBLE_EARLY: i32 = 2;
 
-/// What [`rank`] worked out: one bar per realm and who, if anyone, leads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Standings {
     /// `g_nobleBarPct` (`0x00522C60`) — indexed by realm, 0…100. Index 0 is
     /// never written and never read, as the original's is not.
     pub pct: [i32; l2_kingdom::MAX_REALMS],
-    /// The realm the last `best <= v` left behind. Meaningful only when
-    /// neither flag below is set.
     pub leader: u8,
     /// `DAT_00522C78` — every in-play realm scores the same.
     pub all_level: bool,
@@ -270,18 +209,6 @@ pub struct Standings {
 
 /// **`FUN_00435211`, `Score_RankAndRefreshAll` (`0x00435211`)** — the recount
 /// the court's button runs before it opens this page.
-///
-/// `Score_RankRealms()` then `Realm_UpdateTotals(r)` for r in 1..=5. Five of
-/// the six score inputs are what `Realm_UpdateTotals` writes and the sixth,
-/// the castle count, belongs to `Castle_BuildTick`; without this the page
-/// would show whatever the last AI turn left behind. `docs/symbols.md`
-/// records the pair as always travelling together, and this is the UI caller.
-///
-/// **It runs before the ranking, not after**: the original ranks first and
-/// then refreshes the totals the *next* ranking will read, which means the
-/// ranks this page draws are one refresh behind. Reproduced in that order.
-///
-/// # This is the one thing on this screen that moves the lockstep digest
 ///
 /// Every field it writes — `+0x2B` the rank, `+0x50` the score, `+0x29`,
 /// `+0x10`, `+0x14`, `+0x0C`, `+0x58`, `+0x60`, `+0x2C`, `+0x54` — is on
@@ -297,7 +224,6 @@ pub struct Standings {
 /// (`0x00448422`) runs the identical pair on every peer. We have no network
 /// game and take the single-player arm; when one exists this call site is one
 /// of the places that has to become a command.
-/// `docs/netcode.md`.
 pub fn recount(game: &mut crate::game::Game) {
     let t = game.kingdom.tables;
     l2_kingdom::ai::rank_realms(&t, &mut game.kingdom.realms);

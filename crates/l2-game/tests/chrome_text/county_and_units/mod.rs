@@ -25,11 +25,8 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// `Ui_DrawText`: a glyph-less lead character advances `local_14 = 4`.
 const LEAD: i32 = 4;
-/// `" "` as a suffix, the same advance.
 const SPACE: i32 = 4;
-/// `Ui_DrawText`'s last line, `g_penAdvance + 4`.
 const TRAILER: i32 = 4;
 
 fn own_county(game: &Game) -> u8 {
@@ -38,8 +35,6 @@ fn own_county(game: &Game) -> u8 {
         .expect("the local player holds a county")
 }
 
-/// [`find_on_row`], but only at or right of `from` — for a number that could
-/// otherwise be found as the prefix of a longer number earlier on its row.
 fn find_on_row_from(
     canvas: &Canvas,
     f: &Font,

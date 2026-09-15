@@ -20,8 +20,6 @@ fn join_i32(values: &[i32]) -> String {
     values.iter().map(|v| v.to_string()).collect::<Vec<_>>().join(", ")
 }
 
-/// A long integer array, wrapped at `per_line` values and indented,
-/// hundred-entry table is readable.
 fn wrap_i32(values: &[i32], per_line: usize) -> String {
     values
         .chunks(per_line)

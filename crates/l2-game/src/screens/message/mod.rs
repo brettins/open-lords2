@@ -2,12 +2,6 @@
 //! `Msg_HandleInput` (`0x0047685D`), the arm that runs before every other arm
 //! in the game.
 //!
-//! # It is a screen here
-//!
-//! `g_screenId` does not change when a message opens. The window is painted
-//! over whatever was up by `Msg_Pump`, which `Battle_Frame` calls once a frame,
-//! and its input is the **first** thing `Screen_FrameInput` does:
-//!
 //! ```c
 //! Screen_HitRegion();
 //! iVar2 = Msg_HandleInput();                                    /* 0x0047685D */
@@ -15,36 +9,6 @@
 //!     … the fifty per-screen arms …
 //! }
 //! ```
-//!
-//! Our machine says that with an **overlay** on top of the stack: an overlay
-//! draws over what is beneath it, and [`crate::screen::Machine::handle`] offers
-//! an event to the top screen first. The one place the analogy has to be exact
-//! is the *fall-through*: `Msg_HandleInput` returning zero is a click that
-//! reaches the screen underneath, and that is [`Transition::Pass`]. A left click
-//! that misses the corner button and misses the answer widgets is **not
-//! consumed** — see [`MessageScreen::handle`].
-//!
-//! # What the window is, arm by arm
-//!
-//! Twenty categories, enumerated in [`crate::message::category`]. Nine have a
-//! layout of their own here and the rest share the plain one; every one of them
-//! draws `Ui_OkButton` in the same corner — `(x + w - 0x30, y + h - 0x30)` —
-//! except the floating tip, which draws no button at all and cannot be closed
-//! by hand.
-//!
-//! # The three input arms and the five answers
-//!
-//! `Msg_HandleInput`, in the original's own order, which is not the order a
-//! reader expects:
-//!
-//! 1. **a right release closes it, whatever it is** — tested *before* the
-//!    widgets, so right-clicking an alliance offer is neither yes nor no;
-//! 2. **five widget tests**, one per prompt, each running its handler;
-//! 3. **a left press in the 48 × 48 box** round the corner button.
-//!
-//! Everything else returns zero and falls through.
-//!
-//! # What this screen deliberately does not do
 //!
 //! * **Voice.** `Msg_PlayVoice` (`0x004B35C1`) is a `.wav` lookup and belongs to
 //!   the audio branch, and it is built: [`crate::audio::voice_tick`] is the
@@ -55,6 +19,7 @@
 //!   doc comment. They live beside `voice_tick` now, with the category each one
 //!   belongs to, which was the half nobody had recorded. `docs/decisions.md`
 //!   C126.
+//!
 //! * **The film.** Categories `0x0D` and `0x0E` play `cap_cty<n>.smk` and
 //!   `FUN_00475B41`'s choice when `g_optAnimations` is on, and *dismiss
 //!   themselves from inside the draw* to do it. This screen only notices and
@@ -87,7 +52,6 @@ const FACES: &str = "Faces.pl8";
 const FACE_AT: (i32, i32) = (0x10, 0x12);
 const FACE_WELL: (i32, i32, i32, i32) = (0xF, 0x11, 0x52, 0x4E);
 
-/// `Pl8_DrawFrame(g_panelsSheet, shieldIndex + 0xFF, x + w - 0x1E, y + 0x12)`.
 const SHIELD_BASE: usize = 0xFF;
 
 /// **The peasants' own face**, for the county greeting — `Msg_DrawWindow`'s
@@ -103,6 +67,7 @@ const SHIELD_BASE: usize = 0xFF;
 /// argument is a realm: they are the two ends of [`face_frame`]'s ladder, so
 /// `6` lands on frame `0x11` and `0` on frame `0x10`. The letter carries one of
 /// the two non-lord faces in `Faces.pl8`, picked by how many peasants wrote it.
+///
 /// **[V]** — from the decompiled arm; *which* of the two pictures is the fuller
 /// county is inferred from the comparison alone.
 pub fn peasant_face_frame(population: i32) -> usize {
@@ -123,24 +88,8 @@ pub fn face_frame(lord: u8, is_human: bool, realm: u8) -> usize {
     (lord as usize).saturating_mul(3).saturating_sub(3)
 }
 
-/// **The message scroll.**
-///
-/// It holds no state: the record, the timer and the ring are all on
-/// [`crate::Game`],
-/// because the window is opened by the frame driver and not by anything the
-/// player did.
 pub struct MessageScreen {
-    /// **Where the pointer was**, for the one layout that needs it: the
-    /// floating tip is placed at `g_mouseX`/`g_mouseY`, which the original reads
-    /// straight out of the globals the window procedure writes.
-    ///
-/// Tracked here because nothing else in this
-    /// workspace wants it and a cursor position on the world is a cursor
-    /// position in the save. It starts at the middle of the screen, which is
-    /// where the tip's own clamp puts it anyway if the pointer has not moved.
     pointer: (i32, i32),
-    /// The open prompt's press timer.
-    ///
     /// **All five prompt tables are `Widget_Test` kind 4**, read out of `+0x0F`
     /// of `0x004DDA90`, `0x004DDAC0`, `0x004DDAF0`, `0x004DDB20` and
     /// `0x004DDB50` — the same pair of mailed hands as the yes/no box and a
@@ -151,8 +100,6 @@ pub struct MessageScreen {
     press: Press,
 }
 
-/// The open prompt's two widgets as a table. Index 0 is **yes**, hotspot id 1.
-///
 /// **Each prompt is its own table with its own kind byte**, so each carries its
 /// own `arm!` — the marker for the handler behind it, and the kind it is
 /// answered with. The two ally answers share `FUN_004368FD`'s record.
@@ -182,8 +129,6 @@ impl MessageScreen {
         MessageScreen { pointer: (320, 240), press: Press::new() }
     }
 
-    /// The record on screen, or `None` for the one frame the machine may still
-    /// draw this after the queue closed it.
     pub(crate) fn record(ctx: &Ctx) -> Option<Record> {
         ctx.game.messages.open().copied()
     }
@@ -200,13 +145,10 @@ impl Screen for MessageScreen {
         ScreenId::Message
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
-    /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
 
-    /// The prompt's thumb coming back up. See [`Press::take_redraw`].
     fn take_redraw(&mut self) -> bool {
         self.press.take_redraw()
     }
@@ -218,72 +160,38 @@ impl Screen for MessageScreen {
         }
     }
 
-    /// It paints a box over whatever raised it and never clears.
     fn is_overlay(&self) -> bool {
         true
     }
 
     /// **`Msg_HandleInput` (`0x0047685D`), in its own order.**
-    ///
-    /// The three things worth noticing
-    /// would guess from the function's shape:
-    ///
-    /// * the **right** release is tested before the widgets, so it closes an
-///   unanswered question;
-    /// * the corner button's hit box is **48 × 48**, twice the picture, while
-    /// every other screen in the game uses `Ui_OkButtonClicked`'s 24 × 24;
-    /// * anything else **falls through** to the screen underneath, which is how
-    /// `Map_Click`'s dismissal and the campaign sidebar both stay live with a
-    ///   message up.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let Some(record) = MessageScreen::record(ctx) else { return Transition::Pop };
         match event {
-            // `else { Msg_Dismiss(); return 1; }` — the whole of the
-            // right-button branch, with no category test in front of it.
             // arm: 0x0047685D/message-scroll-dismiss right-release
             Event::RightClick { .. } => leave(ctx),
             Event::Click { x, y } => {
-                // The five `Widget_Test` calls, in the original's order:
-                // category 0x11, then 10, then 0x0B, then the three groups of
-                // category 0x0C. Each returns 1 whether or not the click was on
-                // a button.
                 if let Some(prompt) = record.answer_widgets() {
                     if let Some(i) = self.press.event(&prompt_widgets(prompt), event) {
                         return answer(ctx, prompt, i == 0);
                     }
-                    // `Widget_Test` returning 0 falls on through to the corner
-// button below
-                    // without answering it.
                 }
                 let shape = record.shape();
                 if shape.has_ok_button() {
-                    // A tip window's corner is wherever its wrapped text put it,
-                    // so the hit box is computed from the same text the draw
-                    // wraps. Before the tips existed this was `frame_of`, which
-                    // has no row for `0x05`…`0x09` — a tip could not be closed
-                    // with the left button at all.
                     if let Some(frame) = window_frame(ctx, &record) {
                         if frame.ok_hitbox().contains(x, y) {
                             // `FUN_004B18E3()` consumes the click so the screen
                             // underneath cannot also act on it, then dismisses.
+                            //
                             // arm: 0x0047685D/message-ok-dismiss left-press
                             return leave(ctx);
                         }
                     }
                 }
-                // **Zero: not mine.** `Screen_HandleInput` and then the
-                // per-screen arms get this click. On the campaign map that is
-                // `Map_Click`, whose whole body is skipped and whose `else` is
-                // `Msg_DismissUnlessQuestion`.
                 Transition::Pass
             }
-            // **Ours.** `Msg_HandleInput` tests no key at all
-            // procedure has no arm for one either. A demo that can be driven
-            // from the keyboard is worth more than the omission is faithful,
-// and this is counted.
             // arm: ours/message-keyboard-dismiss key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => leave(ctx),
-            // **A double click answers a prompt and does nothing else here.**
             // The five `Widget_Test` tables are kind 4, whose guard is
             // `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and a hit returns
             // 1 and swallows the frame. The 48 × 48 corner opens
@@ -314,40 +222,17 @@ impl Screen for MessageScreen {
         }
     }
 
-    /// **The draw's own side effects** — the tip clamp and the three arms
-    /// `Msg_DrawWindow` runs on the frame the window opens.
-    ///
-    /// The **timer** is not here: it is `Msg_Pump`'s, and it lives in
-    /// [`crate::screen::Machine::pump_messages`] beside the pull it is exclusive
-    /// with. That split is the original's and it matters — see that function.
-    ///
-    /// **In the original all of this is in the draw.** It cannot be here:
-    /// [`Screen::draw`] takes a `&Ctx`, which is the compiler enforcing that
-    /// painting a frame cannot change the world (`crates/l2-game/src/screen/mod.rs`,
-    /// *Draw cannot mutate*). The original's draw and input run once each per
-    /// frame in a fixed order, so moving these three arms into `update` changes
-    /// nothing about when they fire; it is recorded because it is a difference.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        // `Widget_Test`'s countdown, which runs the pressed picture down. It
-        // cannot fire: the prompts are kind 4, whose fire is on the press, and
-        // the handler dismisses before a repeat could arrive.
         let _ = self.press.tick();
         if !ctx.game.messages.is_open() {
             return Transition::Pop;
         }
-        // `Msg_DrawWindow`'s `g_messageTimer == 2000` arms, one of which can
-        // close the window and one of which can end the game.
         if !message::show(ctx.game) {
-            // The two arms that reach here are the alliance lapses, which cannot
-            // set an outcome — but the test is on the outcome and not on the
-            // category, because that is what `Msg_Dismiss` tests.
             if ctx.game.campaign.outcome.is_over() {
                 return Transition::Replace(ScreenId::Conquest);
             }
             return Transition::Pop;
         }
-        // The animated capture and ending: the window closes itself and a film
-        // plays where it was. See `message::animate`.
         // arm: 0x0047309E/capture-smacker draw
         if let Some(film) = message::animate(ctx.game) {
             return Transition::Replace(ScreenId::Movie(film));
@@ -401,12 +286,6 @@ impl Screen for MessageScreen {
     }
 }
 
-/// **`Msg_Dismiss` and what it asks for.**
-///
-/// Its last three lines are the ending — `if (outcome == 10 || outcome == 11)
-/// { Campaign_EnterConquest(); g_screenId = 0x1C; }`
-/// sometimes a screen change and not a pop. Every arm that closes the window
-/// goes through here, which is what stops one of them from forgetting.
 fn leave(ctx: &mut Ctx) -> Transition {
     match message::dismiss(ctx.game) {
         message::Dismissal::GameOver(_) => Transition::Replace(ScreenId::Conquest),
@@ -414,19 +293,9 @@ fn leave(ctx: &mut Ctx) -> Transition {
     }
 }
 
-/// **The five widget handlers**, which are the only two places a person answers
-/// a lord and three more besides.
-///
-/// Every one of them calls `Msg_Dismiss` **first** and then acts on
-/// `g_uiHotspotId`, so the window is gone before the rule runs — so
-/// none of them has anything to say about a refusal.
 fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
     match prompt {
         // `Diplo_PayHelpClicked` (`0x004367FF`):
-        //   Msg_Dismiss();
-        //   if (hotspot != 0) Diplo_PayForHelp(myAlly, me, g_diploHelpCounty, g_diploHelpPrice);
-        // **Declining does nothing at all** — not even a letter back.
-        // The five arms are declared on [`prompt_widgets`].
         Prompt::PayForHelp => {
             message::dismiss(ctx.game);
             if yes {
@@ -445,13 +314,6 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
             Transition::Pop
         }
         // `FUN_00436872` (`0x00436872`):
-        //   Msg_Dismiss();
-        //   if (realms[offerer].isHuman || hotspot != 0)
-        //       if (hotspot == 1) Diplo_FormAlliance(g_localPlayer, offerer);
-        //
-        // **The guard is the finding.** Declining an AI's offer in single player
-        // runs *nothing*: no refusal, no grudge, no letter. The offer lapses
-        // when the offering realm clears `offer_pending` on its next turn.
         Prompt::AcceptAlliance => {
             let offerer = ctx.game.messages.open().map_or(0, |r| r.from);
             message::dismiss(ctx.game);
@@ -473,14 +335,6 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
             Transition::Pop
         }
         // `FUN_004376BB` (`0x004376BB`) — *"Cannot garrison castle."*
-        //
-        //   g_screenId = 0; g_redrawRequest = 2;          /* BEFORE the test */
-        //   if (hotspot != 0) { … seed the basket …; Msg_Dismiss(); g_screenId = 0x11; }
-        //
-// The handler returns to the campaign map
-        // without closing the window, so the prompt is still up and has to be
-        // closed with the corner button or the right button. Reproduced;
-        // `docs/bugs.md` B94.
         Prompt::Garrison => {
             if !yes {
                 return Transition::Pass;

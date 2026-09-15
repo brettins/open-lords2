@@ -16,12 +16,6 @@ use l2_kingdom::unit::{Unit, UnitKind, Units};
 use l2_kingdom::Options;
 use crate::{Clock, CountyState, IndustryState, RealmState, Scenario};
 
-/// What [`assign_lords`] decides for each realm: its shield, then its lord.
-///
-/// One struct because **the second is a function of the
-/// first** and a caller that could take one without the other would be able to
-/// build a realm whose colour and lord disagree — which is exactly the state
-/// `shield = realm` used to produce.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Assignment {
     /// Realm `+0x0A`, `shieldIndex`, 1 … 5. **Zero means the walk gave this
@@ -36,19 +30,11 @@ pub(crate) struct Assignment {
 /// `Realms_AssignLords` (`0x0049CAAA`) — **the shield first, by position, and
 /// then the lord from the shield.**
 ///
-/// # The arrow runs colour → lord, and no lord is ever consulted
-///
 /// 1. Mark every **human's** chosen shield taken. The original reads
 ///    `g_playerSlots + realm * 0x2C + 0x25` — the six-slot record
 ///    `g_playerNames` is the `+0x04` of, so four bytes lower than the name —
 ///    guarded by `+0x26 == 0` (a person), and
 ///    page 4's `FUN_00432FAB` is what wrote it.
-/// 2. Walk realms **1 … 5 in realm order**, skipping humans and stopping when
-///    `g_aiLordCount` lords have been handed out. Each AI takes **the lowest
-///    shield nobody has taken**; a realm past the lord count gets no shield and
-///    `strength = 0`.
-/// 3. Then `lord = g_lordChoice[(g_scenarioIndex & 3) * 0x14 + shield * 4 + n]`
-///    for `n` = 0 … 3, the first candidate no earlier realm has taken.
 ///
 /// **This line used to read `let shield = realm`, under a doc comment that
 /// stated that as the *mechanism*** — *"the colour slot is the realm id,
@@ -56,17 +42,8 @@ pub(crate) struct Assignment {
 /// colour picker permutes it."* The seed is real (`FUN_0049C995`) and the
 /// conclusion drawn from it was not: the seed is what an *untouched* page 4
 /// leaves, and `Realms_AssignLords` overwrites it for every AI on every run.
-/// A sentence that explains a default as a rule is a sentence nobody re-reads,
-/// so the line outlived four documents describing the real walk.
+///
 /// `docs/decisions.md` C130.
-///
-/// # The consequence a player will check
-///
-/// Take **yellow** and the Knight does not fall back to red: he becomes the
-/// **black** lord and the **Baron** becomes the red one, because red's
-/// candidate list names the Baron first and the walk reaches red before black.
-/// `docs/rules.md` §7a has all five rows and
-/// `crates/l2-game/tests/newgame/main.rs` drives the setup screen to each of them.
 ///
 /// **`[D]` on the group.** The original picks the deterministic group 0 when
 /// `DAT_0055302C == 1` and `(g_scenarioIndex & 3)` otherwise, and what
@@ -77,34 +54,26 @@ pub(crate) struct Assignment {
 pub(crate) fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
     let group = setup.slot & 3;
     let human = setup.local_player as usize;
-    // `g_aiLordCount` — `Setup_CommitOptions` keeps *Nobles* minus the people,
-    // and this build has one person.
     let ai_lords = lords.saturating_sub(1);
 
     let mut a = Assignment { shield: [0; MAX_REALMS], lord: [0; MAX_REALMS] };
-    // `acStack_14[6]` and `acStack_20[8]`, both zeroed at entry.
     let mut shield_taken = [false; 6];
     let mut lord_taken = [false; 8];
 
-    // Step 1. The human's shield is taken before anybody walks.
     if human >= 1 && human < MAX_REALMS {
         a.shield[human] = setup.shield;
         shield_taken[setup.shield as usize] = true;
     }
 
-    // Step 2. Realms 1 … 5 in realm order.
     let mut given = 0usize;
     for realm in 1..MAX_REALMS {
         if realm == human || given >= ai_lords {
-            // A human keeps the shield he chose and takes no lord; a realm past
-            // the lord count is the `strength = 0` limb and takes neither.
             continue;
         }
         given += 1;
         let Some(shield) = (1..=5u8).find(|s| !shield_taken[*s as usize]) else { continue };
         shield_taken[shield as usize] = true;
         a.shield[realm] = shield;
-        // Step 3. And now the lord, out of that shield's four candidates.
         for n in 0..4usize {
             let at = group * 0x14 + shield as usize * 4 + n;
             let candidate = LORD_CHOICE.get(at).copied().unwrap_or(0);
@@ -121,7 +90,6 @@ pub(crate) fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
     a
 }
 
-// ------------------------------------------------------------- County_Reset
 
 /// `County_Reset` (`0x00451150`) — the opening economy of **every** county,
 /// owned or not.
@@ -162,8 +130,6 @@ pub(crate) fn county_reset(id: usize) -> CountyState {
         deaths: 0,
         emigrants: 0,
         immigrants: 0,
-        // `popBand = (population - 1) / 25 + 1`, which the original computes
-// here.
         pop_band: (reset::POPULATION - 1) / 25 + 1,
         anchor: (0, 0),
         neighbours: Vec::new(),
@@ -197,13 +163,7 @@ pub(crate) fn county_reset(id: usize) -> CountyState {
         },
         industry_share: reset::INDUSTRY_SHARE,
         field_tiles: [0; MAX_FIELDS],
-        // `field_0x1FE = county & 1`. **The save path did not import this
-        // until now** and every loaded county farmed as style 0; see
-        // `Scenario::from_save`.
         farm_style: (id & 1) as u8,
-        // `County_Reset` zeroes the whole record, and no new-game path writes
-        // any of these four: a fresh county has no money of its own and no
-        // stall until `County_RecountMerchants` runs at the end of turn one.
         purse: 0,
         merchant_count: 0,
         merchant_unit: 0,
@@ -225,8 +185,6 @@ pub(crate) fn county_reset(id: usize) -> CountyState {
         grain_grown_expected: 0,
         reclaim_fields_finishing: 0,
         reclaim_seasons_to_next: 0,
-        // `County_Reset` opens both on zero, which `l2_game::scenario` used to
-        // have to write back over the save path's invented value.
         happiness_avg: 0,
         happiness_sum: 0,
         d_hap_tax: 0,
@@ -265,23 +223,16 @@ pub(crate) fn county_reset(id: usize) -> CountyState {
         castle_wood_total: 0,
         siege_scars: l2_kingdom::siege::SiegeScars::default(),
         crop: [0; 3],
-        // `County_Reset` zeroes both field cursors.
         pasture_cursor: 0,
         blight_cursor: 0,
         fields_grain_sown: 0,
         fields_grain_standing: 0,
         sow_shortfall: false,
         weapon_type: 0,
-        // `County_Reset` zeroes the record, and `Mercenary_AdvanceAll` — the
-        // cache's only writer besides a hire — is turn phase 7's, which a new
-        // game has not reached.
         mercenary_offer: 0,
     }
 }
 
-/// The four industry records a fresh county opens with: `Industry::new`'s
-/// ramp base and nothing produced. The switches and the resource bytes are
-/// filled from the map afterwards.
 fn industry_reset() -> [IndustryState; 4] {
     let mut out = [IndustryState::default(); 4];
     for (slot, commodity) in [
@@ -298,15 +249,9 @@ fn industry_reset() -> [IndustryState; 4] {
     out
 }
 
-// ---------------------------------------------------------------- the merchants
 
 /// `Merchant_SpawnAll` (`0x00427ED0`) — one type-3 merchant, owner 6, on a free
 /// road tile near each start county, **stopping at the first zero**.
-///
-/// Owner 6 is nobody, which is what a merchant and a county's own levied
-/// defence carry. The route cursor lives in the low byte of `yearFormed` and
-/// opens at 1, not 0: the merchant's first destination is the *second* town on
-/// its row, because it is standing in the first.
 pub(super) fn spawn_merchants(w: &MapWorld, map: &CampaignMap) -> Vec<(usize, Unit)> {
     let mut units = Units::new();
     let mut out = Vec::new();
@@ -334,16 +279,10 @@ pub(super) fn spawn_merchants(w: &MapWorld, map: &CampaignMap) -> Vec<(usize, Un
     out
 }
 
-// ------------------------------------------------------------------ the whole
 
 impl Default for RealmState {
     fn default() -> RealmState {
         RealmState {
-            // A NEW game: `Game_NewGame` runs `Diplo_Init` after the realms
-// are set up, so the opening matrix is written there
-            // here. Default is the right thing to carry -- the values depend on
-            // which realms are in play and which are people, and this
-            // constructor knows neither yet.
             pairs: Default::default(),
             in_play: false,
             strength: 0,
@@ -360,8 +299,6 @@ impl Default for RealmState {
             stone: 0,
             wood: 0,
             weapons: [0; l2_kingdom::tables::WEAPON_TYPE_COUNT],
-            // `Game_SetupRealmsAndCounties` zeroes the name counters; no army
-            // has been named yet.
             army_names: [0; l2_kingdom::unit::ARMY_NAME_SLOTS],
             // C161: `Realm::new()`'s values, all zero, which is
             // what a new game had before the save path carried them.

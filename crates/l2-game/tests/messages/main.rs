@@ -1,11 +1,3 @@
-//! **The message scroll, played.**
-//!
-//! ```text
-//! cargo test -p l2-game --test messages
-//! ```
-//!
-//! Three questions, and they are the three the message window was blocking:
-//!
 //! * **can a player dismiss a message?** — `Msg_HandleInput` (`0x0047685D`),
 //!   every screen's arm, which nothing in this workspace had;
 //! * **can a player answer a lord?** — the two prompts `docs/arms.json` called
@@ -14,13 +6,6 @@
 //! * **can a player be told he has won?** — `docs/plan.md`'s mainline win, which
 //!   ends *"the game is won when **that** is dismissed"* and had nothing to
 //!   dismiss.
-//!
-//! Everything here goes through [`Machine::handle`] and [`Machine::update`] with
-//! [`Event`] values. Nothing calls `message::dismiss`, sets `campaign.outcome`,
-//! or reaches into the ring except to put a letter in it — which is what a rule
-//! does, and the rules are `l2_kingdom`'s.
-//!
-//! > *"A rule with no way in is not a rule the game has."* — `docs/agents.md`
 
 
 use l2_game::game::Assets;
@@ -30,7 +15,6 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::Game;
 use l2_kingdom::victory::Outcome;
 
-// ---------------------------------------------------------------------- setup
 
 fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
     let mut ctx = Ctx { game: g, assets: a };
@@ -42,14 +26,10 @@ fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     m.update(&mut ctx);
 }
 
-/// The middle of a widget, and
-/// one that is off by a button does not.
 fn on(at: (i32, i32)) -> Event {
     Event::Click { x: at.0 + Prompt::SIDE / 2, y: at.1 + Prompt::SIDE / 2 }
 }
 
-/// Five realms on a small map, realm 1 the human, each with a seat of its own.
-///
 /// **Counties 1..=6 are the tests' board and 8..=12 the seats.** Since the AI
 /// realms take their turn steps on the map's own idle frames
 /// ([`l2_game::turn::tick_ai_frame`], `Turn_Tick`'s phase-4 arm), a realm
@@ -77,17 +57,10 @@ pub(crate) fn world() -> (Game, Assets, Machine) {
     }
     g.kingdom.realms[1].is_human = true;
     g.kingdom.realms[1].lord = 1;
-    // **Animations off**, and the report names
-    // read. With them on — the default — `Msg_DrawWindow` closes both on the
-    // frame they open and plays a film instead; that branch is
-    // `tests/movies.rs`'s.
     g.prefs.animations = false;
     (g, Assets::placeholder(), Machine::new(ScreenId::Campaign))
 }
 
-/// Phase 4 open with every AI realm finished, the human's counter parked at 1:
-/// the state `Turn_Tick`'s arm reaches once the AI has taken all its steps and
-/// is waiting on `Turn_End`. The map's frames then move nothing.
 pub(crate) fn ai_turns_over(g: &mut Game) {
     g.kingdom.turn.players_turn_open = true;
     for realm in g.kingdom.realms.iter_mut() {
@@ -96,8 +69,6 @@ pub(crate) fn ai_turns_over(g: &mut Game) {
     g.kingdom.realms[1].ai_step = 1;
 }
 
-/// Take every acre a realm holds — its `world()` seat included — and hand it to
-/// `to`. The only way to count a realm out now that everybody starts with land.
 pub(crate) fn dispossess(g: &mut Game, realm: u8, to: u8) {
     for id in 1..=g.kingdom.county_count {
         if g.kingdom.counties[id].owner == realm {
@@ -107,8 +78,6 @@ pub(crate) fn dispossess(g: &mut Game, realm: u8, to: u8) {
     l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
 }
 
-/// One `Msg_Enqueue`. The `to` is the local player or 0, because that is the
-/// only kind of record that ever reaches a peer's ring.
 fn post(g: &mut Game, r: Record) {
     let player = g.player;
     assert!(g.messages.enqueue(r, player), "the peer filter kept this record out");
@@ -118,7 +87,6 @@ fn notice(group: u16) -> Record {
     Record { to: 0, group, category: category::NOTICE, ..Record::default() }
 }
 
-/// Run the machine until the scroll is up, and say so if it never is.
 fn open_the_scroll(m: &mut Machine, g: &mut Game, a: &Assets) {
     for _ in 0..8 {
         tick(m, g, a);
@@ -167,5 +135,4 @@ fn painting(g: &mut Game, a: &Assets, m: &mut Machine) -> l2_view::Canvas {
     canvas
 }
 
-// ------------------------------------------------------- 1. dismiss a message
 

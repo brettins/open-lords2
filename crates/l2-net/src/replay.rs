@@ -1,82 +1,22 @@
-//! Replays: the check that pays for the whole design.
-//!
-//! Because `step()` is a pure function of state and commands (D-11), a
-//! session is *completely* described by `(initial state, seed, ordered
-//! command stream)`. That triple is small — a battle's worth of
-//! commands is a few kilobytes — and replaying it must reproduce every
-//! state checksum the original session recorded.
-//!
-//! `docs/netcode.md` §6 calls this the part that pays for itself, and
-//! the reason is in `docs/decisions.md` D7: two implementations
-//! agreeing proves only that the same author ported the same
-//! misunderstanding twice, while a property of the *data* is a real
-//! check. A recorded session that must replay to a bit-identical
-//! checksum is a property of the data. It also runs on one machine,
-//! with no network and no second player, which is the only reason it
-//! will be run often enough to help.
-//!
-//! # What a replay catches that a unit test does not
-//!
-//! Every violation of the determinism contract that nobody thought to
-//! grep for. A `HashMap` iteration that happens to be stable on the
-//! machine that wrote the test; a `sort_unstable_by` on a key with
-//! ties; a `SystemTime` that crept into a damage calculation. None of
-//! those fail a test that runs the simulation once. All of them fail a
-//! test that runs it twice and compares.
-//!
-//! # What it does not catch
-//!
-//! Anything that is deterministic *per machine* but differs between
-//! machines: `usize` width, a `DefaultHasher` whose algorithm changed
-//! with the Rust version, an `f32` that the compiler contracted into an
-//! FMA on one target and not another. A replay corpus in CI on one
-//! runner will pass all of those happily. That is why D-1 through D-6
-//! are structural rules
-//! to find, and it is worth being explicit that this file is not a
-//! substitute for them.
 
 use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 use crate::command::{Command, PlayerSlot, Tick};
 use crate::lockstep::Simulation;
 
-/// Identifies a replay file at a glance, and stops a truncated or
-/// unrelated file from being decoded as a plausible one.
 pub const REPLAY_MAGIC: [u8; 4] = *b"L2RP";
 
-/// Bumped when this layout changes. Separate from
-/// [`PROTOCOL_VERSION`](crate::PROTOCOL_VERSION): a replay file
-/// outlives a session, and the two version numbers move for different
-/// reasons.
 pub const REPLAY_VERSION: u16 = 1;
 
-/// A complete recording of a session.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Replay {
-    /// The seed every generator in the simulation derives from.
     pub seed: u64,
-    /// The canonical encoding of the state before tick 0.
-    ///
-    /// The bytes, not a description of how to build them. A replay that
-    /// said "battle 7 on map 3" would depend on the rule files being
-    /// what they were on the day, and rule files are exactly what mods
-    /// change (D-12).
     pub initial: Vec<u8>,
-    /// The players, in slot order.
     pub slots: Vec<PlayerSlot>,
-    /// Every command applied, tagged with the tick it executed on, in
-    /// the order it was applied.
     pub commands: Vec<(Tick, Command)>,
-    /// The checksum after each simulated tick.
-    ///
-    /// Every tick. A replay that only pinned the
-    /// final hash would say "these two runs ended differently" when
-    /// what is wanted is "these two runs first differed at tick 412",
-    /// and the difference between those two sentences is an afternoon.
     pub hashes: Vec<(Tick, u64)>,
 }
 
 impl Replay {
-    /// Start a recording from a simulation's current state.
     pub fn start(seed: u64, slots: &[PlayerSlot], sim: &impl Simulation) -> Replay {
         let mut encoder = Canonical::recording();
         sim.encode_state(&mut encoder);
@@ -90,8 +30,6 @@ impl Replay {
         }
     }
 
-    /// Note that `tick` was simulated with `commands` and produced
-    /// `hash`.
     pub fn record(&mut self, tick: Tick, commands: &[Command], hash: u64) {
         for command in commands {
             self.commands.push((tick, command.clone()));
@@ -99,17 +37,14 @@ impl Replay {
         self.hashes.push((tick, hash));
     }
 
-    /// The last tick recorded, if any.
     pub fn last_tick(&self) -> Option<Tick> {
         self.hashes.last().map(|(tick, _)| *tick)
     }
 
-    /// The recorded checksum for a tick.
     pub fn hash_at(&self, tick: Tick) -> Option<u64> {
         self.hashes.iter().find(|(t, _)| *t == tick).map(|(_, h)| *h)
     }
 
-    /// The commands recorded for one tick, in applied order.
     pub fn commands_at(&self, tick: Tick) -> Vec<Command> {
         self.commands
             .iter()
@@ -118,17 +53,6 @@ impl Replay {
             .collect()
     }
 
-    /// Re-run the recording against a simulation and check every
-    /// checksum.
-    ///
-    /// `sim` must already hold the state the recording started from;
-    /// this crate cannot build a simulation, only drive one. The first
-    /// thing checked is that it does, because a mismatch there means
-    /// the *setup* diverged and every later difference would be noise.
-    ///
-    /// Stops at the first difference. Continuing would produce a list
-    /// of ticks that all differ for the same reason, and the only one
-    /// that carries information is the first.
     pub fn verify(&self, sim: &mut impl Simulation) -> Result<Tick, ReplayMismatch> {
         let mut encoder = Canonical::recording();
         sim.encode_state(&mut encoder);
@@ -140,10 +64,6 @@ impl Replay {
             });
         }
 
-        // A cursor per tick: the command
-        // stream is in tick order, so one pass is enough, and a
-        // thirty-minute battle has enough ticks that the quadratic
-        // version is noticeable in CI.
         let mut cursor = 0usize;
         let mut last = Tick::ZERO;
         for &(tick, expected) in &self.hashes {
@@ -168,14 +88,6 @@ impl Replay {
     }
 }
 
-/// A replay that did not reproduce.
-///
-/// Always a bug, and always a determinism bug: the same inputs applied
-/// to the same state produced a different result. Either the
-/// simulation changed (in which case old replays are expected to fail
-/// and the corpus needs re-recording,
-/// something in it is not deterministic (in which case this is the only
-/// warning that will be given).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ReplayMismatch {
     InitialState { recorded_len: usize, actual_len: usize },

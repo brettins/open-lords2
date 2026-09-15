@@ -28,8 +28,6 @@ fn with_advanced_farming_off_the_write_back_is_the_flat_eighty() {
     }) else {
         panic!("no county on the England map is cutting wood");
     };
-    // Doctored down from the 80 the file stores, so the assertion is on the
-    // write and not on what the importer carried.
     kingdom.counties[id].industry[WOOD].efficiency = 20;
     kingdom.counties[id].industry[WOOD].last_efficiency = 20;
     kingdom.counties[id].industry[WOOD].capacity = kingdom.counties[id].labour[JOB[WOOD]] / 3;

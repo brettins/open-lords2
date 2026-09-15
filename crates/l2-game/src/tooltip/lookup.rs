@@ -6,12 +6,9 @@ use crate::screen::{Ctx, ScreenId};
 use crate::shell::{font, Pen};
 use crate::Game;
 
-/// What [`campaign_tip`] reads besides the pointer.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Sidebar {
-    /// `g_minimapMode`, 0 … 3.
     pub minimap_mode: u8,
-    /// `g_counties[g_selectedCounty].owner == g_localPlayer`.
     pub owned: bool,
     /// `DAT_0053F690`, `FUN_0040FEC1`'s farm list — see
     /// [`crate::screens::county::farm_rows`].
@@ -22,7 +19,6 @@ pub struct Sidebar {
 }
 
 impl Sidebar {
-    /// The selected county's, as `CountyStrip_Draw` last painted them.
     pub fn of(game: &Game, minimap_mode: u8) -> Sidebar {
         let k = &game.kingdom;
         let c = k.counties.get(game.selected as usize);
@@ -38,11 +34,6 @@ impl Sidebar {
 /// **`FUN_00477320` (`0x00477320`)** — the campaign sidebar's tip under the
 /// pointer, or 0. The ladder is the original's, comparison for comparison.
 ///
-/// It partitions the 162-pixel column right of `x 478` from `y 24` down:
-/// the minimap and its four mode buttons, the county strip's two picture
-/// buttons and the health heart between them, the labour slider, the produce
-/// rows, the five sidebar buttons and End Turn. **Twenty-six ids**: 1 … 22 and
-/// 31 … 34.
 // arm: 0x00477320/campaign-sidebar-tips hover
 pub fn campaign_tip(s: &Sidebar, x: i32, y: i32) -> u8 {
     if y < 0x18 || x < 0x1DE {
@@ -91,7 +82,6 @@ pub fn campaign_tip(s: &Sidebar, x: i32, y: i32) -> u8 {
         if !s.owned {
             return 0;
         }
-        // `(g_mouseY - 0x130) / pitch`, C division: y 300 … 303 is row 0.
         if x < 0x230 {
             let pitch = crate::screens::county::farm_pitch(s.farm.len());
             let row = (y - 0x130) / pitch;
@@ -132,6 +122,7 @@ pub fn campaign_tip(s: &Sidebar, x: i32, y: i32) -> u8 {
 /// **`FUN_004777AA` (`0x004777AA`)** — the battlefield's tip under the
 /// pointer, or 0: the overview, the selected troops, the troop levels, and the
 /// five buttons along the bottom. **Eight ids**, 23 … 30.
+///
 // arm: 0x004777AA/battle-hud-tips hover
 pub fn battle_tip(x: i32, y: i32) -> u8 {
     if y < 0x18 || x < 0x1DE {

@@ -14,9 +14,6 @@ use l2_game::screens::{castle, setup};
 use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 
-/// **The last frame comes due and is never drawn.** `imptitle.smk` is 118
-/// frames at 83.33 ms; frame 117 falls due at 117 × 8333 ≥ t × 1600, which is
-/// tick 610. Ablation: finish on `due >= frames`.
 #[test]
 fn a_film_ends_on_the_tick_its_last_frame_falls_due() {
     let (_p, a) = install!();
@@ -32,21 +29,6 @@ fn a_film_ends_on_the_tick_its_last_frame_falls_due() {
     assert_eq!(m.top_id(), Some(ScreenId::Movie(Film::Credits)), "tick 610 ends it");
 }
 
-/// **The player's defect, with the real film: a castle film longer than twenty
-/// frames used to strand him on the chooser under a tip.**
-///
-/// `castle1.smk` is 521 frames, so it runs far past `tip::DELAY` (`0x14`). The
-/// old shape popped the film and left the chooser to pop itself on its next
-/// `update`; [`Machine::update`] runs `run_tips` and `pump_messages` first, so
-/// the castle advisor tip (`Tip_Update`'s `0x1B` arm) seated itself the moment
-/// Measured at tick 523.
-///
-/// **Tips are deliberately left on**, because that is the whole point: with
-/// `g_smkReturnScreen` built as a transition, the chooser is gone before the
-/// `0x1B` arm can ever see it, so no tip of that screen's can seat itself.
-///
-/// Ablation: make [`Film::then`](movie::Film::then)'s castle arm `Pop` again
-/// and the stack ends `[Campaign, Castle(1), Tip]`.
 #[test]
 fn a_real_castle_film_ends_on_the_map_however_long_it_runs() {
     let (_p, a) = install!();
@@ -55,8 +37,6 @@ fn a_real_castle_film_ends_on_the_map_however_long_it_runs() {
     m.push(ScreenId::Movie(Film::Castle(0)));
     let smk = a.films.open("castle1.smk").expect("the install's castle film");
     let frames = smk.frames();
-    // `Player::tick` paces the film against [`l2_game::TICK_MS`], so the film is
-    // this many ticks long — and then a tail for the machine after it.
     let ticks = frames as u64 * smk.header().period_10us() as u64
         / (l2_game::TICK_MS as u64 * 100)
         + 4 * l2_game::tip::DELAY as u64;
@@ -74,27 +54,9 @@ fn a_real_castle_film_ends_on_the_map_however_long_it_runs() {
     panic!("stranded off the map: {:?}", m.ids());
 }
 
-/// **The picture against the sound, on a wall clock that overshoots.**
-///
 /// `Smk_PlayLoop` (`0x0042DBC7`) steps a film only when `SmackWait` answers 0,
 /// and `_SmackWait@4` is a `timeGetTime` comparison — the original's film runs
 /// on real milliseconds, and so does the sound track a device plays out.
-/// Ours steps on ticks, which is only the same clock while a tick is a true
-/// 16 ms: [`l2_game::clock::Ticker`].
-///
-/// So this drives a real film's [`movie::Player`] over a synthetic wall clock
-/// whose every wake overshoots its deadline by 400 µs — measured, with winit
-/// 0.30's own waitable timer, as the middle of what a 16 ms wait really costs
-/// here — and asks where the picture is when the sound has reached a given
-/// sample. **One frame of tolerance**, which is 83 ms.
-///
-/// Ablation: schedule the ticks the way `main.rs` used to — a deadline of
-/// `now + TICK` measured after the wait — and the same film falls behind by
-/// **a fixed fraction of its own length**, which is the second half of this
-/// test and the shape of the defect. It is a rate,
-/// is 3.6 s long and ends 71 ms out, under one of its frames, while the intro
-/// is 131 s long and ends three seconds out. That is why the complaint was
-/// about the long films.
 #[test]
 fn a_film_keeps_step_with_its_own_sound_track() {
     let (_p, a) = install!();
@@ -109,7 +71,6 @@ fn a_film_keeps_step_with_its_own_sound_track() {
         let period_ns = smk.header().period_10us() as u64 * 10_000;
         let frames = smk.frames() as u64;
 
-        // The clock, and the film on it.
         let mut ticker = l2_game::clock::Ticker::new();
         let mut player = movie::Player::open(smk, false).expect("frame 0");
         let (mut now, mut wall_at_end) = (0u64, None);
@@ -119,7 +80,6 @@ fn a_film_keeps_step_with_its_own_sound_track() {
                     wall_at_end = Some(now);
                 }
             }
-            // Where the picture is, against where the sound is.
             let shown = player.frame() as u64 * period_ns;
             assert!(
                 shown.abs_diff(now.min((frames - 1) * period_ns)) <= period_ns,
@@ -129,8 +89,6 @@ fn a_film_keeps_step_with_its_own_sound_track() {
             );
             now = ticker.next_ns().unwrap_or(now + tick_ns) + OVER_NS;
         }
-        // `Smk_PlayLoop` decodes the last frame and does not draw it, so a film
-        // ends one frame short of its sound.
         let end = wall_at_end.expect("the film ended");
         assert!(
             end.abs_diff(sound_ns) <= 2 * period_ns,
@@ -151,8 +109,6 @@ fn a_film_keeps_step_with_its_own_sound_track() {
             now = next + OVER_NS;
         }
         let behind = (frames - 1 - player.frame() as u64) * period_ns;
-        // 400 µs lost per 16 ms tick is 2.4 % of every film; 1.5 % is the floor
-        // that survives the frame the drift is quantised to.
         assert!(
             behind * 1000 >= sound_ns * 15,
             "{name}: the old rule was only {} ms behind {} ms of sound, so this test proves nothing",
@@ -175,10 +131,6 @@ fn a_film_keeps_step_with_its_own_sound_track() {
 /// `Ui_DrawCentred(0x12D, n, 0, 400, …)` and its second line at `0x1A0` would
 /// paint, which are below the picture and therefore the black
 /// `FUN_004B1867` left.
-///
-/// **Ablation:** the tail of this test is a `Subtitles` cued the other way,
-/// which fires at frame `0x1D`. Take the `is_english` test out of
-/// `MovieScreen::open` and the rows fill.
 #[test]
 fn the_english_intro_carries_no_subtitles() {
     let (_p, a) = install!();
@@ -190,8 +142,6 @@ fn the_english_intro_carries_no_subtitles() {
     let mut g = realms();
     let mut m = Machine::new(ScreenId::Movie(Film::Intro));
     let mut canvas = l2_view::Canvas::screen();
-    // The film is 40 x 80 and its rows stop above 400, so the two subtitle
-    // rows are the cleared back buffer and nothing else.
     for tick in 0..400 {
         {
             let mut ctx = Ctx { game: &mut g, assets: &a };

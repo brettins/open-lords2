@@ -1,22 +1,5 @@
-//! **The hundred-turn game.** `docs/plan.md` §2.5 and §0 row 4.
-//!
-//! `tests/ai_war.rs` plays forty turns and asks whether the AI is *playing*.
-//! This file plays enough turns for the late-game rules to fire at all, and
-//! asks a different question: **which rules have now run, and what breaks when
-//! they do.**
-//!
-//! Everything here is our own arithmetic agreeing with itself —
-//! oracle for turn 100 of England and there will not be one until a person
-//! plays it (`docs/plan.md` §5 item 1). So the assertions are of two kinds only,
-//!
-//!
-//! * **Invariants** — statements the original's own functions maintain, which
-//!   are true whatever the numbers come out as. A labour split that no longer
-//!   sums to the population is a defect at any turn count.
 //! * **Reachability** — *a rule fired at all*. `docs/decisions.md` C27: a rule
 //!   had a way in.
-//!
-//! Nothing here asserts a *value*, because nothing here could justify one.
 
 mod helpers;
 pub use helpers::*;
@@ -32,39 +15,19 @@ use l2_kingdom::report::Message;
 use l2_kingdom::tables::Tables;
 use l2_kingdom::{Kingdom, UnitKind};
 
-/// A hundred turns is twenty-five years. `docs/plan.md` §2.5 calls it "the
-/// hundred-turn game" and that is the number.
 const TURNS: usize = 100;
 
-/// The long game's horizon — a hundred and fifty years.
-///
-/// **It was 400 and is 600**, because the first bankruptcy on this fixture
-/// moved from turn 144 to turn 480 when units started taking the original's
-/// number of ticks to cross a tile. See
-/// [`four_hundred_turns_of_england_reaches_the_rules_nothing_else_can`] for the
-/// measurement and for what it does *not* buy back.
 const TURNS_LONG: usize = 600;
 
-// ---------------------------------------------------------------------------
-// The census: which late-game rules have fired, and when they first did.
-// ---------------------------------------------------------------------------
 
-/// One rule,
 #[derive(Debug, Default)]
 struct Census {
     first: BTreeMap<&'static str, usize>,
     count: BTreeMap<&'static str, usize>,
-    /// The largest number of counties any one realm ever held.
     max_counties: u8,
-    /// The largest tax rate any county ever carried.
     max_tax_rate: i32,
-    /// The largest treasury any realm ever held.
     max_gold: i32,
-    /// The largest bankruptcy stage reached.
     max_bankrupt_stage: u8,
-    /// The most contiguity blocks any realm held at the **end** of a turn.
-    /// `Realm_SecedeIsolatedCounties` runs inside the season, so 2 here means
-    /// the pass did not run. `docs/kingdom.md` §6.1.
     max_blocks: usize,
 }
 
@@ -78,9 +41,6 @@ impl Census {
         self.first.contains_key(what)
     }
 
-    /// Everything the pass reads out of one turn's messages and one turn's
-    /// state. Kept in one place so the England run
-    /// measure the same things.
     fn observe(&mut self, k: &Kingdom, messages: &[Message], turn: usize) {
         for m in messages {
             match m {

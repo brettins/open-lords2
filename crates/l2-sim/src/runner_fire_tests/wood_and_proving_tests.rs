@@ -8,8 +8,6 @@ use crate::fire::{SURFACE_BRIDGE, SURFACE_BURNING, SURFACE_WOODLAND, SURFACE_WOO
 use crate::proving;
 use crate::terrain::flag;
 
-/// A wood of 7 × 5 round `(40, 42)` with four of a human's peasants in it,
-/// and an AI garrison's archer on open ground to the north.
 fn a_wood_with_men_in_it(men: usize) -> (BattleRunner, usize) {
     let mut field = blank_field();
     for y in 40..=44 {
@@ -18,7 +16,6 @@ fn a_wood_with_men_in_it(men: usize) -> (BattleRunner, usize) {
         }
     }
     let mut r = BattleRunner::empty(field, DEFAULT_SEED);
-    // The men first, so the sweep has counted them before the archer looses.
     for k in 0..men {
         stand(&mut r, Troop::Peasants, SIDE_B, 1, true, (38 + k as u8, 42));
     }
@@ -33,9 +30,6 @@ fn a_wood_with_men_in_it(men: usize) -> (BattleRunner, usize) {
 /// **An AI garrison shoots fire arrows at a human army hiding in a wood, and
 /// the whole wood burns** — `BattleMan_FireMissile`'s `+0x44`, `Missile_Step`'s
 /// first test, `FUN_00485861` and `FUN_004859E5`.
-///
-/// Ablation, carried inside: three men in the wood is not *more than three*,
-/// and the same archer's arrows are only arrows.
 #[test]
 fn fire_arrows_set_a_wood_alight_under_a_human_army_and_it_burns_through() {
     let (mut r, _) = a_wood_with_men_in_it(4);
@@ -63,8 +57,6 @@ fn fire_arrows_set_a_wood_alight_under_a_human_army_and_it_burns_through() {
     expect.sort_unstable();
     assert_eq!(with(SURFACE_WOOD_CATCHING), expect, "its neighbours in the wood, one ring");
 
-    // Seven columns wide and five deep: every cell burning within a handful of
-    // frames, and the men in it burning.
     for _ in 0..12 {
         r.step();
     }
@@ -94,7 +86,6 @@ fn fire_arrows_set_a_wood_alight_under_a_human_army_and_it_burns_through() {
     assert!(three.sim.cues.loosed(WeaponClass::Bow) > 0, "though the archer shot");
 }
 
-// ------------------------------------------------------------------ determinism
 
 /// **The cue record cannot feed back into a siege that burns.** C166's proof
 /// — two copies, one's record wiped every frame, every other field equal —
@@ -125,17 +116,12 @@ fn a_siege_whose_cues_are_wiped_every_tick_is_the_same_siege() {
     assert!(c.walls_missed() >= 10, "{c:?}");
 }
 
-/// Two runs of the proving ground are the same run.
 #[test]
 fn two_runs_of_the_proving_ground_are_identical() {
     assert_eq!(proving::run(1_500), proving::run(1_500));
 }
 
-// ------------------------------------------------- the player's fire arrow
 
-/// One human archer of side 0 north of the wood, its own unit, and one enemy
-/// figure standing in the wood at `(40, 42)` — so an order onto that cell both
-/// writes `targetCell` and puts the archer into state 17.
 fn a_player_archer_and_a_man_in_the_wood() -> (BattleRunner, usize, usize) {
     let mut field = blank_field();
     for y in 40..=44 {
@@ -195,8 +181,6 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
     assert_eq!(lit, vec![cell(40, 42)], "only the cell the order named");
     assert_eq!(r.units.get(unit).target_cell, 0, "Missile_Step clears it: one volley, one cell");
 
-    // The man standing in it burns — `BattleMan_BurnTick`, three hits a frame
-    // at size class 0 and no fourth because his owner is not a human.
     let man = r.fighters.iter().position(|f| f.side == SIDE_B).unwrap();
     let before = r.sim.figures[r.fighters[man].sim].hits;
     for _ in 0..10 {
@@ -205,7 +189,6 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
     let after = r.sim.figures[r.fighters[man].sim].hits;
     assert!(after > before, "a figure on the burning cell takes hits: {before} -> {after}");
 
-    // Ablation: the same order without the woodland argument.
     let (mut plain, unit, _) = a_player_archer_and_a_man_in_the_wood();
     plain.order_full(unit, 40, 42, None, false, Formation::Keep);
     assert_eq!(plain.units.get(unit).target_cell, 0);

@@ -14,18 +14,12 @@ use l2_game::input::{Event, Key};
 use l2_game::screen::Ctx;
 use l2_game::Game;
 
-/// **"All your people are fed by dairy" — the readout a player asked for, in
-/// the medium the game uses.**
-///
 /// `docs/decisions.md` C133 searched every one of `L2.eng`'s 317 groups for
 /// that sentence and correctly found nothing.
+///
 /// `Panel_OpenRation` (`0x0043A846`) **speaks** it: `S021_01.wav`, on the frame
 /// the ration panel opens, when the county has a standing herd and opening the
 /// larder took neither a cow nor a sack.
-///
-/// The two arms are asserted separately and in the original's order, because
-/// the `else if` is load-bearing: a county that is fed on nothing gets the
-/// complaint, never the compliment.
 ///
 /// **Ablation:** delete the `herd != 0 && herd_eaten == 0 && grain_eaten == 0`
 /// arm and the first assertion goes red with an empty `heard`; swap the two
@@ -36,7 +30,6 @@ fn the_ration_panel_speaks_when_the_county_lives_on_dairy() {
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let assets = Assets::placeholder();
     let mut game = world();
-    // A county that is fed, holds cattle, and ate nothing to do it.
     game.kingdom.counties[1].ration_achieved = 3;
     game.kingdom.counties[1].herd = 400;
     game.kingdom.counties[1].herd_eaten = 0;
@@ -57,14 +50,9 @@ fn the_ration_panel_speaks_when_the_county_lives_on_dairy() {
     );
     assert!(!audio.heard().contains(&"s021_02.wav"), "and not the complaint");
 
-    // A county that is not fed at all takes the first arm instead. A fresh
-    // director and a fresh audio layer, because `heard` is cumulative by
-    // design.
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let mut director = audio::Director::new();
     game.kingdom.counties[1].ration_achieved = 0;
-    // Still holding cattle and still eating nothing, so only the FIRST clause
-    // can be what decides it.
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     listen(&mut director, &mut audio, &machine, &game);
@@ -79,26 +67,16 @@ fn the_ration_panel_speaks_when_the_county_lives_on_dairy() {
     let _ = &assets;
 }
 
-/// **The industry sounds a player asked for**, *"when you right click them on
-/// the map"*.
-///
 /// `TileInfo_Draw` (`0x0041C208`) plays the site's work as the information
 /// panel paints it: a mine rings, a quarry and a smithy hammer, a lumber mill
 /// saws. All four ranges are driven, because the interesting one is the
 /// **blacksmith**, which plays the quarry's sound — the kingdom bank has no
 /// forge — and a test that only checked the mine would not have noticed.
-///
-/// **Ablation:** delete the `resource_site_slot` call in `Director::listen` and
-/// all four go red; change `7..=9`'s answer from 8 to 9 and only the third row
-/// does.
 #[test]
 fn right_clicking_a_resource_site_plays_its_work() {
     let Some(_) = headless() else { l2_testkit::skip!("no game install") };
     let assets = Assets::placeholder();
 
-    // The four graphics are the original's own ranges, and the expected files
-    // are read off `KINGDOM_BANK` by slot.
-    // ladder under test.
     for (graphic, want) in
         [(1u8, "iron.wav"), (5, "stonecut.wav"), (8, "stonecut.wav"), (11, "woodcut.wav")]
     {
@@ -123,7 +101,6 @@ fn right_clicking_a_resource_site_plays_its_work() {
         );
     }
 
-    // And a tile that is not a settlement is silent.
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let mut game = world();
     let tile = l2_kingdom::map::index(21, 21);
@@ -139,22 +116,16 @@ fn right_clicking_a_resource_site_plays_its_work() {
     let _ = &assets;
 }
 
-/// **The village's work, from `g_jobSound`.**
-///
 /// `Panel_JobDetail` (`0x00412B33`) opens the job popup with the sound of the
 /// job being done. Six of the nine have one; job 8, the blacksmith, plays a
 /// forge *and* a hammer, which is the only place in the game that fires a file
 /// and a bank slot together; jobs 4 and 9 are silent and the zero in the table
 /// is what says so.
-///
-/// **Ablation:** delete the `JOB_SOUND` lookup and the six go red while the
-/// blacksmith stays green, which is the point of driving both branches.
 #[test]
 fn the_job_popup_opens_with_the_sound_of_the_job() {
     let Some(_) = headless() else { l2_testkit::skip!("no game install") };
     let assets = Assets::placeholder();
 
-    // Our job is zero-based; the original's `g_jobPanelJob` is not.
     let rows: [(usize, &[&str]); 4] = [
         (0, &["wheat.wav"]),          // job 1, grain
         (1, &["moo_2.wav"]),          // job 2, cattle
@@ -171,7 +142,6 @@ fn the_job_popup_opens_with_the_sound_of_the_job() {
 
         machine.push(ScreenId::Job(1, job));
         listen(&mut director, &mut audio, &machine, &game);
-        // The campaign bed is in `heard` too and is not what this is about.
         let effects: Vec<&str> =
             audio.heard().into_iter().filter(|n| !n.starts_with("scroll")).collect();
         assert_eq!(effects, want, "job {} (1-based {})", job, job + 1);

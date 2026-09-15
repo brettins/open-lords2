@@ -1,27 +1,15 @@
-//! **The pointer pictures, out of the player's own `Lords2.exe`.**
-//!
 //! `App_InitWindow` (`0x004B2258`) loads eight `HCURSOR`s with `LoadCursorA`
 //! from the executable's own resources — `RT_GROUP_CURSOR` 102, 103, 104, 105
 //! (twice), 110, 111 and 113 — and registers the window class with `hCursor`
 //! NULL.
-//! The twelve `Cursor*.cur` files in the install are read by nothing: the
-//! binary imports no `LoadCursorFromFile`. `docs/screens.md` §9.
-//!
-//! This reads the same seven resources out of the same file. It is a PE
-//! resource walk and a monochrome DIB decode, both of them documented formats;
-//! nothing here is copied from anyone.
 
-/// One pointer picture: the `RT_GROUP_CURSOR` id it was found under, its size,
-/// its hotspot and straight RGBA, top row first.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Picture {
-    /// The `RT_GROUP_CURSOR` resource id — 102, 103, 104, 105, 110, 111, 113.
     pub id: u16,
     pub width: u16,
     pub height: u16,
     pub hot_x: u16,
     pub hot_y: u16,
-    /// `width * height * 4` bytes, RGBA, top-down.
     pub rgba: Vec<u8>,
 }
 
@@ -30,8 +18,6 @@ impl Picture {
     /// is how a 1996 32×32 cursor keeps its size against a canvas the shell
     /// [D] The original never scales a pointer (640x480 fullscreen, one HCURSOR per
     /// kind); ours scales the bitmap and hotspot with the canvas.
-    /// draws at a whole scale of `n` (`crate::input::window::scale` in
-    /// `l2-game`). Nearest neighbour, because the art is.
     pub fn scaled(&self, n: u32) -> Picture {
         let n = n.max(1);
         let (w, h) = (self.width as u32 * n, self.height as u32 * n);
@@ -56,11 +42,8 @@ impl Picture {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CursorError {
-    /// Not a PE32 image, or one with no resource directory.
     NotAnImage(&'static str),
-    /// The resource walk ran off the end of the file.
     Truncated,
-    /// A cursor in a colour depth the original never shipped.
     Depth(u16),
 }
 
@@ -86,7 +69,6 @@ fn u32le(b: &[u8], at: usize) -> Option<u32> {
     Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?))
 }
 
-/// RVA → file offset, through the section table.
 struct Image<'a> {
     bytes: &'a [u8],
     sections: Vec<(u32, u32, u32)>,
@@ -104,7 +86,6 @@ impl<'a> Image<'a> {
         if u16le(bytes, opt) != Some(0x010B) {
             return Err(CursorError::NotAnImage("not PE32"));
         }
-        // Data directory entry 2 is the resource table.
         let rsrc = u32le(bytes, opt + 96 + 2 * 8).ok_or(CursorError::Truncated)?;
         let mut sections = Vec::with_capacity(sections_n);
         for i in 0..sections_n {
@@ -126,7 +107,6 @@ impl<'a> Image<'a> {
     }
 }
 
-/// One level of the resource tree: `(id, offset-to-data, is-directory)`.
 fn entries(b: &[u8], at: usize) -> Result<Vec<(u32, u32, bool)>, CursorError> {
     let named = u16le(b, at + 12).ok_or(CursorError::Truncated)? as usize;
     let ids = u16le(b, at + 14).ok_or(CursorError::Truncated)? as usize;
@@ -140,7 +120,6 @@ fn entries(b: &[u8], at: usize) -> Result<Vec<(u32, u32, bool)>, CursorError> {
     Ok(out)
 }
 
-/// The bytes of one resource: type, then id, then the first language leaf.
 fn resource<'a>(
     img: &Image<'a>,
     root: usize,
@@ -169,7 +148,6 @@ fn resource<'a>(
     Ok(Some(b.get(at..at + size).ok_or(CursorError::Truncated)?))
 }
 
-/// Every `RT_GROUP_CURSOR` in the image, in id order, one picture each.
 pub fn read(exe: &[u8]) -> Result<Vec<Picture>, CursorError> {
     let (img, rsrc_rva) = Image::open(exe)?;
     let root = img.offset(rsrc_rva).ok_or(CursorError::NotAnImage("no resources"))?;
@@ -187,8 +165,6 @@ pub fn read(exe: &[u8]) -> Result<Vec<Picture>, CursorError> {
     let mut out = Vec::with_capacity(groups.len());
     for id in groups {
         let Some(group) = resource(&img, root, RT_GROUP_CURSOR, id)? else { continue };
-        // GRPCURSORDIR: 6-byte header, then 14 bytes per entry, the cursor's
-        // own RT_CURSOR id last.
         let member = u16le(group, 6 + 12).ok_or(CursorError::Truncated)?;
         let Some(bits) = resource(&img, root, RT_CURSOR, member as u32)? else { continue };
         out.push(decode(id as u16, bits)?);
@@ -196,8 +172,6 @@ pub fn read(exe: &[u8]) -> Result<Vec<Picture>, CursorError> {
     Ok(out)
 }
 
-/// One `RT_CURSOR`: a `POINT` hotspot, then a DIB whose height counts the XOR
-/// image and the AND mask together.
 fn decode(id: u16, b: &[u8]) -> Result<Picture, CursorError> {
     let hot_x = u16le(b, 0).ok_or(CursorError::Truncated)?;
     let hot_y = u16le(b, 2).ok_or(CursorError::Truncated)?;
@@ -212,7 +186,6 @@ fn decode(id: u16, b: &[u8]) -> Result<Picture, CursorError> {
     let palette = head + header;
     let colours = 1usize << bpp;
     let xor = palette + colours * 4;
-    // DIB rows are padded to four bytes, and both planes are bottom-up.
     let xor_stride = (w * bpp as usize).div_ceil(32) * 4;
     let and_stride = w.div_ceil(32) * 4;
     let and = xor + xor_stride * h;

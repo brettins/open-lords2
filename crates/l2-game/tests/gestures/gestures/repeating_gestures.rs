@@ -11,17 +11,11 @@ use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::county::{self, Panel};
 use l2_game::Game;
 
-/// **Holding the tax arrow keeps raising the tax, on the original's ramp.**
-///
 /// This is the player's report — *"holding on a button doesn't seem to make it
 /// go up faster; I recall you could click an up arrow and after a few seconds
 /// the number would go up fast"* — turned into an assertion. The arm is
 /// `docs/arms.json` `0x004BA9C8/tax-and-ration-arrows`, and it was filed
 /// `left-press` while `g_taxWidgets`' four records all carry kind **4**.
-///
-/// The schedule is not re-derived here: it is [`press::fires_on_step`]'s, and
-/// this test asserts only the two things a player would notice — that it
-/// repeats at all, and that it speeds up.
 ///
 /// **Ablation, run: delete the `self.press.tick()` arm in
 /// `CountyScreen::update`** and the repeat assertion goes red -- the rate falls
@@ -36,7 +30,6 @@ fn holding_the_tax_arrow_keeps_raising_the_tax_and_speeds_up() {
     let after_press = g.kingdom.counties[1].tax_rate;
     assert_eq!(after_press, start + 1, "the press itself steps once");
 
-    // Hold. The pointer stays on the button, so nothing calls `release`.
     let mut at = Vec::new();
     for t in 1..=120 {
         let before = g.kingdom.counties[1].tax_rate;
@@ -46,8 +39,6 @@ fn holding_the_tax_arrow_keeps_raising_the_tax_and_speeds_up() {
         }
     }
     assert!(!at.is_empty(), "holding the arrow must keep stepping it");
-    // The acceleration, as a player would feel it: the gap between the first
-    // two repeats is bigger than the gap between the last two.
     assert!(at.len() >= 4, "only {} repeats in 120 ticks: {at:?}", at.len());
     let first_gap = at[1] - at[0];
     let last_gap = at[at.len() - 1] - at[at.len() - 2];
@@ -55,18 +46,9 @@ fn holding_the_tax_arrow_keeps_raising_the_tax_and_speeds_up() {
         last_gap < first_gap,
         "the repeat must accelerate: first gap {first_gap} ticks, last {last_gap}, fires {at:?}",
     );
-    // And the tax stops at its ceiling,
-    // `Tax_Increase`'s own `if (taxRate < 0x32)`.
     assert!(g.kingdom.counties[1].tax_rate <= l2_game::game::MAX_TAX_RATE);
 }
 
-/// **Letting go stops it**, and so does sliding off the arrow.
-///
-/// `Widget_Test` re-runs the hit test every frame,
-/// off the button simply stops matching and the record's counter is never
-/// advanced. Both halves are here because they are two different callers of
-/// [`Press::pointer`] / [`Press::release`] and only one of them is obvious.
-///
 /// **Ablation, run: delete the `Event::Release` / `Event::Pointer` bookkeeping
 /// block at the top of `CountyScreen::handle`** and this goes red.
 #[test]
@@ -92,21 +74,12 @@ fn releasing_the_arrow_or_sliding_off_it_stops_the_repeat() {
     }
 }
 
-/// **A held arrow repaints its number on every step, before the release.**
-///
 /// A player: *"The click and hold seems to increase the value but it is not
 /// visually shown until release. OG game you could see the numbers count up
 /// when you held mousedown."* `Tax_IncreaseCounty` (`0x0043AA83`) ends
 /// `Panel_Tax()`, so the number is painted on the frame it stepped. Ours
 /// repaints when the machine is dirty,
 /// is not an event.
-///
-/// This presents — draw only when `take_dirty` says
-/// so, onto a canvas that persists — and on each tick the tax moved it draws
-/// the stack **again** onto a copy. A screen that was presented changes nothing
-/// on a second draw; a screen that was not paints the new number. The digits'
-/// box is where the difference is counted, and it is also required to have
-/// changed from the step before, so the box is known to hold the number.
 ///
 /// **Ablation, run:** return `false` from `CountyScreen::take_redraw` and this
 /// goes red on the first repeat, while the tax after the release is still
@@ -117,7 +90,6 @@ fn a_held_tax_arrow_shows_every_step_before_the_release() {
     let (mut g, a, mut m) = tax_panel();
     g.prefs.tip_screens = false;
     let up = on(Panel::Tax.increase_button().expect("an up arrow"));
-    // `Panel_Tax`'s rate, `pen.body(canvas, 256, 168, " N%")`.
     let digits = Rect::new(248, 160, 96, 32);
     let count_in = |a: &Canvas, b: &Canvas| {
         (digits.y..digits.y + digits.h)
@@ -161,16 +133,6 @@ fn a_held_tax_arrow_shows_every_step_before_the_release() {
     assert!(steps >= 4, "the hold must have repeated for this to mean anything: {steps}");
 }
 
-/// **Either supplies thumb survives its twentieth tick.** `g_sendSuppliesWidgets`,
-/// as [`l2_game::screens::supplies::widgets`] builds it, holds each of the two
-/// [`l2_game::screens::supplies::ROWS`]' minus and plus and then the two thumbs,
-/// so the thumbs are records 4 and 5. `THUMB_UP_INDEX` was 6: a thumb's
-/// countdown reached `SuppliesScreen::fire` below it, took the spinner arm and
-/// indexed `ROWS[2]`,
-/// pressed. Found by the input branch (`worktree-agent-aec40493a34ed1508`).
-///
-/// **Ablation, run:** put `THUMB_UP_INDEX` back to `6` and this panics with an
-/// index out of bounds in `SuppliesScreen::fire`.
 #[test]
 fn either_supplies_thumb_fires_on_its_twentieth_tick_without_panicking() {
     use l2_game::screens::supplies::{THUMB_DOWN, THUMB_UP};

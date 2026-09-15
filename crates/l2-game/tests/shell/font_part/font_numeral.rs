@@ -31,21 +31,6 @@ use l2_view::Canvas;
 /// `font + frame * 0x10 + 8`, no check against the file's frame count. So the
 /// only ways a face could be "partial" are a table that reaches past its end or
 /// frames that are not glyphs, and this asserts which it is:
-///
-/// 1. **108 frames, and nothing in the table reaches past them** — not a
-///    different index base, not a short file;
-/// 2. **every letter is a 2 × 2 stub** that advances three, and a lowercase
-///    word drawn in it has next to no ink — *"Seasons"* is one `'e'`, four
-///    pixels, where `Fntl2_9.pl8` draws it in dozens. That is the "renders
-///    nothing" a canvas diff passes over;
-/// 3. **everything the nine call sites build is a glyph or a blank** — `'+'`,
-/// `'-'` and the ten digits have ink, `' '` and `'@'` are table zeros — and
-///    the digits sit on one baseline.
-///
-/// Ablated, both run: pointing the test at `font::SMALL` turns claim 2 red on
-/// `'a'`, a frame 8 rows tall; pointing it at `font::EIGHT` turns
-/// claim 1 red, 150 frames. The *"Seasons"* ink bound was not
-/// separately observed red — the stub check ahead of it fires first.
 #[test]
 fn font_10_is_a_numeral_face_read_through_the_shared_table() {
     let Some(dir) = install() else {
@@ -55,7 +40,6 @@ fn font_10_is_a_numeral_face_read_through_the_shared_table() {
     let name = font::TEN;
     let bytes = std::fs::read(dir.join(name)).expect("Font_10.pl8");
     let pl8 = l2_formats::Pl8::parse(&bytes).expect("Font_10.pl8 parses");
-    // 1
     assert_eq!(pl8.frames.len(), 108, "{name}: the full 108-frame layout");
     let furthest = font::GLYPH_MAP.iter().copied().max().expect("a table") as usize;
     assert!(
@@ -73,7 +57,6 @@ fn font_10_is_a_numeral_face_read_through_the_shared_table() {
         (n, canvas)
     };
 
-    // 2
     for c in ('a'..='z').chain('A'..='Z') {
         let frame = &pl8.frames[font::GLYPH_MAP[c as usize - 0x20] as usize - 1];
         assert_eq!(frame.height, 2, "{name}: '{c}' should be a 2x2 stub");
@@ -83,7 +66,6 @@ fn font_10_is_a_numeral_face_read_through_the_shared_table() {
     let (word, _) = ink("Seasons");
     assert!(word <= 4, "{name}: \"Seasons\" should draw at most its 'e' - it drew {word} pixels");
 
-    // 3
     for c in "0123456789+-".chars() {
         let (n, _) = ink(&c.to_string());
         assert!(n >= 8, "{name}: '{c}' is a real glyph and drew only {n} pixels");

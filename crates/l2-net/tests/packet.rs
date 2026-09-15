@@ -1,10 +1,3 @@
-//! The wire messages: round trips, the handshake, and malformed input.
-//!
-//! Round-tripping *byte-identically* is the requirement
-//! decoding to an equal value. D-10 says a command must round-trip byte
-//! for byte
-//! packet that would hash differently in a replay — so the tests below
-//! encode, decode, and encode again.
 
 use l2_net::{
     decode_all, Ack, Canonical, Command, HaltReason, Hello, Message, Mismatch, PlayerSlot,
@@ -54,7 +47,6 @@ fn an_empty_tick_packet_round_trips() {
 #[test]
 fn an_empty_packet_is_small() {
     let bytes = Canonical::bytes_of(&Message::Tick(TickPacket::empty(Tick(1), slot(0))));
-    // kind + tick + from + command count + ack count.
     assert_eq!(bytes.len(), 1 + 4 + 1 + 4 + 4);
 }
 
@@ -88,7 +80,6 @@ fn an_unknown_message_kind_is_an_error() {
 
 #[test]
 fn a_slot_beyond_the_player_limit_is_refused() {
-    // Five players (0..4) is the limit; slot 5 does not exist.
     let mut bytes = Canonical::bytes_of(&sample_packet());
     bytes[4] = 5; // the `from` byte
     assert!(decode_all::<TickPacket>(&bytes).is_err());
@@ -102,7 +93,6 @@ fn a_truncated_packet_is_an_error_not_a_panic() {
     }
 }
 
-// --- the handshake ----------------------------------------------------
 
 fn sample_hello() -> Hello {
     Hello {
@@ -135,10 +125,6 @@ fn a_protocol_mismatch_stops_the_comparison() {
     assert!(matches!(problems[0], Mismatch::Protocol { .. }));
 }
 
-/// D-12: the mod set is part of the version, and a mod mismatch is a
-/// guaranteed desync with a confusing symptom. Reporting *every*
-/// problem at once matters, because a mod list is exactly the sort of
-/// thing that is wrong in three ways.
 #[test]
 fn every_mismatch_is_reported_at_once() {
     let ours = sample_hello();
@@ -174,7 +160,6 @@ fn halt_reasons_explain_themselves() {
     assert_eq!(HaltReason::Left.to_string(), "the player left");
 }
 
-// --- identities --------------------------------------------------------
 
 #[test]
 fn slots_are_bounded_by_the_player_limit() {

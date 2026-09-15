@@ -9,11 +9,6 @@ use super::*;
 /// `Order_StopShortOfTarget` (`0x00497437`) — **a missile unit halts at firing
 /// range instead of closing.**
 ///
-/// `range` is the unit's *shortest* missile range in whole cells: the original
-/// takes `min(range >> 3)` over the unit's live missile figures, and
-/// `g_missileStats` makes that 15 for a bow, 8 for a crossbow and 20 for a
-/// catapult ([`crate::missile::MissileStats::range`]). It keeps `range - 3`.
-///
 /// The two axes are pulled back independently, and **an axis already inside
 /// range keeps the unit's own coordinate, not the clicked cell's** — the
 /// function seeds `g_foundTileX`/`g_foundTileY` from `(x, y)`, which the one
@@ -63,11 +58,6 @@ impl BattleRunner {
     /// > `[V]` — the decompilation of both functions; nothing between them
     /// > touches those two globals. Ported for the ladder's shape and kept
     /// > callable
-    ///
-    /// The source-surface branch is applied here inline, because
-    /// [`Self::slot_is_usable`] does not carry it — its comment says why. The
-    /// siege branch, a side-0 unit refused an empty cell of surface under 4, is
-    /// unported in both; here it could only change the answer nothing reads.
     pub fn dest_find_reachable_near(&self, from: (i32, i32), at: (i32, i32), unit: usize) -> bool {
         let src = self.field.at(
             from.0.clamp(0, DIM as i32 - 1) as usize,
@@ -78,8 +68,6 @@ impl BattleRunner {
             let mut x0 = at.0 - radius;
             let mut y0 = at.1 - radius;
             let mut rows = radius * 2 + 1;
-            // The original clamps the width off the unadjusted span and only
-            // then clamps the height, so the two are computed in this order.
             let cols = if x0 < 0 {
                 let c = rows + x0;
                 x0 = 0;
@@ -113,8 +101,6 @@ impl BattleRunner {
         false
     }
 
-    /// The destination a missile unit's order actually gets: both helpers in the
-    /// order `BattleUnit_Order` runs them, for the two arms that reach them.
     pub(super) fn pull_back_to_range(&self, unit: usize, at: (i32, i32)) -> (i32, i32) {
         let Some(range) = self.unit_missile_range(unit) else {
             return at;
@@ -124,15 +110,10 @@ impl BattleRunner {
             (u.x as i32, u.y as i32)
         };
         let found = stop_short_of_target(from, at, range);
-        // The answer is discarded, as the original discards it.
         let _reachable = self.dest_find_reachable_near(from, found, unit);
         found
     }
 
-    /// `min(range >> 3)` over the unit's live missile figures — the original's
-    /// `local_20`, seeded at 1000 and left there when the unit has none, which
-    /// is the `None` here. Its figure loop also zeroes every figure's
-    /// `movStraff`.
     pub(super) fn unit_missile_range(&self, unit: usize) -> Option<i32> {
         self.members(unit)
             .into_iter()

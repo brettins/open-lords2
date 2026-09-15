@@ -8,17 +8,12 @@ use crate::fire::{SURFACE_BRIDGE, SURFACE_BURNING, SURFACE_WOODLAND, SURFACE_WOO
 use crate::proving;
 use crate::terrain::flag;
 
-/// **A pot ordered down off the rampart pours, dies, and sets a cross of
-/// ground burning under the stream every frame it flies.**
-///
 /// `BattleUnit_Order`'s oil loop, `FUN_0047A814` and `Missile_UpdateAll`'s
 /// class-7 arm. The five lives are pinned as the literals the original
 /// produces on the stream's first frame in flight — `ticksFlown` 5, so an
 /// argument of `4 × 32 + bias` against `0x280`, and one frame already counted
 /// off because every fire is in a higher slot than the stream: **471** for the
 /// centre and the north, **511** south, **486** east, **501** west.
-///
-/// Ablation: zero the `bias` column of `OIL_CROSS` and the centre reads 511.
 #[test]
 fn a_pot_ordered_off_the_rampart_pours_and_the_ground_under_the_stream_burns() {
     let mut r = proving::deploy();
@@ -47,9 +42,6 @@ fn a_pot_ordered_off_the_rampart_pours_and_the_ground_under_the_stream_burns() {
     }
     assert_eq!(fire_at(&r, 35, 30).unwrap().saved_surface, crate::siege::SURFACE_WALL);
 
-    // Sixteen frames of range, half a cell a frame: the stream's last cross is
-    // centred on row 37, whose southern arm is row 38, and it is gone on the
-    // seventeenth frame.
     for _ in 0..20 {
         proving::orders(&mut r);
         r.step();
@@ -62,12 +54,6 @@ fn a_pot_ordered_off_the_rampart_pours_and_the_ground_under_the_stream_burns() {
     assert_eq!(fire_at(&r, 35, 37).unwrap().saved_surface, 0, "open ground");
 }
 
-/// **Men in the fire burn, and a figure that loses its last man to it is
-/// cued by its own side** — `BattleMan_BurnTick`, from the pour above.
-///
-/// Every peasant standing on a burning cell takes **four** hits a frame —
-/// three at size class 0 and one for a human's — and nothing else can have
-/// hurt them: the garrison's archer is out of range of everybody.
 #[test]
 fn the_peasants_under_the_oil_burn_four_hits_a_frame_and_die_of_it() {
     let mut r = proving::deploy();
@@ -107,10 +93,6 @@ fn the_peasants_under_the_oil_burn_four_hits_a_frame_and_die_of_it() {
     assert_eq!(r.sim.cues.melee_deaths(SIDE_B) + r.sim.cues.missile_deaths(), 0, "fire, and only fire");
 }
 
-/// **A fire goes out by itself and gives the ground back.** The first cross's
-/// northern arm is on the curtain, surface 8, and lives 472 frames; on the
-/// frame its count reads 2 the curtain is a curtain again — its flags, which
-/// the fire never touched, included.
 #[test]
 fn an_oil_fire_goes_out_and_the_wall_comes_back() {
     let fresh = proving::field();
@@ -130,10 +112,6 @@ fn an_oil_fire_goes_out_and_the_wall_comes_back() {
     assert!(fire_at(&r, 35, 30).is_none(), "and the record is gone a frame later");
 }
 
-/// **A man who steps at a pot of oil is poured on.** `Melee_AdjacentEnemyDir`
-/// does not skip siege engines, so a swordsman walking past a pot at his own
-/// height steps at it, and the 999 arm hands the pot a `Melee_Tick`.
-///
 /// **A green ablation, and it is the finding.** Returning `None` from
 /// `adjacent_oil` alone leaves this green: the swordsman then commits the step
 /// into the pot's cell, and `enter_cell`'s contact arm pours on the same frame
@@ -157,7 +135,6 @@ fn a_man_who_steps_at_a_pot_of_oil_is_poured_on() {
     }
     assert_eq!(poured_at, Some((40, 41)), "poured on the frame he stepped at it, one cell away");
     assert!(!r.is_alive(pot));
-    // The stream runs from the pot through him, so his cell is in a cross.
     for _ in 0..3 {
         r.step();
     }
@@ -168,5 +145,4 @@ fn a_man_who_steps_at_a_pot_of_oil_is_poured_on() {
     );
 }
 
-// ------------------------------------------------------------- the bridge fire
 

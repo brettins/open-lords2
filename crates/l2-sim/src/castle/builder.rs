@@ -19,16 +19,6 @@ pub const ESCAPE_GROUND: u8 = 0xEF;
 /// `Battlefield_BuildCastle` (`0x0047C4BA`), from its first cell loop to
 /// `Battlefield_ClassifySurfaces`.
 ///
-/// ```c
-/// pass 1:  terrain = (b == 0xEE) ? 0x0B : 1;
-/// pass 2:  if (0xEC < b && b < 0xF0) { Rand_Advance(); escape(b); }
-///          else {
-///            frame = b;  flags2 &= 0xE3;
-///            elevation = table[b*2];  if (table[b*2+1] == 0) flags |= 0x10;
-///            switch (elevation) { 5..12: the structure ladder }
-///          }
-/// ```
-///
 /// The ladder is [`code`], and it *overwrites* `flags` for six of its eight
 /// arms
 /// through `0x10` even where the table says the tile is. **[V]**
@@ -42,20 +32,13 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
     let raster = &sheet.frames;
 
     let mut cells = vec![Cell::default(); CELLS];
-    // Pass 1. `0xEE` is the only byte that is water, and it is water before
-    // the auto-tiler is asked what it looks like.
     for (i, c) in cells.iter_mut().enumerate() {
         c.terrain = if raster[i] == ESCAPE_MOAT { id::WATER } else { id::OPEN };
     }
-    // `Battlefield_PlaceMoatCell` runs the 49-entry water table over the whole plane; ours
-    // does it in one sweep because the rotating counters make the walk order
-    // part of the answer and row-major is the builder's.
     let terrain: Vec<u8> = cells.iter().map(|c| c.terrain).collect();
     let moat = crate::terrain::moat_autotile(&terrain);
 
     // `FUN_00404B2C` is stepped once per escape cell, before the escape runs.
-    // The seed the original starts a battle with is untraced; the same note
-    // `terrain::build` carries.
     let mut rng = Lfsr::new(0x5EED);
     let mut objective = [0usize; 2];
     let mut walls_seen = 0u32;
@@ -70,8 +53,6 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
                 // `FUN_0047DC9C`: the frame is the escape byte itself and the
                 // cell stays on slot 0 — the only escape that does.
                 ESCAPE_KEEP_FRAME => c.gfx = ESCAPE_KEEP_FRAME,
-                // `Battlefield_PlaceMoatCell`: the moat. It also zeroes the approach score,
-                // which is `siege::approach_score_at_build`'s business.
                 ESCAPE_MOAT => {
                     c.gfx = moat[i];
                     c.flags2 |= tileset::SECOND;
@@ -99,17 +80,12 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
                 c.flags = 4;
                 c.elevation = 3;
             }
-            // **The way in.** `flags2 |= 0x80` as well, and the elevation is
-            // the one place the two castle families disagree: a stone keep's
-            // door stands at 4 and a wooden one's at 1.
             code::KEEP => {
                 c.surface = SURFACE_KEEP;
                 c.flags = FLAG_KEEP;
                 c.elevation = if stone { 4 } else { 1 };
                 c.flags2 |= 0x80;
                 if objective[0] == 0 {
-                    // Both arms of the original's `ownerIsHuman` test write the
-                    // same thing: one row north of the door.
                     objective[0] = i.saturating_sub(DIM);
                 }
             }
@@ -117,9 +93,6 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
                 c.surface = 7;
                 c.elevation = 2;
             }
-            // The curtain block: surface 8 is what `BattleMan_StateAttackWall`
-            // keeps swinging at, and `0x20` is what `Cell_TryEnter` returns 5
-            // for.
             code::WALL => {
                 c.surface = SURFACE_WALL;
                 c.flags = FLAG_WALL | 4;
@@ -179,9 +152,6 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
 
 /// **The surface classifier** — `Battlefield_ClassifySurfaces` (`0x0047E230`), six flood
 /// passes over the whole field, each looping until it changes nothing.
-///
-/// The builder writes a surface for five structure codes and leaves the rest at
-/// zero; these passes give every other cell one. In order:
 ///
 /// | pass | what it spreads |
 /// |---|---|
@@ -288,7 +258,6 @@ fn classify(cells: &mut [Cell]) {
         }
         false
     });
-    // The two seeds, written before the loop and not inside it.
     cells[0].surface = SURFACE_FIELD;
     cells[0x18B0].surface = SURFACE_FIELD;
     sweep(cells, &|c, x, y, i| {

@@ -16,22 +16,12 @@ use crate::terrain::{Battlefield, Cell, DIM};
 ///     if its surface is 3, 5 or 4  ->  g_siegeApproachScore += 1
 /// DAT_0057A0D8 += 1;
 /// ```
-///
-/// So the approach score is worth **up to four** for a cell that opens onto
-/// castle ground on every side and nothing at all for one out in the water,
-/// which is what makes the besieger's fill work inward. The accumulator goes up
-/// by one whatever the neighbours say, and that is the number the county is
-/// billed five man-seasons of digging for.
-///
-/// Returns the approach score gained.
 pub fn fill_moat_cell(field: &mut Battlefield, state: &mut SiegeState, cell: usize) -> i32 {
     {
         let c = &mut field.cells[cell];
         c.surface = SURFACE_FILLED;
         c.flags = 0;
         c.gfx &= 0x0F;
-        // The terrain byte was the fill counter; the original zeroes it at the
-        // call site, immediately before this.
         c.terrain = crate::terrain::id::OPEN;
     }
     let mut score = 0;

@@ -38,8 +38,6 @@ fn side_name(ctx: &Ctx, owner: u8) -> String {
     super::super::message::lord_name(ctx, owner)
 }
 
-/// The realm's shield frame, with `Battle_ChooseSettlement`'s own substitution
-/// of 6 for a realm that has none.
 fn shield_frame(ctx: &Ctx, owner: u8) -> usize {
     let index = ctx
         .game
@@ -50,8 +48,6 @@ fn shield_frame(ctx: &Ctx, owner: u8) -> usize {
     SHIELD_FRAME0 + if index == 0 { OWNERLESS_SHIELD } else { index }
 }
 
-/// The common half of both screens: the window, the county, the medallion, the
-/// two shields and the two names.
 pub(crate) fn draw_frame(
     ctx: &Ctx,
     canvas: &mut Canvas,
@@ -64,13 +60,8 @@ pub(crate) fn draw_frame(
     p.window(canvas, BOX_X, BOX_Y, BOX_COLS, BOX_ROWS, BOX_SET);
     p.body_centred(canvas, COUNTY.0, COUNTY.1, COUNTY.2, &county_name(ctx, county), font::TEXT);
 
-    // `Ui_DrawBevelRect(0x34, 0x44, 0x52, 0x52)` — the raised edge only. The
-    // fill this used to draw first is not in the original and, under the game's
-    // own palette, is a black square where the medallion goes.
     super::super::siege::bevel_rect(canvas, MEDALLION.x, MEDALLION.y, MEDALLION.w, MEDALLION.h);
 
-    // `icon_tmp.pl8`: the medallion and the two shields, three
-    // `Sprite_WGenSprite` calls with the sheet read whole immediately before.
     let sheet = p.assets.sheet(MEDALLION_SHEET);
     let blit = |canvas: &mut Canvas, frame: usize, x: i32, y: i32| {
         if let Some(f) = sheet.and_then(|s| s.frame(frame)) {
@@ -91,15 +82,6 @@ pub(crate) fn draw_frame(
 }
 
 /// `FUN_004224E7` — the seven-row roster both screens share.
-///
-/// `before` is `None` on the prompt, where nothing has happened yet: the
-/// original's mode 0 *records* the counts into two arrays and prints only the
-/// one column, and mode 1 reads them back as the parenthesised figure beside
-/// what is left. Here the recording is [`BattleReport::attacker_roster`] and
-///
-///
-/// `totals` is the pair the original reads **out of the unit record** rather
-/// than off the rows — see the loop at the end of this function.
 pub(crate) fn draw_roster(
     ctx: &Ctx,
     canvas: &mut Canvas,
@@ -117,18 +99,13 @@ pub(crate) fn draw_roster(
         for x in [COL_A_ICON, COL_B_ICON] {
             p.misc_frame(canvas, TROOP_ICON_FRAME0 + row, x, y - 4);
         }
-        // Always the plural: `Ui_DrawUnitNoun`'s count argument is the literal
-        // 2, so the singular at `0x34 + t*2` can never be reached from here.
-        // **As the file spells it.** This was upper-cased, which in
-        // `Fntl2_14.pl8` is a row of blackletter capitals — the defect the
-        // totals below had and lost. The fallback keeps our own name, in the
-        // debug font's own case.
         let noun = ctx.assets.shell.text(8, NOUN_BASE + row * 2 + 1).to_string();
         let label = if noun.is_empty() { troop.name().to_string() } else { noun };
         p.body(canvas, COL_NOUN, y, &label, font::TEXT);
 
         // `Ui_DrawNumber(n, ' ', &DAT_004D4410 | …14 | …1C | …20, x, y, font,
         // 0x3F)` — a **space lead and a one-space suffix** at every column.
+        //
         // These were `n.to_string()` with no lead, so both columns sat four
         // pixels left of `param_3 + 0x28` and `param_3 + 0x118`. **[V]**
         let face = shell::Face::Body;

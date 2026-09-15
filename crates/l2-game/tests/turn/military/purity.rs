@@ -16,9 +16,6 @@ use l2_kingdom::units_tick::Contact;
 use l2_kingdom::merchant::MerchantRoutes;
 use l2_kingdom::unit::{Unit, UnitKind};
 
-/// Movement does not cost determinism. The same kingdom, with the same orders,
-/// ended twice, lands on the same tiles — the property `docs/netcode.md` binds
-/// and the one a unit sweep is most likely to break.
 #[test]
 fn a_turn_with_units_moving_is_still_a_pure_function_of_where_it_started() {
     let orders = |g: &mut Game| {
@@ -46,8 +43,6 @@ fn a_turn_with_units_moving_is_still_a_pure_function_of_where_it_started() {
     assert_eq!(ox.contacts, oy.contacts);
     assert_eq!(x.kingdom, y.kingdom);
 
-    // And a second turn, because a divergence that only shows on the next one
-    // is what a single-turn test misses.
     turn::end_turn(&mut x).unwrap();
     turn::end_turn(&mut y).unwrap();
     assert_eq!(x.kingdom, y.kingdom);

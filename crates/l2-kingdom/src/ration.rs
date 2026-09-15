@@ -1,76 +1,40 @@
 //! Rations — `docs/kingdom.md` §4.2 and §4.3, `Ration_Apply` (`0x0044DF5F`).
 //!
-//! The rule in one paragraph. A ration level sets a food *requirement* through
-//! `g_rationTable`. The standing herd covers part of it for free — five people
-//! per head, as cheese, without the animal being slaughtered. What is left is
-//! split by the county's `rationSplit` percentage between livestock (one
-//! slaughtered animal feeds ten) and grain (one sack feeds six). If either side
-//! runs out, the county drops a ration level and tries again. Whatever level
-//! survives that becomes `rationAchieved`, and is worth `3L - 8` happiness.
-//!
-//! # Two places this crate departs from the document
-//!
-//! **The loop starts at `rationWanted`, not at `rationWanted + 1`.** §4.3 says
-//! it *"descends from `rationWanted + 1`"*, which reads naturally as a
-//! `do { level--; ... } while (!fits)` — a loop written that way is *entered*
-//! at `wanted + 1` and first *evaluated* at `wanted`. Taking the phrase
-//! literally breaks §4.3's own reproduction: the unowned county there (pop 456,
-//! herd 67, Normal, 100% split) would be fed at Double, which fits its herd
-//! comfortably and slaughters 58 head, where the save stores **13**. Starting
-//! at `wanted` gives exactly 13. The reproduction is the stronger evidence.
-//!
 //! **Neither call spends.** §3.4 has `Ration_Apply` running twice per season,
 //! the second time as next season's preview, and §4.3 records that the stored
 //! `rationAchieved` is consequently the *next* season's level
 //! one that was applied. `Ration_Apply` (`0x0044DF5F`) debits no store at all:
+//!
 //! [`apply`] is `Ration_ApplyAll`'s body and shadows the cost into
 //! `+0x18C`/`+0x190`, [`preview`] does not, and `Grain_SeasonTick` /
 //! `Herd_SeasonTick` take the food out. That is a choice, not a finding:
-//! §4.3 explicitly says it *"did not untangle which write survives"*, and it is
-//! the reason the four player-owned counties in the England turn-one fixture do not
-//! reproduce.
 
 use crate::county::County;
 use crate::math::{div_ceil, pct};
 use crate::tables::{Season, Tables, RATION_LEVEL_COUNT};
 
-/// `Ration_Apply`'s second argument, plus the one global `Grain_Sow` reads.
-///
 /// Every call in the binary passes `g_season` except `Ration_ApplyAll`
 /// (`0x0044BF04`), which passes `g_seasonPrev` — so the season here is the one
 /// *that call* was handed, not always the turn's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Sowing {
-    /// The `season` argument. `None` is a caller with no season to give, and
-    /// reserves nothing.
     pub season: Option<Season>,
-    /// `g_optAdvancedFarming`, which moves `Grain_Sow`'s labour divisor and so
-    /// the seed.
     pub advanced_farming: bool,
 }
 
 impl Sowing {
-    /// No season, no reservation — the whole store is offered as food.
     pub const NONE: Sowing = Sowing { season: None, advanced_farming: false };
 
     pub fn new(season: Season, advanced_farming: bool) -> Sowing {
         Sowing { season: Some(season), advanced_farming }
     }
 
-    /// From the raw season byte a [`crate::Kingdom`] carries. Season 0 (*No
-    /// Season*) reserves nothing.
     pub fn from_index(season: u8, advanced_farming: bool) -> Sowing {
         Sowing { season: Season::from_index(season), advanced_farming }
     }
 }
 
 /// **The seed corn is not food.** `Ration_Apply` (`0x0044DF5F`) opens with
-///
-/// ```c
-/// local_24 = 0;
-/// if (season == 4) local_24 = Grain_Sow(county, county.labour[0].workers, county.grain);
-/// county.grainAvailable = county.grain - local_24;
-/// ```
 ///
 /// Season 4 is Winter and the spending pass is handed `g_seasonPrev`, so the
 /// turn the gate fires on is the turn `Grain_SeasonTick` (`0x0044C8AE`) sows,
@@ -93,31 +57,21 @@ pub fn seed_reserved(t: &Tables, county: &mut County, sowing: Sowing) -> i32 {
     crate::land::sow_sacks(t, county, store, labour, sowing.advanced_farming)
 }
 
-/// What feeding a county at one ration level would take.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Plan {
-    /// The level this plan is for, 0..=5.
     pub level: i32,
-    /// `DivCeil(people, divisor) * multiplier` — people-worth of food needed.
     pub requirement: i32,
-    /// People fed free by the standing herd.
     pub dairy: i32,
-    /// Head that would be slaughtered.
     pub heads: i32,
-    /// Sacks that would be eaten.
     pub sacks: i32,
 }
 
 impl Plan {
-    /// True when the county's store can cover the plan.
     pub fn fits(&self, herd: i32, grain: i32) -> bool {
         self.heads <= herd && self.sacks <= grain
     }
 }
 
-/// `Food_FromDairy` — the standing herd feeds five people per head per season
-/// without being slaughtered.
-///
 /// **`[V]`**, and unusually well corroborated: a strategy guide states *"each
 /// portion of cheese being enough to feed 5 people"*, and a player measuring a
 /// save reported 80 cows feeding 400 people.
@@ -125,27 +79,11 @@ pub fn food_from_dairy(t: &Tables, herd: i32) -> i32 {
     herd.max(0).saturating_mul(t.food.dairy_per_head)
 }
 
-/// **The ration panel's *Fed* row: how many people each source fed.**
-///
-/// `FUN_0044E...`'s three lines, which the panel then prints at (0xD0, 0x11E),
-/// (0x10A, 0x11E) and (0x144, 0x11E):
-///
 /// ```c
 /// county[+0x16C] = county.herd      * g_dairyPerHead;   /* the standing herd  */
 /// county[+0x170] = county.grainEaten * g_foodPerSack;   /* the grain eaten    */
 /// county[+0x174] = county.herdEaten  * g_foodPerHead;   /* the beasts killed  */
 /// ```
-///
-/// The three are stored on the county in the original and are **derived here**,
-/// because every input is already a field and a fourth copy of a product is a
-/// fourth thing that can go stale. Returned in the panel's own left-to-right
-/// order: grain, meat, dairy.
-///
-/// `screens/county.rs` printed the words **"NOT SIMULATED"** across this row,
-/// on the grounds that the three offsets are *"not in l2-kingdom at all, so
-/// there is nothing to put here"*. They were products of fields that were.
-/// A player read the result as *"no information about feeding peasants is
-/// available"*, which is exactly what it said.
 pub fn people_fed(t: &Tables, county: &County) -> (i32, i32, i32) {
     (
         county.grain_eaten.max(0).saturating_mul(t.food.food_per_sack),
@@ -154,17 +92,14 @@ pub fn people_fed(t: &Tables, county: &County) -> (i32, i32, i32) {
     )
 }
 
-/// `Food_HeadsForPeople` — one slaughtered animal feeds ten.
 pub fn heads_for_people(t: &Tables, people: i32) -> i32 {
     div_ceil(people, t.food.food_per_head)
 }
 
-/// `Food_SacksForPeople` — one sack of grain feeds six.
 pub fn sacks_for_people(t: &Tables, people: i32) -> i32 {
     div_ceil(people, t.food.food_per_sack)
 }
 
-/// The food requirement at a ration level, `DivCeil(people, divisor) * mult`.
 pub fn requirement(t: &Tables, people: i32, level: i32) -> i32 {
     let row = t.ration[clamp_level(level) as usize];
     let (divisor, multiplier) = (row.divisor, row.multiplier);
@@ -175,12 +110,6 @@ fn clamp_level(level: i32) -> i32 {
     level.clamp(0, RATION_LEVEL_COUNT as i32 - 1)
 }
 
-/// Cost out one ration level, without deciding whether it is affordable.
-///
-/// `split` is `rationSplit`: the percentage of the remaining requirement taken
-/// from livestock.
-/// than `Pct(remainder, 100 - split)`, so the two sides always sum back to the
-/// whole and a split of 33% does not silently lose a person.
 pub fn plan(t: &Tables, people: i32, level: i32, herd: i32, split: i32) -> Plan {
     let level = clamp_level(level);
     let requirement = requirement(t, people, level);
@@ -197,9 +126,6 @@ pub fn plan(t: &Tables, people: i32, level: i32, herd: i32, split: i32) -> Plan 
     }
 }
 
-/// The people a county has to feed: its population, plus the troops standing in
-/// it when *Armies Eat* is on.
-///
 /// **`[I]` on the enemy half.** `docs/kingdom.md` §1.3 lists `+0x198` and `+0x19C`
 /// together as *"friendly / enemy troops … added to the food requirement when
 /// Armies Eat is on"* and does not say whether both are added. Both are added
@@ -215,27 +141,6 @@ pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
 
 /// `Food_Available` (`0x0044E7B4`) — the number [`crate::unit::starve`] tests
 /// an army's size against.
-///
-/// ```c
-/// f = 0;
-/// if (county.herd           > 0) f  = county.herd           * g_dairyPerHead;  /* x5  */
-/// if (county.herdAvailable  > 0) f += county.herdAvailable  * g_foodPerHead;   /* x10 */
-/// if (county.grainAvailable > 0) f += county.grainAvailable * g_foodPerSack;   /* x6  */
-/// ```
-///
-/// > **`docs/armies.md` §3.3b calls this *"`herd*5 + slaughterable*10 +
-/// > grain*6` — the county's whole feeding capacity"*, and the shorthand hides
-/// > the part that matters: only the first term is a stock.**
-/// > [`County::herd_available`] and [`County::grain_available`] are the
-/// > *per-season caps* [`apply`] writes — what this season's ration pass
-/// > released — not the larder. Two consequences a reimplementation following
-/// > the shorthand would get wrong: **the herd is counted twice**, once as
-/// > cheese at five people a head and again as meat at ten; and **the value
-/// > moves when the ration slider moves**, which is exactly why `Army_Create`
-/// > re-runs the county's food passes before it charges anything.
-/// >
-/// > Each term is guarded independently, so a negative field contributes
-/// > nothing
 ///
 /// There are two sibling functions computing superficially similar sums from
 /// *different* county fields (`+0x178`/`+0x17C`, the food eaten). Any
@@ -255,17 +160,10 @@ pub fn food_available(t: &Tables, county: &County) -> i32 {
     food.clamp(i32::MIN as i64, i32::MAX as i64) as i32
 }
 
-/// Descend from `rationWanted` to the first level the county can afford.
-///
-/// Level 0 costs nothing and therefore always fits, so this always terminates
-/// with a plan.
 pub fn choose(t: &Tables, county: &County, armies_eat: bool) -> Plan {
     choose_within(t, county, armies_eat, county.grain)
 }
 
-/// [`choose`] against a grain figure that is not the whole store: the original
-/// descends against `Food_Available`, which it reads *after* setting
-/// `grainAvailable` to `grain - seed`, so the reservation moves the level too.
 fn choose_within(t: &Tables, county: &County, armies_eat: bool, grain: i32) -> Plan {
     let people = people_to_feed(county, armies_eat);
     let mut level = clamp_level(county.ration_wanted);
@@ -281,9 +179,6 @@ fn choose_within(t: &Tables, county: &County, armies_eat: bool, grain: i32) -> P
 /// `Ration_Apply` (`0x0044DF5F`) proper — everything the original's function
 /// writes. Shared by [`apply`] and [`preview`]; the only difference between
 /// them is whether the shadow pair is written after it.
-///
-/// The two caps are the original's own: it sets `grainAvailable`/`herdAvailable`
-/// from the store and then stores `min(cost, available)` in each eaten field.
 fn record(t: &Tables, county: &mut County, p: Plan, seed: i32) {
     county.ration_achieved = p.level;
     county.herd_available = county.herd;
@@ -304,11 +199,6 @@ fn record(t: &Tables, county: &mut County, p: Plan, seed: i32) {
 /// `+0x178`/`+0x17C`: [`preview`] overwrites those with next season's forecast
 /// before either tick runs (`docs/decisions.md` C20), and in the fixture every
 /// unowned county stores `herdEaten` 13 against a shadow of 0.
-///
-/// The `min` is the original's: `Ration_Apply` caps each side at
-/// `grainAvailable`/`herdAvailable`, which [`record`] has just set to the
-/// store. At the chosen level the plan already fits, so it only bites at level
-/// 0 with a negative store.
 pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
     let seed = seed_reserved(t, county, sowing);
     let p = choose_within(t, county, armies_eat, county.grain - seed);
@@ -318,8 +208,6 @@ pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) 
     p
 }
 
-/// The second call: next season's preview. Writes the same display fields and
-/// leaves the shadow — and so the store — alone.
 pub fn preview(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
     let seed = seed_reserved(t, county, sowing);
     let p = choose_within(t, county, armies_eat, county.grain - seed);
@@ -331,7 +219,6 @@ pub fn preview(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing
 mod tests {
     use super::*;
 
-    /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
     /// **`docs/kingdom.md` §4.3's reproduction, exactly.** In the shipped
@@ -365,8 +252,6 @@ mod tests {
         assert_eq!(c.d_hap_ration, 1, "Normal is worth +1 happiness");
     }
 
-    /// The reason the loop cannot start at `rationWanted + 1`, spelled out:
-    /// that county could afford Double, and the save says it ate at Normal.
     #[test]
     fn starting_one_level_above_wanted_would_contradict_the_save() {
         let people = 456;
@@ -393,7 +278,6 @@ mod tests {
         c.ration_split = 0; // all grain
 
         let p = choose(T, &c, false);
-        // Triple needs 1200, Double 800, Normal 400, Half 200 -> 34 sacks.
         assert_eq!(p.level, 2, "Half is the first level 40 sacks covers");
         assert_eq!(p.sacks, sacks_for_people(T, 200));
         assert!(p.sacks <= c.grain);
@@ -413,8 +297,6 @@ mod tests {
         assert_eq!(c.grain_eaten, 0);
     }
 
-    /// Eighty cows feed four hundred people, which is the measurement
-    /// `docs/kingdom.md` §4.3 cites.
     #[test]
     fn eighty_cows_feed_four_hundred_people_for_free() {
         assert_eq!(food_from_dairy(T, 80), 400);
@@ -455,9 +337,6 @@ mod tests {
     /// hands it `g_seasonPrev` — so the gate fires on the turn the county
     /// sows. A county holding its seed plus four sacks feeds its people on the
     /// four.
-    ///
-    /// *Ablation*: pass `Sowing::NONE` instead of the season and the county
-    /// eats ten sacks — six of them the seed it is about to put in the ground.
     #[test]
     fn a_sowing_county_eats_what_is_over_the_seed_and_not_the_seed() {
         let mut c = County::new();

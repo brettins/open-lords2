@@ -17,36 +17,22 @@ use crate::text::{self, TextField};
 /// `g_setupPage` (`0x005530F0`). The thirteen values `FUN_0041E7E1` switches on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SetupPage {
-    /// 1 — the title menu. The first screen of the original.
     Title,
-    /// 2 — *"Your options"*.
     Options,
-    /// 3 — load a game.
     Load,
-    /// 4 — *"Choose your title and your shield."*
     Shield,
-    /// 5 — the original campaign, or the one the expansion adds.
     Campaign,
-    /// 6 — full game, or skirmish.
     GameType,
-    /// 7 — the custom game, single player.
     Custom,
-    /// 8 — the custom game, multiplayer.
     CustomMulti,
-    /// 9 — one option's drop-down, open over the page underneath.
     Dropdown,
-    /// 10 — *"No Lords of the Realm CD"*.
     NoCd,
-    /// 11 — skirmish setup, multiplayer.
     SkirmishMulti,
-    /// 12 — skirmish setup, single player.
     Skirmish,
-    /// 13 — the skirmish file box, over page 12.
     SkirmishFile,
 }
 
 impl SetupPage {
-    /// The value `g_setupPage` holds for this page.
     pub fn number(self) -> u8 {
         match self {
             SetupPage::Title => 1,
@@ -65,7 +51,6 @@ impl SetupPage {
         }
     }
 
-    /// All thirteen, in `g_setupPage` order.
     pub const ALL: [SetupPage; 13] = [
         SetupPage::Title,
         SetupPage::Options,
@@ -99,7 +84,6 @@ impl SetupPage {
         }
     }
 
-    /// The `.256` that background comes with.
     pub fn palette(self) -> &'static str {
         match self {
             SetupPage::Custom | SetupPage::CustomMulti | SetupPage::Dropdown => "Custom.256",

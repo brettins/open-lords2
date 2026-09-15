@@ -6,8 +6,6 @@ use super::*;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// A one-row-per-line file as (the lines before the first row, the rows without
-/// their trailing commas, the lines after the last row).
 pub(super) fn split_rows(text: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
     let lines: Vec<&str> = text.lines().collect();
     let is_row = |l: &str| l.trim_start().starts_with("{\"id\": ");
@@ -22,8 +20,6 @@ pub(super) fn join_rows(head: &[String], rows: &[String], tail: &[String]) -> St
     format!("{}\n{}\n{}\n", head.join("\n"), rows.join(",\n"), tail.join("\n"))
 }
 
-/// Runs the driver on three texts under a registered path, returning whether it
-/// reported success, what it left in the `ours` file, and what it said.
 pub(super) fn drive(label: &str, base: &str, ours: &str, theirs: &str) -> Option<(bool, String, String)> {
     let dir = std::env::temp_dir().join(format!(
         "l2-drive-{}-{}",

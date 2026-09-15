@@ -4,16 +4,11 @@ use super::assertions::*;
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-/// The total the inventory adds up to, stated separately so that a change
-/// which moves a test between two files still has to be acknowledged as a
-/// change in how much of this suite exists on CI.
 
-/// The workspace root, from this crate's manifest.
 pub(crate) fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap().parent().unwrap().to_path_buf()
 }
 
-/// Every `.rs` under `crates/`, excluding this crate.
 pub(super) fn source_files(root: &Path) -> Vec<PathBuf> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else { return };
@@ -40,24 +35,14 @@ pub(super) fn relative(root: &Path, p: &Path) -> String {
     p.strip_prefix(root).unwrap_or(p).to_string_lossy().replace('\\', "/")
 }
 
-/// The gate a chunk of source sits behind, if any, counting only what the
-/// chunk itself names.
 fn direct_gate(body: &str) -> Option<Gate> {
     NEEDLES.iter().find(|(needle, _)| body.contains(needle)).map(|&(_, g)| g)
 }
 
-/// Split a file into its `#[test]` functions. Everything before the first is
-/// the preamble — helpers and macro definitions — and is not a test.
 fn test_bodies(src: &str) -> Vec<&str> {
     src.split("#[test]").skip(1).collect()
 }
 
-/// **One level of indirection has to be followed**, or the census undercounts
-/// badly: most gated tests call a file-local `macro_rules!` or helper that
-/// holds the gate
-///
-/// So the preamble is chopped into named items and each is given the gate its
-/// own text names; a test naming such an item inherits it.
 fn local_items(preamble: &str) -> Vec<(String, Gate)> {
     let mut marks: Vec<(usize, String)> = Vec::new();
     for (pat, skip) in
@@ -106,13 +91,6 @@ pub(crate) fn scan() -> BTreeMap<(String, &'static str), usize> {
     for path in source_files(&root) {
         let Ok(src) = std::fs::read_to_string(&path) else { continue };
         let mut preamble = src.split("#[test]").next().unwrap_or("").to_string();
-        // **A test file's helpers can live in a sibling module.** `mod common;`
-        // in a `tests/` directory pulls in `common/mod.rs`, which is where
-        // `tests/screens_*.rs` keep the `world!()` that carries their gate. Read
-        // it into the preamble, or the census loses every test behind it.
-        // **A split target's part reads its root's macros through `use super::*`.**
-        // Every `main.rs` or `mod.rs` between the file and `tests/` joins the preamble,
-        // and each of those roots names sibling modules of its own.
         let mut roots: Vec<(PathBuf, String)> = Vec::new();
         let mut dir = path.parent();
         while let Some(d) = dir {
@@ -123,7 +101,6 @@ pub(crate) fn scan() -> BTreeMap<(String, &'static str), usize> {
             }
             dir = d.parent();
         }
-        // A `#[path = "..."]` above the declaration names the file outright.
         let mods_of = |text: &str| -> Vec<String> {
             let mut out = Vec::new();
             let mut at: Option<String> = None;
@@ -148,8 +125,6 @@ pub(crate) fn scan() -> BTreeMap<(String, &'static str), usize> {
                 preamble.push_str(&extra);
             }
         }
-        // The gate can now sit entirely in the sibling module, so the cheap
-        // "does this file mention the testkit at all" filter runs on both.
         if !src.contains("l2_testkit") && !preamble.contains("l2_testkit") {
             continue;
         }

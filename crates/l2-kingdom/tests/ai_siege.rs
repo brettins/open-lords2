@@ -1,19 +1,3 @@
-//! **An AI lord besieges a castle and orders its engines**, travelled from the
-//! step onto the castle tile.
-//!
-//! ```text
-//! cargo test -p l2-kingdom --test ai_siege
-//! ```
-//!
-//! Needs no game install and no fixture.
-//!
-//! # Why this file exists
-//!
-//! The hand-off that opened this branch said: *"No AI in this workspace orders
-//! siege engines — `siege::order_engine` has three callers and all three are
-//! the player's, so an AI besieging a level-3 castle can never assault at
-//! all."*
-//!
 //! **The premise is true and the conclusion is false, and the gap between them
 //! is worth more than the feature.** `order_engine` is the *siege screen's `+`
 //! and `-` buttons* (`0x0043B681` / `0x0043B741`), and it is right that no AI
@@ -34,8 +18,6 @@
 //! too, which is `docs/agents.md`'s *"a field is only tested if something a
 //! test reads was written by something the game runs"*, exactly.
 //!
-//! # What the AI orders,
-//!
 //! `Siege_Prepare`'s only input beyond the castle is `g_aiPersonality[lord-1]
 //! +0xA0`, read out of `Lords2.exe` as **8, 9, 7, 7** for the four lords —
 //! three distinct values, and exactly the three the function tests. Two towers
@@ -53,9 +35,6 @@ use l2_kingdom::{MAX_COUNTIES, MAX_REALMS};
 
 const CASTLE_COUNTY: u8 = 3;
 
-/// Realm 1 is a human's, realm 2 is an AI lord's; county 3 holds realm 1's
-/// castle of `castle_type` with a garrison in it, and realm 2 has an army
-/// standing beside it.
 fn about_to_besiege(
     castle_type: u8,
     lord: u8,
@@ -77,7 +56,6 @@ fn about_to_besiege(
     counties[CASTLE_COUNTY as usize].castle_type = castle_type;
     counties[CASTLE_COUNTY as usize].garrison_unit = g;
 
-    // The AI's army, on the tile next door with its men counted.
     let mut army = Unit::new(UnitKind::Army, 2, 41, 40);
     army.owner_is_human = false;
     army.men = 400;
@@ -85,8 +63,6 @@ fn about_to_besiege(
     (counties, realms, units, a)
 }
 
-/// **The AI walks onto the castle and its engines are ordered**, by the same
-/// chain a real turn runs.
 #[test]
 fn an_ai_army_that_reaches_a_castle_lays_siege_and_orders_its_engines() {
     // (lord, personality +0xA0, then catapults / towers / rams)
@@ -130,10 +106,6 @@ fn an_ai_army_that_reaches_a_castle_lays_siege_and_orders_its_engines() {
     }
 }
 
-/// **A besieging AI builds its way to an assault on a stone castle**, which is
-/// the question the hand-off. A level-3 castle refuses an
-/// assault with no engines; this one arrives with two towers and three
-/// catapults because nobody pressed a button.
 #[test]
 fn an_ai_besieging_a_stone_castle_builds_its_way_to_an_assault() {
     let (mut counties, realms, mut units, army) = about_to_besiege(4, 3);
@@ -161,7 +133,6 @@ fn an_ai_besieging_a_stone_castle_builds_its_way_to_an_assault() {
         units.get(army).unwrap().engines.iter().map(|e| e.ordered as i32).sum();
     assert!(ordered > 0, "the AI ordered engines at the moment it laid the siege");
 
-    // Turn phase 2, a season at a time,
     let mut seasons = 0;
     let ready = loop {
         seasons += 1;

@@ -19,9 +19,6 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-/// Two armies eight cells apart, marched at each other. 42 figures, no
-/// install, no painter — [`l2_view::scene::figure_origin`] is the whole
-/// picture and this counts how far it moves a live man in one tick.
 pub(super) fn march() -> BattleRunner {
     let human: &[(Troop, u16)] = &[(Troop::Swordsmen, 8), (Troop::Archers, 6), (Troop::Macemen, 7)];
     let ai: &[(Troop, u16)] = &[(Troop::Crossbowmen, 7), (Troop::Macemen, 8), (Troop::Peasants, 6)];
@@ -39,10 +36,7 @@ pub(super) fn march() -> BattleRunner {
     r
 }
 
-// ------------------------------------------------------------------ the ghosts
 
-/// The pixels no painter on this screen writes: the menu bar's 24 rows, the
-/// strip below the field, and the column between the field and the banners.
 fn untouched_regions() -> Vec<(i32, i32, i32, i32)> {
     vec![
         (0, 0, 640, FIELD_Y0),
@@ -65,10 +59,7 @@ pub(crate) fn snapshot(canvas: &Canvas) -> Vec<u8> {
     out
 }
 
-// -------------------------------------------------------------- determinism
 
-/// FNV-1a, 64-bit — a fingerprint of the saved bytes to print, so the same
-/// battle can be compared across two builds by eye.
 fn fnv1a(bytes: &[u8]) -> u64 {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
     for &b in bytes {
@@ -88,10 +79,6 @@ fn cells_of(live: &LiveBattle, side: u8) -> Vec<(u8, u8)> {
         .collect()
 }
 
-/// One battle, twice from the same events: one copy painted after every tick,
-/// the other never painted.
-///
-/// **The battle ends inside the loop, and that is the original's answer.**
 /// `Battle_CheckOutcome` (`0x00477DFC`): `if (menA < 1) g_battleLoser =
 /// g_battleArmyB` — no clock, no morale break. It then counts `DAT_00568470`
 /// to 5000 behind the banner, and `Smk_OnFinished` sets that to 5001 when the
@@ -108,7 +95,6 @@ pub(crate) fn played(assets: &Assets, ticks: u32) -> (Game, Game, u32) {
     let (mut blind, mut bm) = staged(44, &human, &ai, cam);
 
     for (g, m) in [(&mut drawn, &mut dm), (&mut blind, &mut bm)] {
-        // A box round the whole human army, then a click on an enemy.
         let cells = cells_of(live(g), SIDE_A);
         let lo = (cells.iter().map(|c| c.0).min().unwrap(), cells.iter().map(|c| c.1).min().unwrap());
         let hi = (cells.iter().map(|c| c.0).max().unwrap(), cells.iter().map(|c| c.1).max().unwrap());
@@ -152,8 +138,6 @@ pub(crate) fn played(assets: &Assets, ticks: u32) -> (Game, Game, u32) {
     (drawn, blind, killed)
 }
 
-/// Check the two plays agree to the byte, that the battle did something, and
-/// print the fingerprint.
 pub(crate) fn same_battle(drawn: &Game, blind: &Game, label: &str, killed: u32) {
     let (a, b) = (l2_game::save::encode(drawn), l2_game::save::encode(blind));
     assert_eq!(a, b, "the saved bytes differ between the painted and the unpainted battle");

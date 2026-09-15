@@ -49,28 +49,12 @@ impl EventKind {
     }
 }
 
-/// Whether a county is eligible to draw at all. **The AI never draws random
-/// events**, and nothing is drawn until the year passes 1268.
 pub fn eligible(t: &Tables, county: &County, owner_is_human: bool, year: i32) -> bool {
     year > t.event.first_year && !county.is_unowned() && owner_is_human
 }
 
 /// `Event_RollAll` (`0x00448819`) — clear last season's modifiers, then walk the
 /// deck.
-///
-/// **It clears three modifiers and the tax gate, and not the letter's latch.**
-/// See the loop body: `eventFired` and `eventId` survive a season in which the
-/// county drew nothing, which is the whole reason a letter can still be read
-/// several seasons after the event that wrote it. `l2_game::message::post_event`
-/// is the only thing that clears `eventFired`.
-///
-/// `purses` is indexed by realm id and is only read for the seven events that
-/// touch a treasury or a stockpile; the caller copies the values back.
-///
-/// **One draw per season, before the county loop**, which is the determinism
-/// property that matters: the number of values taken from the generator does
-/// not depend on how many counties there are or who owns them
-/// (`docs/netcode.md` §3).
 #[allow(clippy::too_many_arguments)]
 pub fn roll_all(
     t: &Tables,
@@ -88,14 +72,6 @@ pub fn roll_all(
     // `docs/bugs.md` B2. `00448822 MOV EAX,[0x0058FD60] / ADD EAX,EAX`: the
     // doubling is what makes the starting slot always even, and every filled
     // slot is odd, so county `k` can only ever land on a slot of parity `k`.
-    //
-    // The fix draws the starting slot over the whole deck
-    // of it doubled. **One `next_u32()` either way** — both bounds are powers
-    // of two, so `Pcg32::below`'s rejection loop never turns, and the number of
-    // values taken from the generator does not depend on the setting. That
-    // property is not decoration: a quirk that changed how often the simulation
-// drew would desync a peer at the *next* draw, and
-    // the desync dump would name the wrong subsystem (`docs/netcode.md` §3).
     let mut index = if quirks.reproduces(Quirk::EventDeckParityLocksOutEvenCounties) {
         (rng.below(EVENT_SEED_BOUND) * 2) as usize
     } else {
@@ -112,8 +88,6 @@ pub fn roll_all(
         // county. A county whose event nobody has looked at keeps its flag and
         // its id for as long as it takes.
         //
-        // Ours cleared both here, every season, so the latch was gone before any
-        // frame could read it and no event letter could ever reach a player.
         // `docs/decisions.md` C210.
         counties[id].event_population_pct = 0;
         counties[id].event_grain_pct = 0;

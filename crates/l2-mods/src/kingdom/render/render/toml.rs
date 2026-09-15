@@ -13,10 +13,6 @@ use l2_kingdom::tables::{
     CASTLE_TYPE_COUNT, HERD_CROWDING_COUNT, TAX_LADDER_RUNGS,
 };
 
-/// Render a [`Tables`] as the document [`tables`] reads back.
-///
-/// This is how `rulesets/core/rules/kingdom.toml` is produced, and a test
-/// asserts the shipped file is exactly this text.
 pub fn render_toml(t: &Tables) -> String {
     use std::fmt::Write as _;
     let mut out = String::new();
@@ -330,7 +326,6 @@ pub fn render_toml(t: &Tables) -> String {
             t.castle.tax_bonus_pct[b],
             t.castle.cost[b].0,
             t.castle.cost[b].1,
-            // The first of the two columns; both hold the same number.
             t.castle.workforce[b].0,
             t.castle.garrison_cap[b],
             t.castle.free_archers[b]

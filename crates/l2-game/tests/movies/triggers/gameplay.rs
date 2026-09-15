@@ -15,17 +15,6 @@ use l2_game::screens::{castle, setup};
 use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 
-/// **`CastleBuild_Confirm`'s tail.** An order with animations on plays
-/// `castle<n>.smk` over the chooser, and the chooser goes when the film does,
-/// because `Smk_Play` was told to return to screen 0. With animations off the
-/// map comes straight back.
-///
-/// **The order and the film both arrive on the twentieth frame**, not on the
-/// press — see [`order_the_castle`]. Ablations: delete the `Push` in `confirm`
-/// declare the thumbs `Press` in `castle::widgets`
-/// and the screen's own debug assertion fires on the press; make
-/// [`Film::then`](movie::Film::then)'s castle arm a `Pop` again and the chooser
-/// is still on the stack when the film goes.
 #[test]
 fn an_ordered_castle_plays_its_film_over_the_chooser() {
     let a = Assets::placeholder();
@@ -41,13 +30,6 @@ fn an_ordered_castle_plays_its_film_over_the_chooser() {
     for _ in 0..3 {
         tick(&mut m, &mut g, &a);
     }
-    // **The end of the film is the map**, and the chooser goes with it.
-    // `Smk_Play(…, 0, 0)`: screen `0` is the campaign map, and the original has
-    // one `g_screenId` byte with nothing to leave the chooser on. This used to
-    // read *"no `Movie` on the stack"* and could not say more, because ours
-    // popped the film and left the chooser to pop itself on its next `update` —
-    // which `Machine::update`'s `run_tips` could take away from it first.
-    //
     // The tip the chooser posted during its twenty press frames may be *up* by
     // now, over the map, and that is the original: `FUN_00476E21`'s record
     // outlives the screen that queued it and `Msg_Pump` opens it on `0x00`. So
@@ -74,34 +56,23 @@ fn a_fallen_lords_film_is_chosen_by_his_title_and_how_long_the_game_has_run() {
         g.kingdom.year = movie::FIRST_YEAR + years;
         movie::ending_film(g, realm, 194)
     };
-    // Realm 3 is the Baron (lord 2), a computer lord.
     assert_eq!(at(&mut g, 1, 3), "cart_brn.smk");
     assert_eq!(at(&mut g, 6, 3), "pill_brn.smk");
     assert_eq!(at(&mut g, 12, 3), "jail.smk");
     assert_eq!(at(&mut g, 18, 3), "hang.smk");
     assert_eq!(at(&mut g, 24, 3), "axmen.smk");
-    // The Countess has no cart film and the Bishop no pillory.
     assert_eq!(at(&mut g, 1, 4), "pill_cts.smk");
     assert_eq!(at(&mut g, 7, 5), "cart_bsp.smk");
-    // A human is never carted or pilloried, and lasts longer before the axe.
     assert_eq!(at(&mut g, 1, 1), "jail.smk");
     assert_eq!(at(&mut g, 24, 1), "hang.smk");
     assert_eq!(at(&mut g, 32, 1), "axmen.smk");
     assert_eq!(movie::ending_film(&g, 3, 225), "win_game.smk", "group 0xE1");
 }
 
-/// **The animated ending**, played: the window closes itself on the frame it
-/// opens and the fall plays in its place; the victory it enqueued follows as
-/// a film of its own, and that one returns to the conquest screen `Msg_Dismiss`
-/// entered. Ablation: delete the `animate` call from `MessageScreen::update` and
-/// the message stays on screen.
 #[test]
 fn an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another() {
     let a = Assets::placeholder();
     let mut g = realms();
-    // The ranking below has to be the one the draw reads: an AI frame's step-0
-    // prologue would rank the realms again and find the four opponents this
-    // test is keeping out of it.
     ai_turns_over(&mut g);
     g.campaign.ranking = l2_kingdom::victory::Ranking { opponents_remaining: 0, ..Default::default() };
     let player = g.player;
@@ -136,11 +107,6 @@ fn an_ending_with_animations_on_is_a_film_and_the_victory_after_it_is_another() 
 
 /// **The animated capture's rotation, `DAT_00553ED4`**: stepped before use, so
 /// the first capture of a session is `cap_cty2.smk`.
-///
-/// The record here is **posted by hand**, which is what keeps this test on the
-/// rotation alone. A player does reach it now — `l2_game::arrival::capture_record`
-/// posts the category-`0x0D` letter and `triggers::capture` walks an army onto a
-/// town to get one, and `audio_part` listens to the two sound sites it reaches.
 #[test]
 fn a_capture_letter_would_play_the_capture_films_in_rotation() {
     let a = Assets::placeholder();
@@ -164,10 +130,6 @@ fn a_capture_letter_would_play_the_capture_films_in_rotation() {
     }
     assert_eq!(takes, vec![(1, "cap_cty2.smk"), (2, "cap_cty3.smk"), (0, "cap_cty1.smk")]);
 
-    // **`Msg_DrawWindow`'s guard, the other way.** `g_optAnimations == 0` never
-    // reaches the taller window, so the letter is the ordinary one and no film
-    // plays. Ablation: drop `!game.prefs.animations` from `message::animate` —
-    // red here, and the capture half above passes either way.
     g.prefs.animations = false;
     let player = g.player;
     let r = Record { to: 0, group: 0x75, category: category::CAPTURE, county: 2, ..Record::default() };
@@ -180,14 +142,12 @@ fn a_capture_letter_would_play_the_capture_films_in_rotation() {
 /// **`Battle_CheckOutcome`'s film**, from `g_battleOutcome * 4 +
 /// DAT_0053F084`. Our attacker is `SIDE_B`. The siege row is the one this
 /// branch corrected: the player who **held** his castle is outcome 4, not 2.
-/// Ablation: collapse `outcome_banner`'s siege arms back to two.
 #[test]
 fn a_decided_battle_plays_the_film_for_its_outcome_in_rotation() {
     let a = Assets::placeholder();
     let (mut g, mut m) = decided(1, None, l2_sim::SIDE_B);
     tick(&mut m, &mut g, &a);
     assert_eq!(film_on_top(&m), Some(Film::Battle { file: "bat_win1.smk" }), "won, take 0");
-    // A film that does not open leaves the banner its full wait.
     tick(&mut m, &mut g, &a);
     tick(&mut m, &mut g, &a);
     assert_eq!(m.top_id(), Some(ScreenId::Battlefield));
@@ -195,13 +155,11 @@ fn a_decided_battle_plays_the_film_for_its_outcome_in_rotation() {
     assert!(live.outcome_ticks < l2_game::battlefield::OUTCOME_FRAMES, "the banner keeps its wait");
     assert_eq!(g.films.battle, 1, "DAT_0053F084 stepped");
 
-    // Held the castle: a siege, the player the garrison, the garrison won.
     let (mut g, mut m) = decided(2, Some(3), l2_sim::SIDE_A);
     g.films.battle = 1;
     tick(&mut m, &mut g, &a);
     assert_eq!(film_on_top(&m), Some(Film::Battle { file: "sge_win2.smk" }), "outcome 4, take 1");
 
-    // No film with animations off.
     let (mut g, mut m) = decided(1, None, l2_sim::SIDE_A);
     g.prefs.animations = false;
     tick(&mut m, &mut g, &a);

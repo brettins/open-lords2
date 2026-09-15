@@ -7,13 +7,6 @@ use l2_view::Canvas;
 
 /// `g_glyphWidths` (`0x004D71F0`), transcribed — **all 224 bytes of it.**
 ///
-/// One byte per character from `0x20`, giving `frame + 1`; zero means the
-/// character has no glyph and advances [`SPACE_ADVANCE`]. This is the
-/// executable's data, not ours, and it is a constant here for the same reason
-/// `l2_view::chrome::MINIMAP_REALM_RAMP` is: it is a constant of the game, and
-/// this crate should not have to open `Lords2.exe` to draw a letter.
-/// `tests/shell.rs` reads the same bytes back out of the user's own copy.
-///
 /// **It used to be 128 bytes, and the original's is 224.[V]**
 /// `Ui_DrawText` (`0x00402637`) looks up every character above `0x1F` as
 /// `g_glyphWidths[c - 0x20]`, with `c` a byte and no bound, so the index runs
@@ -31,7 +24,6 @@ use l2_view::Canvas;
 /// `0x004D71F1 … 0x004D72CF`, and `0x004D72D0` begins a different table. The
 /// highest frame the table asks for is therefore **105**, not 104, which every
 /// shipped face still holds (`Fntl2_22.pl8`, the smallest, has 106).
-/// Our 128-byte copy drew those eleven characters as blanks.
 pub const GLYPH_MAP: [u8; 224] = [
     0, 63, 64, 0, 0, 65, 0, 74, 67, 68, 66, 70, 78, 69, 79, 77, //
     62, 53, 54, 55, 56, 57, 58, 59, 60, 61, 72, 73, 0, 71, 0, 75, //
@@ -70,23 +62,8 @@ pub const GLYPH_MAP: [u8; 224] = [
 /// `0x93 … 0x97` and `0xA0 … 0xA4`. `0x005AF8F0` is `g_fontBody`, which
 /// `Res_LoadStatic` fills from `Fntl2_14.pl8`; no other face is compared, so
 /// `Fntl2_22.pl8`, `Fntl2_9.pl8`, `Font_10.pl8` and `Fnt_8.pl8` never raise.
-///
-/// **The test is the character code, not the picture**, and two pairs in the
-/// table show it plainly: `0x86` is drawn with `'a'`'s own frame and `0x87`
-/// with the frame `0x80` uses, and in the body face `0x86` and `0x87` sit one
-/// row above `'a'` and `0x80` while the heading face puts each pair on the same
-/// row. `0x8E … 0x92`, `0x98 … 0x9A` and `0xA5 … 0xA7` have glyphs and are not
-/// raised.
-///
-/// Every one of `Ui_DrawText`'s nine `Glyph_Draw` calls passes the same font
-/// and index,
-/// the glyph. [`Font::draw`] and [`Font::draw_dropped`] apply it to every blit
-/// of the character for the same reason.
 pub const ACCENT_RAISE: [(u8, u8); 3] = [(0x61, 0x6D), (0x73, 0x77), (0x80, 0x84)];
 
-/// Whether `Glyph_Draw` raises `c` **in the body face** — `c - 0x20` inside one
-/// of [`ACCENT_RAISE`]'s ranges. Whether a face raises at all is
-/// [`Font::raises_accents`].
 pub fn accent_raised(c: char) -> bool {
     let code = c as u32;
     if code < GLYPH_MAP_BASE as u32 {
@@ -96,7 +73,6 @@ pub fn accent_raised(c: char) -> bool {
     ACCENT_RAISE.iter().any(|&(lo, hi)| index >= lo as u32 && index <= hi as u32)
 }
 
-/// Whether `c` has an entry in [`GLYPH_MAP`] at all, zero or not.
 fn in_table(c: char) -> bool {
     let code = c as u32;
     code >= GLYPH_MAP_BASE as u32 && ((code - GLYPH_MAP_BASE as u32) as usize) < GLYPH_MAP.len()
@@ -117,12 +93,10 @@ impl Font {
         self
     }
 
-    /// Whether this face raises [`ACCENT_RAISE`]'s characters.
     pub fn raises_accents(&self) -> bool {
         self.raises_accents
     }
 
-    /// `Glyph_Draw`'s `g_drawY = g_drawY + -1` for `c` in this face: `-1` or `0`.
     fn lift(&self, c: char) -> i32 {
         if self.raises_accents && accent_raised(c) {
             -1
@@ -131,19 +105,6 @@ impl Font {
         }
     }
 
-    /// The frame for a character.
-    ///
-    /// **`Glyph_Draw`'s `y += frameRecord[0x0D]` is already in the frame.** The
-    /// decoder reserves those rows at the top of the canvas and puts the
-    /// rectangle below them,
-    /// edge and this function has nothing left to add. It used to add the count
-    /// a second time, which cost every `0x0D = 3` glyph in `Fntl2_14.pl8` —
-    /// `a c e m n o s u x z` and the descenders — three pixels of drop, while
-    /// `b d f h i k l t` and `?` stayed put because their count is zero. That
-    /// is the exact split a player reported off a screenshot.
-    ///
-    /// `None` for a character the map sends nowhere: a space, or one of the
-    /// punctuation marks the font simply
     fn glyph(&self, c: char) -> Option<DecodedFrame> {
         let code = c as u32;
         if code < GLYPH_MAP_BASE as u32 {
@@ -167,9 +128,6 @@ impl Font {
     /// two disagree by four per `'@'`
     /// trailing space either: the four pixels `Ui_DrawText` adds at the end go
     /// into `g_penAdvance`, not into the measure.
-    ///
-    /// A character past the end of the 128-byte table is not something either
-    /// function was read for; it keeps the four it always had here.
     pub fn width(&self, s: &str) -> i32 {
         s.chars()
             .map(|c| match self.glyph(c) {
@@ -180,9 +138,6 @@ impl Font {
             .sum()
     }
 
-    /// The height of the tallest glyph in a string, for laying out a line the
-    /// original placed by hand. The frame's own height already counts the rows
-    /// reserved above the rectangle, so there is nothing to add to it.
     pub fn height(&self, s: &str) -> i32 {
         s.chars()
             .filter_map(|c| self.glyph(c).map(|f| f.height as i32))
@@ -209,8 +164,6 @@ impl Font {
         }
     }
 
-    /// Draw `s` at `(x, y)`. Returns the pen advance, which is how the original
-    /// lays a value out after a label without either knowing the other's width.
     pub fn draw(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, style: &Style) -> i32 {
         let mut pen = x;
         for c in s.chars() {
@@ -218,9 +171,6 @@ impl Font {
                 pen += SPACE_ADVANCE;
                 continue;
             };
-            // The order the original draws in: above, below, then the real one
-            // on top of both. The glyph's own vertical offset is inside the
-            // frame — see `glyph` —
             let y = y + self.lift(c);
             if let Some((up, down)) = style.shadow {
                 Font::blit_mask(canvas, &frame, pen, y - 1, up);
@@ -236,11 +186,6 @@ impl Font {
     /// once at `(x + 1, y + 1)` in [`DROP_SHADOW_COLOUR`], then once at `(x, y)`
     /// in `colour`. Returns the pen advance, like [`Font::draw`]. **[V]**, see
     /// [`DROP_SHADOW_COLOUR`] for the arm and the eight painters that take it.
-    ///
-    /// Glyph by glyph
-    /// pass, because that is the order `Ui_DrawText` loops in. With a one-pixel
-    /// gap between glyphs the two orders paint the same pixels; the loop is
-    /// kept anyway so that a face with touching glyphs would not be a question.
     pub fn draw_dropped(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
         let mut pen = x;
         for c in s.chars() {
@@ -260,7 +205,6 @@ impl Font {
     /// original clamps the offset at zero,
     /// starts at the box's left edge and runs out of it
     /// centred off the other side.
-    ///
     pub fn draw_centred(
         &self,
         canvas: &mut Canvas,
@@ -274,7 +218,6 @@ impl Font {
         self.draw(canvas, x + offset, y, s, style)
     }
 
-    /// Right-aligned so the last pixel lands on `right`.
     pub fn draw_right(
         &self,
         canvas: &mut Canvas,

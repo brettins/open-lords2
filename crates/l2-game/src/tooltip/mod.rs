@@ -45,21 +45,9 @@
 //! }
 //! ```
 //!
-//! # What that means for a player
-//!
-//! * **The rest is a second of wall clock, not a frame count.** `timeGetTime`,
-//!   strictly more than 999 ms since the stamp. Ours counts [`crate::TICK_MS`]
-//!   ticks, so it is **63 ticks** (1,008 ms) — the same conversion
-//!   [`crate::audio`] makes for the tip narration's own `999 <` test.
-//! * **The stamp is written on every frame the mouse changes while no tip is
-//!   up**, and on the frame a tip is resolved. It is *not* written on the frame
-//! that hides a tip. So a tip that has been up for more than a second and is
-//!   nudged for exactly one frame comes straight back at the new place on the
-//!   next still frame, with no rest at all; a movement of two frames or more
-//!   re-arms the full second. Reproduced.
 //! * **"The mouse changed" is `g_mouseInputChanged`**, which the frame poll
 //!   (`FUN_004B191E`) sets when the position moved *or* either button changed.
-//!   A key press does not touch it.
+//!
 //! * **The lookup is not a widget table.** It is a per-screen byte,
 //!   `DAT_004D6FB8[g_screenId]` ([`SCREENS`]), choosing one of two pointer
 //!   ladders: [`campaign_tip`] for the thirty-five screens that sit on the
@@ -67,50 +55,27 @@
 //!   campaign ladder reads live state — the minimap mode, whether the selected
 //! county is the player's, and the two produce-row lists — at the moment the
 //! tip is resolved, and the id it answers is the group-220 index.
-//! * **The box is placed once**, 30 pixels right of and below the pointer, or
-//!   220 left / 30 above past the screen's middle (`x 321`, `y 241`), then
-//!   clamped to `0 … 440`. It does not follow the pointer; the pointer moving
-//!   is what takes it away.
+//!
 //! * **A repaint takes it away too.** `Screen_Draw` opens with `FUN_0047703A`,
 //!   and so do the siege-preparation, battle-prompt, battle-result and outcome
 //!   painters and `Smk_PlayThenClose`. It comes back by the ordinary rule — at
 //!   once if its stamp is already a second old.
-//! * **Nothing suppresses it but the table.** A tip screen up is `g_screenId
-//!   0x27`, whose byte is 0; the battlefield's drag (`0x2A`) and outcome
-//!   (`0x2B`) are 0; the message scroll changes no screen id, so tips go on
-//!   showing over the sidebar under a message.
-//!
-//! # Where it lives here
 //!
 //! [`Tooltips`] is the state and [`Tooltips::frame`] is `FUN_00476E95`'s input
 //! half; [`crate::screen::Machine`] owns it, feeds it the pointer and the screen
 //! byte, and draws [`draw`] last — `Battle_Frame` calls `FUN_00476E95` after the
 //! turn timer, the tip ladder and the message pump.
 //!
-//! **It is on the machine and not on [`crate::Game`]** because its clock is a
-//! frame counter and `Game` is compared whole by the save round trips: a game
-//! that had been looked at would not equal the same game reloaded. Two writes
-//! from outside the layer therefore arrive as projections, each written down at
-//! its reader in [`crate::screen::Machine`]: `Opt_ToggleToolTips`' stamp reset,
-//! and `Map_InitMode`'s.
-//!
-//! # What was not established
-//!
 //! * `g_selectedCounty`'s produce-row lists (`DAT_0053F690`, `DAT_00553FD0`)
 //!   are filled by `FUN_0040FEC1` when the county strip is painted. That they
 //!   are always the selected county's when a tip resolves is `[I]`; ours
 //!   computes them from the selected county at resolve time.
+//!
 //! * `FUN_0047703A`'s callers are painters. Ours drops the tip when the set of
 //!   screens on the stack changes, which is when a painter would run; a
 //!   repaint that changes no screen (a toggle's `g_redrawRequest = 2`) is not
 //!   modelled, and every such repaint found is preceded by a click, which has
 //!   already hidden the tip. `[I]`.
-//! * The first pass is drawn at a wrap of 180 and the box sized from it; the
-//!   text is then drawn again at 176. A string that wraps differently at the two
-//!   widths would get a box of the wrong height. Both passes are drawn here
-//! so whatever it showed, this shows; the
-//!   original then left anything outside the saved 192 x 40 backdrop on the
-//!   screen after the tip went, and ours repaints and does not.
 
 mod lookup;
 pub use lookup::*;
@@ -125,7 +90,6 @@ use crate::Game;
 
 /// `L2.eng` group 220, the tips' only consumer is this layer.
 pub const GROUP: usize = 220;
-/// Index 0 *"Null tool tip"* and thirty-four tips.
 pub const COUNT: usize = 35;
 
 /// `FUN_00477131`'s `999 < (int)(now - stamp)`, in milliseconds.
@@ -143,7 +107,6 @@ pub const SCREENS: [u8; 0x44] = [
     0, 0, 1, 1, // 0x40
 ];
 
-/// The two values [`SCREENS`] holds besides zero.
 pub mod ladder {
     /// `FUN_00477320`, [`super::campaign_tip`].
     pub const CAMPAIGN: u8 = 1;
@@ -156,14 +119,6 @@ pub fn ladder_of(screen: Option<u8>) -> u8 {
     screen.and_then(|b| SCREENS.get(b as usize).copied()).unwrap_or(0)
 }
 
-/// **The original's `g_screenId` for each of our screens**, as far as the
-/// tooltip table needs it.
-///
-/// Exhaustive with no wildcard, so a new screen is a compile error here until
-/// somebody says which byte it is. `None` is a screen that is **ours** and has
-/// no byte at all. The bytes are the ones [`ScreenId`]'s own documentation
-/// names; the four county panels are `0x14` population, `0x15` tax, `0x16`
-/// happiness and `0x19` rations (`docs/screens-county.md` §1).
 pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
     use crate::screens::county::Panel;
     use ScreenId as S;
@@ -195,10 +150,8 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::Conquest => Some(0x1C),
         S::Nobles => Some(0x20),
         S::Siege(_) => Some(0x1D),
-        // The front end's menu is `0x1F` page 1 (`screens::menu`).
         S::Menu | S::Setup(_) => Some(0x1F),
         S::About => Some(0x25),
-        // A film: `Smk_Play` parks `g_screenId` at `0x22`.
         S::Movie(_) => Some(0x22),
         S::Tip => Some(0x27),
         S::Battlefield => Some(game.battle.as_ref().map_or(0x29, |b| b.screen_id())),
@@ -206,17 +159,12 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::MenuBar(_) => Some(0x32),
         S::SaveLoad(mode) => Some(mode.screen_id()),
         S::Options(page) => page.screen_id(),
-        // The message scroll is not a screen id in the original, and the
-        // caller looks through it; the demo index is ours.
-        // `Ui_OpenConfirm` parks `g_screenId` at `0x1E`.
         S::Confirm(_) => Some(0x1E),
         S::Message | S::Index => None,
     }
 }
 
-/// The wrap of the first pass, which the box is sized from.
 pub const MEASURE_WIDTH: i32 = 0xB4;
-/// The wrap of the second pass, which is the one left on screen.
 pub const DRAW_WIDTH: i32 = 0xB0;
 /// `FUN_004B414A(x, y, 0x20)`.
 pub const FILL: u8 = 0x20;
@@ -225,10 +173,6 @@ pub const INK: u8 = 0x3F;
 /// `FUN_0040328E`'s line step in the body font.
 pub const LINE: i32 = 0x10;
 
-/// **The box's size**, from the first pass: how many lines it wrapped to, and
-/// the widest line's `g_penAdvance` (its advance plus `Ui_DrawText`'s trailing
-/// four).
-///
 /// `0xC - (0xB0 - widest) / 16` units of sixteen pixels — C division, toward
 /// zero — and 22 pixels tall for one line (`DAT_005CD4F8 < 0x11`), 40 for more.
 pub fn box_size(lines: usize, widest: i32) -> (i32, i32) {
@@ -237,10 +181,8 @@ pub fn box_size(lines: usize, widest: i32) -> (i32, i32) {
     (units * 16, h)
 }
 
-/// A tip on screen: which, and where its box's corner is.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Shown {
-    /// The group-220 index, never 0.
     pub id: u8,
     pub x: i32,
     pub y: i32,
@@ -252,8 +194,6 @@ pub struct Shown {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Tooltips {
     now: u64,
-    /// `None` is the stamp at 0 against a clock that has run since boot:
-    /// *long ago*. `Opt_ToggleToolTips` and `Map_InitMode` both write that.
     stamp: Option<u64>,
     shown: Option<Shown>,
 }
@@ -263,7 +203,6 @@ impl Tooltips {
         Tooltips::default()
     }
 
-    /// The tip on screen, if there is one.
     pub fn shown(&self) -> Option<Shown> {
         self.shown
     }
@@ -275,7 +214,7 @@ impl Tooltips {
     }
 
     /// **`FUN_0047703A` (`0x0047703A`)** — the tip goes, the stamp stays.
-    /// Returns whether one was up.
+    ///
     // arm: 0x0047703A/tip-dropped-by-a-repaint frame
     pub fn drop_tip(&mut self) -> bool {
         self.shown.take().is_some()
@@ -285,7 +224,6 @@ impl Tooltips {
     /// `g_mouseInputChanged`, `pointer` is `(g_mouseX, g_mouseY)`, and
     /// `resolve` is `FUN_004772B6`, asked only on the frame a tip is due.
     ///
-    /// Returns whether what is on screen changed.
     // arm: 0x00476E95/tool-tip-rest hover
     pub fn frame(
         &mut self,
@@ -325,7 +263,6 @@ impl Tooltips {
     }
 }
 
-// ------------------------------------------------------------------ the words
 
 #[cfg(test)]
 mod tests {

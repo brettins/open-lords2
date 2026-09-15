@@ -11,25 +11,11 @@ use l2_net::{Quirk, Quirks};
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
 
-    /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
-    /// **`docs/kingdom.md` §9 point 8, both rows.** Every county in the England
-    /// turn-one position started at `popLast = 417`, giving a 20% base birth
-    /// rate:
-    ///
-    /// | | happiness | factor | births | deaths | population |
-    /// |---|---:|---:|---:|---:|---:|
-    /// | owned (5 counties) | 72 | 75% | 63 | 45 | 435 |
-    /// | unowned (9 counties) | 77 | 100% | 84 | 45 | 456 |
-    ///
-    /// The deaths figure needs `g_deathRateByHealth[3] = 3` **and**
-    /// `g_deathRateBySeason[4] = 8`, so it confirms the season index too.
-    ///
     /// **Corrected.** This table read "owned (4 counties)" and "unowned (10
     /// counties)" — the invented split that `docs/decisions.md` C20 retracted,
     /// still sitting here in a doc comment after the correction. The file holds
@@ -67,20 +53,10 @@ mod tests {
     /// **C170: the `+1` and the one-person floor compare the rate
     /// after happiness has scaled it.** `Population_UpdateAll` tests `local_c`,
     /// which is `Pct(base, factor)`, where this crate tested the ladder's `base`.
-    ///
-    /// The two counties are the original's own after-saves, typed from the file
-    ///
-    /// `siege-old_turn.sav` county 3, which `crates/l2-game/tests/differential.rs`
-    /// had each one person out in births and one in deaths. Both are at factor
-    /// 75 on a ladder rate of 14, so the scaled rate is 10 — below the death rate,
-    /// where 14 is above it.
     #[test]
     fn the_extra_person_goes_where_the_scaled_birth_rate_sends_it() {
-        // (population last season, happiness, health band, season, births, deaths)
         let saved = [
-            // siege-lastturn county 1: Spring, band 2 — deaths 8 + 4 = 12%.
             (799, 72, 2, Season::Spring, 79, 96),
-            // siege-old_turn county 3: Winter, band 3 — deaths 3 + 8 = 11%.
             (756, 63, 3, Season::Winter, 75, 84),
         ];
         for (pop, happiness, band, season, births, deaths) in saved {
@@ -97,8 +73,6 @@ mod tests {
         }
 
         // The floor's half, and **[D]** only — no save has a county this size.
-        // Above 2,000 people the ladder gives 1%, and at happiness 50 that
-        // scales to Pct(1, 50) = 0: no births, and no one-person floor for them.
         let mut c = County::new();
         c.population = 2500;
         c.happiness = 50;
@@ -108,7 +82,6 @@ mod tests {
         assert_eq!(c.deaths, 200 + 1, "Pct(2500, 8), and 0 < 8 sends the +1 to the deaths");
     }
 
-    /// The happiness factor bands, at every boundary.
     #[test]
     fn the_birth_factor_steps_at_twenty_six_fifty_one_seventy_six_and_a_hundred() {
         assert_eq!(T.happiness_birth_factor(0), 25);
@@ -122,8 +95,6 @@ mod tests {
         assert_eq!(T.happiness_birth_factor(100), 120);
     }
 
-    /// A Diseased county in winter loses 43% of its people in one season, plus
-    /// the flat +2 the band carries.
     #[test]
     fn a_diseased_county_in_winter_loses_nearly_half_its_people() {
         let mut c = County::new();
@@ -131,8 +102,6 @@ mod tests {
         c.happiness = 50;
         c.health_band = 0;
         update_one(T, &mut c, Season::Winter, Q);
-        // 35 + 8 = 43%, +2 for Diseased, +1 because the scaled birth rate
-        // Pct(12, 50) = 6 is below the death rate of 43.
         assert_eq!(c.deaths, 430 + 2 + 1);
     }
 
@@ -151,8 +120,6 @@ mod tests {
         assert!(deaths_in(Season::Autumn) > deaths_in(Season::Summer));
     }
 
-    /// The two "never quite zero" clauses: a non-zero rate always moves at
-    /// least one person.
     #[test]
     fn a_non_zero_rate_always_costs_or_gains_at_least_one_person() {
         let mut c = County::new();
@@ -170,7 +137,6 @@ mod tests {
         assert!(c.deaths >= 1, "8% of one person still kills someone eventually");
     }
 
-    /// A county that dies out is emptied
     #[test]
     fn a_county_that_loses_everyone_is_emptied() {
         let mut c = County::new();
@@ -180,12 +146,9 @@ mod tests {
         update_one(T, &mut c, Season::Winter, Q);
         assert_eq!(c.population, 0);
         assert_eq!(c.births, 0);
-        // docs/kingdom.md §5 stores the (negative) leftover here. See the
-        // errata note - this is almost certainly a decompilation artefact.
         assert!(c.deaths <= 0, "the documented expression yields a negative count");
     }
 
-    /// The soft cap: a big county in winter shrinks and a small one grows.
     #[test]
     fn the_birth_ladder_caps_growth_around_two_thousand() {
         let grow = |pop: i32| {
@@ -207,21 +170,13 @@ mod tests {
     // `Pct(population, 20)` — and typed, so no expression here mentions the rule
     // under test. The tables it reads: death by health band 35/20/8/3/0, by
     // season Spring 4, Summer 0, Autumn 2, Winter 8.
-    //
-    // The first two tests use a county of 1,000 at happiness 100: a factored
-    // birth rate of `Pct(12, 120) = 14`, so 140 births before the `+1`.
 
-    /// **A plague, in all four seasons, through the handler that deals it.**
     /// `FUN_00448F6F` pins the health meter at 25 as well, which is band 1 and a
     /// 20% death rate before the season's — so the deaths are
     /// `Pct(1000, 20 + season) + 1`, and the plague takes its percentage of
     /// *those*.
-    ///
-    /// The old rule took it of the county and capped it: 200 extra deaths in
-    /// every one of these seasons.
     #[test]
     fn a_plague_adds_a_percentage_of_the_deaths_plus_ten() {
-        // (season, natural deaths, the swing, deaths after)
         let cases = [
             (Season::Spring, 241, 82, 323),  // Pct(241, 30) = 72
             (Season::Summer, 201, 50, 251),  // Pct(201, 20) = 40
@@ -247,13 +202,8 @@ mod tests {
         }
     }
 
-    /// **Wedding fever, in all four seasons, through the handler that deals
-    /// it.** Band 2 keeps the deaths below the factored birth rate except in
-    /// Winter, so the `+1` lands on the births three times and on the deaths
-    /// once — and the wedding takes its percentage of the births *after* it.
     #[test]
     fn a_wedding_adds_a_percentage_of_the_births_plus_ten() {
-        // (season, natural births, the swing, births after, deaths)
         let cases = [
             (Season::Spring, 141, 94, 235, 120), // Pct(141, 60) = 84
             (Season::Summer, 141, 80, 221, 80),  // Pct(141, 50) = 70
@@ -277,13 +227,8 @@ mod tests {
         }
     }
 
-    /// The two ends of the rule: the 20% cap still bites on a small county, and
-    /// the flat ten is the whole of a plague in a county that was going to lose
-    /// nobody.
     #[test]
     fn the_swing_is_capped_at_a_fifth_of_the_county_and_is_never_less_than_ten() {
-        // A hundred people at happiness 100, band 4, Spring: Pct(50, 120) = 60
-        // births + 1 = 61, and a Spring wedding asks Pct(61, 60) + 10 = 46.
         let mut c = County::new();
         c.population = 100;
         c.happiness = 100;
@@ -293,8 +238,6 @@ mod tests {
         assert_eq!(c.event_population_swing, 20, "capped at Pct(100, 20), not 46");
         assert_eq!(c.births, 61 + 20);
 
-        // Band 4 in Summer dies of nothing — a rate of 0 earns no `+1` —
-        // Summer plague's 20% is of zero deaths.
         let mut c = County::new();
         c.population = 1000;
         c.happiness = 50;
@@ -329,7 +272,6 @@ mod tests {
         assert_eq!(c.army, 0);
     }
 
-    // --- migration ---------------------------------------------------------
 
     fn linked(happiness: [i32; 3], unowned: bool) -> Vec<County> {
         let mut counties = vec![County::new(); 4];
@@ -338,7 +280,6 @@ mod tests {
             counties[id].happiness = happiness[id - 1];
             counties[id].owner = if unowned { 0 } else { 1 };
         }
-        // A line: 1 - 2 - 3.
         counties[1].add_neighbour(2);
         counties[2].add_neighbour(1);
         counties[2].add_neighbour(3);
@@ -350,15 +291,12 @@ mod tests {
     fn people_move_towards_the_happier_neighbour_and_the_cap_bites() {
         let mut c = linked([20, 90, 90], false);
         migrate_all(&mut c, 3, Q);
-        // Pct(90 - 20, (100 - 20) / 3 = 26) = 18; Pct(1000, 18) = 180 -> capped.
         assert_eq!(c[1].emigrants, MIGRATION_CAP);
         assert_eq!(c[1].emigrant_destination, 2);
         assert_eq!(c[2].immigrants, MIGRATION_CAP);
         assert_eq!(c[2].emigrants, 0, "nobody leaves the happiest county");
     }
 
-    /// **A county at 100 happiness never emigrates**, whatever its neighbours
-    /// do — `(100 - 100) / 3` is zero.
     #[test]
     fn a_perfectly_happy_county_never_loses_anyone() {
         assert_eq!(movers(10_000, 100, 100, false), 0);
@@ -378,7 +316,6 @@ mod tests {
 
     #[test]
     fn nobody_moves_towards_an_unhappier_neighbour() {
-        // A line 1 - 2 - 3 at happiness 90, 20, 20.
         let mut c = linked([90, 20, 20], false);
         migrate_all(&mut c, 3, Q);
         assert_eq!(c[1].emigrants, 0, "the happiest county loses nobody");
@@ -389,7 +326,6 @@ mod tests {
         assert_eq!(c[3].immigrants, 0);
     }
 
-    /// The documented bug, reproduced: one source fills every free slot.
     #[test]
     fn the_inflow_list_repeats_one_source_into_every_free_slot() {
         let mut c = linked([20, 90, 90], false);
@@ -399,8 +335,6 @@ mod tests {
         assert_eq!(c[2].largest_inflow_source, 1);
     }
 
-    /// Migration is deterministic and repeatable — it is one of the two passes
-    /// where a county's outcome depends on other counties.
     #[test]
     fn migration_gives_the_same_answer_every_time() {
         let a = {
@@ -415,7 +349,6 @@ mod tests {
         }
     }
 
-    /// The flows are applied by the *population* pass, not by migration.
     #[test]
     fn migration_moves_nobody_until_the_population_pass_runs() {
         let mut c = linked([20, 90, 90], false);

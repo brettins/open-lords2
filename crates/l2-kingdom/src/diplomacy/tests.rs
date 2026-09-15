@@ -30,8 +30,6 @@ mod tests {
         (realms, d)
     }
 
-    /// `Diplo_Init` gives an in-play AI realm 5 towards **everyone**, a human 0
-    /// towards everyone, and opens the help multiple at 1.
     #[test]
     fn the_opening_standing_is_the_realms_own_and_not_the_pairs() {
         let (realms, _) = world();
@@ -43,8 +41,6 @@ mod tests {
         assert_eq!(realms[2].pair(2).standing, 5, "including itself: no other != me guard");
     }
 
-    /// The whole hook is skipped when the offended realm is a person — the
-    /// `isHuman == 0` clause is in `Diplo_Offend`'s entry guard.
     #[test]
     fn a_person_takes_no_offence_because_the_guard_refuses_to_let_them() {
         let (mut realms, _) = world();
@@ -57,7 +53,6 @@ mod tests {
         assert_eq!(realms[2].pair(1).standing, 5 - 20);
     }
 
-    /// Two warnings, then war — and only against a person.
     #[test]
     fn the_warning_ladder_runs_out_at_the_third_and_declares_war() {
         let (mut realms, _) = world();
@@ -72,7 +67,6 @@ mod tests {
         assert!(offend(&mut realms, 2, 1, 1).is_empty(), "and there is no fourth");
     }
 
-    /// The betrayal branch, and the Bishop's exemption from **both** writes.
     #[test]
     fn a_betrayed_bishop_declares_neither_war_nor_a_target() {
         let (mut realms, _) = world();
@@ -92,7 +86,6 @@ mod tests {
         assert_eq!(realms[2].war_target, 3);
     }
 
-    /// Betrayal is the only act that costs reputation with third parties.
     #[test]
     fn betraying_an_ally_costs_fifteen_with_everybody_else() {
         let (mut realms, _) = world();
@@ -103,7 +96,6 @@ mod tests {
         assert_eq!(realms[2].pair(3).standing, STANDING_MIN, "20 + 15 from 5, clamped");
     }
 
-    /// The gift ratchet: the second gift is judged against the first.
     #[test]
     fn a_gift_is_judged_against_the_largest_you_have_ever_sent() {
         let (mut realms, _) = world();
@@ -112,13 +104,11 @@ mod tests {
         assert_eq!(reply_gift(&mut realms, &t, 2, 1, 100)[0].group, group::GIFT_PLEASED);
         assert_eq!(realms[2].pair(1).standing, 15);
         assert_eq!(realms[2].pair(1).best_gift, 100);
-        // The same gift again is now under best + T/2 and costs eight.
         assert_eq!(reply_gift(&mut realms, &t, 2, 1, 100)[0].group, group::GIFT_CONTEMPTUOUS);
         assert_eq!(realms[2].pair(1).standing, 7);
         assert_eq!(reply_gift(&mut realms, &t, 2, 1, 200)[0].group, group::GIFT_PLEASED);
     }
 
-    /// Three compliments and you have overdone it, permanently.
     #[test]
     fn the_third_compliment_and_every_one_after_it_costs_four() {
         let (mut realms, mut d) = world();
@@ -137,8 +127,6 @@ mod tests {
         assert_eq!(realms[2].pair(1).standing, 5 + 15 + 8 - 12, "and it never resets");
     }
 
-    /// A gift is spent when it is posted, not when it is answered — and it is
-/// clamped to what the sender holds.
     #[test]
     fn the_gold_moves_at_the_post_office() {
         let (mut realms, mut d) = world();
@@ -149,8 +137,6 @@ mod tests {
         assert!(realms[2].pair(1).has_mail);
     }
 
-    /// The inbox is five deep, dense, and emptied every turn whether or not it
-    /// was full.
     #[test]
     fn the_inbox_holds_five_and_the_sixth_letter_is_lost() {
         let (mut realms, mut d) = world();
@@ -170,8 +156,6 @@ mod tests {
         assert!(!realms[2].pair(1).has_mail);
     }
 
-    /// The alliance offer's ladder, at the two break points the lord card
-    /// draws.
     #[test]
     fn eleven_accepts_outright_and_minus_eleven_refuses_outright() {
         let (mut realms, mut d) = world();
@@ -192,8 +176,6 @@ mod tests {
         assert_eq!(realms[2].ally, 0);
     }
 
-    /// At war is a permanent bar, and it is answered with a different group
-    /// from the ordinary refusal.
     #[test]
     fn war_blocks_an_alliance_at_any_standing_at_all() {
         let (mut realms, mut d) = world();
@@ -205,8 +187,6 @@ mod tests {
         assert_eq!(realms[2].pair(1).standing, STANDING_MAX - 1, "a retort costs one, not two");
     }
 
-    /// **Step 2's heal is asymmetric**, and it is the sharpest single fact in
-    /// the subsystem: damage a person does never heals.
     #[test]
     fn an_ai_forgives_another_ai_and_never_forgives_a_person() {
         let (mut realms, _) = world();
@@ -220,8 +200,6 @@ mod tests {
         assert_eq!(realms[2].pair(3).standing, -10, "and realm 3 is not");
     }
 
-    /// Courtship: not before 1269, not while ranked first, and only after the
-    /// lord's own interval of turns.
     #[test]
     fn an_ai_courts_the_best_ranked_realm_it_can_reach_after_its_lords_interval() {
         let (mut realms, _) = world();
@@ -242,8 +220,6 @@ mod tests {
         assert_ne!(realms[2].ally, 1, "never the person: that goes through group 180");
     }
 
-    /// An eliminated ally drops the alliance and **returns**, so the courtship
-    /// below never runs that turn.
     #[test]
     fn a_dead_ally_ends_the_step_as_well_as_the_alliance() {
         let (mut realms, _) = world();
@@ -257,8 +233,6 @@ mod tests {
         assert_eq!(realms[2].ally_candidate, 0, "the courtship did not run");
     }
 
-    /// The grudge break is much cheaper than a betrayal, because the alliance
-    /// is already gone by the time `offend` looks at it.
     #[test]
     fn a_grudge_break_costs_five_and_not_twenty() {
         let (mut realms, _) = world();
@@ -271,13 +245,10 @@ mod tests {
         let letters = ai_diplomacy(&mut realms, &t, 2, 1300, 0);
         assert_eq!(realms[2].ally, 0);
         assert_eq!(letters.last().unwrap().group, group::ALLIANCE_ENDED);
-        // −20, healed to −19 by the step's own first pass, then −5.
         assert_eq!(realms[2].pair(3).standing, -24, "five, not five plus fifteen");
         assert_eq!(realms[4].pair(3).standing, before, "and nobody else hears about it");
     }
 
-    /// `Diplo_ActionAllowed` charges the asker a point of grudge every time it
-    /// says no. `docs/bugs.md` B74, reproduced.
     #[test]
     fn asking_whether_an_act_against_an_ally_counts_corrodes_the_alliance() {
         let (mut realms, _) = world();
@@ -291,8 +262,6 @@ mod tests {
         assert!(!action_allowed(&mut realms, 2, 2), "acting on yourself is not");
     }
 
-    /// A one-sided alliance is **repaired**, not dropped — which is the
-    /// opposite of what `docs/diplomacy.md` §4.1 said.
     #[test]
     fn reconciling_repairs_a_one_sided_pairing_and_drops_a_contested_one() {
         let (mut realms, _) = world();
@@ -310,7 +279,6 @@ mod tests {
         assert_eq!(realms[3].ally, 4);
     }
 
-    /// Help is a request, and the price of it doubles every time.
     #[test]
     fn the_price_of_help_ratchets_and_the_asking_costs_standing() {
         let (mut realms, _) = world();
@@ -332,8 +300,6 @@ mod tests {
         assert_eq!(realms[2].pair(1).help_price_multiple, 2);
     }
 
-    /// An ally with too few people refuses whatever the standing — and the
-    /// floor is a population, not a treasury.
     #[test]
     fn a_thinly_peopled_ally_will_not_march_at_any_standing() {
         let (mut realms, mut d) = world();
@@ -351,7 +317,6 @@ mod tests {
         assert_ne!(l[0].group, group::HELP_REFUSED);
     }
 
-    /// Asking an ally to attack is twice as annoying as asking for help.
     #[test]
     fn an_attack_request_refused_costs_two_grudge_where_help_costs_one() {
         let (mut realms, mut d) = world();
@@ -362,7 +327,6 @@ mod tests {
         assert_eq!(realms[2].pair(1).grudge, 3);
     }
 
-    /// Ending an alliance from the screen is silent and costs fifteen.
     #[test]
     fn terminating_an_alliance_sends_nothing_at_all() {
         let (mut realms, _) = world();
@@ -373,8 +337,6 @@ mod tests {
         assert_eq!(realms[2].pair(1).standing, 5 - 15);
     }
 
-    /// Every message advances the sender's voice rotation, so the lord's four
-/// recorded takes cycle.
     #[test]
     fn the_four_recorded_takes_cycle() {
         let (mut realms, _) = world();
@@ -386,29 +348,23 @@ mod tests {
         assert_eq!(seen, vec![4, 5, 6, 7, 4]);
     }
 
-    /// The whole point of the module: a played turn writes the four fields the
-    /// raid handler starves without.
     #[test]
     fn step_two_writes_a_standing_a_war_target_and_an_ally() {
         let (mut realms, _) = world();
         let t = Tables::DEFAULT;
-        // A standing, from the heal.
         realms[2].pair_mut(3).standing = 0;
         ai_diplomacy(&mut realms, &t, 2, 1268, 0);
         assert_eq!(realms[2].pair(3).standing, 1);
-        // An ally, from the courtship.
         realms[2].rank = 3;
         realms[2].lord = LORD_BISHOP;
         for _ in 0..4 {
             ai_diplomacy(&mut realms, &t, 2, 1269, 0);
         }
         assert_ne!(realms[2].ally, 0);
-        // A war target, from an act.
         let (mut realms, _) = world();
         form_alliance(&mut realms, 2, 3);
         offend(&mut realms, 2, 3, offence::BATTLE);
         assert_eq!(realms[2].war_target, 3);
-        // And a target county, from a paid request.
         pay_for_help(&mut realms, 2, 3, 9, 0);
         assert_eq!(realms[2].target_county, 9);
     }

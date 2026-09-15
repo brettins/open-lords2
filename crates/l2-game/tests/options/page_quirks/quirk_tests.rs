@@ -11,8 +11,6 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-/// The four the original has carry its `g_screenId` and its painter; the fifth
-/// carries neither, because it is ours.
 #[test]
 fn four_pages_are_the_originals_and_one_is_ours() {
     let mine: Vec<Page> = Page::ALL.into_iter().filter(|p| p.is_ours()).collect();
@@ -25,9 +23,6 @@ fn four_pages_are_the_originals_and_one_is_ours() {
     }
 }
 
-/// *Fight humans only?* is **stored inverted** — the byte is 0 when the option
-/// displays *Yes* — and the panel is the only place that sense is turned round.
-/// A row that read the byte as a bool would show every game backwards.
 #[test]
 fn fight_humans_only_displays_yes_when_its_byte_is_zero() {
     let (mut game, assets) = world();
@@ -36,7 +31,6 @@ fn fight_humans_only_displays_yes_when_its_byte_is_zero() {
     game.kingdom.options.fight_humans_only_byte = 1;
     assert!(!value(Setting::FightHumansOnly, &mut game, &assets));
 
-    // And the toggle puts the byte back, not the bool.
     let mut screen = OptionsScreen::new(Page::Advanced);
     let row = Page::Advanced.rows().iter().find(|r| r.setting == Setting::FightHumansOnly).unwrap();
     let (x, y) = mid(row.hit());
@@ -44,19 +38,8 @@ fn fight_humans_only_displays_yes_when_its_byte_is_zero() {
     assert_eq!(game.kingdom.options.fight_humans_only_byte, 0);
 }
 
-/// **Army foraging re-runs the ration pass in every county, on the flip.**
-///
 /// `Opt_ToggleArmyForaging` (`0x004345D0`) is not a flip alone: it runs
 /// `Ration_Apply` and `County_RefreshEstimates` over counties `1 ..
-/// g_countyCount`, because the rule changes who a county feeds. Ours flipped
-/// the flag and left every county's ration fields describing the old rule.
-///
-/// The fixture settles both counties under the old rule through the ration
-/// panel's own path first, so the fields are not zero before the flip — a
-/// test from zero would pass for any pass run with either flag.
-///
-/// **Ablation, run:** delete the `for` loop from
-/// `Kingdom::toggle_army_foraging` and both counties' assertions go red.
 #[test]
 fn army_foraging_re_runs_the_ration_pass_in_every_county() {
     let (mut game, assets) = world();
@@ -67,8 +50,6 @@ fn army_foraging_re_runs_the_ration_pass_in_every_county() {
         c.population = 1_000;
         c.friendly_troops = 800;
         c.grain = 50_000;
-        // No herd: five people a head are fed by the milk and eat nothing, so
-        // a herd of any size would hide the difference. All of it from grain.
         c.herd = 0;
         c.ration_split = 0;
     }
@@ -76,8 +57,6 @@ fn army_foraging_re_runs_the_ration_pass_in_every_county() {
     for id in 1..=2usize {
         game.kingdom.set_ration_wanted(id, 2);
     }
-    // What the ration pass records the county eating, meat and grain together:
-    // `ration_split` decides the mix,
     let eaten = |game: &Game, id: usize| {
         let c = &game.kingdom.counties[id];
         (c.herd_eaten, c.grain_eaten)
@@ -103,12 +82,6 @@ fn army_foraging_re_runs_the_ration_pass_in_every_county() {
     }
 }
 
-/// **Full screen, on any desktop that is not 8bpp, leaves the panel and says the
-/// display cannot change** — which is what the original does on the same
-/// desktop, because `Display_Init` has already forced the flag on.
-///
-/// **Ablation, run:** make `OptionsScreen::fire`'s `FullScreen` arm return
-/// `Transition::Stay` without the message and both assertions go red.
 #[test]
 fn full_screen_leaves_the_panel_and_says_the_display_cannot_change() {
     let (mut game, assets) = world();
@@ -120,10 +93,6 @@ fn full_screen_leaves_the_panel_and_says_the_display_cannot_change() {
     assert_eq!(posted, vec![options::FULL_SCREEN_REFUSAL], "L2.eng group 260, 'Cannot change display.'");
 }
 
-/// **Start game help presses, clicks, waits and does nothing.** `WinHelpA` on
-/// a Windows 3.1 help file is not something this engine can open, and the arm
-/// is filed `missing`; what is asserted is that the press is the original's and
-/// that nothing else happens in its place.
 #[test]
 fn start_game_help_is_a_press_with_nothing_behind_it() {
     let (mut game, assets) = world();
@@ -136,9 +105,6 @@ fn start_game_help_is_a_press_with_nothing_behind_it() {
     assert!(game.messages.waiting().is_empty());
 }
 
-/// The sound rows are **preferences**, not the world's: toggling one must not
-/// change a single byte of the kingdom, or a sound setting would desync a
-/// lockstep peer.
 #[test]
 fn toggling_sound_or_animations_does_not_touch_the_world() {
     let (mut game, assets) = world();
@@ -158,28 +124,21 @@ fn toggling_sound_or_animations_does_not_touch_the_world() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// The quirks page — the group switch
-// ---------------------------------------------------------------------------
 
-/// **The list spans both homes**, in a stable, index-ordered sequence.
 #[test]
 fn the_quirk_list_is_both_halves_in_a_stable_order() {
     let rows = options::quirk_rows();
     assert_eq!(rows.len(), Quirk::ALL.len() + PRESENTATION.len());
-    // Same answer every time it is asked: no map, nothing hash-ordered.
     let entries: Vec<&str> = rows.iter().map(|r| r.entry).collect();
     for _ in 0..8 {
         let again: Vec<&str> = options::quirk_rows().iter().map(|r| r.entry).collect();
         assert_eq!(entries, again, "the quirk list is not in a stable order");
     }
-    // Behavioural first, in `Quirk::ALL`'s order.
     for (i, q) in Quirk::ALL.iter().enumerate() {
         assert_eq!(rows[i].entry, q.entry());
     }
 }
 
-/// **Faithful by default**, which is the whole shipping decision.
 #[test]
 fn a_new_game_reproduces_every_one_of_the_originals_bugs() {
     let (game, _) = world();
@@ -201,17 +160,13 @@ fn the_parent_walks_all_three_states_and_back() {
 
     assert_eq!(options::quirk_group(&game), l2_net::Group::AllReproduced);
 
-    // Parent clicked: everything off.
     click(&mut screen, &mut game, &assets, px, py);
     assert_eq!(options::quirk_group(&game), l2_net::Group::AllFixed);
     assert_eq!(options::quirk_tally(&game).0, 0);
 
-    // Parent clicked again: everything back on.
     click(&mut screen, &mut game, &assets, px, py);
     assert_eq!(options::quirk_group(&game), l2_net::Group::AllReproduced);
 
-    // **Every** child, one at a time, makes the parent mixed and then pure
-    // again — not one sampled child.
     let rows = options::quirk_rows();
     for (i, row) in rows.iter().enumerate() {
         let (cx, cy) = mid(OptionsScreen::quirk_hit(i));
@@ -221,16 +176,12 @@ fn the_parent_walks_all_three_states_and_back() {
         assert_eq!(options::quirk_group(&game), l2_net::Group::AllReproduced, "{} back", row.entry);
     }
 
-    // From mixed, one parent click goes to all-fixed — the direction the user
-    // asked for by name.
     let (cx, cy) = mid(OptionsScreen::quirk_hit(0));
     click(&mut screen, &mut game, &assets, cx, cy);
     assert_eq!(options::quirk_group(&game), l2_net::Group::Mixed);
     click(&mut screen, &mut game, &assets, px, py);
     assert_eq!(options::quirk_group(&game), l2_net::Group::AllFixed);
 
-    // And every child turned back on one at a time returns the parent to pure,
-    // passing through Mixed exactly once on the way.
     for (i, row) in rows.iter().enumerate() {
         let (cx, cy) = mid(OptionsScreen::quirk_hit(i));
         click(&mut screen, &mut game, &assets, cx, cy);
@@ -243,9 +194,6 @@ fn the_parent_walks_all_three_states_and_back() {
     }
 }
 
-/// **The parent does not remember.** Turning it off and on again does not
-/// restore a previous mixture — that would be a fourth state the check box
-/// cannot show.
 #[test]
 fn the_parent_does_not_restore_a_previous_mixture() {
     let (mut game, assets) = world();
@@ -261,8 +209,6 @@ fn the_parent_does_not_restore_a_previous_mixture() {
     assert_eq!(game.kingdom.options.quirks, Quirks::FAITHFUL);
 }
 
-/// A near-miss on the quirks page toggles nothing, and neither does a click in
-/// the empty space below the list.
 #[test]
 fn a_near_miss_on_the_quirks_page_changes_nothing() {
     let (mut game, assets) = world();
@@ -281,18 +227,11 @@ fn a_near_miss_on_the_quirks_page_changes_nothing() {
             assert_eq!(click(&mut screen, &mut game, &assets, x, y), Transition::Stay);
         }
     }
-    // Well below the last row, and well to the right of the boxes.
     click(&mut screen, &mut game, &assets, 400, 460);
     click(&mut screen, &mut game, &assets, 600, 100);
     assert_eq!(game.kingdom.options.quirks, before, "a miss moved a quirk");
 }
 
-/// **A quirk set on the page is the quirk set a new game starts with.**
-///
-/// The join between the interface and the world: `Settings::commit` takes the
-/// value off the game, and `apply_to` puts it back. A page that wrote somewhere
-/// nothing read would be a page of checkboxes that did nothing to a campaign,
-/// which is the failure this whole branch exists to avoid.
 #[test]
 fn what_the_page_sets_is_what_a_new_game_is_played_with() {
     let (mut game, assets) = world();
@@ -307,11 +246,6 @@ fn what_the_page_sets_is_what_a_new_game_is_played_with() {
     assert_eq!(settings.kingdom_options().quirks, chosen);
 }
 
-/// The presentation half is written where the drawing code will read it.
-///
-/// `Assets::quirks` is a per-frame projection of `Game::presentation_quirks`
-/// (`main.rs`), so this asserts the *authority* moves; the projection itself is
-/// one line and is asserted by the next test.
 #[test]
 fn a_presentation_quirk_is_written_to_the_session_not_to_the_world() {
     let (mut game, assets) = world();
@@ -347,9 +281,6 @@ fn the_presentation_quirks_are_projected_into_the_assets() {
     );
 }
 
-/// Reachability from the demo index is asserted inside `screens::index`, whose
-/// row list is private. This is the other half of it: every page a `ScreenId`
-/// can name is one `ScreenId::build` can make.
 #[test]
 fn every_options_page_can_be_built() {
     for page in Page::ALL {

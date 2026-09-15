@@ -32,10 +32,6 @@ impl Tiles {
 
     /// `Map_LoadPlanes` (`0x00467770`)'s copy half: five of the six planes
     /// straight into the record, in the same `y` outer / `x` inner nest.
-    ///
-    /// Plane 4 is *not* copied — it is dispatched and dropped, which
-    /// [`load_planes`] does because both of its destinations are tables rather
-    /// than tiles.
     pub fn from_slot(slot: &MapSlot<'_>) -> Tiles {
         let mut t = Tiles::blank();
         for y in 0..PLANE_DIM {
@@ -51,7 +47,6 @@ impl Tiles {
         t
     }
 
-    /// The four planes the simulation reads.
     pub fn campaign_map(&self) -> CampaignMap {
         CampaignMap::from_planes(&self.content, &self.flags, &self.bank, &self.county)
             .expect("Tiles holds MAP_TILES of each")
@@ -73,9 +68,7 @@ impl Tiles {
     }
 }
 
-// --------------------------------------------------------- the map's own facts
 
-/// The whole of `Map_InitScenario`, in its order.
 pub fn build(slot: &MapSlot<'_>, setup: &NewGame) -> Result<MapWorld, MapError> {
     let mut w = load_planes(slot)?;
     adjacency(&mut w);
@@ -91,16 +84,6 @@ pub fn build(slot: &MapSlot<'_>, setup: &NewGame) -> Result<MapWorld, MapError> 
 ///
 /// **The dispatch is two tables and the flag bit picks which.** `[V]` and it
 /// was written the other way round until `docs/decisions.md` C25:
-///
-/// ```c
-/// if (marker != 0) {
-///     if ((flags & 0x40) == 0) { if (flags & 0x80) PlayerStart_Record(county, marker); }
-///     else                     Merchant_RouteAppend(county, marker);
-/// }
-/// ```
-///
-/// so a marker on the **county town** extends a trade route and a marker on the
-/// **castle** is a player start — which is what both of those are.
 fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
     let tiles = Tiles::from_slot(slot);
 
@@ -114,8 +97,6 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
         for x in 0..PLANE_DIM {
             let i = y * PLANE_DIM + x;
             let county = tiles.county[i];
-            // `if ((county < 0x11) && (g_countyCount < county))` — 32 is in the
-// plane and is not a county
             if county < 0x11 && county_count < county as usize {
                 county_count = county as usize;
             }
@@ -124,8 +105,6 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
                 continue;
             }
             if tiles.flags[i] & bit::TOWN != 0 {
-                // `Merchant_RouteAppend(county, marker)`: the first free cell
-                // of row `marker - 1`. A marker of 0 cannot reach here.
                 let row = marker as usize - 1;
                 if let Some(cells) = rows.get_mut(row) {
                     if let Some(cell) = cells.iter_mut().find(|c| **c == 0) {
@@ -133,9 +112,6 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
                     }
                 }
             } else if tiles.flags[i] & bit::SITE != 0 {
-                // `PlayerStart_Record(county, marker)`. The counter counts
-                // *writes*, not distinct markers — see the note on
-                // `player_start_count` below.
                 if let Some(cell) = player_start.get_mut(marker as usize) {
                     *cell = county;
                 }
@@ -153,14 +129,6 @@ fn load_planes(slot: &MapSlot<'_>) -> Result<MapWorld, MapError> {
     for (row, cells) in rows.iter().enumerate() {
         routes.set_row(row, *cells);
     }
-    // **The counter and the table disagree on a map that repeats a marker.**
-    // `PlayerStart_Record` increments on every write, so two castle tiles
-    // carrying the same marker count twice and store once.
-    // `l2_formats::maps::MapSlot::player_start_count` counts distinct markers,
-    // which is what the table can hold; the seat count the *screen* shows comes
-    // from there. This one reproduces the original's own arithmetic so that a
-// map where they differ is visible — no shipped
-    // map does, which `tests/newgame.rs` asserts over all 44.
     Ok(MapWorld {
         tiles,
         county_count,

@@ -13,8 +13,6 @@ use l2_kingdom::report::Message;
 use l2_kingdom::unit::{Unit, UnitKind, Units};
 use l2_kingdom::{Kingdom, MercenaryBands, Options, TroopType};
 
-/// Phase 7 gives every unit its moves back, and it does so *after* the
-/// mercenaries have walked.
 #[test]
 fn a_season_returns_every_units_movement_and_walks_the_bands() {
     let mut k = kingdom();
@@ -32,8 +30,6 @@ fn a_season_returns_every_units_movement_and_walks_the_bands() {
     assert_ne!(before, after, "the bands moved");
 }
 
-/// A year of the mercenary walk on a two-county map: the bands stay inside the
-/// map and the county offers only ever name a band in play.
 #[test]
 fn a_year_of_the_mercenary_walk_stays_inside_the_map() {
     let mut k = kingdom();
@@ -51,12 +47,9 @@ fn a_year_of_the_mercenary_walk_stays_inside_the_map() {
     }
 }
 
-/// A band on offer can be hired into a new army, and the men land in `men` but
-/// not in the troop counts.
 #[test]
 fn a_band_standing_in_a_county_can_be_hired_when_an_army_is_raised_there() {
     let mut k = kingdom();
-    // Walk until something is on offer in county 1.
     let mut seasons = 0;
     while k.counties[1].mercenary_offer == 0 {
         k.advance_season();
@@ -79,8 +72,6 @@ fn a_band_standing_in_a_county_can_be_hired_when_an_army_is_raised_there() {
     assert_eq!(k.counties[1].mercenary_offer, 0);
 }
 
-/// Bankruptcy walks the mercenaries out first, and it is the season pass that
-/// does it.
 #[test]
 fn a_realm_that_cannot_pay_loses_its_mercenaries_before_it_loses_men() {
     let mut k = kingdom();
@@ -104,7 +95,6 @@ fn a_realm_that_cannot_pay_loses_its_mercenaries_before_it_loses_men() {
     assert_eq!(k.campaign.units.get(id).unwrap().men, 400, "and took their men with them");
     assert_eq!(k.campaign.units.get(id).unwrap().troops.iter().sum::<i32>(), 400);
 
-    // The next unpaid season takes a tenth off the levy itself.
     let mut report = l2_kingdom::report::SeasonReport::new();
     k.run_pass(Pass::WagesPay, &mut report);
     assert_eq!(k.realms[1].bankrupt_stage, 2);
@@ -116,10 +106,6 @@ fn a_realm_that_cannot_pay_loses_its_mercenaries_before_it_loses_men() {
 /// `Realm_DesertArmies` (`0x004AD0E8`) — **four** desertions, not three — and
 /// stage 5 is `Realm_DestroyArmies` (`0x004AD316`), which disbands every army
 /// the realm holds and wraps the counter to 0.
-///
-/// Ablation: key the handler on `realm.bankrupt_stage` instead of the action
-/// and the last two seasons do nothing at all — the counter is the *next*
-/// stage, and the mutiny has already wrapped it to 0.
 #[test]
 fn six_unpaid_seasons_desert_four_times_and_then_disband_every_army() {
     let mut k = kingdom();
@@ -144,7 +130,6 @@ fn six_unpaid_seasons_desert_four_times_and_then_disband_every_army() {
         ladder,
         vec![A::Warned, A::Desertion, A::Desertion, A::Desertion, A::LastWarning, A::Mutiny]
     );
-    // A tenth off every count above ten, four times: 400, 360, 324, 292, 263.
     assert_eq!(men, vec![Some(400), Some(360), Some(324), Some(292), Some(263), None]);
     assert!(k.campaign.units.get(b).is_none(), "the mutiny takes every army, not one");
     assert_eq!(k.realms[1].bankrupt_stage, 0, "and the counter wraps");

@@ -29,14 +29,6 @@ impl RackScreen {
 
     /// The count `FUN_00418E2D` prints against 69/5: how many more men could
     /// still take this weapon.
-    ///
-    /// The original writes it `remaining[sel] - chosen[sel]`, clamped by the
-    /// unequipped pool, and its `remaining` is the untouched stock the basket
-    /// was seeded with. **Ours already is the difference** —
-    /// [`l2_kingdom::LevyBasket::equip`] decrements `remaining` as it fills
-    /// `chosen`, so the two conventions meet at the same number and only the
-/// expression differs. Written out, because
-    /// transcribing it would have subtracted `chosen` twice.
     fn spare(&self, ctx: &Ctx) -> i32 {
         let basket = &ctx.game.levy.basket;
         let slot = self.troop as usize;
@@ -79,7 +71,6 @@ impl Screen for RackScreen {
         Some("Armoury.256")
     }
 
-    /// `Ui_DrawBox(0x60, 4, 0x1A, 7)` over the armoury, with no clear.
     fn is_overlay(&self) -> bool {
         true
     }
@@ -107,12 +98,6 @@ impl Screen for RackScreen {
                         return Transition::Stay;
                     }
                 }
-                // **The racks are still live here**, on the first seven records
-                // of the same hotspot table: the player can walk from one
-                // weapon to the next without going back. `Create` is record 6
-                // and is live too; `Change` and `Cancel` are records 7 and 8
-                // and are not.
-                //
                 // **The rack already open is one of them.** `Screen_FrameInput`'s
                 // `0x0D` arm runs `Armoury_GridClick` and the hotspot table with
                 // no test against `g_armourySelectedType`, so clicking the weapon
@@ -129,9 +114,6 @@ impl Screen for RackScreen {
                     return Transition::Stay;
                 }
                 if CREATE_BOX.contains(x, y) {
-                    // Record 6 of the table, and the only one of the three the
-                    // `0x0D` arm reaches. It is the armoury's button, so the
-                    // armoury runs it: pass the click down.
                     return Transition::Pass;
                 }
                 Transition::Stay
@@ -140,8 +122,6 @@ impl Screen for RackScreen {
         }
     }
 
-    /// See [`ArmouryScreen`]: the panel is on top, so the panel is what steps
-    /// the room's clock while it is open.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.redraw |= ctx.game.levy.anim.tick();
         Transition::Stay
@@ -181,29 +161,19 @@ impl Screen for RackScreen {
         let held = ctx.game.levy.basket.slots[self.troop as usize].chosen;
         pen.box_interior(canvas, COUNT_WELL.x, COUNT_WELL.y, 0x0F, 2);
         let noun = noun(a, self.troop as usize, held, self.troop_type());
-        // `Ui_DrawCount(chosen, sel * 2 + 0x34, 0xEC, 0x0D, &g_fontHeading, 0x3F)`
-        // — one of the only two heading-face counts in the binary. Built by hand
-        // as `"{held} {noun}"` it had no lead, so the digits and the noun both
-        // sat four pixels left of the original's.
         let face = crate::shell::Face::Heading;
         pen.count_with_noun(face, canvas, COUNT_AT.0, COUNT_AT.1, i32::from(held), &noun, font::TEXT);
 
-        // `Ui_DrawNumber(spare) + 69/5` — "N more could still be raised."
         let spare = self.spare(ctx);
         pen.box_interior(canvas, SPARE_WELL.x, SPARE_WELL.y, 0x10, 2);
         let x = pen.body(canvas, SPARE_AT.0, SPARE_AT.1, &format!("{spare}"), font::TEXT);
         pen.eng(canvas, GROUP, SPARE, x, SPARE_AT.1, font::TEXT);
 
-        // The four buttons. `Widget_Draw(0x60, 4, &g_armouryBuyWidgets, 4)`
-        // draws them out of the **button sheet** at the frames the records
-        // carry — 68, 66, 58, 60 — and our own labelled boxes are the fallback
-        // for an install without it, not the picture.
         for (i, button) in BUTTONS.iter().enumerate() {
             let r = button_box(i);
             if pen.system_frame(canvas, BUTTON_FRAMES[i], r.x, r.y) {
                 continue;
             }
-            // **Ours**, no artwork only.
             let label = match button {
                 Button::EquipOne => "+1",
                 Button::UnequipOne => "-1",
@@ -213,7 +183,6 @@ impl Screen for RackScreen {
             widget::button(canvas, ink, r, label, false);
         }
 
-        // `Ui_OkButton(0x1E4, 0x58, 0)`.
         pen.ok_button(canvas, RACK_OK.x, RACK_OK.y, 0);
     }
 }
@@ -240,7 +209,6 @@ fn noun(a: &shell::ShellAssets, troop: usize, n: i32, ty: Option<TroopType>) -> 
     }
 }
 
-/// `Levy_SetPercent`'s two refusals, reachable from this screen only.
 pub fn would_refuse(men: i32, hiring: bool) -> Option<LevyRefusal> {
     levy::refuse_levy(men, hiring)
 }

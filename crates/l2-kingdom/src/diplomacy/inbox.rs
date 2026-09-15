@@ -10,17 +10,6 @@ use l2_net::Pcg32;
 
 /// `Diplo_Post` (`0x004A2621`) — **the only writer of the inbox**, and the
 /// player's whole outgoing side in single player.
-///
-/// It fills the first free of five slots, bumps the recipient's
-/// `compliments_from` when the kind is a compliment, sets `has_mail`, and — if
-/// the gold is non-zero — **moves it immediately**, clamped to what the sender
-/// holds.
-///
-/// **A gift is spent when it is posted, not when it is answered.** The reply
-/// arrives a turn later and could be an insult; the money has gone either way.
-///
-/// A full inbox silently drops the letter, which is the original's behaviour
-/// and not a softening of it: the loop returns when it runs off the fifth slot.
 pub fn post(
     realms: &mut [Realm],
     diplomacy: &mut Diplomacy,
@@ -50,11 +39,6 @@ pub fn post(
 }
 
 /// **AI turn step 1** — `Diplo_AnswerInbox` (`0x004A277D`).
-///
-/// Walks the five slots, dispatches on the kind byte, then zeroes all five
-/// slots *and* all six `has_mail` bytes. **A realm's inbox is emptied every
-/// turn whether or not it was full**, and a letter from the realm itself is
-/// skipped without being answered.
 ///
 /// Because a human realm's AI turn is skipped entirely (`realm +0x05`), a
 /// letter posted to a person's inbox would never be answered. In single player
@@ -100,16 +84,8 @@ pub fn answer_inbox(
 }
 
 /// `g_realmsActive` (`0x00554004`) as *"realms still in play"*.
-///
-/// **The original has two writers with two meanings** — one counts realms still
-/// in play and one counts realms that have not yet finished their turn, and the
-/// second runs every frame of phase 4, so whichever wrote last is what the
-/// diplomacy code reads. `docs/diplomacy.md` §9 leaves it unresolved and
-/// nothing here depends on resolving it: both readings mean *"the game is
-/// nearly over"* at `< 3`, and both branches that test it refuse either way.
 pub fn realms_active(realms: &[Realm]) -> usize {
     realms.iter().skip(1).take(MAX_REALMS - 1).filter(|r| r.strength != 0).count()
 }
 
-// ----------------------------------------------- §8 the seven reply handlers
 

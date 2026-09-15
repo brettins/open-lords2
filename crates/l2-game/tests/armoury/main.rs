@@ -1,21 +1,9 @@
-//! **The armoury against the real artwork**, headlessly.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" \
-//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-game --test armoury
-//! ```
-//!
 //! `crates/l2-game/tests/military/main.rs` walks the whole verb on
 //! `Assets::placeholder`, picture agree in. This file is the other half: **the hit map and the sprites
 //! picture agree in. This file is the other half: **the hit map and the sprites
 //! it is supposed to sit on, out of the install.** `docs/decisions.md` C58 —
 //! every campaign-map test on this project ran on the placeholder once, and a
 //! near-miss reached a player three times.
-//!
-//! The strongest assertion here is the last one. It moves **one field of the
-//! world** — a realm's stock of one weapon — and requires the *same pixels* to
-//! appear and disappear, which is the shape the flag and minimap tests were
-//! rewritten into after a diff-in-a-box passed a wrong sprite.
 
 
 use std::path::PathBuf;
@@ -56,9 +44,6 @@ pub use animation::*;
 mod screenshots;
 pub use screenshots::*;
 
-/// A county the local player holds. The England fixture's realm→county
-/// assignment is **rolled per game** (`docs/environment.md`), so this is found
-///
 fn own_county(g: &Game) -> u8 {
     (1..=g.kingdom.county_count as u8)
         .find(|&id| g.is_players(id))
@@ -72,7 +57,6 @@ fn frame(m: &mut Machine, g: &mut Game, a: &Assets) -> Canvas {
     c
 }
 
-/// The bounding box of one weapon's cells in `arm_grid.pl8`.
 fn grid_box(a: &Assets, weapon: u8) -> Option<Rect> {
     let (mut x0, mut y0, mut x1, mut y1) = (i32::MAX, i32::MAX, i32::MIN, i32::MIN);
     for y in (0..480).step_by(8) {

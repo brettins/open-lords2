@@ -42,13 +42,6 @@ fn a_player_can_accept_an_alliance() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
 }
 
-/// **Declining an AI's offer in single player does nothing at all** — not a
-/// refusal, not a grudge, not a letter. The guard is
-/// `(offerer is human) || (hotspot != 0)`, and an AI offer declined fails both.
-///
-/// Asserted,
-/// indistinguishable from a rule nobody wired up unless something checks the
-/// nothing.
 #[test]
 fn declining_an_ai_offer_runs_nothing_at_all() {
     let (mut g, a, mut m) = world();
@@ -69,8 +62,6 @@ fn declining_an_ai_offer_runs_nothing_at_all() {
     );
 }
 
-/// **A right click on an alliance offer is neither yes nor no.** The right
-/// branch is tested before the widgets and has no category test in front of it.
 #[test]
 fn a_right_click_closes_an_offer_without_answering_it() {
     let (mut g, a, mut m) = world();
@@ -82,9 +73,6 @@ fn a_right_click_closes_an_offer_without_answering_it() {
     assert_eq!(g.kingdom.realms[1].ally, 0, "closing is not accepting");
 }
 
-/// **An offer that arrives when you already have an ally closes itself.**
-/// `Msg_DrawWindow`'s category-`0x0B` arm opens with the guard, so the window is
-/// and the player never sees it.
 #[test]
 fn an_offer_lapses_unseen_when_you_already_have_an_ally() {
     let (mut g, a, mut m) = world();
@@ -132,7 +120,6 @@ fn a_player_can_pay_his_ally_for_help() {
     assert!(!g.messages.is_open());
 }
 
-/// Declining the price leaves the treasury alone.
 #[test]
 fn declining_the_price_costs_nothing() {
     let (mut g, a, mut m) = world();
@@ -154,10 +141,6 @@ fn declining_the_price_costs_nothing() {
     assert!(!g.messages.is_open());
 }
 
-/// **A click inside a prompt that is on neither button does not fall through.**
-/// `Widget_Test` is asked first and the corner button after it,
-/// on the corner box or on nothing — but it never reaches the map underneath
-/// while a question is up, because `Msg_DismissUnlessQuestion` refuses it.
 #[test]
 fn a_miss_inside_a_prompt_does_not_answer_it() {
     let (mut g, a, mut m) = world();
@@ -165,11 +148,9 @@ fn a_miss_inside_a_prompt_does_not_answer_it() {
     open_the_scroll(&mut m, &mut g, &a);
 
     let [yes, _no] = Prompt::AcceptAlliance.widgets();
-    // One pixel above the thumb-up: inside the window, on neither button.
     send(&mut m, &mut g, &a, Event::Click { x: yes.0, y: yes.1 - 1 });
     assert!(g.messages.is_open(), "still waiting for an answer");
     assert_eq!(g.kingdom.realms[1].ally, 0);
 }
 
-// ------------------------------------------------------------ 3. win a game
 

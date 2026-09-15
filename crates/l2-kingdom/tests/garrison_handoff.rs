@@ -1,10 +1,3 @@
-//! **The garrison hand-off on a capture** — what becomes of the men in the
-//! castle when the county changes hands.
-//!
-//! ```text
-//! cargo test -p l2-kingdom --test garrison_handoff
-//! ```
-//!
 //! | the original | what it does |
 //! |---|---|
 //! | `County_ChangeOwner` `0x004A72FE` | owner, happiness, shield, peak — **and no garrison statement of its own** |
@@ -13,6 +6,7 @@
 //!
 //! **Who keeps the men.** `FUN_00437535` never writes the unit's owner byte, so
 //! the garrison stays the *loser's* army — it is only turned out of the castle.
+//!
 //! The taker gets an empty castle: county `+0x1BC` is cleared by
 //! `FUN_00437535`, not by either caller. `[V]` from all three bodies.
 
@@ -25,10 +19,6 @@ use l2_kingdom::Kingdom;
 
 const CASTLE: (u8, u8) = (20, 20);
 
-/// Realm 1 holds county 1 and a palisade stands at [`CASTLE`]; realm 2 is the
-/// taker. `counties` are left with no neighbour list, so
-/// `County_BordersRealm` answers no for everybody — which only matters once the
-/// taker holds something, and the *too far* test is the one that makes it.
 fn kingdom(counties: usize) -> Kingdom {
     let mut k = Kingdom::new(1);
     assert!(k.set_county_count(counties));
@@ -51,8 +41,6 @@ fn kingdom(counties: usize) -> Kingdom {
     k
 }
 
-/// A garrison of `owner`'s, 150 men, sitting on the castle tile with both links
-/// written — `Army_GarrisonApply`'s end state.
 fn garrison(k: &mut Kingdom, owner: u8) -> usize {
     let mut u = Unit::new(UnitKind::Army, owner, CASTLE.0, CASTLE.1);
     u.men = 150;
@@ -65,7 +53,6 @@ fn garrison(k: &mut Kingdom, owner: u8) -> usize {
     g
 }
 
-/// `County_ChangeOwner(taker, 1)` on `k`.
 fn capture(k: &mut Kingdom, taker: u8) -> Capture {
     let restore = k.restore();
     let mut explored = Explored::new();
@@ -144,14 +131,10 @@ fn a_captured_garrison_carries_its_besieger_out() {
     );
 }
 
-/// **Nowhere to stand is `Army_Destroy`** — the branch a player can be
-/// surprised by, reached on a capture as much as on an order to leave.
 #[test]
 fn a_captured_garrison_with_nowhere_to_stand_is_lost() {
     let mut k = kingdom(2);
     let g = garrison(&mut k, 1);
-    // Sea to the horizon: nothing within five is passable, so
-    // `Map_FindFreeTileNear` fails.
     for i in 0..MAP_TILES {
         k.campaign.map.county[i] = 0;
         k.campaign.map.flags[i] |= flags::NO_COUNTY;
@@ -208,8 +191,6 @@ fn a_county_too_far_to_govern_hands_its_garrison_off_too() {
     assert!(matches!(taken.garrison, Some(LeftCastle::Marched { .. })));
 }
 
-/// An empty castle has nothing to hand off, and the capture says so
-/// reporting a march that never happened.
 #[test]
 fn an_empty_castle_hands_nothing_off() {
     let mut k = kingdom(2);

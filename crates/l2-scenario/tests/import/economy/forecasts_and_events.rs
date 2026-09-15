@@ -22,9 +22,6 @@ use l2_testkit::{saves, SaveFile};
 /// `Event_RollAll` (`0x00448819`) clears the three swing bytes and the tax gate
 /// every season and never `eventId` — and the saved births reproduce with no swing
 /// in them (`docs/decisions.md` C169).
-///
-/// So this writes a figure into one county's bytes, reopens the file through the
-/// executable's own block table, and asks the import for it back.
 #[test]
 fn the_plague_letters_figure_survives_a_load() {
     let Some(exe) = l2_testkit::executable() else {
@@ -56,16 +53,6 @@ fn the_plague_letters_figure_survives_a_load() {
 /// **`+0x258` is `+0x268 − +0x26C − herdEaten` in every county of every save** —
 /// the cattle row's *"Overall change"*, calf births expected, cow deaths expected,
 /// and what the people ate (`docs/decisions.md` C128 for why the eating is in it).
-///
-/// Three fields that were dropped together by the importer, and one relation
-/// that pins all three offsets at once: a wrong offset for any of them would have
-/// to land on a word that happens to close this sum in every county of every
-/// save. It is not vacuous — the England turn-one fixture's ten neutral counties
-/// eat thirteen head each, so the eating term is exercised, and births differ
-/// from deaths almost everywhere.
-///
-/// `tests/stored_fields.rs` is what holds the kingdom to these bytes; this is
-/// what says the bytes are the fields.
 #[test]
 fn every_saved_cattle_forecast_is_births_less_deaths_less_what_was_eaten() {
     let (mut checked, mut eaten_counted) = (0usize, 0usize);
@@ -97,6 +84,7 @@ fn every_saved_cattle_forecast_is_births_less_deaths_less_what_was_eaten() {
 }
 
 /// **`+0x22C` is `Grain_LabourEstimate`'s tail in every county of every save**:
+///
 /// `−sown − eaten` when the season is Spring, `harvest − eaten` in Winter,
 /// `−eaten` otherwise, with `+0x230` the sowing and `crop[2]` the harvest.
 ///

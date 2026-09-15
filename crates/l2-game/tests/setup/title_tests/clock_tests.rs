@@ -20,10 +20,8 @@ use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 
-/// A fixed reading: 2026-01-15T19:00:00Z, which is 12:00 in MST.
 const NOON_MST: i64 = 1_768_503_600;
 
-/// The title page's own flat pen — `head.flat()` in `SetupScreen::draw`.
 fn title_pen(assets: &Assets) -> Pen<'_> {
     Pen {
         assets: &assets.shell,
@@ -35,16 +33,6 @@ fn title_pen(assets: &Assets) -> Pen<'_> {
     .flat()
 }
 
-/// **The clock is on the page** — the build stamp's identity test, for its
-/// reason: counting non-background pixels measures `gateway.pl8`, because the
-/// title page carries full-screen artwork and no pixel down there is background.
-/// Draw the page, copy it, draw the clock again onto the copy, and require the
-/// two to be identical. Text is an opaque blit
-/// changes nothing — but only if it was there the first time.
-///
-/// **This is the test that fails before the change**: with the
-/// `crate::wallclock::draw` line absent from the title painter the second pass
-/// *adds* the clock, and the canvases differ.
 #[test]
 fn the_mst_clock_is_painted_on_the_title_page() {
     let (mut game, mut assets) = world!();
@@ -103,14 +91,6 @@ fn a_page_with_no_reading_draws_no_clock() {
     );
 }
 
-/// **Where it landed.** The build stamp shipped
-/// hanging off the bottom of the screen because its test proved only the second;
-/// this asks both, and the two halves fail together.
-///
-/// It also asks the question this corner cannot avoid: the line is
-/// **right-aligned**, so its failure mode is the right edge
-/// bottom, and a face wider than the one the margin was chosen against pushes it
-/// off the side instead of down.
 #[test]
 fn every_pixel_of_the_mst_clock_is_inside_the_visible_canvas() {
     let (_game, assets) = world!();
@@ -133,9 +113,6 @@ fn every_pixel_of_the_mst_clock_is_inside_the_visible_canvas() {
     assert!(left + width <= screen_w, "the clock runs to x {}, past {screen_w}", left + width);
     assert!(top + height <= screen_h, "the clock runs to y {}, past {screen_h}", top + height);
 
-    // The observable consequence. A canvas clips, so anything that fell off an
-// edge never appears — so the geometry above is not enough
-    // on its own.
     let blank = Canvas::screen();
     let mut painted = Canvas::screen();
     l2_game::wallclock::draw(&mut painted, &pen, NOON_MST);
@@ -159,19 +136,12 @@ fn every_pixel_of_the_mst_clock_is_inside_the_visible_canvas() {
         "the clock's rightmost painted column is {last_col} on a {screen_w}-wide canvas, so \
          columns have been clipped off the right-hand edge",
     );
-    // And it really is in the bottom-right corner the painter says it is in,
-    //
     assert!(
         first_col > screen_w / 2 && last_row > screen_h - 20,
         "the clock occupies x {first_col}.. y ..{last_row}, which is not the bottom-right corner",
     );
 }
 
-/// **It does not sit on the build stamp**, the other invention in this band of
-/// the picture. Three of our own hotspots reached a merge placed in the
-/// original's coordinate space without checking what was already there
-/// (`docs/arms.json`, `ours/divide-cancel-button`); this is the drawing half of
-/// that mistake, asked before it can happen.
 #[test]
 fn the_clock_and_the_build_stamp_do_not_overlap() {
     let (_game, assets) = world!();
@@ -190,10 +160,6 @@ fn the_clock_and_the_build_stamp_do_not_overlap() {
     );
 }
 
-/// **The clock asks for a repaint once a minute and at no other time.** A still
-/// screen costing nothing is what `Machine::update` is written around; a clock
-/// that marked the machine dirty every tick would repaint the whole front end
-/// sixty times a second for a picture that changes once in thirty-six hundred.
 #[test]
 fn the_clock_asks_for_a_repaint_only_when_the_minute_turns() {
     let (mut game, mut assets) = world!();
@@ -213,14 +179,6 @@ fn the_clock_asks_for_a_repaint_only_when_the_minute_turns() {
     assert!(screen.take_redraw(), "the minute turned and the page still said 12:00");
 }
 
-/// **The clock reaches no simulation** — `docs/netcode.md` D-5, as an assertion
-///
-///
-/// Two copies of one game are stepped through the same ticks under wall-clock
-/// readings six months and eleven hours apart. The worlds must stay equal and
-/// their checksums identical: `Assets` is in no save, no digest and no
-/// `Kingdom`
-/// front page.
 #[test]
 fn the_clock_cannot_reach_the_simulation() {
     let (mut early, mut assets) = world!();

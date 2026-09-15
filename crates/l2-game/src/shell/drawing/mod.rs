@@ -15,5 +15,4 @@ use l2_view::Canvas;
 use eng::Eng;
 use font::Font;
 
-// ------------------------------------------------------------------ painting
 

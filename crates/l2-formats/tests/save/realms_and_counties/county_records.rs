@@ -7,11 +7,6 @@ use super::units_and_merchants::*;
 use l2_formats::save::{Save, SaveError, COUNTY_RECORDS, NEIGHBOUR_SLOTS, REALM_RECORDS};
 use l2_testkit::{executable, saves, skip, SaveFile};
 
-/// `g_counties` counts exactly the records that read as counties, and the
-/// counties are the low records with the slots above them.
-///
-/// This is the check that used to be spelled `assert_eq!(real.len(), 14)`. The
-/// 14 was one map; the identity is every map.
 #[test]
 fn the_county_count_is_the_number_of_county_records() {
     let saves = saves!();
@@ -23,7 +18,6 @@ fn the_county_count_is_the_number_of_county_records() {
         assert!(g.county_count >= 1, "{}: a map with no counties", s.label());
         assert!(g.county_count as usize <= COUNTY_RECORDS - 1, "{}", s.label());
 
-        // Counties occupy records 1..=g_counties and nothing above.
         for c in counties.iter() {
             let expected = c.index >= 1 && c.index as i32 <= g.county_count;
             assert_eq!(c.is_county(), expected, "{}: record {}", s.label(), c.index);
@@ -32,10 +26,6 @@ fn the_county_count_is_the_number_of_county_records() {
     }
 }
 
-/// Addressed reads are the same reads the record parser makes. `Save::u8_at`
-/// and the `County` struct come off the same bytes by two different routes —
-/// one through the block table, one through the record stride — and a
-/// disagreement means one of the two is wrong.
 #[test]
 fn the_addressed_read_and_the_record_read_agree() {
     let saves = saves!();
@@ -51,9 +41,6 @@ fn the_addressed_read_and_the_record_read_agree() {
     }
 }
 
-/// A save is a pure function of its bytes: opening the same file twice yields
-/// the same records. Trivial, and the thing that would catch a reader that
-/// grew a cache or a `static mut`.
 #[test]
 fn opening_the_same_bytes_twice_reads_the_same_save() {
     let Some(exe) = executable() else {

@@ -1,37 +1,9 @@
-//! What each mod
-//!
-//! [`crate::Report`] answers it from the *conflict's* side: this path was
-//! overridden, this file was shadowed. That is the right shape for "the two
-//! mods I installed are fighting", and the wrong shape for the question mod
-//! authors
-//! assumption that it should have worked.
-//!
-//! A rule a mod wrote can fail to reach the game in three quite different
-//! ways, and telling them apart is the whole value here:
-//!
-//! 1. **It lost.** A later mod in the load order set the same path. The fix is
-//! load order, and the report names the mod that won.
-//! 2. **It landed on nothing.** The path existed nowhere below, so the merge
-//! added it and the engine reads it from a name nothing looks up. Almost
-//!    always a typo — `battle.three_brdiges` — or a mod written against a
-//!    version of another mod that has since renamed something. This one is
-//! invisible without provenance.
-//! 3. **It was deleted.** A later `"$delete"` removed the table it was in.
-//!
-//! Case 2 is the one worth the machinery, and it is `docs/modding.md` §7.3.
-//! The example-mod corpus test already makes that check by hand — the example
-//! must *override* every leaf it sets, never add one — and this generalises it
-//! to every mod, at runtime, where the author will
-//!
-//! Assets are simpler, because assets shadow: a mod's file either wins or is
-//! covered by a later layer's file of the same name.
 
 use crate::modmeta::ModMeta;
 use crate::ruleset::Ruleset;
 use crate::vfs::Vfs;
 use std::fmt;
 
-/// A path the layer set, and what happened to it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RuleClaim {
     pub path: String,
@@ -40,16 +12,9 @@ pub struct RuleClaim {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Fate {
-    /// This layer's value is the one the engine reads, and it replaced a value
-    /// from the named source.
     Overrode(String),
-    /// This layer's value is the one the engine reads, and nothing below
-    /// defined the path. A new rule if that was intended, a typo if it was
-    /// not — the platform cannot tell, and says so.
     Added,
-    /// A later source set the same path and won.
     LostTo(String),
-    /// A later `"$delete"` removed it.
     Deleted(String),
 }
 
@@ -64,47 +29,26 @@ impl fmt::Display for Fate {
     }
 }
 
-/// A file the layer provided, and what happened to it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AssetClaim {
-    /// Normalised name, as the overlay keys it.
     pub name: String,
-    /// `None` when this layer's copy is the one that resolves; otherwise the
-    /// later layer whose copy does.
     pub shadowed_by: Option<String>,
 }
 
-/// Which of the three kinds of layer this is.
-///
-/// It matters for exactly one thing, and that thing is worth a type: **every
-/// rule the core and base layers set is an addition by definition.** They are
-/// the bottom of the stack; there is nothing below them to override. Applying
-/// the "added, not overridden — check the spelling" advice to them would bury
-/// the handful of cases that are real typos under about fifteen hundred that
-/// are not, which is how a useful diagnostic gets ignored.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LayerKind {
-    /// The engine's own rules, compiled in.
     Core,
-    /// The player's data directory: assets and the seeded base ruleset.
     Base,
-    /// A mod.
     Mod,
 }
 
-/// Everything one layer contributed, and how much of it survived.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LayerEffect {
     pub id: String,
     pub kind: LayerKind,
-    /// Position in the resolved load order. The base install and the core
-    /// ruleset are layers too and come first.
     pub position: usize,
-    /// Rule documents this layer supplied, in the order they applied.
     pub documents: Vec<String>,
-    /// Every rule leaf this layer set, sorted by path.
     pub rules: Vec<RuleClaim>,
-    /// Every file this layer provided, sorted, excluding rule documents.
     pub assets: Vec<AssetClaim>,
 }
 
@@ -123,8 +67,6 @@ impl LayerEffect {
             .collect()
     }
 
-    /// Rules that overrode nothing. Not an error, and not necessarily wrong —
-    /// but every typo in a mod file looks exactly like this.
     pub fn rules_added(&self) -> Vec<&RuleClaim> {
         self.rules.iter().filter(|r| r.fate == Fate::Added).collect()
     }
@@ -133,33 +75,18 @@ impl LayerEffect {
         self.assets.iter().filter(|a| a.shadowed_by.is_none()).count()
     }
 
-    /// True when this layer changed nothing the engine will read.
-    ///
-    /// A mod that provides only assets already shadowed and only rules already
-    /// overridden is enabled, loaded, reported without error, and completely
-    /// inert. That state is silent in every mod manager the author has used,
-    /// and it is the single most common "why is my mod not working".
     pub fn is_inert(&self) -> bool {
         self.rules_winning() == 0 && self.assets_winning() == 0
     }
 
-    /// True when this layer supplied nothing at all — an empty directory with
-    /// a `mod.toml`, or a mod whose files are all in the wrong place.
     pub fn is_empty(&self) -> bool {
         self.rules.is_empty() && self.assets.is_empty()
     }
 }
 
-/// Work out what every layer contributed.
-///
-/// `mods` is the resolved load order, which the VFS layers agree with by
-/// construction: [`crate::PlatformBuilder`] mounts the base install and then
-/// each mod in that order.
 pub fn analyse(vfs: &Vfs, rules: &Ruleset, mods: &[ModMeta]) -> Vec<LayerEffect> {
     let mut out = Vec::new();
 
-    // The core ruleset is
-    // accounted for first and separately, and only for rules.
     let core = crate::core::CORE_LAYER;
     if rules.documents.iter().any(|d| layer_of(&d.source) == core) {
         out.push(layer_effect(core, LayerKind::Core, 0, None, rules));
@@ -171,8 +98,6 @@ pub fn analyse(vfs: &Vfs, rules: &Ruleset, mods: &[ModMeta]) -> Vec<LayerEffect>
         out.push(layer_effect(&layer.id, kind, position, Some((vfs, i)), rules));
     }
 
-    // A mod that resolved into the load order but mounted no layer cannot
-    // happen today; if it ever does, saying so beats leaving it out.
     for m in mods {
         if !out.iter().any(|e| e.id == m.id) {
             let position = out.len();
@@ -212,9 +137,6 @@ fn layer_effect(
             claims.push(RuleClaim { path: path.clone(), fate: fate_of(rules, &doc.source, path) });
         }
     }
-    // Two documents in one layer can both claim a path; the later one is the
-    // layer's answer. Sorting by path then keeping the last claim per path
-    // gives that, deterministically.
     claims.sort_by(|a, b| a.path.cmp(&b.path));
     claims.dedup_by(|later, earlier| {
         if later.path == earlier.path {
@@ -228,10 +150,6 @@ fn layer_effect(
     let mut assets = Vec::new();
     if let Some((vfs, index)) = vfs_layer {
         for name in vfs.layer_entries(index) {
-            // A manifest and a rule document belong to the platform, not to
-            // the game. `package::is_platform_metadata` says why each is
-            // excluded; both would otherwise report a conflict every time two
-            // mods are enabled at once.
             if crate::package::is_platform_metadata(name) {
                 continue;
             }
@@ -250,18 +168,15 @@ fn layer_effect(
 }
 
 fn fate_of(rules: &Ruleset, source: &str, path: &str) -> Fate {
-    // Did something later delete it outright?
     if let Some(d) = rules.log.deletions.iter().find(|d| d.path == path) {
         if d.removed.source.as_ref() == source {
             return Fate::Deleted(d.by.to_string());
         }
     }
     match rules.origin(path) {
-        // Gone from the tree entirely: a `"$delete"` took the table it was in.
         None => Fate::Deleted(String::from("a later \"$delete\"")),
         Some(origin) if origin.source.as_ref() != source => Fate::LostTo(origin.to_string()),
         Some(_) => {
-            // The winner is this document. Did it replace anything?
             match rules
                 .log
                 .overrides
@@ -276,7 +191,6 @@ fn fate_of(rules: &Ruleset, source: &str, path: &str) -> Fate {
     }
 }
 
-/// The human-readable form: one paragraph per layer, worst news first.
 pub struct EffectReport<'a>(pub &'a [LayerEffect]);
 
 impl fmt::Display for EffectReport<'_> {
@@ -300,10 +214,6 @@ impl fmt::Display for EffectReport<'_> {
             for claim in e.rules_lost() {
                 writeln!(f, "     rule {} {}", claim.path, claim.fate)?;
             }
-            // Only for mods. The core and base layers are the bottom of the
-            // stack, so every rule they set is an addition and none of them is
-            // a typo — printing fifteen hundred of those would bury the
-            // handful that mean something.
             if e.kind == LayerKind::Mod {
                 for claim in e.rules_added() {
                     writeln!(

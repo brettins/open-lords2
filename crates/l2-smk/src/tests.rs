@@ -1,17 +1,8 @@
-//! **A film written by hand, bit by bit, from the format description.**
-//!
-//! These run everywhere, CI included, which the corpus tests cannot. Read them
-//! for what they are: an *encoder* written from the same description as the
-//! decoder, so agreement between the two proves the description was applied
-//! consistently and nothing about whether it was read right. That second
-//! question belongs to `tests/corpus.rs`, where the shipped films and an
-//! independent decoder's numbers are the other side of the comparison.
 
 use std::collections::BTreeMap;
 
 use super::*;
 
-/// The bit order every Smacker stream uses: least significant first.
 #[derive(Default)]
 struct BitWriter {
     bytes: Vec<u8>,
@@ -42,8 +33,6 @@ impl BitWriter {
 
 type Codes = BTreeMap<u32, Vec<u8>>;
 
-/// A balanced tree over `leaves`, written depth-first; returns each leaf's
-/// path. `leaf` writes a leaf's value.
 fn emit(w: &mut BitWriter, leaves: &[u32], prefix: Vec<u8>, codes: &mut Codes, leaf: &dyn Fn(&mut BitWriter, u32)) {
     if leaves.len() == 1 {
         w.bit(0);
@@ -76,8 +65,6 @@ fn distinct(v: impl Iterator<Item = u32>) -> Vec<u32> {
     s
 }
 
-/// A 16-bit tree over `leaves` with three escapes; returns the codes by
-/// 16-bit value.
 fn tree16(w: &mut BitWriter, leaves: &[u32], escapes: [u32; 3]) -> Codes {
     w.bit(1);
     let lows = tree8(w, &distinct(leaves.iter().map(|v| v & 0xFF)));
@@ -102,10 +89,7 @@ fn pad4(v: &mut Vec<u8>) {
 
 const ESC: [u32; 3] = [0xFFF0, 0xFFF1, 0xFFF2];
 
-/// An 8 × 8 film, two frames, one mono audio track: every block type, every
-/// palette opcode, the recency cache and the snapshot the palette copies from.
 fn synthetic() -> Vec<u8> {
-    // The four trees.
     let mut t = BitWriter::default();
     let mmap = tree16(&mut t, &[0x8001], ESC);
     let mclr = tree16(&mut t, &[0x0907], ESC);
@@ -113,7 +97,6 @@ fn synthetic() -> Vec<u8> {
     let types = tree16(&mut t, &[0x0000, 0x0001, 0x0002, 0x0503, 0xFFF0, 0xFFF1, 0xFFF2], ESC);
     let trees = t.bytes;
 
-    // Frame 0: palette, audio, then solid / mono / full / skip.
     let mut f0 = Vec::new();
     let pal0: Vec<u8> = vec![
         0x3F, 0x00, 0x00, // entry 0 = (63, 0, 0)
@@ -152,8 +135,6 @@ fn synthetic() -> Vec<u8> {
     f0.extend_from_slice(&v.bytes);
     pad4(&mut f0);
 
-    // Frame 1: a palette that copies over itself, then skip / recent[0] /
-    // solid / recent[1].
     let mut f1 = Vec::new();
     let pal1: Vec<u8> = vec![
         0x00, 0x00, 0x3F, // entry 0 = blue
@@ -237,18 +218,14 @@ fn every_block_type_draws_what_the_description_says() {
     assert!(d.next_frame(&smk).unwrap());
     let px = d.pixels().to_vec();
     let at = |x: usize, y: usize| px[y * 8 + x];
-    // Block 0, solid colour 5.
     assert!((0..4).all(|y| (0..4).all(|x| at(x, y) == 5)));
-    // Block 1, mono: bit 0 is the top-left pixel and bit 15 the bottom-right.
     assert_eq!(at(4, 0), 9, "map bit 0 set: the high colour");
     assert_eq!(at(5, 0), 7, "map bit 1 clear: the low colour");
     assert_eq!(at(7, 3), 9, "map bit 15 set");
     assert_eq!(at(6, 3), 7);
-    // Block 2, full: the first code of a row is columns 2 and 3.
     for y in 4..8 {
         assert_eq!([at(0, y), at(1, y), at(2, y), at(3, y)], [0x0C, 0x0D, 0x0A, 0x0B]);
     }
-    // Block 3, skip, on the first frame: still zero.
     assert!((4..8).all(|y| (4..8).all(|x| at(x, y) == 0)));
     let (read, total) = d.video_bits();
     assert!(total - read < 8, "{read} of {total} bits read");
@@ -256,7 +233,6 @@ fn every_block_type_draws_what_the_description_says() {
 
 /// **`_SmackToBuffer@28` (`0x403AF0`): flag `0x02` writes the even rows and
 /// leaves the odd ones as the cleared buffer; `0x04` writes each row twice.**
-/// Ablation: copy the row for `Interlace` and the black rows go.
 #[test]
 fn a_doubled_frame_has_black_odd_rows_and_a_written_one_has_none() {
     let film = |flags: u8| {
@@ -345,7 +321,6 @@ fn stereo_reads_the_right_channel_first_and_interleaves_from_the_left() {
     a.bit(1);
     a.bit(1); // stereo
     a.bit(0);
-    // A tree with one leaf is a code of no bits at all.
     tree8(&mut a, &[0x02]);
     tree8(&mut a, &[0xFE]);
     a.bits(0x10, 8); // right

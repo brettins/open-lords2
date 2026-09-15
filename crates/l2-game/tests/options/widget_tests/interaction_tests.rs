@@ -14,8 +14,6 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-/// **Every row of every original panel toggles the setting behind it**, and the
-/// row above and below it stay where they were.
 #[test]
 fn each_widget_toggles_its_own_row_and_only_its_own() {
     for page in ORIGINALS {
@@ -27,8 +25,6 @@ fn each_widget_toggles_its_own_row_and_only_its_own() {
             let mut screen = OptionsScreen::new(page);
             let (x, y) = mid(row.hit());
             let t = press_and_wait(&mut screen, &mut game, &assets, x, y);
-            // `Opt_ToggleFullScreen` leaves the panel before anything else; no
-            // other row does.
             let leaves = row.setting == Setting::FullScreen;
             assert_eq!(t == Transition::Pop, leaves, "{page:?} {:?} answered {t:?}", row.setting);
 
@@ -50,11 +46,6 @@ fn each_widget_toggles_its_own_row_and_only_its_own() {
     }
 }
 
-/// **A click one pixel outside a widget does nothing at all** — it does not
-/// toggle, and it does not close the panel, however long you wait.
-///
-/// Both halves are faults that have reached a player from other screens: the
-/// near-miss that acted anyway, and the window that closed when clicked inside.
 #[test]
 fn a_near_miss_neither_toggles_nor_closes() {
     for page in ORIGINALS {
@@ -63,7 +54,6 @@ fn a_near_miss_neither_toggles_nor_closes() {
             let before = value(row.setting, &mut game, &assets);
             let mut screen = OptionsScreen::new(page);
             let r = row.hit();
-            // Just off each of the four edges.
             for (x, y) in [
                 (r.x - 1, r.y + r.h / 2),
                 (r.x + r.w, r.y + r.h / 2),
@@ -83,8 +73,6 @@ fn a_near_miss_neither_toggles_nor_closes() {
     }
 }
 
-/// **A click never falls through.** `Transition::Pass` would offer the event to
-/// whatever is underneath, which for a panel over the campaign map is the map.
 #[test]
 fn no_click_anywhere_is_ever_passed_to_the_screen_underneath() {
     for page in Page::ALL {

@@ -1,6 +1,3 @@
-//! The campaign map: the near view, its tiles, towns, castles, merchants, the minimap, the fog and a marching army.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 
 #[macro_use]
@@ -35,10 +32,6 @@ use l2_view::campaign;
 use l2_view::chrome;
 use l2_view::Canvas;
 
-/// Every pixel of the map **viewport**, and which county it belongs to.
-///
-/// The viewport is the zoom's, not the screen's: `docs/screens.md` §1.4 — x
-/// stops at 478 where the right panel starts, and y at 474 (near) or 408 (far).
 fn pick_counts(screen: &MapScreen) -> [usize; 17] {
     let mut counts = [0usize; 17];
     let clip = screen.map_clip();
@@ -53,8 +46,6 @@ fn pick_counts(screen: &MapScreen) -> [usize; 17] {
     counts
 }
 
-/// Find a pixel belonging to a county, by scanning the pick plane.
-/// hard-coding a coordinate a layout change would invalidate.
 fn pixel_of(screen: &MapScreen, county: u8) -> Option<(i32, i32)> {
     let clip = screen.map_clip();
     (clip.y0..clip.y1)

@@ -8,13 +8,6 @@ use crate::fire::{SURFACE_BRIDGE, SURFACE_BURNING, SURFACE_WOODLAND, SURFACE_WOO
 use crate::proving;
 use crate::terrain::flag;
 
-/// **A besieger stepping onto a bridge sets it alight, and the fire walks five
-/// cells along it.** `Cell_TryEnter`'s first statement.
-///
-/// The swordsman walks north up column 50; the bridge is rows 40 to 46. He
-/// steps onto 46, which burns, and so do 45 … 41 — five rings — while 40 is
-/// out of reach and stays a bridge until he reaches it. A burning bridge is
-/// flattened and cleared: height 0, no flags.
 #[test]
 fn a_besieger_stepping_onto_a_bridge_sets_it_alight() {
     let mut r = proving::deploy();
@@ -33,7 +26,6 @@ fn a_besieger_stepping_onto_a_bridge_sets_it_alight() {
     assert_eq!(fire_at(&r, proving::BRIDGE_X, 46).unwrap().ttl, 519, "0x280 - 0x78, one frame counted");
     assert_eq!(fire_at(&r, proving::BRIDGE_X, 41).unwrap().ttl, 519 + 28, "each ring seven frames longer");
 
-    // He burns on it, four hits a frame, and dies of it before he is across.
     let sim = r.fighters[man].sim;
     for _ in 0..140 {
         proving::orders(&mut r);
@@ -42,7 +34,6 @@ fn a_besieger_stepping_onto_a_bridge_sets_it_alight() {
     assert!(!r.sim.figures[sim].is_alive(), "a swordsman does not cross a burning bridge");
     assert!(r.sim.cues.burn_deaths(SIDE_B) >= 1);
 
-    // And when it goes out, a bridge does not come back.
     for _ in 0..600 {
         proving::orders(&mut r);
         r.step();
@@ -53,8 +44,6 @@ fn a_besieger_stepping_onto_a_bridge_sets_it_alight() {
     }
 }
 
-/// **An arrow over a bridge sets it alight too**, and is spent by it: its
-/// countdown becomes 8 and it hits nothing more.
 #[test]
 fn an_arrow_crossing_a_bridge_sets_it_alight_and_is_spent() {
     let mut field = blank_field();
@@ -77,13 +66,9 @@ fn an_arrow_crossing_a_bridge_sets_it_alight_and_is_spent() {
     assert_eq!(r.sim.cues.missile_hits(WeaponClass::Bow), 0, "and it hits nobody on the far side");
 }
 
-// ------------------------------------------------------------- the siege tower
 
 /// **A tower whose leading edge meets a wall two high docks, is destroyed, and
 /// leaves a ramp** — `FUN_00491492` and `FUN_004921E5`.
-///
-/// Every height and flag below is a literal of those two bodies, for a tower
-/// facing north at `(25, 32)` against a curtain at row 30.
 #[test]
 fn a_tower_docks_against_a_wall_two_high_and_becomes_a_ramp() {
     let mut r = proving::deploy();
@@ -117,10 +102,6 @@ fn a_tower_docks_against_a_wall_two_high_and_becomes_a_ramp() {
     assert!(!r.blocked[cell(x, 30)] && r.blocked[cell(24, 32)], "and the blocked map has it");
 }
 
-/// **And a knight can walk up it onto the wall**, which is what a tower is
-/// for. Before the dock he could not: two levels at once is refused.
-///
-/// Ablation: return `false` from `dock_tower` and he stands at the foot.
 #[test]
 fn a_knight_climbs_the_ramp_a_docked_tower_leaves() {
     let r = proving::run(1_000);
@@ -129,8 +110,6 @@ fn a_knight_climbs_the_ramp_a_docked_tower_leaves() {
     assert_eq!(r.field.cells[cell(proving::KNIGHT_TO.0, proving::KNIGHT_TO.1)].elevation, 2);
 }
 
-/// **A tower docks only against exactly two**: a wall one high or three high
-/// is no dock, and nor is a wall two high behind a step exactly one high.
 #[test]
 fn a_tower_docks_only_against_ground_exactly_two_high() {
     for (wall, step, docks) in [(2u8, 0u8, true), (1, 0, false), (3, 0, false), (2, 1, false), (2, 2, true)] {
@@ -143,7 +122,6 @@ fn a_tower_docks_only_against_ground_exactly_two_high() {
             "wall {wall}, step {step}"
         );
     }
-    // The search starts from the polar facing and turns clockwise by two.
     let mut field = blank_field();
     field.cells[cell(42, 40)].elevation = 2;
     field.cells[cell(38, 40)].elevation = 2;
@@ -164,8 +142,6 @@ fn a_towers_polar_facing_is_the_nearest_orthogonal_and_holds_on_a_diagonal() {
     assert_eq!((tower_polar(7, 6), tower_polar(7, 0)), (6, 0));
 }
 
-/// **Any figure in a tower's leading edge stops it**, a friend included —
-/// `Cell_TryEnterEngine` counts figures without asking whose.
 #[test]
 fn a_friend_in_a_towers_leading_edge_stops_it() {
     let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
@@ -177,11 +153,7 @@ fn a_friend_in_a_towers_leading_edge_stops_it() {
     assert_eq!((r.fighters[tower].x, r.fighters[tower].y), (40, 50), "the peasant is in the edge");
 }
 
-// --------------------------------------------------------- the rampart too high
 
-/// **A catapult cannot shoot down a wall four high.** `Missile_Step`'s class-3
-/// arm counts a hit only below 4, and plays `catmiss.wav` above it.
-///
 /// The same shot at the same wall three high is counted — which is the
 /// ablation this test carries inside it.
 #[test]
@@ -190,7 +162,6 @@ fn a_catapult_shot_at_a_rampart_four_high_is_not_counted() {
     let wall = cell(proving::CATAPULT_AT.0, proving::HIGH_WALL_Y);
     assert!(r.sim.cues.walls_missed() >= 2, "{:?}", r.sim.cues);
     assert_eq!(r.sim.cues.walls_struck(), 0);
-    // The count is cell byte `+0` itself — `Missile_Step`'s `cell.terrain++`.
     let fresh = proving::deploy();
     assert_eq!(
         r.field.cells[wall].terrain, fresh.field.cells[wall].terrain,
@@ -212,5 +183,4 @@ fn a_catapult_shot_at_a_rampart_four_high_is_not_counted() {
     assert!(lower.field.cells[wall].terrain >= seed + 2, "the cell byte counted the hits");
 }
 
-// ----------------------------------------------------------------- the wood fire
 

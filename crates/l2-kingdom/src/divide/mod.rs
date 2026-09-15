@@ -1,27 +1,13 @@
-//! **Splitting an army in two, and disbanding one** — the other two ends of
-//! [`crate::levy`].
-//!
 //! `levy::create_army` puts men on the map and [`crate::unit::combine`] merges
 //! two armies into one. This module is the pair that was missing: `Army_Split`
 //! (`0x00437FD7`) and `Army_Disband` (`0x00438681`), with the gate each of them
 //! sits behind.
 //!
-//! # The shipped `Readme.txt` is a source here, and it is the better one
-//!
-//! Three of the rules below are stated in the v1.03 errata in words before they
-//! are found in the instruction stream, and each of the three is one a reader of
-//! the code alone would get wrong:
-//!
 //! * *"An army normally can only be split only at the start of its movement in
 //!   a turn. Splitting does not use all the movement for a turn, but cannot be
 //!   done if the army has used any movement points that turn."* — the gate is
 //! `movesUsed < 1` in `FUN_004378B3`.
-//!   **+5 both halves pay** in `Army_Split`, which nothing had recorded.
-//! * *"When splitting into castles, you may split off less than 50 men. This
-//!   will make it much easier to bring a current garrison up to its maximum
-//!   size."* — the minimum is a local that is `0x32` on the plain path and **0**
-//! when a destination county was named.
-//!   limit less whoever is already inside.
+//!
 //! * *"If you no longer control an army's county of origin, you can only disband
 //!   it by moving it to any friendly county before disbanding it."* —
 //!   `Panel_DisbandButton` picks the home county, falls back to the county the
@@ -29,9 +15,6 @@
 //!   with `L2.eng` group 145 when *that* is not the owner's either. The string
 //!   states the two-step rule clause for clause, which is what makes it `[V]`.
 //!
-//! # The split screen reuses the levy basket, with different field meanings
-//!
-//! `docs/armies.md` §6.2 says so and this is the confirmation:
 //! `Screen_SplitArmyRows` draws the **parent** from `g_levyBasket[t].chosen` and
 //! the **daughter** from `g_levyBasket[t].available` — the second word of the
 //! same sixteen-byte slot — for t = 0…6, and slot **7 holds the mercenary
@@ -74,24 +57,12 @@ pub const SPLIT_NO_CASTLE_CAP: i32 = 5000;
 /// How far `FUN_0046733C` will look for somewhere to stand a new army.
 pub const SPLIT_SEARCH_RADIUS: i32 = 5;
 
-// ---------------------------------------------------------------- the basket
 
-/// The army-division screen's state: who stays and who leaves.
-///
-/// Slot 7 — the mercenary band — is **not** a count that can be divided. It
-/// moves whole or not at all, which is the same atomicity `combine` refuses two
-/// of and `Mercenary_Release` walks off in one piece. `docs/armies.md` §5.3.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SplitBasket {
-    /// `g_levyBasket[t].chosen`, t = 0…6 — the army that stays.
     pub parent: [i32; TROOP_TYPES],
-    /// `g_levyBasket[t].available`, t = 0…6 — the army that leaves.
     pub daughter: [i32; TROOP_TYPES],
-    /// The band, and which side of the screen it is on. `None` when the army
-    /// carries none.
     pub mercenaries: Option<Mercenaries>,
-    /// Whether the band sits in the daughter's column — slot 7's `available`
-    /// being non-zero, in the original.
     pub mercenaries_leave: bool,
 }
 
@@ -107,13 +78,10 @@ impl SplitBasket {
         }
     }
 
-    /// What the parent's *"Total men"* line reads — the sum of all eight slots,
-    /// the band included.
     pub fn parent_total(&self) -> i32 {
         self.parent.iter().sum::<i32>() + self.side_mercenaries(false)
     }
 
-    /// The daughter's *"Total men"* line.
     pub fn daughter_total(&self) -> i32 {
         self.daughter.iter().sum::<i32>() + self.side_mercenaries(true)
     }
@@ -144,8 +112,6 @@ impl SplitBasket {
         moved
     }
 
-    /// Hotspot 7 on either handler: the band crosses whole. Returns whether it
-    /// moved
     pub fn move_mercenaries(&mut self, leaving: bool) -> bool {
         if self.mercenaries.is_none() || self.mercenaries_leave == leaving {
             return false;
@@ -155,19 +121,12 @@ impl SplitBasket {
     }
 }
 
-// --------------------------------------------------------------- the refusals
 
-/// Where a split is going: a plain division on the open map, or into a castle.
-///
 /// The variant is `DAT_0053F080`, the destination county, being zero or not —
 /// and it is what decides both the minimum and the cap in `FUN_00437AFB`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitInto {
-    /// No destination county. Both halves need [`crate::tables::ARMY_MIN_MEN`]
-    /// and both pay [`SPLIT_MOVE_COST`].
     Field,
-    /// The daughter is walking into `county`'s castle. **No minimum**.
-    /// cap is that castle's garrison limit less whoever is already in it.
     Castle { county: u8, tile: (u8, u8) },
 }
 
@@ -183,10 +142,8 @@ impl SplitInto {
     }
 }
 
-/// Why a split was refused, each carrying the message the original raises.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SplitRefusal {
-    /// The slot is empty or is not an army.
     NotAnArmy,
     /// `FUN_004378B3`'s gate: message `0x95` = `L2.eng` group 149. The army has
     /// already spent movement this season, so the screen never opens.
@@ -206,7 +163,6 @@ pub enum SplitRefusal {
     NowhereToStand,
 }
 
-/// Why a disband was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisbandRefusal {
     NotAnArmy,
@@ -248,7 +204,6 @@ mod tests {
         assert_eq!(b.to_daughter(TroopType::Peasant, 60), 60);
         assert_eq!(b.parent_total(), 100);
         assert_eq!(b.daughter_total(), 60);
-        // A column cannot go below zero.
         assert_eq!(b.to_daughter(TroopType::Peasant, 999), 40);
         assert_eq!(b.to_parent(TroopType::Crossbowman, 5), 0);
         assert_eq!(b.parent_total() + b.daughter_total(), 160, "men are conserved");
@@ -296,8 +251,6 @@ mod tests {
             Some(SplitRefusal::TooFew),
             "20 men is under the 0x32 the plain path enforces",
         );
-        // The Readme's own words: "When splitting into castles, you may split
-        // off less than 50 men."
         let mut counties = counties;
         counties[2].owner = 1;
         counties[2].castle_type = 1;
@@ -321,7 +274,6 @@ mod tests {
             refuse_split(T, &counties, &units, &b, into),
             Some(SplitRefusal::GarrisonFull(150)),
         );
-        // With ninety already inside, only sixty more fit.
         let mut garrison = army([90, 0, 0, 0, 0, 0, 0]);
         garrison.garrison_county = 2;
         counties[2].garrison_unit = units.spawn(garrison).unwrap();
@@ -335,7 +287,6 @@ mod tests {
     fn a_disband_returns_the_weapons_to_the_treasury_and_the_men_to_the_county() {
         let (mut counties, mut realms, mut units, mut names, mut bands) = world();
         counties[1].population = 1_000;
-        // 40 peasants, 30 crossbowmen, 30 knights.
         let mut u = army([40, 30, 0, 0, 0, 0, 30]);
         u.owner = 1;
         let id = units.spawn(u).unwrap();
@@ -350,8 +301,6 @@ mod tests {
         assert!(units.get(id).is_none(), "the slot is free again");
     }
 
-    /// The Readme's *"If you no longer control an army's county of origin, you
-    /// can only disband it by moving it to any friendly county"*, both halves.
     #[test]
     fn an_army_whose_home_county_has_changed_hands_disbands_where_it_stands() {
         let (mut counties, mut realms, mut units, mut names, mut bands) = world();
@@ -364,7 +313,6 @@ mod tests {
         let id = units.spawn(u.clone()).unwrap();
         assert_eq!(disband_county(&counties, &units, id), Some(3));
 
-        // Standing in enemy country there is nowhere to go at all.
         units.get_mut(id).unwrap().county = 2;
         assert_eq!(disband_county(&counties, &units, id), None);
         assert_eq!(

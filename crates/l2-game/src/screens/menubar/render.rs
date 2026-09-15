@@ -10,13 +10,6 @@ use crate::screens::options::Page;
 use crate::screens::saveload::Mode;
 use crate::shell::font;
 
-/// **The bar's three captions, drawn.** A free function because the *campaign
-/// map* draws it: the drop-down is a
-/// separate screen and the titles are not its.
-///
-/// `Ui_DrawMenuTitles` draws the open title inverted — colour `0x18` on a
-/// `0x3F` plate two pixels out — and the rest in `0x3F`. `open` is which, if
-/// any, so the map can pass what the stack knows.
 pub fn draw_titles(ctx: &Ctx, canvas: &mut Canvas, open: Option<usize>) {
     let ink = &ctx.assets.ink;
     let t = titles(ctx);

@@ -21,8 +21,6 @@ use l2_kingdom::tables::{
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// **`Panel_JobGrain`'s two signed rows and its growing branch, on stored
-/// numbers.** `safeturn.sav` faces Autumn, so the painter takes the `else` arm:
 /// `Ui_DrawCount(+0x2FC, 2, 0x40, 0xD8)` + 77/3 + `Ui_DrawCount(2, 0x42, …)`,
 /// then 77/0 + `crop[0]` + 77/4 on `0xE8`.
 ///
@@ -30,10 +28,6 @@ use l2_view::Canvas;
 /// count (Autumn next gives 2). **Zero here:** `+0x2FC` and `crop[0]`
 /// (zero in every save; the rule-driven test below makes them move) and
 /// `+0x278` (the no-event line is what is asserted).
-///
-/// Ablations, run: the `delta(…grain_eaten…)` line deleted → `"-135"` not at
-/// `(0x130, 0x108)`; the season mapping's `3 => 2` → `3 => 3` → `"2"` not at
-/// `(0xF5, 0xD8)`.
 #[test]
 fn the_grain_popup_draws_the_store_the_eating_and_the_overall_change() {
     let (mut game, assets) = fixture_world!("safeturn.sav");
@@ -47,11 +41,9 @@ fn the_grain_popup_draws_the_store_the_eating_and_the_overall_change() {
 
     let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
 
-    // `Ui_DrawCount(grain, 2, 0x130, 0x88)`.
     count_at(&canvas, &assets, c.grain, 2, 0x130, 0x88);
     // `+0x278 == 0`: 77/0x18 at (0x40, 0xB0).
     word_at(&canvas, &assets, 77, 0x18, 0x40, 0xB0);
-    // Advanced farming off: no fertility line, no weather line.
     assert!(!is_at(&canvas, body(&assets), &eng(&assets, 22, 3), INK, 0x80, 0x98));
     assert!(!is_at(&canvas, body(&assets), &eng(&assets, 77, 0x12), INK, 0x40, 0xC0));
 
@@ -59,37 +51,20 @@ fn the_grain_popup_draws_the_store_the_eating_and_the_overall_change() {
     let at = count_at(&canvas, &assets, c.grain_grown_expected, 2, 0x40, 0xD8);
     let at = word_at(&canvas, &assets, 77, 3, at, 0xD8);
     count_at(&canvas, &assets, 2, 0x42, at, 0xD8);
-    // From `crop[0]` Sacks sown in spring.
     let at = word_at(&canvas, &assets, 77, 0, 0x40, 0xE8);
     let at = count_at(&canvas, &assets, c.crop[0], 2, at, 0xE8);
     word_at(&canvas, &assets, 77, 4, at, 0xE8);
 
-    // The two signed rows.
     word_at(&canvas, &assets, 77, 0x1B, 0x40, 0x108);
     signed_at(&canvas, &assets, -c.grain_eaten, 0x108);
     word_at(&canvas, &assets, 77, 0x1C, 0x40, 0x118);
     signed_at(&canvas, &assets, c.grain_change_expected, 0x118);
 }
 
-/// **The grain year, as the rule walks it: sown, growing, harvested.**
-///
-/// No save on this machine has grain in the ground, so the fields are painted
-/// with the player's brush and the seasons advanced,
-/// `crates/l2-kingdom/tests/fields/main.rs` does. Each stage then has a non-zero
-/// figure in its own box:
-///
 /// * facing Spring, `Ui_DrawCount(+0x230, 2, 0x40, 0xD8)` + 77/1 and
 ///   `Ui_DrawCount(+0x230 * g_grainYieldPerSack, 2, 0x40, 0xE8)` + 77/2;
 /// * facing Summer, `+0x2FC` + 77/3 + **3** Seasons, and `crop[0]` after 77/0;
 /// * facing Winter, `crop[2]` + 77/3 + **1** Season, singular.
-///
-/// And last, with advanced farming on and a *Sunny* band, `Grain_Grow`'s own
-/// weather swing on `0xC0`, and the fertility phrase on `0x98`. The band is the
-/// one hand-set input: `Weather_UpdateAll` rolls it, and this names one.
-///
-/// Ablations, run: `wrapping_mul(yield_per_sack)` → `wrapping_mul(1)` → `"240"`
-/// not at `(0x44, 0xE8)`; `weather_line` deleted from `grain` → `"120"` not at
-/// `(0x44, 0xC0)`.
 #[test]
 fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
     let (mut game, assets) = england_world!();
@@ -104,14 +79,12 @@ fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
     assert!(sown > 0, "setup: painted grain fields forecast a sowing, not {sown}");
     let yield_per_sack = k.tables.grain.yield_per_sack;
 
-    // Facing Spring.
     let canvas = draw_job(&mut game, &assets, id, JOB_GRAIN_FARMING);
     let at = count_at(&canvas, &assets, sown, 2, 0x40, 0xD8);
     word_at(&canvas, &assets, 77, 1, at, 0xD8);
     let at = count_at(&canvas, &assets, sown * yield_per_sack, 2, 0x40, 0xE8);
     word_at(&canvas, &assets, 77, 2, at, 0xE8);
 
-    // Facing Summer: the crop is in the ground.
     game.kingdom.advance_season();
     game.kingdom.refresh_estimates(id);
     assert_eq!(game.kingdom.season_next, 2, "setup: one season on faces Summer");
@@ -125,7 +98,6 @@ fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
     let at = count_at(&canvas, &assets, c.crop[0], 2, at, 0xE8);
     word_at(&canvas, &assets, 77, 4, at, 0xE8);
 
-    // Facing Winter: the harvest, one Season off.
     game.kingdom.advance_season();
     game.kingdom.advance_season();
     game.kingdom.refresh_estimates(id);
@@ -137,7 +109,6 @@ fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
     let at = word_at(&canvas, &assets, 77, 3, at, 0xD8);
     count_at(&canvas, &assets, 1, 0x42, at, 0xD8);
 
-    // Advanced farming: the fertility phrase and the weather's swing.
     game.kingdom.options.advanced_farming = true;
     {
         let t = game.kingdom.tables;
@@ -159,19 +130,9 @@ fn the_grain_popup_follows_the_crop_the_rule_sows_grows_and_harvests() {
     word_at(&canvas, &assets, 77, index, at, 0xC0);
 }
 
-// ------------------------------------------------------------------ cattle
 
-/// **`Panel_JobCattle`, on the England position's stored herds**, which carry
-/// every row this painter has in both signs: births, deaths, slaughter and the
-/// overall change are all non-zero, a herd eaten by nobody draws the zero, and
-/// the crowding bands 10, 20 and 40 are each some county's.
-///
 /// Zero here: `+0x274` (the no-event line is asserted; the event test
 /// below moves it).
-///
-/// Ablations, run: the crowding arm `20 => 9` → `20 => 11` → *"Average herd
-/// crowding."* not at `(0x40, 0xA0)`; `wrapping_sub` → `wrapping_add` in the
-/// farming row → `"+6"` not at `(0x130, 0xF8)`.
 #[test]
 fn the_cattle_popup_draws_the_herd_its_crowding_and_three_signed_rows() {
     let (mut game, assets) = england_world!();
@@ -205,9 +166,6 @@ fn the_cattle_popup_draws_the_herd_its_crowding_and_three_signed_rows() {
 /// **The weather's line, both signs and none**, with advanced farming on and
 /// `Herd_SeasonTick` writing `+0x270` from a *Sunny*, a *Frost* and a *Cloudy*
 /// band. The band is the hand-set input; the figure is the rule's.
-///
-/// Ablation, run: the `v < 0` arm of `weather_line` given `0x10` → 77/0x11 not
-/// at the chained x on `0xC0`.
 #[test]
 fn the_cattle_popup_says_what_the_weather_did_to_the_herd() {
     let (mut game, assets) = england_world!();
@@ -238,5 +196,4 @@ fn the_cattle_popup_says_what_the_weather_did_to_the_herd() {
     }
 }
 
-// ------------------------------------------------------------------ events
 

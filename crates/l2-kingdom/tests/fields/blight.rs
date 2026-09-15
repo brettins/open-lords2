@@ -1,10 +1,9 @@
-//! **A flood or a drought ruins one field, and the next weather pass turns it
-//! wild.** The rule through the pipeline, not through `weather::update_all`.
-//!
 //! `Weather_UpdateAll` (`0x00449889`) ends each county's band with three calls:
+//!
 //! `FUN_0046942C` clears last season's ruin back to waste, then a *Drought*
 //! county has one field parched (`FUN_00469A9C(county, 0x18)`) and a *Flooding*
 //! one has one flooded (`0x17`), each behind `Msg_Enqueue` to the owner.
+//!
 //! `FUN_00469A9C` picks the field off the county's own round-robin cursor
 //! `+0x15B` (`County::blight_cursor`), pre-incremented and wrapped at `+0x205`.
 #![allow(unused_imports)]
@@ -12,10 +11,6 @@ use super::*;
 use l2_kingdom::field::terrain;
 use l2_kingdom::{Kingdom, Message, Pass, Season, SeasonReport, Weather};
 
-/// Four fallow fields on row 8 of one county owned by human realm 1.
-///
-/// `Season::Summer` because the frost rewrite eats *Drought* in Winter and
-/// Spring, so a field can only be parched in the two warm seasons.
 fn one_county(dryness: i32, human: bool) -> Kingdom {
     let mut k = Kingdom::new(7);
     assert!(k.set_county_count(1));
@@ -34,7 +29,6 @@ fn one_county(dryness: i32, human: bool) -> Kingdom {
     k
 }
 
-/// The county's four field tiles, in slot order.
 fn tiles(k: &Kingdom) -> Vec<usize> {
     (0..4).map(|s| k.counties[1].field_tile(s).expect("slot filled")).collect()
 }
@@ -59,7 +53,6 @@ fn a_drought_parches_one_field_and_writes_terrain_0x18() {
     assert_eq!(count_of(&k, terrain::PARCHED), 1, "one field, not all four");
     assert_eq!(count_of(&k, terrain::FALLOW), 3);
     assert_eq!(report.messages, vec![Message::Drought { county: 1 }]);
-    // `Msg_Enqueue(0x8F)`.
     assert_eq!(report.messages[0].original_id(), Some(0x8F));
 }
 
@@ -76,14 +69,6 @@ fn a_flood_floods_one_field_and_writes_terrain_0x17() {
 }
 
 /// **`FUN_0046942C`: wild for exactly one season, then wasteland.**
-///
-/// Autumn for the second pass so the band cannot come back a drought: the
-/// drought clamp leaves dryness at 70 ([`DRYNESS_AFTER_DROUGHT`]) and Autumn's
-/// push is `12 - rand/8` twice, at most `70 + 24 = 94`, under the ladder's 95.
-/// So the terrain the second pass sees is the parched byte and nothing else
-/// writes it.
-///
-/// Ablate `field::clear_blight` from the band loop and this stays `0x18`.
 #[test]
 fn last_seasons_parched_field_goes_back_to_waste() {
     let mut k = one_county(l2_kingdom::weather::DRYNESS_MAX, true);
@@ -106,8 +91,6 @@ fn last_seasons_parched_field_goes_back_to_waste() {
     assert_eq!(count_of(&k, terrain::FALLOW), 3, "the other three are untouched");
 }
 
-/// **The cursor decides which field, and it is the county's own.**
-///
 /// `+0x15B` is advanced *before* the tile is read, so a fresh county's first
 /// ruin lands on slot 1, not slot 0, and a cursor loaded at 2 sends it to
 /// slot 3. Ablate the cursor — ruin the first slot that holds a tile — and
@@ -140,8 +123,6 @@ fn the_cursor_wraps_at_the_used_slot_count() {
     assert_eq!(k.counties[1].blight_cursor, 0);
 }
 
-/// **`Msg_Enqueue`'s filter is on the letter, not on the blight.** An AI lord's
-/// county loses the field and the human hears nothing.
 #[test]
 fn an_ai_lords_field_is_ruined_without_a_letter() {
     let mut k = one_county(l2_kingdom::weather::DRYNESS_MIN, false);
@@ -151,9 +132,6 @@ fn an_ai_lords_field_is_ruined_without_a_letter() {
     assert!(report.messages.is_empty(), "no letter to an AI");
 }
 
-/// **The *Advanced Farming* override is a second loop, after the blight** — so
-/// with the option off the field is still ruined and the letter still sent, and
-/// only the weather byte is flattened to Cloudy.
 #[test]
 fn basic_farming_flattens_the_byte_and_still_ruins_the_field() {
     let mut k = one_county(l2_kingdom::weather::DRYNESS_MIN, true);

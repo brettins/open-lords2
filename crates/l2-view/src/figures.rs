@@ -1,27 +1,3 @@
-//! Which sprite frame a figure is showing.
-//!
-//! A battle sprite sheet is not a flat list of pictures. `A2r_swor.pl8` holds
-//! 114 frames laid out as **eight facings of twelve poses, then eighteen
-//! shared frames**, and the engine computes an index into that layout every
-//! tick. This module reproduces the computation.
-//!
-//! # The layout
-//!
-//! ```text
-//! frame = facing * poses_per_facing + pose        (facing 0..7)
-//!
-//!   pose 0 ..= 5                 walking, one pose every 4 ticks over 24
-//!   pose 6 ..                    striking, from a per-troop cycle table
-//!   pose <idle> = N-1            standing
-//!   pose 10 ..= 12               drawing a bow (crossbowmen and archers)
-//!
-//! then, after 8 * poses_per_facing:
-//!   +0 ..= +5                    six further shared frames
-//!   +6 ..                        dying: 4 half-facings of 3 frames
-//! ```
-//!
-//! # Where the numbers come from
-//!
 //! `poses_per_facing`, the idle pose and the strike cycles are read from the
 //! per-state animation handlers in `Lords2.exe`: `0x00486D83` (walking),
 //! `0x00486249` (striking and standing), `0x004872AE` (standing with the
@@ -29,17 +5,7 @@
 //! `figure->frame` (`+0x10`) and hand it to `BattleFigure_Draw`
 //! (`0x004BDC31`), which indexes `sheet + frame * 0x10 + 8` — the PL8 frame
 //! record. **[V]**
-//!
-//! # Why the numbers are trustworthy
-//!
-//! The arithmetic is checked against the shipped art
-//! decompiler. For every one of the **36** `a2` sprite files that are not
-//! knights — six player colours times six troop types — the frame count is
 //!, and the dying handler's base index is
-//! exactly `8 * poses_per_facing + 6` in all four of its groups. Getting
-//! `poses_per_facing` wrong for any troop breaks both identities at once.
-//! `tests/install.rs` asserts both identities over the install.
-//!
 //! Knights are different and are handled separately: they are drawn on a horse
 //! and their frame comes from an 8 x 8 `(body facing, target facing)` table at
 //! `0x004D9C30`. That table's sixteen live entries
@@ -50,18 +16,13 @@
 use crate::drawbow;
 use l2_sim::Troop;
 
-/// Facings, the eight-way delta table and `Dir_FromDelta` live in `l2-sim`: a
-/// facing decides where a figure *walks*, so it is simulation state and not
-/// artwork. Re-exported because everything in this module indexes by it.
 pub use l2_sim::facing::{facing_from_delta, FACINGS, FACING_DELTA};
 
-/// What a figure is doing, as far as the artwork is concerned — the
-/// simulation's [`l2_sim::Motion`], under the name this module has always used
-/// for it.
 pub use l2_sim::Motion as Anim;
 
 /// Player colours, in the order `Lords2.exe`'s battle asset table lists them
 /// (`0x004DA6B8` onward: `a2w_`, `a2r_`, `a2y_`, `a2k_`, `a2p_`, `a2b_`).
+///
 /// **[V]** The index is the owning realm's colour byte, campaign unit `+0x02`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Colour {
@@ -100,19 +61,14 @@ pub fn stem(troop: Troop) -> Option<&'static str> {
         Troop::Pikemen => "pike",
         Troop::Archers => "arch",
         Troop::Knights => "knig",
-        // Siege engines are drawn from Engine.pl8 and Catarm*.pl8, not from a
-        // per-colour troop sheet.
         _ => return None,
     })
 }
 
-/// `A2r_swor.pl8`, and so on. The install's casing is inconsistent, which is
-/// why every load goes through the mod overlay's case-insensitive lookup.
 pub fn sprite_file(colour: Colour, troop: Troop) -> Option<String> {
     stem(troop).map(|s| format!("A2{}_{}.pl8", colour.letter(), s))
 }
 
-/// The horse a knight is drawn on: 48 frames, eight facings of six.
 pub const HORSE_FILE: &str = "A2_horse.pl8";
 pub const HORSE_POSES: u8 = 6;
 
@@ -132,12 +88,6 @@ pub fn poses_per_facing(troop: Troop) -> u8 {
     }
 }
 
-/// **What a pose needs besides the troop, the anim and the facing.**
-///
-/// Three of the five animation handlers read a figure field that is not the
-/// phase, and drawing them from the phase alone was three of the five
-/// mismatches the oracle check found. `From<u8>` keeps the plain phase-only
-/// call for the handlers that read nothing else.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Pose {
     /// `animPhase` (`+0x0E`) - the walk, strike and dying cadences.
@@ -164,8 +114,6 @@ impl From<u8> for Pose {
     }
 }
 
-/// The pose a live figure is in. One reader of the figure record, so a picture
-/// drawn outside the renderer cannot drift from the renderer's.
 pub fn pose_of(runner: &l2_sim::runner::BattleRunner, i: usize) -> Pose {
     let f = &runner.fighters[i];
     let sim = &runner.sim.figures[f.sim];
@@ -207,8 +155,6 @@ fn defend_pose(troop: Troop) -> u8 {
 
 /// First **striking** pose. The same for every troop. **[V]**
 ///
-/// **Corrected.** This was `WALK_BASE` and the two bands were the wrong way
-/// round here for the same reason `docs/battle.md` §13.5 had them swapped.
 /// §14.5 is the correction: `Anim_WalkA2` (`0x00486D83`) gives poses 0…5 and is
 /// called from the two states that walk, `Anim_StrikeA2` (`0x00486249`) gives
 /// poses from base 6 and is called from the two that hit, and the index space
@@ -259,8 +205,6 @@ const KNIGHT_FRAMES: [[u8; 8]; 8] = [
     [50, 53, 0, 0, 0, 44, 47, 0],
 ];
 
-/// Pick the frame index for a figure.
-///
 /// `facing` is 0..7 and `phase` is the figure's own animation counter — the
 /// original keeps one per figure at `+0x0E`, seeded differently per figure so
 /// that identical men do not march in lockstep.
@@ -276,7 +220,6 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
     }
 
     if troop == Troop::Knights {
-        // **Only `Anim_StrikeA2` has the knight arm with the table.**
         // `00480000.c:2565`: a knight's body facing snaps to whichever of the
         // eight `DAT_004D9C30` rows has artwork for the facing it wants,
         // searching outward from its current one, and the strike cycle rides
@@ -287,11 +230,6 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         // facing 0 … 7 and the cadence goes on the horse sheet
         // ([`horse_frame`]). Ours put walk and stand on the strike formula, so
         // a riding knight's body flickered through the swing.
-        //
-        // Both of those arms read `dirc`, not `facingDrawn`: `2896-2900` is
-        // `frame = dirc & 7` written *over* the fidget's frame. The caller
-        // hands `facing` in — `l2_view::scene::render` picks `dirc` for a
-        // standing knight for this reason.
         let base = knight_base(facing, facing) as usize;
         return match anim {
             Anim::Attacking => base + strike_cycle(troop)[((phase % 40) / 4) as usize] as usize,
@@ -305,7 +243,6 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
             // arrived with; [`l2_sim`]'s `shovel` stops writing `facingDrawn`,
             // which freezes the `facing` handed in here. **[V]**.
             Anim::Dying | Anim::Shovelling => facing,
-            // Handled above: `Anim_DrawBowA2` has no knight arm either.
             Anim::Shooting => drawbow::frame(troop, facing as u8, pose.swing),
         };
     }
@@ -321,14 +258,11 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         // `Anim_StrikeA2` `0x00486249`: base 6 plus the per-troop strike cycle,
         // stepped every fourth tick of a forty-tick loop. Read from `dirc2`
         // (`+0x19`).
-        // ...and only for the man whose `role` is 1. The defender of the pair
-        // is drawn by the same handler, standing.
         Anim::Attacking if pose.defending => facing * stride + defend_pose(troop) as usize,
         Anim::Attacking => {
             let step = strike_cycle(troop)[((phase % 40) / 4) as usize];
             facing * stride + STRIKE_BASE as usize + step as usize
         }
-        // Handled above: the bow draw does not use the troop's stride.
         Anim::Shooting => drawbow::frame(troop, facing as u8, pose.swing),
         // **`Anim_CollapseA2` `0x00487CE4` — falling over, and the only pose
         // state 2 has.** Six frames at `8N+0`, one every four ticks of the
@@ -370,8 +304,6 @@ fn knight_base(body: usize, target: usize) -> u8 {
     0
 }
 
-/// The horse frame under a knight: eight facings of six poses.
-///
 /// `horseFrame = |dirc| * 6 + (animPhase >> 2)` in `Anim_WalkA2`
 /// (`0x00486D83`, `00480000.c:2762`), over that handler's 24-tick loop — so
 /// the six poses are exactly covered. `Anim_StandA2` (`0x004872AE`) and
@@ -386,18 +318,12 @@ pub fn horse_frame(facing: u8, anim: Anim, phase: u8) -> usize {
     facing * HORSE_POSES as usize + step
 }
 
-/// Where a figure is drawn while it is between cells.
-///
 /// `BattleFigure_Draw` adds `g_walkOffset32[facing][walking]` to the cell's
 /// screen position, where `walking` is the figure's sub-cell progress. The
 /// table is at `0x004E4030`; every entry is `(±(32 - 2*step), ±(32 - 2*step))`
 /// for the axes the facing moves along, so the whole 8 x 17 table collapses to
 /// this. **[V]** — reproduced arithmetically and asserted against the bytes
 /// read out of `Lords2.exe` in `tools/view/`.
-///
-/// The sign is what independently confirms the facing numbering: facing 0 is
-/// north, and its offset is *positive* y, i.e. the figure is drawn trailing
-/// south of the cell it is walking into.
 pub fn walk_offset(facing: u8, walking: u8) -> (i32, i32) {
     if walking == 0 || walking > 16 {
         return (0, 0);

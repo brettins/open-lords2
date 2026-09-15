@@ -10,9 +10,7 @@ use l2_net::{
     Message, PeerId, PlayerSlot, Fixed, Session, SessionError, Tick, Transport,
 };
 
-// --- input delay --------------------------------------------------------
 
-// --- refusing bad packets ------------------------------------------------
 
 fn lone_session() -> (Session, ToySim, [PlayerSlot; 2]) {
     let slots = [PlayerSlot::new(0), PlayerSlot::new(1)];
@@ -45,9 +43,6 @@ fn a_second_packet_for_a_tick_is_refused() {
     );
 }
 
-/// An integrity check: a packet whose
-/// contents contradict its header is far more likely to be a relaying
-/// bug in our own host code than an attack.
 #[test]
 fn a_packet_carrying_someone_elses_command_is_refused() {
     let (mut session, _sim, slots) = lone_session();
@@ -86,7 +81,6 @@ fn session_errors_explain_themselves() {
     );
 }
 
-// --- session bookkeeping --------------------------------------------------
 
 #[test]
 fn a_session_reports_what_it_was_built_with() {
@@ -123,6 +117,5 @@ fn recording_can_be_turned_off() {
     assert!(table.peers[0].session.dump(&table.peers[0].sim).is_none());
 }
 
-// --- the dump -------------------------------------------------------------
 
 

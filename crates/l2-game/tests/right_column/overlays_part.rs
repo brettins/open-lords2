@@ -8,37 +8,12 @@ use l2_game::screen::{Ctx, Machine, ScreenId, Transition};
 use l2_game::screens::{county, divide, info, map};
 use l2_game::Game;
 
-/// A world with one county owned, enough to build any of these screens.
 pub(super) fn world() -> (Game, Assets) {
-    // `Game::new` takes a SEED, not a realm count.
     let mut g = Game::new(7);
     g.player = 1;
 
-    // **Every realm holds a county, so nobody is eliminated on the first
-    // pass.** This fixture used to give land to the human alone, which left
-    // every other lord already dead — a won position before the test began.
-    //
-    // Nothing could notice. The ending ladder is the only writer of the
-    // outcome during play and it runs off the message ring, so until the
-    // message window landed there was no ring, no obituaries, and no victory:
-    // the fixture sat in a finished game for the whole of every test and was
-    // never told. With messages built, End Turn here produces obituaries and
-    // then the conquest screen, and this test — which is about a press
-    // reaching the map through an open panel — was being decided by an
-    // ending rule it has nothing to do with.
-    //
-    // The lesson is the fixture one: **a fixture in a degenerate state tests
-    // the degenerate state**, and it stays invisible for
-    // the rule that would object is unimplemented.
-    // Realms 2..5 each hold one, and the human holds county 1
-    // the one every screen in this file is built against.
     for realm in 2..g.kingdom.realms.len() as u8 {
         g.kingdom.counties[realm as usize].owner = realm;
-        // `Realm::in_play` is what the ranking counts, **not** county
-        // ownership. Giving a realm land is not the same as it being alive, and
-        // the two are only ever equal —
-        // why a hand-built fixture can hold land for six lords and still be a
-        // won game.
         g.kingdom.realms[realm as usize].in_play = true;
     }
     g.kingdom.realms[1].in_play = true;
@@ -47,8 +22,6 @@ pub(super) fn world() -> (Game, Assets) {
     (g, Assets::placeholder())
 }
 
-/// Every overlay that stands over the campaign map, and the press each is asked
-/// to decline.
 fn overlays() -> Vec<(&'static str, ScreenId)> {
     vec![
         ("information panel 0x04", ScreenId::Info(info::Target::Tile(0))),
@@ -64,20 +37,6 @@ fn overlays() -> Vec<(&'static str, ScreenId)> {
     ]
 }
 
-/// **No overlay may eat a press on the campaign minimap.**
-///
-/// `Screen_FrameInput`'s epilogue runs `Minimap_Click` on **every** screen id
-/// but `0x12`, and closes the management surface on a hit — so from any of
-/// these, a press in the 128 × 128 raster selects that county, recentres the
-/// map and drops the panel. A screen that answers `Stay` has swallowed it.
-///
-/// The information panel did exactly that until this branch, which is what
-/// makes this a check and not a formality: it is the same defect as the two
-/// overlapping buttons, one layer up. A control of the game's was unreachable
-/// because something of ours was in front of it.
-///
-/// Ablation, which was run: delete the `minimap_hit_area().contains` arm from
-/// `screens/info.rs` and this fails naming the information panel.
 #[test]
 fn no_overlay_swallows_the_campaign_minimap() {
     let (mut g, a) = world();
@@ -97,16 +56,6 @@ fn no_overlay_swallows_the_campaign_minimap() {
     }
 }
 
-/// **The screens the six sidebar guards really run on hand the whole column
-/// down, and the ones they do not keep nothing of their own in it.**
-///
-/// The six guards — the minimap modes, the sidebar, the county strip, the split
-/// slider, the produce rows and the right-release overlay clear — open the arms
-/// for `0x02`, `0x14`, `0x15`, `0x16` and `0x19` and **no others**. Every one of
-/// them tests `x >= 0x1DE`. So for those five the answer to any press in the
-/// column is `Pass`; for the rest the answer is anything *except* acting on a
-/// rectangle of our own, which is what the second loop asserts by requiring the
-/// press to be declined or ignored.
 #[test]
 fn only_the_five_screens_with_the_sidebar_guards_claim_the_column() {
     let (mut g, a) = world();
@@ -117,7 +66,6 @@ fn only_the_five_screens_with_the_sidebar_guards_claim_the_column() {
         ScreenId::County(1, county::Panel::Happiness),
         ScreenId::County(1, county::Panel::Ration),
     ];
-    // Six points, one in each `g_sidebarButtons` record, plus End Turn.
     let mut points: Vec<(String, (i32, i32))> = map::SIDEBAR_BUTTONS
         .iter()
         .map(|b| (b.name.to_string(), (b.rect().centre_x(), b.rect().y + b.rect().h / 2)))

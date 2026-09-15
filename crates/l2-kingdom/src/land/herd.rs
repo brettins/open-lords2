@@ -14,10 +14,6 @@ pub fn herd_labour(t: &Tables, county: &County) -> i32 {
 
 /// `herd / fieldsCattle`, head per pasture field — the input to the crowding
 /// bands. `FUN_0044D913`'s first three lines.
-///
-/// A county with cattle but no pasture gets [`crate::tables::HERD_NO_PASTURE_DENSITY`],
-/// which is far above the top band; an empty herd gets 0, which is the bottom
-/// of the bottom band.
 pub fn herd_density(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
     if herd < 1 {
         0
@@ -30,17 +26,6 @@ pub fn herd_density(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 
 /// `FUN_0044D913` — the crowding level stored in county `+0x25C`, one of the
 /// four values `L2.eng` group 77 names (`docs/kingdom.md` §13.1).
-///
-/// **A county with no pasture is at maximum crowding**, which the original
-/// says twice: once through [`herd_density`]'s sentinel and again as an
-/// explicit override after the bands. Both are reproduced, because they are
-/// separable — a ruleset that lowered `no_pasture_density` below the top band
-/// would find the override still holding.
-///
-/// §13.1's pseudocode shows an `if (herd < 1)` arm before the bands, as though
-/// an empty herd had no crowding at all. It does not: that guard is on the map
-/// *graphic*, and the level is written unconditionally. An empty herd on
-/// pasture is at density 0 and therefore in the *lowest* band.
 pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
     let last = t.herd.crowding[HERD_CROWDING_COUNT - 1];
     if fields_cattle == 0 {
@@ -58,25 +43,6 @@ pub fn herd_crowding(t: &Tables, herd: i32, fields_cattle: i32) -> i32 {
 /// **The picture on the pasture** — `FUN_0044D913`'s *other* output, which is a
 /// terrain value and not a level.
 ///
-/// `Herd_UpdateCrowding` computes one density and uses it twice, with **two
-/// different ladders**, and the difference is the reason this is its own
-/// function:
-///
-/// ```c
-/// if (herd < 1) graphic = 0x13; /* and the level is still written */
-/// else if (density < 11)  graphic = 0x14;
-/// else if (density < 21)  graphic = 0x15;
-/// else                    graphic = 0x16;
-/// ```
-///
-/// * The **graphic has an empty-herd arm** and the level has none. A county
-///   that has lost every animal keeps its pasture, gets terrain `0x13`, and
-///   [`l2_view::campaign::herd_sprite`] draws nothing on it.
-/// * The **graphic has three bands and the level has four.** Density 25 and
-///   density 250 are `herd_crowding` 30 and 40 — *"Herd overcrowded."* and
-/// *"Massive overcrowding!!"* — and the **same** picture, `0x16`. The map
-///   cannot tell the top two bands apart.
-///
 /// So the map is a lossy view of the meter, deliberately, and a renderer that
 /// derived the tile from `county.herd_crowding` would show three counties out
 /// of the England position wrongly. **[V]** — the England turn-one save carries
@@ -87,9 +53,6 @@ pub fn herd_graphic(t: &Tables, herd: i32, fields_cattle: i32) -> u8 {
         return crate::field::terrain::PASTURE;
     }
     let density = herd_density(t, herd, fields_cattle);
-    // The **first two** rows of the same table the level uses, and the third
-    // arm swallows rows 2 and 3 together. `density_max` is inclusive, so
-    // `<= 10` is the binary's `< 11`.
     if density <= t.herd.crowding[0].density_max {
         crate::field::terrain::PASTURE_LOW
     } else if density <= t.herd.crowding[1].density_max {
@@ -99,14 +62,6 @@ pub fn herd_graphic(t: &Tables, herd: i32, fields_cattle: i32) -> u8 {
     }
 }
 
-/// The crowding band a stored level names.
-///
-/// The original matches the level **exactly** — `if (crowding == 10) … else if
-/// (crowding == 20) … else if (crowding == 30) … else 7` — so anything that is
-/// not one of the three named values falls into the harshest band
-/// being interpolated. A save or a mod holding 15 gets the *"Massive
-/// overcrowding!!"* rates, and that is the original's own behaviour rather
-/// than a defensive choice of ours.
 fn crowding_band(t: &Tables, crowding: i32) -> HerdCrowdingRow {
     let last = t.herd.crowding[HERD_CROWDING_COUNT - 1];
     for row in t.herd.crowding.iter().take(HERD_CROWDING_COUNT - 1) {
@@ -118,32 +73,6 @@ fn crowding_band(t: &Tables, crowding: i32) -> HerdCrowdingRow {
 }
 
 /// **`FUN_0044DA99` — the rule that a herd has to be tended.**
-/// `docs/kingdom.md` §13.
-///
-/// ```text
-/// staffing  = PctOf(labour, herd * 3), capped at 200
-/// deathRate = crowding.death_rate + (staffing < 100 ? (100 - staffing) / 3 : 0)
-/// birthRate = Pct(crowding.birth_rate, staffing) + smallHerdBonus
-/// deaths    = per_myriad(herd * 100, deathRate)      [x 3/2 in Winter]
-/// births    = per_myriad(herd, birthRate)            [x 3/2 in Spring]
-/// ```
-///
-/// **Three labourers a head is full staffing**, and below it the shortfall is
-/// added to the death rate at a third of a point per point missing — a herd
-/// with nobody at all tending it loses `crowding + 33` per ten thousand a
-/// season on top of everything else. Above 100% the benefit is the birth rate
-/// only, and it stops at 200%.
-///
-/// **A county with no pasture at all loses half its herd, or all of it below
-/// six head**, and nothing else in the function runs. That is the branch that
-/// makes `fieldsCattle` load-bearing.
-///
-/// The two small rounding tells at the end are the original's and are kept:
-/// a herd whose *rate* is non-zero but whose *count* rounds to zero is given
-/// one animal either way, and deaths can never exceed the herd.
-///
-/// `season` is a `g_season` index; 0 is the original's *No Season* and matches
-/// neither bonus.
 pub fn herd_growth(
     t: &Tables,
     herd: i32,
@@ -170,10 +99,6 @@ pub fn herd_growth(
     }
     let band = crowding_band(t, crowding);
 
-    // Positive, and added to the *deaths*. The binary writes it as
-    // `-((staffing - 100) / 3)`; C truncates towards zero, so negating first
-    // gives the same answer as `(100 - staffing) / 3` and this is not the place
-    // to be clever about it.
     let understaffed =
         if staffing < 100 { -((staffing - 100) / t.herd.understaffing_divisor) } else { 0 };
     let death_rate = band.death_rate + understaffed;
@@ -198,7 +123,6 @@ pub fn herd_growth(
         births = births * num / den;
     }
 
-    // A rate that rounds away to nothing still moves one animal.
     if births == 0 {
         if birth_rate == 0 {
             if deaths == 0 && death_rate != 0 {
@@ -222,18 +146,12 @@ pub fn herd_growth(
 /// `herdEaten` here is next season's.** `Ration_ApplyAll`'s shadow `+0x190` is
 /// what `Herd_SeasonTick` already spent; `Pass::RationPreview` then prices the
 /// coming season into `+0x17C` before `County_RefreshEstimates` calls this.
+///
 /// Not a double subtraction — the old comment here said it was, from the
 /// retracted rule where the ration pass debited the store (C149).
 ///
 /// `[V]` against `england-turn1.sav`: nine unowned counties, herd 67 and
 /// `herdEaten` 13, reproduce the stored `+0x250/+0x254/+0x258` of 22, 0 and 9.
-/// `tests/cattle_thirteen.rs`.
-///
-/// Guarded on `popBand`, which is the original's guard — an empty county
-/// forecasts nothing. The labour search the same function performs, which
-/// fills the two spare words of the labour record with a suggested and a
-/// growth-maximising worker count, is **not** reproduced: `County::labour` is
-/// one integer a job and has nowhere to put them (`docs/screens-county.md` §8).
 pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
     county.herd_change_expected = 0;
     if county.pop_band == 0 {
@@ -261,19 +179,8 @@ pub fn herd_preview(t: &Tables, county: &mut County, season_next: u8) {
 /// its sign: `if (mod == 99) { change = 0; births = 0; }`. So 99 is not
 /// "+99%", it is *"Cattle will not reproduce this season"* — the *"No bull"*
 /// event, `L2.eng` group 314. See [`crate::event::HERD_NO_GROWTH`].
-///
-/// The order matters twice over. The sentinel suppresses the **weather** swing
-/// as well as the event's own, so a sunny season and a dead prize bull cancel
-/// out — and it zeroes only the *births*, so **an understaffed herd still dies
-/// during a No Bull season.** Both are the binary's.
-///
-/// `season` and `season_next` are `g_season` indices; the herd's own tick is
-/// run on the season now beginning and the forecast on the one after it,
-/// `Herd_SeasonTick` passes `g_season` and `g_seasonNext`.
 pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next: u8) {
-    // The season's third line, and the only place the herd is ever eaten:
     // `herd = herd - +0x190`, the shadow `Ration_ApplyAll` (`0x0044BF04`) left.
-    // Before `Herd_BirthsAndDeaths`, so the survivors are what breeds.
     county.herd -= county.herd_eaten_shadow;
     let growth = herd_growth(
         t,
@@ -287,8 +194,6 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
     let mut deaths = growth.deaths;
 
     let mut weather_change = pct(county.herd, t.weather[county.weather.index() as usize].herd_pct);
-    // `field_0x274 = 0`, then the event's magnitude in the two signed arms and
-    // nothing for No Bull; `field_0x270 = local_c` after the No Bull override.
     county.herd_event_change = 0;
     if county.event_herd_pct == crate::event::HERD_NO_GROWTH {
         weather_change = 0;
@@ -315,31 +220,9 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
     herd_preview(t, county, season_next);
 }
 
-// ---------------------------------------------------------------------------
-// The labour ceilings
-// ---------------------------------------------------------------------------
 
 /// `Herd_LabourEstimate` (`0x0044DD4D`) — the **cattle** floor *and* ceiling.
 ///
-/// A search too, over the same `births − deaths` the season's own tick
-/// computes:
-///
-/// ```c
-/// for (workers = 0; workers < population; workers++) {
-///     Herd_BirthsAndDeaths(county, herd - herdEaten, workers, crowding, season);
-///     net = births - deaths;
-///     if (net >= 0 && floor unset) floor = workers;      /* break-even */
-///     if (bestNet < net) { ceiling = workers; bestNet = net; }
-/// }
-/// wanted[1] = (floor unset) ? ceiling : floor;   /* the least-bad count */
-/// useful[1] = ceiling;                 /* 999999 when the loop never ran */
-/// ```
-///
-/// # The floor is the herd's only distress signal, and we did not compute it
-///
-/// A player: *"I don't know why 16 cows are being lost this season."* His county
-/// had 80 head, 114 milkmaids and a population of 150 — 47 % staffing, which
-/// adds 17 points to the death rate in [`herd_growth`].
 /// arrangement of 150 people that would have tended 80 cows. **The game's one
 /// way of saying so is this floor**: `Panel_JobDetail` colours the worker count
 /// red when `labour < labour_wanted` and `Village_RebuildIcons` draws the
@@ -350,9 +233,6 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 /// **`[V]` on the whole of it, including the fallback arm**, against the stored
 /// `+0xD4` of every county of every original save this machine can open — see
 /// `crates/l2-kingdom/tests/cattle.rs`. The fallback is not a cosmetic corner:
-/// `lastturn.sav`'s county 1 stores 302 and 302, and two other saves store
-/// 153/153 and 173/173, which is a herd that cannot break even at *any*
-/// staffing its county could supply and therefore falls back to the argmax.
 ///
 /// **`[I]`, and the one thing the saves cannot settle:** what the floor holds
 /// when the loop never runs at all. The ceiling's 999,999 is visible in the
@@ -363,30 +243,8 @@ pub fn herd_season_tick(t: &Tables, county: &mut County, season: u8, season_next
 ///
 /// **`[D]`.** Three things about the ceiling are worth keeping.
 ///
-/// The herd is the post-ration one (`herd − herdEaten`) and the crowding is the
-/// **stored** band — so `Field_SetType`
-/// calls `Herd_UpdateCrowding` before every refresh.
-///
-/// The answer is *not* `herd * 3`, and it is not reliably `herd * 6` either.
-/// Staffing is `PctOf(labour, herd * 3)` capped at 200, deaths flatten at 100 %
-/// and births keep rising to 200 %, so **six a head — twice
-/// [`crate::tables::HERD_LABOUR_PER_HEAD`] — is the ceiling's own ceiling.**
 /// That much is a `[V]` bound, asserted over every herd size 1 … 400 in all
 /// four seasons by `the_dairy_ceiling_is_the_fewest_milkmaids_that_reach_the_best_herd`.
-///
-/// **Where it lands is lower, and for small herds it is three a head.**
-/// `births = herd * birthRate / 10000` truncates, so once the small-herd bonus
-/// has pushed `birthRate` up the integer stops moving long before staffing
-/// reaches 200 %, and the strict `<` takes the *first* argmax. A herd of five
-/// tops out at **15** milkmaids and a herd of one at **1** — which is the whole
-/// of a player's *"if I added more milk maids they were idle"*. That truncation
-///
-/// too.
-///
-/// A county with no people leaves the ceiling at
-/// [`crate::county::LABOUR_UNSET`] — the loop never runs and 999,999 is its
-/// initial value. That is where the sentinel comes from, and `Labour_Allocate`
-/// reads it back as 0.
 pub fn herd_labour_estimate(t: &Tables, county: &County, season: u8) -> HerdEstimate {
     let herd = county.herd - county.herd_eaten;
     let mut best = -1_000_000;

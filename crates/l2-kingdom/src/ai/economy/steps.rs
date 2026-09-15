@@ -39,8 +39,6 @@ impl AiStep {
         self as i32
     }
 
-    /// The address of the handler in `Lords2.exe`
-    /// test knows where to look.
     pub fn address(self) -> u32 {
         match self {
             AiStep::Diplomacy => 0x004A277D,
@@ -60,18 +58,10 @@ impl AiStep {
         }
     }
 
-    /// True for the one step whose handler is an empty function in the shipped
-    /// binary — a fact, not a gap in this crate.
     pub fn is_empty(self) -> bool {
         self == AiStep::Nothing
     }
 
-/// True where this crate runs the step — **all fourteen**, and
-    /// the one that does nothing does nothing because the original's does.
-    ///
-    /// > This used to exempt the diplomacy pair
-    /// > seven reply handlers"*. [`crate::diplomacy`] is that inbox and those
-    /// > seven handlers.
     pub fn is_implemented(self) -> bool {
         true
     }

@@ -9,9 +9,6 @@ use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::{Season, Tables, Weather};
 use l2_kingdom::{Quirk, Quirks};
 
-/// One reaper, a huge standing crop, and a sunny sky. The original stores three
-/// halves of *everything the county grew*; fixed, it stores three halves of what
-/// the one reaper could carry.
 #[test]
 fn b1_a_single_reaper_in_a_sunny_field_reaps_the_whole_county_or_does_not() {
     let (faithful, fixed) = pair(Quirk::HarvestIgnoresLabourCap);
@@ -41,10 +38,6 @@ fn b1_a_single_reaper_in_a_sunny_field_reaps_the_whole_county_or_does_not() {
     assert_eq!(b.grain, b.crop[2]);
 }
 
-/// **The half that would hide a wrong fix.** *Cloudy* and *Drought* are the two
-/// bands the original already leaves alone, so the switch must change nothing
-/// there — a fix that "helped" in six bands instead of four would be a third
-/// behaviour belonging to neither setting.
 #[test]
 fn b1_the_two_bands_that_were_never_wrong_are_untouched() {
     let (faithful, fixed) = pair(Quirk::HarvestIgnoresLabourCap);
@@ -65,13 +58,7 @@ fn b1_the_two_bands_that_were_never_wrong_are_untouched() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// B2 — half the counties can never draw a random event
-// ---------------------------------------------------------------------------
 
-/// The original's parity lock, and its absence, measured the way `event.rs`
-/// measures it: **exhaustively over every seed**, not sampled. "We never saw an
-/// even county draw" and "an even county cannot draw" are different claims.
 #[test]
 fn b2_even_numbered_counties_draw_only_when_the_quirk_is_off() {
     let (faithful, fixed) = pair(Quirk::EventDeckParityLocksOutEvenCounties);
@@ -103,9 +90,6 @@ fn b2_even_numbered_counties_draw_only_when_the_quirk_is_off() {
     );
 }
 
-/// **The determinism property, and it is not optional.** Both settings must take
-/// the *same number* of values from the generator, or a quirk would move every
-/// later draw in the season and a desync dump would name the wrong subsystem.
 #[test]
 fn b2_the_number_of_random_values_drawn_does_not_depend_on_the_setting() {
     let (faithful, fixed) = pair(Quirk::EventDeckParityLocksOutEvenCounties);
@@ -122,14 +106,10 @@ fn b2_the_number_of_random_values_drawn_does_not_depend_on_the_setting() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// B3 — the weapon a county finds is chosen by its county number
-// ---------------------------------------------------------------------------
 
 #[test]
 fn b3_a_found_weapon_follows_the_county_id_or_the_countys_own_smithy() {
     let (faithful, fixed) = pair(Quirk::FoundWeaponFollowsCountyId);
-    // Armour, weapon type 5: a slot `(id & 3) + 1` can never produce.
     let county = || {
         let mut c = County::new();
         c.owner = 1;
@@ -167,9 +147,6 @@ fn b3_a_found_weapon_follows_the_county_id_or_the_countys_own_smithy() {
     }
 }
 
-/// **The crossbow.** Slot 0 is unreachable for the whole game with the quirk on
-/// — `docs/bugs.md` D6, the dead-code half of B3 — and reachable with it off.
-/// This is the consequence a player could notice.
 #[test]
 fn b3_the_crossbow_can_be_found_only_with_the_quirk_off() {
     let (faithful, fixed) = pair(Quirk::FoundWeaponFollowsCountyId);
@@ -179,13 +156,7 @@ fn b3_the_crossbow_can_be_found_only_with_the_quirk_off() {
     assert_eq!(l2_kingdom::event::weapon_slot(9, 0, fixed), 0, "a crossbow county finds crossbows");
 }
 
-// ---------------------------------------------------------------------------
-// B4 — the empire tax happiness term is summed into a signed byte
-// ---------------------------------------------------------------------------
 
-/// Sixteen counties taxed to the top. The original's byte wraps and the empire
-/// ends up **happier**; fixed, it saturates at the floor of the byte it lives
-/// in.
 #[test]
 fn b4_taxing_a_large_empire_hard_makes_it_happier_or_it_does_not() {
     let (faithful, fixed) = pair(Quirk::EmpireTaxHappinessWraps);
@@ -233,9 +204,6 @@ fn b4_a_small_empire_is_the_same_number_either_way() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// B10 — any ale at all fills a village under ten people
-// ---------------------------------------------------------------------------
 
 #[test]
 fn b10_one_crown_of_ale_in_a_tiny_village_buys_five_happiness_or_one() {
@@ -252,7 +220,6 @@ fn b10_one_crown_of_ale_in_a_tiny_village_buys_five_happiness_or_one() {
     assert_eq!(a.happiness - b.happiness, 4);
 }
 
-/// A village big enough for the step to be non-zero.
 #[test]
 fn b10_a_real_village_is_the_same_ladder_either_way() {
     let (faithful, fixed) = pair(Quirk::AnyAleFillsATinyVillage);

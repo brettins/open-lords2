@@ -1,6 +1,3 @@
-//! The diplomacy screen.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 #[macro_use]
 mod common;
@@ -21,11 +18,6 @@ use l2_game::shell::font;
 /// 0x2C, 0xD0, 0x3D, &g_fontHeading, 0x3F)`) and `Diplo_DrawLordCard`'s caption
 /// (`… + realm * 0x2C, 0x20, slot * 100 + 0x83, &g_fontBody, 0x3F`). All five
 /// are one draw in the original and are one function here.
-///
-/// The fixture is a `.sav`, which carries no typed names into this tree, so on
-/// It the group is what answers; this is the case the private
-/// copies got wrong. **Ablated**: restore `format!("REALM {realm}")` at either
-/// site and the name it invents is not on the canvas.
 #[test]
 fn the_diplomacy_screen_names_a_lord_out_of_the_games_own_sources() {
     let (mut game, assets) = world!();
@@ -40,7 +32,6 @@ fn the_diplomacy_screen_names_a_lord_out_of_the_games_own_sources() {
     assert!(!cards.is_empty(), "the England fixture has rivals to draw cards for");
     let canvas = draw(&mut screen, &mut game, &assets);
 
-    // The heading, in the heading font: the target's name and not `REALM n`.
     let name = l2_game::screens::message::lord_name(
         &Ctx { game: &mut game, assets: &assets },
         target,
@@ -55,7 +46,6 @@ fn the_diplomacy_screen_names_a_lord_out_of_the_games_own_sources() {
         find_heading(&canvas, &assets, &format!("REALM {target}"), font::TEXT).is_none(),
         "and it is not a name of ours"
     );
-    // And every card caption, in the body font, at `(0x20, slot * 100 + 0x83)`.
     for (slot, realm) in cards.iter().enumerate() {
         let card = l2_game::screens::message::lord_name(
             &Ctx { game: &mut game, assets: &assets },

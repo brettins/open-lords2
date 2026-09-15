@@ -8,8 +8,6 @@ impl Cell {
         self.flags & flag::NO_ENTRY != 0
     }
 
-    /// **Which sheet byte `+3` indexes: 0 the first, 1 the second.**
-    ///
     /// `Battlefield_Draw32` (`0x004BCBDC`) masks cell byte `+2` with `0x1C`
     /// and dispatches on the result:
     ///
@@ -26,9 +24,6 @@ impl Cell {
     /// battle asset table — `t32_bat1` alone for a field battle,
     /// `t32_stn1`/`t32_stn2` or `t32_wod1`/`t32_wod2` for a siege. **[V]**
     ///
-    /// `records.json` called these bits *"what they select is not
-    /// established"*; this is what they select.
-    ///
     /// **A field battle is always sheet 0.** `Battlefield_BuildFromSkr` clears
     /// the bits on every cell it writes and never sets them, and slot 1 of the
     /// table is `t32_bat2.pl8` at size **0** — a file the install does not
@@ -38,11 +33,6 @@ impl Cell {
     }
 }
 
-/// One row of an auto-tiling table: an eight-neighbour pattern, the base
-/// graphic index, and how many consecutive variants follow it.
-///
-/// Pattern values are the original's: `0` = that neighbour must **not** be the
-/// same terrain, `1` = it must be, `2` = don't care.
 #[derive(Debug, Clone, Copy)]
 struct Pattern {
     mask: [u8; 8],
@@ -65,7 +55,6 @@ const fn e(
     Pattern { mask: [n, ne, ea, se, s, sw, w, nw], base, variants }
 }
 
-// The four tables, read out of `Lords2.exe`'s `.data` at the addresses below.
 // Each entry is 12 bytes: eight pattern bytes, base, an untraced byte, the
 // variant count, and a rotating counter that the build resets (`FUN_0046C40C`)
 // and advances on every match (`FUN_0046C2DE`).
@@ -88,7 +77,6 @@ const HILL: [Pattern; 11] = [
 ];
 
 /// `0x004D75C8`, 6 entries — open ground that borders hills, drawn as a fringe.
-/// Ground with no hill neighbour falls through to a random variant instead.
 const GROUND_FRINGE: [Pattern; 6] = [
     e(1, 2, 2, 2, 2, 2, 1, 2, 0x7b, 1),
     e(1, 2, 2, 2, 2, 2, 0, 1, 0x76, 4),
@@ -194,8 +182,6 @@ impl Counters {
     }
 }
 
-/// The result of a table match: the entry's base index and its counter value
-/// *after* the match, which is what the graphic formulas add.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Hit {
     base: u8,
@@ -249,17 +235,10 @@ fn neighbour_mask(terrain: &[u8], x: usize, y: usize, want: u8, edge: bool) -> [
 
 /// **The moat's tile, cell by cell** — `FUN_0047DCCE`, the castle builder's
 /// `0xEE` arm, which is the same auto-tiler a field battle's water runs:
+///
 /// `FUN_0047D816(0x0B, 1)` for the eight-neighbour mask, then
 /// `FUN_0046C2DE(0x4D7610, 0x31)` — the 49-entry table and its rotating
 /// counters. **[V]**
-///
-/// `terrain` is the 6400-byte terrain-id plane; the answer is a parallel plane
-/// holding the frame for every [`id::WATER`] cell and 0 elsewhere. Walked
-/// row-major, because the counters make the order matter.
-///
-/// Two differences from the field's water, both the builder's: the frame it
-/// leaves comes out of **slot 1**, `t32_stn2` / `t32_wod2`, and a no-match
-/// cell keeps frame 0
 pub fn moat_autotile(terrain: &[u8]) -> Vec<u8> {
     assert_eq!(terrain.len(), CELLS);
     let mut counters = Counters::new();
@@ -278,15 +257,9 @@ pub fn moat_autotile(terrain: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Build the battlefield from one 80 x 80 `.skr` terrain layer.
-///
-/// `seed` drives only the random terrain variants (open ground, rocks, id 6).
-/// Everything else is a pure function of the layer.
 pub fn build(layer: &[u8], seed: u32) -> Battlefield {
     assert_eq!(layer.len(), CELLS, "a .skr terrain layer is exactly 80 x 80 bytes");
 
-    // Pass 1 - terrain byte to id. The bridge rule rewrites the *source* bytes
-    // two rows down, so this works on a copy.
     let mut src = layer.to_vec();
     let mut terrain = vec![0u8; CELLS];
     for y in 0..DIM {
@@ -298,9 +271,6 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
                 0x10 => id::BRIDGE_NEAR,
                 0x14 => id::BRIDGE_FAR,
                 0x12 => {
-                    // A span turns the two cells below it into the far end.
-                    // The original does this unguarded and reads past the
-                    // buffer on the last two rows; we clamp instead.
                     for step in [DIM, 2 * DIM] {
                         if i + step < CELLS && src[i + step] == 0x10 {
                             src[i + step] = 0x14;
@@ -320,7 +290,6 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
         }
     }
 
-    // Pass 2 - expand the markers, then erase them.
     let mut deploy_side0 = [(0u8, 0u8); 12];
     let mut deploy_side4 = [(0u8, 0u8); 12];
     let mut home_side0 = (0u8, 0u8);
@@ -348,14 +317,12 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
         }
     }
 
-    // Pass 3 - graphics and flags.
     let mut cells = vec![Cell::default(); CELLS];
     for (c, &t) in cells.iter_mut().zip(terrain.iter()) {
         c.terrain = t;
     }
     graphics_pass(&mut cells, &terrain, seed, true);
 
-    // Pass 4 - bridges.
     bridge_pass(&mut cells);
 
     Battlefield { cells, deploy_side0, deploy_side4, home_side0, home_side4 }
@@ -377,12 +344,9 @@ pub(super) fn graphics_pass(cells: &mut [Cell], terrain: &[u8], seed: u32, rando
     for y in 0..DIM {
         for x in 0..DIM {
             let i = y * DIM + x;
-            // Stepped for every cell, used by only some. Reproducing that is
-            // what keeps the sequence aligned with the original's.
             let r = rng.next();
             let t = terrain[i];
             let cell = &mut cells[i];
-            // `flags2 &= 0xE3` — both builders clear the sheet selector.
             cell.flags2 &= !tileset::MASK;
             match t {
                 id::OPEN => {

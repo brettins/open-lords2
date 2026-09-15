@@ -1,23 +1,3 @@
-//! **Pick Ireland, and play Ireland.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test newgame
-//! ```
-//!
-//! The setup screen has been able to *name* a map since its list was drawn.
-//! What it could not do was start one: whatever the list said, the world came
-//! out of `lastturn.sav` and it was England. This file is the check on the
-//! other half — that the slot the list highlights is the world the campaign
-//! screen opens on, and that a turn runs in it.
-//!
-//! **Nothing here loads a save.** Every game starts from `Game::new`, which is
-//! an empty world, so a test that passed by inheriting the fixture's England
-//! would have nothing to inherit.
-//!
-//! Everything is driven through [`Screen::handle`] with real pointer
-//! coordinates read out of the geometry tables, for the reason
-//! `tests/setup.rs` gives: a test that calls a method the interface does not
-//! reach proves nothing about the interface.
 
 
 use std::path::PathBuf;
@@ -35,8 +15,6 @@ use l2_game::{turn, Game};
 use l2_kingdom::realm::MAX_REALMS;
 
 /// `L2.eng` group 101's first five names, which are the first five slots.
-/// Ireland is slot 2, and it is on the list's first page, so choosing it is one
-/// click.
 const IRELAND: usize = 2;
 const SCOTLAND: usize = 1;
 const ENGLAND: usize = 0;
@@ -78,13 +56,10 @@ fn pick_map(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, row: usi
     click(screen, game, assets, MAP_LIST_X + 20, y);
 }
 
-/// *Start* — the second of page 7's three captions.
 fn press_start(screen: &mut SetupScreen, game: &mut Game, assets: &Assets) -> Transition {
     click(screen, game, assets, CUSTOM_BUTTONS[1].0 + 20, CUSTOM_BUTTON_Y)
 }
 
-/// Open the custom page and let its first tick read the map, as the machine
-/// does.
 fn open(assets: &Assets, game: &mut Game) -> SetupScreen {
     let mut screen = SetupScreen::new(SetupPage::Custom);
     let mut ctx = Ctx { game, assets };
@@ -92,11 +67,8 @@ fn open(assets: &Assets, game: &mut Game) -> SetupScreen {
     screen
 }
 
-/// How many counties a slot has, straight out of the file — a second reading
-/// of the number the world builder produces.
 fn counties_in(assets: &Assets, slot: usize) -> usize {
     assets.slot(slot).expect("the slot").county_count()
 }
 
-// ---------------------------------------------------------------- the headline
 

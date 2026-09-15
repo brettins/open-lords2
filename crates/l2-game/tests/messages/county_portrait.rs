@@ -1,9 +1,6 @@
 //! **The peasants' letter has a picture in it** — `Msg_DrawWindow`'s
 //! category-`0x02` arm (`0x0047309E`), which the player reported blank.
 //!
-//! The arm's portrait is a `Faces.pl8` frame like a lord's, but the frame is
-//! chosen by the county's **population** and not by a realm:
-//!
 //! ```c
 //! if (*(int *)(&DAT_0053F9D4 + county * 0x300) < 0xF0) FUN_00475d73(6);
 //! else                                                 FUN_00475d73(0);
@@ -11,9 +8,6 @@
 //! Ui_DrawInsetRect(x + 0xF, y + 0x11, 0x52, 0x4E);
 //! Blit_Raster(0x4EEB80, x + 0x10, y + 0x12, 0x50, 0x4C);
 //! ```
-//!
-//! Both tests need the artwork, so both are install-gated like the rest of this
-//! suite.
 
 #![allow(unused_imports)]
 use super::*;
@@ -29,8 +23,6 @@ fn greeting(county: u8) -> Record {
     Record { to: 0, group: 134, category: category::COUNTY_PORTRAIT, county, ..Record::default() }
 }
 
-/// Paint the greeting for one county at one population. A macro and not a
-/// function because `painted!`'s install gate is a bare `return`.
 macro_rules! letter {
     ($population:expr, $county:expr) => {{
         let (mut g, a, mut m) = painted!();
@@ -41,9 +33,6 @@ macro_rules! letter {
     }};
 }
 
-/// **The well holds a frame, and which frame is the county's own.**
-///
-/// One county, one letter, two populations either side of the arm's `0xF0`.
 /// Everything a greeting draws — the window, `L2.eng` 109/1, the county name,
 /// the body, the corner button — is a function of the record and the county
 /// *id*, which are identical in both paintings. The population reaches the page

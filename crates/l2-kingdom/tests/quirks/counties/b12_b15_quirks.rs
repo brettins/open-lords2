@@ -12,9 +12,6 @@ use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::{Season, Tables, Weather};
 use l2_kingdom::{Quirk, Quirks};
 
-/// The share moves the wrong way on every click with the quirk on, and the
-/// right way with it off — asserted over **four clicks**, because one click
-/// cannot tell "inverted" from "off by one".
 #[test]
 fn b12_the_castle_switch_moves_its_labour_share_backwards_or_forwards() {
     use l2_kingdom::industry::MapToggle;
@@ -40,9 +37,6 @@ fn b12_the_castle_switch_moves_its_labour_share_backwards_or_forwards() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// B15 — the migration inflow list is written with no break
-// ---------------------------------------------------------------------------
 
 #[test]
 fn b15_the_inflow_list_holds_one_repeated_value_or_a_list() {
@@ -51,11 +45,6 @@ fn b15_the_inflow_list_holds_one_repeated_value_or_a_list() {
     let sources = |quirks: Quirks| {
         let mut k = furnished_kingdom(15);
         k.options.quirks = quirks;
-        // Two miserable counties beside a happy one, so both send people to it.
-        // **The adjacency has to be set** - `migrate_all` walks
-        // `County::neighbours`, and a county with none emigrates nowhere, which
-        // is how the first draft of this test measured an empty list twice and
-        // called them different.
         k.counties[1].happiness = 100;
         for id in 2..=3 {
             k.counties[id].happiness = 0;
@@ -75,8 +64,6 @@ fn b15_the_inflow_list_holds_one_repeated_value_or_a_list() {
         list.iter().filter(|v| **v != 0).count()
     };
 
-    // The reproduced bug: some county's list is one value written into every
-    // free slot, so it is full.
     assert!(
         a.iter().any(|l| filled(l) > 1 && l.iter().filter(|v| **v != 0).all(|v| *v == l[0])),
         "reproduced: a destination's sixteen bytes hold one repeated source"
@@ -88,7 +75,4 @@ fn b15_the_inflow_list_holds_one_repeated_value_or_a_list() {
     assert_ne!(a, b);
 }
 
-// ---------------------------------------------------------------------------
-// B16 — a county that dies out records a negative death count
-// ---------------------------------------------------------------------------
 

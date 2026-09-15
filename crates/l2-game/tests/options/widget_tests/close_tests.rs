@@ -14,8 +14,6 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-/// **The close button closes on the release, not the press.**
-///
 /// All four arms call `Ui_OkButtonClicked` (`0x0040E7E4`), whose first line is
 /// `if (g_mouseLeftReleased == 0) return 0;`. Ours closed on the press.
 ///
@@ -33,8 +31,6 @@ fn the_close_button_answers_the_release_and_not_the_press() {
     }
 }
 
-/// The close button closes, and so do `Escape` and a right-click — the
-/// original's own two and our one, and no fourth.
 #[test]
 fn the_panel_closes_three_ways_and_only_three() {
     for page in Page::ALL {
@@ -54,8 +50,6 @@ fn the_panel_closes_three_ways_and_only_three() {
             Transition::Pop,
             "{page:?} right-click"
         );
-        // And the one that must NOT close it: Enter and Space, which every
-        // shell treated as "confirm". These are not shells any more.
         assert_eq!(screen.handle(Event::KeyDown(Key::Enter), &mut ctx), Transition::Stay);
         assert_eq!(screen.handle(Event::KeyDown(Key::Space), &mut ctx), Transition::Stay);
     }

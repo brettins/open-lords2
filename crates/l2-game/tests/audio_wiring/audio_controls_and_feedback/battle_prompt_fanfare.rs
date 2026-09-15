@@ -1,17 +1,9 @@
-//! **The drum roll when a battle is announced, on the path the player walks.**
-//!
-//! The report (2026-09-14): *"no drum roll when I try to attack a country"* —
-//! *"when my army first reaches a country and I get the battle to be fought I
-//! remember a drum roll of sorts"*.
-//!
 //! The site is `Battle_ChooseSettlement` (`0x004A6A30`),
 //! `Sound_PlayFile("ff_batl.wav", 0, 0)` on the branch that raises screen
 //! `0x12` — `docs/audio.json` `Battle_ChooseSettlement#1`. `Director::listen`
 //! plays it when [`ScreenId::BattlePrompt`] arrives, and
 //! `audio::tests::the_battle_prompt_speaks_the_take_its_choice_owner_picks`
 //! covers that with a pushed stack. What that fixture cannot see is the turn:
-//! a march into an enemy county raises the prompt from `MapScreen`'s own
-//! update, and this drives exactly that.
 
 #![allow(unused_imports)]
 use super::*;
@@ -25,13 +17,8 @@ use l2_kingdom::map::{CampaignMap, MAP_DIM, MAP_TILES};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 
-/// The x at which county 1 gives way to county 2, as `tests/military` divides
-/// its map.
 const BORDER: usize = 32;
 
-/// Three counties in vertical bands, the player holding the first and an AI
-/// the other two — `tests/military`'s `world`, which is the fixture the
-/// prompt's own tests march across.
 fn two_realms() -> (Game, Assets) {
     let mut g = Game::new(11);
     g.prefs.tip_screens = true;
@@ -74,12 +61,6 @@ fn army_at(g: &mut Game, owner: u8, county: u8, men: i32, at: (u8, u8)) -> usize
     g.kingdom.campaign.units.spawn(u).expect("a free slot")
 }
 
-/// March into the enemy county and end the turn, ticking the machine and the
-/// director together the way `main.rs`'s `tick` does — `machine.update` then
-/// `Director::listen`, once a frame.
-///
-/// Returns what the one-shot buffer was asked for, and whether the prompt
-/// came up at all.
 fn a_march_into_the_enemy(platform: &l2_mods::Platform) -> (bool, Vec<String>) {
     let (mut game, assets) = two_realms();
     let mine = (BORDER as u8 - 1, 40);
@@ -96,7 +77,6 @@ fn a_march_into_the_enemy(platform: &l2_mods::Platform) -> (bool, Vec<String>) {
     )
     .expect("a path one tile long");
 
-    // The stack `main.rs` builds, never a constructed one.
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
@@ -135,11 +115,6 @@ fn a_march_into_the_enemy(platform: &l2_mods::Platform) -> (bool, Vec<String>) {
     (opened && survived, audio.heard().iter().map(|s| s.to_string()).collect())
 }
 
-/// **The fanfare sounds when the march raises the question.**
-///
-/// `Battle_ChooseSettlement#1` in `docs/audio.json`.
-///
-/// **Ablation, run:** drop the `audio.play_file(names::fanfare::BATTLE, ..)`
 /// in `Director::listen`'s battle-prompt arm and this goes red with an empty
 /// `heard`; the pushed-stack test in `audio::tests` goes red with it.
 #[test]

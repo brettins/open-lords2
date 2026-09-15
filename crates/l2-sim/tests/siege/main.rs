@@ -1,14 +1,3 @@
-//! **A siege that
-//!
-//! `docs/battle-ai.md` has held all seventeen handlers since it was written and
-//! `crates/l2-sim/src/ai/mod.rs` has implemented all eighteen slots. **Fourteen of
-//! them had never been dispatched even once**, because nothing in this crate
-//! could produce a siege: no castle, no `is_siege`, and no way for a figure to
-//! attack a wall.
-//!
-//! Needs no game install. The castle is
-//! [`l2_sim::siege::our_castle`] — **ours, not the original's**, and its own
-//! documentation says why.
 
 mod handlers;
 pub use handlers::*;
@@ -30,8 +19,6 @@ use l2_sim::siege::{
 };
 use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 
-/// A besieger with everything, against a garrison with everything, at a given
-/// castle level. Both sides AI-controlled so that every unit is dispatched.
 fn siege_battle(level: u8, seed: u64) -> BattleRunner {
     let attacker = [
         (Troop::Peasants, 240u32),
@@ -42,8 +29,6 @@ fn siege_battle(level: u8, seed: u64) -> BattleRunner {
         (Troop::SiegeTowers, 2),
         (Troop::BatteringRams, 1),
     ];
-    // Three missile groups, because the first two are latched to the two wall
-    // categories and the third is what reaches `UnitOrder_SiegeDefMissile`.
     let defender = [
         (Troop::Archers, 500u32),
         (Troop::Crossbowmen, 200),

@@ -1,22 +1,10 @@
-//! Just enough PE to turn one of `Lords2.exe`'s virtual addresses into a file
-//! offset.
-//!
 //! The game has no ASLR and a fixed image base of `0x400000`
 //! address written in `docs/symbols.md` is a constant and the bytes behind it
 //! can be read straight off disk — no process, no window, nothing a screen lock
 //! can spoil (`docs/decisions.md` C16).
-//!
-//! This was written three times: once in `l2-formats`'s save reader, once in
-//! `l2-view/tests/install.rs`, and once in each of the four PowerShell scripts
-//! under `tools/oracle`. The Rust copies are now this one, so an oracle test in
-//! any crate is four lines
-//! write one.
 
-/// `Lords2.exe`'s fixed image base.
 pub const IMAGE_BASE: u32 = 0x0040_0000;
 
-/// File offset of a virtual address, or `None` when no section covers it.
-///
 /// Uses the **raw** size, so an address in
 /// uninitialised `.data` returns `None`
 /// follows it in the file. That distinction is C14/C16: the bytes for a runtime
@@ -42,11 +30,6 @@ pub fn va_to_offset(exe: &[u8], va: u32) -> Option<usize> {
     None
 }
 
-/// A table of fixed-width little-endian integers, read out of the image.
-///
-/// Panics with the address in the message when the table is not in an
-/// initialised section, because at that point the test's premise is wrong and
-/// continuing would compare against zeros.
 pub struct Table<'a> {
     exe: &'a [u8],
     base: usize,
@@ -61,7 +44,6 @@ impl<'a> Table<'a> {
         Table { exe, base, va }
     }
 
-    /// Address of this table, for failure messages.
     pub fn va(&self) -> u32 {
         self.va
     }
@@ -80,13 +62,10 @@ impl<'a> Table<'a> {
         self.exe[self.base + index]
     }
 
-    /// `count` consecutive `i32`s.
     pub fn i32s(&self, count: usize) -> Vec<i32> {
         (0..count).map(|i| self.i32_at(i)).collect()
     }
 
-    /// Column `col` of a `rows` x `cols` table of `i32`, row-major — the shape
-    /// `g_troopBattleStats` and friends are stored in.
     pub fn column(&self, rows: usize, cols: usize, col: usize) -> Vec<i32> {
         (0..rows).map(|r| self.i32_at(r * cols + col)).collect()
     }

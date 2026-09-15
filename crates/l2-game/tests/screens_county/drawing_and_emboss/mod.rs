@@ -34,5 +34,4 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-// ---------------------------------------------------- the county-strip emboss
 

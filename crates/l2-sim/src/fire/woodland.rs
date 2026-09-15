@@ -81,11 +81,6 @@ pub fn pour_facing(from: (u8, u8), to: (u8, u8)) -> u8 {
 /// else if (pot == 4 && dest < 4) FUN_0047a814(pot, x, y);   /* from the rampart  */
 /// else if (pot == 5 && dest < 4) FUN_0047a814(pot, x, y);   /* from the bailey   */
 /// ```
-///
-/// So an order *down* pours and an order *along* moves: a pot on the rampart
-/// walk told to go to another stretch of walk walks there, and told to go to
-/// the field below tips its oil where it stands. **An order is a pour, not a
-/// walk to a place to pour from.**
 pub fn order_pours(pot_surface: u8, dest_surface: u8) -> bool {
     matches!((pot_surface, dest_surface), (6, d) if d < 6)
         || matches!((pot_surface, dest_surface), (4, d) if d < 4)

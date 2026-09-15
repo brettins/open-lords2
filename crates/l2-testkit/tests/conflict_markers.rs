@@ -1,28 +1,3 @@
-//! **No conflict marker reaches `main`.**
-//!
-//! This exists because four of them did. The `input-arms` merge left
-//! `<<<<<<< HEAD` / `=======` / `>>>>>>> inputarms` hunks committed in
-//! `README.md`, `docs/plan.md` and twice in `docs/status.html`, and they sat on
-//! `main` through a push, a full test run and all five checks.
-//!
-//! The reason they were invisible is the whole lesson: **both sides of every one
-//! of those hunks were textually identical.** Git raised the conflict on
-//! surrounding context, not on content, so resolving it was a no-op — and a
-//! no-op resolution leaves nothing that reads wrong. Worse, `figures.js` went on
-//! rewriting the marked number inside *both* halves, twice per figure, and
-//! reported success: a generator that finds its markers does not care that it
-//! found two of them.
-//!
-//! So no existing instrument could have seen it. `cargo test` compiles no
-//! Markdown. `figures.js --check` was satisfied. `symbols_md.js`,
-//! `corrections.js` and the census test all look at files that happened
-//! be hit. It was found by eye, in a `git diff` run for an unrelated reason,
-//! and only because that diff put the two identical halves next to each other.
-//!
-//! The check is trivial and belongs in the suite
-//! head: *prefer a shape that cannot be wrong to a check that notices when it
-//! is* — and where the shape cannot be fixed, at least let the noticing be
-//! automatic.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -35,12 +10,10 @@ fn root() -> PathBuf {
         .to_path_buf()
 }
 
-/// Extensions worth scanning. Everything else is either binary or generated.
 const TEXT: &[&str] = &[
     "rs", "md", "json", "toml", "js", "html", "java", "ps1", "yml", "yaml", "txt", "lock",
 ];
 
-/// A marker line, and whether it is inside a fenced code block.
 struct Hit {
     file: String,
     line: usize,
@@ -51,7 +24,6 @@ struct Hit {
 fn is_marker(line: &str) -> bool {
     for m in ["<<<<<<<", "=======", ">>>>>>>"] {
         if let Some(rest) = line.strip_prefix(m) {
-            // `=======` may stand alone; the other two always name a side.
             if rest.is_empty() || rest.starts_with(' ') {
                 return true;
             }
@@ -60,11 +32,6 @@ fn is_marker(line: &str) -> bool {
     false
 }
 
-/// Every marker line in the tracked tree, fenced ones included.
-///
-/// Fenced hits are kept
-/// the exemption is
-/// exemption that could be swallowing everything.
 pub(crate) fn scan() -> Vec<Hit> {
     let root = root();
     let out = Command::new("git")
@@ -80,7 +47,6 @@ pub(crate) fn scan() -> Vec<Hit> {
         if !TEXT.contains(&ext) {
             continue;
         }
-        // This file necessarily contains the patterns it hunts for.
         if rel.ends_with("tests/conflict_markers.rs") {
             continue;
         }
@@ -130,13 +96,6 @@ fn no_conflict_marker_is_committed() {
     panic!("{msg}");
 }
 
-/// The fence exemption is real, and this is the file that proves it.
-///
-/// `docs/agents.md` quotes a genuine conflict hunk — the nine-hunk
-/// `symbols.json` misalignment — inside a code fence, and it must not be
-/// flagged. Asserting that it is *found and excused* is what stops the fence
-/// logic from silently swallowing live markers too: a filter with nothing on
-/// either side of it is untested in both directions.
 #[test]
 fn the_fence_exemption_is_exercised_by_a_real_example() {
     let hits = scan();

@@ -1,5 +1,3 @@
-//! **Page 12 answers, and *Go* fights what it is showing.**
-//!
 //! Every click here is a real pointer coordinate inside the widget table at
 //! `0x004DCF68` — `node tools/oracle/widgets.js widgets 4dcf68 22` — so a
 //! rectangle that moves breaks these and a method rename does not.
@@ -11,8 +9,6 @@ use l2_game::screens::setup::skirmish::{
 use l2_game::screens::setup::{SetupPage, SetupScreen};
 use l2_game::screen::{ScreenId, Transition};
 
-/// A table whose every count is the row, the side and the column it came from,
-/// so a wrong lookup cannot look right.
 fn table() -> TroopsTable {
     let mut rows = Vec::new();
     for r in 0..55u16 {
@@ -41,7 +37,6 @@ fn page12(game: &mut Game, assets: &Assets) -> SetupScreen {
 fn the_four_categories_are_the_hotspot_itself() {
     let (mut game, assets) = world!();
     let mut s = page12(&mut game, &assets);
-    // Top to bottom: castles, field, field, file — 2, 0, 1, 3.
     for (y, kind) in [(291, 2usize), (322, 0), (353, 1)] {
         click(&mut s, &mut game, &assets, 470, y + 15);
         assert_eq!(s.skirmish().kind, kind, "the category strip is 2, 0, 1, 3");
@@ -60,7 +55,6 @@ fn a_list_row_is_the_row_the_fill_reads() {
     // `FUN_0043D9CD`, the lower arrow: the top moves and the row with it.
     click(&mut s, &mut game, &assets, 610, 276);
     assert_eq!((s.skirmish().top, s.skirmish().row), (1, 4));
-    // Ablation: the row is what reaches the table, so the fill must move too.
     let (mine, _) = s.skirmish().fill_armies(&table());
     assert_eq!(mine.counts[0], 512, "row 4, the attacker's half, column 2");
 }
@@ -94,7 +88,6 @@ fn the_handicap_seesaws_between_one_and_three() {
         click(&mut s, &mut game, &assets, 355, 400);
     }
     assert_eq!(s.skirmish().difficulty, [3, 1]);
-    // Ablation: the column is what the fill reads, so the armies must differ.
     let (mine, theirs) = s.skirmish().fill_armies(&table());
     assert_ne!(mine.counts[0], theirs.counts[0], "different columns, different armies");
 }
@@ -128,7 +121,6 @@ fn the_file_field_opens_page_13_and_a_row_of_it_chooses() {
     assert_eq!(s.page(), SetupPage::Skirmish, "and it returns to the page it came from");
     assert_eq!(s.skirmish().file.as_deref(), Some("HASTINGS.SKR"));
     assert_eq!(s.skirmish().kind, 3, "taking a name is what makes category 3 reachable");
-    // Ablation: a row past the end of the list is not a click.
     click(&mut s, &mut game, &assets, 470, 384 + 15);
     assert_eq!(s.skirmish().kind, 3, "and now hotspot 3 keeps category 3");
 }
@@ -148,8 +140,6 @@ fn go_raises_the_battlefield_with_the_two_armies_the_page_is_showing() {
     assert!(b.skirmish, "DAT_0057A0F0");
     assert_eq!((b.attacker, b.defender), (2, 1), "the attacker is the player's record 2");
     assert!(b.castle_level.is_none(), "FUN_0042B9C4: category 0 is Battlefield_BuildRandom");
-    // Ablation: the fill is what raises it. With no troops table there are no
-    // armies, and the button says nothing rather than deploying nobody.
     let mut empty = SetupScreen::new(SetupPage::Skirmish);
     game.battle = None;
     let t = click(&mut empty, &mut game, &assets, 600, 440);
@@ -261,7 +251,6 @@ fn page_13_reads_its_rows_through_the_scroll_base() {
     click(&mut s, &mut game, &assets, 560, 399);
     click(&mut s, &mut game, &assets, 200, 0xB0 + 8);
     assert_eq!(s.skirmish().file.as_deref(), Some("B1.SKR"), "row 0 is the base");
-    // Ablation: under ten names the base is pinned at 0.
     let mut s = page12(&mut game, &assets);
     s.set_skirmish_files(vec!["A.SKR".into(), "B.SKR".into()]);
     s.scroll_skirmish_files(1);

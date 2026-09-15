@@ -14,17 +14,6 @@ use l2_game::{Assets, Game};
 use l2_kingdom::tables::{Tables, Weather};
 use l2_kingdom::{Kingdom, Options};
 
-/// A game with something in every field the format writes: two realms in play,
-/// a mix of owned and unowned counties, stock, anchors, colours, a selection
-/// and turns behind it.
-///
-/// Deliberately not `Game::new`: a save format tested only on zeros is a save
-/// format tested only on zeros.
-///
-/// **Also where the save-directory safety net goes up.** Nothing can be saved
-/// without a `Game`
-/// forgot its [`Saves`] meets [`an_unscoped_save_is_refused`] before it can
-/// write — whatever order the harness happens to run the tests in.
 pub(crate) fn furnished(seed: u64) -> Game {
     an_unscoped_save_is_refused();
     let mut game = Game::new(seed);
@@ -36,8 +25,6 @@ pub(crate) fn furnished(seed: u64) -> Game {
         fight_humans_only_byte: 0,
         exploration: true,
         time_limit: 240,
-        // Not the default
-        // FAITHFUL and the test would pass anyway.
         quirks: l2_kingdom::Quirks::FIXED,
     };
     assert!(k.set_county_count(14));
@@ -80,8 +67,6 @@ pub(crate) fn furnished(seed: u64) -> Game {
         c.weather = Weather::ALL[id % 6];
     }
 
-    // The interface's own ten fields, all of them different from each other so
-    // that a swap between two of them would show.
     game.player = 1;
     game.map_slot = 42;
     game.realm_colour = [0, 5, 4, 3, 2, 1];
@@ -95,13 +80,10 @@ pub(crate) fn furnished(seed: u64) -> Game {
     game
 }
 
-/// The lockstep digest of a kingdom — the number a peer would exchange
-/// one this file compares two timelines with.
 pub(crate) fn digest(k: &Kingdom) -> u64 {
     l2_kingdom::save::checksum(k)
 }
 
-/// A game with `n` turns played through the phase machine.
 pub(crate) fn played(n: usize) -> Game {
     let mut game = furnished(0x51A_7E5);
     for i in 0..n {
@@ -110,7 +92,6 @@ pub(crate) fn played(n: usize) -> Game {
     game
 }
 
-// --- the round trip --------------------------------------------------------
 
 #[test]
 fn a_furnished_game_round_trips_field_for_field() {
@@ -130,10 +111,6 @@ fn a_game_with_turns_behind_it_round_trips_including_its_last_report() {
     }
 }
 
-/// **The test that can fail for a real reason.**
-///
-/// Two timelines from the same save, ten seasons each, compared on the digest a
-/// lockstep peer would exchange.
 #[test]
 fn ten_seasons_from_a_reloaded_game_are_the_same_ten() {
     let mut original = played(4);
@@ -159,10 +136,6 @@ fn ten_seasons_from_a_reloaded_game_are_the_same_ten() {
     }
 }
 
-/// The same shape, from the **England turn-one position**
-/// game this file made up. The digest is a different one every time the fixture
-/// is regenerated, so nothing here asserts its value — only that the two
-/// timelines agree.
 #[test]
 fn ten_seasons_from_a_reloaded_england_are_the_same_ten() {
     let save = l2_testkit::england!();
@@ -193,7 +166,6 @@ fn ten_seasons_from_a_reloaded_england_are_the_same_ten() {
     );
 }
 
-// --- refusals --------------------------------------------------------------
 
 #[test]
 fn a_version_this_build_does_not_understand_is_named_rather_than_half_loaded() {
@@ -211,8 +183,6 @@ fn a_version_this_build_does_not_understand_is_named_rather_than_half_loaded() {
 
 #[test]
 fn the_originals_own_save_is_not_mistaken_for_ours() {
-    // `lastturn.sav` is a memory dump with no header at all; whatever its first
-    // eight bytes are, they are not `L2GSAVE\x01`.
     let mut theirs = vec![0xABu8; 4096];
     theirs[..8].copy_from_slice(b"L2KSAVE\x01");
     assert_eq!(save::decode(&theirs, Tables::DEFAULT), Err(LoadError::NotASave));

@@ -17,9 +17,6 @@ use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
 
-/// Every graphic index a shipped battlefield asks for must exist in the
-/// tileset. This is what would catch a wrong tileset, a wrong table, or a
-/// wrong formula — all at once, over all twenty maps.
 #[test]
 fn every_shipped_battlefield_asks_only_for_tiles_that_exist() {
     let Some(dir) = asset_dir() else {
@@ -43,7 +40,6 @@ fn every_shipped_battlefield_asks_only_for_tiles_that_exist() {
             );
             cells += 1;
         }
-        // Both markers must have been found and expanded.
         assert_ne!(field.home_side0, (0, 0), "map {map} lost its 0x04 marker");
         assert_ne!(field.home_side4, (0, 0), "map {map} lost its 0x0F marker");
     }
@@ -51,9 +47,6 @@ fn every_shipped_battlefield_asks_only_for_tiles_that_exist() {
     eprintln!("battlefields: {cells} cells across 20 maps, every tile present");
 }
 
-/// The first map of `USER.SKR` is the only one that is not the editor's blank
-/// template: a river, two bridges and woodland. Drawing it must fill the
-/// viewport completely — a hole would mean a missing or mis-indexed tile.
 #[test]
 fn the_sample_battlefield_renders_with_no_holes() {
     let Some(dir) = asset_dir() else {
@@ -66,14 +59,11 @@ fn the_sample_battlefield_renders_with_no_holes() {
     let skr = l2_formats::Skr::parse(&skr).unwrap();
     let field = terrain::build(skr.terrain(0).unwrap(), 1);
 
-    // Map 0 really does have water and woodland in it; if it did not, "no
-    // holes" would be a much weaker claim.
     let water = field.cells.iter().filter(|c| c.terrain == terrain::id::WATER).count();
     let wood = field.cells.iter().filter(|c| c.terrain == terrain::id::WOODLAND).count();
     assert!(water > 100, "map 0 should be mostly river; found {water} water cells");
     assert!(wood > 0, "map 0 should have woodland");
 
-    // Sweep the whole 80 x 80 map through the 15 x 14 viewport.
     let mut canvas = Canvas::screen();
     for cam_y in (0..terrain::DIM - scene::VIEW_ROWS).step_by(7) {
         for cam_x in (0..terrain::DIM - scene::VIEW_COLS).step_by(7) {
@@ -93,7 +83,6 @@ fn the_sample_battlefield_renders_with_no_holes() {
             }
         }
     }
-    // Outside the viewport nothing was painted.
     assert_eq!(canvas.at(0, 0), 0, "the strip above the viewport should be untouched");
     assert_eq!(canvas.at(600, 300), 0, "the panel area should be untouched");
 }

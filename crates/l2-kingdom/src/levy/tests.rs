@@ -36,7 +36,6 @@ mod tests {
         (counties, realms)
     }
 
-    // --- the levy ----------------------------------------------------------
 
     #[test]
     fn the_levy_takes_a_percentage_of_the_people_and_the_table_prices_it() {
@@ -47,8 +46,6 @@ mod tests {
         assert_eq!(l.settled, 10);
     }
 
-    /// The correction: at happiness 100 with no surcharge the largest levy is
-    /// 59 %, and **it costs 99, not the 98 `docs/armies.md` §6.1 quotes.**
     #[test]
     fn the_largest_levy_a_hundred_happiness_affords_is_fifty_nine_percent_at_ninety_nine() {
         let (counties, _) = world();
@@ -60,13 +57,9 @@ mod tests {
         assert_eq!(l.settled, 59, "walked back from 100");
         assert_eq!(l.happiness_cost, 99);
         assert_eq!(l.men, pct(500, 59));
-        // …and 60% would cost exactly the county's whole happiness, which the
-        // `>= 1` test refuses.
         assert!(counties[1].happiness - T.army_happiness_cost(60) < 1);
     }
 
-    /// The `happiness < 1` early-out, which §6.1's pseudocode omits and which
-    /// is the walk-back's only termination guard.
     #[test]
     fn a_county_at_zero_happiness_raises_nobody_rather_than_looping_forever() {
         let (mut counties, _) = world();
@@ -80,18 +73,14 @@ mod tests {
         assert_eq!(l.men, 0);
     }
 
-    /// The surcharge is added **before** the clamp,
-    /// cost.
     #[test]
     fn the_surcharge_is_added_before_the_cost_is_clamped_at_a_hundred() {
         let (mut counties, _) = world();
         counties[1].levy_surcharge = crate::tables::LEVY_SURCHARGE;
-        // Index 20 is 10; plus the surcharge that is 25.
         let l = set_percent(T, &counties[1], 20);
         assert_eq!(l.happiness_cost, 25);
         assert_eq!(l.settled, 20, "still affordable at happiness 100");
 
-        // A surcharge makes the same county give up fewer men than before.
         let plain = {
             let mut c = counties[1].clone();
             c.levy_surcharge = 0;
@@ -110,7 +99,6 @@ mod tests {
         assert_eq!((l.men, l.happiness_cost), (0, 0), "the surcharge is skipped at pct 0");
     }
 
-    // --- the basket --------------------------------------------------------
 
     #[test]
     fn a_seeded_basket_puts_every_man_in_the_peasant_slot_and_the_total() {
@@ -145,11 +133,9 @@ mod tests {
         assert_eq!(b.slots[1].remaining, 15);
     }
 
-    /// The correction: a spent weapon type is skipped, not terminal.
     #[test]
     fn auto_equip_skips_an_empty_rack_and_keeps_filling_the_others() {
         let (_, mut realms) = world();
-        // Only crossbows and armour in the armoury: 25 and 100.
         realms[1].weapons = [25, 0, 0, 0, 0, 100];
         let mut b = LevyBasket::seed(&realms[1], 200);
         b.auto_equip();
@@ -159,7 +145,6 @@ mod tests {
         assert_eq!(troops.iter().sum::<i32>(), 200, "nobody is lost");
     }
 
-    /// …
     #[test]
     fn auto_equip_always_leaves_the_last_nine_men_as_peasants() {
         let (_, mut realms) = world();
@@ -172,8 +157,6 @@ mod tests {
         }
     }
 
-    /// The 50-pass ceiling: at six types and ten men a pass it can equip 3,000,
-    /// twice the maximum army, so it never bites in play.
     #[test]
     fn the_auto_equip_ceiling_is_beyond_any_army_that_can_exist() {
         let (_, mut realms) = world();
@@ -196,7 +179,6 @@ mod tests {
         assert_eq!(realms[1].weapons, [10, 0, 0, 0, 0, 0]);
     }
 
-    // --- the refusals ------------------------------------------------------
 
     #[test]
     fn an_army_of_fewer_than_fifty_is_refused_unless_mercenaries_supply_the_men() {
@@ -207,7 +189,6 @@ mod tests {
         assert_eq!(refuse_levy(49, true), None);
     }
 
-    // --- creating ----------------------------------------------------------
 
     #[test]
     fn raising_an_army_takes_the_men_out_of_the_county_and_charges_its_happiness() {
@@ -256,8 +237,6 @@ mod tests {
         assert_eq!(units.get(id).unwrap().wages, 25);
     }
 
-    /// The correction: morale is the happiness the county had **before** the
-    /// levy cost was taken off it.
     #[test]
     fn morale_is_the_countys_happiness_before_the_levy_is_charged() {
         let m = open_map();
@@ -282,8 +261,6 @@ mod tests {
         assert_eq!(counties[1].happiness, 60);
     }
 
-    /// The clamp §6.3 leaves out: the panel is debited what was taken, not what
-    /// was asked for, so the two always agree.
     #[test]
     fn a_county_that_cannot_afford_the_cost_goes_to_zero_and_the_panel_agrees() {
         let m = open_map();
@@ -316,9 +293,6 @@ mod tests {
         let units = Units::new();
         assert_eq!(muster_tile(&m, &units, (20, 20)), Some((20, 20)));
 
-        // With the road occupied it falls back to open ground — the first tile
-        // of the radius-1 box, row-major, which is the anchor's north-west
-        // neighbour and *not* tile (0, 0).
         let mut units = Units::new();
         units.spawn(Unit::new(UnitKind::Army, 1, 20, 20));
         assert_eq!(muster_tile(&m, &units, (20, 20)), Some((19, 19)));
@@ -326,9 +300,6 @@ mod tests {
 
     /// **C47.** The finders search a box around the county's *anchor*, radius 1
     /// then 2 then 3, and stop. A road tile four tiles away is out of reach,
-    ///
-    /// why a raised army is always in shot on a screen eight lattice columns
-    /// wide.
     #[test]
     fn the_muster_never_reaches_further_than_three_tiles_from_the_anchor() {
         let mut m = open_map();
@@ -338,15 +309,10 @@ mod tests {
         let at = muster_tile(&m, &units, (20, 20)).expect("open ground beside the anchor");
         assert_eq!(at, (19, 19), "neither road is within three of (20, 20)");
 
-        // Three away is in reach, at radius 3,
-        // ground the radius-1 box already held.
         m.set_flags(23, 20, flags::ROAD);
         assert_eq!(muster_tile(&m, &units, (20, 20)), Some((23, 20)));
     }
 
-    /// The open-ground fallback is `flags & 0xFD == 0`, not "passable": a box
-    /// of farmland around the anchor has nowhere to stand even though every
-    /// tile of it is walkable.
     #[test]
     fn farmland_is_not_open_ground_for_a_muster() {
         let mut m = open_map();
@@ -361,7 +327,6 @@ mod tests {
 
     #[test]
     fn a_county_with_nowhere_to_stand_refuses_the_army() {
-        // Every tile impassable.
         let mut m = CampaignMap::empty();
         for i in 0..MAP_TILES {
             m.county[i] = 1;
@@ -387,8 +352,6 @@ mod tests {
         );
     }
 
-    /// `realm == 0` raises an **ownerless** unit — owner byte 6 — which is what
-    /// a neutral county's militia is.
     #[test]
     fn a_neutral_countys_defence_is_ownerless_rather_than_owned_by_realm_zero() {
         let m = open_map();
@@ -397,9 +360,7 @@ mod tests {
         counties[2].population = 500;
         counties[2].happiness = 77;
         for i in 0..MAP_TILES {
-            // Give county 2 some ground of its own.
             if i % 64 > 40 {
-                // leave county 1 alone elsewhere
             }
         }
         let mut m2 = m.clone();
@@ -420,13 +381,11 @@ mod tests {
         assert_eq!(u.owner, OWNERLESS);
         assert_eq!(u.shield, 0);
         assert_eq!(u.men, 125, "a quarter of five hundred");
-        // 125 men is above the ladder's 120 floor, so 60 of them get bows.
         assert_eq!(u.troops[TroopType::Archer.index()], 60);
         assert_eq!(u.troops[TroopType::Peasant.index()], 65);
         assert_eq!(counties[2].happiness, 77, "a militia costs the county nothing");
     }
 
-    /// The whole ladder.
     #[test]
     fn the_militia_ladder_equips_by_size_and_arms_nobody_below_a_hundred_and_twenty() {
         for (men, want) in [
@@ -463,8 +422,6 @@ mod tests {
         assert_eq!(units.len(), 0);
     }
 
-    /// A human-owned county's defence is entirely peasants — mode 0 equips
-    /// nothing, even out of a full armoury.
     #[test]
     fn a_human_countys_defence_is_all_peasants_however_full_the_armoury_is() {
         let m = open_map();
@@ -484,7 +441,6 @@ mod tests {
         assert_eq!(realms[1].weapons, [500; WEAPON_TYPE_COUNT], "nothing was issued");
     }
 
-    /// …where an AI county's is armed out of its stockpiles.
     #[test]
     fn an_ai_countys_defence_is_equipped_from_its_own_armoury() {
         let m = open_map();

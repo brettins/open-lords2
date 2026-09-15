@@ -42,7 +42,6 @@ fn the_standings_page_speaks_its_category_every_time_it_is_asked() {
     assert!(audio.is_playing(first), "heard {:?}", audio.heard());
     drain(&mut audio, first);
 
-    // A tab: the category moves and so does the file.
     game.nobles_category = 3;
     game.nobles_spoken += 1;
     listen(&mut director, &mut audio, &machine, &game);
@@ -61,30 +60,18 @@ fn the_standings_page_speaks_its_category_every_time_it_is_asked() {
     );
     drain(&mut audio, crowns);
 
-    // And sixty ticks of a page nobody has touched are silent.
     for _ in 0..60 {
         listen(&mut director, &mut audio, &machine, &game);
     }
     assert!(!audio.one_shot_busy(), "the page repeated its line with nothing pressed");
 }
 
-/// **The two lines a screen decides on and cannot play itself.**
-///
 /// `SaveLoad_Tick` (`0x004AD9F0`) and the merchant's four quantity handlers
 /// are the six `Sound_PlayFile` sites whose condition is screen-local state
 /// that is gone by the next tick: which box is up when the thumb up's latch is
 /// taken, and what the quantity was *before* the step. There is nothing here
 /// for a director to diff, so the screen reports the line on
 /// [`Game::spoken`] and `Director::listen` plays the newest one.
-///
-/// The trade half is the interesting one, because the guard is a **crossing**:
-/// `if (0 < qty && oldQty < 1)`, identically at all four handlers. Holding the
-/// up arrow says it once.
-///
-/// Ablations, each observed red: drop the `Director` arm and every assertion
-/// fails with an empty `heard`; swap `SAVE_GAME` and `LOAD_GAME` and the two
-/// box rows fail on the take; change `before < 1` to `before < 0` and the
-/// third block's first assertion fails.
 #[test]
 fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
     let Some(_) = headless() else { l2_testkit::skip!("no game install") };
@@ -110,7 +97,6 @@ fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
         assert!(!audio.heard().contains(&other), "{mode:?} also said {other}");
     }
 
-    // The spinner, crossing from a standstill into buying with the up arrow.
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
     let mut game = world();
     game.kingdom.realms[1].gold = 10_000;
@@ -128,9 +114,6 @@ fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
         audio.heard()
     );
 
-    // **And it is a crossing, not a value.** Every further step up is silent,
-    // which is what `oldQty < 1` says: the count on `Game::spoken` must not
-    // move again.
     let spoken = game.spoken.0;
     for _ in 0..5 {
         send(&mut machine, &mut game, &assets, Event::KeyDown(Key::Up));

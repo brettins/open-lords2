@@ -16,9 +16,6 @@ use l2_view::chrome;
 use l2_view::village;
 use l2_view::Canvas;
 
-/// **The village animates, and `villani1.pl8` is what the iron mine animates
-/// from.**
-///
 /// `Village_Animate` (`0x00412421`) draws six overlays and the sixth is the
 /// only read of `villani1.pl8` in the whole executable — a file this project
 /// had recorded as *"loaded by nothing"*. Three of the six are unconditional
@@ -56,8 +53,6 @@ fn the_village_animates_and_the_iron_mine_comes_out_of_villani1() {
     let moved = first.diff_count(&later);
     assert!(moved > 40, "the village is still after ten ticks: {moved} pixels moved");
 
-    // The clock is display state and nothing else: stepping it must not touch
-    // the world. If it ever did, this is the assertion that would say so.
     let before = game.kingdom.clone();
     for _ in 0..100 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
@@ -66,32 +61,6 @@ fn the_village_animates_and_the_iron_mine_comes_out_of_villani1() {
     assert_eq!(game.kingdom, before, "the animation clock reached the simulation");
 }
 
-/// **`villani2.pl8`'s own frame table confirms every one of the six overlays,
-/// independently of the decompilation.**
-///
-/// The six runs in [`village::OVERLAYS`] — their first frame and their length —
-/// were read from `Village_Animate`'s counter bounds. The sheet
-/// looked at. Looking at it: `villani2.pl8`'s 44 frames fall into **five blocks
-/// of equal-sized frames laid out in rows on the artist's canvas**, and the
-/// blocks are
-///
-/// | frames | size | overlay |
-/// |---|---|---|
-/// | 0 … 6 | 26 × 29 | the stone quarry's, 7 frames |
-/// | 7 … 14 | 39 × 40 | the lumber camp's, 8 |
-/// | 15 … 24 | 15 × 12 | the third unconditional one, 10 |
-/// | 25 … 32 | 32 × 42 | the first unconditional one, 8 |
-/// | 33 … 39 | 19 × 18 | the second unconditional one, 7 |
-///
-/// which is **exactly** the six-entry table, start index and length, five times
-/// over. What is left is frames 40, 41 and 43 — the three static buildings
-/// `Village_Draw` blits at `0x28`, `0x29` and `0x2B` — and one 2 × 2 stub at
-/// 42. Nothing over, nothing short.
-///
-/// A block boundary that fell one frame from where the counter wraps would show
-/// up here as an animation that jumps to a different-sized picture, and this is
-/// the assertion that would catch it. Sizes are the evidence and the
-/// decompilation is the claim; they agree.
 #[test]
 fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
     let Some(dir) = install() else {
@@ -123,8 +92,6 @@ fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
                 overlay.first
             );
         }
-        // The frame *before* the run and the frame *after* it must both be a
-        // different size, or the boundary is not where the counter wraps.
         if overlay.first > 0 {
             let prev = &pl8.frames[overlay.first - 1];
             assert_ne!(
@@ -145,8 +112,6 @@ fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
         );
     }
 
-    // The three static buildings are the three big frames past the animation
-    // blocks, and the sheet has nothing else in it.
     for (_, frame, _, _) in village::RESOURCE_BUILDINGS {
         let f = &pl8.frames[frame];
         assert!(f.width > 100 && f.height > 70, "frame {frame:#04X} is not a building");
@@ -154,15 +119,6 @@ fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
     eprintln!("villani2: five animation blocks and three buildings account for all 44 frames");
 }
 
-/// **Every overlay's frame run is inside the sheet it is indexed against**, and
-/// The two counters nothing draws are recorded.
-///
-/// A frame index off the end of a PL8 is a hole here;
-/// without this the six runs could be wrong by any amount and nothing would
-/// say so.
-///
-/// # `villani1.pl8` holds 21 frames and the shipped game plays 18 of them
-///
 /// **[V]** for both numbers. The iron mine's counter, `DAT_004D2938`, wraps at
 /// `0x11`, so it visits 0 … 17 and three frames of the file are never drawn.
 ///
@@ -170,8 +126,6 @@ fn the_animation_runs_are_the_blocks_the_sheet_is_laid_out_in() {
 /// **21 states, which is exactly the file's frame count** — and is read by
 /// nothing in the executable. **[I]**, and deliberately only that: the two
 /// Numbers agreeing is a coincidence.
-/// that the mine was meant to run off that counter. `docs/bugs.md` B65 records
-/// the numbers and says the same thing.
 #[test]
 fn every_village_overlay_run_fits_inside_its_own_sheet() {
     let Some(dir) = install() else {
@@ -201,10 +155,7 @@ fn every_village_overlay_run_fits_inside_its_own_sheet() {
 
     let mut clock = village::AnimationClock::new();
     let mut highest = [0usize; 2];
-    // Several full turns of the longest run, so every counter visits every
-    // value it can take.
     for _ in 0..18 * 4 {
-        // One slow pulse is eight gates, and a gate takes whatever it takes.
         for _ in 0..village::PULSE_SLOW_MS / village::GATE_MS {
             clock.tick(village::GATE_MS);
         }
@@ -225,15 +176,11 @@ fn every_village_overlay_run_fits_inside_its_own_sheet() {
     assert_eq!(highest[0], 17, "the iron mine's counter visits 0 … 17");
     assert_eq!(counts[0] - (highest[0] + 1), 3, "three frames of villani1 are never drawn");
 
-    // The two counters `Village_Animate` steps and nothing reads. Kept as a
-    // claim so that finding a consumer later fails this and gets looked at.
     assert_eq!(village::DEAD_COUNTER_PERIODS.len(), 2);
     assert!(
         village::OVERLAYS.iter().all(|o| o.frames != 21),
         "no overlay uses the 21-state counter, which is why it is called dead"
     );
-    // …and the coincidence, asserted so that it stays visible: the dead
-// counter has as many states as villani1.pl8 has frames.
     assert_eq!(
         village::DEAD_COUNTER_PERIODS[0].1,
         counts[0],

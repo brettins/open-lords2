@@ -17,25 +17,12 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// **The field panel says what the field is, in the player's own words, with
-/// the field's own figures** — `TileInfo_Draw`'s farmland arm and its two
-/// reports, found in their own boxes.
-///
 /// Every `y` below is `row * 16 + k` with `row = 5` (`FUN_0041BEFE`, a real
 /// field of yours) or `0x11` (anybody else's), and every `k` and `x` is a
 /// literal of `TileInfo_Draw`, `TileInfo_DrawGrain` or `TileInfo_DrawHerd`, not
 /// a constant of `screens/info.rs`. The words are read out of `L2.eng` here and
 /// asserted to be the ones the indices name first, so an index off by one
 /// fails on the word and not on somebody's screen.
-///
-/// The fields are painted with the brush (`paint_field` is `Field_SetType`),
-/// so the forecasts on the panel are whatever `County_RefreshEstimates` made
-/// of that — nothing here writes a county figure.
-///
-/// **Ablations, run:** deleting the `draw_farmland` call in `InfoScreen::draw`
-/// fails at *"Farmland"*; deleting the mode's `pen.heading` fails at
-/// *"- Wheat."*; deleting `draw_grain_report`'s call fails at the store's noun,
-/// the report's first line.
 #[test]
 fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
     use l2_game::screens::info::{InfoScreen, Target};
@@ -56,7 +43,6 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
     game.kingdom.paint_field(county, wheat, FieldType::Grain).expect("the grain brush");
     game.kingdom.paint_field(county, meadow, FieldType::Pasture).expect("the pasture brush");
 
-    // The indices name these words in the player's file.
     for (group, index, word) in [
         (30, 6, "Farmland"),
         (30, 19, "- Wheat."),
@@ -79,27 +65,21 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
     let y = |row: i32, k: i32| row * 16 + k;
     let t = font::TEXT;
 
-    // --- wheat ------------------------------------------------------------
     let c = panel(&mut game, wheat);
     assert_eq!(find_heading(&c, &assets, "Farmland", t), Some((0x28, y(5, 0x40))), "heading");
     let mode = find_heading(&c, &assets, "- Wheat.", t).expect("the mode follows the heading");
     assert!(mode.1 == y(5, 0x40) && mode.0 > 0x28, "on the heading's line and after it: {mode:?}");
-    // `Ui_DrawCount(grain, 2, 0x128, row*16 + 0x68)` — the store's noun, on
-    // the top line and right of the store's own column.
     let sack = find_body(&c, &assets, "Sack", t).expect("the store's noun");
     assert!(sack.1 == y(5, 0x68) && sack.0 > 0x128, "the store at (0x128, 0xB8): {sack:?}");
-    // The England position faces Spring, so the grain report is the sowing one.
     assert_eq!(game.kingdom.season_next, 1);
     let sown = find_body(&c, &assets, "to be sown, yielding", t).expect("the sowing line");
     assert_eq!(sown.1, y(5, 0xC0));
     assert_eq!(find_body(&c, &assets, "in 4 seasons.", t).map(|p| p.1), Some(y(5, 0xD0)));
     assert_eq!(find_body(&c, &assets, "Change due to eating", t), Some((0x28, y(5, 0xE0))));
     assert_eq!(find_body(&c, &assets, "Overall change", t), Some((0x28, y(5, 0xF0))));
-    // The table's wheat description is read and never drawn.
     assert!(find_body(&c, &assets, "This wheat field", t).is_none());
     assert!(find_text(&c, "TILE HALF", assets.ink.dim).is_none(), "and no placeholder");
 
-    // --- cattle -----------------------------------------------------------
     let c = panel(&mut game, meadow);
     let mode = find_heading(&c, &assets, "- Cattle.", t).expect("the pasture's mode");
     assert_eq!(mode.1, y(5, 0x40));
@@ -113,9 +93,6 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
         .expect("fieldsCattle is not zero, so a crowding line is drawn");
     assert_eq!(crowding, (0x68, y(5, 0x78)));
 
-    // --- somebody else's --------------------------------------------------
-    // The heading on the lower row the layout gives a foreign tile, and no
-    // report: both report painters open with the owner test.
     let other = (1..game.kingdom.realms.len() as u8).find(|&r| r != game.player).expect("a rival");
     game.kingdom.counties[county].owner = other;
     let c = panel(&mut game, wheat);
@@ -127,29 +104,12 @@ fn the_field_panel_says_what_the_field_is_in_the_players_own_words() {
     let _ = &mut screen;
 }
 
-/// **The four resource sites say which site they are, how big it is and
-/// whether it is working** — `TileInfo_Draw`'s `flags & 0x80` arm below graphic
-/// `0x0D`. A player clicked a mine like he clicks a field and got nothing
-/// back.
-///
 /// Every `y` is `row * 16 + k` with `row = 0x11` (`FUN_0041BEFE`'s
 /// `if (g_pickedTileGraphic < 0xd) DAT_00553d2c = 0x11`) and every `k` and `x`
 /// is a literal of `TileInfo_Draw` — `0x28`/`0x40` heading, `0x68`/`100` body,
 /// `0x68`/`0x74` the status line — not a constant of `screens/info.rs`. The
 /// words come out of the player's `L2.eng` and are asserted to be the ones the
 /// indices name, so an index off by one fails on the word.
-///
-/// **The band is size, not fertility**, which is the correction this arm
-/// carried: the boundaries are walked at 9/10, 24/25 and 49/50 on
-/// `industry.output` (the original's `total − totalSnapshot`), and
-/// `disabled_seasons` overrides all four.
-///
-/// **Ablations, run:** deleting the `draw_resource_site` call in
-/// `InfoScreen::draw` fails at *"Mine (iron)."*; dropping `+ site_band(site)`
-/// from the body fails at *"A medium mine."*; keying the status line on
-/// `disabled_seasons` instead of `enabled` fails at the operational-and-
-/// destroyed pair; swapping `SITE_INFO`'s iron and stone rows fails at the
-/// heading naming the commodity.
 ///
 /// **One ablation that does *not* fail, and it is a finding**: adding
 /// `flags::BOUNDARY` to `settlement_tile`'s exclusion set changes nothing,
@@ -165,8 +125,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
     let t = font::TEXT;
     let y = |k: i32| 0x11 * 16 + k;
 
-    // The indices name these words in the player's file — the four headings,
-    // one full band ladder, and the two status lines.
     for (index, word) in [
         (9, "Mine (iron)."),
         (10, "Quarry (stone)."),
@@ -186,9 +144,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         assert_eq!(assets.shell.text(30, index), word, "L2.eng 30/{index}");
     }
 
-    // **`TileInfo_Draw`'s ladder reaches `0x80` only after six other bits have
-    // also carried road or rough would take two different arms of two painters.
-    // Asserted.
     let map = &game.kingdom.campaign.map;
     let sites: Vec<usize> = (0..map.flags.len())
         .filter(|&i| map.flags[i] & flags::SETTLEMENT != 0 && map.terrain[i] < 0x0D)
@@ -203,11 +158,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         );
     }
 
-    // One site of each commodity — **and not all four are in one county.**
-    // Every county in the England position carries a blacksmith (graphic 7), a
-    // lumber mill (10 or 11) and *either* a mine (1) *or* a quarry (4), never
-    // both; county 5 has neither. So the four are picked wherever they are, and
-    // the band walk below uses the player's own.
     let four = {
         let map = &game.kingdom.campaign.map;
         let pick = |c: Commodity| {
@@ -233,7 +183,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
             (Commodity::Wood, pick(Commodity::Wood), "Lumber mill (timber).", "A small lumber mill."),
         ]
     };
-    // The player's own mine, for the band walk and the ownership contrast.
     let (county, mine) = {
         let map = &game.kingdom.campaign.map;
         sites
@@ -251,7 +200,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         draw_stack(&mut m, game, &assets)
     };
 
-    // --- the four headings, each over its own body and status line ---------
     for (c, (tile, at), heading, small) in four {
         for i in 0..4 {
             game.kingdom.counties[at].industry[i].output = 0;
@@ -277,7 +225,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         assert!(find_text(&canvas, "TILE HALF", assets.ink.dim).is_none(), "{c:?}: no placeholder");
     }
 
-    // --- the size band, walked across all three boundaries ----------------
     for (output, word) in [
         (0, "A small mine."),
         (9, "A small mine."),
@@ -297,10 +244,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         );
     }
 
-    // --- destroyed bypasses the buckets, and is NOT the status line --------
-    // `disabledSeasons` picks the body; `enabled` picks the tail. Two bytes, so
-// a trampled site reads operational when switched off
-    // destroyed at once — the original's, reproduced.
     game.kingdom.counties[county].industry[Commodity::Iron.index()].output = 999;
     game.kingdom.counties[county].industry[Commodity::Iron.index()].disabled_seasons = 2;
     game.kingdom.counties[county].industry[Commodity::Iron.index()].enabled = true;
@@ -316,7 +259,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         "destroyed and operational at once",
     );
 
-    // --- and the switch, which is the other byte --------------------------
     game.kingdom.counties[county].industry[Commodity::Iron.index()].enabled = false;
     let canvas = panel(&mut game, mine);
     assert_eq!(
@@ -324,9 +266,6 @@ fn a_mine_says_it_is_a_mine_how_big_it_is_and_whether_it_is_working() {
         Some((0x68, y(0x74))),
     );
 
-    // --- no ownership gate ------------------------------------------------
-    // Both sides of `g_localPlayer == g_pickedCountyOwner` are the identical
-// call in this arm, so a rival's mine says as much as yours.
     let other = (1..game.kingdom.realms.len() as u8).find(|&r| r != game.player).expect("a rival");
     game.kingdom.counties[county].owner = other;
     let canvas = panel(&mut game, mine);
@@ -364,34 +303,13 @@ fn the_farmland_table_is_the_images_own() {
     }
 }
 
-/// **The debug overlay is off by default, and Ctrl+D draws it.**
-///
-/// Two players' reports: *"these debug squares still on the town square on map
-/// and the fields"* and *"debug outlines and text for the 4 icons at the bottom
-/// right"*. The original draws nothing at either place — `Sprite_TopIt` puts
-/// the banner on the town's quadrant 0 and a herd on a pasture and nothing else,
-/// and `Sidebar_ButtonClicked` is a hit test that draws nothing — so by default
-/// neither may be on the canvas.
-///
-/// **Every absence is asserted at a place the overlay really draws on screen**:
 /// the same frame with the overlay on must show our square at that pixel, or the
 /// check is skipped for that tile — and at least one of each must remain, which
 /// is what stops the absence being vacuous (`docs/decisions.md` C138).
-///
-/// The square's shape is the literal one — a filled `(2h+1)²` block inside a
-/// one-pixel ring of the background — with `h` 2 for a county and 3 for a field.
-///
-/// **Ablations, run:** deleting `.filter(|_| debug)` on the county markers fails
-/// the first absence; deleting `debug &&` on the field markers the second;
-/// deleting the `, true` of the sidebar's focus guard the third; deleting the
-/// Ctrl+D arm in `Machine::handle` the first *presence*.
 #[test]
 fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
     let (mut game, assets) = world!();
     assert!(!game.prefs.debug_overlay, "a normal session starts with it off");
-    // `open_on_the_player` centres on the selected county when it is the
-    // player's, so the county is selected *before* anything is drawn and the
-    // ruler is drawn after it.
     let players: Vec<u8> =
         (1..=game.kingdom.county_count as u8).filter(|&id| game.is_players(id)).collect();
     let county = players
@@ -408,7 +326,6 @@ fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
     let mut probe = MapScreen::new();
     draw(&mut probe, &mut game, &assets);
     let clip = probe.map_clip();
-    // The pointer over a sidebar icon, which is what drew our outline.
     let b = map::SIDEBAR_BUTTONS[1].rect();
     send_stack(&mut m, &mut game, &assets, Event::Pointer { x: b.x + b.w / 2, y: b.y + b.h / 2 });
     let off = draw_stack(&mut m, &mut game, &assets);
@@ -433,7 +350,6 @@ fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
     };
     let inside = |(x, y): (i32, i32), r: i32| clip.contains(x - r, y - r) && clip.contains(x + r, y + r);
 
-    // 1. The county squares, at each county's anchor tile.
     let anchors: Vec<(i32, i32)> = game
         .kingdom
         .county_ids()
@@ -448,7 +364,6 @@ fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
         assert!(!square(&off, p, 2), "a county square at {p:?} with the overlay off");
     }
 
-    // 2. The field squares, on the selected county's fields.
     let fields: Vec<(i32, i32)> = game
         .kingdom
         .field_tiles(county as usize)
@@ -464,7 +379,6 @@ fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
         assert!(!square(&off, p, 3), "a field square at {p:?} with the overlay off");
     }
 
-    // 3. The sidebar icon's outline, all four edges in the highlight.
     let hl = assets.ink.highlight;
     let outlined = |c: &Canvas| {
         let at = |x: i32, y: i32| c.at(x as usize, y as usize);
@@ -474,27 +388,19 @@ fn the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it() {
     assert!(outlined(&on), "the overlay outlines the icon under the pointer");
     assert!(!outlined(&off), "and nothing outlines it by default");
 
-    // 4. Our words under the menu bar.
     assert!(find_text(&on, "TURN 1", assets.ink.dim).is_some());
     assert!(find_text(&off, "TURN 1", assets.ink.dim).is_none());
 
-    // And off again is the default picture to the pixel.
     send_stack(&mut m, &mut game, &assets, Event::KeyDown(Key::CtrlChar('D')));
     assert!(!game.prefs.debug_overlay);
     let again = draw_stack(&mut m, &mut game, &assets);
     assert_eq!(again.diff_count(&off), 0, "Ctrl+D twice leaves exactly the default frame");
 }
 
-/// **A field shows its crop, and the picture comes from the terrain byte.**
-///
 /// `Terrain_Set` (`0x0046D7F4`) is the game's single writer of a tile's
 /// `content` byte and it chooses the frame in the same statement; until this
 /// was drawn, `l2-game`'s field brush painted markers of ours and every field
 /// on the map looked like the bare frame 80 the file stores.
-///
-/// The check is on the **ladder**, at the pixel: the four states this walks
-/// through are four different pictures, and each is the four-frame block
-/// [`campaign::field_base`] names.
 #[test]
 fn a_fields_picture_follows_its_crop_state() {
     let (mut game, assets) = world!();
@@ -510,11 +416,6 @@ fn a_fields_picture_follows_its_crop_state() {
         .expect("the map slot")
         .at(l2_formats::maps::Plane::GfxIndex, fx as usize, fy as usize);
 
-    // Every state in the ladder gives a frame in its own block, and the tile's
-    // own variation — the two low bits the file stored — never moves.
-    //
-    // **`0x05` used to be in this list and it was asserting a falsehood.** The
-    // list is now the values the game writes to a farm tile.
     // `Terrain_Set`'s twenty-four call sites pass `0`, `1`, `2 … 0x0E` through
     // `FUN_00469D21`, `0x13 … 0x16`, `0x17`, `0x18` and `0x19 … 0x1C` — and the
     // crop states are handled by their own claim below, because they are the
@@ -527,16 +428,10 @@ fn a_fields_picture_follows_its_crop_state() {
         assert_eq!(bank & campaign::BANK_MASK, layer, "terrain {terrain:#04X} bank layer");
     }
 
-    // **The wheat grows, and the variant is the only thing that says so.**
-    //
     // A player: *"The wheat fields don't show the wheat growing."*
     // `Grain_SeasonTick` writes the crop's density band onto every grain tile —
     // `FUN_0044CF6F` returns **2, 3, 7 or 11** and nothing else — and derives
     // `Terrain_Set`'s variant from it as `band < 3 ? 0 : (band - 3) / 4 + 1`.
-    // All four bands share base 88, so `base + variation` is the *same picture*
-    // at every stage: without the variant term the field is drawn just-sown all
-    // year. `docs/formats/maps-layers.md` §5.5 called that parameter dead, and
-    // this is the assertion that says otherwise.
     let bands = [2u8, 3, 7, 11];
     let mut frames = Vec::new();
     for (n, band) in bands.iter().enumerate() {
@@ -553,15 +448,10 @@ fn a_fields_picture_follows_its_crop_state() {
     frames.sort_unstable();
     frames.dedup();
     assert_eq!(frames.len(), 4, "the four crop bands are four different pictures");
-    // And the run ends where the next base begins: 88 + 4 blocks of 4 = 104.
     assert_eq!(campaign::field_base(0x13).0, 104);
-    // Harvested stubble is in the **base** bank and everything else is in
-    // roads — the one place the ladder crosses banks.
     assert_eq!(campaign::field_base(0x17).1, campaign::BANK_BASE);
     assert_eq!(campaign::field_base(0x16).1, campaign::BANK_ROADS);
 
-    // And it reaches the picture. Paint the same viewport with the field in
-    // four different states and require four different pictures.
     let mut screen = MapScreen::new();
     screen.centre_on_tile(fx as usize, fy as usize);
     let slot = assets.slot(game.map_slot).expect("the map slot");
@@ -590,7 +480,6 @@ fn a_fields_picture_follows_its_crop_state() {
             game.kingdom.season,
             None,
         );
-        // Just the tile, so a neighbouring field's state cannot carry the test.
         let mut patch = Vec::new();
         for y in cy - 10..cy + 10 {
             for x in cx - 20..cx + 20 {
@@ -606,6 +495,5 @@ fn a_fields_picture_follows_its_crop_state() {
     assert_eq!(seen.len(), 4, "wild, fallow, grain and pasture are four pictures");
 }
 
-// ------------------------------- the rest of `TileInfo_Draw`'s group-30 ladder
 
 

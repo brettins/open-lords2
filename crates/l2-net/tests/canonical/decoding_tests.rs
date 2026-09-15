@@ -3,7 +3,6 @@ use super::*;
 use super::encoding_tests::*;
 use l2_net::{decode_all, Canonical, CodecError, Fixed, Pcg32, Reader, CHECKSUM_SEED};
 
-// --- round trips ------------------------------------------------------
 
 #[test]
 fn scalars_round_trip() {
@@ -53,7 +52,6 @@ fn sequences_and_options_round_trip() {
     r.finish().unwrap();
 }
 
-// --- decoding hostile input --------------------------------------------
 
 #[test]
 fn running_off_the_end_is_an_error_not_a_panic() {
@@ -64,8 +62,6 @@ fn running_off_the_end_is_an_error_not_a_panic() {
     );
 }
 
-/// A four-billion-byte length prefix must be an error, not a
-/// four-billion-byte allocation.
 #[test]
 fn an_absurd_length_prefix_is_refused() {
     let mut bytes = u32::MAX.to_le_bytes().to_vec();
@@ -125,7 +121,6 @@ fn errors_say_something_useful() {
     assert_eq!(error.to_string(), "wanted 8 bytes at offset 12, 3 remain");
 }
 
-// --- the generator is part of the state ---------------------------------
 
 #[test]
 fn the_generator_is_inside_the_checksum() {

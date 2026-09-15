@@ -1,10 +1,3 @@
-//! **The wheat, through one growing year, on the campaign screen.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" LORDS2_FIXTURES="E:\dev\lords2-fixtures" \
-//!     cargo test -p l2-game --test wheat -- --nocapture
-//! ```
-//!
 //! A player, on the build that carried C124's fix: *"wheat fields still not
 //! showing the different stages of wheat growth."* **"Still"** — the fix had a
 //! test at the pixel, and the test painted the terrain byte by hand. Nothing
@@ -12,33 +5,16 @@
 //! word for three seasons in four and stay green. `docs/decisions.md`
 //! C195.
 //!
-//! So this file does what the player did. It sows a field with the brush's own
-//! handler, presses End Turn through the screen machine four times — Spring,
-//! Summer, Autumn, Winter, a whole year from the England turn-one position —
-//! and after each turn paints the campaign screen and reads the pixels at the
-//! field.
-//!
-//! # What is pinned, and from where
-//!
-//! Nothing below asks our code which frame to expect.
-//!
 //! * **The frame** is a literal: `Terrain_Set` (`0x0046D7F4`) writes
 //!   `((frame - oldBase) & 3) + 'X' + variant * 4` for terrain `2 … 0x12`, and
 //!   `'X'` is `0x58`. [`WHEAT_BASE`].
+//!
 //! * **The variant** is [`originals_variant`], a transcription of
 //!   `Grain_SeasonTick` (`0x0044C8AE`) and `FUN_0044CF6F` with their literal
 //!   thresholds, reading the county's crop words and `+0x206` — which the four
 //!   End Turns wrote, not this file.
-//! * **The picture** is what our painter draws when handed that literal frame:
-//!   a terrain-only paint of the same viewport with one override. The screen
-//!   under test must equal it at the tile, and must differ from the other three
-//!   variants there — so the probe cannot pass on a patch where the four crops
-//!   look alike.
 //!
 //! # Stated ablations, and what each did
-//!
-//! Each is one line, deleted or changed, with this test and the kingdom unit
-//! tests beside it run against it.
 //!
 //! | ablated | this test | unit test |
 //! |---|---|---|
@@ -79,11 +55,8 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::{campaign, Canvas};
 
-/// `Terrain_Set`'s base for terrain `2 … 0x12`: the `'X'` in its ladder.
 const WHEAT_BASE: u8 = 0x58;
 
-/// The bank byte `Terrain_Set` leaves on a roads-layer field tile whose file
-/// byte is `0x08`: `(((0x08 | 1) & 0xE3) | 8) & 0x7F`.
 const ROADS_BANK_BYTE: u8 = 0x09;
 
 fn install() -> Option<PathBuf> {
@@ -99,9 +72,6 @@ macro_rules! world {
         let assets = Assets::load(&platform.vfs).expect("assets load");
         let save = l2_testkit::england!();
         let mut game = scenario::from_save(&save, Tables::DEFAULT).expect("the fixture loads");
-        // **Tip screens: No.** Four End Turns from a new campaign run far past
-        // frame 21, and a tip holds the campaign map's input on screen `0x27`;
-        // that is `tests/tips.rs`'s subject.
         game.prefs.tip_screens = false;
         (game, assets)
     }};

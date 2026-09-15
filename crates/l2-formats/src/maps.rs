@@ -1,20 +1,8 @@
-//! `L2_maps.dat` — the campaign / skirmish map container.
-//!
-//! A flat array of fixed-size map slots. No header, no table of contents, no
-//! delimiters — the file is exactly `slotCount * 32961` bytes.
-//!
 //! ```text
 //! slot + 0x0000  6 planes of 64x64 bytes, one per tile
 //! slot + 0x6000  a 65x129 isometric screen lattice
 //!                = 6*4096 + 8385 = 32961 bytes per slot
 //! ```
-//!
-//! The DOS release holds 40 slots, the Windows release 80 — its first
-//! 1,318,440 bytes are byte-identical to the DOS file, so the appended slots
-//! are simply more maps in the same layout.
-//!
-//! See `docs/formats/maps.md`. Plane meanings beyond `Flags` and `County` are
-//! inferred; [`Plane`] says which.
 
 use crate::{Error, Result};
 
@@ -29,57 +17,29 @@ pub const LATTICE_LEN: usize = LATTICE_W * LATTICE_H;
 /// 32,961 bytes. The engine seeks to `slotIndex * 0x80C1`.
 pub const SLOT_LEN: usize = PLANE_COUNT * PLANE_LEN + LATTICE_LEN;
 
-/// Highest real county id. The engine clamps at `< 0x11` when counting
-/// counties. The value 32 also appears in the county plane.
 pub const MAX_COUNTY_ID: u8 = 16;
 
-/// The six 64x64 byte planes, in file order.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Plane {
-    /// Bitfield. See [`flags`]. **Verified.**
     Flags = 0,
     /// Selects one of five tile banks, as `layerIndex * 4`: Base, Mtns, Roads,
     /// Town, Castle. The layer order comes from the resource table at
     /// `0x004DA050`. **Verified.**
     GfxBank = 1,
-    /// Frame index within the bank's PL8. **Verified** — every value on disk is
-    /// a valid frame of its bank's file, 180,224/180,224, and `Mtns` saturates
-    /// at exactly its 25 frames.
     GfxIndex = 2,
-    /// Offset within a rectangular multi-tile object: `dx + W * dy` from the
-    /// block's north-west tile. **Verified**, 10,971/10,971.
-    ///
-    /// Not "a 3-tile and a 5-tile object", which an earlier reading inferred
-    /// from the histogram: a 2x2 block gives three equal non-zero counts and a
-    /// 3x3 gives five more, which is the whole histogram.
     ObjectPart = 3,
-    /// Marker payload; the five settlement tiles carrying 1..5 are the player
-    /// start table. *Partly inferred.*
     Marker = 4,
-    /// County id, 1..16 (plus 32). **Verified** — the loader counts counties by
-    /// clamping this plane at `< 0x11`.
     County = 5,
 }
 
-/// Bits of [`Plane::Flags`].
 pub mod flags {
-    /// Tile belongs to no county. Holds for 100% of tiles: `(f & 0x04)` is set
-    /// exactly when the county id is 0.
     pub const NO_COUNTY: u8 = 0x04;
-    /// Farmland. An earlier reading called this "dwelling"; the engine rewrites
-    /// it to three different values at runtime, which are three crop states in
-    /// the Roads bank.
     pub const FARMLAND: u8 = 0x20;
-    /// County boundary — set on exactly the tiles 4-adjacent to a different
-    /// county, 7,961/7,961. Not a river, as the bit's position might suggest.
     pub const COUNTY_BOUNDARY: u8 = 0x02;
-    /// Castle. These tiles form complete 2x2 blocks, four per county.
     pub const CASTLE: u8 = 0x40;
-    /// Settlement.
     pub const SETTLEMENT: u8 = 0x80;
 }
 
-/// The whole `L2_maps.dat` file.
 pub struct MapSet<'a> {
     data: &'a [u8],
 }
@@ -104,8 +64,6 @@ impl<'a> MapSet<'a> {
         Ok(MapSlot { data: &self.data[start..start + SLOT_LEN] })
     }
 
-    /// Indices of slots holding an actual map. Unused slots are all-zero across
-    /// every plane; the shipped files leave 36 of 80 empty.
     pub fn used_slots(&self) -> Vec<usize> {
         (0..self.slot_count())
             .filter(|&i| self.slot(i).map(|s| !s.is_empty()).unwrap_or(false))
@@ -113,7 +71,6 @@ impl<'a> MapSet<'a> {
     }
 }
 
-/// One map.
 pub struct MapSlot<'a> {
     data: &'a [u8],
 }
@@ -124,9 +81,6 @@ impl<'a> MapSlot<'a> {
         &self.data[start..start + PLANE_LEN]
     }
 
-    /// The trailing 65x129 isometric screen lattice. At runtime the engine
-    /// overwrites most cells with pointers into its tile array; the bytes on
-    /// disk are background tile graphic indices for the off-map surround.
     pub fn lattice(&self) -> &'a [u8] {
         &self.data[PLANE_COUNT * PLANE_LEN..]
     }
@@ -144,18 +98,10 @@ impl<'a> MapSlot<'a> {
         self.at(Plane::Flags, x, y)
     }
 
-    /// An unused slot: every tile plane is zero. Empty slots still carry a
-    /// non-zero lattice (a blank template), so the planes are the test.
     pub fn is_empty(&self) -> bool {
         self.data[..PLANE_COUNT * PLANE_LEN].iter().all(|&b| b == 0)
     }
 
-    /// Number of real counties on this map.
-    ///
-    /// Counts distinct ids in `1..=16` only, matching the engine, which clamps
-    /// at `< 0x11` when counting. Id **32** also occurs in the county plane but
-    /// is not a county — counting it gives one castle block too few per map
-    /// which is how this was caught.
     pub fn county_count(&self) -> usize {
         let mut seen = [false; 256];
         for &c in self.plane(Plane::County) {
@@ -164,26 +110,16 @@ impl<'a> MapSlot<'a> {
         (1..=MAX_COUNTY_ID).filter(|&i| seen[i as usize]).count()
     }
 
-    /// **How many lords this map seats** — `g_playerStartCount`.
-    ///
     /// `Map_LoadPlanes` (`0x00467770`) dispatches every tile whose
     /// [`Plane::Marker`] byte is non-zero on the *flags* byte, and the two arms
     /// are different tables: a `0x40` tile — the county town — appends to a
     /// merchant route, and a `0x80` tile — the castle — is a player start.
+    ///
     /// `PlayerStart_Record` (`0x0049BBE8`) then writes
     /// `g_playerStartTable[marker]` and counts it.
     ///
-    /// So a start is *a castle tile carrying a marker*, and this counts them.
-    /// The number decides how many lords the custom game may be played with:
     /// picking a map calls `FUN_004AE5E2(g_playerStartCount)`, which sets the
     /// *Nobles* drop-down from it, and the drop-down is shortened to match.
-    ///
-    /// **Distinct markers, not tiles.** The table is indexed by the marker, so
-    /// two castle tiles carrying the same marker are one seat with the second
-    /// overwriting the first — which the original's own counter gets wrong,
-    /// counting it twice. Counting the markers is the reading that matches what
-    /// the table can hold, and [`tests`] checks the shipped maps give 5, 4 or 2
-    /// either way.
     pub fn player_start_count(&self) -> usize {
         let mut seen = [false; 256];
         for y in 0..PLANE_DIM {
@@ -210,9 +146,7 @@ mod tests {
     fn slot_length_is_six_planes_plus_the_lattice() {
         assert_eq!(SLOT_LEN, 6 * 64 * 64 + 65 * 129);
         assert_eq!(SLOT_LEN, 32_961);
-        // The stride the engine seeks by.
         assert_eq!(SLOT_LEN, 0x80C1);
-        // Both shipped releases divide exactly.
         assert_eq!(1_318_440 % SLOT_LEN, 0);
         assert_eq!(1_318_440 / SLOT_LEN, 40);
         assert_eq!(2_636_880 / SLOT_LEN, 80);

@@ -1,19 +1,8 @@
-//! The generic value tree that rule documents parse into.
-//!
-//! Every value knows where it came from. That is the whole reason this is a
-//! hand-rolled tree
-//! set `battle.three_bridges.attacker.crossbows`, the engine must be able to
-//! say *which two*, and at which line.
 
 use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
-/// Where a value was written.
-///
-/// `source` is the display name the loader gave the document — for rules
-/// loaded through the VFS that is `"<layer id>:<relative path>"`, e.g.
-/// `"longbows:rules/troops.toml"`.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Origin {
     pub source: Arc<str>,
@@ -26,7 +15,6 @@ impl Origin {
         Origin { source, line, col }
     }
 
-    /// An origin for values the engine synthesised
     pub fn synthetic(what: &str) -> Self {
         Origin { source: Arc::from(what), line: 0, col: 0 }
     }
@@ -42,7 +30,6 @@ impl fmt::Display for Origin {
     }
 }
 
-/// A value plus its origin.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Spanned<T> {
     pub value: T,
@@ -55,9 +42,6 @@ impl<T> Spanned<T> {
     }
 }
 
-/// Tables are `BTreeMap`, not `HashMap`, so that iteration order — and
-/// therefore every diagnostic, every generated file and every load-order
-/// tie-break — is identical on every run and every machine.
 pub type Table = BTreeMap<String, Spanned<Value>>;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -71,7 +55,6 @@ pub enum Value {
 }
 
 impl Value {
-    /// The name used in type-mismatch diagnostics.
     pub fn type_name(&self) -> &'static str {
         match self {
             Value::String(_) => "string",
@@ -118,7 +101,6 @@ impl Value {
         }
     }
 
-    /// Integers are accepted where a float is wanted; the reverse is not.
     pub fn as_float(&self) -> Option<f64> {
         match self {
             Value::Float(f) => Some(*f),
@@ -134,9 +116,6 @@ impl Value {
         }
     }
 
-    /// Look a dotted path up: `"battle.three_bridges.attacker.crossbows"`.
-    ///
-    /// Numeric segments index into arrays, so `"battle.0.name"` works too.
     pub fn get(&self, path: &str) -> Option<&Spanned<Value>> {
         let mut cur: Option<&Spanned<Value>> = None;
         let mut here = self;
@@ -153,14 +132,8 @@ impl Value {
     }
 }
 
-/// The reserved key that removes entries during a merge.
-///
-/// `$` is not a legal bare-key character in the document syntax,
-/// be written quoted — `"$delete" = ["knight"]` — and can therefore never
-/// collide with a key that means something in the game domain.
 pub const DELETE_KEY: &str = "$delete";
 
-/// Join a path stack into the dotted form used in diagnostics.
 pub fn join_path(parts: &[String]) -> String {
     parts.join(".")
 }

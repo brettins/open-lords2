@@ -31,10 +31,6 @@ fn a_turn_walks_the_whole_phase_machine_and_runs_the_season_once() {
     assert!(g.last_report.is_some());
 }
 
-/// Phase 4 does not end until every realm's `aiStep` reaches its threshold, and
-/// nothing in `l2-kingdom` was calling `ai::run_step` at all. If the driver in
-/// `turn.rs` stopped working, this test would not fail with a wrong number: the
-/// turn would never finish, and `end_turn` would return `None`.
 #[test]
 fn every_ai_realm_finishes_its_turn_and_the_human_realm_never_starts_one() {
     let mut g = five_realms();
@@ -47,13 +43,9 @@ fn every_ai_realm_finishes_its_turn_and_the_human_realm_never_starts_one() {
     }
 }
 
-/// **`AI_RunTurnStep`'s step-0 prologue runs for the human too**, so the human's
-/// score inputs are rebuilt on the human's own turn.
-///
 /// `Turn_BeginPlayersTurn` (`0x0049B6D3`) zeroes every realm's counter and
 /// `AI_RunTurnStep`'s (`0x0049A581`) `isHuman` test guards the fourteen handlers
 /// and the increment, not the prologue above them:
-/// `Realm_RecountStrength(r); Realm_UpdateTotals(r); offerPending = 0;`.
 ///
 /// `Realm_UpdateTotals` (`0x0049D1E0`) is the **only** thing in the binary that
 /// fills the score inputs, and its other caller here is AI step 14, which a human
@@ -75,8 +67,6 @@ fn the_human_realms_score_inputs_are_rebuilt_on_the_humans_own_turn() {
     turn::end_turn(&mut g).unwrap();
 
     let r = &g.kingdom.realms[1];
-    // The five `Realm_UpdateTotals` writes, each against the named field it is
-    // copied from
     assert_eq!(r.county_count, 1, "the human holds county 1");
     assert_eq!(r.score_inputs[0], r.share_of_map_pct, "+0x60, one county of fourteen");
     assert_eq!(r.score_inputs[1], r.population_total, "+0x10");
@@ -86,7 +76,6 @@ fn the_human_realms_score_inputs_are_rebuilt_on_the_humans_own_turn() {
     assert_ne!(r.share_of_map_pct, 0, "a realm holding a county holds some of the map");
     assert_ne!(r.population_total, 0, "and some people");
 
-    // And the whole point: the score is no longer the gold bracket by itself.
     let bracket = Tables::DEFAULT.score_gold_bracket(r.gold);
     assert!(
         r.score > bracket,
@@ -98,13 +87,6 @@ fn the_human_realms_score_inputs_are_rebuilt_on_the_humans_own_turn() {
 }
 
 /// The prologue's third line, `g_realms[r].offerPending = 0` (realm `+0x1C`).
-///
-/// **Nothing in this workspace cleared it.** `l2_kingdom::diplomacy` sets it when
-/// an AI puts an alliance to a person and `pick_ally_candidate` refuses a realm
-/// that carries it, so before `turn::step_zero` a realm that had once made an
-/// offer was refused as a candidate for the rest of the game.
-///
-/// **Ablation** — delete the `offer_pending = false` line from `turn::step_zero`.
 #[test]
 fn a_realms_outstanding_alliance_offer_is_cleared_at_the_top_of_its_own_turn() {
     let mut g = five_realms();
@@ -125,10 +107,6 @@ fn a_realms_outstanding_alliance_offer_is_cleared_at_the_top_of_its_own_turn() {
 /// `Game_SetupRealmsAndCounties`' initial clear, `Score_RankRealms` three times
 /// and one painter.
 ///
-/// It carries `x50` — more weight than the other five inputs combined — and
-/// `l2_kingdom::tables::SCORE_INPUT_OFFSETS` has said so, with the C for it, for
-/// longer than anything has written the field.
-///
 /// **Two ablations, and they fail differently on purpose.** Delete the increment
 /// in `Kingdom::castle_build_tick` and the first assertion goes red. Delete the
 /// *clear* above it and only the second does,
@@ -136,7 +114,6 @@ fn a_realms_outstanding_alliance_offer_is_cleared_at_the_top_of_its_own_turn() {
 #[test]
 fn a_realms_finished_castles_are_counted_every_season_and_not_accumulated() {
     let mut g = five_realms();
-    // Two finished castles and one county mid-build, all the human's.
     g.kingdom.counties[6].owner = 1;
     g.kingdom.counties[7].owner = 1;
     g.kingdom.counties[1].castle_type = 1;
@@ -153,8 +130,6 @@ fn a_realms_finished_castles_are_counted_every_season_and_not_accumulated() {
         "two finished castles; county 7 is still building and belongs to +0x4D"
     );
 
-    // Idempotence, which is the stronger assertion: a second season must land on
-    // the same number, and does so only if the pass clears before it counts.
     turn::end_turn(&mut g).unwrap();
     assert_eq!(
         g.kingdom.realms[1].score_inputs[l2_kingdom::tables::SCORE_INPUT_CASTLES],
@@ -172,7 +147,6 @@ fn a_realms_finished_castles_are_counted_every_season_and_not_accumulated() {
 /// the neutral ladder, which `AI_SetTaxRates(0)` reads out of a chain of
 /// comparisons — `< 20 -> 0`, `< 40 -> 1`, `< 50 -> 2`, `< 60 -> 3`,
 /// `< 70 -> 4`, `< 80 -> 6`, `< 90 -> 8`, else 12 (`docs/decisions.md` C19).
-/// A county at 65 lands on 4.
 #[test]
 fn the_unowned_counties_are_taxed_on_the_neutral_ladder_every_turn() {
     let mut g = five_realms();
@@ -185,11 +159,6 @@ fn the_unowned_counties_are_taxed_on_the_neutral_ladder_every_turn() {
     assert_eq!(g.kingdom.counties[1].tax_rate, 0, "the player's county is not touched");
 }
 
-/// The one place the spine deliberately differs from the original's call
-/// structure, and the reason it has to: `AI_SetTaxRates(realm)` grants that one
-/// realm its gold, while `l2_kingdom::ai::grant_resources` walks every AI realm
-/// in a single pass. Running it inside each realm's step 3 would pay every
-/// realm four times over. The check is arithmetic: exactly one grant.
 #[test]
 fn the_ai_gold_grant_is_paid_once_a_turn_and_not_once_per_ai_realm() {
     let mut g = five_realms();
@@ -218,9 +187,6 @@ fn the_ai_gold_grant_is_paid_once_a_turn_and_not_once_per_ai_realm() {
     );
 }
 
-/// Determinism, which is not negotiable: a turn is a pure function of the
-/// kingdom it started from. Two identical kingdoms, ended independently, must
-/// be bit-identical afterwards — no clock, no hash order, no address.
 #[test]
 fn the_same_kingdom_ended_twice_lands_on_the_same_numbers() {
     let mut a = five_realms();
@@ -233,22 +199,11 @@ fn the_same_kingdom_ended_twice_lands_on_the_same_numbers() {
     assert_eq!(ra.report, rb.report);
     assert_eq!(a.kingdom, b.kingdom);
 
-    // And again, because a difference that only appears on the second turn is
-    // the kind a single-turn test misses.
     turn::end_turn(&mut a).unwrap();
     turn::end_turn(&mut b).unwrap();
     assert_eq!(a.kingdom, b.kingdom);
 }
 
-/// The seasons turn,
-/// the prose does.
-///
-/// `Season_Advance` rolls the year when the season that *ended* was 4, and
-/// `ended` is the old `g_seasonNext` — so starting from the England turn-one fixture's
-/// Winter 1268 the year does not move until the turn that brings Winter round
-/// again. The year label therefore runs **Winter, Spring, Summer, Autumn**,
-/// which `l2-kingdom`'s errata note 3 records and §3.3's prose contradicts.
-/// This test was written expecting the prose and corrected by the code.
 #[test]
 fn four_turns_walk_the_year_round() {
     let mut g = five_realms();
@@ -266,8 +221,6 @@ fn four_turns_walk_the_year_round() {
     assert_eq!(seasons, vec![(1, 1268), (2, 1268), (3, 1268), (4, 1269)]);
 }
 
-/// The numbers
-/// health and the treasury all change on a turn that nobody gave any orders.
 #[test]
 fn a_turn_moves_the_population_and_the_treasury() {
     let mut g = five_realms();
@@ -289,13 +242,5 @@ fn a_turn_moves_the_population_and_the_treasury() {
     assert_eq!(g.gold_last[1], gold, "the interface can show which way it went");
 }
 
-// ---------------------------------------------------------------------------
-// Things move on the campaign map — `docs/plan.md` revision 4, item 3
-// ---------------------------------------------------------------------------
-//
-// Everything above this line passed while four of the seven phases were no-ops
-// answering their waits `true` the moment they started. That is the shape of
-// test `docs/decisions.md` has a correction number for: it could not fail for
-// the reason it existed. These are the ones that can.
 
 

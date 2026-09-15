@@ -1,11 +1,3 @@
-//! **The live battle** — the state `Lords2.exe` keeps in globals while
-//! `g_battlePhase == 2`, and every verb a player has on it.
-//!
-//! The drawing is [`crate::screens::battlefield`]; this is the state and the
-//! rules, so that a test can play a battle with no window and no artwork.
-//!
-//! # What the battlefield's screens
-//!
 //! `docs/screens-county.md` §1 lists four ids — `0x28`, `0x29`, `0x2A` and
 //! `0x2B` — and the input audit (`docs/decisions.md` C61) counted their arms as
 //! one group of 49. **`0x28` is unreachable.** Every immediate write of
@@ -16,20 +8,11 @@
 //! held. It has a live `Screen_FrameInput` arm and a live `Screen_Draw` arm and
 //! neither can run. **[V]** `docs/bugs.md` D37.
 //!
-//! So the battlefield is three screens:
-//!
 //! | id | what | where its arm lives |
 //! |---|---|---|
 //! | `0x29` | the field | `Screen_FrameInput` `0x0042FF10`, arm `')'` |
 //! | `0x2A` | **the drag**, entered by pressing on the field | arm `'*'` |
 //! | `0x2B` | the outcome banner | arm `'+'` |
-//!
-//! `0x2A` is a mode here
-//! see [`Mode`] — because pushing and popping a screen per drag would put a
-//! stack operation on a pointer motion. Every arm of it is still reproduced
-//! individually and marked.
-//!
-//! # A battle starts **paused**
 //!
 //! `Battle_Start` (`0x004778A0`) writes `DAT_0053F238 = 0xFFFFFFFF` before it
 //! raises `g_screenId = 0x29`, and battle button 0 (`FUN_0043B9A1`) toggles that
@@ -37,8 +20,6 @@
 //! thing a player does is unpause. While it is set, `FUN_0043C57D` refuses to
 //! issue an order and `Battle_Frame` paints `L2.eng` group 32 index 0 across the
 //! bottom of the field. **[V]**
-//!
-//! # The right column, top to bottom
 //!
 //! | y | what | the original |
 //! |---|---|---|
@@ -74,17 +55,12 @@ pub const OVERVIEW: Rect = Rect::new(0x1E0, 0x18, 160, 160);
 /// `FUN_004329A4` (`0x004329A4`): `Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5)`
 /// — five 32 × 32 buttons in a row at (480, 448). The table's records are
 /// `(0,0)…(128,0)` with size 32, so the strip is exactly the panel's width.
+///
 /// **[V]**
 pub const BUTTON_ORIGIN: (i32, i32) = (0x1E0, 0x1C0);
 pub const BUTTON_SIZE: i32 = 32;
 pub const BUTTON_COUNT: usize = 5;
 
-/// The five buttons, in table order.
-///
-/// Every one of them is guarded by `g_battleChoiceOwner`, and three of the five
-/// want it to be **1** — the local player owns the take-the-field choice —
-///
-/// pause it and charge, and cannot retreat or autocalc it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Button {
     /// `FUN_0043B9A1` — **pause**, and the battle starts in it.
@@ -145,12 +121,9 @@ pub struct BannerLayout {
     pub pitch: (i32, i32),
     pub cols: usize,
     pub slots: usize,
-    /// `record[0]` — the plate for troop type 0. Eleven troops a band, so the
-    /// three bases are 11 apart and the sheet holds 13 … 45.
     pub frame: usize,
 }
 
-/// Twelve big banners, 3 × 4 at (488, 189), 45 × 50, pitched 53 × 55.
 pub const BANNERS_FEW: BannerLayout = BannerLayout {
     origin: (488, 189),
     size: (45, 50),
@@ -159,7 +132,6 @@ pub const BANNERS_FEW: BannerLayout = BannerLayout {
     slots: 12,
     frame: 13,
 };
-/// Eighteen medium banners, 3 × 6 at (488, 186), 45 × 35, pitched 53 × 37.
 pub const BANNERS_SOME: BannerLayout = BannerLayout {
     origin: (488, 186),
     size: (45, 35),
@@ -168,8 +140,6 @@ pub const BANNERS_SOME: BannerLayout = BannerLayout {
     slots: 18,
     frame: 24,
 };
-/// Fifty small banners, 6 × 9 at (484, 185), 22 × 18, pitched 26 × 19 — and
-/// **fifty is the click loop's own bound**, `if (0x31 < local_c) break`.
 pub const BANNERS_MANY: BannerLayout = BannerLayout {
     origin: (484, 185),
     size: (22, 18),
@@ -202,7 +172,6 @@ impl BannerLayout {
     }
 }
 
-/// The pointer's eight compass directions, `g_mapScrollDir` 0 … 7.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScrollDir {
     N,
@@ -232,58 +201,35 @@ impl ScrollDir {
     }
 }
 
-/// Which of the two field screens is up.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {
-    /// `g_screenId == 0x29`.
     Field,
-    /// `g_screenId == 0x2A` — the left button is down and a box is being drawn.
     Drag,
-    /// `g_screenId == 0x2B` — the battle is over and the banner is up.
     Outcome,
 }
 
 /// What `Battle_UpdateHover` (`0x0047ED9B`) recomputes every frame.
-///
-/// The five globals it writes are the whole of what the cursor ladder and two
-/// of the three order arms read. It runs **after** the cursor is chosen in
-/// `Battle_Frame`, so the original's battle pointer is one frame behind the
-/// pointer; ours is not, and that is a deliberate difference recorded here
-///
-/// original's frame order, not a rule.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Hover {
-    /// `g_battleHoverOnField`.
     pub on_field: bool,
     /// The cell under the pointer — `DAT_00553F88` / `DAT_00553F94`.
     pub cell: (u8, u8),
-    /// `g_battleHoverSurface`, cell byte `+7`.
     pub surface: u8,
     /// `DAT_0053E874`: the hovered cell's surface is **15**. Passed to
     /// `BattleUnit_Order` as its fifth argument, which `docs/symbols.json` calls
     /// `fromPlayer` and which is nothing of the kind — see
     /// [`BattleRunner::order_full`].
     pub woodland: bool,
-    /// `g_battleHoverFriendly`: one of yours, and **nothing is selected**.
     pub friendly: Option<usize>,
-    /// `g_battleHoverFriendlyPicked`: one of yours while something *is*
-    /// selected. The two are exclusive by construction.
     pub friendly_picked: Option<usize>,
-    /// `g_battleHoverEnemy`: not yours, something is selected, and at least one
-    /// selected figure is not a siege engine.
     pub enemy: Option<usize>,
 }
 
-/// The cursor kinds `Battle_Frame`'s ladder passes to `Cursor_Set`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cursor {
-    /// 0 — the plain arrow.
     Arrow,
-    /// 4 — the move order.
     Move,
-    /// 5 — the attack.
     Attack,
-    /// 6 — "this man can be picked".
     Select,
 }
 
@@ -300,12 +246,8 @@ pub struct Drag {
 /// and its answer is what makes a click different from a box.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DragKind {
-    /// Moved 25 pixels or more on either axis: a real box.
     Box,
-    /// Barely moved, over one of your own men: pick him.
     Pick,
-    /// Barely moved, over nothing: the original returns 0 and the release does
-    /// nothing at all — **it does not clear the selection**.
     Nothing,
 }
 
@@ -321,31 +263,21 @@ pub const DRAG_SLOP: i32 = 0x19;
 /// of these to [`LiveBattle::cries`] and `audio::Director` plays them after
 /// the tick. What is recorded is exactly the two numbers the original's call
 /// reads: the argument, and `DAT_0055408C` at that moment.
-///
-/// Nothing in the simulation reads it — it lives here, on the interface's half
-/// of the battle, and not in `l2-sim`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Cry {
     /// `DAT_0055408C` — see [`LiveBattle::cry_troop`].
     pub troop: u8,
-    /// The argument: one of [`cry`]'s four.
     pub class: u8,
 }
 
-/// The four arguments `Sound_PlayTroopCry` is called with, named by the letter
-/// their files carry in `audio::names::TROOP_CRIES`.
 pub mod cry {
-    /// `_U` — a selection committed. `Battle_DragSelect`, both arms.
     pub const SELECTED: u8 = 0;
-    /// `_P` — an order to go somewhere, and the `H` and `V` keys.
     pub const ORDERED: u8 = 1;
-    /// `_E` — an order with an enemy under the pointer (`g_battleHoverEnemy`).
     pub const ATTACK: u8 = 2;
     /// `_M` — an order onto `g_battleHoverSurface == 2`. `[V]` for the test;
     /// `[I]` that the letter means *moat*, from surface 2 being the moat
     /// (`docs/battle.md` §3.2).
     pub const MOAT: u8 = 3;
-    /// The surface the [`MOAT`] arm tests.
     pub const MOAT_SURFACE: u8 = 2;
 }
 
@@ -363,20 +295,14 @@ pub const GROUPS: usize = 9;
 /// `0x2B` sets it to **5001**, which is the skip.
 pub const OUTCOME_FRAMES: u32 = 5000;
 
-/// Everything the battle keeps outside `l2-sim`: the camera, the pause, the
-/// selection's UI, the groups and the outcome timer.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LiveBattle {
     pub runner: BattleRunner,
-    /// The two campaign unit slots, so the conclusion can be written back.
     pub attacker: usize,
     pub defender: usize,
     pub county: u8,
     pub castle_level: Option<u8>,
-    /// `g_localPlayer`'s realm, which is who every arm here acts for.
     pub owner: u8,
-    /// `g_battleChoiceOwner`: 1 when the local player owns the take-the-field
-    /// choice. Three of the five buttons want exactly 1.
     pub choice_owner: u8,
     /// `DAT_0053F238` — **and it starts set**. See the module header.
     pub paused: bool,
@@ -405,20 +331,14 @@ pub struct LiveBattle {
     /// raised by `SetupScreen::go_skirmish` and **read nowhere yet**: none of
     /// the three ends of a battle is built.
     pub skirmish: bool,
-    /// Set once `Battle_CheckOutcome` would have raised `0x2B`.
     pub conclusion: Option<Conclusion>,
     /// The player asked for the rest of the battle to be calculated — the
     /// Retreat and Autocalc buttons both land here, because both of them run
     /// `FUN_0043BE65`, which is `Battle_AutoResolve`.
     pub autocalc: bool,
-    /// `g_optScrollSpeed`, and the ticks left before the camera may move again.
-    /// See [`scroll_interval_ticks`].
     pub scroll_speed: i32,
     pub scroll_wait: u32,
     pub redraw: bool,
-    /// **Every troop cry this battle has asked for, in order.** Appended to by
-    /// the six cry arms and read by `audio::Director`, which remembers how far
-    /// it has got. Never read by anything that decides the battle. See [`Cry`].
     pub cries: Vec<Cry>,
 }
 

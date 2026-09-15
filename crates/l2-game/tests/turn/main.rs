@@ -1,9 +1,3 @@
-//! Ending a turn: the phase machine goes round, the AI finishes, and the same
-//! kingdom ended twice produces the same numbers.
-//!
-//! No install and no window. The kingdoms here are built by hand so that each
-//! assertion is about *one* thing the spine does — the tests that run the
-//! England turn-one scenario are in `tests/scenario.rs`.
 
 mod spine;
 pub use spine::*;

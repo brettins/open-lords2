@@ -6,9 +6,6 @@ use super::cost::*;
 use crate::tables::{MOVE_COST_BLOCKED, MOVE_COST_IMPASSABLE};
 
 impl CampaignMap {
-    /// An all-zero map. Every tile has [`flags::NO_COUNTY`] clear and county 0,
-    /// which the cost map reads as passable open ground in county 0 — a blank
-    /// field, which is what a test wants and what a real scenario overwrites.
     pub fn empty() -> CampaignMap {
         CampaignMap {
             terrain: vec![0; MAP_TILES],
@@ -18,9 +15,6 @@ impl CampaignMap {
         }
     }
 
-    /// Build from four 4,096-byte planes, in tile-record order `+0`, `+1`,
-    /// `+2`, `+7`. `None` if any is the wrong length —
-    /// `l2-scenario` already applies to a save.
     pub fn from_planes(
         terrain: &[u8],
         flags: &[u8],
@@ -84,35 +78,11 @@ impl CampaignMap {
     /// `Move_BuildCostMap` (`0x0046FF43`) — the whole 64×64 `i16` cost map,
     /// rebuilt from the three planes.
     ///
-    /// **The test order is the rule**, because the bits combine: a farmland
-    /// tile that is also a road is a road, and a settlement that has been
-    /// ruined is impassable. The chain, in the order the original's nested
-    /// `if`/`else` makes it:
-    ///
-    /// ```text
-    /// 1. flags & 0x0C            -> 0     sea, mountain or woodland
-    /// 2. county >= 17            -> 0     not a county on this map
-    /// 3. flags & 0x01            -> 1     road
-    /// 4. flags & 0x20            -> 3 if terrain < 2; 6 if terrain < 0x17; else 3
-    /// 5. flags & 0x40            -> 100   castle site
-    /// 6. flags & 0x80            -> 3 if terrain == 0x14
-    ///                               0 if terrain in {3, 6, 12, 9}   (ruined)
-    ///                               else 100
-    /// 7. flags & 0x10            -> 100 if terrain == 0x10; else 0
-    /// 8. otherwise               -> 3     open ground
-    /// ```
-    ///
     /// `[V]` — road 1, open 3 and field 6 agree exactly with the *stepper*,
     /// which classifies the same bits independently (`docs/armies.md` §2.2),
     /// and the field's 6 is assembled there from two separate `+3`s. `[D]` on
     /// the four 100s and the two 0s
 /// about because those tiles are never entered.
-    ///
-    /// **Nothing about units or ownership enters this.** Byte `+5` of the tile
-    /// record — the occupying unit — is never read, so armies path straight
-    /// through each other and through enemy stacks; blocking is resolved at
-    /// step time instead. Ownership only decides what a step *does* to the
-    /// tile, never whether it is cheap.
     pub fn cost_map(&self) -> CostMap {
         let mut cost = vec![0i16; MAP_TILES];
         for i in 0..MAP_TILES {

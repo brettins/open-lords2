@@ -42,7 +42,6 @@ impl Header {
         self.flags & flag::RING != 0
     }
 
-    /// **How many display rows each stored row becomes: 1 or 2.**
     pub fn y_scale(&self) -> u32 {
         match self.y_scale_mode() {
             YScale::One => 1,
@@ -50,7 +49,6 @@ impl Header {
         }
     }
 
-    /// **What the two scaling bits do**, from the DLL. See [`YScale`].
     pub fn y_scale_mode(&self) -> YScale {
         match self.flags & (flag::Y_SCALE_1 | flag::Y_SCALE_2) {
             flag::Y_SCALE_1 => YScale::Interlace,
@@ -63,9 +61,6 @@ impl Header {
         self.height * self.y_scale()
     }
 
-    /// One frame's duration in tens of microseconds, the unit a negative
-    /// interval is already written in. `-8333` is 83.33 ms, twelve frames a
-    /// second; `-7100` is the two films at 14.08.
     pub fn period_10us(&self) -> u32 {
         match self.interval {
             i if i > 0 => (i as u32).saturating_mul(100),
@@ -93,8 +88,6 @@ const MCLR: usize = 1;
 const FULL: usize = 2;
 const TYPE: usize = 3;
 
-/// A block type's run length, indexed by bits 2–7 of the type value: one
-/// through fifty-nine, then five powers of two.
 pub(super) const RUN: [u32; 64] = {
     let mut t = [0u32; 64];
     let mut i = 0;
@@ -110,11 +103,6 @@ pub(super) const RUN: [u32; 64] = {
     t
 };
 
-/// A 6-bit palette component to 8 bits, by replicating its top two bits into
-/// the bottom — so 63 is 255 and 16 is 0x41.
-///
-/// **Not** the `.256` files' `v * 255 / 63`, which differs by one in the
-/// middle of the range. `docs/formats/smk.md` §Palette.
 #[inline]
 pub fn expand6(v: u8) -> u8 {
     let v = v & 0x3F;
@@ -127,13 +115,7 @@ pub(super) struct Chunks<'a> {
     pub(super) video: &'a [u8],
 }
 
-// ------------------------------------------------------------- video
 
-/// Plays a film one frame at a time into its own buffer.
-///
-/// **The buffer persists between frames** and is the whole of how Smacker
-/// compresses time: a skip block leaves last frame's pixels where they are.
-/// It starts at zero, as does the palette.
 #[derive(Debug, Clone)]
 pub struct Decoder {
     width: usize,
@@ -163,18 +145,14 @@ impl Decoder {
         }
     }
 
-    /// The stored width and height of [`Decoder::pixels`].
     pub fn size(&self) -> (usize, usize) {
         (self.width, self.height)
     }
 
-    /// The index of the frame now in [`Decoder::pixels`], or `None` before the
-    /// first.
     pub fn frame(&self) -> Option<usize> {
         self.next.checked_sub(1)
     }
 
-    /// Stored width × stored height palette indices, row by row.
     pub fn pixels(&self) -> &[u8] {
         &self.pixels
     }
@@ -198,26 +176,18 @@ impl Decoder {
         std::borrow::Cow::Owned(out)
     }
 
-    /// The palette as 8-bit triples.
     pub fn palette(&self) -> &[[u8; 3]; 256] {
         &self.palette
     }
 
-    /// Whether the frame just decoded changed the palette.
     pub fn palette_changed(&self) -> bool {
         self.palette_changed
     }
 
-    /// **(bits read, bits available)** in the last frame's video bitstream.
-    /// A correct decode leaves fewer than 32 unread: the chunk's padding.
     pub fn video_bits(&self) -> (usize, usize) {
         self.video_bits
     }
 
-    /// Decode `smk`'s next frame. `Ok(false)` once every frame has been.
-    ///
-    /// `smk` must be the film this decoder was made for; a different one of
-    /// the same size decodes garbage.
     pub fn next_frame(&mut self, smk: &Smk) -> Result<bool> {
         let i = self.next;
         if i >= smk.frames() {
@@ -238,17 +208,6 @@ impl Decoder {
         self.decode_video(smk, chunks.video)
     }
 
-    /// **The palette delta.** Three opcodes against the palette as it stood
-    /// before this frame:
-    ///
-    /// * `1nnnnnnn` — leave the next `n + 1` entries alone;
-    /// * `01nnnnnn s` — copy `n + 1` entries from the *old* palette starting at
-    ///   `s`;
-    /// * `00rrrrrr gg bb` — one entry, three 6-bit components.
-    ///
-    /// Copying reads a snapshot
-    /// frame has already written reads the old values. `Pill_brn.smk` frame
-    /// 104 depends on exactly that.
     fn apply_palette(&mut self, chunk: &[u8]) -> Result<()> {
         let old = self.palette;
         let mut idx = 0usize;
@@ -260,8 +219,6 @@ impl Decoder {
                 idx += (b & 0x7F) as usize + 1;
             } else if b & 0x40 != 0 {
                 let count = (b & 0x3F) as usize + 1;
-                // A chunk is padded out to a multiple of four bytes, so an
-                // opcode cut short by the end is padding, not a truncation.
                 let Some(&src) = chunk.get(p) else { break };
                 let src = src as usize;
                 p += 1;
@@ -289,16 +246,6 @@ impl Decoder {
         }
     }
 
-    /// **The block pass.** The picture is cut into 4 × 4 blocks in reading
-    /// order
-    /// type, the next six an index into [`RUN`], the high byte a colour.
-    ///
-    /// | type | name | per block |
-    /// |---|---|---|
-    /// | 0 | mono | a MClr code (high byte and low byte are two colours) and a MMap code (sixteen bits, row by row from the top, least significant first: set picks the high colour) |
-    /// | 1 | full | per row, two Full codes: the first fills columns 2 and 3, the second columns 0 and 1, low byte then high |
-    /// | 2 | skip | nothing — last frame's pixels stand |
-    /// | 3 | solid | nothing — sixteen pixels of the run's colour |
     fn decode_video(&mut self, smk: &Smk, video: &[u8]) -> Result<()> {
         self.recent = [[0; 3]; 4];
         let (w, h) = (self.width, self.height);

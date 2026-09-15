@@ -1,27 +1,3 @@
-//! What happens when the network is not a friendly in-process queue.
-//!
-//! `docs/status.html` listed "beyond loopback — real loss, NAT, MTU, TCP
-//! head-of-line blocking" as untested, and that list deserves an honest
-//! reckoning
-//!
-//! * **Loss and reordering are not testable at this layer, because TCP has
-//!   already handled them.** A byte stream does not lose or reorder; it either
-//!   delivers in order or it fails. Writing a test that "drops packets" through
-//!   a `TcpTransport` would be theatre — the code under test would never see
-//!   it. What *is* real is the failure that replaces them: the connection
-//!   breaking, which `tests/tcp.rs` covers. Reordering at the *session* layer,
-//! where packets from different peers genuinely arrive in any order, is
-//!   covered in `tests/lockstep.rs`.
-//! * **NAT is not testable on one machine at all.** Two peers on loopback never
-//!   traverse anything. This is a real gap and is recorded as one in
-//! `docs/netcode.md`; no test here should be read as covering it.
-//! * **MTU is real and is testable**, because it is really a question about
-//!   *framing*: the transport must not care where the operating system chose to
-//!   split the stream. The strongest version of that is one byte at a time.
-//! * **Head-of-line blocking is real and is the interesting one.** With TCP,
-//! one slow peer stalls everyone, and the correct behaviour is to *wait* —
-//!   never to guess ahead, because a guess is a desync and a desync is worse
-//!   than a pause. That is the last and longest test here.
 
 mod common;
 
@@ -47,8 +23,6 @@ fn pair() -> (TcpTransport, TcpTransport, PeerId) {
     (host, client, joined[0])
 }
 
-/// MTU, in the only form this layer can see it: the reader must not care where
-/// the stream was cut. One byte at a time is the worst case and the clearest.
 #[test]
 fn a_frame_survives_being_delivered_one_byte_at_a_time() {
     let message = Message::Tick(l2_net::TickPacket {
@@ -77,8 +51,6 @@ fn a_frame_survives_being_delivered_one_byte_at_a_time() {
     assert!(reader.next_message().unwrap().is_none(), "exactly one message");
 }
 
-/// The opposite cut: many frames arriving glued together in a single read, which
-/// is what Nagle-free bulk sending actually produces.
 #[test]
 fn many_frames_in_one_read_are_all_recovered() {
     let mut stream = Vec::new();
@@ -104,9 +76,6 @@ fn many_frames_in_one_read_are_all_recovered() {
     assert_eq!(seen, (0..64).collect::<Vec<_>>(), "all of them, in order");
 }
 
-/// A message at the frame limit crosses a real socket intact. The interesting
-/// part is not the size but that it is certainly split by the kernel, so this is
-/// the fragmentation test with an actual network under it.
 #[test]
 fn a_message_at_the_frame_limit_crosses_a_real_socket() {
     let (mut host, mut client, client_id) = pair();
@@ -133,12 +102,6 @@ fn a_message_at_the_frame_limit_crosses_a_real_socket() {
     assert_eq!(got, payload, "the bytes changed in transit");
 }
 
-/// Head-of-line blocking,
-///
-/// One peer stops sending for a stretch. The other must **wait** — reporting
-/// exactly who it is waiting on — and must not advance a single tick on its
-/// own. When the stalled peer resumes, both must arrive at identical checksums,
-/// with the stall leaving no trace in the simulation.
 #[test]
 fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
     let (host_net, client_net, client_id) = pair();
@@ -155,7 +118,6 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
     let targets = [client_id, PeerId(0)];
     let mut hashes: [Vec<(Tick, u64)>; 2] = [Vec::new(), Vec::new()];
 
-    // Peer 1 goes quiet once it has sealed this many packets, then resumes.
     let mut frozen_backlog: Vec<Vec<u8>> = Vec::new();
     let mut peer1_sealed = 0;
     const FREEZE_AFTER: usize = 6;
@@ -172,8 +134,6 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
             for bytes in sealed {
                 if i == 1 {
                     peer1_sealed += 1;
-                    // While frozen, peer 1's packets are held
-                    // dropped. TCP does not lose them, and neither does this.
                     if peer1_sealed > FREEZE_AFTER && step < THAW_AT {
                         frozen_backlog.push(bytes);
                         continue;
@@ -182,7 +142,6 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
                 nets[i].send(targets[i], &bytes).unwrap();
             }
         }
-        // Thaw: everything held goes out, in the order it was produced.
         if step == THAW_AT {
             for bytes in frozen_backlog.drain(..) {
                 nets[1].send(targets[1], &bytes).unwrap();
@@ -222,7 +181,6 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
         waited_on_peer1 > 0,
         "the stall never actually blocked peer 0 - the test proved nothing"
     );
-    // The decisive assertion: peer 0 did not run ahead while it was blocked.
     assert!(
         hashes[0].len() >= 60 && hashes[1].len() >= 60,
         "the session never recovered: {} and {} ticks",
@@ -240,9 +198,6 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
     assert!(sessions.iter().all(|s| s.divergence().is_none()));
 }
 
-/// The pause has no clock behind it: this crate never decides a peer is gone.
-/// A caller with a stopwatch does. Pinned because "wait forever" is a deliberate
-/// design choice (D-5) that looks like a hang if you do not know it.
 #[test]
 fn waiting_is_indefinite_and_never_becomes_a_timeout_on_its_own() {
     let (_host, _client, _id) = pair();
@@ -251,10 +206,6 @@ fn waiting_is_indefinite_and_never_becomes_a_timeout_on_its_own() {
     let mut sim = ToySim::new(seed, 4);
     let mut session = Session::new(Config::battle(), slots[0], &slots, seed, &sim);
 
-    // Nothing will ever arrive from slot 1. Note that the local slot is
-    // reported missing too, and rightly so: nothing has sealed a packet for it
-    // either, and a session that quietly excused itself would be treating its
-    // own silence differently from a peer's.
     for _ in 0..10_000 {
         match session.advance(&mut sim) {
             Advance::Stepped { .. } => {}

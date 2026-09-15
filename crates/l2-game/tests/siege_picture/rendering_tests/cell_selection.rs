@@ -15,12 +15,6 @@ use l2_sim::Troop;
 use l2_view::scene::{self, Ground};
 use l2_view::Canvas;
 
-/// **A cell's selector decides which sheet its pixels come from**, at the
-/// pixel. One cell is switched to slot 1 and back with everything else held
-/// still, and the tile under it must change.
-///
-/// Ablation, run: `let sheet = Some(tiles)` in `draw_terrain` — red here, and
-/// red on the picture test with 16,145 unpainted pixels.
 #[test]
 fn the_cell_selector_moves_a_tile_between_the_two_sheets() {
     let dir = l2_testkit::install!();
@@ -35,7 +29,6 @@ fn the_cell_selector_moves_a_tile_between_the_two_sheets() {
     let cell = (cam.y + 5) * DIM + (cam.x + 5);
     let (px, py) = (scene::ORIGIN_X + 5 * scene::TILE, scene::ORIGIN_Y + 5 * scene::TILE);
 
-    // Frame 4 of each sheet, which the two files do not agree on.
     field.cells[cell].gfx = 4;
     field.cells[cell].elevation = 0;
     field.cells[cell].terrain = 0;
@@ -61,11 +54,6 @@ fn the_cell_selector_moves_a_tile_between_the_two_sheets() {
     assert_eq!(a.diff_count(&b), moved, "nothing outside that one cell changed");
 }
 
-/// **The raised-ground overlay** — `Battlefield_Draw32`'s second pass, frame
-/// `terrain + 0x8B` out of slot 1, over any cell at elevation 1, 2 or 3.
-///
-/// Ablation, run: gate the overlay block on `false` — red, *"the overlay
-/// painted nothing"*.
 #[test]
 fn a_raised_cell_takes_a_second_blit_from_the_second_sheet() {
     let dir = l2_testkit::install!();
@@ -90,7 +78,6 @@ fn a_raised_cell_takes_a_second_blit_from_the_second_sheet() {
 
     let moved = flat.diff_count(&raised);
     assert!(moved > 0, "the overlay painted nothing");
-    // Terrain 1 → frame 0x8C, and it is drawn over the cell and nowhere else.
     assert!(
         moved <= (scene::TILE * scene::TILE) as usize,
         "{moved} pixels moved for a one-cell overlay"

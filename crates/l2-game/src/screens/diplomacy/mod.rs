@@ -1,17 +1,4 @@
-//! **The other lords** — `g_screenId` `0x0B`
-//! at `0x1A`.
-//!
 //! `Diplo_DrawScreen` (`0x00416CF3`) and `Screen_DiploDialog` (`0x0041789B`).
-//! Both were shells: `0x0B` drew a window and one of its four menu layouts,
-//! and `0x1A` was not in the table at all — `docs/screens-county.md` could not
-//! identify it. It is the compose page, and its seven shapes are
-//! `g_diploKind` 0..=6.
-//!
-//! This is **the player's whole side of diplomacy**. Everything a person can do
-//! to an AI lord goes through these two screens and out through `Diplo_Post`;
-//! `docs/diplomacy.md` §7.
-//!
-//! # The screen, out of the painter
 //!
 //! ```text
 //! Diplo_DefaultTarget()                       if the target is gone
@@ -38,24 +25,12 @@
 //! the standing thermometer: 10 x 63 at x = 0x88, filled from +30 down
 //! ```
 //!
-//! ## Two things the painter says that `docs/diplomacy.md` §7 has backwards
-//!
-//! **`g_diploMenuState == 3` is not *"this realm has already written to me"*.**
 //! The test is `pair[target][localPlayer].hasMail` — the *target's* record,
 //! indexed by *me* — and `Diplo_Post` sets `pair[to][from].hasMail`. So the
 //! flag means **I** have a letter sitting unanswered in **their** inbox, which
 //! is exactly what group 72 index 24 says: *"A message has been dispatched, my
 //! Lord."* One letter per rival per turn
 //! answer it.
-//!
-//! **The mail icon on a card is the same flag**, read the same way round, so it
-//! marks a rival you have written to and not one who has written to you. A
-//! person's own inbox is never read by anything: `Diplo_AnswerInbox` is AI turn
-//! step 1 and a human realm's AI turn is skipped entirely.
-//!
-//! # The compose page's three shapes
-//!
-//! One `g_screenId` and three widget tables, chosen by `g_diploKind`:
 //!
 //! | kind | painter | widgets | what it needs |
 //! |---|---|---|---|
@@ -73,31 +48,20 @@
 //! the widget test declines — and `FUN_0040210C` is a bounded copy **out of
 //! `DAT_005CD550`**, the game's one shared text-edit buffer, which
 //! `FUN_00401D26(ch)` inserts typed characters into at cursor `DAT_005BB4A8`.
+//!
 //! So there is a single editor
 //! `g_diploLetterDraft` are snapshots harvested from it once a frame;
 //! `Diplo_OpenCompliment` and its three siblings run the copy the other way
 //! (`FUN_00402009`) when the dialog opens.
 //!
-//! That matters for whoever builds text entry: the letter is not four
-//! independent fields, it is one field with four save slots. Text entry is
-//! another branch's; this screen carries the draft as a `String` and lets that
-//! branch fill it.
-//!
-//! # `Diplo_SendClicked`'s six refusals
-//!
 //! `Diplo_SendClicked` (`0x00436408`) is the tick. Two things about it are
 //! worth having in front of you, because both are surprising:
 //!
-//! * **it closes the screen before it validates.** `g_screenId = 0`
-//!   letter is copied into the player's slot at the top of the function; every
-//!   refusal below that point is a message on the *map*, not a red light on the
-//!   dialog. A refused send has still left the diplomacy screen.
 //! * **the county tests are asymmetric.** Kind 5 wants a county that is
 //!   **mine** and has an enemy standing in it (`+0x19C`); kind 6 wants one that
 //!   is **not** mine and not my ally's. Group 242 *"does not belong to us"* is
 //!   raised only by kind 5 — kind 6 answers a county of my own with group 244,
 //!   *"This county is part of our alliance"*, which is not what has gone wrong.
-//!   Reproduced, and catalogued.
 
 mod main;
 pub use main::*;
@@ -131,31 +95,20 @@ pub const WINDOW: Rect = Rect::new(0x10, 0x20, 0x1C * 16, 0x1B * 16);
 pub const WINDOW_COLS: i32 = 0x1C;
 pub const WINDOW_ROWS: i32 = 0x1B;
 
-/// `Ui_OkButton(0x1A8, 0x1A6, 0)`.
 pub const OK: Rect = Rect::new(0x1A8, 0x1A6, 32, 32);
 
-/// `Faces.pl8` — the sheet `Diplo_DrawScreen` reads before it stacks the cards,
-///
 /// `lord * 3 − 3` are the portraits (12 for a human rival) and 13, 14, 15 are
 /// the three status icons. **[I]** the icon frames: the *positions* are the
 /// painter's literals, the identification of 13/14/15 as allied, at-war and
 /// mail is the branch each is drawn under and has not been checked against the
 /// pictures.
 const FACES: &str = "Faces.pl8";
-/// `Sprite_WGenSprite(0x0D, 0x9E, slot*100 + 0x41)`.
 const ALLIED_ICON: usize = 13;
-/// `Sprite_WGenSprite(0x0E, 0x92, slot*100 + 0x41)`.
 const AT_WAR_ICON: usize = 14;
-/// `Sprite_WGenSprite(0x0F, 0x1E, slot*100 + 0x50)`.
 const MAIL_ICON: usize = 15;
 
-/// `Pl8_DrawFrame(g_miscCtySheet, shieldIndex + 0x55, …)` — the same
-/// `Misc_cty` banner run [`l2_view::chrome::misc_cty::BANNER`] names for the
-/// menu bar's realm flags.
 const SHIELD_BASE: usize = 0x55;
 
-/// `Pl8_DrawFrame(g_miscCtySheet, 0x1D, 0x140, 0x140)` — the picture in the
-/// window's bottom-right corner, drawn on **three of the four** menu layouts.
 const SEAL_FRAME: usize = 0x1D;
 const SEAL_AT: (i32, i32) = (0x140, 0x140);
 
@@ -164,8 +117,6 @@ const SEAL_AT: (i32, i32) = (0x140, 0x140);
 /// `tools/oracle/widgets.js widgets 4dd940 6`.
 pub const MENU_FRAME: usize = 64;
 
-/// `Ui_DrawInsetRect(0xD0, 0x60, 0xE8, h)` — one recess behind the whole menu,
-///
 pub const MENU_INSET_X: i32 = 0xD0;
 pub const MENU_INSET_Y: i32 = 0x60;
 pub const MENU_INSET_W: i32 = 0xE8;
@@ -179,23 +130,14 @@ pub const MENU_LABEL_W: i32 = 0xA0;
 const SELECTED_INNER: u8 = 0xF9;
 const SELECTED_OUTER: u8 = 0x3F;
 
-/// One lord card, for slot `n`: `Ui_DrawInsetRect(0x30, n*100 + 0x31, 0x52,
-/// 0x4E)`. The stride of 100 is the original's, and it is not the card's
-/// height — the card is 78 tall and there are 22 pixels of air between.
 pub fn card_rect(slot: usize) -> Rect {
     Rect::new(0x30, slot as i32 * 100 + 0x31, 0x52, 0x4E)
 }
 
-/// The standing thermometer: 10 wide, 63 tall, at x = 0x88 inside the card.
-/// `Diplo_DrawLordCard` fills it from +30 downward to the standing.
 pub const THERMOMETER_W: i32 = 10;
 pub const THERMOMETER_H: i32 = 63;
 pub const THERMOMETER_X: i32 = 0x88;
 
-/// The three colours the thermometer is filled in, and **they are the AI's own
-/// two alliance thresholds**: `Diplo_ReplyAllianceOffer` accepts outright at
-/// ≥ +11 and refuses outright below −10, which is the same pair of numbers
-/// written by different code. `docs/diplomacy.md` §1.1.
 pub const THERMOMETER_WARM: i8 = 11;
 pub const THERMOMETER_COLD: i8 = -11;
 
@@ -215,7 +157,6 @@ pub const THERMOMETER_LOW: u8 = 0xF9;
 /// no `Faces.pl8` to put a portrait in.
 pub const LORD_TITLE_GROUP: usize = 7;
 
-/// Screen `0x0B`.
 pub struct DiplomacyScreen {
     /// `g_diploTarget` (`0x0053F03C`). `None` until the first draw, because
     /// `Diplo_DefaultTarget` needs the realm array and a screen is built
@@ -225,15 +166,9 @@ pub struct DiplomacyScreen {
     /// out of `+0x0F` of `0x004DD940` … `0x004DD9B8`: the button goes down and
     /// the dialog opens twenty frames later.
     press: Press,
-    /// **Which menu row each slot's delayed press is for**, since the table is
-    /// built per frame from the menu the target's state selects. One per slot,
-    /// because each record's twenty frames are its own (`crate::press`).
     pending_rows: [Option<usize>; MENU_SLOTS],
 }
 
-/// **The three tables are three windows onto one array**, and that is why none
-/// of them hides a record.
-///
 /// Decoded out of `Lords2.exe`, `0x004DD9D0` is a contiguous run of 24-byte
 /// widgets: records 0…3 are the gift's four, records 4…5 *are* `0x004DDA30`
 /// (`0x004DD9D0 + 4 × 24`) and records 6…7 *are* `0x004DDA60`
@@ -243,16 +178,15 @@ pub struct DiplomacyScreen {
 /// past the compose dialogs into other screens' tick/cross pairs at
 /// `0x004DDA90` and beyond, whose handlers (`FUN_004367FF`, `FUN_00436872`,
 /// `FUN_004368FD`) are message replies.
+///
 /// **[V]** `tools/oracle/widgets.js widgets 4dd9d0 8`.
 pub const WIDGET_TABLE: u32 = 0x004D_D9D0;
 
-/// Screen `0x1A` — one of the seven compose dialogs.
 pub struct ComposeScreen {
     target: u8,
     kind: Kind,
     /// `g_diploGold` (`0x0057A0F8`), for kind 0 only.
     pub gold: i32,
-    /// `g_pickedCounty`, for kinds 5 and 6. `Diplo_OpenAskHelp` clears it.
     pub county: u8,
     /// One of the four 200-byte buffers at `g_diploLetterDraft`
     /// (`0x0053F2B8`), as the editor that fills it.
@@ -261,17 +195,8 @@ pub struct ComposeScreen {
     /// buffer's current contents, and ours come from `L2.eng` group 226
     /// through [`letter_default`], which needs assets
     /// [`ComposeScreen::new`] has not got.
-    ///
-    /// **One divergence, stated.** The original's four buffers are globals
-    /// seeded once by `Options_SetDefaults` and edited in place, so a letter
-    /// half-written to the Knight is still there when the Baron's is opened
-    /// (`docs/diplomacy.md` §10.10). Ours is per-screen and reseeds on every
-    /// open: the buffer has no home in `Game`, and presentation state put
-    /// there would enter the digest — `docs/netcode.md`.
     letter: Option<crate::text::TextField>,
-    /// What the tick did, for the caller.
     pub sent: Option<Result<Kind, Refusal>>,
-    /// The dialog's press timer and repeat counter. See [`ComposeScreen::widgets`].
     press: Press,
 }
 

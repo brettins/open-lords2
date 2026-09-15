@@ -1,51 +1,3 @@
-//! **A saved game** — the whole [`Game`], as bytes, and back again.
-//!
-//! # It is `l2_kingdom::save` plus ten fields, and that is the whole design
-//!
-//! `crates/l2-kingdom/src/save/mod.rs` already encodes a [`Kingdom`] through
-//! `l2_net::Canonical`, the deterministic encoder `docs/netcode.md` §5 demands
-//! for the per-tick checksum and the late-join snapshot. It refuses an unknown
-//! version, it fingerprints the ruleset, and it has no
-//! floats, no `usize` on the wire and no hash-ordered iteration.
-//!
-//! A saved *game* is that file with a short prefix: the ten plain fields
-//! [`Game`] adds on top of the world — who the player is, which map slot the
-//! scenario runs on, what colour each realm flies, which county is selected,
-//! the county anchors, last turn's treasuries, the last season's report, and
-//! how many turns have been ended.
-//!
-//! So this module **does not encode a kingdom**. It calls
-//! [`l2_kingdom::save::encode`] and puts the result in the file whole, and on
-//! the way back it hands those bytes straight to [`l2_kingdom::save::decode`]
-//! and reports whatever that says. Writing a second kingdom encoder here would
-//! mean a save whose bytes and a lockstep checksum whose bytes could disagree,
-//! which is exactly the failure `l2-net`'s `canonical.rs` exists to prevent.
-//!
-//! # Two versions, and both refuse
-//!
-//! The file has **two** version numbers and they are independent:
-//!
-//! * [`VERSION`], this module's, which changes when the ten-field prefix
-//!   changes;
-//! * `l2_kingdom::save::VERSION`, which changes when the world does — it is at
-//!   4 today, and has been bumped three times already for the herd fields, the
-//! campaign layer and the tile-derived fields.
-//!
-//! Either one being unfamiliar is a refusal that names itself:
-//! [`LoadError::UnsupportedVersion`] for ours,
-//! [`LoadError::Kingdom`] wrapping `l2_kingdom::save::LoadError::UnsupportedVersion`
-//! for the world's. Neither is ever read on the assumption that the fields
-//! happen to line up — a plausible kingdom assembled out of a misread save is
-//! worse than an error message, and a *half*-loaded one is worse still, which
-//! is why [`decode`] builds a whole [`Game`] or returns `Err` and never touches
-//! the caller's.
-//!
-//! # No `std::fs`
-//!
-//! Same rule as `l2_kingdom::save`, for the same reason. This module turns a
-//! [`Game`] into a `Vec<u8>` and back; *where* those bytes live is
-//! [`crate::saves`]'s business, and keeping the file system out is what lets
-//! the round-trip test run with no directory, no permissions and no clean-up.
 
 mod codec;
 pub use codec::*;
@@ -61,78 +13,29 @@ use l2_net::canonical::{Canonical, CodecError, Reader};
 use crate::game::Game;
 use crate::screens::setup::MAP_COUNT;
 
-/// Eight bytes
-/// fails on the magic.
-///
-/// Deliberately one letter from `l2_kingdom::save::MAGIC` (`L2KSAVE\x01`): a
-/// kingdom save and a game save are different files and neither should ever be
-/// read as the other.
 pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 
-/// The version of **the prefix**, not of the world. Bump it whenever a field
-/// below is added, removed or changes width, and never reinterpret an unknown
-/// one.
-///
-/// * 1 — the first layout: the ten fields `Game` carries on top of `Kingdom`.
-/// * 2 — the campaign section: which of the two campaigns, how many of its maps
-/// have been won
-///   queued. Without it a saved campaign always resumed at map one.
-/// * 3 — `g_playerNames`: six 31-byte lord names, in the realms section beside
-///   the colours. Without it the name a person typed on setup page 4 lasted
-///   until they saved.
-/// * 4 — **the message ring**, in place of version 2's ending-message list. The
-///   endings are no longer a queue of their own: they go into `g_messageQueue`
-///   with every other message and are settled by being displayed and dismissed,
-/// so what has to survive a save is the whole ring and the record on screen.
-///   See [`crate::message`].
-/// * 5 — **`Game::event_posted`**, the half of `Event_Post`'s latch that moved
-///   out of the kingdom so the lockstep digest would stop covering one peer's
-///   cursor. The original keeps it in the county record; we cannot.
-/// * 6 — **a pass index moved**: `l2_kingdom::phase::Pass::ArmyRecountTroops`
-///   was inserted into `SEASON_PIPELINE`, and a season report writes a pass as
-///   its position in that array.
 pub const VERSION: u32 = 6;
 
-/// Magic, version, the prefix's length and the kingdom blob's length.
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
 
-/// The file extension we write. **Not `.sav`.** The original's `.sav` is a
-/// memory dump with no header and no version which we read as an oracle
-/// (`l2_formats::save`); this is our own format and confusing the two — in a
-/// directory listing, in a bug report, or in `.gitignore` — costs more than the
-/// four characters saves.
 pub const EXTENSION: &str = "l2sav";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LoadError {
-    /// The first eight bytes are not [`MAGIC`].
     NotASave,
-    /// A prefix version this build does not know. **A refusal, not a guess.**
     UnsupportedVersion { found: u32, supported: u32 },
-    /// The two declared lengths do not match what followed them.
     TruncatedBody { declared: usize, actual: usize },
-    /// The body decoded but its checksum does not match the trailer's.
     Corrupt { expected: u64, actual: u64 },
-    /// The bytes ran out, or a tag byte named nothing.
     Malformed(CodecError),
-    /// The world would not load. The kingdom's own error, unchanged — an
-    /// unknown `l2_kingdom::save::VERSION` and a ruleset mismatch both arrive
-    /// here saying what they are.
     Kingdom(l2_kingdom::save::LoadError),
-    /// `g_localPlayer` naming a realm that does not exist.
     Player(u8),
     /// A map slot outside the sixty `L2.eng` group 101 names.
     MapSlot(u32),
-    /// A selected county that is not a county on this map. 0 — nothing
-    /// selected — is legal; county ids are 1-based.
     Selected(u8),
-    /// A pass index that is not a position in `SEASON_PIPELINE`.
     BadPass(u32),
-    /// A season report tag that names no [`Message`] variant.
     BadMessage(u8),
-    /// An event id the deck does not have.
     BadEvent(u16),
-    /// A bankruptcy action tag that names no variant.
     BadBankruptcy(u8),
 }
 
@@ -184,11 +87,6 @@ impl From<l2_kingdom::save::LoadError> for LoadError {
     }
 }
 
-/// What the header says, without decoding anything behind it.
-///
-/// The load screen reads this for every file it lists
-/// can be *named* as unreadable in the list
-/// clicks it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Header {
     pub version: u32,
@@ -196,8 +94,6 @@ pub struct Header {
     pub kingdom_len: usize,
 }
 
-/// Read the header and nothing else. Cheap, and it is the only thing the file
-/// list needs.
 pub fn peek(bytes: &[u8]) -> Result<Header, LoadError> {
     if bytes.len() < HEADER_LEN + 8 || bytes[..8] != MAGIC {
         return Err(LoadError::NotASave);
@@ -219,12 +115,6 @@ pub fn peek(bytes: &[u8]) -> Result<Header, LoadError> {
     Ok(Header { version, prefix_len, kingdom_len })
 }
 
-/// A whole game as bytes.
-///
-/// Deterministic by construction: every write is a fixed width in
-/// little-endian, every collection is an array walked by ascending index, and
-/// the world's half is `l2_kingdom::save::encode` unchanged. The same game
-/// encodes to the same bytes on any machine.
 pub fn encode(game: &Game) -> Vec<u8> {
     let mut prefix = Canonical::recording();
     encode_prefix(game, &mut prefix);
@@ -245,11 +135,6 @@ pub fn encode(game: &Game) -> Vec<u8> {
     out
 }
 
-/// Read a saved game back, on a supplied ruleset.
-///
-/// `tables` is the ruleset the game is currently running — from `l2-mods`, or
-/// `Tables::DEFAULT`. It must be the one the save was written under;
-/// `l2_kingdom::save` fingerprints it and says so if it is not.
 pub fn decode(bytes: &[u8], tables: Tables) -> Result<Game, LoadError> {
     let header = peek(bytes)?;
 
@@ -264,10 +149,6 @@ pub fn decode(bytes: &[u8], tables: Tables) -> Result<Game, LoadError> {
         return Err(LoadError::Corrupt { expected, actual });
     }
 
-    // The world first, so the prefix's county checks have something to check
-    // against. The file is laid out prefix-then-kingdom because the prefix is
-    // small and fixed; the *reading* order is the other way round and nothing
-    // requires them to agree.
     let kingdom = l2_kingdom::save::decode(&body[header.prefix_len..], tables)?;
 
     let mut reader = Reader::new(&body[..header.prefix_len]);
@@ -276,9 +157,6 @@ pub fn decode(bytes: &[u8], tables: Tables) -> Result<Game, LoadError> {
     Ok(game)
 }
 
-// ---------------------------------------------------------------------------
-// The prefix: what `Game` adds to `Kingdom`
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -342,9 +220,6 @@ mod tests {
 
     #[test]
     fn every_pass_in_the_pipeline_survives_the_round_trip() {
-        // The pass index *is* the pipeline position
-        // or lost an entry would silently renumber every save. This pins that
-        // the mapping is total and one-to-one in both directions.
         for (i, pass) in SEASON_PIPELINE.iter().enumerate() {
             assert_eq!(pass.order(), i, "{pass:?}");
         }
@@ -354,7 +229,6 @@ mod tests {
     fn a_file_that_is_not_ours_is_refused_on_the_magic() {
         assert_eq!(decode(b"not a save at all, really", Tables::DEFAULT), Err(LoadError::NotASave));
         assert_eq!(decode(&[], Tables::DEFAULT), Err(LoadError::NotASave));
-        // The original's own save, whose first bytes are anything but ours.
         let mut theirs = vec![0u8; 256];
         theirs[..8].copy_from_slice(b"L2KSAVE\x01");
         assert_eq!(decode(&theirs, Tables::DEFAULT), Err(LoadError::NotASave));
@@ -377,7 +251,6 @@ mod tests {
     fn a_worlds_version_this_build_does_not_know_comes_back_named_too() {
         let bytes = encode(&a_game());
         let h = peek(&bytes).unwrap();
-        // The kingdom blob's own version word: four bytes into its header.
         let at = HEADER_LEN + h.prefix_len + 8;
         let mut bad = bytes.clone();
         let bumped = l2_kingdom::save::VERSION + 1;
@@ -421,8 +294,6 @@ mod tests {
         let mut game = a_game();
         game.player = 9;
         assert_eq!(decode(&encode(&game), Tables::DEFAULT), Err(LoadError::Player(9)));
-        // And the guard is on the *file*
-        // player byte was corrupted in transit is refused the same way.
         let mut bytes = encode(&a_game());
         bytes[HEADER_LEN] = MAX_REALMS as u8;
         rehash(&mut bytes);
@@ -463,8 +334,6 @@ mod tests {
         );
     }
 
-    /// Recompute the trailer after a deliberate poke, so that a test about one
-    /// guard is not answered by the checksum instead.
     fn rehash(bytes: &mut [u8]) {
         let n = bytes.len();
         let mut c = Canonical::hashing();

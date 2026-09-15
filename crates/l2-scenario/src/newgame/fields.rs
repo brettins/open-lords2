@@ -18,16 +18,6 @@ use crate::{Clock, CountyState, IndustryState, RealmState, Scenario};
 
 /// `Map_PlaceStartingFields` (`0x00467A36`) — every farm tile's opening crop.
 ///
-/// The ladder is *per county*, on the tile's ordinal within it, and the whole
-/// of the difficulty setting's effect on the land is here:
-///
-/// | difficulty | pasture | fallow | wild |
-/// |---|---|---|---|
-/// | 0 easiest | first 8 | the rest | — |
-/// | 1 | first 6 | 2 more | the rest |
-/// | 2 | first 4 | 2 more | the rest |
-/// | 3 hardest | first 4 | — | the rest |
-///
 /// The frame is `base + ((storedFrame + 0xB0) & 3)`, which keeps the tile's own
 /// variant: every crop state is four consecutive frames and `& 3` picks the
 /// same one of the four. `FUN_0046D7F4` then recomputes the identical number
@@ -82,12 +72,6 @@ pub(super) fn place_starting_fields(w: &mut MapWorld, difficulty: u8) {
 /// `County_CollectFieldTiles` (`0x0046DA4B`) — `g_countyFieldTiles`, and **the
 /// twenty-slot table is a hard limit that razes what will not fit.**
 ///
-/// This is the function that makes twenty fields per county a *fact about the
-/// map*. A county with twenty-one farm tiles
-/// loses the twenty-first outright: terrain 0, frame 6, **flags zeroed** and
-/// the bank put back to base — it stops being farmland at all and becomes
-/// plain grass, before the first season runs.
-///
 /// `[D]` on the consequence, `[V]` on the code: the razing branch is the `else`
 /// of *"is there a free slot"*, and the four writes are literal.
 pub(super) fn collect_field_tiles(w: &mut MapWorld) {
@@ -116,15 +100,6 @@ pub(super) fn collect_field_tiles(w: &mut MapWorld) {
 
 /// `Merchant_PickStartCounties` (`0x004291B3`) — one start county per trade
 /// route, each different from the ones already handed out.
-///
-/// **The dedup walk is odd and it is reproduced exactly**, because a merchant
-/// that starts in the wrong county walks the wrong route for the rest of the
-/// game. Candidate 0 is the route's first town; after that it tries cells
-/// 2, 4, 6 … and, on running off the end of the row, cells 3, 5, 7 …; **cell 1
-/// is never tried**; and after five retries it stores whatever it has, taken or
-/// not. `Merchant_StartCountyTaken` returns 1 for county 0 as well, because
-/// unset entries are 0 —
-/// `Merchant_SpawnAll` stops dead at the first zero.
 pub(super) fn pick_merchant_starts(w: &mut MapWorld) {
     let taken = |starts: &[u8; ROUTES], c: u8| starts.iter().any(|&s| s == c);
     let mut starts = [0u8; ROUTES];
@@ -149,40 +124,15 @@ pub(super) fn pick_merchant_starts(w: &mut MapWorld) {
     w.merchant_start = starts;
 }
 
-// ---------------------------------------------------------------- the seating
 
 /// `FUN_00497E65` (`0x00497E65`) — **the start table is shuffled, and that is
 /// why which realm you play is different every game.**
-///
-/// `docs/environment.md` records the fact from the other end: the England
-/// turn-one fixture's fingerprint deliberately excludes the realm→county
-/// assignment, because two independently created saves of the same map
-/// disagree about it. This is the code that disagrees. `Game_NewGame` calls it
-/// between `Mercenary_Init` and `PlayerStart_Compact`, and it re-deals the
-/// live entries of `g_playerStartTable` into each other's slots:
-///
-/// ```c
-/// for (i = 1; i <= live; i++) {
-///     pos = (rand & 3) + 1 + i;  if (pos > live) pos = 1;
-///     for (tries = 0; tries < live; tries++) {
-///         if (table[pos] == 0) { table[pos] = src[i]; break; }
-///         if (++pos > live) pos = 1;
-///     }
-/// }
-/// ```
 ///
 /// **`[D]`, and the function had no name until now.** Its second half deals a
 /// 48-entry table into `DAT_0057CAE0` and fills `DAT_00553080` with a value per
 /// entry (`0`, `100`, or `6 + 5n`); neither destination has been traced and
 /// neither is a player start, so neither is reproduced.
-///
-/// **The generator is ours and the shape is the original's**, for the reason
-/// `l2_game::scenario::SEED` gives: the original draws from two 31-bit LFSRs
-/// whose state no save records, and reproducing its *stream* is impossible from
-/// a file. What is reproduced is the deal — a random offset, then a linear
-/// probe forward for a free slot, wrapping at the live count.
 fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
-    // `local_ec`: how many of entries 1..5 the map filled.
     let src: Vec<u8> = (1..w.player_start.len()).map(|m| w.player_start[m]).collect();
     let live = src.iter().filter(|&&c| c != 0).count();
     if live == 0 {
@@ -206,23 +156,12 @@ fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
             }
         }
     }
-    // The probe can leave an entry unplaced only if every slot was full, which
-// needs more sources than slots; there are
     debug_assert!(table[1..].iter().all(|&c| c != 0), "the deal placed every start");
     table[1..].to_vec()
 }
 
 /// `PlayerStart_Compact` (`0x0049BC5F`) — the start counties the live realms
 /// get, realm 1 first.
-///
-/// The original bubbles entries whose *slot number* is above the live realm
-/// count out of a six-entry table, repeatedly, until none is left. Every
-/// populated entry's slot number is its own index (`PlayerStart_Record` writes
-/// both),
-/// result is the first `lords` entries of the table as
-/// [`shuffle_starts`] left it. Written that way, with
-/// the equivalence stated here and checked over all 44 shipped maps in
-/// `tests/newgame.rs`.
 pub(super) fn start_counties(w: &MapWorld, lords: usize, seed: u64) -> Result<Vec<u8>, MapError> {
     let seats = shuffle_starts(w, seed);
     if seats.is_empty() {

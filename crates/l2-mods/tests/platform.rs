@@ -1,11 +1,9 @@
-//! End to end: an install, two mods, one loaded game.
 
 mod common;
 
 use common::TempDir;
 use l2_mods::{Platform, Side, TroopRules};
 
-/// A miniature "install": three sprites and a base ruleset.
 fn fake_install(dir: &TempDir) {
     dir.write("Base1a.pl8", "base sprite a");
     dir.write("Base1b.pl8", "base sprite b");
@@ -77,16 +75,13 @@ fn a_mod_overrides_a_rule_and_a_sprite_at_once() {
     assert_eq!(p.load_order.len(), 1);
     assert_eq!(p.load_order[0].name, "Longbows");
 
-    // Asset: shadowed.
     assert_eq!(p.vfs.read_to_string("Base1a.pl8").unwrap(), "modded sprite a");
     assert_eq!(p.vfs.read_to_string("base1b.pl8").unwrap(), "base sprite b");
 
-    // Rule: merged, with the untouched siblings intact.
     assert_eq!(p.rules.integer("battle.three_bridges.attacker.crossbows").unwrap(), 40);
     assert_eq!(p.rules.integer("battle.three_bridges.attacker.peasants").unwrap(), 100);
     assert_eq!(p.rules.integer("battle.three_bridges.defender.crossbows").unwrap(), 30);
 
-    // And the report says
     let report = p.report();
     assert_eq!(report.shadowed_assets.len(), 1);
     assert_eq!(report.shadowed_assets[0].0, "base1a.pl8");
@@ -157,17 +152,14 @@ fn the_typed_troop_rules_come_out_of_the_merged_document() {
     let battle = rules.battle("three_bridges").expect("battle");
     assert_eq!(battle.defensive_advantage, 5);
 
-    // Normal is unscaled.
     let normal = rules.army(battle, "normal", Side::Attacker);
     assert_eq!(rules.count(&normal, "peasants"), Some(100));
     assert_eq!(rules.count(&normal, "crossbows"), Some(20));
 
-    // The mod halved very_hard, and siege equipment is never scaled.
     let hard = rules.army(battle, "very_hard", Side::Attacker);
     assert_eq!(rules.count(&hard, "peasants"), Some(50));
     assert_eq!(rules.count(&hard, "catapults"), Some(2));
 
-    // The mod also raised the defenders' catapults, which the cap allows.
     assert_eq!(battle.defender[7], 4);
 }
 
@@ -177,7 +169,6 @@ fn a_rule_outside_its_range_fails_the_load_with_the_mods_file_named() {
     let mods = TempDir::new("mods5");
     fake_install(&install);
     mods.write("silly/mod.toml", "[mod]\nid = \"silly\"\n");
-    // The original engine would silently clamp this to 9.
     mods.write("silly/rules/silly.toml", "[battle.three_bridges.attacker]\ncatapults = 40\n");
 
     let p = Platform::builder()
@@ -224,9 +215,6 @@ fn a_mod_can_be_supplied_directly_without_a_mods_directory() {
     assert_eq!(p.rules.integer("battle.three_bridges.attacker.crossbows").unwrap(), 7);
 }
 
-/// The example mod shipped in `example-mods/` is the one printed in
-/// `docs/modding.md`. Loading it here is what stops the documentation drifting
-/// away from the code.
 #[test]
 fn the_documented_example_mod_is_real_and_loads() {
     let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("example-mods").join("longbows");

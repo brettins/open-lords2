@@ -10,24 +10,18 @@ use crate::tables::{Tables, WEAPON_TYPE_COUNT};
 use crate::unit::{ArmyNames, TroopType, Unit, UnitKind, Units, TROOP_TYPES};
 
 impl LevyBasket {
-    /// The levy total — slot 7, which the `+`/`−` buttons never move.
     pub fn total(&self) -> i32 {
         self.slots[BASKET_TOTAL].chosen
     }
 
-    /// The men still carrying nothing.
     pub fn unequipped(&self) -> i32 {
         self.slots[0].chosen
     }
 
-    /// The seven troop counts an army raised from this basket would have.
     pub fn troops(&self) -> [i32; TROOP_TYPES] {
         core::array::from_fn(|t| self.slots[t].chosen)
     }
 
-    /// Move `n` men from the unequipped pool into a weapon slot, as the `+`
-    /// button does one at a time. Returns how many
-    /// bounded by the men available and by the stock left.
     pub fn equip(&mut self, troop: TroopType, n: i32) -> i32 {
         let Some(slot) = troop.weapon_slot().map(|w| w + 1) else { return 0 };
         let moved = n.min(self.slots[0].chosen).min(self.slots[slot].remaining).max(0);
@@ -37,8 +31,6 @@ impl LevyBasket {
         moved
     }
 
-    /// Put a weapon slot's men back in the unequipped pool, as the `−` button
-    /// does.
     pub fn unequip(&mut self, troop: TroopType, n: i32) -> i32 {
         let Some(slot) = troop.weapon_slot().map(|w| w + 1) else { return 0 };
         let moved = n.min(self.slots[slot].chosen).max(0);
@@ -48,24 +40,6 @@ impl LevyBasket {
         moved
     }
 
-    /// The AI's auto-equip: ten men at a time, round-robin over the six weapon
-    /// types.
-    ///
-    /// ```c
-    /// men = slot[7].chosen;  pass = 0;  changed = true;
-    /// while (pass < 50 && changed) {
-    ///     changed = false;
-    ///     for (t = 1; t < 7; t++) {
-    ///         if (men < 10) goto done;
-    ///         if (slot[t].remaining >= 10) {
-    ///             slot[t].chosen += 10;  slot[t].remaining -= 10;
-    ///             slot[0].chosen -= 10;  men -= 10;  changed = true;
-    ///         }
-    ///     }
-    ///     pass++;
-    /// }
-    /// ```
-    ///
     /// > **`docs/armies.md` §6.2 says it runs *"until either the men or a
     /// > weapon type runs out"*. Wrong on the second half:** a weapon type that
     /// > runs out is *skipped* on every later pass

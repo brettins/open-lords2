@@ -23,11 +23,6 @@ use l2_view::Canvas;
 /// heading face, where the call site puts it, inside the panel's own box — and
 /// is not in the body face.**
 ///
-/// We drew three of them in `Fntl2_14.pl8` through `Pen::eng` (the merchant's
-/// and peasants' 31/0 and 31/5, and the transport's 31/2 at the others' place)
-/// and five not at all: the transport's county, an army's name, and the
-/// mercenary line's three pieces.
-///
 /// ```c
 /// Ui_DrawBox(8, R * 0x10 + 0x20, 0x1c, 0x1b - R);
 /// /* transport */  Eng_DrawString(0x1f, 2, 0x18, R * 0x10 + 0x30, &g_fontHeading, 0x3f);
@@ -43,13 +38,6 @@ use l2_view::Canvas;
 /// Every `R` and every position below is a literal out of those lines and
 /// `FUN_0041BEFE`'s ladder; the only computed parts are the widths of strings
 /// measured in the face the call names.
-///
-/// Ablated, each red here on its own:
-/// * the merchant's heading back to `Face::Body` — *"Merchant."* is not in
-///   `Fntl2_22.pl8` at (40, 304);
-/// * the army-name draw deleted — *"The Foxes."* is not at (40, 80);
-/// * `TRANSPORT_HEADING_AT` → `(0x28, 0x30)` — *"Supplies for"* found at 40, not 24;
-/// * the mercenary count's `Face::Heading` → `Face::Body` — `"40"` is not at (60, 336).
 #[test]
 fn every_unit_panel_heading_is_in_the_heading_face_inside_its_box() {
     use l2_game::screens::info::{InfoScreen, Target};
@@ -112,7 +100,6 @@ fn every_unit_panel_heading_is_in_the_heading_face_inside_its_box() {
                 let y = row * 16 + 0x130;
                 let band = text(0x10, 3);
                 let band_x = 0x38 + LEAD + heading.width("40") + TRAILER;
-                // Archer is troop 5, and 40 is plural: 0x34 + 5 * 2 + 1.
                 let noun_x = band_x + heading.width(&band) + TRAILER;
                 vec![
                     (text(0x5D + player as usize, 4), 0x28, row * 16 + 0x30),
@@ -124,7 +111,6 @@ fn every_unit_panel_heading_is_in_the_heading_face_inside_its_box() {
             _ => vec![(text(0x5D + enemy as usize, 7), 0x28, row * 16 + 0x30)],
         };
 
-        // `Ui_DrawBox(8, R * 0x10 + 0x20, 0x1C, 0x1B - R)`.
         let (left, top) = (8, row * 16 + 0x20);
         let (right, bottom) = (left + 0x1C * 16, top + (0x1B - row) * 16);
         for (s, x, y) in &lines {
@@ -149,7 +135,6 @@ fn every_unit_panel_heading_is_in_the_heading_face_inside_its_box() {
             }
         }
         if label == "enemy army" {
-            // The mercenary line is inside the ownership gate.
             let none = text(0x10, 0);
             assert_eq!(find_in(&canvas, heading, &none, font::TEXT), None, "{label}: {none:?}");
         }
@@ -171,9 +156,6 @@ fn every_unit_panel_heading_is_in_the_heading_face_inside_its_box() {
 ///
 /// `DAT_004D41D8` is one space, and the row is 2 for an army of the local
 /// player's (`FUN_0041BEFE`). `CLAUDE.md` rule 6.
-///
-/// Ablated: the call site's style `0` → `3`, the bare number the panel used to
-/// draw — *"AD"* is not found on the row (`None` where `Some(159)` is expected).
 #[test]
 fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
     use l2_game::screens::info::{InfoScreen, Target};
@@ -212,5 +194,4 @@ fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
     );
 }
 
-// ------------------------------------------------ the far zoom's box of words
 

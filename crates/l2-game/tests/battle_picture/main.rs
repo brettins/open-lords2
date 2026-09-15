@@ -1,37 +1,22 @@
-//! **The battlefield, looked at** — three reports from one player on build
-//! `73DF34969`, each driven through the screen stack and asserted in pixels.
-//!
-//! ```text
-//! cargo test -p l2-game --test battle_picture
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test battle_picture
-//! ```
-//!
-//! > *"Just got into a battle, it's all reverse color ...or..something. It's
-//! > blue grainy madness. The unit seems to like...reset on their square once as
-//! > they move. And there's some ghosting of them."*
-//!
 //! 1. **The colours.** `Res_LoadStatic` (`0x00499859`) preloads record 2 of
 //!    `g_preloadTable` (`0x004D9F48`), `t32_bat1.256`, into `0x00568EE0`, and
 //!    `Screen_DrawBattlefield` (`0x004233F7`) ends a field battle's repaint with
 //!    `Palette_Set(0x568EE0)`. Ours named that file and never loaded it, so the
 //!    presenter fell back to `base01.256`.
+//!
 //! 2. **The snap.** `BattleMan_Step` (`0x0048F1DD`) enters the next cell
 //!    *first* — `FUN_00491B1F` rewrites `mapX`/`mapY` — and then counts `walking`
 //!    (`+0x32`) up 1, 3 … 15 while `BattleFigure_Draw` (`0x004BDC31`) trails the
 //!    man behind the cell he is already in. Our simulation counts first and
 //! enters last, and the picture applied the trailing offset to the cell he
 //!    was *leaving*: up to 28 pixels behind his own square, then a jump.
+//!
 //! 3. **The ghosts.** `BattleFigure_Draw` clips every man to
 //!    `Clip_Horizontal(0, 480)` / `Clip_Vertical(24, 472)`, the viewport
 //!    `FUN_004BC020` stores. Ours blitted unclipped, into the menu bar, the
 //! right column and the bottom strip, which nothing on this screen repaints.
 //!
-//! **The probes are literals out of the binary** — the viewport clip, the
-//! palette file — and never an expression of the constants under test.
 //! `docs/agents.md`, *compute the probe from the constant you are ablating*.
-//!
-//! And the fourth test is the one the brief insists on: **drawing does not
-//! change the battle**, tick for tick and by the saved game's bytes.
 
 mod render;
 pub use render::*;
@@ -64,7 +49,6 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------- the literals
 
 /// `FUN_004BC020(…, 0x50, 0x50, 8, 0, 0x18, 0xF, 0xE, 0x20)` stores
 /// `DAT_004E6564 = 0`, `DAT_004E5D54 = 15 × 32 + 0`, `DAT_004E5D48 = 0x18` and
@@ -75,9 +59,7 @@ const FIELD_Y0: i32 = 24;
 const FIELD_X1: i32 = 480;
 const FIELD_Y1: i32 = 472;
 
-// ------------------------------------------------------------------ the world
 
-/// Open ground with the human's marker at (40, 36) and the AI's at `ai`.
 fn field_at(ai: (usize, usize)) -> l2_sim::Battlefield {
     let mut layer = vec![0u8; l2_sim::terrain::CELLS];
     layer[36 * DIM + 40] = 0x04;
@@ -85,14 +67,10 @@ fn field_at(ai: (usize, usize)) -> l2_sim::Battlefield {
     l2_sim::terrain::build(&layer, 1)
 }
 
-/// Open ground with the human's marker at (40, 36) and the AI's at (40, `ai_row`).
 fn field(ai_row: usize) -> l2_sim::Battlefield {
     field_at((40, ai_row))
 }
 
-/// A live battle, unpaused, between a human (realm 1, side 0) and an AI (realm
-/// 2, side 4), staged on the battlefield screen. The camera is placed by
-/// `cam_of` from where the human's first figure was deployed.
 fn staged(
     ai_row: usize,
     human: &[(Troop, u16)],
@@ -132,9 +110,6 @@ fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
     m.handle(e, &mut ctx);
 }
 
-/// One frame as `App` runs it: the tick, then the paint, **onto the same
-/// canvas as every frame before** — `Machine::draw` never clears it,
-/// remnant is only visible to a test that keeps the canvas.
 fn frame(m: &mut Machine, g: &mut Game, a: &Assets, canvas: &mut Canvas) {
     let mut ctx = Ctx { game: g, assets: a };
     m.update(&mut ctx);
@@ -150,7 +125,6 @@ fn live(g: &Game) -> &LiveBattle {
     g.battle.as_deref().expect("a live battle")
 }
 
-/// The centre of a cell on screen.
 fn pixel(live: &LiveBattle, cell: (u8, u8)) -> (i32, i32) {
     let (cx, cy) = (cell.0 as i32 - live.cam.0, cell.1 as i32 - live.cam.1);
     assert!(
@@ -167,10 +141,6 @@ fn click_at(m: &mut Machine, g: &mut Game, a: &Assets, (x, y): (i32, i32)) {
     send(m, g, a, Event::Release { x, y });
 }
 
-/// Pick the human's figure `man` by clicking on him, then order him to `to`
-/// through **the overview panel** — `BattleMap_Click`, at two pixels a cell —
-/// which reaches a cell whether or not it is in view. The pointer is then
-/// parked mid-field, clear of every edge, so the camera never scrolls.
 fn send_man(m: &mut Machine, g: &mut Game, a: &Assets, man: usize, to: (u8, u8)) {
     let f = &live(g).runner.fighters[man];
     let at = pixel(live(g), (f.x, f.y));

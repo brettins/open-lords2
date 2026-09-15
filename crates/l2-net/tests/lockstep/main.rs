@@ -1,16 +1,3 @@
-//! The lockstep core, exercised as a whole session.
-//!
-//! This is the file `docs/netcode.md` §6 is really asking for: **two
-//! simulations in one process, fed identical commands, must produce
-//! identical checksums, and a deliberately perturbed one must be
-//! caught.** Everything here runs with no network, no game install, no
-//! clock and no threads, which is the only reason it will be run often
-//! enough to be worth having.
-//!
-//! The harness below is a complete session — sealing, framing,
-//! transport, reassembly, ordering, stepping, checksum exchange — with
-//! the loopback standing in for sockets. Nothing is stubbed out except
-//! the sockets themselves.
 
 mod session_tests;
 pub use session_tests::*;
@@ -35,16 +22,10 @@ struct Peer {
     reader: FrameReader,
     session: Session,
     sim: ToySim,
-    /// Every checksum this peer computed, so two peers can be compared
-    /// tick by tick
     hashes: Vec<(Tick, u64)>,
     errors: Vec<SessionError>,
     waited_for: Vec<PlayerSlot>,
-    /// Every tick this peer sealed a packet for.
     sealed: Vec<Tick>,
-    /// The last execution tick a scheduled command was issued for, so
-    /// a schedule fires once per tick however many rounds that tick
-    /// takes.
     issued_through: Option<Tick>,
 }
 
@@ -54,8 +35,6 @@ struct Table {
 }
 
 impl Table {
-    /// `players` peers, all in one session, each with its own
-    /// simulation seeded identically.
     pub(crate) fn new(config: Config, players: u8, seed: u64) -> Table {
         let slots: Vec<PlayerSlot> = (0..players).map(PlayerSlot::new).collect();
         let ids: Vec<PeerId> = (0..players as u32).map(PeerId).collect();
@@ -81,8 +60,6 @@ impl Table {
         Table { net, peers }
     }
 
-    /// One turn of the loop every peer runs: seal, send, drain,
-    /// advance.
     fn pump(&mut self) {
         let count = self.peers.len();
 
@@ -139,18 +116,6 @@ impl Table {
         }
     }
 
-    /// Issue commands according to a schedule keyed on the **execution
-    /// tick**, not on how many rounds of the loop have gone by.
-    ///
-    /// The distinction is the whole reason this method exists, and
-    /// finding it out cost a failing test: a player types when they
-    /// type, so under latency the same keystroke lands on a later tick
-    /// — which changes the game, correctly and by design. A test that
-    /// issued per round would therefore compare two runs that were
-    /// given genuinely different input and call the difference a
-    /// desync. Keying the schedule to the tick a command will execute
-    /// on is what makes "the network's timing changed nothing" a
-    /// statement about the lockstep core
     fn run_scheduled(&mut self, rounds: usize, schedule: impl Fn(u8, Tick) -> Option<Order>) {
         for _ in 0..rounds {
             for peer in &mut self.peers {

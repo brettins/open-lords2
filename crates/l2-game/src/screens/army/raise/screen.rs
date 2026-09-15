@@ -23,8 +23,6 @@ impl RaiseArmyScreen {
         }
     }
 
-    /// The table as it stands: Continue, and the tick and cross only when the
-    /// band can be afforded.
     fn table(&self, ctx: &Ctx) -> Vec<Widget> {
         let offer = self.offer(ctx) != 0;
         widgets(offer, offer && self.affordable(ctx))
@@ -32,21 +30,10 @@ impl RaiseArmyScreen {
 
     /// **`Screen_HandleInput`'s `0x17` arm** — `Widget_Test(0, 0,
     /// &DAT_004DD340, n)` over the three kind-5 records.
-    ///
-    /// The return is what the original's `if (Screen_HandleInput() == 0)`
-    /// tests: *did a record take this event*. It is not *did a handler run* —
-    /// every record here is kind 5, so a press consumes the event and runs
-    /// nothing, and [`Screen::update`] runs the handler twenty ticks later.
-    /// That distinction is the reason this is a hit test and not the
-    /// `Option<usize>` [`Press::event`] returns.
     pub(crate) fn widget_press(&mut self, ctx: &mut Ctx, event: Event) -> bool {
         let table = self.table(&Ctx { game: ctx.game, assets: ctx.assets });
         let fired = self.press.event(&table, event);
         debug_assert!(fired.is_none(), "every DAT_004DD340 record is kind 5");
-        // `Widget_Test`'s guard on both arms is `g_mouseLeftPressed ||
-        // g_mouseLeftDoubleClick`, so those are the two events a record can
-        // consume. A release, a move and a pointer leaving are bookkeeping:
-        // they go to `Press` above and consume nothing.
         matches!(
             event,
             Event::Click { x, y } | Event::DoubleClick { x, y }
@@ -73,17 +60,6 @@ impl RaiseArmyScreen {
     /// function's own return: `Screen_FrameInput`'s `0x17` arm reads the right
     /// release and the corner picture **only when this answers 0**.
     ///
-    /// **The three zones read three different things**, and that is the whole
-    /// of the gesture:
-    ///
-    /// ```c
-    /// if (x < 0xC4)       { if (!pressed && !doubleClick) return 0;  percent--; }
-    /// else if (x < 0x129) { if (!g_mouseLeftDown)         return 0;  percent = x - 0xC4; }
-    /// else                { if (!pressed && !doubleClick) return 0;  percent++; }
-    /// clamp 0..100;  Levy_SetPercent(sel, percent);  g_redrawRequest = 2;  return 1;
-    /// ```
-    ///
-    /// The arrows step once on a press or a double click and **do not repeat**:
     /// they are not a widget record, so `Widget_Test`'s kind-4 ramp never sees
     /// them. The track reads the **level** of the button, not an edge and not
     /// `g_mouseInputChanged`, so it answers on every frame the button is down
@@ -91,10 +67,6 @@ impl RaiseArmyScreen {
     /// press anywhere and slides in. Off the track the level does nothing: a
     /// drag carried past either end leaves the knob where the track last put
     /// it, and only an arrow's own press reaches the clamp. `[V]`
-    ///
-    /// Ours was reachable from `Event::Click` alone, so the knob jumped to the
-    /// press and then ignored the pointer: *"Slider bar in army recruitment
-    /// cant be dragged."* `pressed` is the edge, `down` the level.
     ///
     /// **It calls `Levy_SetPercent` and nothing else.** An earlier revision of
     /// this module said the slider also ran `FUN_004AA90A` and that *"re-seeding

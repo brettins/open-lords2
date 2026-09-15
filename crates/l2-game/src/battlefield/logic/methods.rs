@@ -97,13 +97,11 @@ impl LiveBattle {
         bucket[3] && bucket.iter().filter(|&&b| b).count() == 1
     }
 
-    /// Append one [`Cry`] for the current selection.
     fn cry(&mut self, class: u8) {
         let troop = self.cry_troop();
         self.cries.push(Cry { troop, class });
     }
 
-    /// `g_screenId` as the original would hold it.
     pub fn screen_id(&self) -> u8 {
         match self.mode {
             Mode::Field => 0x29,
@@ -127,8 +125,6 @@ impl LiveBattle {
     /// which are `(px − origin) / tileSize` and nothing else.
     pub fn cell_at(&self, x: i32, y: i32) -> (u8, u8) {
         let cx = (self.cam.0 + (x - VIEW.x) / TILE).clamp(0, DIM as i32 - 1);
-        // The original clamps only y, and only against 0x4F. Reproduced: x is
-        // not clamped there because the viewport test has already bounded it.
         let cy = (self.cam.1 + (y - VIEW.y) / TILE).clamp(0, DIM as i32 - 1);
         (cx as u8, cy as u8)
     }
@@ -166,20 +162,8 @@ impl LiveBattle {
         ((c(lx), c(ly)), (c(hx), c(hy)))
     }
 
-    // ------------------------------------------------------------------ hover
 
     /// `Battle_UpdateHover` (`0x0047ED9B`), once a frame.
-    ///
-    /// One clause is reproduced *corrected* rather than faithfully, and it is
-    /// flagged here because it is the only place in this file that departs from
-    /// the binary. The original's count of selected non-siege figures indexes
-    /// the figure array by `g_curBattleMan` — a **different global**, left over
-    /// from whatever sweep ran last and normally sitting one record past the end
-    /// of the array — instead of by its own loop variable. Verified at the
-    /// instruction level (`a1 f8 e8 53 00` = `mov eax,[g_curBattleMan]` where
-    /// the two clauses either side use `mov eax,[ebp-4]`). `docs/bugs.md` B100
-    /// records it; the byte it reads is in zeroed BSS, so the clause is true in
-    /// practice and the corrected reading is the one that matches play.
     ///
     /// // arm: 0x0047ED9B/hover hover
     pub fn update_hover(&mut self) {
@@ -223,12 +207,6 @@ impl LiveBattle {
     /// `Battle_Frame`'s cursor ladder (`0x004B99C0`), the arm for
     /// `0x28 ≤ g_screenId ≤ 0x2A`.
     ///
-    /// Seven leaves, and the order matters: an enemy under the pointer beats
-    /// everything, `0x2A` is always the plain arrow, and with a selection in
-    /// hand a pointer *outside* the field still shows the move cursor as long as
-    /// it is above y 184 — which is the overview panel, where a click really
-    /// does order.
-    ///
     /// // arm: 0x004B99C0/cursor hover
     pub fn cursor(&self) -> Cursor {
         if self.mode == Mode::Drag {
@@ -254,7 +232,6 @@ impl LiveBattle {
         }
     }
 
-    // ------------------------------------------------------------- the camera
 
     /// `Map_EdgeScroll` (`0x00432221`) — the pointer against the outermost pixel
     /// of the screen. Unlike the campaign map's, the battle's is never disabled
@@ -283,7 +260,6 @@ impl LiveBattle {
     /// `Map_ScrollStep` (`0x00431F59`)'s battle half, through
     /// `Map_ScrollThrottle`'s interval.
     ///
-    /// The throttle is the campaign map's, minus the one clause that is not:
     /// `Map_ScrollThrottle` adds 2 to its quotient when `g_screenId == 0x10`,
     /// and the battlefield is not `0x10`, so the battle scrolls at the plain
     /// `((100 − speed) / 10) × 12 + 2` milliseconds. The quantisation to whole
@@ -311,16 +287,12 @@ impl LiveBattle {
     }
 
     /// `FUN_0043C910`'s tail and `BattleMap_Click`'s else-arm both do this:
-    /// put the *top-left* of the viewport seven cells above and left of a cell,
-    /// which is not quite the centre of a 15 × 14 viewport and is reproduced as
-    /// found.
     fn look_at(&mut self, cell: (u8, u8)) {
         self.cam = (cell.0 as i32 - 7, cell.1 as i32 - 7);
         self.clamp_cam();
         self.redraw = true;
     }
 
-    // ------------------------------------------------------------ the buttons
 
     /// `FUN_0043B9A1` (`0x0043B9A1`) — **the pause button**.
     ///
@@ -374,16 +346,8 @@ impl LiveBattle {
     /// placement; it is not, and `docs/decisions.md` `C79`
     /// records how the mistake was caught.
     ///
-    /// **`army B` is the garrison**, `docs/battle.md` §4.3 — so this is a
-    /// defender's verb, and it is why a besieged human being unable to reach the
-    /// battlefield at all made the whole button dead. See
-    /// `crate::turn`'s `choice_owner`.
-    ///
     /// Returns the `L2.eng` message the original enqueues when it refuses, or
     /// `Ok` when the bridge went down. `sallied` is set **only when the routine
-    ///
-    /// means a level-3 castle whose layout carries no `0x40` cell leaves the
-    /// button live.
     ///
     /// // arm: 0x0043BBE7/sally left-press
     pub fn press_sally(&mut self, garrison_is_local: bool) -> Result<(), u16> {
@@ -399,12 +363,7 @@ impl LiveBattle {
         if self.sallied {
             return Err(0x9D);
         }
-        // The order enters the simulation here, and only here.
-        // display flag: it rewrites cell flags and surfaces, so two peers that
-        // disagreed about it would be pathing through different castles.
         if !self.runner.lower_drawbridge() {
-            // No `0x40` cell on the field. The original's latch is inside the
-            // search's `if`, so the button is not spent either.
             return Err(0x6F);
         }
         self.sallied = true;
@@ -445,16 +404,8 @@ impl LiveBattle {
         self.autocalc = true;
     }
 
-    // ---------------------------------------------------------- the selection
 
     /// `FUN_0043BF07` (`0x0043BF07`), the press half: **begin a drag**.
-    ///
-    /// Guarded on the pointer being over the field and the screen not already
-    /// being `0x2A`. It records both the anchor cell and the anchor pixel — the
-    /// cell is what the box is made of and the pixel is what
-    /// [`DragKind`] is measured in — and it sets the debug panel's figure to
-    /// whatever is standing under the press, which is the one thing this arm
-    /// does that a player never sees.
     ///
     /// // arm: 0x0043BF07/begin-drag left-press
     pub fn press_field(&mut self, x: i32, y: i32) -> bool {
@@ -473,8 +424,6 @@ impl LiveBattle {
     /// The original re-runs the whole selection every frame the pointer moves —
     /// `FUN_0043C247(player, 0, …)` — so what is highlighted follows the box
     /// live. The `0` is what stops it regrouping units on every pointer motion.
-    /// It is skipped entirely while the battle is paused in a multiplayer game,
-    /// which is the one clause here that has no single-player effect.
     ///
     /// **`Battle_ClassifyDrag` runs first, and kind 0 declines.** The held
     /// branch of `FUN_0043BF07` is
@@ -496,6 +445,7 @@ impl LiveBattle {
         // The two declines differ in the original (`00430000.c:6944-6951`) and
         // ours must too: kind 0 returns **0**, so the arm behind gets the
         // motion; an unchanged input returns **1**, consumed and uncommitted.
+        //
         // `!moved` stands in for `g_mouseInputChanged`, which is any input at
         // all and not only the pointer. `[D]`
         if self.drag_kind(d, x, y) == DragKind::Nothing {
@@ -525,8 +475,6 @@ impl LiveBattle {
     /// `FUN_0043BF07`'s release branch: **commit the selection**, and leave
     /// `0x2A`.
     ///
-    /// Three outcomes, and the third is the one a modern game would get wrong:
-    ///
     /// * a real box commits it with `FUN_0043C247(player, 1, …)`, which clears,
     ///   boxes, **regroups the units** and narrows;
     /// * a click on one of your own men nudges the box out by eight pixels in
@@ -534,7 +482,6 @@ impl LiveBattle {
     /// anchor and the pointer, so a click selects a 16-pixel square and
     ///   therefore usually one man;
     /// * a click on nothing does **nothing**. It does not clear the selection.
-    ///   Clearing is the right button's job and this is why.
     ///
     /// **The return value is the ladder, and it is load-bearing.** `true` means
     /// the guard consumed the release, and `Screen_FrameInput` then `goto`s past
@@ -578,7 +525,6 @@ impl LiveBattle {
                 self.runner.pick_box(self.owner, lo, hi, true);
                 true
             }
-            // Declined, so the order arm behind this one gets the release.
             DragKind::Nothing => return false,
         };
         self.current_unit = self.runner.regroup_selection(self.owner);
@@ -600,13 +546,6 @@ impl LiveBattle {
     /// `crate::input`'s claim that `Village_DoubleClick` is the only reader of
     /// `g_mouseLeftDoubleClick` was false.
     ///
-    /// The test is `(g_mouseLeftReleased || g_mouseLeftDoubleClick) &&
-    /// g_screenId == 0x2A`, so a double click **commits an open drag exactly
-    /// as a release would**. It exists because Windows
-    /// sends `WM_LBUTTONDBLCLK` instead of the second `WM_LBUTTONDOWN`, so
-    /// without this clause the second click of a fast double click would leave
-    /// the drag open for ever.
-    ///
     /// // arm: 0x0043BF07/double-click-commits double-click
     pub fn double_click_field(&mut self, x: i32, y: i32) -> bool {
         if self.mode != Mode::Drag {
@@ -616,12 +555,6 @@ impl LiveBattle {
     }
 
     /// `FUN_0043C57D` (`0x0043C57D`) → `FUN_0043C634` — **the order**.
-    ///
-    /// Five guards, all of them refusals
-    /// be on the field, it must **not** be over one of your own men (either
-    /// hover flag blocks it, which is what makes clicking a friend a selection
-    /// and never a destination), the button must have been *released*, something
-    /// must be selected, and the battle must not be paused.
     ///
     /// // arm: 0x0043C57D/order left-release
     pub fn order_at(&mut self, x: i32, y: i32) -> bool {
@@ -661,11 +594,6 @@ impl LiveBattle {
     /// `FUN_0043C2A9` (`0x0043C2A9`), the left half: **a click on a banner drops
     /// that figure from the selection**.
     ///
-    /// The banners are laid out by [`BannerLayout::for_count`] and walked in
-    /// figure-index order, so slot *n* is the *n*-th figure you hold. **Only the
-    /// first fifty are clickable**, whatever the layout and however many you
-    /// hold: the loop breaks at `0x31 < local_c`.
-    ///
     /// // arm: 0x0043C2A9/banner-drop left-press
     pub fn click_banner(&mut self, x: i32, y: i32) -> bool {
         let picked = self.runner.selected_fighters(self.owner);
@@ -689,11 +617,6 @@ impl LiveBattle {
     /// "right-click exits" habit would have replaced with a way out of the
     /// battle.
     ///
-    /// It is refused inside the overview panel — `x ≥ 0x1E1 && 0x18 ≤ y ≤ 0xB7`
-    /// — and note the off-by-one: the panel starts at `0x1E0` and the guard
-    /// tests `0x1E1`, so **a right click on the panel's leftmost column
-    /// deselects**. Reproduced.
-    ///
     /// // arm: 0x0043C2A9/right-deselect right-release
     pub fn right_deselect(&mut self, x: i32, y: i32) -> bool {
         if x >= 0x1E1 && (0x18..=0xB7).contains(&y) {
@@ -705,18 +628,9 @@ impl LiveBattle {
         true
     }
 
-    // ------------------------------------------------------- the overview map
 
     /// `BattleMap_Click` (`0x00432443`) — the 160 × 160 panel at two pixels a
     /// cell.
-    ///
-    /// It is reached from `Screen_FrameInput`'s **epilogue**, after every arm,
-    /// on any screen but `0x12` — so it is live on `0x29`, `0x2A` and `0x2B`
-    /// alike. Two behaviours in one hit test:
-    ///
-    /// * left button, something selected, no oil selected, not paused →
-    ///   **order to that cell**, at battlefield scale, from a 2-pixel click;
-    /// * anything else, including the right button → **look there**.
     ///
     /// // arm: 0x00432443/overview left-press
     pub fn click_overview(&mut self, x: i32, y: i32, right: bool) -> bool {
@@ -738,7 +652,6 @@ impl LiveBattle {
         true
     }
 
-    // ---------------------------------------------------------------- the keys
 
     /// `FUN_0043C885` (`0x0043C885`) — **Ctrl and a digit stores the
     /// selection**.
@@ -752,10 +665,6 @@ impl LiveBattle {
 
     /// `FUN_0043C910` (`0x0043C910`) — **a digit recalls it, and moves the
     /// camera to it**.
-    ///
-    /// The camera jump is part of the arm, not a convenience: the original ends
-    /// the function by scanning for the first selected figure and putting the
-    /// viewport's corner seven cells above and left of it.
     ///
     /// // arm: 0x0043C910/recall-group key
     pub fn recall_group(&mut self, digit: u8) -> bool {
@@ -779,9 +688,9 @@ impl LiveBattle {
     /// Line and column. The original reads `DAT_0053E984` straight — it does not
     /// regroup first — so pressing `H` after men have died reforms whatever unit
     /// the selection last became, which may no longer be the whole selection.
-    /// Reproduced, including the missing regroup.
     ///
     /// **It acts while the battle is paused.** `[V]`, from both of its guards:
+    ///
     /// the window procedure's `WM_CHAR` arm asks `g_battlePhase == 2 &&
     /// DAT_0057A0CC == 0`, and `FUN_0043C77A` itself asks `DAT_00553C6C == 0 &&
     /// g_appPhase == 3`. Neither is the pause word, `DAT_0053F238`, which
@@ -792,9 +701,8 @@ impl LiveBattle {
     ///
     /// // arm: 0x0043C77A/formation key
     pub fn key_formation(&mut self, formation: Formation) -> bool {
-        // **The cry comes first**, with no unit to turn and while paused:
-        // `Sound_PlayTroopCry(1)` is the first statement under the two guards.
         // `[V]`.
+        //
         // sfx: Battle_FormationKey#1
         self.cry(cry::ORDERED);
         // Not a guard of the original's: it orders `DAT_0053E984` whatever it
@@ -808,7 +716,6 @@ impl LiveBattle {
         true
     }
 
-    // ------------------------------------------------------------ the outcome
 
     /// `Battle_CheckOutcome` (`0x00477DFC`) raises `0x2B` and then counts
     /// `DAT_00568470` up to 5000 before it returns to the campaign.
@@ -822,9 +729,6 @@ impl LiveBattle {
         self.outcome_ticks > OUTCOME_FRAMES
     }
 
-    /// `Screen_FrameInput`'s `0x2B` arm — **a right release skips the banner**,
-    /// by setting the counter one past its limit.
-    ///
     /// // arm: 0x0042FF10/skip-outcome right-release
     pub fn skip_outcome(&mut self) -> bool {
         if self.mode != Mode::Outcome {
@@ -834,11 +738,6 @@ impl LiveBattle {
         true
     }
 
-    /// One simulation tick, unless the battle is paused or over.
-    ///
-    /// `Battle_Frame` runs the whole update chain regardless and the pause
-    /// stops it much further in; the observable difference is none, and doing it
-    /// here keeps `l2-sim` free of a flag that is an interface state.
     pub fn tick(&mut self) {
         if self.mode == Mode::Outcome {
             self.tick_outcome();

@@ -26,11 +26,12 @@ agent, so it stays short. Read the linked document before working in that area.
 6. **A screen's strings are part of its specification.** A `L2.eng` group with one consumer
    *is* that screen's vocabulary; draw its words from the group, with our transcription as
    the fallback. C133.
-7. **Write short.** A comment carries the function, the address and the fact. A report
-   carries findings, numbers and what you left alone. Density, never omission: keep every
-   piece of evidence, drop the prose around it. `node tools/review/prose.js` lists the
-   filler phrases; a post-edit hook cuts them from Markdown, and hands back any Rust
-   comment that argues (bold, shouting, "X, not Y") for you to restate as a fact. `docs/agents.md` *The prose pass*. Files too: a test
+7. **Write short.** A comment carries evidence and nothing the code says: the function and
+   its address, a `+0x` offset, a decompilation line, an arm or sfx marker, a `[V]`/`[I]`/`[D]`
+   mark with its reason, a C-number, the line a test's ablation names. Everything else was
+   cut on 2026-09-14 (`tools/review/comment-cut.js`; git history keeps it) and a post-edit
+   hook hands back any comment line without evidence. A report carries findings, numbers
+   and what you left alone. `docs/agents.md` *The comment shape*. Files too: a test
    file under 300 lines, a source under 500, a new file under 300; a post-edit hook says
    when you are over, and `docs/agents.md` *File size* names the split script.
 

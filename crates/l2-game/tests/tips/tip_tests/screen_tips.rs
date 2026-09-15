@@ -15,9 +15,6 @@ use l2_game::tip::{self, Tips, View};
 use l2_game::Game;
 use l2_kingdom::units_tick::Incursion;
 
-/// **Which tip fires for which screen** — `Tip_Update`'s six-arm `else if`
-/// chain and the campaign map's block, one screen byte at a time.
-///
 /// Ablation: swap any two groups in `tip::update`'s chain, or its `job == 8`,
 /// and the row naming it goes red.
 #[test]
@@ -44,20 +41,15 @@ fn each_screen_the_ladder_names_gets_its_own_tip() {
         assert_eq!(tip::update(&mut t, &view(screen)), None, "screen {screen:#04x} has no tip");
     }
 
-    // The campaign map: the kingdom overview first, and only when zoomed out.
     let mut t = armed();
     assert_eq!(tip::update(&mut t, &View { zoom_far: true, ..view(0x00) }), Some(206));
     let mut t = armed();
     assert_eq!(tip::update(&mut t, &view(0x00)), Some(200));
-    // And the switch and the phase gate the whole ladder.
     let mut t = armed();
     assert_eq!(tip::update(&mut t, &View { enabled: false, ..view(0x02) }), None);
     assert_eq!(tip::update(&mut t, &View { in_play: false, ..view(0x02) }), None);
 }
 
-/// **Our stack, read as the byte the ladder tests.** Pushed, not driven, because
-/// the question is the projection and not the screens.
-///
 /// Ablation: delete `ScreenId::RaiseArmy(_) => Some(0x17)` in
 /// `tip::screen_byte` and the raise-army row goes red.
 #[test]
@@ -76,16 +68,12 @@ fn our_screens_read_as_the_originals_screen_bytes() {
         assert_eq!(v.screen, Some(byte), "{id:?}");
         assert!(v.in_play, "the campaign is on the stack");
     }
-    // `g_jobPanelJob` is our slot plus one, so slot 7 is the blacksmith's 8.
     let mut m = Machine::new(ScreenId::Campaign);
     m.push(ScreenId::Job(1, 7));
     assert_eq!(View::of(&m, &g).job, 8);
-    // The message scroll is not a screen id: a letter open on the campaign map
-    // leaves `g_screenId` at 0.
     let mut m = Machine::new(ScreenId::Campaign);
     m.push(ScreenId::Message);
     assert_eq!(View::of(&m, &g).screen, Some(0x00));
-    // And the front end is not `g_appPhase == 3`.
     let m = Machine::new(ScreenId::Setup(l2_game::screens::setup::SetupPage::Title));
     assert!(!View::of(&m, &g).in_play);
 }
@@ -93,8 +81,6 @@ fn our_screens_read_as_the_originals_screen_bytes() {
 /// **Three tips on the campaign map, twenty frames apart.** Through the real
 /// machine: the ladder, `Tip_Show`'s screen `0x27`, the pump pulling on it, a
 /// right click, and `FUN_00476E21`'s re-arm.
-///
-/// The 21 is typed. Ablation: `DELAY` to `0x13` and every `Some(21)` is 20.
 #[test]
 fn a_new_game_meets_three_tips_twenty_frames_apart() {
     let (mut g, a, mut m) = campaign();
@@ -128,13 +114,6 @@ fn a_new_game_meets_three_tips_twenty_frames_apart() {
     assert_eq!(m.ids(), vec![ScreenId::Campaign], "screen 0x27 went with the last of them");
 }
 
-/// **A tip takes its screen away and gives it back.** On `0x27` the options
-/// page's arms do not run, so a click on its first row does nothing; the OK
-/// button closes the window and the page is back.
-///
-/// Ablation: make `TipScreen::handle` return `Pass` and Advanced Farming flips
-/// under the tip. Make `MessageScreen::handle` use `message::frame_of` again
-/// and the left button cannot close a tip at all.
 #[test]
 fn a_tip_holds_its_screens_input_and_gives_it_back_when_dismissed() {
     let (mut g, a, mut m) = campaign();
@@ -151,7 +130,6 @@ fn a_tip_holds_its_screens_input_and_gives_it_back_when_dismissed() {
         ]
     );
 
-    // `Opt_ToggleAdvancedFarming`'s widget at (280, 156).
     let farming = g.kingdom.options.advanced_farming;
     send(&mut m, &mut g, &a, Event::Click { x: 280 + 8, y: 156 + 8 });
     assert_eq!(g.kingdom.options.advanced_farming, farming, "g_screenId is 0x27, not 0x39");

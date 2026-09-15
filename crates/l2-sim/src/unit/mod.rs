@@ -1,5 +1,3 @@
-//! Battle **units** — what the AI thinks with.
-//!
 //! The original has two levels: *figures* are drawn and fight ([`crate::figure`]),
 //! *units* are what an order is given to. `docs/battle.md` §1 lists the unit
 //! record; `docs/battle-ai.md` §0 and §3.2 establish what the AI reads out of
@@ -7,25 +5,9 @@
 //! it: `BattleUnits_RebuildFromFigures` (`0x00488DFE`) and `BattleUnit_Recentre`
 //! (`0x004891AD`).
 //!
-//! # Where positions live
-//!
-//! Nowhere in this crate, deliberately. `l2-sim` owns rules, not coordinates —
-//! [`crate::figure::Figure`] has men, hits and a recovery counter and no `x`.
-//! Every routine here that needs to know where somebody stands takes a
-//! `positions` slice indexed by figure, supplied by whatever *does* own the
-//! battlefield. That is the same seam [`crate::TroopTable`] uses for the combat
-//! constants: plain data in, no loader, no knowledge of the caller.
-//!
-//! # Field offsets
-//!
 //! Every field carries the original's offset into the 0x34-byte unit record at
 //! `0x00566520`, because those offsets are how a claim here is checked against
 //! the binary or against a live process (`docs/battle.md` §9).
-//!
-//! # Determinism
-//!
-//! Integer arithmetic, `Vec` walked by index, no hashing, no clock
-//! (`docs/netcode.md`).
 
 mod helpers;
 pub use helpers::*;
@@ -40,10 +22,6 @@ use crate::figure::{Figure, Side, State};
 pub const MAX_UNITS: usize = 80;
 
 /// One unit record. **[D]** from `0x00566520`, stride `0x34`.
-///
-/// Only the fields the order handlers, the rebuild pass and the reform
-/// countdown touch are modelled. The rest of the 52 bytes is drawing
-/// and player-order state that no AI decision reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BattleUnit {
 /// `+0x00` owner. **Zero means the slot is free**, so every
@@ -58,7 +36,6 @@ pub struct BattleUnit {
     /// `+0x03` side, 0 or 4. Picks which half of every position table applies.
     pub side: Side,
     /// `+0x04`/`+0x06` lowest and highest figure index belonging to this unit.
-/// The original scans that range.
     pub first: u16,
     pub last: u16,
     /// `+0x08` dispatch category, 0…10. See [`crate::ai`] §1.2.
@@ -95,8 +72,6 @@ pub struct BattleUnit {
     /// `+0x11` some figure of this unit is filling the moat (state 9).
     pub on_moat: bool,
     /// `+0x12` times hit. A `u8`, and it **wraps** — reproduced, not widened.
-    /// Decremented only once `hit_memory` has reached zero, so it measures hit
-/// *frequency*.
     pub times_hit: u8,
     /// `+0x13` **[I]** read by `BattleUnit_NeedsReform` and by nothing else
     /// this crate implements. Its meaning was not established; the reform
@@ -104,7 +79,6 @@ pub struct BattleUnit {
     pub reform_gate: bool,
     /// `+0x14` the debug panel's `re targ`, counted down from 500. At zero the
     /// unit **reforms its own figures** — it does not pick a target.
-    /// `docs/battle-ai.md` §5 corrects `battle.md` on exactly this.
     pub reform: i16,
     /// `+0x1A` the debug panel's `orders`, and **not an order**: a
     /// monotonically increasing count of thinks, read as a script program
@@ -139,7 +113,6 @@ pub struct BattleUnit {
 }
 
 impl BattleUnit {
-    /// An empty slot. `owner == 0` is the original's "free".
     pub const EMPTY: BattleUnit = BattleUnit {
         owner: 0,
         human: false,
@@ -175,10 +148,6 @@ impl BattleUnit {
     }
 }
 
-/// The unit array, indexed the original's way.
-///
-/// Index 0 exists and is permanently empty so that a stored unit index of `0`
-/// keeps meaning "nobody" without a sentinel of our own.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Units {
     slots: Vec<BattleUnit>,
@@ -195,9 +164,6 @@ impl Units {
         Units { slots: vec![BattleUnit::EMPTY; MAX_UNITS + 1] }
     }
 
-    /// Claim the lowest free slot, as `BattleUnit_Create` does. Returns the
-    /// unit index, or `None` once all eighty are taken — the original has no
-    /// growth path either.
     pub fn create(&mut self, owner: u8, human: bool, side: Side, category: u8) -> Option<usize> {
         let free = (1..=MAX_UNITS).find(|&i| !self.slots[i].is_live())?;
         self.slots[free] = BattleUnit {
@@ -218,7 +184,6 @@ impl Units {
         false
     }
 
-    /// Indices of the live slots, low to high — the order every sweep uses.
     pub fn live(&self) -> impl Iterator<Item = usize> + '_ {
         (1..=MAX_UNITS).filter(move |&i| self.slots[i].is_live())
     }
@@ -231,26 +196,11 @@ impl Units {
         &mut self.slots[i]
     }
 
-    /// The liveness test every handler makes before acting on a remembered
-    /// attacker: an out-of-range index and a wiped-out unit answer the same.
     pub fn owner_of(&self, i: usize) -> u8 {
         self.slots.get(i).map_or(0, |u| u.owner)
     }
 
     /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`), once per frame.
-    ///
-    /// Two passes, in the original's order, because the first clears what the
-    /// second fills:
-    ///
-    /// 1. every live unit ages its timers, and `owner`, `figures` and `first`
-    ///    are **zeroed** — a unit whose last figure died this frame therefore
-    ///    goes free here and stops being a target for everyone else;
-    /// 2. every live figure re-establishes its unit's owner, count and index
-    ///    range, and a figure that raised its was-hit flag hands its unit a
-    ///    fresh 50-frame grudge naming the *unit* of whoever hit it.
-    ///
-/// The hit flag is consumed here, so the grudge is per frame and
-    /// not per blow.
     pub fn rebuild_from_figures(&mut self, figures: &mut [Figure]) {
         for i in 1..=MAX_UNITS {
             let u = &mut self.slots[i];
@@ -259,8 +209,6 @@ impl Units {
             }
             u.figures = 0;
             u.owner = 0;
-            // times_hit ages only once the grudge itself has expired, so it is
-// a rate.
             if u.hit_memory == 0 {
                 u.times_hit = u.times_hit.saturating_sub(1);
             } else {
@@ -281,9 +229,6 @@ impl Units {
             }
             {
                 let u = &mut self.slots[unit];
-                // The original tests `first == 0` because its figure array is
-                // one-based, so index 0 can never be a real member. Ours is
-                // zero-based, so the equivalent test is "no member yet".
                 if u.figures == 0 {
                     u.first = f as u16;
                 }
@@ -313,14 +258,6 @@ impl Units {
 
     /// `BattleUnit_Recentre` (`0x004891AD`): the unit stands at the centre of
     /// the **bounding box** of its live figures, not at their centroid.
-    ///
-    /// `positions` is indexed by figure. A unit with no figures keeps the
-    /// position it had.
-    ///
-    /// The tail of the original is easy to miss and load-bearing: a unit whose
-    /// destination is still `(0, 0)` — i.e. one that has never been ordered —
-    /// has it seeded from its own position, so an un-ordered unit stands still
-    /// instead of walking to the map corner.
     pub fn recentre(&mut self, unit: usize, figures: &[Figure], positions: &[(u8, u8)]) {
         if self.slots[unit].figures == 0 {
             return;

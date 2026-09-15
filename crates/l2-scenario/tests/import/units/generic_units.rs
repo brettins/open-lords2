@@ -9,15 +9,6 @@ use l2_formats::save::{Layout, Save, COUNTY_BASE, COUNTY_STRIDE};
 use l2_scenario::{ImportError, Scenario, STARTING_HEALTH_METER};
 use l2_testkit::{saves, SaveFile};
 
-/// **Every unit in every save survives the seam**, slot for slot and field for
-/// field.
-///
-/// The importer used to read the counties, the realms and the map and stop
-/// there
-/// assertion that fails if the block goes back on the floor, and it runs over
-/// every save because one file agreeing proves nothing: the England fixture is
-/// six merchants
-/// besieger and a levied defence.
 #[test]
 fn every_unit_in_every_save_is_imported_slot_for_slot() {
     let saves = saves!();
@@ -62,15 +53,10 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
             assert_eq!(ours.dest_county, f.dest_county, "{at}: dest county");
             assert_eq!(ours.path.len(), f.path_len as usize, "{at}: path length");
             assert_eq!(ours.moves_used, f.moves_used as i32, "{at}: moves used");
-            // **Not `kind.move_allowance()`.** The tick handler writes it, so
-            // the file's zero is the truth for a unit that has not been ticked.
             assert_eq!(ours.move_allowance, f.move_allowance as i32, "{at}: allowance");
             for t in 0..7 {
                 assert_eq!(ours.troops[t], f.troops[t] as i32, "{at}: troop {t}");
             }
-            // And the kingdom got it in the same slot
-            // `garrison_unit`, `besieged_by` and the merchant route index all
-            // depend on.
             assert_eq!(kingdom.campaign.units.get(*slot), Some(ours), "{at}: in the kingdom");
             checked += 1;
         }
@@ -79,12 +65,6 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
     assert!(checked > 6, "only {checked} units reached; the battle saves add armies");
 }
 
-/// The route table reaches the kingdom unchanged, row for row.
-///
-/// `l2-kingdom` has had `MerchantRoutes` and `Merchant_AdvanceAll` since the
-/// turn movers landed and **nothing but a test had ever filled the table**, so
-/// a game loaded from a save arrived with six empty rows. This is the assertion
-/// that they arrive full.
 #[test]
 fn the_merchant_routes_reach_the_kingdom() {
     let saves = saves!();
@@ -100,9 +80,6 @@ fn the_merchant_routes_reach_the_kingdom() {
             save.merchant_start_counties().unwrap(),
             "{name}: start counties"
         );
-        // One merchant per start county **before the first zero** —
-// `Merchant_SpawnAll` breaks, so a later non-zero
-        // entry never spawns anything.
         let spawned = scenario.merchant_start.iter().take_while(|&&c| c != 0).count();
         assert_eq!(
             spawned as i32,
@@ -138,7 +115,6 @@ fn a_unit_whose_tile_offset_disagrees_with_its_tile_is_refused() {
     }
 }
 
-/// A type byte naming no handler is refused.
 #[test]
 fn a_unit_type_that_names_no_handler_is_refused() {
     let exe = l2_testkit::executable!();
@@ -156,9 +132,6 @@ fn a_unit_type_that_names_no_handler_is_refused() {
     }
 }
 
-/// **A castle garrison survives the import, and it does so on every save that
-/// has one.**
-///
 /// The relation has two halves in the original — county `+0x1BC` names the unit,
 /// unit `+0x198` names the county — and this importer reads only the unit's,
 /// then derives the county's. It had not derived it at all: `County::new` seeds
@@ -166,12 +139,6 @@ fn a_unit_type_that_names_no_handler_is_refused() {
 /// with no castle garrisoned**. `conquest`'s ownership test, `divide`, `siege`
 /// and the campaign map's castle flag are all downstream of that field
 /// flag is what exposed it. C59.
-///
-/// Run over **every** save the machine can offer,
-/// because the failure was silent on all of them: ten of the eleven in the tree
-/// carry a garrison and the eleventh is England turn one
-/// it is turn one. Asserting "both halves agree" on each is what makes this a
-/// check of the derivation and not of one file.
 #[test]
 fn a_castle_garrison_reaches_the_county_it_is_standing_in() {
     let saves = saves!();

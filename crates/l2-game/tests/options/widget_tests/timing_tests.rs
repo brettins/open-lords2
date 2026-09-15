@@ -14,9 +14,6 @@ use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
 use l2_kingdom::{Quirk, Quirks};
 
-/// **Every row goes down on the press and acts on the twentieth tick, and not
-/// one tick sooner.**
-///
 /// `Widget_Test`'s kind-5 arm sets `+0x0D = 0x14` and returns without calling
 /// the handler; the handler runs from the countdown on the frame it reaches
 /// zero, and `Widget_Draw` shows `base + 1` the whole time. All twelve records
@@ -24,8 +21,6 @@ use l2_kingdom::{Quirk, Quirks};
 ///
 /// **The first value assertion is the one that goes red if a row fires on the
 /// click**, which is what every one of them did before this test existed.
-///
-/// **Ablations, run, and which line each one stops at:**
 ///
 /// * keep kind 5 and *also* run the row's handler from the `Click` arm — ours
 ///   before this test — and it goes red at *"Advanced AdvancedFarming acted on
@@ -54,7 +49,6 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
             {
                 let mut ctx = Ctx { game: &mut game, assets: &assets };
                 assert_eq!(screen.handle(Event::Click { x, y }, &mut ctx), Transition::Stay);
-                // Letting go changes nothing: kind 5 does not wait for it.
                 assert_eq!(screen.handle(Event::Release { x, y }, &mut ctx), Transition::Stay);
             }
             assert_eq!(screen.pressed_rows(), vec![i], "{page:?} {:?}: the picture goes down at once", row.setting);
@@ -95,9 +89,6 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
     assert_eq!(seen, 10, "ten of the twelve rows are honoured; the other two are asserted elsewhere");
 }
 
-/// **Two rows pressed five ticks apart both toggle, each on its own twentieth
-/// tick.**
-///
 /// `+0x0D` is a byte of each 24-byte record, and `Widget_Test`'s countdown loop
 /// decrements every record's timer on every call and calls each kind-5 handler
 /// whose timer reaches zero. `Press` held one timer and one pending widget, so

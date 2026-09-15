@@ -51,7 +51,6 @@ fn b11a_a_lordless_county_buys_with_an_empty_purse_or_is_refused() {
     assert_eq!(run(fixed), Err(Refusal::NotEnoughGold));
 }
 
-/// An **owned** county was always guarded, so the switch must not touch it.
 #[test]
 fn b11a_an_owned_county_is_refused_either_way() {
     use l2_kingdom::trade::{Good, Order, Quote, Refusal};
@@ -69,7 +68,4 @@ fn b11a_an_owned_county_is_refused_either_way() {
     }
 }
 
-// ---------------------------------------------------------------------------
-// B12 — turning castle building on removes its labour share
-// ---------------------------------------------------------------------------
 

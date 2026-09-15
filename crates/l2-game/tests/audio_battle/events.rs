@@ -13,12 +13,6 @@ use l2_game::Game;
 use l2_sim::runner::{Army, BattleRunner};
 use l2_sim::{Cues, Troop, SIDE_A, SIDE_B};
 
-/// **The sword is the striker's**: knights and swordsmen `sword2.wav`, macemen
-/// `sword5.wav`, everybody else `sword3.wav` — from three real battles, each
-/// fought by one troop type on both sides, so only one rung can be reached.
-///
-/// Ablation: swap `Troop::Macemen` and `Troop::Knights` in the ladder and the
-/// knights' battle asks for `sword5.wav`.
 #[test]
 fn the_sword_a_man_falls_to_is_chosen_by_the_troop_that_struck_him() {
     for (troop, sword, not) in [
@@ -31,8 +25,6 @@ fn the_sword_a_man_falls_to_is_chosen_by_the_troop_that_struck_him() {
         for n in not {
             assert!(!asked.contains(n), "{troop:?} asked for {n}: {asked:?}");
         }
-        // The death cry is the dying figure's side: side 0 `deadguy2`, side 4
-        // `deadguy3`.
         let lost = |side| cells_of(&live, side).len() < 3;
         assert_eq!(asked.contains("deadguy2.wav"), lost(SIDE_A), "{troop:?}: {asked:?}");
         assert_eq!(asked.contains("deadguy3.wav"), lost(SIDE_B), "{troop:?}: {asked:?}");
@@ -40,8 +32,6 @@ fn the_sword_a_man_falls_to_is_chosen_by_the_troop_that_struck_him() {
     }
 }
 
-/// **A bow is a bow and a crossbow is a crossbow**, at the loose and at the
-/// hit, and an arrow's kill is `deadguy4.wav`.
 #[test]
 fn a_bow_and_a_crossbow_are_heard_as_themselves() {
     for (troop, loose, hit, other) in [
@@ -59,13 +49,7 @@ fn a_bow_and_a_crossbow_are_heard_as_themselves() {
     }
 }
 
-// ---------------------------------------------------------------- determinism
 
-/// **Eighty-three more files**: the ladder's seventeen and the sixty-six cries,
-/// asked for through the verbs the director uses and counted by what the layer
-/// opened. With `tests/audio_wiring.rs`' 530 and 30 that is **643 of
-/// 771**. It was seventy-nine until the siege could pour oil, dock a tower,
-/// burn a bridge and bounce a shot off a wall four high.
 #[test]
 fn the_battlefield_is_eighty_three_more_files() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -74,8 +58,6 @@ fn the_battlefield_is_eighty_three_more_files() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let mut sound = Audio::headless(&platform.vfs);
     for r in audio::battle_requests(&Cues::default(), &Cues::of_every_occasion()) {
-        // `play_effect`
-        // loses a file to a busy buffer is counting the timing, not the reach.
         sound.play_effect(file_of(r));
     }
     let mut cries = TroopCries::default();
@@ -83,8 +65,6 @@ fn the_battlefield_is_eighty_three_more_files() {
         for class in 0..4u8 {
             for _ in 0..4 {
                 if let Some(n) = cries.cry(troop, class) {
-                    // The same, for the cries: `play_file` would drop all but
-                    // the first, since nothing here mixes.
                     sound.play_effect(n);
                 }
             }

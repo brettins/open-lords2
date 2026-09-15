@@ -23,9 +23,6 @@ impl Units {
         self.slots.get_mut(id).and_then(Option::as_mut)
     }
 
-    /// `(slot, unit)` for every occupied slot, in ascending slot order —
-    /// which is the order every loop in the original walks, and therefore part
-/// of the specification.
     pub fn iter(&self) -> impl Iterator<Item = (usize, &Unit)> {
         self.slots.iter().enumerate().filter_map(|(i, u)| u.as_ref().map(|u| (i, u)))
     }
@@ -50,40 +47,22 @@ impl Units {
         (1..MAX_UNITS).find(|&i| self.slots[i].is_none())
     }
 
-    /// Put a unit in the lowest free slot. `None` when all 150 are taken; the
-    /// original silently does nothing in that case, and so does the caller.
     pub fn spawn(&mut self, unit: Unit) -> Option<usize> {
         let slot = self.free_slot()?;
         self.slots[slot] = Some(unit);
         Some(slot)
     }
 
-    /// Take a unit out of the array, returning it. The realm's name counter
-    /// and wage bill are the caller's to fix up — [`destroy`] does the whole
-    /// job.
     pub fn remove(&mut self, id: usize) -> Option<Unit> {
         self.slots.get_mut(id).and_then(Option::take)
     }
 
-    /// Put a unit in a **named** slot, for [`crate::save`] alone.
-    ///
-    /// Everything else uses [`Units::spawn`], which takes the lowest free slot
-    /// the way `Unit_Spawn` does. A save has to restore the slot a unit was
-/// in, because slot numbers are referenced by county
-    /// `garrison_unit`, by `besieged_by`, and by a band's `hired_by` — renumber
-    /// them on load and the links point at the wrong armies.
     pub fn put(&mut self, id: usize, unit: Unit) {
         if let Some(slot) = self.slots.get_mut(id) {
             *slot = Some(unit);
         }
     }
 
-    /// The unit standing on a tile, if any. The original keeps this in the
-    /// runtime tile record's byte `+5`; recomputing it from the array is the
-    /// same answer without a second place for it to be wrong.
-    ///
-    /// # A garrison is not standing on its tile
-    ///
     /// **`Unit_LinkToTile` (`0x0046EDDF`) opens `if (kind != 1 || garrisonCounty
     /// == 0)` and does nothing for anything else**, and `Army_GarrisonApply`
     /// calls `Unit_UnlinkFromTile` on its way in. So an army inside a castle is
@@ -91,11 +70,6 @@ impl Units {
     /// agree
     /// instead of the unit.
     ///
-    /// It is not cosmetic. `Unit_TryEnterTile` tests occupancy *before* it tests
-    /// any tile flag
-    /// every siege into a field battle fought on open ground — which is exactly
-    /// what happened here until this line existed: the besieger walked up, met
-    /// the garrison as an obstacle.
     /// `[V]`
     pub fn at(&self, x: u8, y: u8) -> Option<usize> {
         self.iter()
@@ -120,24 +94,6 @@ impl Units {
     /// `friendly_troops` / `enemy_troops`, which is what
     /// [`crate::ration::people_to_feed`] adds to the food requirement when
     /// *Army foraging* is on.
-    ///
-    /// ```text
-    /// for c in 1..=16:  c.friendly = c.enemy = 0
-    /// for unit in 1..=150 where type in {1,2} and garrisonCounty == 0:
-    ///     county = unit.county
-    ///     if county.owner == unit.owner                    county.friendly += unit.men
-    ///     else if realm[unit.owner].ally == county.owner   county.friendly += unit.men
-    ///     else                                             county.enemy    += unit.men
-    /// ```
-    ///
-    /// Three things worth stating because they are easy to get wrong:
-    ///
-/// * **revolting peasants are counted** — the loop tests
-    ///   type 1 *or* 2;
-    /// * **a garrison is excluded**, so walking your army into your own castle
-    ///   takes it off the county's food bill entirely;
-    /// * a **besieging** army is *not* excluded, so it eats in the county whose
-    ///   castle it is sitting outside.
     ///
     /// The original clears and fills all sixteen county slots regardless of how
     /// many the map has; so does this, because a unit standing on a tile whose

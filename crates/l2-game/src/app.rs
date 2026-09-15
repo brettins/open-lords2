@@ -33,9 +33,6 @@ pub(super) fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
         WinitKey::Named(NamedKey::ArrowDown) => Key::Down,
         WinitKey::Named(NamedKey::ArrowLeft) => Key::Left,
         WinitKey::Named(NamedKey::ArrowRight) => Key::Right,
-        // The four the window procedure dispatches into the edit buffer and
-        // nothing else dispatches at all: `VK_HOME`, `VK_END`, `VK_INSERT`,
-        // `VK_DELETE`. See `l2_game::text`.
         WinitKey::Named(NamedKey::Home) => Key::Home,
         WinitKey::Named(NamedKey::End) => Key::End,
         WinitKey::Named(NamedKey::Insert) => Key::Insert,

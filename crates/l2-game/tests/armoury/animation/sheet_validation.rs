@@ -16,10 +16,6 @@ use l2_game::Game;
 use l2_kingdom::tables::{Tables, WEAPON_TYPE_COUNT};
 use l2_view::Canvas;
 
-/// The five item sheets are five different pictures, all of them present, and
-/// all of them carrying the twenty-one frames the two screens index — six
-/// weapons, eight portraits, and the six little icons the levy screen prints
-/// its stocks beside.
 #[test]
 fn all_five_armoury_sheets_carry_the_frames_both_screens_ask_for() {
     let (_g, assets) = world!();
@@ -41,7 +37,6 @@ fn all_five_armoury_sheets_carry_the_frames_both_screens_ask_for() {
     }
     assert!(sizes.iter().all(|&n| n > 0), "a sheet decoded to nothing");
 
-    // And one per weapon type for the rack panel.
     for name in armoury::WEAPON_SHEETS {
         let sheet = assets.shell.sheet(name).unwrap_or_else(|| panic!("{name} is in the install"));
         let f = sheet.frame(0).expect("frame 0");
@@ -49,14 +44,6 @@ fn all_five_armoury_sheets_carry_the_frames_both_screens_ask_for() {
     }
 }
 
-/// **The artwork counts the animation for us.** `Armoury_DrawWalker` reaches
-/// frame `cycle + 0` walking in (eight), `pickup / 3 + 8` taking the weapon
-/// down (five, `8 … 0x0C`) and `cycle + 0x0D` carrying it out (eight). That is
-/// 21, and every one of the thirty `Trp_*.pl8` sheets holds exactly 21 frames.
-///
-/// The height is the second coincidence and it is a better one: the frames are
-/// 158 tall and `Screen_Armoury` saves its four strips at height `0x9E`, which
-/// **is** 158. A strip is exactly one soldier.
 #[test]
 fn every_walker_sheet_holds_exactly_the_frames_the_walk_reaches() {
     let (_g, assets) = world!();

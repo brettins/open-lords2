@@ -13,9 +13,6 @@ use l2_kingdom::tables::SCORE_INPUT_CASTLES;
 /// **The court's button opens the page** — `FUN_004351C4`, and it is kind 5,
 /// so the press does not do it: the press starts the twenty-frame timer and
 /// `Screen::update` runs the handler.
-///
-/// Ablation, run: answer the click with `Transition::Push` directly and the
-/// first assertion fails, because the page would already be up.
 #[test]
 fn the_greatest_nobles_button_opens_the_standings_twenty_ticks_later() {
     let (mut game, assets) = bare_world();
@@ -49,19 +46,9 @@ fn the_greatest_nobles_button_opens_the_standings_twenty_ticks_later() {
 /// **The button runs the recount before the page is drawn** —
 /// `FUN_00435211`, `Score_RankRealms()` then `Realm_UpdateTotals(r)` for
 /// r in 1..=5.
-///
-/// This is the statement that would be easiest to drop and hardest to notice:
-/// without it the page shows whatever the last AI turn left in the realm
-/// totals. The test leaves a realm with a stale zero and asserts the button
-/// fills it in.
-///
-/// Ablation, run: remove the `recount` call from `open_the_standings` and the
-/// county count stays 0.
 #[test]
 fn the_button_rebuilds_the_realm_totals_the_page_reads() {
     let (mut game, assets) = bare_world();
-    // Two counties for realm 1 and one for realm 2, with the realm records
-    // left as a fresh game leaves them: zero.
     game.kingdom.county_count = 3;
     for (id, owner) in [(1u8, 1u8), (2, 1), (3, 2)] {
         game.kingdom.counties[id as usize].owner = owner;
@@ -93,12 +80,6 @@ fn the_button_rebuilds_the_realm_totals_the_page_reads() {
 /// **The seven tabs pick the category and ask for the name to be spoken** —
 /// `FUN_0043524E`, which is `DAT_0055CE7C = g_uiHotspotId; g_redrawRequest =
 /// 2; FUN_004B3994(g_uiHotspotId);`.
-///
-/// Two things are asserted that a simpler wiring would fail: the id comes from
-/// **which** tab was hit, and the counter
-/// moves even when the tab pressed is the one already showing — because the
-/// original's call is unconditional and a diff on the category would swallow
-/// that press.
 #[test]
 fn each_tab_selects_its_own_category_and_speaks_it() {
     let (mut game, assets) = bare_world();
@@ -113,7 +94,6 @@ fn each_tab_selects_its_own_category_and_speaks_it() {
         assert_eq!(m.top_id(), Some(ScreenId::Nobles), "a tab does not leave the page");
     }
 
-    // The same tab again: the category does not move and the voice still does.
     let tab = nobles::TABS[nobles::CATEGORIES - 1];
     let before = game.nobles_spoken;
     {
@@ -133,16 +113,7 @@ fn each_tab_selects_its_own_category_and_speaks_it() {
     assert_eq!((game.nobles_category, game.nobles_spoken), before, "outside the row, nothing");
 }
 
-/// **The two ways out**, which is the whole of `Screen_FrameInput`'s `0x20`
-/// ladder — `Ui_OkButtonClicked` in the corner box, and a right release
-/// anywhere.
-///
-/// Both write `g_screenId = 0` — **the map**, not the court the button was
-/// pressed on — so the court is unwound with the page:
 /// `Transition::Goto(Campaign)`, `docs/decisions.md` C190.
-///
-/// Ablation, run: answer either with `Transition::Pop` and the court is left
-/// standing, which is the defect this replaces.
 #[test]
 fn the_corner_picture_and_a_right_click_go_to_the_map() {
     let (mut game, assets) = bare_world();
@@ -160,8 +131,6 @@ fn the_corner_picture_and_a_right_click_go_to_the_map() {
         assert_eq!(m.ids(), vec![ScreenId::Campaign], "{what} goes to the map");
     }
 
-    // The court is thrown away even when the page was opened over nothing else
-    // — `Goto` builds the destination if it is not on the stack.
     let mut m = Machine::new(ScreenId::Court);
     m.push(ScreenId::Nobles);
     {
@@ -170,10 +139,6 @@ fn the_corner_picture_and_a_right_click_go_to_the_map() {
     }
     assert_eq!(m.ids(), vec![ScreenId::Campaign], "the map is built if it was not open");
 
-    // A left press anywhere that is not the corner box and not a tab keeps it
-    // up: the arm consults `Ui_OkButtonClicked` and the tab table, nothing
-    // else. The ratings screen next door closes on *any* press, and this one
-    // must not be given that behaviour by accident.
     let mut m = Machine::new(ScreenId::Campaign);
     m.push(ScreenId::Nobles);
     let mut c = Ctx { game: &mut game, assets: &assets };
@@ -181,8 +146,6 @@ fn the_corner_picture_and_a_right_click_go_to_the_map() {
     assert_eq!(m.top_id(), Some(ScreenId::Nobles), "a press in the middle does nothing");
 }
 
-/// **The page does not swallow the campaign minimap**, which is
-/// `Screen_FrameInput`'s epilogue and belongs to every screen but `0x12`.
 #[test]
 fn the_page_passes_the_minimap_down() {
     let (mut game, assets) = bare_world();

@@ -1,32 +1,3 @@
-//! **The shipped films, decoded — and checked against something that is not
-//! this decoder.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-smk --test corpus
-//! ```
-//!
-//! Three kinds of evidence, and the file is laid out strongest last:
-//!
-//! 1. **the container closes** — every byte of every film is accounted for;
-//! 2. **every bitstream is consumed to its padding** — a Huffman tree read one
-//!    bit wrong desynchronises everything after it and either overruns its
-//!    chunk or stops well short of it, so *"fewer than 32 bits left over, in
-//!    every video frame and every audio chunk of 45 films"* is a property a
-//!    wrong decoder does not have by accident;
-//! 3. **an independent decoder produced the same pixels, palettes and samples.**
-//!    [`ORACLE`] was printed by a scratch program running the LGPL `smk` crate
-//!    as a black box — its public API only, its source never opened, nothing of
-//!    it in this tree — and every hash below is a literal out of that run, not
-//!    a number this decoder was allowed to produce. `docs/formats/smk.md`
-//!    records the run.
-//!
-//! **Ablated, and what went red.** Swapping the two `Full` codes of a row in
-//! `decode_video` leaves every bitstream consumed — the
-//! padding test stays green, correctly, because a column swap reads the same
-//! bits — and [`every_film_matches_an_independent_decoder`] fails on the first
-//! film, `AXMEN.SMK`, at frame 10's pixels. Skipping `Tree16::decode`'s cache
-//! update desynchronises the very first film so badly that it overruns a
-//! chunk, so every test in this file fails together on the shared decode.
 
 
 use std::collections::BTreeMap;
@@ -35,7 +6,6 @@ use std::sync::OnceLock;
 
 use l2_smk::Smk;
 
-/// What one film decoded to.
 #[derive(Debug, Clone)]
 struct Stats {
     width: u32,
@@ -48,11 +18,8 @@ struct Stats {
     tracks: usize,
     rate: u32,
     stereo: bool,
-    /// The most bits left unread in any one frame's video bitstream, and in
-    /// any one audio chunk.
     video_pad: usize,
     audio_pad: usize,
-    /// Every audio chunk produced exactly what its own header promised.
     audio_lengths_agree: bool,
     pcm: usize,
     video: u64,
@@ -121,8 +88,6 @@ pub(crate) fn decode(path: &std::path::Path) -> Stats {
     }
 }
 
-/// Every film in the install, decoded once for all the tests in this file —
-/// the corpus is 7,652 frames and a debug build takes about twenty seconds.
 fn corpus() -> Option<&'static BTreeMap<String, Stats>> {
     static CORPUS: OnceLock<Option<BTreeMap<String, Stats>>> = OnceLock::new();
     CORPUS

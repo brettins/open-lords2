@@ -29,12 +29,6 @@ use l2_view::Canvas;
 ///             … 83 F8 6D ; 0F 8F …   cmp eax, 0x6D ; jg
 /// 0x00402AC0  FF 0D 28 15 59 00      dec dword [g_drawY]
 /// ```
-///
-/// and the same shape twice more, the third with `3D imm32` compares. Every
-/// character from `0x20` to `0xFF` is then put to `font::accent_raised`.
-///
-/// Ablated: `ACCENT_RAISE`'s third range `(0x80, 0x84)` → `(0x80, 0x83)` — red on
-/// `0xA4`.
 #[test]
 fn glyph_draw_raises_three_index_ranges_and_only_for_g_font_body() {
     let Some(dir) = install() else {
@@ -95,31 +89,12 @@ fn glyph_draw_raises_three_index_ranges_and_only_for_g_font_body() {
     assert_eq!(raised, 13 + 5 + 5, "0x81..=0x8D, 0x93..=0x97, 0xA0..=0xA4");
 }
 
-/// **An accented character's ink is one row above where its own frame puts it,
-/// in `Fntl2_14.pl8` and in no other face.**
-///
-/// Measured on two pairs that share a frame, so the accent's own artwork
-/// cannot be what moved: `0x86` is drawn with `'a'`'s frame and `0x87` with
-/// `0x80`'s (`g_glyphWidths` gives both halves of each pair the same entry). In
-/// the body face the raised half's ink is the base's ink one row up; in the
-/// heading, small and eight faces it is the same pixels. `Font_10.pl8` is not
-/// measured, because both frames are ink-less 2 × 2 stubs there — it is
-/// asserted not to raise instead.
-///
 /// **No string in the shipped English `L2.eng` contains a raised character**,
 /// so the pairs are built here. Measured below:
+///
 /// every character above `0x7F` in the file is `0xB7`, nine of them, one at
 /// the head of each of 295/2 … 295/10, and `0xB7` is index `0x97`, a zero entry
 /// — a blank. The raise is reachable only through a translated `L2.eng`.
-///
-/// Ablated, each red here:
-/// * `ShellAssets::load`'s `.map(Font::raising_accents)` removed — the body face
-///   draws `0x86` on `'a'`'s row;
-/// * `Font::lift` returning 0 — the same;
-/// * `.map(Font::raising_accents)` added to the heading face — the heading face
-///   draws `0x86` a row up;
-/// * `Eng::get` put back to `from_utf8(…).ok()` — no string in the file has a
-///   character above `0x7F`.
 #[test]
 fn an_accent_sits_one_row_above_its_own_frame_in_the_body_face_and_nowhere_else() {
     let Some(dir) = install() else {
@@ -154,8 +129,6 @@ fn an_accent_sits_one_row_above_its_own_frame_in_the_body_face_and_nowhere_else(
             base as u32
         );
     }
-    // `Fnt_8.pl8`'s frame 102 is ink-less — asserted below, not assumed — so
-    // that face is measured on the `'a'` pair alone.
     let faces: [(&str, Option<&font::Font>, i32, &[(char, char)]); 4] = [
         (font::BODY, s.body.as_ref(), -1, &pairs),
         (font::HEADING, s.heading.as_ref(), 0, &pairs),
@@ -186,7 +159,6 @@ fn an_accent_sits_one_row_above_its_own_frame_in_the_body_face_and_nowhere_else(
     }
     assert!(!s.ten.as_ref().expect("Font_10.pl8").raises_accents(), "Font_10.pl8 is g_font10");
 
-    // The real file: which characters above 0x7F its strings hold.
     let eng = s.eng.as_ref().expect("L2.eng");
     let mut high: std::collections::BTreeSet<(usize, String)> = Default::default();
     for g in 1..eng.count() {

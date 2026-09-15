@@ -1,9 +1,3 @@
-//! **Into a castle and out of it again** — the two halves of a garrison's door.
-//!
-//! ```text
-//! cargo test -p l2-kingdom --test garrison
-//! ```
-//!
 //! | the original | what it does |
 //! |---|---|
 //! | `Army_SplitConfirm` `0x00437AFB` | the castle split: no minimum, capped by the room left |
@@ -27,7 +21,6 @@ use l2_kingdom::Kingdom;
 
 const CASTLE: (u8, u8) = (20, 20);
 
-/// One county, realm 1's, with a palisade standing at [`CASTLE`].
 fn kingdom() -> Kingdom {
     let mut k = Kingdom::new(1);
     assert!(k.set_county_count(2));
@@ -59,7 +52,6 @@ fn army(k: &mut Kingdom, at: (u8, u8), men: i32) -> usize {
     k.campaign.units.spawn(u).expect("a free slot")
 }
 
-/// Walk every unit until nothing is moving.
 fn until_still(k: &mut Kingdom) {
     for _ in 0..2_000 {
         if !k.units_moving(UnitKind::Army) {
@@ -70,8 +62,6 @@ fn until_still(k: &mut Kingdom) {
     panic!("the march never finished");
 }
 
-/// **Splitting an army into a castle puts the daughter in the garrison.**
-///
 /// `Army_Split` (`0x00437FD7`) gives the daughter the castle tile and a path
 /// where the plain split charges five moves; `Unit_ReachCastleBuilding`
 /// (`0x004686A0`) meets her there and, the county being her owner's, hands her
@@ -197,15 +187,12 @@ fn a_besieged_garrison_leaves_carrying_its_besieger() {
     );
 }
 
-/// **Nowhere to stand is the end of the army** — `Army_Destroy`, the branch a
-/// player can be surprised by.
 #[test]
 fn a_garrison_with_nowhere_to_stand_is_destroyed() {
     let mut k = kingdom();
     let g = army(&mut k, CASTLE, 150);
     k.campaign.units.get_mut(g).expect("the garrison").garrison_county = 1;
     k.counties[1].garrison_unit = g;
-    // Sea to the horizon: nothing within five is passable, so the search fails.
     for i in 0..MAP_TILES {
         k.campaign.map.county[i] = 0;
         k.campaign.map.flags[i] |= flags::NO_COUNTY;

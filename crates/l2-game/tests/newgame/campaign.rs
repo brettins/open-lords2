@@ -16,8 +16,6 @@ use l2_game::screens::setup::{
 use l2_game::{turn, Game};
 use l2_kingdom::realm::MAX_REALMS;
 
-/// **The original campaign's first map is Quaintville, slot 17.**
-///
 /// Not slot 0, which is where the map list sits when nobody has touched it, and
 /// not whatever `lastturn.sav` happens to hold. `Campaign_LoadEntry`
 /// (`0x00499E5D`) reads column `+0x00` of row `g_campaignMap` of
@@ -26,13 +24,8 @@ use l2_kingdom::realm::MAX_REALMS;
 /// wrote eight turns into a campaign, which carries `g_scenarioIndex` 17 and
 /// four counties.
 pub(super) const QUAINTVILLE: usize = 17;
-/// The second campaign opens on Australia — `g_campaignTableB` row **2**, which
-/// is where `Setup_ChooseCampaign` starts that track's counter.
 const AUSTRALIA: usize = 52;
 
-/// Walk the front end the way a person does: *Single player*, *Play Now!*, one
-/// of the two campaigns, then *Continue*. Every click is a real coordinate out
-/// of the geometry tables.
 fn walk_to_campaign(
     assets: &Assets,
     game: &mut Game,
@@ -45,32 +38,23 @@ fn walk_to_campaign(
         let mut ctx = Ctx { game, assets };
         screen.update(&mut ctx);
     }
-    // Page 1, item 0 — "Single player".
     let r = item_rect(0);
     click(&mut screen, game, assets, r.x + 20, r.y + r.h / 2);
     assert_eq!(screen.page(), SetupPage::Options, "Single player opens page 2");
 
-    // Page 2, item 0 — "Play Now!", which is the campaign chooser.
     let r = item_rect(0);
     click(&mut screen, game, assets, r.x + 20, r.y + r.h / 2);
     assert_eq!(screen.page(), SetupPage::Campaign, "Play Now! opens page 5");
 
-    // Page 5, one of the two 164x24 recesses.
     let i = usize::from(right_hand_campaign);
     click(&mut screen, game, assets, PAIR_X[i] + PAIR_W / 2, PAIR_Y + ITEM_H / 2);
     assert_eq!(screen.page(), SetupPage::Shield, "choosing a campaign opens page 4");
 
-    // Page 4, "Continue" — the second of the two buttons.
     let (x, y, _) = SHIELD_BUTTONS[1];
     let t = click(&mut screen, game, assets, x + 20, y + ITEM_H / 2);
     (screen, t)
 }
 
-/// **The bug, as the player reported it: the original campaign puts you on its
-/// first map.**
-///
-/// The assertion that matters is the second one, and it is written against the
-/// *game's own* string table.
 /// table: whatever slot the campaign started, `L2.eng` group 101 must call it
 /// *Quaintville*. A test that computed the expected slot from
 /// `victory::TRACK_FIRST` would agree with that table however wrong it was.
@@ -88,15 +72,11 @@ fn the_original_campaign_starts_on_quaintville() {
         "L2.eng group 101 does not call the started slot Quaintville"
     );
 
-    // …and the world really is that map. Quaintville has
-    // four counties and England — slot 0, where the map list sits untouched and
-    // where this used to land — has fourteen, so the two cannot be confused.
     let quaintville = counties_in(&assets, QUAINTVILLE);
     assert_eq!(quaintville, 4, "Quaintville is a four-county map");
     assert_ne!(quaintville, counties_in(&assets, ENGLAND), "or this proves nothing");
     assert_eq!(game.kingdom.county_count, quaintville, "the world is not Quaintville's");
 
-    // Tile for tile, from a second reading of the file.
     let bytes = l2_testkit::read_install("L2_maps.dat").expect("the install has it");
     let set = MapSet::parse(&bytes).expect("L2_maps.dat parses");
     let slot = set.slot(QUAINTVILLE).unwrap();
@@ -111,13 +91,6 @@ fn the_original_campaign_starts_on_quaintville() {
     }
 }
 
-/// **The campaign row is the settings too.**
-///
-/// `Campaign_LoadEntry` writes the eight committed globals straight over
-/// whatever the custom page last committed, and forces five more. Row 0 of the
-/// first campaign is difficulty 0, 5,000 crowns and **one** AI lord — so a
-/// four-county map opens with two realms holding one county each, which is a
-/// position the custom page's defaults (five nobles) could not produce.
 #[test]
 fn the_campaign_row_overrides_the_custom_options() {
     let assets = assets!();
@@ -138,17 +111,10 @@ fn the_campaign_row_overrides_the_custom_options() {
     assert_eq!(owned, 2, "two realms, one county each");
     assert_eq!(game.kingdom.realms[game.player as usize].gold, 5000, "row 0's purse");
 
-    // The counter and the track went onto the *new* game, so the conquest
-    // screen can step to Rose.
     assert_eq!(game.campaign.track, l2_game::victory::Track::First);
     assert_eq!(game.campaign.map, 0, "the first campaign starts at row 0");
 }
 
-/// **The second campaign is a different ladder and starts at row 2.**
-///
-/// `Setup_ChooseCampaign` writes `g_campaignMap = 2` for the right-hand choice,
-/// and track B's rows 0 and 1 are the zero padding. Australia, not Quaintville
-/// and not England.
 #[test]
 fn the_second_campaign_starts_on_australia() {
     let assets = assets!();
@@ -161,8 +127,6 @@ fn the_second_campaign_starts_on_australia() {
     assert_eq!(game.kingdom.county_count, counties_in(&assets, AUSTRALIA));
 }
 
-/// **The other way into page 4 does not start a game at all.**
-///
 /// `FUN_00433155`'s hotspot-2 arm is a branch, and its `else` limb walks on to
 /// the page that chooses a game. Reading the whole
 /// button as *Start* is what let the campaign limb go missing for a merge, so
@@ -176,7 +140,6 @@ fn continue_without_a_campaign_opens_the_custom_page() {
     let before = game.map_slot;
 
     let mut screen = SetupScreen::new(SetupPage::Title);
-    // Page 1, item 1 — "Multiple players", the arm that clears the flag.
     let r = item_rect(1);
     click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
     assert_eq!(screen.page(), SetupPage::Shield);
@@ -188,5 +151,4 @@ fn continue_without_a_campaign_opens_the_custom_page() {
     assert_eq!(game.map_slot, before, "and it should not have built a world");
 }
 
-// --------------------------------------------------- the colour on page 4
 

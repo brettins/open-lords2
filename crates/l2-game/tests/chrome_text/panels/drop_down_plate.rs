@@ -20,22 +20,6 @@ use l2_view::Canvas;
 
 /// **`FUN_00409429` is not `Ui_DrawBox`, and the difference is a whole 16-pixel
 /// row of the menu drop-down.**
-///
-/// A player reported the text *"clipping into the 'fold' of the scroll at the
-/// top"* with *"a bit of empty space from the last bit of text to the bottom
-/// 'fold'"*. The captions were never wrong: their pitch is `g_menuBarItems`'
-/// own `y` column, 0, 20, 40, …, and `screens::menubar` carries it. The plate
-/// was, because border **set 2** omits the top rail and fills its interior from
-/// the box's own `y` — so the parchment reaches the menu bar and the first
-/// caption at `y = 38` sits fourteen pixels into it, not two pixels into a rail.
-///
-/// The assertion is an **equality against the original's own second call**:
-/// draw the drop-down plate, then draw `Ui_DrawBoxInterior(x + 0x10, y, cols -
-/// 2, rows - 1)` on its own, and require the top row's middle band to be the
-/// same pixels. No threshold, and nothing about what the artwork looks like.
-///
-/// Ablated by restoring `r > 0` to the interior test in
-/// `l2_view::chrome::Chrome::draw_box`.
 #[test]
 fn the_drop_down_plate_has_no_top_rail() {
     let (mut game, assets) = world!();
@@ -84,8 +68,6 @@ fn the_drop_down_plate_has_no_top_rail() {
         (COLS - 2) * CELL
     );
 
-    // And the top corners are **edge** pieces, not corners: `frame = 0x1C` and
-    // `0x28`, which is what the left and right edges use one row down.
     for (c, label) in [(0, "top-left"), (COLS - 1, "top-right")] {
         for y in 0..CELL {
             for x in 0..CELL {
@@ -100,5 +82,4 @@ fn the_drop_down_plate_has_no_top_rail() {
     }
 }
 
-// ------------------------------------------------------------- the title page
 

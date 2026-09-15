@@ -19,8 +19,6 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// **The box at the far zoom was empty, and the original fills it.**
-///
 /// `Screen_DrawCampaign`'s (`0x0040F5FD`) zoom-2 arm, whole:
 ///
 /// ```c
@@ -38,16 +36,12 @@ use l2_view::Canvas;
 /// one consumer in the binary and it is this arm, so its two strings *are* this
 /// box's vocabulary (`CLAUDE.md` rule 6), and the second of them is the game
 /// saying what the far zoom is for.
-///
-/// **Ablated, one draw at a time:** removing any of the four turns exactly one
-/// of the assertions below red.
 #[test]
 fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
     let (mut game, assets) = world!();
     let heading = assets.shell.heading.as_ref().expect("Fntl2_22.pl8 is in the install");
     let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8 is in the install");
     let mut screen = MapScreen::new();
-    // `Map_ToggleZoom` — the box exists only at zoom 2.
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         screen.handle(Event::KeyDown(Key::Char('Z')), &mut ctx);
@@ -73,13 +67,11 @@ fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
 
     // `Ui_DrawYear(…, 1)` puts group 26's era *before* the digits, both in the
     // heading face, and lifts an AD year by one pixel — `year < 0 ? y : y - 1`.
-    // Finding the digits is the claim that the year was drawn.
     let digits = format!(" {} ", game.kingdom.year);
     let (yx, yy) = find_styled(&canvas, heading, &digits, &caps).expect("the year is not drawn");
     assert_eq!(yy, 0x1A8 - 1, "an AD year sits one pixel above its row");
     assert!(yx > lx, "the year is at {yx} and the label at {lx}");
 
-    // And the instruction, in the body face with the drop capitals off again.
     let advice = assets.shell.text(34, 1).to_string();
     assert!(!advice.is_empty(), "L2.eng 34/1");
     let flat = Style { colour: font::TEXT, shadow: Some(font::SHADOW), caps: None };
@@ -99,20 +91,12 @@ fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
 /// Eng_DrawString(0x25, 4, g_penAdvance + 0xD8, 0x6E, &g_fontBody, 0x3F);
 /// Ui_DrawNumber(score, ' ', &DAT_004D43B4, g_penAdvance + 0xEC, 0x69, &g_fontHeading, 0x3F);
 /// ```
-///
-/// The name is `g_playerNames[realm]`, which this test writes so the pen
-/// advance in front of the score is a known width; it is measured, not assumed.
-///
-/// Ablated: `Face::Heading` → `Face::Body` at the call site — the score is not
-/// found on row `0x69` in the heading face (`None` where `Some(422)` is expected).
 #[test]
 fn the_battle_master_score_is_in_the_heading_face() {
     use l2_game::screens::ratings::{self, Ratings};
     let (mut game, assets) = world!();
     let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
     let heading = assets.shell.heading.as_ref().expect("Fntl2_22.pl8");
-    // The block is keyed by `g_localPlayer`'s realm and draws his name, so the
-    // advance in front of the score is that name's width.
     game.player_names[Ratings::default().realms.0 as usize] =
         l2_game::text::PlayerName::new("PLAYER 1");
     let mut screen = ratings::RatingsScreen::new();

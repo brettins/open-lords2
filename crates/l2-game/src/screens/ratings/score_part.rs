@@ -7,7 +7,6 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
 
 impl Snapshot {
-    /// `Σ troops[t] * g_troopStrengthWeight[t]`.
     pub fn strength(&self) -> i32 {
         self.troops.iter().zip(STRENGTH_WEIGHT).map(|(n, w)| n * w).sum()
     }
@@ -25,8 +24,6 @@ pub fn skirmish_opponent(local: u8) -> u8 {
 }
 
 impl Ratings {
-    /// An empty result between `local` and the realm `Skirmish_Setup` pairs
-    /// him against.
     pub fn for_local(local: u8) -> Ratings {
         Ratings { realms: (local, skirmish_opponent(local)), ..Ratings::default() }
     }
@@ -43,8 +40,6 @@ impl Default for Ratings {
     }
 }
 
-/// `PctOf(a, b) = a * 100 / b`, **zero when `b` is zero** — the original's own
-/// guard,
 fn pct_of(a: i32, b: i32) -> i32 {
     if b == 0 {
         0
@@ -54,15 +49,10 @@ fn pct_of(a: i32, b: i32) -> i32 {
 }
 
 /// **`FUN_0042C64F`** — both scores, `(local, opponent)`.
-///
-/// See the module docs for the ladder and for the handicap this deliberately
-/// does not compute.
 pub fn score(r: &Ratings) -> (i32, i32) {
     let lost_mine = r.mine.0.strength() - r.mine.1.strength();
     let lost_theirs = r.theirs.0.strength() - r.theirs.1.strength();
     let total = lost_mine + lost_theirs;
-    // **The kill share is the share of destroyed strength that was the OTHER
-    // side's**.
     let kill_mine = pct_of(lost_theirs, total);
     let kill_theirs = pct_of(lost_mine, total);
     let survive_mine = pct_of(r.mine.1.men, r.mine.0.men);
@@ -75,8 +65,6 @@ pub fn score(r: &Ratings) -> (i32, i32) {
     let kill_only = |kill: i32| KILL_SHARE_SCALE * kill;
 
     match r.ending {
-        // A withdrawal zeroes the withdrawer and denies the other side the
-        // bonus. It is the only case that produces a flat zero.
         Ending::Withdrew { local: true } => (0, no_bonus(kill_theirs, survive_theirs)),
         Ending::Withdrew { local: false } => (no_bonus(kill_mine, survive_mine), 0),
         Ending::CastleFell { local: true } => {
@@ -85,8 +73,6 @@ pub fn score(r: &Ratings) -> (i32, i32) {
         Ending::CastleFell { local: false } => {
             (full(kill_mine, survive_mine), kill_only(kill_theirs))
         }
-        // `menAfter < 1` is the wipe-out, and it reads exactly like a lost
-        // castle. Everything else is a win for the local player.
         Ending::Fought if r.mine.1.men < 1 => {
             (kill_only(kill_mine), full(kill_theirs, survive_theirs))
         }

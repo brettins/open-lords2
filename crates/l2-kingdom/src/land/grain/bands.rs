@@ -9,18 +9,8 @@ use super::*;
 /// **`FUN_0044CF6F` — the crop's density band**, and the only producer of a
 /// non-zero `Terrain_Set` variant in the game.
 ///
-/// ```c
-/// if (crop < 1 || fieldsGrain < 1)      return 2;
-/// if (crop / fieldsGrain < 0x29)        return 3;
-/// if (crop / fieldsGrain < 0x51)        return 7;
-///                                       return 11;
-/// ```
-///
 /// Four bands at 41 and 81 sacks a field, and the value **is** the terrain byte
 /// `Grain_SeasonTick` then writes onto every grain tile of the county. `[D]`
-///
-/// `fields` is the second argument as the original passes it, which is **not**
-/// `fieldsGrain` — see [`grain_stage_band`].
 pub fn grain_crop_band(crop: i32, fields: i32) -> u8 {
     if crop < 1 || fields < 1 {
         return 2;
@@ -60,7 +50,6 @@ pub fn grain_stage_band(county: &County, season: Season) -> u8 {
         Season::Spring | Season::Summer | Season::Autumn => county.crop[1],
         Season::Winter => county.crop[2],
     };
-    // `(uint)(byte)county.field_0x206` — a byte in the original.
     grain_crop_band(crop, county.fields_grain_standing & 0xFF)
 }
 

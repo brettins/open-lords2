@@ -29,24 +29,12 @@ fn a_selected_army_opens_the_division_screen_and_an_unselected_one_does_not() {
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)));
 }
 
-/// **A double click on a stepper is a press, and it does not hold the button
-/// down.**
-///
 /// `g_splitWidgets`' steppers are `Widget_Test` kind 4, whose guard reads
 /// `g_mouseLeftPressed || g_mouseLeftDoubleClick`,
 /// again. And `App_WndProc` (`0x004B29BE`) handles `WM_LBUTTONDBLCLK` by setting
 /// the double-click bit and nothing else, so `g_mouseLeftDown` stays clear and
 /// the hold branch returns: however long the button stays down after a double
 /// click, it does not repeat. This screen dropped the double click entirely.
-///
-/// Five presses and a double click are sixty men,
-/// after the double click, with no release, add none.
-///
-/// **Ablations, run:** delete the `Event::DoubleClick` pattern from the divide
-/// screen's `Click` arm and the daughter has fifty; delete `self.release()` from
-/// `Press::event`'s double-click `Repeat` arm and the hold repeats until every
-/// man has moved, so the split is refused and *"the split went through"* goes
-/// red.
 #[test]
 fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
     let (mut g, a, mut m) = on_the_map();
@@ -72,8 +60,6 @@ fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
     assert_eq!(daughter, 60, "five presses and a double click, ten men each, and no repeat");
 }
 
-/// The buttons move men between the two columns and Split makes a second army,
-/// with both halves paying the five moves `Army_Split` charges.
 #[test]
 fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     let (mut g, a, mut m) = on_the_map();
@@ -83,7 +69,6 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     press(&mut m, &mut g, &a, 'a');
     tick(&mut m, &mut g, &a);
 
-    // Row 0 is the peasants; the parent's button pushes ten a click.
     for _ in 0..12 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
@@ -109,8 +94,6 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     assert_ne!((daughter.x, daughter.y), (parent.x, parent.y), "and she stands elsewhere");
 }
 
-/// Both halves need fifty men on the plain path,
-/// screen open.
 #[test]
 fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
     let (mut g, a, mut m) = on_the_map();
@@ -128,10 +111,6 @@ fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
     assert_eq!(g.kingdom.campaign.units.len(), 1, "and nothing was split");
 }
 
-/// **Disband: the men go home and the weapons go back to the treasury**,
-/// is `Army_Disband` and the Readme's *"Any weapons they are carrying are
-/// returned to your treasury."*
-///
 /// It travels the original's road now: `Panel_DisbandButton` is record 1 of the
 /// **information panel's** table and not a button on the division screen, which
 /// is where a button of ours used to be. `docs/arms.json`
@@ -161,12 +140,6 @@ fn the_disband_button_returns_the_men_to_their_county_and_the_weapons_to_the_rea
 /// The Readme's disband rule, both clauses, through the screen: an army whose
 /// home county has fallen *and* which is standing in enemy country is refused,
 /// with `L2.eng` group 145's own words for why.
-///
-/// **The refusal closes the panel**, which reads wrong and is the original's:
-/// `Panel_DisbandButton`'s else branch is `Msg_Enqueue(…, 0x91, …); g_screenId =
-/// 0;`. The message scroll is what the player is left looking at, and we have
-/// none, so the army standing untouched on the map is the whole of the answer
-/// here.
 #[test]
 fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
     let (mut g, a, mut m) = on_the_map();
@@ -186,13 +159,6 @@ fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
     assert!(g.kingdom.campaign.units.get(id).is_some(), "and the army is still there");
 }
 
-/// **The Move button is the door to screen `0x10`**, and it is the original's
-/// only one from this panel: `Panel_MoveButton` writes `g_screenId = 0` and
-/// calls `Map_BeginMoveSelection()`. Ours carries the request on
-/// [`Game::begin_move_order`] and the map takes it on the next tick.
-///
-/// Ablating it: delete the `ctx.game.begin_move_order = Some(id)` line in
-/// `screens/info.rs` and the second assertion fails — the panel still closes,
 #[test]
 fn the_move_button_on_the_information_panel_starts_a_move_order() {
     let (mut g, a, mut m) = on_the_map();
@@ -225,42 +191,21 @@ fn the_division_screen_returns_to_the_information_panel_and_not_to_the_map() {
     right_click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     click(&mut m, &mut g, &a, info_button(2));
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)));
-    // The cross — `Army_SplitConfirm` with `g_uiHotspotId == 0`.
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_CROSS));
     assert_eq!(
         m.top_id(),
         Some(ScreenId::Info(l2_game::screens::info::Target::Unit(id))),
         "back to the panel the Split button was on",
     );
-    // And the right release out of `0x11` lands in the same place.
     click(&mut m, &mut g, &a, info_button(2));
     right_click(&mut m, &mut g, &a, (200, 200));
     assert_eq!(m.top_id(), Some(ScreenId::Info(l2_game::screens::info::Target::Unit(id))));
 }
 
 
-/// **The division screen paints inside the rectangle its painter opens** and
-/// leaves the rest of the frame to the map underneath.
-///
-/// That second half is the point: `Screen_ArmyDivision` opens a `Ui_DrawBox`
-/// over the campaign map and does not clear the screen — *"the original has no
-/// screen clear anywhere"* —
-/// in a way no other assertion here notices.
-///
-/// **The raise-army screen used to be tested with it, and that was the bug.**
-/// `Screen_Draw`'s `0x17` arm runs `Screen_Armoury(1)` before
-/// `Screen_RaiseArmy`, so the levy window really does repaint the whole frame;
-/// asserting that it did not is what kept the screen floating over the campaign
-/// map in the wrong palette until a player called it *"a weird popup"*. The
-/// test below it is the replacement.
 #[test]
 fn the_division_screen_paints_inside_the_window_the_painter_opens() {
     let (mut g, a, mut m) = on_the_map();
-    // **The setup happens before the reference frame is taken.** Selecting an
-    // army changes the *map*: it draws a selection ring,
-    // banner, and a marker on a tile near the top of the viewport lands above
-    // the division window's own y. Measuring from a frame taken before the
-    // selection would blame the screen for pixels the map drew.
     let (here, _) = adjacent_pair(|x| x < 30);
     army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
@@ -283,14 +228,6 @@ fn the_division_screen_paints_inside_the_window_the_painter_opens() {
     assert_eq!(above, 0, "it painted above its own window, over the map");
 }
 
-/// **The levy window and the armoury are one surface**,
-/// assertion that says so without any test knowing what the armoury looks like.
-///
-/// Open the levy screen and paint a frame; press Continue and paint another.
-/// Continue replaces `0x17` with `0x0A`, so what leaves the picture is the levy
-/// window and what stays is everything else — and *everything else* has to
-/// include a lot, because it is a whole room. If the levy screen were still an
-/// inset over the campaign map the two frames would differ almost everywhere.
 #[test]
 fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
     let (mut g, a, mut m) = on_the_map();
@@ -308,11 +245,6 @@ fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
     let outside = changed.iter().filter(|&&(x, y)| !window.contains(x, y)).count();
     let inside = changed.len() - outside;
     assert!(inside > 500, "the levy window did not lift: {inside} pixels changed inside it");
-    // Outside the window the two frames are the same room. Not *identical* —
-    // the armoury draws its three labels bright where the levy screen dims them
-// and adds a corner picture — so this is a fraction, and
-    // it is a small one: 3,700 pixels out of the 300,000 that are not the
-    // window.
     let elsewhere = (640 * 480 - window.w * window.h) as usize;
     assert!(
         outside * 20 < elsewhere,

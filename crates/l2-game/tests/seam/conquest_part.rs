@@ -9,11 +9,6 @@ use l2_kingdom::kingdom::Kingdom;
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind, TROOP_TYPES};
 
-/// **The levy, against `battle-during.sav`.**
-///
-/// The defence the original raised is in the save; the defence this crate
-/// raises is built here. Every field is compared — a
-/// composition that summed to 182 the wrong way would pass a headcount.
 #[test]
 fn attacking_county_three_levies_the_defence_the_saved_game_holds() {
     let before_save: Save = l2_testkit::fixture!("battle-before.sav");
@@ -59,7 +54,6 @@ fn attacking_county_three_levies_the_defence_the_saved_game_holds() {
     );
     assert_eq!(d.morale as u8, raised.morale, "morale is the county's happiness");
 
-    // And the people it is made of came out of the county.
     let during_population = during.county(COUNTY as usize).unwrap().population;
     assert_eq!(
         k.counties[COUNTY as usize].population,

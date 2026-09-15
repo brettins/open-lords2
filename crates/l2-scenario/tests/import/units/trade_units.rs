@@ -9,9 +9,6 @@ use l2_formats::save::{Layout, Save, COUNTY_BASE, COUNTY_STRIDE};
 use l2_scenario::{ImportError, Scenario, STARTING_HEALTH_METER};
 use l2_testkit::{saves, SaveFile};
 
-/// The England position imports as six merchants owned by nobody, in the six
-/// counties `docs/formats/plane4.md` predicted, each with the route it will
-/// walk.
 #[test]
 fn the_england_fixture_imports_six_merchants_and_no_armies() {
     let save = l2_testkit::england!();
@@ -28,9 +25,6 @@ fn the_england_fixture_imports_six_merchants_and_no_armies() {
         assert_eq!(u.move_allowance, 0, "the file's zero, not the type's ten");
         assert_eq!(u.year_formed, 1, "the route cursor ships at 1, not 0");
         assert!(u.needs_destination);
-        // Each merchant is standing in a county on its own route
-        // it walks is its **slot** minus one — the coupling `Merchant_AdvanceAll`
-        // rests on.
         let route = s.routes.row(slot - 1);
         assert!(
             route.contains(&u.county),

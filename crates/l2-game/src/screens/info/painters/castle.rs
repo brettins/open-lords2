@@ -16,24 +16,11 @@ use crate::shell::{font, Face, Pen};
 /// **`TileInfo_Draw` (`0x0041C208`) for a `0x80` castle tile, and
 /// `TileInfo_DrawCastle` (`0x0041DA2F`) under it.**
 ///
-/// The outer painter's four literals:
-///
-/// ```c
-/// else if (g_pickedTileGraphic < 0x1a) {
-///   if      (county.castleDegraded == 1) local_20 = 0xe;   /* under construction */
-///   else if (county.castleDegraded == 2) local_20 = 0xf;   /* under repair       */
-///   else                                 local_20 = 8;     /* a castle           */
-///   local_1c = g_pickedTileGraphic + 7;  local_8 = 0x1c;  local_c = 0;
-/// }
-/// ```
-///
 /// — heading 30/8, 30/14 or 30/15, body 30/`graphic + 7` (so the bare plot's
 /// `0x14` takes 30/27 and a royal castle's `0x19` takes 30/32), and
 /// `Icon_tmp.pl8` frame `0x1C`. **The body goes through the same
 /// `FUN_0040328E(30, local_1c, 0x68, row*16 + 100, 0x130, …)` every other
 /// non-farmland arm uses**, both sides of the owner test being one call.
-///
-/// Then `TileInfo_DrawCastle`, which is two arms and a shared tail:
 ///
 /// ```c
 /// DAT_00568474 = (county.garrisonUnit != 0);
@@ -54,19 +41,6 @@ use crate::shell::{font, Face, Pen};
 ///   if (garrison) { 71/0x0E (0x68, R+0x104); Widget_Draw(…) }
 /// }
 /// ```
-///
-/// **Note what the two arms do not share.** The intact arm's tax and barracks
-/// lines are `Castle_DrawStatusBlock`'s first two written out again at a
-/// different y, and the degraded arm reaches the block itself —
-/// building its first castle is the one that shows the stone and wood owed and
-/// the seasons left.
-/// heading above it says *"Castle."* and the block below is empty
-/// the original's, not a gap of ours.
-///
-/// The tax and barracks words come from
-/// [`super::job::castle_word`]'s run, one word low at type 0 — `docs/bugs.md`'s
-/// *"Barracks for 2500 troops."* on a county with no castle is reproduced here
-/// too, because it is the same two table reads.
 pub(crate) fn draw_castle(
     ctx: &Ctx,
     pen: &Pen,
@@ -85,7 +59,6 @@ pub(crate) fn draw_castle(
         pen.body(canvas, x, y, &words(a, group, index), font::TEXT)
     };
 
-    // The heading, in `&g_fontHeading` like every other arm's.
     let heading = match c.castle_degraded {
         1 => CASTLE_HEADING_BUILDING,
         2 => CASTLE_HEADING_REPAIR,
@@ -94,9 +67,6 @@ pub(crate) fn draw_castle(
     pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &words(a, TILE_GROUP, heading), font::TEXT);
     let body = words(a, TILE_GROUP, graphic + 7);
     pen.body_wrapped(canvas, BODY_X, l.y(BODY_DY), TILE_BODY_WRAP, &body, font::TEXT);
-    // `Sprite_WGenSprite(0x1C, 0x28, row*16 + 0x60)`. The original draws it
-    // *after* `TileInfo_DrawCastle` returns, which matters only in that the
-    // ruined arm below returns early and the icon is still drawn.
     if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(CASTLE_ICON)) {
         canvas.blit(&f, ICON_AT.0, l.y(ICON_AT.1));
     }
@@ -129,8 +99,6 @@ pub(crate) fn draw_castle(
         let at = pen.number_in(Face::Body, canvas, at, l.y(0x98), cap, ' ', " ", font::TEXT);
         say(canvas, CASTLE_GROUP, CASTLE_TROOPS, at, l.y(0x98));
         if let Some(u) = garrison {
-            // **No ownership gate on the widget** — somebody else's garrison
-            // gets 71/19 instead of the count and the same button under it.
             if u.owner == ctx.game.player {
                 let at =
                     pen.number_in(Face::Body, canvas, BODY_X, l.y(0xA8), u.men, ' ', " ", font::TEXT);

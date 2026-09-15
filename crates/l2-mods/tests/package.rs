@@ -1,12 +1,3 @@
-//! Packaging: what a mod is on disk, and what inspecting one tells you.
-//!
-//! Inspection is deliberately not the same thing as loading. Loading asks what
-//! the game will run on once every layer has had its turn, and stops at the
-//! first error. Inspection asks what *this one mod* says with nothing else in
-//! the picture, and reports everything it finds — which is the right shape for
-//! a tool an author runs against their own work before shipping it.
-//!
-//! Every fixture is written by the test.
 
 mod common;
 
@@ -49,17 +40,12 @@ fn inspection_lists_the_documents_the_files_and_the_rules_a_mod_claims() {
     );
     assert!(p.warnings.is_empty(), "{:?}", p.warnings);
 
-    // The manifest's own fields survive into the printed form, because the
-    // ordering constraints are the part a user most often needs to check.
     let text = p.to_string();
     assert!(text.contains("full 1.2.3"), "{text}");
     assert!(text.contains("requires  core >= 1.0.0"), "{text}");
     assert!(text.contains("conflicts rival"), "{text}");
 }
 
-/// The most useful warning in the set. A rule file in the wrong directory
-/// loads with no error at all — it becomes an asset nothing asks for — and the
-/// mod simply does nothing.
 #[test]
 fn a_rule_file_outside_the_rules_directory_is_warned_about() {
     let dir = TempDir::new("pkg-misplaced");
@@ -90,9 +76,6 @@ fn a_mod_with_only_a_manifest_says_so() {
     assert_eq!(p.warnings, vec![Warning::Empty]);
 }
 
-/// `docs/netcode.md` is categorical: the simulation is integer-only. A decimal
-/// in a rule file cannot reach it, so it is either dead or a mistake, and
-/// either way the author should hear about it before a player does.
 #[test]
 fn a_decimal_rule_is_warned_about_with_its_line() {
     let dir = TempDir::new("pkg-float");
@@ -120,9 +103,6 @@ fn a_syntax_error_is_found_at_inspection_rather_than_at_a_players_load() {
     assert!(text.contains("broken:rules/x.toml"), "{text}");
 }
 
-/// The digest identifies the *rules*, not the installation. Two copies of the
-/// same mod at different paths are the same mod; a mod whose rules changed is
-/// not.
 #[test]
 fn the_rules_digest_follows_the_rules_and_not_the_path() {
     let a = TempDir::new("pkg-diga");
@@ -139,9 +119,6 @@ fn the_rules_digest_follows_the_rules_and_not_the_path() {
     assert_ne!(da, dc, "a changed rule is a different mod");
 }
 
-/// Comments and whitespace are not rules. Two files that say the same thing
-/// differently must have the same digest, or "have we got the same mod" gets
-/// answered by a diff of formatting.
 #[test]
 fn the_rules_digest_ignores_layout_and_comments() {
     let a = TempDir::new("pkg-fmt-a");
@@ -173,8 +150,6 @@ fn inspecting_a_directory_of_mods_returns_them_sorted_by_id() {
     assert_eq!(ids, vec!["alpha", "middle", "zebra"]);
 }
 
-/// The package warnings reach the platform's report, so a player who never
-/// runs an inspection tool still finds out.
 #[test]
 fn a_loaded_platform_reports_its_mods_packaging_warnings() {
     let install = TempDir::new("pkgw-install");
@@ -195,13 +170,9 @@ fn a_loaded_platform_reports_its_mods_packaging_warnings() {
     assert_eq!(report.package_warnings.len(), 1);
     assert_eq!(report.package_warnings[0].0, "oops");
     assert!(format!("{report}").contains("mods worth a second look"), "{report}");
-    // And the mod really did nothing: the engine's own archer armour stands.
     assert_eq!(p.rules.integer("unit.archers.armour").unwrap(), 0);
 }
 
-/// `is_platform_metadata` is the one place that decides which files in a mod
-/// belong to the platform. Both the report and the
-/// per-mod effect analysis go through it, so they cannot disagree.
 #[test]
 fn the_manifest_and_the_rule_documents_are_the_platforms_files() {
     assert!(package::is_platform_metadata("mod.toml"));

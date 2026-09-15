@@ -13,8 +13,6 @@ use l2_net::{
     Tick, Transport, TransportError, MAX_FRAME, MAX_OUTBOX,
 };
 
-/// The deliverable: two `Session`s exchanging real packets over real
-/// sockets and reaching identical checksums, tick by tick.
 #[test]
 fn two_sessions_over_real_sockets_agree_on_every_tick() {
     let (mut a, mut b) = connected_pair(0xabc_def);
@@ -29,14 +27,10 @@ fn two_sessions_over_real_sockets_agree_on_every_tick() {
     assert_eq!(b.sim.bad_commands, 0);
     assert!(!a.session.is_halted());
     assert!(!b.session.is_halted());
-    // Commands really did cross the wire. Without this the test could
-    // pass on two idle peers agreeing about nothing: units 1 and 2 lose
-    // hit points only through an `Attack` command, one from each side.
     assert!(a.sim.unit(1).expect("unit 1").hp < 100, "peer 0's attacks never arrived");
     assert!(a.sim.unit(2).expect("unit 2").hp < 100, "peer 1's attacks never arrived");
 }
 
-/// The same schedule over the in-process [`Loopback`], for comparison.
 pub(super) fn loopback_hashes(seed: u64, target: Tick) -> Vec<Vec<(Tick, u64)>> {
     let slots = [PlayerSlot::new(0), PlayerSlot::new(1)];
     let ids = [PeerId(0), PeerId(1)];
@@ -105,15 +99,6 @@ pub(super) fn loopback_hashes(seed: u64, target: Tick) -> Vec<Vec<(Tick, u64)>> 
     peers.into_iter().map(|p| p.hashes).collect()
 }
 
-/// D-5, stated as a test: the network decides *when* a tick happens and
-/// never *what* it computes.
-///
-/// One schedule run twice — once through the kernel, once through an
-/// in-process queue with entirely different arrival timing — must give
-/// the same checksum for every tick. If a socket could ever change a
-/// result, this is where it would show, and it is the assertion that
-/// justifies `tests/lockstep.rs` continuing to test the interesting
-/// cases with no network at all.
 #[test]
 fn the_socket_changes_the_timing_and_not_the_checksums() {
     let seed = 0x5eed_1234;

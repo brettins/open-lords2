@@ -8,8 +8,6 @@ use l2_net::{
     Message, PeerId, PlayerSlot, Fixed, Session, SessionError, Tick, Transport,
 };
 
-/// §6's localisation, end to end: two dumps, compared, name the
-/// subsystem that diverged.
 #[test]
 fn two_dumps_name_the_subsystem_that_diverged() {
     let mut table = Table::new(Config::battle(), 2, 7);
@@ -39,20 +37,14 @@ fn two_dumps_name_the_subsystem_that_diverged() {
         "an off-by-one in a damage roll should localise to the unit array: {comparison}"
     );
 
-    // And the dump encodes, for something with filesystem access to
-    // write out.
     let bytes = Canonical::bytes_of(&ours);
     assert!(bytes.starts_with(b"L2DD"));
     assert!(bytes.len() > 100);
 }
 
-/// A divergence in the generator alone means somebody drew a random
-/// number outside the simulation — §6 gives the PRNG its own slot for
-/// exactly this reading.
 #[test]
 fn a_generator_that_drifts_alone_is_visible_as_such() {
     let mut table = Table::new(Config::battle(), 2, 11);
-    // One extra draw on one peer, touching nothing else.
     table.peers[1].sim.rng.next_u32();
     table.run(8);
 

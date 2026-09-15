@@ -10,17 +10,8 @@ use crate::unit::{
     ArmyNames, Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNIT_ID, TROOP_TYPES,
 };
 
-// ------------------------------------------------------------------ the split
 
 /// `FUN_0046733C` — a free tile within five of `(x, y)`, road preferred.
-///
-/// The original's shape exactly: for `r` = 1…5 it asks
-/// `Map_FindFreeRoadTileNear(x, y, r + 1)` and then
-/// `Map_FindFreeOpenTileNear(x, y, r)`, so at every radius a road one ring
-/// wider beats open ground one ring narrower. Each of those scans the clipped
-/// `(2r+1)²` box **row-major, ascending y then x**, which is what makes the
-/// answer reproducible; `docs/netcode.md` §3 is why that is written down rather
-/// than left to whatever order a search happened to have.
 pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<(u8, u8)> {
     let cost = map.cost_map();
     let scan = |r: i32, road: bool| -> Option<(u8, u8)> {
@@ -56,9 +47,6 @@ pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
 }
 
 /// The gate `FUN_00437AFB` applies before it calls `Army_Split`, on its own.
-///
-/// Split out so the screen can grey a button with the same rule the confirm
-/// enforces
 pub fn refuse_split(
     t: &Tables,
     counties: &[County; MAX_COUNTIES],
@@ -95,44 +83,8 @@ pub fn refuse_split(
 
 /// **`Army_Split` (`0x00437FD7`)** — the daughter army leaves.
 ///
-/// ```c
-/// if (!FindFreeTileNear(parent.x, parent.y)) return;
-/// d = Unit_Spawn(1, foundX, foundY, realm);   if (!d) return;
-/// d.needsDestination = 1;  d.ownerIsHuman = realm.isHuman;
-/// d.county = parent.county;  d.yearFormed = g_year;
-/// d.morale = parent.morale;  d.shield = parent.shield;
-/// d.nameIndex = Army_PickName(realm);
-/// d.troops[0..7] = daughterBasket;  parent.troops[0..7] = parentBasket;
-/// d.men = sum(daughterBasket[0..8]);  parent.men = sum(parentBasket[0..8]);
-/// if (parent.besiegingCounty) Siege_RecomputeBuildTime(parent);
-/// d.moving = parent.moving = 2;  d.playerDriven = 1;
-/// if (destCounty == 0) { d.movesUsed += 5; parent.movesUsed += 5; }
-/// else                 { d.dest = tile; FloodFill; ExtractPath; CopyToUnit; }
-/// if (parent has a band && the band is in the daughter's column) the band moves whole;
-/// ```
-///
-/// Four things a reimplementation gets wrong by default.
-/// instruction stream:
-///
-/// 1. **`men` is the sum of all eight slots**, so an army whose whole strength
-///    is its mercenary band still has the right total.
-/// 2. **The daughter inherits the parent's morale**, not the county's happiness
-/// — this is not `Army_Create`.
-/// 3. **Both halves are set walking** (`moving = 2`) even on the plain split,
-///    with no path; the stepper finds nothing to do and they stand still. It is
-///    the same value `Unit_OrderMove` writes, and reproducing it matters because
-///    the phase waits read it.
-/// 4. **The daughter does not inherit the home county.** `Army_Split` writes
-///    `county` and never writes `homeCounty`, and `Unit_Spawn` has just zeroed
-/// the record — so a split army's county of origin is **0**. That is not
-///    lost men: [`disband_county`] falls through to the county the army is
-///    standing in whenever the home county is not the owner's, and county 0
-///    never is. The visible effect is that **a daughter army always disbands
-///    where it stands**, never to the county its parent was raised in.
 /// Reproduced
 ///    the fallback makes it harmless. `[D]`
-///
-/// The parent keeps its siege and garrison links: neither is copied.
 #[allow(clippy::too_many_arguments)]
 pub fn split(
     t: &Tables,
@@ -178,7 +130,6 @@ pub fn split(
         parent.men = basket.parent_total();
         parent.moving = true;
     }
-    // The band crosses whole.
     if let (Some(band), true) = (basket.mercenaries, basket.mercenaries_leave) {
         if let Some(p) = units.get_mut(army) {
             p.mercenaries = None;
@@ -203,9 +154,6 @@ pub fn split(
             }
         }
         SplitInto::Castle { tile, .. } => {
-            // The daughter walks in. A failed extraction leaves it standing,
-            // which is `Unit_OrderMove`'s own behaviour — every write is inside
-            // the `if`. `docs/armies.md` §2.3.
             crate::movement::order_move(map, units, id, tile, crate::movement::Routing::Direct);
         }
     }

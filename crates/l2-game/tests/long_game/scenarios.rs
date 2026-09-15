@@ -18,9 +18,6 @@ fn a_hundred_turns_of_an_empire_taxed_at_thirty() {
     scoreline(&game.kingdom, "empire, turn 100");
     census.print("empire, 100 turns");
 
-    // **Reachability, not values.** Each of these is a rule that had no way in
-    // before this file existed; the assertion is that it has one now,
-    // message says which rule stayed dark.
     for what in [
         "a realm holding more than one county",
         "a realm holding four or more counties",
@@ -56,11 +53,6 @@ fn every_shipped_map_survives_twenty_turns() {
         let settings =
             l2_game::setup::SetupOptions::new().commit(1, l2_kingdom::Quirks::default());
         let settings = l2_game::setup::Settings { ai_lords: lords as i32 - 1, ..settings };
-        // **A different colour on every map**, cycling 1 … 5 across the 44.
-        // The shield moves which realm flies which colour *and which lord sits
-        // behind it*,
-        // one arrangement `docs/rules.md` §7a's first row describes and leave
-        // the other four rows never simulated at all.
         let shield = (slot % 5 + 1) as u8;
         let mut game = l2_game::scenario::new_game(
             &assets,
@@ -91,11 +83,6 @@ fn every_shipped_map_survives_twenty_turns() {
     assert_eq!(played, 44, "every shipped map should have been played");
 }
 
-/// **A hundred turns is also the best determinism test available.**
-/// `docs/netcode.md`: the simulation must be a pure function of its seed and
-/// its inputs. Two runs of the same hundred turns must agree bit for bit, and a
-/// game saved at turn 50 and reloaded must produce the same turn 100 as one
-/// played straight through.
 #[test]
 fn a_hundred_turns_is_the_same_hundred_however_it_is_reached() {
     let save = l2_testkit::england!();
@@ -112,7 +99,6 @@ fn a_hundred_turns_is_the_same_hundred_however_it_is_reached() {
         l2_game::turn::end_turn(&mut straight).expect("the machine comes round");
     }
 
-    // 1. The same hundred turns, twice.
     let mut again = fresh();
     for _ in 0..TURNS {
         l2_game::turn::end_turn(&mut again).expect("the machine comes round");
@@ -123,10 +109,6 @@ fn a_hundred_turns_is_the_same_hundred_however_it_is_reached() {
         "two identical hundred-turn games diverged"
     );
 
-    // 2. Fifty turns, a save, a load, and fifty more. This is the assertion
-    //    `tests/save.rs` makes over ten seasons, at ten times the length — and
-    //    it is the one that catches a field the codec drops, because fifty more
-    //    turns of divergence is a long time for a wrong value to stay invisible.
     let mut halved = fresh();
     for _ in 0..TURNS / 2 {
         l2_game::turn::end_turn(&mut halved).expect("the machine comes round");

@@ -9,7 +9,6 @@ use l2_formats::save::{Save, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, REALM_STRID
 use l2_kingdom::Kingdom;
 use l2_scenario::Scenario;
 
-/// **Every row decides.**
 #[test]
 fn every_stored_field_is_imported_derived_or_excluded_with_a_reason() {
     let rows = rows();
@@ -53,8 +52,6 @@ fn every_stored_field_is_imported_derived_or_excluded_with_a_reason() {
             problems.push(format!("{} has a stride narrower than its type", r.id));
         }
     }
-    // In record order, then offset order, and no two rows share a byte: a
-    // row that overlaps another is two claims about one field.
     let mut record_order: Vec<&str> = rows.iter().map(|r| r.record.as_str()).collect();
     record_order.dedup();
     if record_order != ["County", "Realm"] {
@@ -65,10 +62,6 @@ fn every_stored_field_is_imported_derived_or_excluded_with_a_reason() {
             problems.push(format!("{} follows {} — keep the rows in offset order", w[1].id, w[0].id));
         }
     }
-    // **By byte, not by span.** The sub-fields of a nested record's array
-    // interleave — `labour[].workers`, `.wanted` and `.useful` each cover
-    // every twelfth byte across the same hundred — so comparing where one row
-    // ends with where the next begins called every one of them an overlap.
     let mut owner: BTreeMap<(String, u32), String> = BTreeMap::new();
     for r in &rows {
         for e in 0..r.count.max(1) {
@@ -92,15 +85,11 @@ fn every_stored_field_is_imported_derived_or_excluded_with_a_reason() {
     );
 }
 
-/// One struct of `docs/records.json`: its size and `(offset, type, name)`.
 struct Layout {
     size: u32,
     fields: Vec<(u32, String, String)>,
 }
 
-/// `docs/records.json`'s structs, by name — scanned by indentation, for the
-/// reason [`rows`] gives. The file is written by `JSON.stringify(_, null, 2)`,
-/// so a struct's own keys sit six spaces in and a field's ten.
 fn layouts() -> BTreeMap<String, Layout> {
     let text = std::fs::read_to_string(repo_root().join("docs/records.json")).expect("docs/records.json");
     let mut out: BTreeMap<String, Layout> = BTreeMap::new();
@@ -141,7 +130,6 @@ fn layouts() -> BTreeMap<String, Layout> {
     out
 }
 
-/// `"i32[8]"` → `("i32", 8)`.
 fn split_type(t: &str) -> (&str, u32) {
     match t.split_once('[') {
         Some((elem, n)) => (elem, n.trim_end_matches(']').parse().expect("an array length")),
@@ -158,13 +146,6 @@ fn scalar_width(t: &str) -> Option<u32> {
     })
 }
 
-/// **A field `docs/records.json` names has a row, with that name, that width
-/// and that shape.**
-///
-/// The layout file is where a newly identified field is written first. A row
-/// has to follow, or the field joins the ones nobody decided about; and a row
-/// whose name or width disagrees with the layout is two documents describing
-/// two different fields at one offset.
 #[test]
 fn every_field_the_layout_names_has_a_row_of_that_name_and_width() {
     let layouts = layouts();
@@ -217,9 +198,6 @@ fn every_field_the_layout_names_has_a_row_of_that_name_and_width() {
         }
     }
     assert!(problems.is_empty(), "docs/stored-fields.json against docs/records.json:\n  {}", problems.join("\n  "));
-    // 95 County fields and 51 Realm fields once the three nested arrays are
-    // expanded, counted by hand from docs/records.json when this was written.
-    // A layout may gain fields; a lower number means the scanner lost some.
     assert!(compared >= 146, "only {compared} layout fields compared — the scanner lost docs/records.json");
 }
 

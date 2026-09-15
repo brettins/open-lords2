@@ -5,14 +5,6 @@ use super::merchants::*;
 use l2_formats::save::COUNTY_RECORDS;
 use l2_testkit::{england, england_county_of_realm, ENGLAND_TURN1_COUNTIES};
 
-/// The clock, the options and who is playing — the scalars outside the two
-/// arrays.
-///
-/// **Corrected.** This used to assert `g_weatherCounty == 2` and that the
-/// person holds county 8. Both are per-game rolls: the second England save
-/// gives weather county 10 and puts the person on county 13. What survives is
-/// that the weather county is a real county and that the person holds exactly
-/// one of the five starting counties.
 #[test]
 fn the_globals_are_a_turn_one_winter_game_driven_by_realm_one() {
     let save = england!();

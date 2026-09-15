@@ -31,18 +31,6 @@ fn r_on_the_map_opens_the_raise_army_screen_for_the_selected_county() {
 /// **`Levy_SliderClick` (`0x00435CEF`) is a drag on its track and a press on
 /// its arrows**, and nothing else. A player: *"Slider bar in army recruitment
 /// cant be dragged."*
-///
-/// Every coordinate is typed from the decompilation
-/// `army`'s constants: without a band on offer the hit band is
-/// `0x80 <= x < 0x176` by `0xB0 <= y < 0xE0`; `x < 0xC4` steps down on a press,
-/// `x < 0x129` sets `x - 0xC4` while `g_mouseLeftDown`,
-/// on a press. The window procedure's `WM_LBUTTONDBLCLK` sets no down bit.
-///
-/// **Ablations, run:** delete the `Event::Pointer` arm of
-/// `RaiseArmyScreen::handle` and the drag stays at 10; make the track test
-/// `pressed` and so does it; delete `left_down = false` from
-/// the release and the pointer after it moves the knob to 60; skip the slider
-/// check on the right release and it leaves for the armoury mid-drag.
 #[test]
 fn the_levy_slider_follows_a_drag_and_steps_only_on_an_arrow_press() {
     let (mut g, a, mut m) = on_the_map();
@@ -71,7 +59,6 @@ fn the_levy_slider_follows_a_drag_and_steps_only_on_an_arrow_press() {
     to(&mut m, &mut g, 256, y);
     assert_eq!(g.levy.percent, 100, "released: the track reads nothing");
 
-    // The arrows. One step a press, clamped, and never repeated.
     click(&mut m, &mut g, &a, (330, y));
     assert_eq!(g.levy.percent, 100, "101 clamps to 100");
     send(&mut m, &mut g, &a, Event::Release { x: 330, y });
@@ -89,7 +76,6 @@ fn the_levy_slider_follows_a_drag_and_steps_only_on_an_arrow_press() {
     assert_eq!(g.levy.percent, 98, "and on the track it is nothing, because no down bit was set");
     send(&mut m, &mut g, &a, Event::Release { x: 206, y });
 
-    // The right release is read only when the slider answered 0.
     click(&mut m, &mut g, &a, (256, y));
     assert_eq!(g.levy.percent, 60);
     send(&mut m, &mut g, &a, Event::RightClick { x: 256, y });
@@ -99,25 +85,14 @@ fn the_levy_slider_follows_a_drag_and_steps_only_on_an_arrow_press() {
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)), "and with the button up it goes on");
 }
 
-/// **Which pick sends a soldier**,
-/// remember: *"Seems like the people pick up their weapons after you click on
-/// another weapon type."*
-///
 /// He is right, and it is the binary's rule. `FUN_004AABD8` (`0x004AABD8`) has
 /// **one** call site, the first statement of `Armoury_ClickRack`
 /// (`0x004358B0`), and it is handed `g_armourySelectedType` *before* that
 /// function overwrites it.
+///
 /// rack being left, once per pick, when men were added since that rack was
 /// opened — never by the `+`, and never by the first pick after a door into
 /// the armoury, because `Levy_Seed` (`0x004AA90A`) zeroes the type.
-///
-/// **The rack already open counts.** `0x0D`'s arm tests the grid and the
-/// hotspots with no comparison against the open type, so picking the same
-/// weapon again sends its man. Ours refused that click.
-///
-/// **Ablations, run:** restore `troop != self.troop` in `RackScreen::handle` and
-/// the re-pick sends nobody; delete `walker.active = false` from
-/// `Game::seed_levy_basket` and the walk survives Continue.
 #[test]
 fn the_first_pick_sends_nobody_and_picking_the_weapon_again_sends_the_man_who_took_it() {
     let (mut g, a, mut m) = on_the_map();
@@ -128,9 +103,6 @@ fn the_first_pick_sends_nobody_and_picking_the_weapon_again_sends_the_man_who_to
     assert!(g.levy.anim.walker.active, "picking the weapon again sends the man who took it");
     assert_eq!(g.levy.anim.walker.slot, 1, "a crossbowman");
 
-    // `Armoury_Button` id 2 writes `g_screenId = 0x17` and nothing else, so he
-    // is still on the floor — and `RaiseArmy_Continue`'s `Levy_Seed` takes him
-    // off it.
     click(&mut m, &mut g, &a, on(armoury::RACK_OK));
     click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
@@ -143,19 +115,6 @@ fn the_first_pick_sends_nobody_and_picking_the_weapon_again_sends_the_man_who_to
     assert!(!g.levy.anim.walker.active, "Levy_Seed's DAT_005679D0 = 0");
 }
 
-/// **The walk to the weapon, in ticks.** A player: *"his animation speed was
-/// faster than the regular game. not bad, but not the OG."*
-///
-/// `Armoury_DrawWalker` adds four to x on each `Tick_Pulses` 20 ms pulse, and
-/// `Tick_Pulses` sets its stamp to the frame that fired — so on a 16 ms tick a
-/// pulse is every **second** tick. The crossbowman starts at `-0x50` and
-/// `g_armouryWalkStopX[1]` is 45: thirty-two pulses, the last at x 48, and
-/// sixty-two ticks from his first step to his thirty-second. Typed, not
-/// computed from `WALKER_STEP` or `PULSE_MS`.
-///
-/// **Ablation, run:** put back `Anim::tick`'s carry-the-remainder reading and
-/// he steps on ticks 2, 3, 4, 5, 7, 8 … — four steps in every five ticks — and
-/// takes his thirty-second on tick 40, twenty-four ticks sooner.
 #[test]
 fn the_crossbowman_reaches_his_weapon_in_the_ticks_tick_pulses_gives_him() {
     let (mut g, a, mut m) = on_the_map();
@@ -186,13 +145,7 @@ fn the_crossbowman_reaches_his_weapon_in_the_ticks_tick_pulses_gives_him() {
     assert_eq!(steps[31].0 - steps[0].0, 62, "sixty-two ticks from the first step to the last");
 }
 
-/// **The whole walk,
-///
 /// `docs/agents.md` C27: *a rule with no way in is not a rule the game has.*
-/// Raising an army is four screens' worth of clicks in the original and every
-/// one of them is here — the map, the levy window, the armoury, one weapon's
-/// rack — with no helper reaching past a screen to set the state it then
-/// asserts on. The only inputs are a key and five pixel positions.
 ///
 /// 1. `R` on the map — `Sidebar_Button`'s hotspot 1 — opens `0x17`;
 /// 2. the slider sets the levy to 30 % of a thousand people;
@@ -215,19 +168,15 @@ fn the_walk_from_the_map_through_the_armoury_puts_an_equipped_army_on_the_map() 
     set_levy(&mut m, &mut g, &a, 30);
     assert_eq!(g.levy.men, 300, "thirty per cent of a thousand people");
 
-// Continue. The armoury *replaces* the levy screen
-    // it, because the original has one `g_screenId` byte and no stack.
     press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
     assert_eq!(m.depth(), 2, "the levy window was replaced, not covered");
     assert_eq!(g.levy.basket.unequipped(), 300, "the armoury seeded three hundred peasants");
 
-    // The swords. `RACK_HOTSPOTS`'s sixth record carries troop type 3.
     let swords = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 3).expect("a sword rack");
     click(&mut m, &mut g, &a, ((swords.0 + swords.2) / 2, (swords.1 + swords.3) / 2));
     assert_eq!(m.top_id(), Some(ScreenId::Rack(1, 3)));
 
-    // ALL is record 3 of `g_armouryBuyWidgets`.
     click(&mut m, &mut g, &a, on(armoury::button_box(3)));
     assert_eq!(
         g.levy.basket.troops()[TroopType::Swordsman.index()],
@@ -236,7 +185,6 @@ fn the_walk_from_the_map_through_the_armoury_puts_an_equipped_army_on_the_map() 
     );
     assert_eq!(g.levy.basket.unequipped(), 100, "the other hundred are still peasants");
 
-    // Out of the rack, then Create.
     click(&mut m, &mut g, &a, on(armoury::RACK_OK));
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)));
     click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
@@ -269,11 +217,6 @@ fn the_walk_from_the_map_through_the_armoury_puts_an_equipped_army_on_the_map() 
 /// **Change throws the equipment away**, which is the original's behaviour and
 /// not an accident of ours: every door into the armoury runs `FUN_004AA90A`,
 /// which re-seeds the basket from the realm's stocks and the levy's headcount.
-///
-/// The slider is *not* what does it — `Levy_SliderClick`'s tail is
-/// `Levy_SetPercent` and a redraw request — and this test is the difference
-/// between the two readings:
-/// still goes.
 #[test]
 fn walking_back_to_the_levy_screen_and_forward_again_strips_the_men() {
     let (mut g, a, mut m) = on_the_map();
@@ -288,7 +231,6 @@ fn walking_back_to_the_levy_screen_and_forward_again_strips_the_men() {
     click(&mut m, &mut g, &a, on(armoury::RACK_OK));
     assert_eq!(g.levy.basket.troops()[TroopType::Swordsman.index()], 200);
 
-    // Change, then Continue again. The slider is not moved.
     click(&mut m, &mut g, &a, on(armoury::CHANGE_BOX));
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
     assert_eq!(g.levy.percent, 30, "the slider stayed where it was");
@@ -318,7 +260,6 @@ fn a_rack_the_realm_has_no_weapons_for_does_not_open() {
         click(&mut m, &mut g, &a, ((h.0 + h.2) / 2, (h.1 + h.3) / 2));
         assert_eq!(m.top_id(), Some(ScreenId::Armoury(1)), "rack {} opened on an empty armoury", h.4);
     }
-    // And Create still works: an army of peasants is an army.
     click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
     assert_eq!(g.kingdom.campaign.units.len(), 1);
     let (_, unit) = g.kingdom.campaign.units.iter().next().expect("the army");

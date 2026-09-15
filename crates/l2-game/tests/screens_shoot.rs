@@ -1,6 +1,3 @@
-//! `cargo test -- --ignored shoot`: the screenshot tool, and its PNG writer.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 #[macro_use]
 mod common;
@@ -18,19 +15,12 @@ use l2_game::screens::county::{self as county};
 use l2_game::screens::map::MapScreen;
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------------------
-// Looking at the screen
-// ---------------------------------------------------------------------------
 
 /// **PNG, not raw RGBA.** `docs/decisions.md` C21's conclusion is *show screens
 /// early, to someone who knows the game*, and it cost this project a whole map
 /// screen to learn. A `.rgb` dump does not do that — it needs a converter and a
 /// remembered width before anyone can glance at it, which is enough friction
 /// that nobody glances.
-///
-/// So these forty lines write a real PNG with no dependency: a stored-block
-/// zlib stream (compression 0), which is legal deflate, plus the two checksums
-/// PNG requires. It is bigger than the raw dump and it opens in anything.
 pub(crate) mod png {
     fn crc32(data: &[u8]) -> u32 {
         let mut table = [0u32; 256];
@@ -65,7 +55,6 @@ pub(crate) mod png {
         out.extend_from_slice(&crc32(&all).to_be_bytes());
     }
 
-    /// 8-bit truecolour, one row filter byte of 0 per scanline.
     pub fn encode(w: usize, h: usize, rgb: &[u8]) -> Vec<u8> {
         let mut raw = Vec::with_capacity(h * (1 + w * 3));
         for y in 0..h {
@@ -102,14 +91,6 @@ fn save_png(canvas: &Canvas, assets: &Assets, name: &str) {
     std::fs::write(format!("out/{name}.png"), png::encode(640, 480, &rgb)).unwrap();
 }
 
-/// Not a test: a way to look at the screen. `cargo test -p l2-game --test
-/// screens shoot -- --ignored` writes PNGs into `out/`, which `.gitignore`
-/// excludes. Renders of the game's own artwork are derived assets and must
-/// never be committed (CLAUDE.md rule 1).
-///
-/// Five shots: the map at both zooms, then a fallow field clicked, its brush
-/// popup, and the field after the grain button — which is the whole feature in
-/// three pictures.
 #[test]
 #[ignore]
 fn shoot() {
@@ -139,7 +120,6 @@ fn shoot() {
     let canvas = draw(&mut screen, &mut game, &assets);
     save_png(&canvas, &assets, "brush_before");
 
-    // The left click opens screen 0x04 on the field, and the brush is on it.
     let opened = send(&mut screen, &mut game, &assets, Event::Click { x, y });
     let target = l2_game::screens::info::Target::Tile(tile);
     assert_eq!(opened, Transition::Push(ScreenId::Info(target)));
@@ -155,13 +135,6 @@ fn shoot() {
     let canvas = draw(&mut screen, &mut game, &assets);
     save_png(&canvas, &assets, "brush_after");
 
-    // **The county a player reported four defects against**, centred on its own
-    // town, with the sidebar the four of them live in.
-    //
-    // `county_town` is what a bug report needs and a window is not: this runs
-    // headlessly, touches no OS input queue and moves nobody's cursor. Every
-    // screen in this crate takes input as a value, so there is never a reason
-    // to drive our own engine through the desktop — `docs/agents.md`.
     let mut screen = MapScreen::new();
     let ctx = Ctx { game: &mut game, assets: &assets };
     if let Some(&tile) = MapScreen::town(&ctx, county).first() {
@@ -171,8 +144,6 @@ fn shoot() {
     let canvas = draw(&mut screen, &mut game, &assets);
     save_png(&canvas, &assets, "county_town");
 
-    // **The things on the map a player said were missing**: an army raised in
-    // his own county, a merchant standing beside it, and the town's flag.
     {
         let realm = game.kingdom.realms[game.player as usize].clone();
         let basket = l2_kingdom::LevyBasket::seed(&realm, 300);
@@ -198,11 +169,6 @@ fn shoot() {
         save_png(&canvas, &assets, "units_and_flags");
     }
 
-    // **The sidebar with both blue outlines up**, which is the one shot a
-    // reader can check the five interface fixes against: black strip text on
-    // the parchment, the produce rows below the slider, a ring round the cow
-    // because the dairy is overstaffed, and a ring round the slider's thumb
-    // because somebody is idle.
     {
         let c = &mut game.kingdom.counties[county as usize];
         let cattle = l2_kingdom::tables::JOB_CATTLE_FARMING;
@@ -220,7 +186,6 @@ fn shoot() {
     let _ = &mut c;
     save_png(&canvas, &assets, "sidebar_blue_outline");
 
-    // And the four panels, each from its own quadrant of the strip.
     for panel in county::PANELS {
         let mut m = Machine::new(ScreenId::County(county, panel));
         let mut c = Ctx { game: &mut game, assets: &assets };

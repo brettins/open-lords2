@@ -9,8 +9,6 @@ use l2_formats::save::{Layout, Save, COUNTY_BASE, COUNTY_STRIDE};
 use l2_scenario::{ImportError, Scenario, STARTING_HEALTH_METER};
 use l2_testkit::{saves, SaveFile};
 
-/// **The field counts we derive are the counts every reachable save stores.**
-///
 /// The importer no longer carries `+0x1FF`, `+0x200` and `+0x201` across: it
 /// reads the twenty tiles in `g_countyFieldTiles`, applies
 /// `County_RecountFields`' terrain ladder to the tile planes, and lets the
@@ -44,9 +42,7 @@ fn the_field_counts_are_derived_and_they_match_every_save_that_stores_them() {
     assert!(counties_checked > 14, "only {counties_checked} counties reached");
 }
 
-// --- the campaign layer -----------------------------------------------------
 
-/// `Pct` — `Tax_RecomputePreview`'s own rounding, which is truncation.
 fn pct(v: i32, p: i32) -> i32 {
     v * p / 100
 }
@@ -61,18 +57,6 @@ const CASTLE_TAX_BASE: [i32; 6] = [320, 480, 560, 640, 720, 800];
 
 /// The one moment on this machine where `+0xC0` is **not** the current
 /// population's answer, named with its reason.
-///
-/// It is the middle save of the battle triple
-/// the explanation: `battle-during.sav` (the install calls the same game
-/// `incombat.sav`) is taken with a battle open. County 2's population has
-/// already fallen to 588 and the stored preview is still **245**
-/// `Pct(Pct(638, 480), 8)` — the answer for the population the county had
-/// before the fighting. `battle-after.sav` stores **225** for the same county,
-/// which *is* `Pct(Pct(588, 480), 8)`.
-///
-/// recomputing it on load.** No recompute can produce 245; the original
-/// restores a memory image, and `Tax_RecomputePreview` runs on a control or at
-/// the end of a season, not on a load.
 const PREVIEW_NOT_YET_REFRESHED: &[&str] = &["battle-during.sav", "incombat.sav"];
 
 /// **`+0x0F` is `5 - taxRate` in every owned county of every save**, which is
@@ -104,17 +88,12 @@ fn the_local_tax_happiness_byte_is_five_minus_the_rate_in_every_save() {
     assert!(checked >= 5, "only {checked} counties were reached");
 }
 
-/// **The tax panel's *People pay* line, against the original's own answer.**
-///
 /// `+0xC0` is `Pct(Pct(population, castleBase), taxRate)` — the third statement
 /// of `Tax_RecomputePreview` — and the saves on this machine carry rates 2, 3,
 /// 6 and 8, so the arithmetic can be checked against a number the original
 /// wrote. `docs/plan.md` §2.5 says every county in
 /// every fixture sits at rate 0; that is true of the England fixture and false
 /// of the turn pair and the six siege saves.
-///
-/// It is still true of any rate above 19, where `g_taxHappinessOther` starts to
-/// bite — so this promotes the *preview*, not the empire term.
 #[test]
 fn the_tax_preview_byte_is_the_arithmetic_we_implement() {
     let mut agreed = 0usize;
@@ -154,16 +133,10 @@ fn the_tax_preview_byte_is_the_arithmetic_we_implement() {
     }
 }
 
-// ------------------------------------ what docs/stored-fields.json found dropped
 
 /// **`+0x18` is `+0x1C / g_turnCount` in every county of every save** —
 /// `Happiness_UpdateAll` (`0x0044BAEA`) banks the season's happiness into the sum
 /// and divides by the turn count, into a signed byte.
-///
-/// The importer used to set both to this season's happiness, which this test
-/// measures the cost of: it counts the counties where the stored average is not
-/// the current happiness, which is every county past turn one whose mood has
-/// moved — `siege-aftersie.sav` county 2 stores 54 and is at 95 today.
 #[test]
 fn the_happiness_average_is_the_running_sum_over_the_turn_count_in_every_save() {
     let (mut checked, mut differs) = (0usize, 0usize);

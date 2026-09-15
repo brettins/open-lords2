@@ -19,7 +19,5 @@ use crate::county::{County, MAX_COUNTIES};
 use crate::realm::{Realm, MAX_REALMS};
 use crate::tables::Tables;
 
-/// `Army_StrengthScore`'s bonus for being an army at all — the `+ 20` on any
-/// score that reached 1.
 pub const STRENGTH_SCORE_BONUS: i32 = 20;
 

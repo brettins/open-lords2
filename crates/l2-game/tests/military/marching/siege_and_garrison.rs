@@ -19,9 +19,6 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
 
-/// **Clicking your own besieging army opens the siege screen
-/// orders** — `Map_Click`'s own branch,
-/// `0x1D` from the map.
 #[test]
 fn clicking_a_besieging_army_opens_the_siege_screen() {
     let (mut g, a, mut m) = on_the_map();
@@ -43,15 +40,11 @@ fn clicking_a_besieging_army_opens_the_siege_screen() {
     );
 }
 
-/// **`Siege_ValidateLink` runs before the branch is chosen**,
-/// whose target garrison has gone gets its link cleared *by the click* and
-/// lands on the move branch in the same call.
 #[test]
 fn a_besieger_whose_garrison_has_gone_takes_orders_instead_of_opening_the_siege() {
     let (mut g, a, mut m) = on_the_map();
     let (camp, there) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 400, camp);
-    // Besieging a county that has no garrison at all any more.
     g.kingdom.campaign.units.get_mut(id).unwrap().besieging_county = 2;
     g.kingdom.counties[2].garrison_unit = 0;
 
@@ -66,8 +59,6 @@ fn a_besieger_whose_garrison_has_gone_takes_orders_instead_of_opening_the_siege(
     assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving), "orders taken");
 }
 
-/// **The sortie**: a besieged garrison told to leave fights the besieger.
-///
 /// `Army_LeaveCastle`'s body `FUN_00437535` (`0x004374C4`) ends
 /// `if (unit.besiegedBy && Battle_BeginFromCampaign(unit, unit.besiegedBy))
 /// g_battleCounty = county;` — the marching garrison is `g_battleArmyA`, the

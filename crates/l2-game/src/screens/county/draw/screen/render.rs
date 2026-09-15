@@ -20,31 +20,15 @@ use crate::shell::{font, Pen, TRAILING};
 use crate::widget;
 
 impl CountyScreen {
-    /// Opens on the panel the strip quadrant that was clicked names, which is
-    /// the only way the original opens any of them ([`panel_at`]).
     pub fn new(county: u8, panel: Panel) -> CountyScreen {
         CountyScreen { county, panel, slider_held: false, press: Press::new() }
     }
 
-    /// **The panel's own widget table**, with the kind byte its records carry.
-    ///
     /// `g_taxWidgets` (`0x004DD790`) and `g_rationWidgets` (`0x004DD7C0`) are
     /// two 24-byte records each and **both are `Widget_Test` kind 4** — read out
     /// of `+0x0F` of all four records. That is auto-repeat: the press steps
     /// once, and holding steps again on [`crate::press::REPEAT_GATE`]'s ramp,
     /// 240 ms later and then faster until it is running flat out at 1.44 s.
-    ///
-    /// `docs/arms.json` filed this arm as `left-press` and it was wrong — the
-    /// record named the two tables and nobody read their kind byte. A player
-    /// reported the consequence: *"Holding on a button doesn't seem to make it
-    /// go up faster. I recall you could click an up arrow and after a few
-    /// seconds the number would go up fast."*
-    ///
-    /// Index 0 is **up** and index 1 is **down**, which is the tables' own order
-    /// and puts the up arrow to the *left* of the pair.
-    ///
-    /// The `arm!` is `Screen_HandleInput`'s widget tables' marker.
-    /// they are answered with, in one token.
     pub(crate) fn arrows(&self) -> Vec<Widget> {
         [self.panel.increase_button(), self.panel.decrease_button()]
             .into_iter()
@@ -69,9 +53,6 @@ impl CountyScreen {
         PANELS.iter().position(|&p| p == self.panel).unwrap_or(0)
     }
 
-    /// Move the open panel's own value by `step`. Silently refused for a county
-    /// the player does not hold, and there is nothing to move on the two panels
-    /// that only report.
     pub(crate) fn adjust(&self, ctx: &mut Ctx, step: i32) {
         let id = self.county;
         let Some(c) = ctx.game.kingdom.counties.get(id as usize) else { return };
@@ -89,37 +70,12 @@ impl CountyScreen {
     }
 
     /// **`Ration_SliderClick` (`0x0043A379`) — and it is a drag, not a click.**
-    ///
-    /// ```c
-    /// if (counties[sel].owner != g_localPlayer) return 0;
-    /// if (g_mouseLeftReleased) return 0;                    /* the release does nothing */
-    /// if (!g_mouseLeftDoubleClick && !(g_mouseLeftDown && g_mouseInputChanged)) return 0;
-    /// ```
-    ///
-    /// So it fires **while the button is held and the pointer has moved**, and
-    /// the release is explicitly ignored. `held` is that condition; the caller
-    /// passes it for both a press and a drag, which is what makes the thumb
-    /// follow the cursor.
-    ///
-    /// The two gestures do not end the same way, and `g_uiHotspotArg` is what
-    /// tells them apart: **1 for a jump on the track, 0 for an arrow.** A track
-    /// jump that changes nothing springs back; an arrow keeps walking. The rule
-    /// is [`l2_kingdom::Kingdom::set_ration_split`] and the flag is `sweep`
-    /// there.
-    ///
-    /// One more thing the original does that reads oddly and is deliberate:
-    /// the arrows only step on a **press** (`g_mouseLeftPressed ||
-    /// g_mouseLeftDoubleClick`), so holding the button down on an arrow and
-    /// wiggling does not repeat — but holding it on the **track** does, because
-    /// the track branch reads `mouseX` every frame.
     pub(crate) fn split_click(&self, ctx: &mut Ctx, x: i32, y: i32, pressed: bool) -> bool {
         if self.panel != Panel::Ration {
             return false;
         }
         let Some(c) = ctx.game.kingdom.counties.get(self.county as usize) else { return false };
         let current = c.ration_split;
-        // The track is read on every frame of the drag; the arrows step only on
-        // the press that started it.
         let (next, sweep) = if split_track().contains(x, y) {
             (x - SLIDER_TRACK_X, true)
         } else if split_down_button().contains(x, y) {
@@ -136,8 +92,6 @@ impl CountyScreen {
             return false;
         };
         let next = next.clamp(0, MAX_RATION_SPLIT);
-        // `if (rationSplit == local_10) return 1;` — the arm consumes the input
-        // and does not re-run the food pass for a value that has not moved.
         if next != current {
             ctx.game.set_ration_split(self.county, next, sweep);
         }
@@ -146,9 +100,6 @@ impl CountyScreen {
 }
 
 impl CountyScreen {
-    /// The pen every panel draws through: `Fntl2_14.pl8` and `Fntl2_22.pl8`,
-    /// embossed with [`font::SHADOW`] — which is what `Ui_DrawText` picks for
-    /// every screen id but `0x1C` and `0x1F`.
     fn pen<'a>(&self, ctx: &'a Ctx) -> Pen<'a> {
         Pen {
             assets: &ctx.assets.shell,
@@ -164,8 +115,6 @@ impl CountyScreen {
         let ink = &ctx.assets.ink;
         let armies_eat = ctx.game.kingdom.options.armies_eat;
         let (bx, by, cols, rows) = self.panel.box_cells_for(armies_eat);
-        // `Ui_DrawBox(x, y, cols, rows)`, border set 0. `Pen::window` falls back
-        // to a flat plate of ours where the install has no `Panels.pl8`.
         pen.window(canvas, bx, by, cols, rows, 0);
 
         let Some(c) = ctx.game.kingdom.counties.get(self.county as usize) else { return };
@@ -179,9 +128,6 @@ impl CountyScreen {
 
                 self.draw_graph_stub(ctx, canvas, "POPULATION");
 
-                // `Eng_DrawString(73, 8, 0xB0, 0xF0)` — and the two things that
-                // follow it, the graph's peak and 73/9 *"people."*, need the
-                // history array to have a peak at all. See the module docs.
                 pen.body(canvas, 176, 240, &line_text(ctx, g73::GREATEST), font::TEXT);
 
                 heading_row(&pen, canvas, 266, &line_text(ctx, g73::LAST), c.pop_last);
@@ -196,9 +142,6 @@ impl CountyScreen {
                 if c.emigrants == 0 {
                     pen.body(canvas, LABEL_X, 346, &line_text(ctx, g73::NO_EMIGRATION), font::TEXT);
                 } else {
-                    // The original draws the destination county's **name**
-                    // between the label and the number: `Eng_DrawString(100,
-                    // slot * 20 + emigrantDestination, pen + 0x30, 0x15A)`.
                     let x =
                         pen.body(canvas, LABEL_X, 346, &line_text(ctx, g73::EMIGRANTS), font::TEXT);
                     pen.body(canvas, x, 346, &county_name(ctx, c.emigrant_destination), font::TEXT);
@@ -218,7 +161,6 @@ impl CountyScreen {
 
                 self.draw_graph_stub(ctx, canvas, "HAPPINESS");
 
-                // 85/8 at (176, 241), the number after it, then the face.
                 let x = pen.body(canvas, 176, 241, &line_text(ctx, g85::AVERAGE), font::TEXT);
                 let x = pen.body(canvas, x, 241, &c.happiness_avg.to_string(), font::TEXT);
                 pen.misc_frame(canvas, FRAME_FACE, x, 239);
@@ -243,8 +185,6 @@ impl CountyScreen {
                 // heading of ours used to stand here at (96, 152).
                 pen.misc_frame(canvas, FRAME_TAX_VIGNETTE, 320, 160);
                 pen.body(canvas, 96, 168, &line_text(ctx, g86::RATE), font::TEXT);
-                // `Ui_DrawNumber(taxRate, ' ', "%", 0x100, 0xA8, body)` — the
-                // lead is a real space and the suffix is the per-cent sign.
                 pen.body(canvas, 256, 168, &format!(" {}%", c.tax_rate), font::TEXT);
 
                 let x = pen.body(canvas, 96, 200, &line_text(ctx, g86::PEOPLE_PAY), font::TEXT);
@@ -264,14 +204,11 @@ impl CountyScreen {
                 happiness_delta(&pen, canvas, 240, 256, c.tax_hap_other);
             }
             Panel::Ration => {
-                // `Ui_DrawCentred(87, 0, 0x80, 0x68, 0x120, heading, 0x3F)`.
                 pen.heading_centred(canvas, 128, 104, 288, &line_text(ctx, g87::TITLE), font::TEXT);
                 pen.body(canvas, 144, 136, &line_text(ctx, g87::WANTED), font::TEXT);
                 pen.body(canvas, 240, 136, &ration_label(ctx, c.ration_wanted), font::TEXT);
 
                 pen.body(canvas, 144, 161, &line_text(ctx, g87::ACHIEVED), font::TEXT);
-                // **Red when it differs from wanted** — the painter's own
-                // `local_8`, `0x3F` or `0xF9`.
                 let colour = if c.ration_achieved == c.ration_wanted {
                     font::TEXT
                 } else {
@@ -284,9 +221,6 @@ impl CountyScreen {
                 pen.body(canvas, 240, 186, &health_label(ctx, c.health_band), font::TEXT);
                 happiness_delta(&pen, canvas, 340, 186, c.d_hap_health);
 
-                // The slider's two flanking icons, then the three food columns'
-                // icons, then the mark left of "Fed". Six `Pl8_DrawFrame`s the
-                // panel used to draw none of.
                 pen.misc_frame(canvas, FRAME_GRAIN, 144, 220);
                 pen.misc_frame(canvas, FRAME_CATTLE, 370, 220);
                 for (frame, x) in
@@ -307,16 +241,6 @@ impl CountyScreen {
                 // recorded honestly, in a comment, beside the words on the
 // screen, and read as a conclusion.
                 //
-                // **Three numbers, not two, and the third explains the panel**:
-                // the standing herd feeds five people a head without being
-                // slaughtered.
-                // nothing at all and its slider has nothing to divide. That
-                // number is what says so.
-                //
-                // **It is the same condition as the slider's inertness, read a
-                // second way**, and the two were found an hour apart as separate
-                // complaints — *"the slider is inoperable"* and *"sorely
-                // missing: 'All your people are fed by dairy'"*.
                 // such sentence in `L2.eng`; this figure reaching the county's
                 // population **is** the game saying it, and it is why the two
                 // reports have one fix. `docs/rules.md` §4.
@@ -334,17 +258,13 @@ impl CountyScreen {
                 // *whole* buffer and `FUN_004014F0` charges four pixels for a
                 // trailing space without trimming it, the `" {value} "` this
                 // used to build put every one of these five two pixels left.
+                //
                 // `docs/decisions.md` C140. **[V]**
                 let (by_grain, by_meat, by_dairy) =
                     l2_kingdom::ration::people_fed(&ctx.game.kingdom.tables, c);
-                // Both labels before any number, which is `Panel_Ration`'s own
-                // order: `Eng_DrawString(87, 5, 0xA0, 0x11E)`,
-                // `Eng_DrawString(87, 4, 0x90, 0x134)`, then the five columns.
                 pen.body(canvas, 160, 0x11E, &line_text(ctx, g87::FED), font::TEXT);
                 pen.body(canvas, 144, 0x134, &line_text(ctx, g87::EATEN), font::TEXT);
                 {
-                    // `Ui_DrawNumberRight(value, ' ', "", x, y, 0x40, body, 0x3F)`,
-                    // five times, in the painter's order.
                     let mut col = |x: i32, y: i32, v: i32| {
                         let (lead, suffix) = (RATION_LEAD, RATION_SUFFIX);
                         pen.number_centred(canvas, x, y, FOOD_COL_W, v, lead, suffix, font::TEXT);
@@ -361,7 +281,6 @@ impl CountyScreen {
                     // `Ui_DrawNumber(+0x19C + +0x198, ' ', "", 0x88, 0x150, body, 0x3F);`
                     // `Eng_DrawString(87, 8, g_penAdvance + 0x88, 0x150, body, 0x3F);`
                     //
-                    // **The suffix in that transcription was right.
                     // below it did not use it.** `Ui_DrawText` ends with
                     // `g_penAdvance += 4` — which is [`crate::shell::TRAILING`],
                     // and which [`Pen::body`] already adds — so the `" {men} "`
@@ -370,6 +289,7 @@ impl CountyScreen {
                     // it. Same mistake as the five centred columns above, on a
                     // routine with no width argument, where it displaces the
 // *next* string.
+                    //
                     // `docs/decisions.md` C140. **[V]**
                     let men = c.friendly_troops + c.enemy_troops;
                     let s = format!("{RATION_LEAD}{men}{RATION_SUFFIX}");
@@ -382,7 +302,6 @@ impl CountyScreen {
         self.draw_buttons(ctx, canvas, armies_eat);
     }
 
-    /// The corner picture, and the two arrows the two order panels have.
     fn draw_buttons(&self, ctx: &Ctx, canvas: &mut Canvas, armies_eat: bool) {
         let pen = self.pen(ctx);
         let ink = &ctx.assets.ink;
@@ -421,7 +340,6 @@ impl CountyScreen {
     ///   Pl8_DrawFrame(System, 0x4C, 0xDC + split, 0xD8)  the knob at y 216
     /// ```
     ///
-    /// **The caps sit at y = 220 and the knob at y = 216**.
     /// to draw both at 216 — which also put all three hit boxes four pixels
     /// high, because `Ration_SliderClick` (`0x0043A379`) tests
     /// `(200, 0xDC, 24, 24)`, `(0x145, 0xDC, 24, 24)` and
@@ -429,9 +347,7 @@ impl CountyScreen {
     fn draw_split_slider(&self, ctx: &Ctx, canvas: &mut Canvas, split: i32) {
         let pen = self.pen(ctx);
         let ink = &ctx.assets.ink;
-        // The parchment well the whole control sits in, which we drew none of.
         pen.box_interior(canvas, 220, SLIDER_KNOB_Y, 8, 2);
-        // The three track lines. The colours are the original's literals.
         canvas.fill_rect(SLIDER_TRACK_X, 229, SLIDER_TRACK_W, 1, TRACK_TOP);
         canvas.fill_rect(SLIDER_TRACK_X, 230, SLIDER_TRACK_W, 4, TRACK_FILL);
         canvas.fill_rect(SLIDER_TRACK_X, 234, SLIDER_TRACK_W, 1, TRACK_BOTTOM);
@@ -460,23 +376,12 @@ impl CountyScreen {
         }
     }
 
-    /// **A stub, and it looks like one.** [`Ui_HistoryGraph`'s whole
-    /// picture](self#what-is-still-ours-and-says-so) needs `g_countyHistory`
-    /// and `Graphs.pl8`; `l2-kingdom` has no history array and `l2-view` does
-    /// not load that sheet, so there is nothing to plot.
-    ///
-    /// The recess itself is real — `Ui_DrawInsetRect(0x20, 0x54, 0x192, 0x9B)`
-    /// is the graph's own first call and is drawn here at its own coordinates.
-    /// The two lines inside it are ours and say so.
     fn draw_graph_stub(&self, ctx: &Ctx, canvas: &mut Canvas, what: &str) {
         let ink = &ctx.assets.ink;
         let Some(r) = self.panel.graph_rect() else { return };
         canvas.fill_rect(r.x, r.y, r.w, r.h, ink.background);
         self.pen(ctx).inset(canvas, r);
         let mid = r.y + r.h / 2;
-        // OURS, both of them: a diagnostic, in our own 5 x 7 font, so that a
-        // screenshot cannot be mistaken for the original's graph. Debug overlay
-        // only — the empty recess is the honest picture without it.
         if ctx.game.prefs.debug_overlay {
             text::draw_centred(canvas, r.centre_x(), mid - 10, &format!("{what} HISTORY"), ink.dim);
             text::draw_centred(canvas, r.centre_x(), mid + 2, "NOT SIMULATED", ink.bad);

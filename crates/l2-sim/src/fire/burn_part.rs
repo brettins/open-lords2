@@ -9,24 +9,11 @@ use crate::terrain::{Battlefield, DIM};
 
 /// **A man stands in fire** — `BattleMan_BurnTick` (`0x0049459A`), one frame.
 ///
-/// | size class | a man's figure | a siege engine (7, 8, 9) |
-/// |---:|---:|---:|
-/// | 0, 1 | 3 | 1 |
-/// | 2 | 6 | 3 |
-/// | 3 | 9 | 5 |
-/// | 4 and up | 12 | 7 |
-/// | a human's, add | 1 | 2 |
-///
 /// …against a threshold of **100** hits a man, or **160** for an engine, and
 /// **one** man a frame at most: `hits -= threshold; men -= 1`. The remainder is
 /// carried. `engine` is the figure's `+0x194`, which `BattleUnit_Create` sets
 /// for troop types 7, 8 and 9 — **not 10**: a pot of oil burns as a man does,
 /// at a man's threshold, whatever its own table says.
-///
-/// Both thresholds are literals in the body
-/// `hits_per_casualty` does not reach this — as it does not reach the
-/// original's. Returns `true` when the figure's last man died of it, which is
-/// when the original plays the dying figure's side's cry.
 pub fn burn(f: &mut Figure, size_class: u8, engine: bool) -> bool {
     if f.state == State::Dead {
         return false;

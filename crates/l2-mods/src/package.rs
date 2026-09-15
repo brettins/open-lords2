@@ -1,40 +1,3 @@
-//! Mod packages: what a mod is on disk, and checking one before it is loaded.
-//!
-//! # What a package is
-//!
-//! A directory with a `mod.toml` at its root. Everything else — which assets
-//! it replaces, which rules it changes — is discovered from its contents
-//! that goes stale the first time someone adds a file and forgets.
-//!
-//! ```text
-//! longbows/
-//!   mod.toml            manifest: id, name, version, ordering constraints
-//!   rules/*.toml        rule documents; every layer's are read and merged
-//!   <anything else>     assets, shadowing the same name in a lower layer
-//! ```
-//!
-//!
-//! The obvious next step is a `.l2mod` file, and it was left out on purpose.
-//! An archive buys one thing — a single file to send someone — and every
-//! operating system already ships a zip tool that does exactly that to a
-//! directory. Against that: the platform has to read directories anyway,
-//! because that is what a mod under development is, so an archive format would
-//! be a *second* loading path to keep working and to keep in step. `docs/
-//! decisions.md` D5a is a standing reminder of what a compression dependency
-//! costs on this project's licence position, and a stored-only zip writer is
-//! code we would own forever to save the user one right-click.
-//!
-//! Revisit when mods are distributed, which is the
-//! same trigger as signing and checksums (`docs/modding.md` §13).
-//!
-//! # What inspection is for
-//!
-//! [`inspect`] answers the questions a mod author asks *before* trying to load
-//! the thing, and answers them one mod at a time: does the manifest parse, do
-//! all the rule documents parse, and is
-//! this the same package I shipped? A load failure names one error and stops;
-//! an inspection reports everything at once, which is the right shape for a
-//! tool a person runs on their own work.
 
 use crate::digest;
 use crate::modmeta::{MetaError, ModMeta, MANIFEST};
@@ -42,24 +5,6 @@ use crate::ruleset::{RuleError, Ruleset, RULES_DIR};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-/// True for files that belong to the platform.
-///
-/// `name` must already be normalised the way [`crate::Vfs`] keys its index:
-/// lowercase, forward slashes.
-///
-/// Two kinds of file live in a mod directory and are not assets:
-///
-/// * **`mod.toml`.** Every mod has one, so without this every *pair* of
-///   enabled mods reports a conflict over their manifests — noise that would
-///   bury the one real conflict underneath it.
-/// * **`rules/*.toml`.** Rules accumulate. Two mods each
-///   carrying a `rules/rules.toml` are both read and both merged, so calling
-///   the later one the winner would be exactly backwards.
-///
-/// The overlay index still holds both, because it is a faithful index of
-/// what is on disk and it is not its business to decide what a file means.
-/// The decision is made here, once, so the report and the per-mod effect
-/// analysis cannot disagree about it.
 pub fn is_platform_metadata(name: &str) -> bool {
     name == MANIFEST
         || (name.len() > RULES_DIR.len()
@@ -68,44 +13,21 @@ pub fn is_platform_metadata(name: &str) -> bool {
             && name.ends_with(".toml"))
 }
 
-/// A mod directory, read and checked.
 #[derive(Debug)]
 pub struct ModPackage {
     pub meta: ModMeta,
-    /// Rule documents, as paths relative to the mod root, sorted.
     pub rule_documents: Vec<String>,
-    /// Every other file, relative to the mod root, sorted. These are the names
-    /// that will shadow a lower layer's file of the same name.
     pub assets: Vec<String>,
-    /// Every rule leaf this mod sets, sorted. What it *claims*; whether a
-    /// claim survives depends on load order and is [`crate::effect`]'s job.
     pub rule_paths: Vec<String>,
-    /// Problems that do not stop the package being read.
     pub warnings: Vec<Warning>,
-    /// A checksum over the rules this mod sets, independent of where the mod
-    /// is installed. Two copies of the same mod at different paths give the
-    /// same digest; a mod whose rules were edited gives a different one.
-    ///
-    /// Deliberately *not* a checksum of the files: an asset the author
-    /// re-exported with a different timestamp is the same mod, and a digest
-    /// that said otherwise would be noise. Asset identity
-    /// needed, is a separate question from rule identity.
     pub rules_digest: u64,
 }
 
-/// Something worth telling the author.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Warning {
-    /// A `.toml` outside `rules/`. Legal — it will be treated as an asset —
-    /// but it is nearly always a rule file in the wrong directory, which is a
-    /// mod that loads cleanly and does nothing.
     TomlOutsideRules(String),
-    /// A `rules/` file that is not `.toml`, so the loader will skip it.
     NonTomlInRules(String),
-    /// The mod sets no rules and provides no assets.
     Empty,
-    /// A rule value that is a float. `docs/netcode.md` forbids floats in
-    /// anything the simulation evaluates.
     FloatRule { path: String, at: String },
 }
 
@@ -164,10 +86,6 @@ impl From<RuleError> for PackageError {
     }
 }
 
-/// Read and check one mod directory.
-///
-/// Every rule document is parsed, so a syntax error is found here
-/// at the load that a player triggers.
 pub fn inspect(dir: &Path) -> Result<ModPackage, PackageError> {
     if !dir.join(MANIFEST).is_file() {
         return Err(PackageError::NotAMod(dir.to_path_buf()));
@@ -206,9 +124,6 @@ pub fn inspect(dir: &Path) -> Result<ModPackage, PackageError> {
         }
     }
 
-    // Parse the documents on their own, in the same order the loader would.
-    // On their own is the point: this is what the mod says, not what it says
-    // once everything else has had its turn.
     let mut rs = Ruleset::new();
     for rel in &rule_documents {
         let source = format!("{}:{rel}", meta.id);
@@ -232,7 +147,6 @@ pub fn inspect(dir: &Path) -> Result<ModPackage, PackageError> {
     })
 }
 
-/// Every mod directory under `dir`, inspected. Sorted by id.
 pub fn inspect_all(dir: &Path) -> Result<Vec<ModPackage>, PackageError> {
     let mut dirs: Vec<PathBuf> = match std::fs::read_dir(dir) {
         Ok(entries) => entries.flatten().map(|e| e.path()).filter(|p| p.is_dir()).collect(),

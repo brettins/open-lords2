@@ -1,5 +1,3 @@
-//! The pose machine, driven by whole ticks — [`super::anim`].
-//!
 //! Each of the four symptoms the player reported on 2026-09-14 has a test here
 //! and an ablation beside it that fails without the fix.
 
@@ -13,9 +11,6 @@ fn field() -> Battlefield {
     blank_field()
 }
 
-/// One figure of each troop, `gap` cells apart on empty ground, facing each
-/// other and already standing on their destinations — so the only things that
-/// can happen are the ones under test.
 fn pair(a_troop: Troop, b_troop: Troop, gap: u8) -> BattleRunner {
     let mut r = BattleRunner::empty(field(), SEED);
     let a = r.sim.add(a_troop, SIDE_A, 4).unwrap();
@@ -52,12 +47,6 @@ fn pair(a_troop: Troop, b_troop: Troop, gap: u8) -> BattleRunner {
     r
 }
 
-/// **The stuck attack.** Two men adjacent lock into a duel; kill one from
-/// outside the melee and the survivor must put his sword down.
-///
-/// Ten ticks is the whole budget: the mutual check runs at the top of
-/// `step_one`, so the tick after the opponent stops being alive is the tick the
-/// pose goes back to standing.
 #[test]
 fn a_man_whose_opponent_dies_stops_striking_within_ten_ticks() {
     let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 1);
@@ -69,9 +58,6 @@ fn a_man_whose_opponent_dies_stops_striking_within_ten_ticks() {
     }
     assert_eq!(r.fighters[0].anim, Motion::Attacking, "they never engaged");
 
-    // The killing blow lands from somewhere else — a missile, a third man —
-    // which is the case `melee::tick` does not release, and the case the player
-    // saw.
     let victim = r.fighters[1].sim;
     r.sim.figures[victim].men = 0;
     r.sim.figures[victim].state = crate::State::Dead;
@@ -85,10 +71,6 @@ fn a_man_whose_opponent_dies_stops_striking_within_ten_ticks() {
     assert_eq!(r.fighters[0].anim, Motion::Idle);
 }
 
-/// **The archer's bow.** `BattleMan_FireMissile` acquires ten ticks before the
-/// interval expires and looses when it does, so the draw must be showing while
-/// the reload counter sits inside that window and the arrow must not be in the
-/// air before it.
 #[test]
 fn an_archer_enters_shooting_before_the_arrow_is_loosed() {
     let mut r = pair(Troop::Archers, Troop::Peasants, 10);
@@ -105,8 +87,6 @@ fn an_archer_enters_shooting_before_the_arrow_is_loosed() {
     }
     let drew = drew_at.expect("the archer never drew his bow");
     let loosed = loosed_at.expect("the archer never shot");
-    // Acquisition is at `counter == reload - 10` and the loose at
-    // `counter > reload`, so the draw is those eleven ticks and no longer.
     let window = loosed - drew;
     assert!(drew < loosed, "drew at {drew}, loosed at {loosed}");
     assert!(
@@ -119,10 +99,6 @@ fn an_archer_enters_shooting_before_the_arrow_is_loosed() {
 /// (`0x00483337`) calls `Anim_DrawBow` at its tail on every tick the figure has
 /// a target, and `swingTimer` — [`crate::Figure::reload_counter`] — steps once
 /// a tick under it, so `l2_view::drawbow`'s curve walks the three poses.
-///
-/// **Ablation**: raise the bow on the acquisition tick only, as we did, and
-/// `stand` takes the pose back on the very next tick — `held` is 1, and poses
-/// 11 and 12 never reach the screen.
 #[test]
 fn the_bow_stays_drawn_across_the_reload_and_the_swing_timer_walks_the_curve() {
     let mut r = pair(Troop::Archers, Troop::Peasants, 10);
@@ -136,18 +112,12 @@ fn the_bow_stays_drawn_across_the_reload_and_the_swing_timer_walks_the_curve() {
         }
     }
     assert!(held > 30, "the bow was up for {held} ticks of 200");
-    // Both curves are flat over any short run; 24 apart is the archer's step
-    // from pose 12 to 11, so the drawn pose cannot be constant.
     let (lo, hi) = (*swings.iter().next().unwrap(), *swings.iter().last().unwrap());
     assert!(hi - lo >= 24, "swingTimer only covered {lo}…{hi}");
 }
 
 /// **The fidget belongs to `Anim_StandA2` alone** (`0x004872AE`): it is the one
 /// function that writes `+0x0B`, and it does not reset it on arrival.
-///
-/// **Ablation**: reset `fidget` in `march`, `strike` or `shoot`, or write
-/// `facing_drawn = facing` on entering idle as we did, and a man who takes one
-/// step never reaches his period — a standing rank stops shuffling.
 #[test]
 fn only_standing_touches_the_fidget_counter() {
     let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 12);
@@ -159,21 +129,12 @@ fn only_standing_touches_the_fidget_counter() {
     assert_eq!(r.fighters[0].fidget, 100, "striking reset the counter");
     r.shoot(0);
     assert_eq!(r.fighters[0].fidget, 100, "drawing reset the counter");
-    // Standing is the only writer, and it counts up.
     r.fighters[0].facing_drawn = 5;
     r.stand(0);
     assert_eq!(r.fighters[0].fidget, 101);
     assert_eq!(r.fighters[0].facing_drawn, 5, "standing rewrote the drawn facing");
 }
 
-/// **The jitter.** Over a whole battle no figure may change pose on two
-/// consecutive ticks more than a handful of times — a pose that flips every
-/// tick is the symptom, and the walk cycle itself is a *frame* change,
-/// pose change, so it does not count here.
-///
-/// **Ablation**: writing `Motion::Walking` before the route is asked for, as
-/// this used to, makes a barred figure alternate walk/stand with the
-/// pathfinder's cadence and blows the bound.
 #[test]
 fn no_figure_alternates_pose_tick_by_tick() {
     let mut r = pair(Troop::Swordsmen, Troop::Pikemen, 12);
@@ -197,8 +158,6 @@ fn no_figure_alternates_pose_tick_by_tick() {
     assert!(worst <= 2, "a figure changed pose on consecutive ticks {worst} times");
 }
 
-/// **The stuck walk**, from the other side: a figure standing on its own
-/// destination with nothing to fight is never drawn marching.
 #[test]
 fn a_man_on_his_destination_never_marches() {
     let mut r = pair(Troop::Peasants, Troop::Peasants, 30);
@@ -216,9 +175,6 @@ fn a_man_on_his_destination_never_marches() {
 /// (`0x0048314E`, `00480000.c:1359`) runs `Anim_Walk` before it knows the step
 /// was refused, so `facingDrawn` and the walk phase have already moved;
 /// `Anim_StandA2` only takes the frame back.
-///
-/// **Ablation**: returning early from `march` when `!moved`, as this used to,
-/// leaves both behind.
 #[test]
 fn a_refused_step_still_turns_the_drawn_facing() {
     let mut r = pair(Troop::Peasants, Troop::Peasants, 30);
@@ -234,9 +190,6 @@ fn a_refused_step_still_turns_the_drawn_facing() {
 /// **Only the swinging man's phase moves** — `Anim_StrikeA2`'s `animPhase + 1`
 /// sits inside `if (role == 1)` (`00480000.c:2509`), and `Anim_StandA2` and
 /// `Anim_DrawBowA2` never touch it.
-///
-/// **Ablation**: the unconditional `phase += 1` this used to have at the top of
-/// `step_one` moves the defender's counter and the stander's alike.
 #[test]
 fn the_defenders_strike_phase_is_frozen_and_a_stander_never_steps_it() {
     let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 1);
@@ -261,9 +214,6 @@ fn the_defenders_strike_phase_is_frozen_and_a_stander_never_steps_it() {
 
 /// **A wall-batterer swings.** `BattleMan_StateAttackWall` (`0x00483A88`) sets
 /// `role = 1` on the line before `Anim_Strike` (`00480000.c:1556`).
-///
-/// **Ablation**: dropping that line leaves him at the default
-/// [`crate::Role::Defending`], which the renderer draws standing.
 #[test]
 fn a_man_hitting_a_wall_takes_the_attacking_role() {
     let mut r = pair(Troop::Swordsmen, Troop::Swordsmen, 30);

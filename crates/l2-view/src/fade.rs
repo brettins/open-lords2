@@ -1,14 +1,5 @@
 //! **`FUN_004B0CB4` — the end-of-turn screen fade.**
 //!
-//! The one visual effect in the game that is entirely in the palette. There is
-//! no dither table and no 50 % blit anywhere on this path: the canvas of
-//! indices is untouched and only the colours those indices resolve to move, so
-//! this module produces a [`Palette`] and [`Canvas::to_rgba`] does the rest.
-//!
-//! [`Canvas::to_rgba`]: crate::Canvas::to_rgba
-//!
-//! # What was traced
-//!
 //! `FUN_004B0CB4(restoreScreen, rawFlag, palPtr)` has **exactly two call sites
 //! in the whole binary, both on the turn boundary**:
 //!
@@ -22,70 +13,25 @@
 //! [`FIRST`] … [`LAST`] **only** —
 //! map dims. A channel of 255 has 191 to travel,
 //! [`STEPS`] steps ≈ 320 ms each way.
-//!
-//! Inferred, from where the two calls sit
-//! function says: the dark window is **cover for the seasonal art reload and
-//! the autosave**, both of which run inside it.
-//!
-//! # The rate is ours, the shape is the original's
-//!
-//! The original steps on a `GetTickCount` interval. Nothing below `main.rs` may
-//! read a clock (`docs/netcode.md`), so ours steps once per fixed 16 ms tick —
-//! the same trade `MapScreen::flag_tick` and `VillageScreen::CLICK_SETTLE_TICKS`
-//! already make,
-//! wave. Sixteen steps at 16 ms is 256 ms
-//! palettes* is the original's, the interval between them is ours.
-//!
-//! # Nothing here is simulation
-//!
-//! A fade is a reader of state that produces colour. It cannot be observed by
-//! the simulation, it takes no argument from it, and a peer that skipped the
-//! whole animation would compute the same turn — which is the property that
-//! lets it be paced by a screen at all.
 
 use l2_formats::Palette;
 
-/// The first palette entry the fade touches.
 pub const FIRST: usize = 10;
 
-/// The last palette entry the fade touches, inclusive. Entries outside
-/// `FIRST ..= LAST` are left at full brightness, and that is deliberate rather
-/// than an optimisation: it is what keeps the interface chrome lit while the
-/// map goes dark.
 pub const LAST: usize = 245;
 
 /// The most one channel moves in one step — `0x004B0E03`'s clamp.
 pub const STEP: u8 = 12;
 
-/// How many steps a full fade takes.
-///
-/// The brightest possible channel, 255, has `255 - 255/4 = 192` to travel, and
-/// `192 / 12` is exactly 16. Every dimmer channel arrives sooner and then sits
-/// on its target, which is what a *clamped* step means and why one constant
-/// covers the whole palette.
 pub const STEPS: u8 = 16;
 
-/// How many steps the whole animation takes: down, then back up.
 pub const PHASES: u8 = STEPS * 2;
 
-/// Where a channel is heading on the way down: one quarter.
 #[inline]
 fn quarter(v: u8) -> u8 {
     v / 4
 }
 
-/// The palette at `phase` of the fade.
-///
-/// `0` and [`PHASES`] are both `full` exactly; [`STEPS`] is the bottom of the
-/// dark window. Phases below `STEPS` are the descent and phases above it are
-/// the climb, and they are **not** mirror images of each other — the original
-/// steps *toward a target*
-/// channel that reaches its target early sits there on the way down and leaves
-/// late on the way up. Reproduced
-/// `min`/`max` either way and a smoothed version would be a guess.
-///
-/// A phase past [`PHASES`] is clamped to it,
-/// full palette
 pub fn at(full: &Palette, phase: u8) -> Palette {
     let mut entries = *full.entries();
     for entry in entries.iter_mut().take(LAST + 1).skip(FIRST) {
@@ -96,22 +42,16 @@ pub fn at(full: &Palette, phase: u8) -> Palette {
     Palette::from_entries(entries)
 }
 
-/// One channel at one phase. See [`at`].
 fn channel_at(v: u8, phase: u8) -> u8 {
     let dark = quarter(v);
     if phase <= STEPS {
-        // Descending: move down by at most STEP a step, never past the target.
         v.saturating_sub(STEP.saturating_mul(phase)).max(dark)
     } else {
-        // Climbing, from the target back to where it started.
         let s = (phase - STEPS).min(STEPS);
         dark.saturating_add(STEP.saturating_mul(s)).min(v)
     }
 }
 
-/// Whether `phase` is the bottom of the fade — the frame at which the original
-/// reloads the seasonal art and writes the autosave, and therefore the frame at
-/// which anything we want hidden has to happen.
 #[inline]
 pub fn is_darkest(phase: u8) -> bool {
     phase == STEPS
@@ -121,8 +61,6 @@ pub fn is_darkest(phase: u8) -> bool {
 mod tests {
     use super::*;
 
-    /// A palette whose every entry is the same triple,
-    /// "the value" without indexing.
     fn flat(v: u8) -> Palette {
         Palette::from_entries([[v, v, v]; 256])
     }
@@ -138,9 +76,6 @@ mod tests {
         }
     }
 
-    /// **The chrome stays lit.** This is the whole reason the range exists, and
-    /// it is the assertion that would fail if somebody "simplified" the loop to
-    /// the whole palette.
     #[test]
     fn only_entries_10_through_245_ever_move() {
         let full = flat(200);
@@ -157,13 +92,10 @@ mod tests {
         }
     }
 
-    /// One quarter at the bottom, and it takes exactly [`STEPS`] to get there
-    /// from the brightest channel there is.
     #[test]
     fn the_bottom_of_the_fade_is_one_quarter_brightness() {
         let p = at(&flat(255), STEPS);
         assert_eq!(p.rgb(128), [63, 63, 63], "255 / 4");
-        // And not one step sooner: 255 - 12*15 = 75.
         assert_eq!(at(&flat(255), STEPS - 1).rgb(128), [75, 75, 75]);
     }
 
@@ -187,9 +119,6 @@ mod tests {
         }
     }
 
-    /// Monotone down then monotone up, for every value. A fade that brightened
-    /// mid-descent would be visible and would mean the two branches had been
-    /// mixed up.
     #[test]
     fn the_descent_never_brightens_and_the_climb_never_dims() {
         for v in 0..=255u8 {

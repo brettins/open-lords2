@@ -1,4 +1,3 @@
-//! The overlay filesystem.
 
 mod common;
 
@@ -27,21 +26,18 @@ fn the_top_layer_wins_and_the_others_are_still_visible() {
 #[test]
 fn lookup_ignores_case_in_every_direction() {
     let base = TempDir::new("case");
-    // The real install's actual spelling.
     base.write("AXMEN.SMK", "video");
     base.write("Bat_los4.smk", "video");
 
     let mut vfs = Vfs::new();
     vfs.push_layer("base", base.path()).unwrap();
 
-    // The executable asks for lowercase; the disk has neither casing.
     for asked in ["axmen.smk", "AXMEN.SMK", "Axmen.Smk", "aXmEn.sMk"] {
         assert!(vfs.exists(asked), "{asked} should resolve");
     }
     for asked in ["BAT_LOS4.SMK", "bat_los4.smk", "Bat_Los4.smk"] {
         assert!(vfs.exists(asked), "{asked} should resolve");
     }
-    // And a name that genuinely is not there stays not there.
     assert!(!vfs.exists("axemen.smk"));
 }
 
@@ -85,7 +81,6 @@ fn rules_are_enumerated_per_layer_because_they_merge_rather_than_shadow() {
     vfs.push_layer("base", base.path()).unwrap();
     vfs.push_layer("m", modd.path()).unwrap();
 
-    // resolve() gives one winner - correct for a sprite, wrong for a rule.
     assert_eq!(vfs.providers("rules/troops.toml").len(), 2);
     assert_eq!(vfs.layer_entries_under(0, "rules").len(), 1);
     assert_eq!(vfs.layer_entries_under(1, "rules").len(), 1);
@@ -119,9 +114,6 @@ fn the_same_layer_id_cannot_be_mounted_twice() {
 
 #[test]
 fn nothing_in_the_api_can_write_to_a_layer() {
-    // A compile-time property: Vfs exposes read,
-    // read_to_string, resolve and the listing methods, and no counterpart that
-    // takes bytes. This test exists so that adding one is a visible decision.
     let base = TempDir::new("ro");
     base.write("a.txt", "before");
     let mut vfs = Vfs::new();
@@ -133,7 +125,6 @@ fn nothing_in_the_api_can_write_to_a_layer() {
 #[cfg(unix)]
 #[test]
 fn a_case_collision_within_one_layer_resolves_deterministically_and_is_reported() {
-    // Only reachable on a case-sensitive filesystem. NTFS cannot hold both.
     let base = TempDir::new("collide");
     base.write("Sprite.pl8", "mixed");
     base.write("SPRITE.PL8", "upper");
@@ -145,6 +136,5 @@ fn a_case_collision_within_one_layer_resolves_deterministically_and_is_reported(
     let c = &vfs.case_collisions()[0];
     assert_eq!(c.key, "sprite.pl8");
     assert_eq!(c.names, vec!["SPRITE.PL8", "Sprite.pl8"]);
-    // Lowest raw name wins, every time, on every machine.
     assert_eq!(vfs.read_to_string("sprite.pl8").unwrap(), "upper");
 }

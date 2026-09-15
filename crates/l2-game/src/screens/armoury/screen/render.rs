@@ -14,17 +14,7 @@ use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 use crate::widget;
 
-// ------------------------------------------------------------- the painter
 
-/// **The whole static page**, shared by `0x0A` and by the first frame of
-/// `0x17`.
-///
-/// `buttons` is false for the raise-army screen, which draws the three labels
-/// too — the painter is one function and does not know which screen called it —
-/// but where they are *dead*: `0x17`'s input arm tests only its own three
-/// widgets, so *Create*, *Change* and *Cancel* are visible and inert until the
-/// player presses Continue. We draw them dimmed there,
-/// because a label that is painted and does nothing is what the original shows.
 pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
     let a = &ctx.assets.shell;
     let ink = &ctx.assets.ink;
@@ -79,9 +69,6 @@ pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
         if let Some(f) = a.sheet(sheet).and_then(|s| s.frame(frame)) {
             canvas.blit(&f, sx, sy);
         } else {
-            // **Ours**, and only with no artwork: name the rack where its
-            // picture would have stood, so the row is still readable and still
-            // visibly ours.
             let name = TroopType::from_index(slot).map_or("", |t| t.name());
             text::draw(canvas, sx, sy + 40, &name.to_uppercase(), ink.dim);
         }
@@ -92,34 +79,23 @@ pub fn page(ctx: &Ctx, canvas: &mut Canvas, buttons: bool) {
         pen.number_in(shell::Face::Body, canvas, nx, ny, v, '@', "", font::TEXT);
     }
 
-    // The three labels, in their own hundred-pixel column.
     for (i, &index) in [CREATE, CHANGE, CANCEL].iter().enumerate() {
         let colour = if buttons { font::TEXT } else { ink.dim };
         pen.eng_centred(canvas, GROUP, index, LABEL_X, LABEL_Y[i], LABEL_W, colour);
     }
 }
 
-/// **`Screen_DrawWidgets`' `0x0A` arm, which is the whole of the moving room.**
-///
 /// ```c
 /// 0x0A:  Armoury_RestoreWalkerStrip(); Armoury_DrawTorches(); Armoury_DrawWalker();
 /// 0x0D:  Armoury_RestoreWalkerStrip(); Armoury_DrawTorches(); Armoury_DrawRacks();
 ///        FUN_00418E2D(); Armoury_DrawWalker();
 /// ```
 ///
-/// One pass, both screens, run after the page —
-/// `Screen_Draw` has **no `'\r'` case at all**, so `0x0D` is painted once on
-/// the way in and this arm is the only thing that runs on it afterwards.
-///
 /// The restore is [`walker_strip`] and is not called here; the racks and
 /// `FUN_00418E2D` are the rack panel's own repaint and are in [`RackScreen`].
-/// What is left is the two torches and the soldier, and both screens get them
-/// because our rack panel is an overlay drawn over the armoury, which is the
-/// same sharing.
 pub fn overlay(ctx: &Ctx, canvas: &mut Canvas, anim: &Anim) {
     let a = &ctx.assets.shell;
 
-    // `Armoury_DrawTorches` — one sheet, two positions, thirteen frames apart.
     if let Some(sheet) = a.sheet(TORCH_SHEET) {
         for (i, &(x, y)) in TORCH_AT.iter().enumerate() {
             let frame = anim.torch as usize + i * TORCH_SECOND;

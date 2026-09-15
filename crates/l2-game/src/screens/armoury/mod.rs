@@ -1,12 +1,6 @@
 //! **The armoury** — `Screen_Armoury` (`0x00417EA7`), `g_screenId` `0x0A`, and
 //! one weapon's rack, `Armoury_LoadScreen` (`0x004184C6`), `g_screenId` `0x0D`.
 //!
-//! # The screen a player said was missing
-//!
-//! > *"The hire an army is pretty botched at the moment. Instead of the
-//! > blacksmith with a listing of their tools, it's just a weird popup with a
-//! > lot of placeholder stuff."*
-//!
 //! Both halves of that sentence are literal. The *listing of tools* is
 //! `FUN_00418426`: six weapons hang on the walls of the armoury at fixed
 //! positions, and **each is drawn only if the realm owns one** — so the picture
@@ -14,24 +8,6 @@
 //! the picture itself, `Armoury.pl8`, a 640 × 480 painting of a forge. And the
 //! *weird popup* was the raise-army screen, which this module now puts back on
 //! the surface it belongs on.
-//!
-//! # `0x17` is drawn on top of `0x0A`, and that was the finding
-//!
-//! `Screen_Draw`'s arms:
-//!
-//! ```c
-//! else if (g_screenId == '\n') { Screen_Armoury(firstFrame); }
-//! else if (g_screenId == '\x17') { if (firstFrame == 1) Screen_Armoury(1);
-//!                                  Screen_RaiseArmy(); }
-//! ```
-//!
-//! One painter, two screens. The raise-army window is a `Ui_DrawBox` **over the
-//! armoury**, under `armoury.256`, not over the campaign map under the campaign
-//! palette — which is what `screens/army.rs` used to claim and what the player
-//! was looking at. [`page`] is that shared painter and both screens call it,
-//! which is the same sharing the binary does.
-//!
-//! # The painter, address by address
 //!
 //! ```text
 //! Screen_Armoury(firstFrame):                                     0x00417EA7
@@ -71,10 +47,9 @@
 //! number. The loop's guard is `if (6 < i) return`, so **slot 7's arm is dead
 //! code**: the total is never drawn, and the three lines of the painter that
 //! would have drawn it — including the shield-tinted frame — are unreachable.
+//!
 //! `[V]`, and [`the test`](tests::the_totals_rack_is_dead_code_in_the_original)
 //! keeps it that way.
-//!
-//! # The click dispatch
 //!
 //! `Screen_HandleInput`'s two arms, both of them `FUN_0043582A` first:
 //!
@@ -94,8 +69,6 @@
 //! three buttons on the right — and screen `0x0D` tests only the first seven of
 //! them, so *Change* and *Cancel* are dead there while *Create* is not.
 //!
-//! Both handlers are one function each:
-//!
 //! ```c
 //! FUN_004358B0():                      a rack, from the grid or a rectangle
 //!     if (basket[id].available <= 0) return;       /* an empty rack is inert */
@@ -110,18 +83,7 @@
 //!     id 3 -> g_confirmAnswer = 0; Army_RaiseConfirm();          "Cancel"
 //! ```
 //!
-//! **So `Army_RaiseConfirm` is a button on the armoury.**
-//! anywhere on the raise-army screen: `0x17`'s widget table is the *Continue*
-//! button and the mercenary tick and cross, and nothing else. `screens/army.rs`
-//! carried a `RAISE` button of ours because this screen was a shell; it is gone,
-//! and the door it stood in front of is this one.
-//!
-//! # `0x0D`, one weapon — and `Screen_Draw` has no arm for it
-//!
 //! **Verified against `Screen_Draw` (`0x0040F1A0`):**
-//! `0x0D` is painted exactly once, by `Armoury_ClickRack` calling
-//! `Armoury_LoadScreen` on the way in, and after that only
-//! `Screen_DrawWidgets`' `0x0D` arm runs:
 //!
 //! ```c
 //! Armoury_RestoreWalkerStrip(); Armoury_DrawTorches(); Armoury_DrawRacks();
@@ -133,8 +95,6 @@
 //! makes the count and the spare update when a button is pressed, on a screen
 //! nothing repaints. The armoury's own racks are redrawn under the panel every
 //! frame too, so the room does not go stale behind it.
-//!
-//! ## Two corner pictures, one of them dead
 //!
 //! `Ui_OkButton` (`0x0040D1BC`) **stashes only the last call's position** into
 //! `DAT_0055CE78`/`DAT_0057C8A0`, and `Ui_OkButtonClicked` hit-tests a 24 × 24
@@ -183,21 +143,9 @@
 //! > that uses the pair: the diplomacy gift row `0x004DD9D0` gives its frame-68
 //! > record hotspot id 1 and its frame-66 record id 0, and `FUN_00436372` adds
 //! > ten crowns for id 1 and subtracts ten for id 0. **Frame 68 is the plus.**
+//!
 //! > `[V]` — two independent tables, and the correction is in the tool as well
 //! > as in the database, because the tool is what would have said it again.
-//!
-//! And neither pair is a *buy*: nothing on either armoury screen spends money.
-//! Weapons are made in a county by a blacksmith and paid for in iron and wood
-//! (`docs/kingdom.md` §7.4); the armoury is where men pick them up. The four
-//! renamed functions say so.
-//!
-//! # The room moves, and this is what moves in it
-//!
-//! Three animations, all of them presentation and none of them a rule. They
-//! were listed here and not drawn until a player said *"the animations when you
-//! pick a weapon to assign during an army doesn't happen — usually a dude comes
-//! and grabs a weapon."* He is describing the second one and he is right about
-//! the trigger as well as the picture.
 //!
 //! * `Armoury_DrawTorches` (`0x00419243`) — `armtorch.pl8` at (0x9A, 0x76) and
 //!   (0x19A, 0x76), the second thirteen frames behind the first: **two
@@ -209,23 +157,8 @@
 //!
 //! All three run off `Tick_Pulses` (`0x004BBC80`) — a 20 ms gate feeding a
 //! chain of dividers — and the armoury takes the 20 ms pulse and the 80 ms one.
-//! [`Anim`] is that clock and [`overlay`] is the pass that draws it.
 //!
 //! **`Armoury_RestoreWalkerStrip` (`0x00418FC5`) erases; it does not draw.**
-//! `docs/hypotheses.json` filed it as `Armoury_DrawPanel` and had the role
-//! right and the verb wrong. It is why `Screen_Armoury` saves four strips of
-//! backdrop at `y 0xD8`: the walker is a blit over a *restored* background
-//!
-//! have dirtied. [`walker_strip`] is that choice, and it says there why our own
-//! full repaint means the call is not made.
-//!
-//! # The denominator, for the draw audit
-//!
-//! `0x0A`: **twelve** draws — the backdrop, four in `Screen_Armoury`'s own
-//! body, one in `Armoury_DrawWallItems`, three in `Armoury_DrawRacks` (**one of
-//! them dead**, slot 7), and three in the `Screen_DrawWidgets` arm (two torches
-//! and the walker). We draw eight, and the three we do not are the animations
-//! above.
 //!
 //! **`FUN_00408FCB("armoury.pl8", 0x1E0)` is a draw**, and counting it as a
 //! file load is the mistake this section was written with. It reads
@@ -235,7 +168,6 @@
 //! painters in the binary call it. [`page`]'s `shell::background` is its
 //! counterpart and is counted on our side too.
 //!
-//! The `.256` beside it is **not** a draw and the two are easy to conflate:
 //! `File_ReadChunk("armoury.256", &DAT_004EA8A0, 0x300)` puts 768 bytes into a
 //! palette buffer and `Palette_Set` points the hardware at it. No pixel moves.
 //!
@@ -253,6 +185,7 @@
 //!
 //! **Neither screen draws `L2.eng` 31/21 *"Morale"***, or any of group 31 —
 //! checked by reading every one of the seven functions above.
+//!
 //! grepping for the string. `docs/armies.md` rests a `[V]` on unit `+0x166`
 //! against that label, and nothing in this module resources it.
 
@@ -279,7 +212,6 @@ use crate::widget;
 /// group 16 (the twelve mercenary nationalities); the painter never touches it.
 pub const GROUP: usize = 69;
 
-/// Group 69's own indices, in the order the painter draws them.
 pub const SPARE: usize = 5;
 pub const CREATE: usize = 6;
 pub const CHANGE: usize = 7;
@@ -306,7 +238,6 @@ pub const ITEM_SHEETS: [&str; 6] = [
     "Arm_it_b.pl8",
 ];
 
-/// The sheet this realm's armoury is furnished from.
 pub fn items_sheet(shield_index: u8) -> &'static str {
     ITEM_SHEETS[(shield_index as usize).min(ITEM_SHEETS.len() - 1)]
 }
@@ -337,12 +268,6 @@ pub const WALL: [(usize, i32, i32); WEAPON_TYPE_COUNT] = [
 /// One rack: `(frame, spriteX, spriteY, numberX, numberY)`, from
 /// `g_armouryRacks` (`0x004D2CE8`), eight records of twenty bytes, indexed by
 /// **basket slot** — 0 peasants, 1…6 the weapon types, 7 the total.
-///
-/// The x column is not sorted, and that is the whole shape of the table: the
-/// *frames* run 6, 7, 8, 9, 10, 11, 12, 13 left to right along the bottom of
-/// the picture, and it is the slot each one belongs to that jumps about. Read
-/// by x, the row is peasant, crossbowman, maceman, pikeman, knight, archer,
-/// swordsman, lord.
 pub const RACKS: [(usize, i32, i32, i32, i32); 8] = [
     (6, 11, 396, 12, 450),   // 0 peasants
     (7, 85, 396, 86, 450),   // 1 crossbowmen
@@ -360,13 +285,6 @@ pub const RACKS_DRAWN: usize = 7;
 
 /// The six rack hotspots of `g_armouryHotspots` (`0x004DC938`), in table order,
 /// as `(x0, y0, x1, y1, troopType)`. `Hotspot_Test` is **half-open**:
-/// `x0 <= mx < x1`.
-///
-/// They are the fallback for a missing `arm_grid.pl8` and they are also the
-/// original's — the grid is tested first and these are tested second, so a
-/// click on the *floor* below a rack, where the grid holds nothing, still opens
-/// it. The bottom edge is 480 on all six: the row runs to the foot of the
-/// screen.
 pub const RACK_HOTSPOTS: [(i32, i32, i32, i32, u8); WEAPON_TYPE_COUNT] = [
     (85, 396, 161, 480, 1),
     (162, 396, 236, 480, 2),
@@ -384,21 +302,14 @@ pub const CREATE_BOX: Rect = Rect::new(542, 396, 634 - 542, 424 - 396);
 pub const CHANGE_BOX: Rect = Rect::new(542, 425, 634 - 542, 450 - 425);
 pub const CANCEL_BOX: Rect = Rect::new(542, 450, 634 - 542, 479 - 450);
 
-/// `Ui_DrawCentred(69, i, 0x21E, y, 100, …)` — the three labels' own geometry.
 pub const LABEL_X: i32 = 0x21E;
 pub const LABEL_W: i32 = 100;
 pub const LABEL_Y: [i32; 3] = [0x194, 0x1AE, 0x1C8];
 
-/// `Ui_OkButton(g_screenStride - 0x1C, g_screenHeight - 0x70, 1)` on `0x0A`,
-/// and `Ui_OkButton(0x1E4, 0x58, 0)` on `0x0D`. Both are 24 × 24 and both close
-/// the screen they are on; `Ui_OkButtonClicked` tests a 24 × 24 box at whatever
-/// position the *last* call stashed.
 pub const OK: Rect = Rect::new(640 - 0x1C, 480 - 0x70, 24, 24);
 pub const RACK_OK: Rect = Rect::new(0x1E4, 0x58, 24, 24);
 
-// ------------------------------------------------------------------- 0x0D
 
-/// `Ui_DrawBox(0x60, 4, 0x1A, 7)` — the rack panel's window.
 pub const RACK_BOX_X: i32 = 0x60;
 pub const RACK_BOX_Y: i32 = 4;
 pub const RACK_BOX_COLS: i32 = 0x1A;
@@ -408,8 +319,6 @@ pub fn rack_window() -> Rect {
     Rect::new(RACK_BOX_X, RACK_BOX_Y, RACK_BOX_COLS * 16, RACK_BOX_ROWS * 16)
 }
 
-/// `Ui_DrawInsetRect(0x65, 9, 0x66, 0x66)` with `Pl8_DrawFrame(sheet, n, 0x66,
-/// 10)` inside it — the weapon's own picture, 100 × 100 in a 102 × 102 well.
 pub const WEAPON_WELL: Rect = Rect::new(0x65, 9, 0x66, 0x66);
 pub const WEAPON_AT: (i32, i32) = (0x66, 10);
 
@@ -418,8 +327,6 @@ pub const WEAPON_AT: (i32, i32) = (0x66, 10);
 pub const COUNT_WELL: Rect = Rect::new(0xEC, 0x0C, 0x0F * 16, 2 * 16);
 pub const COUNT_AT: (i32, i32) = (0xEC, 0x0D);
 
-/// `Ui_DrawBoxInterior(0xD8, 0x4C, 0x10, 2)`, with the spare count and 69/5 at
-/// `(0xD8, 0x54)`.
 pub const SPARE_WELL: Rect = Rect::new(0xD8, 0x4C, 0x10 * 16, 2 * 16);
 pub const SPARE_AT: (i32, i32) = (0xD8, 0x54);
 
@@ -429,10 +336,8 @@ pub const SPARE_AT: (i32, i32) = (0xD8, 0x54);
 pub const BUTTON_DIM: i32 = 32;
 pub const BUTTON_Y: i32 = 44;
 pub const BUTTON_X: [i32; 4] = [176, 208, 240, 272];
-/// The button-sheet frames the four records carry, in the same order.
 pub const BUTTON_FRAMES: [usize; 4] = [68, 66, 58, 60];
 
-/// What one of the four buttons does. The order is the table's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Button {
     /// `FUN_0043593A` — `if (chosen < remaining && peasants != 0) { chosen++;
@@ -454,17 +359,7 @@ pub fn button_box(i: usize) -> Rect {
     Rect::new(RACK_BOX_X + BUTTON_X[i], RACK_BOX_Y + BUTTON_Y, BUTTON_DIM, BUTTON_DIM)
 }
 
-// --------------------------------------------------- the room, in motion
 
-/// One fixed simulation tick in milliseconds — `main::TICK`.
-///
-/// **A constant, not a clock.** Nothing here asks how long a frame took; the
-/// number exists so an interval the original states in milliseconds can be
-/// converted to the whole ticks this crate is allowed to count.
-/// `screens::map` carries its own copy for the same reason and both are the
-/// same one number in `main.rs`; they are separate because neither module may
-/// depend on the other and `docs/netcode.md` forbids either from reading a
-/// clock instead.
 pub const TICK_MS: u32 = 16;
 
 /// **`Tick_Pulses` (`0x004BBC80`) is the interface's animation clock**, and the
@@ -480,14 +375,6 @@ pub const TICK_MS: u32 = 16;
 /// | `DAT_0057CB10` | 8 | the soldier's walk cycle |
 /// | `DAT_005AEA54` | 13 | the two torches, the second at `+13` |
 /// | `DAT_005AEA48` | 24 | the weapon turning in the rack panel's well |
-///
-/// The last two are the *divider chain's own counters*, reused as frame
-/// indices — so they wrap at 13 and 24,
-/// and why `Armtorch.pl8` has exactly 26 frames and `Arm_*.pl8` exactly 24.
-///
-/// **Four documents called `Tick_Pulses` "once a frame and wrapped".** That
-/// describes the call site. The rates are in the function, and this is where
-/// they land on a screen.
 pub const PULSE_MS: u32 = 20;
 
 /// `if (3 < DAT_005AEB2C)` — four 20 ms steps make the 80 ms pulse.
@@ -510,12 +397,6 @@ pub const TORCH_SECOND: usize = 0x0D;
 
 /// **The walking soldier's geometry**, all of it out of `Armoury_DrawWalker`
 /// (`0x004190DB`) and `FUN_004AABD8` (`0x004AABD8`).
-///
-/// He starts off the left edge at `-0x50`, takes four pixels a 20 ms pulse and
-/// the walk is over at `0x280`, one screen width. **Four pixels a pulse is not
-/// 200 pixels a second**: `Tick_Pulses` resets its stamp to the frame that
-/// fired, so a pulse is 20 ms rounded *up* to whole frames — 32 ms and 125
-/// pixels a second on our 16 ms tick. See [`Anim::tick`].
 pub const WALKER_START_X: i32 = -0x50;
 pub const WALKER_END_X: i32 = 0x280;
 pub const WALKER_STEP: i32 = 4;
@@ -531,8 +412,6 @@ pub const WALKER_Y: i32 = 0xD8;
 /// neither of which mentions the other, agreeing to within the width of a man.
 pub const WALKER_STOP_X: [i32; 8] = [0, 45, 120, 490, 170, 380, 270, 50];
 
-/// The soldier's three runs of frames, and the whole of the animation.
-///
 /// `Trp_xb_r.pl8` and its twenty-nine siblings hold **exactly 21 frames of
 /// 89 × 158** — and 8 + 5 + 8 is 21, which is the artwork agreeing with the
 /// arithmetic in `Armoury_DrawWalker` without either being asked. `158` is
@@ -548,9 +427,6 @@ pub const PICKUP_HOLD: u8 = 3;
 /// `DAT_0052F008 = DAT_0057CB10 + 0xD` — the same eight phases, carrying it.
 pub const CARRY_FIRST: usize = 0x0D;
 
-/// **`Screen_Armoury`'s four saved strips**, `(x, width)` at `y = `
-/// [`WALKER_Y`] and height [`STRIP_H`].
-///
 /// `FUN_004B3F0A` copies **dwords**, so `g_spriteWidth` of `0x3C` is 240
 /// pixels and `0x28` is 160; the second argument is `640 - width * 4`, the
 /// row remainder, which is what pins the unit down. The four buffer offsets
@@ -562,21 +438,6 @@ pub const STRIP_H: i32 = 0x9E;
 /// **`Armoury_RestoreWalkerStrip` (`0x00418FC5`) — it erases, it does not
 /// draw.** `docs/hypotheses.json` had it as `Armoury_DrawPanel`, which had the
 /// role right and the verb wrong.
-///
-/// The four-way choice is on the soldier's own x: under `0xA0` the first strip,
-/// under `0x140` the second, under `0x1E0` the third, otherwise the fourth. So
-/// **the walker is a blit over a restored background, not a composited
-/// sprite** — that is why the strips exist and why there are four of them
-///
-///
-/// **It is not called from [`overlay`], and this says so.
-/// reader to wonder.** Our page is repainted whole every frame (the original
-/// paints `Screen_Armoury` once and never clears again), so the erase has
-/// already happened by the time the walker is drawn. What is reproduced here is
-/// the *shape* and the rectangle, which
-/// `crates/l2-game/tests/armoury/main.rs` asserts covers him — all but the five
-/// pixels of his right shoulder that stand outside it at each band boundary,
-/// which is the original's own smear and is measured there.
 pub fn walker_strip(x: i32) -> Rect {
     let (sx, w) = match x {
         _ if x < 0xA0 => STRIPS[0],

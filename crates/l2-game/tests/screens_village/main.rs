@@ -1,6 +1,3 @@
-//! The village screen: its picture, its clusters and the peasant drag.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 
 #[macro_use]
@@ -29,5 +26,4 @@ use l2_view::chrome;
 use l2_view::village;
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------- the village
 

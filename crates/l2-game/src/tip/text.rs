@@ -9,9 +9,6 @@ use crate::Game;
 /// **Our transcription of groups 200…218**, for an install whose `L2.eng`
 /// cannot be read. `CLAUDE.md` rule 6: the words are the feature, so the
 /// player's own file is what is drawn and this is only the fallback.
-/// `tests/tips.rs` holds it against the file, string for string.
-///
-/// Index 0 of each is the heading; the rest are the paragraphs, in order.
 pub const TEXT: &[(u16, &[&str])] = &[
     (
         200,
@@ -127,7 +124,6 @@ pub const TEXT: &[(u16, &[&str])] = &[
     ),
 ];
 
-/// Our transcription of one string, or `""`.
 pub fn transcribed(group: u16, index: usize) -> &'static str {
     TEXT.iter()
         .find(|(g, _)| *g == group)
@@ -147,8 +143,6 @@ pub fn words(shell: &crate::shell::ShellAssets, group: u16, index: usize) -> Str
     }
 }
 
-/// Whether a record is a tip window — categories `0x05`…`0x09`, which only
-/// `Tip_Show` posts.
 pub fn is_tip_window(record: &Record) -> bool {
     matches!(record.shape(), message::Shape::Paragraphs(_))
 }

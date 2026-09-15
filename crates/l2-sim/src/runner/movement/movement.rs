@@ -4,9 +4,6 @@ use super::pathfinding::*;
 use super::*;
 
 impl BattleRunner {
-    /// The next cell to try: the stored path if the figure is on one, else
-    /// straight at the target. Figures normally walk straight and never search
-    /// at all — the pathfinder is what happens when that fails.
     pub(crate) fn next_step(&self, i: usize) -> Option<Pos> {
         let f = &self.fighters[i];
         if let Some(&wp) = f.path.last() {
@@ -24,9 +21,6 @@ impl BattleRunner {
         Some(Pos::new(nx as u8, ny as u8))
     }
 
-    /// Ask [`crate::pathfind`] for a route, subject to the original's two
-    /// throttles: a cooldown after each attempt, and a hard stop after four
-    /// consecutive failures.
     pub(crate) fn request_path(&mut self, i: usize) {
         {
             let f = &self.fighters[i];
@@ -45,9 +39,6 @@ impl BattleRunner {
                 grid.blocked[c] = true;
             }
         }
-        // Only *friendly* figures are marked. Enemies are deliberately left
-        // out: the original routes straight through them and leaves contact to
-        // the mover.
         for (c, occ) in self.occupant.iter().enumerate() {
             if let Some(o) = occ {
                 if self.fighters[*o as usize].side == side && *o as usize != i {
@@ -71,15 +62,6 @@ impl BattleRunner {
                     f.barred = 0;
                 }
             }
-            // **The line is clear and the figure still could not move**,
-            // means a comrade is standing in the one cell it wanted. This arm
-            // used to do nothing at all, and *nothing* is a deadlock: the
-            // figure retries the same taken step, frame after frame, with
-            // `barred` at 0 and an empty path, and nothing anywhere times it
-            // out. One figure does that invisibly. An army pressing a breach
-            // does it as a permanent jam — measured at 45 besiegers frozen in a
-            // block eight cells wide for 200,000 frames, every one `Walking`.
-            //
             // The original has no such hole, because **`Path_LineIsClear` is
             // not a predicate**: it seeds `g_pathCost` through
             // `Path_BuildBlockedMap` — which marks friendly figures 998 — walks
@@ -89,11 +71,6 @@ impl BattleRunner {
             // figure comes away with the walked route, comrade-avoiding
             // detours and all. [`pathfind::Grid::walk_line`] is that walk, read
             // out of `0x004710F2`.
-            //
-            // It is applied **only here** — where the straight line is clear
-            // and the step was refused anyway —
-            // position in which the two readings differ. A figure that is not
-            // blocked never asks for a path at all.
             Outcome::NoSearchNeeded => {
                 if let Some(cost) = grid.walk_line(start, dest) {
                     let walked = pathfind::Search { outcome: Outcome::Found, cost };
@@ -110,17 +87,11 @@ impl BattleRunner {
         }
     }
 
-    // -- fire, oil and the tower --------------------------------------------
 
-    /// `g_battleSizeClass` — see [`crate::fire::burn`], its one reader here.
     pub fn battle_size_class(&self) -> u8 {
         self.size_class
     }
 
-    /// Re-derive one cell's copies — the blocked map and the AI's surfaces —
-    /// after a fire, a pour or a dock has written it. The original's order
-    /// handlers read the live array, so ours have to see a burning cell the
-    /// frame it burns.
     pub(crate) fn sync_cell(&mut self, c: usize) {
         let cell = self.field.cells[c];
         self.blocked[c] = cell.impassable();
@@ -128,17 +99,12 @@ impl BattleRunner {
         self.ai_field.elevation[c] = cell.elevation;
     }
 
-    /// **`Battle_UpdateAllMen`'s head, for one figure** — what the sweep does
-    /// before it dispatches the troop's tick.
-    ///
     /// ```c
     /// if (surface == 10)   BattleMan_BurnTick(man);
     /// if (surface == 0x11) BattleMan_BurnTick(man);
     /// if (surface == 0x0F && man.ownerIsHuman) DAT_005530E8++;
     /// ```
     ///
-    /// The original counts every figure with an owner, a corpse on its eighty
-    /// frames included; ours has no corpse lifetime and counts the living.
     /// `[D]`.
     pub(crate) fn update_man(&mut self, i: usize) {
         let (sim, troop, side, cell) = {
@@ -160,8 +126,6 @@ impl BattleRunner {
         }
     }
 
-    /// `Missile_UpdateAll`'s class-7 arm — the cross a stream of oil burns
-    /// under itself. See [`fire::OIL_CROSS`].
     pub(crate) fn oil_cross(&mut self, slot: usize) {
         let m = *self.missiles.get(slot);
         let (x, y) = (m.cell_x as i32, m.cell_y as i32);
@@ -190,16 +154,6 @@ impl BattleRunner {
     /// FUN_004262CF(3);                                     /* pouroil.wav */
     /// ```
     ///
-    /// **The pot is spent**: state 2, the corpse state. It pours once and is a
-/// casualty of its own pour,
-    /// pots and not in men. With a hundred records in flight the spawn fails
-    /// and the original runs its four steps on a record past the array; here
-    ///
-    /// as those writes are unconditional.
-    ///
-    /// The original's own loop in `BattleUnit_Order` walks figures by owner,
-    /// so a pot that poured less than eighty frames ago — still a corpse with
-    /// an owner — would pour **again** if its unit were re-ordered downhill.
     /// This crate has no corpse lifetime and only the living pour. `[D]`.
     pub(crate) fn pour_oil(&mut self, pot: usize, to: (u8, u8)) {
         let sim = self.fighters[pot].sim;
@@ -224,8 +178,6 @@ impl BattleRunner {
         self.sim.cues.oil_pour();
     }
 
-    /// **`BattleUnit_Order`'s oil loop** — every living pot of `unit` pours at
-    /// `(x, y)` when [`fire::order_pours`] says the order is downhill.
     pub(crate) fn pour_on_order(&mut self, unit: usize, x: i16, y: i16) {
         if unit == 0 || unit > MAX_UNITS || !self.units.get(unit).is_live() {
             return;
@@ -277,10 +229,6 @@ impl BattleRunner {
     /// **A siege tower's step** — `Cell_TryEnterEngine`, and `FUN_00491492`
     /// when it refuses.
     ///
-    /// Returns `true` when the step was consumed: the tower docked, or it is
-    /// stopped. `false` means the leading edge is clear and the ordinary mover
-    /// takes it from here.
-    ///
     /// When the edge is refused and there is nowhere to dock, the original
     /// tries `FUN_004912EC` — a side-step through three rotations each way —
     /// and gives up on its destination within three cells of it, else waits a
@@ -309,20 +257,6 @@ impl BattleRunner {
     /// **`Cell_TryEnterEngine` (`0x00490C59`)** for a tower: the leading edge
     /// of a 3 × 3 footprint, from [`crate::siege::ENGINE_EDGE_ORTHO`] or
     /// [`crate::siege::ENGINE_EDGE_DIAG`].
-    ///
-    /// ```c
-    /// every edge cell: elevation within 1 of the engine's own, else 2;
-    ///                  flags & 0x90 -> 2;  flags & 0x20 or 0x40 -> 6 for a ram, 2 otherwise;
-    ///                  a figure there -> counted;
-    /// any figure counted -> 2, else 1
-    /// ```
-    ///
-    /// **Any figure in the edge stops an engine**, friend or enemy, which is
-    /// what makes a tower hard to push through its own army. Two cells from the
-    /// field's edge it is stopped outright. **Only a tower is tested this
-    /// way**: our rams and catapults still step as one cell, as they did
-/// before, and that is a deviation of this crate's, noted
-    /// widened.
     fn engine_edge_is_clear(&self, i: usize, dir: u8) -> bool {
         let (x, y) = (self.fighters[i].x as i32, self.fighters[i].y as i32);
         let (lo, hi) = (2, DIM as i32 - 2);
@@ -399,9 +333,6 @@ impl BattleRunner {
     }
 
     /// `BattleMan_Destroy` (`0x0046EBE4`) — **the figure is gone**, not dead:
-    /// the record is cleared
-    /// the figure keeps its index and is left with no men, dead, off its cell,
-    /// and already at the last frame of falling so nothing is drawn falling.
     fn destroy_fighter(&mut self, i: usize) {
         let sim = self.fighters[i].sim;
         {
@@ -454,9 +385,6 @@ impl BattleRunner {
         self.fighters.iter().position(|f| f.sim == op)
     }
 
-    /// The eight neighbours in `Melee_FindAdjacentEnemy`'s order: N, NW, NE, W,
-    /// E, SW, SE, S. The order decides which enemy a figure picks, so it is
-/// part of the behaviour.
     pub(crate) fn adjacent_enemy(&self, i: usize) -> Option<usize> {
         const ORDER: [(i32, i32); 8] = [
             (0, -1),
@@ -480,7 +408,6 @@ impl BattleRunner {
             }
             let Some(o) = self.occupant[ny as usize * DIM + nx as usize] else { continue };
             let o = o as usize;
-            // Siege engines are skipped entirely as melee targets.
             if self.fighters[o].side != f.side
                 && self.is_alive(o)
                 && !self.fighters[o].troop.is_siege()

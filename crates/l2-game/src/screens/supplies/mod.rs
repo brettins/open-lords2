@@ -1,18 +1,9 @@
 //! **Send supplies** — `Screen_SendSupplies` (`0x0041AD5D`), `g_screenId`
 //! `0x18`, with a per-frame overlay at `FUN_0041AEA2` (`0x0041AEA2`).
 //!
-//! # It goes to a county, not to an army
-//!
-//! The name reads like a supply run to a besieging force. It is not: the
-//! destination is a **county**, picked off the kingdom minimap, and what
-//! arrives is a `kind == 4` transport unit that walks there and unloads.
 //! Nothing in the path names a `g_units` slot as a destination. `Transport_Deliver`
 //! (`0x004296B5`) adds the cargo to the destination county's `grain` and `herd`
 //! and destroys the unit.
-//!
-//! # The painter, address by address
-//!
-//! Two functions, because the numbers change without the frame changing.
 //!
 //! ```text
 //! Screen_SendSupplies():                                        0x0041AD5D
@@ -43,12 +34,6 @@
 //!   Ui_DrawNumber(rec[5], ' ', " ", 0x150, 0x130)  in the cart    (336, 304)
 //! ```
 //!
-//! The two icons are two pixels apart in x and four in y where the two text
-//! rows are exactly 36 apart. That is the original's own untidiness and it is
-//! reproduced, because a tidied layout is a layout nobody can check.
-//!
-//! # The shipment record
-//!
 //! `DAT_005678C0 + player * 0x18`, six `i32`, **three pairs of (left in the
 //! county, in the cart)**:
 //!
@@ -58,27 +43,11 @@
 //! | `+0x08` / `+0x0C` | **sheep — written by nothing, ever** |
 //! | `+0x10` / `+0x14` | cattle |
 //!
-//! **This screen is the fourth independent piece of evidence for the cut sheep
-//! subsystem** (`docs/bugs.md` D20), and it is the most structural one yet:
-//!
-//! * `g_sendSuppliesWidgets` holds **a complete sheep row** — a minus/plus pair
-//! at (216, 296) and (296, 296) with hotspot id 1 and the same two handlers —
-//!   immediately after the six records every caller passes. `count = 6`, so it
-//!   is never drawn and never tested.
-//! * The two rows that survive carry hotspot ids **0 and 2, skipping 1**. The
-//!   id is a row index scaled by eight into the record above, so the numbering
-//!   itself is the fossil.
 //! * `L2.eng` **33/4 is `Sheep`** and is drawn by nobody.
+//!
 //! * `Transport_Spawn` still reads `+0x0C` into `unit.troops[1]`, a field
 //!   nothing writes and `Transport_Deliver` never adds back — the cut wiring
 //!   left connected at one end.
-//! * The cattle row sits at y 300 and the orphan sheep row at y 296: the
-//!   layout was re-spaced when the row came out.
-//!
-//! [`SHEEP_ROW`] carries the orphan so the absence is countable
-//! merely missing.
-//!
-//! # The spinner step is one or ten
 //!
 //! ```c
 //! FUN_0043B1CA  /* minus */  if (cart < 11) { if (cart) { cart--; left++; } }
@@ -87,20 +56,10 @@
 //!                            else           {             left -= 10; cart += 10; }
 //! ```
 //!
-//! So the pool you are drawing **from** decides the step, not the one you are
-//! adding to: a count runs 1, 2, … 10, then jumps 20, 30 and comes back the
-//! same way. The auto-repeat is `Widget_Test`'s
-//! kind-4 press timer. The sum is conserved, so the cap is structural — you can
-//! ship everything the county had when the screen opened and nothing more.
-//!
-//! # The two icon hotspots are an all-or-nothing toggle
-//!
 //! `0x004DC7E8`, two records tested at an offset of `(0x40, 0x30)`, sitting on
 //! the two commodity pictures — **(254, 264)–(284, 293)** and
 //! **(254, 294)–(284, 323)**. `FUN_0043B32A`: if the cart is empty put
 //! everything in it, otherwise take everything out.
-//!
-//! # Dispatching
 //!
 //! `FUN_0043B04C`, the thumbs-up and thumbs-down at (320, 342) and (360, 346):
 //!
@@ -111,24 +70,15 @@
 //!   returns here. The box exists because the screen opens with source and
 //!   destination equal, so dispatching without touching the minimap is the
 //!   no-destination case.
+//!
 //! * thumb **up** with a real destination → `FUN_0043B145`, which is
 //!   `Transport_Spawn` and then the county's ration, labour, crowding and
 //!   estimate passes **twice**.
-//!
-//! **`Transport_Spawn` can silently drop the shipment.** It looks for a free
-//! road tile and then any free open tile; if neither exists it spawns nothing
-//! *and deducts nothing*. No message. That
-//! is reproduced — see [`Dispatch::Nowhere`] — because a shipment that
-//! evaporates with a warning is not the shipment the original loses.
-//!
-//! # The minimap's hit test is two pixels off its own picture
 //!
 //! `FUN_00410A5D` blits at **(94, 107)** and `FUN_0043B412` tests
 //! `0x60 <= x < 0xE0 && 0x68 <= y < 0xE8` — **(96, 104)**. The same 2/3-pixel
 //! disagreement `docs/screens-county.md` already records for `Minimap_Draw`,
 //! here as well, from the same two constants. Reproduced.
-//!
-//! # How it is reached
 //!
 //! `Sidebar_Button` (`0x0043AE30`), hotspot id 3 — the third of the five
 //! buttons in the strip at y 430. Gated on `county.owner == g_localPlayer`;
@@ -154,7 +104,6 @@ pub const TITLE: usize = 0;
 pub const FROM: usize = 1;
 pub const TO: usize = 2;
 pub const GRAIN: usize = 3;
-/// **Never drawn.** See the module docs.
 pub const SHEEP: usize = 4;
 pub const CATTLE: usize = 5;
 pub const DISPATCH: usize = 6;
@@ -167,8 +116,6 @@ pub const COUNTY_STRIDE: usize = 20;
 /// `FUN_004093E0(0x40, 0x30, 0x16, 0x16)`.
 pub const BOX: (i32, i32, i32, i32, usize) = (0x40, 0x30, 0x16, 0x16, 1);
 
-/// Where the minimap raster is **drawn**, and where it is **hit tested**. The
-/// original disagrees with itself by two and three pixels and so does this.
 pub const MINIMAP_DRAW: (i32, i32) = (94, 107);
 pub const MINIMAP_HIT: Rect = Rect::new(0x60, 0x68, 0x80, 0x80);
 
@@ -180,29 +127,23 @@ pub const TO_AT: (i32, i32) = (0xF0, 0xC2);
 pub const TO_NAME_AT: (i32, i32) = (0xF0, 0xD4);
 pub const DISPATCH_AT: (i32, i32) = (0x60, 0x160);
 
-/// `Ui_DrawBoxInterior`/`Ui_DrawInsetRect(0x50, 0x100, 0x140, 0x50)`.
 pub const WELL: Rect = Rect::new(0x50, 0x100, 0x140, 0x50);
 
-/// One commodity row of the cart: label, the two numbers, and the icon.
 pub struct Row {
     /// `L2.eng` group 33's label.
     pub label: usize,
-    /// The hotspot id, which is also **the pair index into the record**.
     pub id: usize,
     pub label_at: (i32, i32),
     pub left_x: i32,
     pub cart_x: i32,
-    /// `Misc_cty.pl8` frame, and where it goes.
     pub icon: usize,
     pub icon_at: (i32, i32),
     /// `FUN_0043B1CA` and `FUN_0043B27A`'s widget squares, 24 pixels.
     pub minus: Rect,
     pub plus: Rect,
-    /// The icon's own hotspot, the all-or-nothing toggle.
     pub toggle: Rect,
 }
 
-/// The two rows the game passes, in table order.
 pub const ROWS: [Row; 2] = [
     Row {
         label: GRAIN,
@@ -230,49 +171,33 @@ pub const ROWS: [Row; 2] = [
     },
 ];
 
-/// **The seventh and eighth widget records, which the game never passes.**
-///
 /// `(x, y)` of the minus and plus of the sheep row, hotspot id **1**, both
 /// present in `g_sendSuppliesWidgets` at `0x004DD538` past the `count = 6` the
 /// three call sites use. Kept as a value so the cut row is *countable*; nothing
 /// draws or tests it, and a test asserts that.
 pub const SHEEP_ROW: [(i32, i32); 2] = [(216, 296), (296, 296)];
 
-/// The two thumbs. **Kind 5**: the press puts the gauntlet down and the handler
-/// runs [`crate::press::DELAYED_FRAMES`] frames later.
 pub const THUMB_UP: Rect = Rect::new(320, 342, 32, 32);
 pub const THUMB_DOWN: Rect = Rect::new(360, 346, 32, 32);
 pub const THUMB_UP_FRAME: usize = 29;
 pub const THUMB_DOWN_FRAME: usize = 31;
-/// `System.pl8` frames for the spinners: 27 minus, 25 plus, `+1` while held.
 pub const MINUS_FRAME: usize = 27;
 pub const PLUS_FRAME: usize = 25;
 
-/// The step's own rule: **ten or fewer in the pool you draw from moves one,
-/// more than ten moves ten.**
 pub const BULK_ABOVE: i32 = 10;
 pub const BULK_STEP: i32 = 10;
 
-/// What one dispatch did.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Dispatch {
-    /// Nothing yet.
     None,
-    /// The thumb-down, or the confirm box's yes.
     Cancelled,
-    /// `Ui_OpenConfirm(0xE, …)` — *"Quit? (no destination)."* is up.
     NoDestination,
-    /// A transport is on the road, carrying `(grain, cattle)`.
     Sent(i32, i32),
-    /// **`Transport_Spawn` found no free tile.** The cargo is not deducted and
-    /// nothing is spawned.
     Nowhere,
 }
 
-/// One player's shipment record — three pairs
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Cart {
-    /// `(left in the county, in the cart)`.
     pub grain: (i32, i32),
     /// `+0x08`/`+0x0C`. **Written by nothing in the original**, kept so that
     /// the record has the shape the original's does and the absence is a value.
@@ -281,8 +206,6 @@ pub struct Cart {
 }
 
 impl Cart {
-    /// `Sidebar_Button`'s seeding: the county's stores on the left, an empty
-    /// cart on the right.
     pub fn open(grain: i32, herd: i32) -> Cart {
         Cart { grain: (grain, 0), sheep: (0, 0), cattle: (herd, 0) }
     }
@@ -334,6 +257,7 @@ impl Cart {
     }
 
     /// `FUN_0043B32A` — the icon. Everything in, or everything out.
+    ///
     // arm: 0x0043B32A/supplies-all left-press
     pub fn toggle(&mut self, id: usize) {
         let p = self.pair(id);
@@ -351,12 +275,8 @@ pub struct SuppliesScreen {
     from: u8,
     to: u8,
     cart: Cart,
-    /// What the last dispatch did, for a test that wants to know without
-    /// reading the kingdom.
     pub outcome: Dispatch,
     opened: bool,
-    /// `g_sendSuppliesWidgets`' press timer and repeat counter. See
-    /// [`WIDGETS`].
     press: Press,
 }
 
@@ -379,6 +299,5 @@ pub fn widgets() -> Vec<Widget> {
     out
 }
 
-/// [`widgets`]' index of the thumb-up; the thumb-down is the one after it.
 const THUMB_UP_INDEX: usize = ROWS.len() * 2;
 

@@ -13,24 +13,12 @@ use l2_game::Game;
 use l2_kingdom::tables::{Tables, WEAPON_TYPE_COUNT};
 use l2_view::Canvas;
 
-/// Not a test: **a way to look at the screen.**
-///
-/// ```text
-/// LORDS2_DIR=... LORDS2_FIXTURES=... \
-///   cargo test -p l2-game --test armoury shoot -- --ignored
-/// ```
-///
 /// Writes PNGs into `out/`, which `.gitignore` excludes — a render of the
 /// game's own artwork is a derived asset and must never be committed
 /// (`CLAUDE.md` rule 1). `docs/decisions.md` C21: *show screens early, to
 /// someone who knows the game.* Three shots, which are the three the player's
 /// sentence is about: the levy window standing on the armoury, the armoury with
 /// the window lifted off it, and one weapon's rack.
-///
-/// **The palette is `armoury.256`, not the campaign one.** Both screens answer
-/// `Screen::palette` with it, and a shot taken through `assets.palette` is the
-/// right picture in the wrong colours — which is exactly the defect this whole
-/// change is about, so getting it wrong here would hide it.
 #[test]
 #[ignore]
 fn shoot() {
@@ -40,8 +28,6 @@ fn shoot() {
     g.kingdom.realms[g.player as usize].weapons = [50, 0, 120, 40, 90, 0];
     g.open_levy(county);
     g.set_levy_percent(35);
-    // What *Continue* does, basket is not already full:
-    // the slider writes g_levyMen and nothing else.
     g.seed_levy_basket();
 
     let mut m = Machine::new(ScreenId::RaiseArmy(county));
@@ -65,9 +51,6 @@ let rgb: Vec<u8> = rgba.chunks(4).flat_map(|p| [p[0], p[1], p[2]]).collect();
     std::fs::write(format!("out/{name}.png"), png::encode(640, 480, &rgb)).unwrap();
 }
 
-/// A stored-block PNG encoder with no dependency — the same forty lines
-/// `tests/screens_shoot.rs` carries, and for the same reason: a `.rgb` dump needs a
-/// converter and a remembered width before anyone glances at it.
 pub(super) mod png {
     fn crc32(data: &[u8]) -> u32 {
         let mut table = [0u32; 256];

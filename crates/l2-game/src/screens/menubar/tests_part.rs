@@ -29,13 +29,9 @@ mod tests {
                 assert_eq!(index, n + 1, "group {}: the string indices have a gap", m.group);
             }
         }
-        // Sixteen items over three menus, which is what the row count of
-        // docs/screens-county.md 10.1 has to be.
         assert_eq!(MENUS.iter().map(|m| m.items.len()).sum::<usize>(), 16);
     }
 
-    /// The five help topics are five **consecutive** message ids. That is the
-    /// property that says the table was read and not assembled.
     #[test]
     fn the_help_topics_are_consecutive_message_ids() {
         let ids: Vec<u32> = MENUS[2]
@@ -49,10 +45,6 @@ mod tests {
         assert_eq!(ids, vec![0x123, 0x124, 0x125, 0x126, 0x127]);
     }
 
-    /// **The plate is the original's, and its height is the item count.**
-    /// `g_spriteHeight = (count * 0x15) / 16 + 2`, in cells: 4 items → 7,
-    /// 5 → 8, 7 → 11. Pinned as literals from the decompilation
-    /// recomputed from `plate_rows`, which would test nothing.
     #[test]
     fn the_dropdown_plate_is_twelve_cells_wide_and_grows_with_the_item_count() {
         assert_eq!(plate_rows(4), 7);
@@ -61,11 +53,9 @@ mod tests {
         let t = [Rect::new(10, 6, 30, 12), Rect::new(72, 6, 50, 12), Rect::new(154, 6, 30, 12)];
         let p = plate_rect(&t, 2);
         assert_eq!((p.x, p.y, p.w, p.h), (154, 6 + 0x12, 192, 11 * 16));
-        // Three widths for one row, and they really are three.
         assert_eq!(HIGHLIGHT_W, 176);
         assert_eq!(ITEM_W, 144);
         assert!(HIGHLIGHT_W < p.w && ITEM_W < HIGHLIGHT_W);
-        // Every caption sits inside the plate it is drawn on.
         for i in 0..MENUS[2].items.len() {
             let x = p.x + CAPTION_DX;
             let y = BAR_Y + MENUS[2].items[i].0 + CAPTION_DY;
@@ -89,12 +79,10 @@ mod tests {
         let bytes = std::fs::read(dir.join("L2.eng")).expect("L2.eng");
         let eng = crate::shell::Eng::parse(bytes).expect("L2.eng parses");
 
-        // The three titles, index 0 of groups 1, 2 and 3.
         assert_eq!(eng.get(1, 0), Some("File"));
         assert_eq!(eng.get(2, 0), Some("Options"));
         assert_eq!(eng.get(3, 0), Some("Help"));
 
-        // All sixteen items, in the tables' own order.
         let expected: [&[&str]; 3] = [
             &["New Game", "Load", "Save", "Quit"],
             &["Advanced", "Sounds", "Display", "Game Speed", "Scroll Speed"],
@@ -116,8 +104,6 @@ mod tests {
                 m.group,
                 want.len()
             );
-            // **The group holds the title plus exactly those items and no
-            // more.** A seventeenth string would mean a row we do not draw.
             assert_eq!(
                 eng.group(m.group).len(),
                 want.len() + 1,
@@ -130,7 +116,6 @@ mod tests {
             }
         }
 
-        // And none of the fallbacks is ever what a player with the game sees.
         for (m, want) in MENUS.iter().zip(expected) {
             assert_ne!(eng.get(m.group, 0), Some(m.fallback));
             for (n, f) in m.item_fallbacks.iter().enumerate() {
@@ -139,11 +124,6 @@ mod tests {
         }
     }
 
-    /// **The titles are measured in the game's own font**
-    /// the hit boxes right — `Ui_DrawMenuTitles` starts the pen at 10 and adds
-    /// the drawn width plus 32 after each. With `Fntl2_14.pl8` loaded the three
-    /// boxes must be three different widths, must not overlap, and must leave
-    /// exactly 32 pixels between one and the next.
     #[test]
     fn the_title_boxes_are_measured_with_fntl2_14() {
         let Some(dir) = l2_testkit::install_dir() else {
@@ -170,11 +150,7 @@ mod tests {
             let (a, b) = (pair[0], pair[1]);
             assert_eq!(b.x - (a.x + a.w), 32, "g_penAdvance += 0x20 between titles");
         }
-        // "Options" is the longest of the three in any reasonable typeface, and
-        // if all three came out equal the font is not being consulted at all.
         assert!(boxes[1].w > boxes[2].w, "Options must be wider than Help");
-        // And the fallback metrics really are different metrics, so a machine
-        // with no game is not silently getting the same answer.
         let fallback = title_boxes(&captions, l2_view::text::width);
         assert_ne!(fallback[1].w, boxes[1].w, "the 5 x 7 font must not measure Fntl2_14's widths");
     }

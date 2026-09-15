@@ -8,11 +8,6 @@ use l2_kingdom::{Kingdom, MAX_FIELDS};
 use l2_scenario::Scenario;
 use l2_testkit::england;
 
-/// **The end-to-end one.** A human player paints a field to grain, ends four
-/// turns
-///
-/// This is the first time this engine has driven its own economy from the
-/// player's side.
 /// a fabricated county, because `docs/decisions.md` C26 is what happens when
 /// the only fixture exercises one value of a rule's input.
 #[test]
@@ -37,7 +32,6 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
     k.counties[mine].grain = 10_000;
     let before = k.counties[mine].grain;
 
-    // Paint every fallow field this county has to grain.
     let painted = paint_all_fallow_to_grain(&mut k, mine);
     assert!(painted > 0, "county {mine} had fields to paint");
     assert_eq!(k.counties[mine].fields_grain, painted, "and they are grain now");
@@ -57,7 +51,6 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
     let crop_after_sowing: i32 = k.counties[mine].crop.iter().sum();
     assert!(crop_after_sowing > 0, "and it puts a crop in the ground: {sown:?}");
 
-    // Spring and Summer grow it; Autumn harvests it into the store.
     let mut low = k.counties[mine].grain;
     for _ in 0..3 {
         k.advance_season();
@@ -69,12 +62,6 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
         "the harvest put grain back in the store: low {low}, now {}",
         k.counties[mine].grain
     );
-    // **The crop words are not cleared by the harvest**, and this test used to
-// say they were. `crop` is *seed, standing crop, harvest*
-    // growth stages: `Grain_SeasonTick` clears `crop[2]` at the top of every
-    // season and fills it at the harvest, and `crop[0]` and `crop[1]` keep the
-    // year's record until the next sowing overwrites them. See
-    // [`l2_kingdom::land`].
     assert!(
         k.counties[mine].crop[2] > 0,
         "the harvest is the third word: {:?}",
@@ -87,8 +74,6 @@ fn a_player_can_paint_a_field_to_grain_and_harvest_it_four_seasons_later() {
     );
 }
 
-/// The same painting, done twice, is the same kingdom — the brush is a rule and
-/// rules are deterministic (`docs/netcode.md`).
 #[test]
 fn painting_is_deterministic() {
     let save = england!();
@@ -108,8 +93,6 @@ fn painting_is_deterministic() {
     assert!(run() == run(), "two identical playthroughs diverged");
 }
 
-/// Paint every fallow field of one county to grain, the way the player does it:
-/// one tile, one brush stroke. Returns how many strokes landed.
 pub(super) fn paint_all_fallow_to_grain(k: &mut Kingdom, county: usize) -> i32 {
     let tiles: Vec<usize> = k
         .field_tiles(county)

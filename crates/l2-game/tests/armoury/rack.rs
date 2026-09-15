@@ -13,25 +13,16 @@ use l2_game::Game;
 use l2_kingdom::tables::{Tables, WEAPON_TYPE_COUNT};
 use l2_view::Canvas;
 
-/// **The whole walk on the real fixture and the real artwork**: raise a levy in
-/// a county the fixture gave the player, equip it at the rack the
-/// player can see, and march out with an army.
-///
 /// `docs/agents.md` C27 — *a rule with no way in is not a rule the game has* —
 /// with the placeholder taken away, so the clicks land on the grid.
-/// on our rectangles.
 #[test]
 fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
     let (mut g, a) = world!();
-    // Continue waits twenty ticks now, and ticks run the tip screens.
     g.prefs.tip_screens = false;
     let county = own_county(&g);
     g.selected = county;
     let realm = g.player as usize;
 
-    // Whatever the fixture's realms were given. `docs/kingdom.md` says row 2 of
-    // `g_startArmoury` — 50 swords, 50 pikes, 50 bows — but the row is a
-// setup choice, so the weapon is found.
     let stocked = (0..WEAPON_TYPE_COUNT)
         .find(|&s| g.kingdom.realms[realm].weapons[s] > 0)
         .expect("the fixture's realms have an armoury");
@@ -51,7 +42,6 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
     }
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(county)));
 
-    // 40 % of the county, whatever that is on this fixture.
     send(
         &mut m,
         &mut g,
@@ -65,14 +55,12 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
 
     let cont = l2_game::screens::army::continue_button(false);
     send(&mut m, &mut g, Event::Click { x: cont.centre_x(), y: cont.y + cont.h / 2 });
-    // `RaiseArmy_Continue` is `Widget_Test` kind 5: twenty frames after the press.
     for _ in 0..l2_game::press::DELAYED_FRAMES {
         let mut ctx = Ctx { game: &mut g, assets: &a };
         m.update(&mut ctx);
     }
     assert_eq!(m.top_id(), Some(ScreenId::Armoury(county)));
 
-    // **Click the weapon where it hangs on the wall**, through `arm_grid.pl8`.
     let at = grid_box(&a, troop).expect("the weapon has a region");
     send(&mut m, &mut g, Event::Click { x: at.centre_x(), y: at.y + at.h / 2 });
     assert_eq!(m.top_id(), Some(ScreenId::Rack(county, troop)), "the wall is the button");
@@ -99,9 +87,6 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
         .campaign
         .units
         .iter()
-        // **The person's army, not the first one on the map.** The AI realms
-        // take their `AI_RunTurnStep` steps on these frames now — the original's
-        // phase-4 arm — so an AI lord may have raised one of his own first.
         .find(|(_, u)| u.kind == l2_kingdom::unit::UnitKind::Army && u.owner == realm as u8)
         .expect("an army on the map");
     assert_eq!(unit.men, men);
@@ -109,19 +94,12 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
     assert_eq!(g.kingdom.realms[realm].weapons[stocked], stock - armed);
 }
 
-/// **Move one field of the world and the same pixels have to follow.**
-///
 /// A weapon hangs on the armoury wall exactly when the realm owns one —
 /// `FUN_00418426`'s `if (realm.weapons[t - 1] > 0)` — and its rack along the
 /// bottom appears exactly when `basket[t].available > 0`, which the seeding
 /// fills from the same stock. So emptying one stock has to blank **two**
 /// rectangles and nothing else, which a diff-in-a-box cannot claim: this
 /// asserts what changed *and* where it did not.
-///
-/// The two rectangles being the answer is itself the finding. The test was
-/// written expecting one, went red with 5,754 pixels adrift, and they were all
-/// the crossbowman leaving the bottom row — a realm with no crossbows has
-///
 #[test]
 fn emptying_one_rack_removes_that_weapon_from_the_wall_and_nothing_else() {
     let (mut g, a) = world!();
@@ -133,15 +111,11 @@ fn emptying_one_rack_removes_that_weapon_from_the_wall_and_nothing_else() {
     let mut m = Machine::new(ScreenId::Armoury(county));
     let full = frame(&mut m, &mut g, &a);
 
-    // The crossbow, weapon slot 0 — the tallest of the six and the easiest to
-    // see go.
     let (frame_index, x, y) = armoury::WALL[0];
     let sheet = a.shell.sheet(armoury::items_sheet(g.kingdom.realms[realm].shield_index));
     let f = sheet.and_then(|s| s.frame(frame_index)).expect("the crossbow frame");
     let sprite = Rect::new(x, y, f.width as i32, f.height as i32);
 
-    // The crossbowman's own rack, from the hotspot table — the strip along the
-    // bottom that holds his portrait and the count under it.
     let rack = armoury::RACK_HOTSPOTS.iter().find(|h| h.4 == 1).expect("the crossbow rack");
     let rack = Rect::new(rack.0, rack.1, rack.2 - rack.0, rack.3 - rack.1);
 

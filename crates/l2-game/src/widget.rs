@@ -1,18 +1,9 @@
-//! The few pieces of chrome every screen draws: a framed panel, a button, a
-//! label with a number after it.
-//!
-//! These are drawing helpers that happen to know about [`Rect`]
-//! they live here: a rectangle is only interesting
-//! because something can be clicked in it, and clicking is this crate's
-//! business. Everything below writes palette indices through the ordinary
-//! canvas primitives, so it is all assertable without a window.
 
 use l2_view::text;
 use l2_view::{Canvas, Ink};
 
 use crate::input::Rect;
 
-/// A one-pixel outline, drawn inside `rect`.
 pub fn frame(canvas: &mut Canvas, rect: Rect, colour: u8) {
     canvas.fill_rect(rect.x, rect.y, rect.w, 1, colour);
     canvas.fill_rect(rect.x, rect.y + rect.h - 1, rect.w, 1, colour);
@@ -20,14 +11,11 @@ pub fn frame(canvas: &mut Canvas, rect: Rect, colour: u8) {
     canvas.fill_rect(rect.x + rect.w - 1, rect.y, 1, rect.h, colour);
 }
 
-/// A filled, framed panel.
 pub fn panel(canvas: &mut Canvas, ink: &Ink, rect: Rect) {
     canvas.fill_rect(rect.x, rect.y, rect.w, rect.h, ink.panel);
     frame(canvas, rect, ink.border);
 }
 
-/// A button. `focused` is the keyboard selection or the pointer hovering it —
-/// the interface does not distinguish, because the player does not either.
 pub fn button(canvas: &mut Canvas, ink: &Ink, rect: Rect, label: &str, focused: bool) {
     canvas.fill_rect(rect.x, rect.y, rect.w, rect.h, ink.panel);
     frame(canvas, rect, if focused { ink.highlight } else { ink.border });
@@ -36,17 +24,11 @@ pub fn button(canvas: &mut Canvas, ink: &Ink, rect: Rect, label: &str, focused: 
     text::draw_centred(canvas, rect.centre_x(), y, label, colour);
 }
 
-/// `label` in the dim colour, `value` in the bright one, with the value's last
-/// character landing on `right`. Numbers in a column then line up on their
-/// units digit.
 pub fn stat(canvas: &mut Canvas, ink: &Ink, x: i32, y: i32, right: i32, label: &str, value: &str) {
     text::draw(canvas, x, y, label, ink.dim);
     text::draw_right(canvas, right, y, value, ink.text);
 }
 
-/// The same, with the value coloured by which way it moved.
-/// Eight arguments, and each one is a different thing to draw: this is a
-/// drawing call, not an abstraction.
 #[allow(clippy::too_many_arguments)]
 pub fn stat_delta(
     canvas: &mut Canvas,
@@ -67,8 +49,6 @@ pub fn stat_delta(
     text::draw_right(canvas, right, y, value, colour);
 }
 
-/// A signed number with an explicit sign, which is how the original's happiness
-/// panel reads: `+5`, `-2`, `0`.
 pub fn signed(n: i32) -> String {
     if n > 0 {
         format!("+{n}")
@@ -83,8 +63,6 @@ mod tests {
     use l2_formats::Palette;
 
     fn ink() -> Ink {
-        // A palette where every named colour resolves to a different index, so
-        // a test can tell them apart.
         let mut bytes = vec![0u8; Palette::FILE_LEN];
         for i in 0..256usize {
             bytes[i * 3] = (i % 64) as u8;

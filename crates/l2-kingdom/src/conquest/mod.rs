@@ -1,6 +1,3 @@
-//! **Taking a county** — the mechanism the whole campaign layer exists to
-//! produce
-//!
 //! The document traces the record, the levy, movement, supply, sieges and how a
 //! battle *result* comes back, and there is a hole in the middle of it: what
 //! makes an army standing on a county's castle *take* the county. That is
@@ -11,8 +8,6 @@
 //! `Army_AttackCounty`, `County_RaiseDefence` (in [`crate::levy`]) and
 //! `County_ChangeOwner`.
 //!
-//! # How a county is attacked at all
-//!
 //! **By stepping onto its castle tile.** `Unit_StepOnce` returns 5 for a
 //! `plane0 & 0x40` tile, the mover then calls
 //! `Transport_Deliver` and `Army_AttackCounty` with the tile's county. So the
@@ -20,26 +15,7 @@
 //! it is the objective, and `docs/armies.md` §2.2's castle row (*"5 →
 //! `Transport_Deliver`, move ends"*) is half the story. `[D]`
 //!
-//! # The siege gate is a single `if`
-//!
-//! ```c
-//! unit.type == 1 && unit.owner != 0 && county.owner != unit.owner
-//!   && (county.castleType == 0 || county.garrisonUnit == 0
-//!       || garrison.owner == unit.owner)
-//! ```
-//!
-//! A county with **both** a castle and a garrison in it cannot be walked into
-//! at all — that is what forces a siege, and it is one condition
-//! subsystem. Everything else falls through to a battle or an outright capture.
 //! `[D]`
-//!
-//! # Scope
-//!
-//! Sieges and the battle handoff are out of this crate's scope. What is here is
-//! the guard, the defence decision, when the outcome is a
-//! battle this reports it and stops, exactly the way
-//! [`crate::movement::Offence`] reports a diplomatic hit
-//! a diplomacy layer.
 
 mod ownership;
 pub use ownership::*;
@@ -59,10 +35,6 @@ use crate::unit::{ArmyNames, UnitKind, Units};
 /// `County_ChangeOwner`'s own arguments do not carry: `g_optArmiesEat` for
 /// `Ration_Apply`, `g_seasonNext` and `g_optAdvancedFarming` for
 /// `County_RefreshEstimates`, and `g_countyCount` for the blacksmiths' share.
-///
-/// It travels with the capture because the capture can end in that function —
-/// see [`change_owner`]'s `else` branch — and every caller down to it would
-/// otherwise have to grow four arguments of its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Restore {
     /// `g_season` and `g_optAdvancedFarming` as `Ration_Apply` (`0x0044DF5F`)
@@ -75,8 +47,6 @@ pub struct Restore {
 }
 
 impl Restore {
-    /// A world with nothing in it — for a test whose county never goes
-    /// independent, and for a caller that has no kingdom to read.
     pub const NEUTRAL: Restore = Restore {
         sowing: crate::ration::Sowing::NONE,
         season_next: Season::Spring,
@@ -86,9 +56,6 @@ impl Restore {
     };
 }
 
-/// The happiness a neutral county must be **below** to surrender without a
-/// fight — `if (county.happiness < 11) g_battleArmyB = 0`.
-///
 /// In the shipped save every neutral county sits at 77, so on the England map
 /// **every neutral county is a battle and none is a walk-in** at turn one. The
 /// rule only bites once a county has been taxed or starved into misery, which
@@ -96,12 +63,6 @@ impl Restore {
 /// `docs/armies.md` §2.5's greeting table. `[D]`
 pub const SURRENDER_HAPPINESS: i32 = 11;
 
-/// The happiness a county loses the moment it changes hands, by who took it.
-///
-/// ```c
-/// penalty = realm.isHuman ? (difficulty * 20 + 10) : 30;
-/// ```
-///
 /// **An AI conqueror always costs 30; a human's cost rises with the
 /// difficulty** — 10 at Easy, 30 at Normal, 50 at Hard. So the two are equal at
 /// Normal and the setting decides whether conquest is cheaper or dearer for the
@@ -114,21 +75,14 @@ pub fn capture_happiness_penalty(conqueror_is_human: bool, difficulty: u8) -> i3
     }
 }
 
-/// Why [`attack_county`] refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Refusal {
     NotAnArmy,
-    /// The unit's owner byte is 0. An ownerless militia carries 6, not 0, so
-    /// this really only excludes an empty slot.
     Ownerless,
-    /// It is already yours.
     AlreadyYours,
-    /// A castle **and** a garrison, This is the
-/// siege gate,
     Garrisoned,
 }
 
-/// The moves an attack costs the attacker, charged before anything is decided.
 pub const ATTACK_MOVE_COST: i32 = 8;
 
 /// `+0x167 = 1` — a defence levied out of the county's own people the moment
@@ -138,34 +92,20 @@ pub const RAISED: u8 = 1;
 /// `+0x167 = 2` — an army that was already standing at the town. Winning with
 /// it takes the county; it keeps its men and only loses the mark.
 pub const PRESSED: u8 = 2;
-/// No mark. A field battle, and a human's existing defender, which the original
-/// never marks.
 pub const UNMARKED: u8 = 0;
 
 /// **What `County_ChangeOwner` (`0x004A72FE`) knew when it chose its letter**,
 /// as a value the same on every peer.
-///
-/// Every field is read before the owner is written, in the original's order.
-/// `l2_game::arrival::capture_record` turns it into the letter for one peer's
-/// player; see [`change_owner`] for the ladder.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Capture {
-    /// The realm taking the county.
     pub new_owner: u8,
-    /// `g_counties[county].owner` before the write — 0 for a neutral county.
     pub old_owner: u8,
     pub county: u8,
-    /// `Realm_UpdateTotals(newOwner)`'s recount of the taker's counties before
-    /// this one is added. `0` is the rule's own escape: a realm with nothing may
-    /// take anything.
     pub held_before: u8,
     /// Realm `+0x2A` before this capture raised it —
     /// [`crate::realm::Realm::peak_counties`].
     pub peak_before: u8,
-    /// `countyCount == 0 || County_BordersRealm(newOwner, county)` — whether the
-    /// original lets the taker keep it. See [`change_owner`]'s NOT PORTED.
     pub governable: bool,
-    /// The happiness the county lost.
     pub penalty: i32,
     /// What became of the castle's garrison — `FUN_00437535`, reached from
     /// `County_MakeIndependent`'s tail. `None` when the castle was empty or
@@ -174,44 +114,29 @@ pub struct Capture {
 }
 
 impl Capture {
-    /// `++g_realms[newOwner].countyCount` — what the ladder and the peak read.
     pub fn held_after(&self) -> u8 {
         self.held_before.wrapping_add(1)
     }
 }
 
-/// What an army did when it walked onto a standing castle.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CastleArrival {
-    /// It is your county: the army is inside. The slot is the garrison — which
-    /// is **not** the arriving army when it merged into one already there.
     Garrisoned(usize),
-    /// Your county, Nothing moved.
     GarrisonFull,
-    /// Somebody else's: a siege is laid, or was refused for one of
-    /// [`crate::siege::SiegeRefusal`]'s reasons.
     Siege(Result<(), crate::siege::SiegeRefusal>),
-    /// Not an army, or the slot is empty.
     NotAnArmy,
 }
 
-/// The moves `Army_GarrisonApply` charges for stepping inside.
 pub const GARRISON_MOVE_COST: i32 = 5;
 
-/// What became of a garrison told to leave — [`leave_castle`]'s answer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LeftCastle {
-    /// The slot held no garrison of that county.
     NotAGarrison,
-    /// Out on `tile`, and carrying the besieger's slot when one was waiting:
     /// `FUN_00437535` hands that pair to `Battle_BeginFromCampaign` and sets
     /// `g_battleCounty` to the county. **The battle is not staged here** —
     /// this crate cannot fight one; `l2_game::turn::raise_sortie` is the
     /// caller that does. The field is the original's `besiegedBy` test.
     Marched { tile: (u8, u8), sortie: Option<usize> },
-    /// `Map_FindFreeTileNear` found nowhere to stand, so `Army_Destroy` —
-    /// **the garrison is lost**, which is the one branch of this function a
-    /// player can be surprised by.
     Destroyed,
 }
 
@@ -244,13 +169,6 @@ mod tests {
         realms[1].is_human = true;
         realms[1].shield_index = 2;
         realms[2].in_play = true;
-        // **Counties 1 and 2 are neighbours**, which is not decoration: without
-        // an adjacency list `County_BordersRealm` says no and every capture in
-        // this module takes `County_ChangeOwner`'s `else` branch instead —
-// the county declares independence. County
-        // 3 is deliberately left with none, and is what that branch is tested
-        // with. `tests/military.rs` records the same trap from the secession
-        // side.
         bordering(&mut counties);
         (counties, realms)
     }
@@ -264,9 +182,6 @@ mod tests {
         units.spawn(u).unwrap()
     }
 
-    /// **The siege gate.** A castle alone is not enough, a garrison alone is
-    /// not enough; both together, in someone else's hands, is what shuts the
-    /// county.
     #[test]
     fn a_county_needs_both_a_castle_and_a_garrison_to_be_shut() {
         let (mut counties, _) = world();
@@ -289,8 +204,6 @@ mod tests {
         assert!(can_be_entered(&counties, &units, 1, 1), "…unless the garrison is yours");
     }
 
-    /// In the shipped scenario **every county has `garrisonUnit = 0`**, so at
-    /// turn one every county on the map is enterable and nothing is a siege.
     #[test]
     fn the_shipped_position_has_no_sieges_in_it() {
         let (counties, _) = world();
@@ -318,8 +231,6 @@ mod tests {
         assert_eq!(units.get(a).unwrap().moves_used, 0, "not even the eight moves");
     }
 
-    /// A wretched neutral county surrenders without a fight —
-    /// only walk-in there is.
     #[test]
     fn a_wretched_neutral_county_surrenders_and_a_contented_one_fights() {
         let m = two_county_map();
@@ -334,7 +245,6 @@ mod tests {
         assert_eq!(counties[2].owner, 1);
         assert_eq!(units.get(a).unwrap().moves_used, ATTACK_MOVE_COST);
 
-        // At 11 it fights.
         let (mut counties, mut realms) = world();
         counties[2].happiness = SURRENDER_HAPPINESS;
         let mut units = Units::new();
@@ -344,8 +254,6 @@ mod tests {
         assert_eq!(counties[2].owner, 0, "the county is not taken by walking in");
     }
 
-    /// The shipped position again: every neutral county is at 77, so **every
-    /// neutral capture is a battle**.
     #[test]
     fn a_neutral_county_at_the_shipped_happiness_raises_a_militia() {
         let m = two_county_map();
@@ -363,8 +271,6 @@ mod tests {
         assert_eq!(d.county, 2);
     }
 
-    /// A county too small to raise a defence is captured outright even at full
-    /// happiness — the [`crate::levy::DEFENCE_MIN_POPULATION`] floor.
     #[test]
     fn a_county_of_fewer_than_forty_people_is_simply_taken() {
         let m = two_county_map();
@@ -390,7 +296,6 @@ mod tests {
         let mut units = Units::new();
         let mut names = ArmyNames::new();
         let a = attacker(&mut units, 1, 2);
-        // On the town's own anchor tile, which is inside the 4x4 window.
         let mut standing = Unit::new(UnitKind::Army, 2, 45, 20);
         standing.men = 300;
         standing.county = 2;
@@ -402,9 +307,7 @@ mod tests {
         assert_eq!(counties[2].population, 500, "and nobody was called up");
     }
 
-    // --- the defender search ------------------------------------------------
 
-    /// An army of `owner`, `men` strong, standing on `(x, y)` in county 2.
     fn standing(units: &mut Units, owner: u8, x: u8, y: u8, men: i32) -> usize {
         let mut u = Unit::new(UnitKind::Army, owner, x, y);
         u.men = men;
@@ -412,7 +315,6 @@ mod tests {
         units.spawn(u).unwrap()
     }
 
-    /// County 2 owned by realm 2, with its town anchored where the caller says.
     fn owned_county_two(anchor: (u8, u8)) -> ([County; MAX_COUNTIES], [Realm; MAX_REALMS]) {
         let (mut counties, mut realms) = world();
         counties[2].owner = 2;
@@ -422,19 +324,6 @@ mod tests {
         (counties, realms)
     }
 
-    /// **The case that was wrong on shipped data.**
-    ///
-    /// In `battle-before.sav` county 2's town anchor is (31, 50)
-    /// army its owner has — its castle garrison — stands at (30, 46), one
-    /// column left and *four rows north*. The reading this function used to
-    /// carry, *"the lowest-numbered army of the county's owner standing in the
-    /// county"*, returns that army. `County_FindDefendingArmy` scans four rows
-    /// around the anchor and returns 0, so the county levies a fresh defence
-    /// instead. `tests/defence.rs` runs both readings on the real bytes.
-    ///
-    /// The control below is the same army moved to (30, 49), which *is* in the
-    /// window — so the test fails for the geometry and not for some other
-    /// reason.
     #[test]
     fn an_army_four_rows_from_the_town_does_not_defend_it() {
         let (counties, _) = owned_county_two((31, 50));
@@ -456,9 +345,6 @@ mod tests {
         );
     }
 
-    /// **The window is `−2 … +1`, not `−2 … +2`.** The town is a 2×2 whose
-    /// bottom-right corner is the anchor, so the block is the town plus the
-    /// one-tile ring around it — asymmetric, and that asymmetry is the tell.
     #[test]
     fn the_defence_window_is_the_town_block_plus_its_one_tile_ring() {
         let (counties, _) = owned_county_two((31, 50));
@@ -478,9 +364,6 @@ mod tests {
         }
     }
 
-    /// **The tie-break is size, not slot order.** A small army spawned first
-    /// does not beat a large one spawned second, which is exactly what the old
-    /// `iter().find(..)` did.
     #[test]
     fn the_largest_army_beside_the_town_defends_it_not_the_earliest_slot() {
         let (counties, _) = owned_county_two((31, 50));
@@ -491,9 +374,6 @@ mod tests {
         assert_eq!(find_defender(&units, &counties, 2), Some(big));
     }
 
-    /// Only the owner's own armies, and only armies. A besieger of another
-    /// realm sitting on the town,
-    /// invisible to it.
     #[test]
     fn the_defence_search_ignores_other_realms_and_other_unit_kinds() {
         let (counties, _) = owned_county_two((31, 50));
@@ -509,9 +389,6 @@ mod tests {
         assert_eq!(find_defender(&units, &counties, 2), Some(own), "ten men still beat nobody");
     }
 
-    /// The original's own bounds check: a town within two tiles of the map's
-    /// edge finds nobody at all, whoever is standing beside it. `ax − 2 < 0` or
-    /// `ax + 2 > 64` and the function returns 0 before it scans.
     #[test]
     fn a_town_against_the_map_edge_finds_nobody() {
         for anchor in [(1u8, 50u8), (63, 50), (31, 1), (31, 63)] {
@@ -548,10 +425,7 @@ mod tests {
         );
     }
 
-    // --- changing hands ----------------------------------------------------
 
-    /// The capture penalty,
-/// *"From events"* line.
     #[test]
     fn a_captured_county_loses_happiness_on_the_events_line() {
         let (mut counties, mut realms) = world();
@@ -564,8 +438,6 @@ mod tests {
         assert_eq!(counties[2].owner, 1);
     }
 
-    /// An AI conqueror always costs 30; a human's cost tracks the difficulty,
-    /// so the two are equal at Normal.
     #[test]
     fn the_conquest_penalty_is_flat_for_an_ai_and_scales_for_a_human() {
         for d in 0..=3u8 {
@@ -598,9 +470,6 @@ mod tests {
         assert_eq!((realms[1].county_count, realms[2].county_count), (2, 0));
     }
 
-    /// **The whole slice, end to end**: levy an army out of a county, march it
-    /// across the border, and take the neighbour.
-    ///
     /// This is the turn `docs/plan.md` item 4 asks for, minus the battle. It
     /// exists because every other test here builds an army by hand, and a layer
     /// whose pieces each work but do not compose is the failure
@@ -611,7 +480,6 @@ mod tests {
         use crate::movement::Routing;
 
         let mut map = two_county_map();
-        // A castle site on county 2's side, and a road most of the way to it.
         map.set_flags(50, 10, crate::map::flags::CASTLE);
         for x in 5..50u8 {
             map.set_flags(x, 10, crate::map::flags::ROAD);
@@ -622,7 +490,6 @@ mod tests {
         let mut units = Units::new();
         let mut names = ArmyNames::new();
 
-        // Raise it.
         let levy = levy::set_percent(T, &counties[1], 20);
         assert_eq!(levy.men, 100);
         let mut basket = LevyBasket::seed(&realms[1], levy.men);
@@ -636,8 +503,6 @@ mod tests {
         assert_eq!(counties[1].population, 400);
         assert_eq!(units.get(army).unwrap().men, 100);
 
-        // March it. It is on a road for most of the way, so fifteen moves go a
-        // long way, but not the whole way in one season.
         let mut campaign = crate::kingdom::Campaign::new();
         campaign.map = map;
         campaign.units = units;
@@ -664,7 +529,6 @@ mod tests {
         assert_eq!(campaign.units.get(army).unwrap().county, 2, "and the army is standing in it");
     }
 
-    /// Counties 1 and 2 border each other; 3 borders nothing.
     fn bordering(counties: &mut [County; MAX_COUNTIES]) {
         counties[1].neighbour_count = 1;
         counties[1].neighbours[0] = 2;
@@ -672,11 +536,6 @@ mod tests {
         counties[2].neighbours[0] = 1;
     }
 
-    /// **What `County_ChangeOwner` reads before it writes**, which is what its
-    /// letter is chosen from: the taker's holding without the county, the peak
-    /// as it stood,
-    ///
-    /// Ablation: count `held_before` after the owner write and it reads 2.
     #[test]
     fn a_capture_reports_the_takers_holding_and_peak_from_before_the_write() {
         let (mut counties, mut realms) = world();
@@ -694,12 +553,6 @@ mod tests {
         assert_eq!(realms[1].peak_counties, 2, "the peak rises to the new holding");
     }
 
-    /// **Losing a county does not lower the peak**
-    /// new high — the difference between *"Bravo!!"* and *"The county is yours.
-    /// May you rule it wisely."*
-    ///
-    /// Ablation: write `peak = held_after` unconditionally
-    /// lowers nothing but the loss does.
     #[test]
     fn the_peak_remembers_ground_lost_and_retaking_it_is_not_a_new_high() {
         let (mut counties, mut realms) = world();
@@ -718,23 +571,6 @@ mod tests {
         assert_eq!(realms[1].peak_counties, 2);
     }
 
-    /// **A county touching none of the taker's lands declares independence** —
-    /// `County_ChangeOwner`'s `else` branch, read whole:
-    ///
-    /// ```c
-    /// else {
-    ///     if (newOwner == g_localPlayer) Msg_Enqueue(0, g_localPlayer, 0x81, 0, 0, county, 0, 0);
-    ///     County_MakeIndependent(county);
-    /// }
-    /// ```
-    ///
-    /// The taker does **not** get it: no owner write, no `countyCount`, no
-    /// happiness penalty, no shield, no peak. What he gets is letter 129 and a
-    /// neutral county where his army is standing.
-    ///
-    /// Ablation: hand the county over in that branch — what this function did
-    /// before — and the owner reads 1, the count reads 2
-    /// switches stay on.
     #[test]
     fn a_county_far_from_the_takers_lands_declares_independence_instead() {
         let (mut counties, mut realms) = world();
@@ -762,8 +598,6 @@ mod tests {
         assert!(!counties[3].castle_switch, "and `+0x1B0` with them");
     }
 
-    /// A realm with **nothing at all** may take anything — `countyCount == 0`
-    /// is the rule's own escape, and it is the first half of the `if`.
     #[test]
     fn a_realm_that_holds_nothing_keeps_a_county_it_cannot_reach() {
         let (mut counties, mut realms) = world();
@@ -777,10 +611,6 @@ mod tests {
         assert_eq!(counties[3].owner, 2);
     }
 
-    /// **A second call on a county already held counts it twice**, which is the
-    /// original's `countyCount + 1` after a recount that already includes it.
-    /// `Battle_ReturnToCampaign` makes that call when a beaten garrison also
-    /// carried a defence mark.
     #[test]
     fn a_second_change_owner_on_a_county_already_held_counts_it_twice() {
         let (mut counties, mut realms) = world();
@@ -809,7 +639,6 @@ mod tests {
         assert_eq!(counties[2].garrison_unit, 0);
         assert!(matches!(taken.garrison, Some(LeftCastle::Marched { .. })));
         // The loser keeps the men: `FUN_00437535` writes no owner byte.
-        // `tests/garrison_handoff.rs` walks the tile and the `Army_Destroy` arm.
         assert_eq!(units.get(g).map(|u| (u.owner, u.garrison_county)), Some((2, 0)));
     }
 }

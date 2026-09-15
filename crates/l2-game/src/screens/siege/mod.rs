@@ -1,13 +1,6 @@
 //! **The siege-preparation screen** — `Screen_SiegePrep` (`0x00421F14`),
 //! `g_screenId` `0x1D`, `L2.eng` group 83.
 //!
-//! It was one of the shells in [`crate::screens::shells`]: it drew the window
-//! and the words and did nothing. It is the only place a player ever chooses
-//! what to build for a siege
-//! stopped here.
-//!
-//! # The painter, address by address
-//!
 //! Transcribed from `Screen_SiegePrep` (`0x00421F14`), with the coordinates
 //! resolved to decimal in the trailing comment. **`FUN_0040437D(x, y, w, h, c)`
 //! is a filled rectangle** — a loop of `FUN_00403A8F` horizontal lines — and
@@ -46,22 +39,10 @@
 //!   DAT_0058FE2C := 0
 //! ```
 //!
-//! Three coordinates in the listing this module used to carry were wrong, and
-//! all three are the same slip: *"- No engines to be built"* is `y + 0x10`,
-//! **below** its label, and the engine sprites are `y - 8`, not `y - 0x10`.
-//!
-//! # The screen drew nothing through the game's own assets until this audit
-//!
 //! Every line of it was `l2_view::text::draw` — our 5 × 7 debug font — with
 //! the English typed into the source, against a painter that makes eleven
 //! `Eng_DrawString` calls on `L2.eng` group 83 and three `Pl8_DrawFrame`s.
-//! Group 83 reads, in index order: *"Siege preparations."*, *"Catapults"*,
-//! *"Siege towers"*, *"Battering rams"*, *"Siege will take"*, *"to make
-//! ready."*, *"Lift siege"*, *"Proceed"*, *"- No engines to be built"* — nine
-//! strings, and the words are what identifies the group, not the fact that
-//! nine indices exist.
 //!
-//! Two further defects came out of the same reading and are fixed here:
 //! **the window was drawn with border set 0** (the painter's `FUN_004093E0`
 //! passes 1), and **the percent bar's well was filled before it was framed**,
 //! which `Ui_DrawInsetRect` does not do — the exact defect `docs/decisions.md`
@@ -75,8 +56,6 @@
 //! troop types 7, 8 and 9, and `g_siegeEngineWork` is indexed by the same
 //! record number — so the catapult is 200 man-seasons, the tower 200 and the
 //! ram 400. `[V]`
-//!
-//! # The two buttons and the caps
 //!
 //! Each engine row has **two** hotspots, and `g_siegeWidgets` (`0x004DDF10`)
 //! gives all six their coordinates: one increments the order (`0x0043B681`) and
@@ -112,10 +91,7 @@ use crate::widget;
 /// sit in the unit. `docs/formats/eng.md` §5 files the group here too.
 pub const GROUP: usize = 83;
 pub const HEADING: usize = 0;
-/// 1, 2, 3 — the three engine names, `ENGINE_LABEL[row]`.
 pub const ENGINE_LABEL: [usize; 3] = [1, 2, 3];
-/// *"Siege will take"* and *"to make ready."*, the two halves of one sentence
-/// with a [`Ui_DrawCount`](Pen::count) between them.
 pub const WILL_TAKE: usize = 4;
 pub const TO_MAKE_READY: usize = 5;
 pub const LIFT_SIEGE: usize = 6;
@@ -128,16 +104,9 @@ pub const NO_ENGINES: usize = 8;
 /// **zero included**, takes the plural.
 pub const SEASON_NOUN: usize = 0x42;
 
-/// `File_ReadChunk("sgeplans.pl8", …)` then
-/// `Sprite_WGenSprite(castleType - 1, …)` — the sprite index is a frame of that
-/// sheet, and `castleType` runs 1…5, so the frames are 0…4. **Unverified
-/// against the artwork**: no fixture has a besieged county, so which picture is
-/// which castle level rests on the subtraction alone.
 pub const PLAN_SHEET: &str = "Sgeplans.pl8";
 pub const PLAN_AT: (i32, i32) = (0x150, 0x40);
 
-/// `Pl8_DrawFrame(g_miscCtySheet, 0x43 + row, …)` — `Misc_cty.pl8` in campaign
-/// mode, one little picture per engine ordered.
 pub const ENGINE_FRAME0: usize = 0x43;
 
 /// `FUN_004093E0(0x10, 0x30, 0x1C, 0x19)` — the window: origin in **pixels**,
@@ -153,21 +122,12 @@ pub const BOX_ROWS: i32 = 0x19;
 /// window. `screens/battle.rs` carries the same constant for the same reason.
 pub const BOX_SET: usize = 1;
 
-/// `Eng_DrawString(83, 0, 0x30, 0x58, heading)`.
 pub const HEADING_AT: (i32, i32) = (0x30, 0x58);
-/// `Eng_DrawString(83, 4, 0x40, 0x78, body)`.
 pub const WILL_TAKE_AT: (i32, i32) = (0x40, 0x78);
-/// `Ui_DrawCount(seasons, 0x42, 0x50, 0x88, body)`, and *"to make ready."*
-/// follows it on the same line.
 pub const SEASONS_AT: (i32, i32) = (0x50, 0x88);
 
-/// The y of each engine row's label — `0xC0`, `0x104`, `0x148`, and the rows
-/// are 0x44 apart.
 pub const ROW_Y: [i32; 3] = [0xC0, 0x104, 0x148];
-/// `Eng_DrawString(83, 1 + row, 0x48, …)`.
 pub const LABEL_X: i32 = 0x48;
-/// `Ui_DrawInsetRect(0x50, rowY + 0x18, 0x34, 8)` — the percent bar's well.
-/// **Four lines and no fill**; see [`crate::shell::inset_rect`].
 pub const BAR_X: i32 = 0x50;
 pub const BAR_W: i32 = 0x34;
 pub const BAR_H: i32 = 8;
@@ -182,27 +142,18 @@ pub const TROUGH_FULL: u8 = 0xFA;
 /// `0x004D4404` is one byte, `0x25`, the per-cent sign.
 pub const PERCENT_X: i32 = 0x90;
 pub const PERCENT_DY: i32 = 0x19;
-/// `Eng_DrawString(83, 8, 0xF0, rowY + 0x10)` — **below** the engine's name,
-/// not above it.
 pub const NO_ENGINES_AT: (i32, i32) = (0xF0, 0x10);
-/// Where the ordered engines' sprites go — `0xD0` plus 0x3C a piece for the
-/// first two rows and 0x50 for the rams, which are wider, at `rowY - 8`.
 pub const SPRITE_X: i32 = 0xD0;
 pub const SPRITE_STEP: [i32; 3] = [0x3C, 0x3C, 0x50];
 pub const SPRITE_DY: i32 = -8;
-/// `Eng_DrawString(83, 6 | 7, boxX + 8, 0x194)` — the caption inside each bevel.
 pub const BUTTON_LABEL_DX: i32 = 8;
 pub const BUTTON_LABEL_Y: i32 = 0x194;
 /// `FUN_0040437D(x + 1, y + 1, 0x62, 0x1A, 0x18)` — the plate inside the bevel.
 pub const BUTTON_FILL: u8 = 0x18;
 
-/// `Ui_DrawBevelRect(0x68, 0x18C, 100, 0x1C)` — *"Lift siege"*.
 pub const LIFT: Rect = Rect::new(0x68, 0x18C, 100, 0x1C);
-/// `Ui_DrawBevelRect(0x108, 0x18C, 100, 0x1C)` — *"Proceed"*.
 pub const PROCEED: Rect = Rect::new(0x108, 0x18C, 100, 0x1C);
 
-/// The **six** hotspots, and these are the original's own coordinates.
-///
 /// `g_siegeWidgets` (`0x004DDF10`) holds six records: the even ones are the
 /// increment buttons at **x 38, y 184 / 252 / 320** drawing button frame 21,
 /// and the odd ones the decrement buttons **26 pixels below each** drawing
@@ -222,7 +173,6 @@ pub const PROCEED: Rect = Rect::new(0x108, 0x18C, 100, 0x1C);
 /// behind this count.
 pub const BUTTON_X: i32 = 38;
 pub const BUTTON_Y: [i32; 3] = [184, 252, 320];
-/// The decrement button's offset below its partner.
 pub const BUTTON_STEP: i32 = 26;
 /// The button sprites are **`System.pl8`** frames 21 and 23, and this module
 /// used to say `Panels.pl8`. `Widget_Draw` (`0x0040CFD2`) picks the sheet from
@@ -235,26 +185,16 @@ pub const BUTTON_DIM: i32 = 24;
 pub const WIDGET_FRAME_PLUS: usize = 21;
 pub const WIDGET_FRAME_MINUS: usize = 23;
 
-/// What the player asked the campaign to do when the screen closed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SiegeChoice {
-    /// Still on the screen.
     None,
-    /// *"Lift siege"* — `Siege_Break`, and the army is free again.
     Lift,
-    /// *"Proceed"* with the engines already finished: `Siege_LaunchAssault`
-    /// runs now.
     Assault,
-    /// *"Proceed"* with work outstanding: the screen closes and turn phase 2
-    /// carries the build on.
     Wait,
 }
 
-/// Screen `0x1D` for one besieging army.
 pub struct SiegeScreen {
-    /// `g_siegeScreenUnit`.
     unit: usize,
-    /// What the last click decided, for a caller driving the campaign.
     pub choice: SiegeChoice,
 }
 
@@ -262,16 +202,12 @@ pub struct SiegeScreen {
 mod tests {
     use super::*;
 
-    /// The three rows are the three records in order, and the caps are the
-    /// screen's.
     #[test]
     fn the_three_rows_are_the_three_records_in_the_order_the_labels_name_them() {
         assert_eq!(ENGINES[0].name(), "Catapults");
         assert_eq!(ENGINES[1].name(), "Siege towers");
         assert_eq!(ENGINES[2].name(), "Battering rams");
         assert_eq!(ENGINE_ORDER_CAP, [4, 4, 2]);
-        // Every row maxes out at the same 800 man-seasons — cap times cost is
-        // constant across the three, which a swapped table would break.
         for (engine, cap) in ENGINES.iter().zip(ENGINE_ORDER_CAP) {
             assert_eq!(
                 siege::ENGINE_WORK[engine.index()] * cap as i32,
@@ -282,8 +218,6 @@ mod tests {
         }
     }
 
-    /// Six hotspots, none of them overlapping and none of them reaching the two
-    /// buttons at the bottom.
     #[test]
     fn the_six_row_hotspots_are_distinct_and_clear_of_the_buttons() {
         let mut spots: Vec<Rect> = Vec::new();

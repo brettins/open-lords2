@@ -28,9 +28,6 @@ use crate::widget;
 /// Armoury_LoadScreen();
 /// ```
 ///
-/// Returns whether the rack opens. The order is the original's and it is the
-/// point: the walk is fired for the *previous* selection, before it is
-/// overwritten. See [`Walker`].
 // arm: 0x004358B0/armoury-rack-click left-press
 pub fn click_rack(game: &mut crate::game::Game, troop: u8) -> bool {
     let slot = troop as usize;
@@ -46,7 +43,6 @@ pub fn click_rack(game: &mut crate::game::Game, troop: u8) -> bool {
     true
 }
 
-// --------------------------------------------------------- 0x0A, the room
 
 impl ArmouryScreen {
     pub fn new(county: u8) -> ArmouryScreen {
@@ -121,21 +117,16 @@ impl Screen for ArmouryScreen {
         "The armoury".to_string()
     }
 
-    /// `armoury.256`, set by the painter's last call before it returns.
     fn palette(&self) -> Option<&'static str> {
         Some("Armoury.256")
     }
 
-    /// A 640 × 480 background is a page, not an inset.
     fn is_overlay(&self) -> bool {
         false
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            // The corner picture and the right button both leave for the map
-            // without raising anything — `g_screenId = 0; Gfx_LoadCountyMode()`
-            // down every arm of `Screen_FrameInput`'s `0x0A` case.
             Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
             Event::KeyDown(Key::Enter) => self.confirm(ctx, true),
             Event::Click { x, y } => {
@@ -161,10 +152,6 @@ impl Screen for ArmouryScreen {
         }
     }
 
-    /// **`Tick_Pulses` runs whatever screen is up**, so both armoury screens
-    /// step the same counters. Only the top screen of our stack is ticked, and
-    /// the rack panel is pushed over this one — so this arm covers `0x0A` and
-    /// [`RackScreen`]'s covers `0x0D`, and neither can stall the other.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.redraw |= ctx.game.levy.anim.tick();
         Transition::Stay
@@ -179,10 +166,6 @@ impl Screen for ArmouryScreen {
         overlay(ctx, canvas, &ctx.game.levy.anim);
         let ink = &ctx.assets.ink;
 
-        // The corner picture, mode 1 — `Ui_OkButton(640 - 0x1C, 480 - 0x70, 1)`.
-        // **Nothing else is drawn round the three buttons**: the painter draws
-        // three words and the hotspots are invisible, so a frame of ours here
-        // would be an invented interface on a screen that does not have one.
         let pen = Pen {
             assets: &ctx.assets.shell,
             ink,
@@ -192,10 +175,6 @@ impl Screen for ArmouryScreen {
         };
         pen.ok_button(canvas, OK.x, OK.y, 1);
 
-        // **Ours**, both of them: one line of feedback and one warning that the
-        // hit map is missing. The original draws neither.
-        // The feedback line is debug overlay only; the missing-file warning
-        // below is a fallback a normal install never shows.
         if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             text::draw(canvas, 8, 8, &self.status, ink.dim);
         }

@@ -36,9 +36,6 @@ fn every_tip_draws_the_players_own_words_and_our_transcription_is_them() {
     assert_eq!(strings, 53, "fourteen groups: fourteen headings and thirty-nine paragraphs");
 }
 
-/// **The OK corner of a real tip, in the real font.** *"Kingdom overview:"*
-/// one short line, so it takes the one-line layout: dropped 64 pixels, OK at
-/// (416, 272).
 #[test]
 fn the_kingdom_overview_tip_puts_its_ok_button_where_one_line_puts_it() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -58,18 +55,12 @@ fn the_kingdom_overview_tip_puts_its_ok_button_where_one_line_puts_it() {
     assert_eq!(frame.ok_button(), (416, 272));
 }
 
-/// **The narrator reads the tip: its first line ten ticks in, then each take
-/// once he has been silent for more than a second.**
-///
 /// `Msg_DrawWindow#24` and `FUN_004B3ACD`, through the real machine, the real
 /// director and the real mixer, with no device. The expected ticks are
 /// computed from what the mixer reports — when a clip was last sounding — and
 /// the rule's own numbers, typed: 81 ticks for `timer < 0x780`, and 64 ticks
 /// for *"more than 999 ms"* at 16 ms a tick, counted from the tick the director
 /// last saw him busy.
-///
-/// Ablation: `> 999` to `> 0` and `S200_03`'s tick is wrong; delete the cursor
-/// advance and `S200_03` is never heard.
 #[test]
 fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -79,7 +70,6 @@ fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
     let (mut g, a, mut m) = campaign();
     let mut sound = Audio::headless(&platform.vfs);
     let mut director = audio::Director::new();
-    // Sixteen milliseconds of stereo at the mixer's 44.1 kHz.
     let mut buf = vec![0f32; 706 * 2];
 
     let names = ["s200_01.wav", "s200_02.wav", "s200_03.wav"];
@@ -118,14 +108,10 @@ fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
     let t3 = *first.get(names[2]).expect("S200_03.wav was never played: the cursor did not advance");
     let end1 = last_sounding[names[0]];
     let end2 = last_sounding[names[1]];
-    // The takes are first asked for 81 ticks in. If the first line was still
-    // sounding then, the stamp is the tick after its last one; if not, nothing
-    // was ever stamped and the take starts at once.
     let expect2 = if end1 + 1 >= opened + 81 { end1 + 1 + 63 } else { opened + 81 };
     assert_eq!(t2, expect2, "S200_02: opened {opened}, first line last sounding {end1}");
     assert_eq!(t3, end2 + 1 + 63, "S200_03: S200_02 last sounding {end2}");
 
-    // And nothing else in the pool: the row is 26, 27, 0.
     let pool: Vec<String> =
         l2_game::audio::names::TAKE_POOL.iter().map(|n| n.to_ascii_lowercase()).collect();
     let takes: Vec<&str> = sound.heard().into_iter().filter(|h| pool.iter().any(|p| p == h)).collect();
@@ -139,15 +125,6 @@ fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
 /// second after the cry ends. That is what folding the tips' and the battle's
 /// two records of the buffer into one field was for (`docs/decisions.md`
 /// C166), and until this test nothing had put a cry in front of a take.
-///
-/// Two runs of one new game. The first finds the tick `S200_02.wav` starts on.
-/// The second is the same game with a cry put into the buffer on that tick,
-/// before the director listens: the take must not start then, and must start
-/// 64 ticks after the last tick the cry was sounding — the rule's own numbers,
-/// as in the test above, counted from the cry instead of the narrator.
-///
-/// Ablation: delete `self.one_shot = Some(key)` from `Audio::play_file` and the
-/// take starts on the cry's own tick.
 #[test]
 fn a_troop_cry_holds_back_a_tips_next_take_as_the_narrator_does() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -155,15 +132,12 @@ fn a_troop_cry_holds_back_a_tips_next_take_as_the_narrator_does() {
     };
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     const TAKE: &str = "s200_02.wav";
-    // `Sound_PlayTroopCry`'s file for a knight told to attack, take 2.
     const CRY: &str = "knig_e2.wav";
 
-    // (the tick `TAKE` was first heard, the last tick `CRY` was sounding)
     let run = |cry_on: Option<usize>| -> (Option<usize>, Option<usize>) {
         let (mut g, a, mut m) = campaign();
         let mut sound = Audio::headless(&platform.vfs);
         let mut director = audio::Director::new();
-        // Sixteen milliseconds of stereo at the mixer's 44.1 kHz.
         let mut buf = vec![0f32; 706 * 2];
         let mut cry_last = None;
         for t in 1..=8000 {
@@ -185,9 +159,6 @@ fn a_troop_cry_holds_back_a_tips_next_take_as_the_narrator_does() {
 
     let on = run(None).0.expect("S200_02.wav was never played");
     let (take, cry_last) = run(Some(on));
-    // The claim first: a take that starts on the cry's own tick returns before
-    // the cry has been mixed once, so `cry_last` would be empty and an unwrap
-    // ahead of this would report the wrong thing.
     assert_ne!(take, Some(on), "the take talked over the cry on tick {on}");
     let take = take.expect("S200_02.wav was never played once the cry had finished");
     let cry_last = cry_last.expect("the cry never sounded");

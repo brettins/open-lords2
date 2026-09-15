@@ -19,27 +19,13 @@ use l2_mods::Platform;
 use l2_view::village as vill;
 use l2_view::{campaign, Canvas};
 
-// ------------------------------------------------------------------- the drop
 
-/// **One drag moves two sidebar numbers and throws a switch.**
-///
-/// England turn one's county 8 is the person's, cuts wood with 108 of its 435
-/// and has an iron mine that `Game_SetupRealmsAndCounties` left **off** — the
-/// loop takes the first of wood, iron, stone the county has and stops
-/// save agrees. One icon of foresters dropped on the mine:
-///
 /// * **`FUN_00439CC2` switches the mine on**, so its site turns to working
 ///   (`1 + 1`) and its ceiling to 100,000 — *"mining started as off"*, and
 ///   putting men on it is how the original turns it on;
 /// * **the wood row redraws** at `(108 − popBand) × 80%`
 ///   gone — *"industry values don't seem to update"*;
 /// * **the iron row appears** under it with `popBand × 80%`.
-///
-/// **Ablations, both run.** Delete `self.switch_on_by_drop(county, to)` from
-/// `Kingdom::move_labour`: red at the switch. Delete the `refresh_estimates` and
-/// `refresh_blacksmiths` calls from its loop: red at the mine's ceiling, 0
-/// against 100,000 — the first assertion that reads an estimate, and ahead of
-/// the wood row, which would still draw `+86`.
 #[test]
 fn a_drop_on_a_switched_off_mine_switches_it_on_and_both_rows_redraw() {
     let assets = assets!();
@@ -79,8 +65,6 @@ fn a_drop_on_a_switched_off_mine_switches_it_on_and_both_rows_redraw() {
     assert_eq!(c.labour[4], band, "one icon is popBand people, and they are on the mine");
     assert_eq!(c.labour[6], foresters - band, "and out of the forest");
 
-    // The switch, the ceiling and the picture — what the simulation uses and
-    // what the map shows, which must be the same byte.
     assert!(c.industry[iron].enabled, "FUN_00439CC2: men on a site switch it on");
     assert_eq!(c.labour_useful[4], UNBOUNDED, "a switched-on mine takes as many as you like");
     assert_eq!(game.kingdom.campaign.map.terrain[site], SITE_BASE[iron] + 1, "the site is working");
@@ -119,7 +103,6 @@ fn the_drag_selection_box_is_drawn_without_the_debug_overlay() {
     let mut m = Machine::new(ScreenId::Campaign);
     m.push(ScreenId::Village(county));
 
-    // A press and a drag with no release: screen `0x05`, the band state.
     let top = vill::SCENE_Y;
     let (x0, y0) = (vill::SCENE_X + 20, top + 40);
     let (x1, y1) = (x0 + 60, y0 + 30);
@@ -139,7 +122,6 @@ fn the_drag_selection_box_is_drawn_without_the_debug_overlay() {
         assert_eq!(at(x1, y), BAND_INK, "the band's right edge at y {y}");
     }
 
-    // And it is the band that drew it, not the village: released, it is gone.
     handle(&mut m, &mut game, &assets, Event::Release { x: x1, y: y1 });
     let after = draw_stack(&mut m, &mut game, &assets);
     assert!(
@@ -148,8 +130,6 @@ fn the_drag_selection_box_is_drawn_without_the_debug_overlay() {
     );
 }
 
-/// **The clamp is `Village_DrawBand`'s own** — a band dragged below the
-/// picture stops at `g_villageTopY + 0x178` and not at the pointer.
 #[test]
 fn the_drag_selection_box_stops_where_the_original_clamps_it() {
     let assets = assets!();
@@ -164,8 +144,6 @@ fn the_drag_selection_box_stops_where_the_original_clamps_it() {
 
     let top = vill::SCENE_Y;
     let (x0, y0) = (vill::SCENE_X + 20, top + 40);
-    // Past the bottom of the band area, which `Village_BandStart` also refuses
-    // to arm in: the pointer keeps going, the outline does not.
     let (x1, y1) = (x0 + 60, top + vill::BAND_H + 10);
     handle(&mut m, &mut game, &assets, Event::Click { x: x0, y: y0 });
     handle(&mut m, &mut game, &assets, Event::Pointer { x: x1, y: y1 });
@@ -181,28 +159,9 @@ fn the_drag_selection_box_stops_where_the_original_clamps_it() {
     );
 }
 
-// ------------------------------------------------------------ across a season
 
-/// **The split a player drags is the split the season deals him back.**
-///
-/// `Labour_Allocate` runs twice in every `Season_Advance` and deals the county
-/// out from its eight shares; it never writes one. `Labour_Move` ends with
-/// `Labour_RecomputeShares`, which does, from where people now stand — so in the
-/// original the drag *is* the new split. Ours never rewrote the shares and the
-/// season put everybody back: *"I have to reassign peasants to wheat each turn."*
-///
-/// **Staged, and why.** England turn one has **no grain in any county**, so no
-/// field can be sown and the grain ceiling is zero whatever the split says — a
-/// county the original would also empty. County 8 is given 2,000 sacks, and its
-/// fallow fields are painted wheat through `Kingdom::paint_field`, the brush's
-/// own road. Everything after that is the screens.
-///
 /// The share is typed from `Labour_RecomputeShares` (`FUN_00450000`): `PctOf`
 /// of each farm job over the three, the remainder to the largest.
-///
-/// **Ablation, run:** delete `recompute_shares` (and its twin) from
-/// `Kingdom::move_labour` and the shares after the drop are still the painted
-/// county's, red at the first assertion below the drop.
 #[test]
 fn the_split_a_player_drags_is_the_split_the_season_deals_back() {
     let assets = assets!();
@@ -247,7 +206,6 @@ fn the_split_a_player_drags_is_the_split_the_season_deals_back() {
     let dragged = c.labour_share;
     let grain_after_drop = c.labour[0];
 
-    // Out of the village and End Turn, from the keyboard.
     handle(&mut m, &mut game, &assets, Event::KeyDown(Key::Escape));
     assert_eq!(m.ids(), vec![ScreenId::Campaign]);
     end_turn(&mut m, &mut game, &assets);

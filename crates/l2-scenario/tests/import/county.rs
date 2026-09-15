@@ -6,9 +6,6 @@ use l2_formats::save::{Layout, Save, COUNTY_BASE, COUNTY_STRIDE};
 use l2_scenario::{ImportError, Scenario, STARTING_HEALTH_METER};
 use l2_testkit::{saves, SaveFile};
 
-/// **Corrected.** `assert_eq!(s.weather_county, 2)` was per-game noise: a second
-/// England turn-one save rolls 10. What the importer owes is that it carried
-/// across a real county, which is what is checked now.
 #[test]
 fn the_england_fixture_imports_as_fourteen_counties_and_five_realms() {
     let save = l2_testkit::england!();
@@ -27,8 +24,6 @@ fn the_england_fixture_imports_as_fourteen_counties_and_five_realms() {
     assert_eq!(s.realms.iter().filter(|r| r.in_play).count(), 5);
 }
 
-/// The imported kingdom carries the file's numbers, county by county. This is
-/// the assertion that fails if the seam drops a field on the floor.
 #[test]
 fn every_imported_county_holds_what_the_file_holds() {
     let save = l2_testkit::england!();
@@ -69,9 +64,6 @@ fn every_imported_county_holds_what_the_file_holds() {
     assert_eq!(k.turn_count, 1);
 }
 
-/// The two kingdoms are different games
-/// season: the map, the owners and the food stores are shared; the population,
-/// happiness and health are not.
 #[test]
 fn the_starting_kingdom_differs_from_the_saved_one_by_one_season() {
     let save = l2_testkit::england!();
@@ -94,8 +86,6 @@ fn the_starting_kingdom_differs_from_the_saved_one_by_one_season() {
     assert_eq!(saved.turn_count, 1);
 }
 
-/// A ruleset reaches an imported scenario the same way it reaches any other
-/// kingdom, and the seam never learns which one it handed over.
 #[test]
 fn a_mod_reaches_an_imported_scenario() {
     let save = l2_testkit::england!();
@@ -107,16 +97,7 @@ fn a_mod_reaches_an_imported_scenario() {
     assert_eq!(s.kingdom(1).tables, l2_kingdom::tables::Tables::DEFAULT);
 }
 
-// --- refusals --------------------------------------------------------------
-//
-// These are invariants of the importer, so each runs over **every** save the
-// machine offers. The
-// old versions poked counties 2, 3 and 5 of `lastturn.sav`; county 5 does not
-// exist on every map, which is the same mistake in miniature.
 
-/// An owner byte naming a realm that does not exist is refused. A save whose
-/// arithmetic closed and whose owner byte is 9 has been misread, and half of a
-/// misread scenario is worse than none of one.
 #[test]
 fn an_owner_byte_naming_no_realm_is_refused() {
     refusal_over_every_save(
@@ -126,7 +107,6 @@ fn an_owner_byte_naming_no_realm_is_refused() {
     );
 }
 
-/// A weather byte outside 0..=5 is refused.
 #[test]
 fn a_weather_byte_naming_nothing_is_refused() {
     refusal_over_every_save(
@@ -136,13 +116,6 @@ fn a_weather_byte_naming_nothing_is_refused() {
     );
 }
 
-/// A neighbour id off the end of the map is refused: adjacency drives migration
-/// and the regional weather swing
-/// them at a record that is not a county.
-///
-/// The poked id is one past *that* save's county count, which differs between
-/// maps — the England fixture has fourteen counties and the battle fixtures
-/// four.
 #[test]
 fn a_neighbour_off_the_end_of_the_map_is_refused() {
     let exe = l2_testkit::executable!();
@@ -162,13 +135,11 @@ fn a_neighbour_off_the_end_of_the_map_is_refused() {
     }
 }
 
-/// More counties than `g_counties` can hold is refused.
 #[test]
 fn a_county_count_the_array_cannot_hold_is_refused() {
     refusal_over_every_save(|_| 0x0056_D5DC, 99, |_| ImportError::CountyCount(99));
 }
 
-/// And `g_localPlayer` outside the five realms.
 #[test]
 fn a_local_player_that_is_not_a_realm_is_refused() {
     refusal_over_every_save(|_| 0x0057_C8CC, 7, |_| ImportError::LocalPlayer(7));
@@ -206,18 +177,11 @@ fn the_shield_index_of_a_default_game_is_the_realm_id() {
     }
 }
 
-/// **The three fields the county panels draw and the importer dropped.**
-///
 /// `+0x0F` and `+0xC0` are the tax panel's *This county* and *People pay*;
 /// `+0x10` is the health term the ration panel draws beside the band. All three
 /// arrived as `County::new()`'s zero on every loaded game
 /// the tax panel was told *"People pay 0 crowns"* whatever the rate and read
 /// `( 0 ☺ )` where the original shows `( +5 ☺ )` at rate 0.
-///
-/// **Ablation, run:** delete `c.tax_shown = *tax_shown;` from
-/// `Scenario::apply_counties` and the third clause fails on every save; delete
-/// `c.d_hap_tax_local = *d_hap_tax_local;` and the first fails on England
-/// where every county stores 5.
 #[test]
 fn the_county_panels_three_numbers_survive_the_import() {
     let mut checked = 0usize;
@@ -239,5 +203,4 @@ fn the_county_panels_three_numbers_survive_the_import() {
     assert!(checked >= 5, "only {checked} counties were reached");
 }
 
-// ------------------------------------------------------------ the mercenaries
 

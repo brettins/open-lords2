@@ -1,20 +1,3 @@
-//! **The films, played — every place `Smk_Play` is called, and every way out.**
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-game --test movies
-//! ```
-//!
-//! Two halves, and the split is the install. Without it every film fails to
-//! open, which is still a real path — `Smk_Play`'s callers each have an arm for
-//! it — so *which* film each trigger asks for, and where the machine goes when
-//! it cannot have it, run everywhere. With it the films open, and the tests ask
-//! what a player sees and hears: the gestures that end one, the tick it ends
-//! on, where it is drawn, the palette the screen runs under, and the music bed
-//! stopping for it and starting over after it.
-//!
-//! Everything goes through [`Machine::handle`] and [`Machine::update`], and the
-//! sound through [`audio::Director::listen`] — the functions the game calls.
-//!
 //! **Ablations run on this file**, each named at its test: delete the line the
 //! assertion is about and the test goes red.
 
@@ -43,7 +26,6 @@ fn centre(r: l2_game::input::Rect) -> (i32, i32) {
     (r.x + r.w / 2, r.y + r.h / 2)
 }
 
-/// The install, mounted, and its assets — or `None`.
 fn installed() -> Option<(l2_mods::Platform, Assets)> {
     let dir = l2_testkit::install_dir()?;
     let platform = l2_mods::Platform::builder().base(&dir).build().ok()?;
@@ -70,8 +52,6 @@ pub use playback::*;
 mod audio_part;
 pub use audio_part::*;
 
-/// Five realms, realm 1 the human, as `tests/messages.rs` has them — **with
-/// animations on**, which is the original's default and ours.
 fn realms() -> Game {
     let mut g = Game::new(0xF11A);
     g.player = 1;
@@ -96,10 +76,6 @@ fn realms() -> Game {
     g
 }
 
-/// Phase 4 open with every AI realm finished and the human's counter parked at
-/// 1 — the state `Turn_Tick`'s arm reaches while the player is still deciding
-/// and nothing of the AI's is left to run. The map's frames then take no step
-/// and rank no realm.
 fn ai_turns_over(g: &mut Game) {
     g.kingdom.turn.players_turn_open = true;
     for realm in g.kingdom.realms.iter_mut() {
@@ -119,7 +95,6 @@ fn film_on_top(m: &Machine) -> Option<Film> {
     }
 }
 
-// =============================================================== no install
 
 fn castle_world() -> (Game, Machine) {
     let mut g = Game::new(11);
@@ -137,17 +112,11 @@ fn castle_world() -> (Game, Machine) {
     (g, m)
 }
 
-/// **Press `g_castleBuildWidgets`' tick and let its twenty frames run.**
-///
 /// `CastleBuild_Confirm` (`0x00436B59`) is record 0 of `g_castleBuildWidgets`
 /// and that record is `Widget_Test` kind 5, so the press only puts the thumb
 /// down: the handler — and so the `Smk_Play` in its tail — runs on the
 /// twentieth frame. `Widget_Test` (`0x0040DA1E`) is what counts them, from its
 /// countdown over `+0x0D` of every record.
-///
-/// The release goes in where a player's does, straight after the press, which
-/// is the whole point: it is answered by the chooser, nineteen frames before
-/// there is a film to skip.
 fn order_the_castle(m: &mut Machine, g: &mut Game, a: &Assets) {
     let ok = (castle::OK.x + 4, castle::OK.y + 4);
     send(m, g, a, Event::Click { x: ok.0, y: ok.1 });
@@ -170,7 +139,6 @@ fn army(g: &mut Game, owner: u8, county: u8, at: (u8, u8)) -> usize {
     g.kingdom.campaign.units.spawn(u).expect("a free slot")
 }
 
-/// A battlefield whose battle has just been decided for `winner`.
 fn decided(attacker_owner: u8, castle: Option<u8>, winner: l2_sim::Side) -> (Game, Machine) {
     let mut g = realms();
     let attacker = army(&mut g, attacker_owner, 1, (10, 10));
@@ -193,7 +161,6 @@ fn decode_frame0(a: &Assets, name: &str) -> l2_smk::Decoder {
     d
 }
 
-/// One event-loop tick: update, then listen, as `App::tick` runs them.
 fn tick_and_listen(m: &mut Machine, g: &mut Game, a: &Assets, audio: &mut Audio, d: &mut audio::Director) {
     tick(m, g, a);
     d.listen(audio, m, g);

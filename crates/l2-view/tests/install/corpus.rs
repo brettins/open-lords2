@@ -13,14 +13,6 @@ use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
 
-/// The identity that makes the frame layout believable: a sheet holds exactly
-/// eight facings of `poses_per_facing` poses, then eighteen shared frames — six
-/// unclassified and twelve of dying.
-///
-/// One sheet agreeing would prove nothing. Thirty-six do, across six player
-/// colours, and the same `poses_per_facing` also has to place the dying
-/// handler's base at exactly `8 * poses + 6`. Getting the value wrong for any
-/// troop breaks both identities at once.
 #[test]
 fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
     let Some(dir) = asset_dir() else {
@@ -41,9 +33,6 @@ fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
                 "{name}: {} frames, expected 8 x {poses} + 18",
                 sheet.frame_count()
             );
-            // The eighteen extras are two blocks: `Anim_CollapseA2`'s six at
-            // `8N+0` for the dead and `Anim_DyingA2`'s twelve at `8N+6` for the
-            // man filling the moat. Both must be inside the sheet.
             for facing in 0..8u8 {
                 for phase in [0u8, 40, 80] {
                     let f = figures::frame(troop, Anim::Shovelling, facing, phase);
@@ -64,19 +53,10 @@ fn the_frame_layout_accounts_for_every_frame_of_every_shipped_sheet() {
     eprintln!("frame layout: {checked} sheets agree");
 }
 
-/// **`Ui_OkButton` does not draw a tick. It draws a hole.**
-///
 /// A player described the corner of a county panel as *"a little mouse icon
 /// around a black hole"*, against five documents and four source files calling
 /// it a tick. Nobody had decoded the frame; decoding it settled it
 /// (`docs/decisions.md` C46), and this is what stops the label drifting back.
-///
-/// The claim is made as a **rank**, because a threshold
-/// picked to pass is not evidence: of the sheet's 84 frames, `Ui_OkButton`'s
-/// two are the **4th and 5th darkest**, at 15.3% and 11.5% of their area in
-/// near-black ink against a median frame's 1.2%. The widgets that really are
-/// thin strokes sit where you would expect — the tax-up arrow at 0.2%, the
-/// slider knob at 0.0%. A tick cannot come 4th out of 84.
 #[test]
 fn the_ok_button_frames_are_a_hole_rather_than_a_tick() {
     let Some(dir) = asset_dir() else {
@@ -86,8 +66,6 @@ fn the_ok_button_frames_are_a_hole_rather_than_a_tick() {
     let sheet = Sheet::new(bytes).expect("System.pl8 decodes");
     let palette = l2_formats::Palette::from_bytes(&read(&dir, "Base01.256").expect("Base01.256"))
         .expect("the palette decodes");
-    // Index 0 is this sheet's transparency, so ink is everything else, and the
-    // hole is the ink that is nearly black under the campaign palette.
     let darkness = |index: usize| -> f64 {
         let Some(f) = sheet.frame(index) else { return 0.0 };
         let dark = f
@@ -137,11 +115,6 @@ fn the_ok_button_frames_are_a_hole_rather_than_a_tick() {
         );
     }
 
-    // **And the skin trap, measured.** `System2.pl8` is the same size with the
-    // same 84-frame table, and §4.2 already records that 69 of its frames are
-    // entirely index 0. Frame 0x10 is one of them — so a panel that draws its
-    // corner in **mode 1** under skin 0 draws nothing at all, while mode 0 is
-    // painted in both. That is why `Chrome::load` prefers `System.pl8`.
     let alt = Sheet::new(read(&dir, "System2.pl8").expect("System2.pl8 is in the install"))
         .expect("System2.pl8 decodes");
     let blank = alt.frame(chrome::system::OK_ALT).expect("frame 0x10");
@@ -181,7 +154,6 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
             }
         }
     }
-    // The horse under him: eight facings of six.
     let horse = Sheet::new(read(&dir, figures::HORSE_FILE).expect("A2_horse.pl8")).unwrap();
     assert_eq!(horse.frame_count(), 48, "A2_horse.pl8 should be 8 x 6");
     for facing in 0..8u8 {
@@ -193,15 +165,11 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
     }
 }
 
-/// **The missile and siege-engine frame maps against the shipped files, and
-/// they close with one frame spare.**
-///
 /// `A2_miss.pl8` is slot 6 of the battle asset table at `0x004DA550`,
 /// `engine.pl8` slot 8, `catarm1/2.pl8` slots 9 and 10. The arithmetic that
 /// indexes them is read out of `BattleMan_FireMissile` (`0x00483337`),
 /// `Missile_UpdateAll` (`0x00485BB1`), `FUN_00488436`, `FUN_00488793`,
 /// `FUN_0048895E` and `FUN_004BE7BE`; the frame counts are read off the files.
-/// Getting any of the bases wrong breaks one of the three identities:
 ///
 /// * **81** in `A2_miss.pl8` = 33 + six shields × 8 — the banner block
 /// `FUN_004BD574` indexes runs to the last frame, and the missile blocks
@@ -209,11 +177,6 @@ fn the_knight_frame_table_fits_the_knight_sheets() {
 /// * **46** in `Engine.pl8`, and `(polarDirc >> 1) + 0x2A` reaches 45;
 /// * **20** in each `Catarm`, and `dirc % 4 × 5 + g_horseWalkCycle[…]`
 ///   reaches 19.
-///
-/// The physical frame sizes are a fourth, independent check that costs
-/// nothing: the blocks the arithmetic claims are each one size — 96 × 96 for
-/// the tower's four and the docked stair's four, 128 × 120 for the catapult's
-/// eight, 32 × 32 for the pot's eleven.
 #[test]
 fn the_missile_and_engine_frame_maps_fit_the_shipped_sheets() {
     use l2_sim::missile::{Missile, CLASS_DEBRIS, CLASS_FIRE};
@@ -262,8 +225,6 @@ fn the_missile_and_engine_frame_maps_fit_the_shipped_sheets() {
         assert!(engine.frame(f).is_some(), "the docked stair, frame {f}");
     }
 
-    // Each block the map claims is one physical size, which no wrong base
-    // could reproduce.
     let size = |i: usize| engine.frame(i).map(|f| (f.width, f.height)).unwrap();
     assert!((1..=4).all(|i| size(i) == (96, 96)), "the tower's four facings");
     assert!((5..=12).all(|i| size(i) == (128, 120)), "the catapult's eight");

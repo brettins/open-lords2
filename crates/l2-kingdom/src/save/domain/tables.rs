@@ -16,12 +16,6 @@ use crate::tables::{
 };
 use l2_net::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 
-/// The whole of [`Tables`], written out so it can be hashed.
-///
-/// Encode only: the save does not carry a ruleset, it carries this hash. Every
-/// field is here, and `tests/save.rs` mutates each sub-table in turn to check
-/// that the hash notices — which is the guard against a constant being added to
-/// `Tables` and quietly left out of the fingerprint.
 impl Encode for Tables {
     fn encode(&self, out: &mut Canonical) {
         out.section("food");

@@ -1,19 +1,4 @@
 //! Taxation — `docs/kingdom.md` §4.1, `Tax_CollectAll` (`0x0044B59B`).
-//!
-//! ```text
-//! base = f1A8 != 0 ? 0 : castleType == 0 ? 320 : {480,560,640,720,800}[castleType - 1];
-//! take = Pct(Pct(population, base), taxRate);
-//! county.taxCollected = take;   realm.gold += take;
-//! county.dHapTax = (5 - taxRate) + realm.taxHapEmpire;
-//! ```
-//!
-//! So a county with no castle yields `pop * 3.2 * taxRate / 100` crowns a
-//! season, and a royal castle two and a half times that.
-//!
-//! **Tax costs happiness at one point per point of rate above 5.** A rate of 5
-//! is free. That single expression, plus the health and ration terms, is why a
-//! county at Good health on Normal rations holds its happiness at exactly 7%
-//! and at Perfect health at 8% — which a published FAQ states in those words.
 
 mod calc;
 pub use calc::*;
@@ -24,21 +9,17 @@ use crate::realm::Realm;
 use crate::tables::{Tables, MAX_TAX_RATE};
 use l2_net::{Quirk, Quirks};
 
-/// The tax rate that costs nothing. `dHapTax = 5 - rate`.
 pub const FREE_TAX_RATE: i32 = 5;
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
 
     use crate::tables::{CASTLE_TAX_BONUS_PCT, CASTLE_TYPE_COUNT};
 
-    /// The stock ruleset. Every test here runs on it explicitly, which is the
-    /// point: the rules arrive as an argument.
     const T: &Tables = &Tables::DEFAULT;
 
     fn county_with(pop: i32, rate: i32, castle: u8) -> County {
@@ -49,8 +30,6 @@ mod tests {
         c
     }
 
-    /// `pop * 3.2 * rate / 100` for a castle-less county, stated in
-    /// `docs/kingdom.md` §4.1.
     #[test]
     fn a_castleless_county_yields_three_point_two_crowns_a_head_at_full_rate() {
         let mut c = county_with(1000, 100, 0);
@@ -59,7 +38,6 @@ mod tests {
         assert_eq!(collect(T, &mut c, 0), 320);
     }
 
-    /// A royal castle yields two and a half times a castle-less county.
     #[test]
     fn a_royal_castle_yields_two_and_a_half_times_nothing_at_all() {
         let mut none = county_with(1000, 100, 0);
@@ -69,7 +47,6 @@ mod tests {
         assert_eq!(b * 2, a * 5, "{b} should be 2.5x {a}");
     }
 
-    /// Every castle row against the published bonus percentages.
     #[test]
     fn every_castle_multiplier_matches_its_published_bonus() {
         let mut base = county_with(10_000, 100, 0);
@@ -94,8 +71,6 @@ mod tests {
         assert_eq!(c.d_hap_tax, 0, "rate 5 is the free rate");
     }
 
-    /// `docs/kingdom.md` §9 point 6: `taxRate` is 0 everywhere in the shipped
-    /// save and `dHapTax` is 5.
     #[test]
     fn the_shipped_save_s_tax_term_reproduces() {
         let mut c = county_with(417, 0, 3);
@@ -104,8 +79,6 @@ mod tests {
         assert_eq!(c.tax_collected, 0, "a rate of 0 banks nothing");
     }
 
-    /// The empire term as it has to behave for §9 to reproduce: with every
-    /// rate at 0 the sum is 0, and no county's tax term moves.
     #[test]
     fn a_realm_at_the_free_rate_has_no_empire_term_at_all() {
         let mut counties = vec![County::new(); 5];
@@ -121,8 +94,6 @@ mod tests {
         }
     }
 
-    /// The manual's rule: *"if you set taxes outrageously high in one county,
-    /// this will damage the happiness ratings of all your other counties."*
     #[test]
     fn one_punitive_county_poisons_the_whole_realm() {
         let mut counties = vec![County::new(); 5];
@@ -134,9 +105,6 @@ mod tests {
         counties[2].tax_rate = 25;
         sum_empire_happiness(T, &mut counties, &mut realms, 4, Q);
 
-        // -2 from the table, not -20 from `min(5 - rate, 0)`. This assertion
-        // read -20 until `g_taxHappinessOther`
-        // empire term is an order of magnitude gentler than the formula.
         assert_eq!(realms[1].tax_hap_empire, -2);
 
         let empire = realms[1].tax_hap_empire as i32;
@@ -146,13 +114,6 @@ mod tests {
         assert_eq!(counties[2].d_hap_tax, (5 - 25) - 2, "and the culprit suffers twice");
     }
 
-    /// The shape of the real table
-    /// replaced: **taxing at 19% costs the rest of the realm nothing at all**,
-    /// and even the maximum rate costs only 15.
-    ///
-    /// Walks every rate, because the rule it replaced was
-    /// wrong at 45 of 51 and survived on the six where they agree — one of
-    /// which is rate 0, the only rate the England turn-one fixture contains.
     #[test]
     fn the_empire_tax_term_is_flat_until_twenty_and_gentle_after() {
         for rate in 0..=19 {
@@ -169,19 +130,14 @@ mod tests {
             previous = v;
         }
 
-        // Out of range clamps. The UI cannot produce
-        // these; a mod or a corrupt save could.
         assert_eq!(empire_contribution(T, 999), -15);
         assert_eq!(empire_contribution(T, -5), 0);
 
-        // For the record, and to stop anyone reinstating it: the old rule was
-        // right at six rates out of 51.
         let agreements =
             (0..=MAX_TAX_RATE).filter(|&r| empire_contribution(T, r) == (5 - r).min(0)).count();
         assert_eq!(agreements, 6, "min(5 - rate, 0) agreed six times out of 51");
     }
 
-    /// A second realm's rates never touch the first realm's counties.
     #[test]
     fn the_empire_term_does_not_cross_realms() {
         let mut counties = vec![County::new(); 5];
@@ -194,7 +150,6 @@ mod tests {
         assert_eq!(realms[2].tax_hap_empire, -3, "rate 30 is -3 in the table, not -25");
     }
 
-    /// An unowned county's rate contributes to nobody.
     #[test]
     fn an_unowned_county_contributes_to_no_realm() {
         let mut counties = vec![County::new(); 3];
@@ -208,13 +163,6 @@ mod tests {
         assert_eq!(counties[1].tax_hap_other, -7, "rate 40 is -7 in the table, not -35");
     }
 
-    /// The **local** half of the term, at every rate the interface can set.
-    ///
-    /// `a_rate_of_five_is_free_and_every_point_above_costs_one_happiness`
-    /// stops at 20, which is inside the flat head of the empire table — the
-    /// region where the rule this crate had and the rule the binary has agree.
-    /// A test that never leaves the region where two rules agree cannot tell
-    /// them apart, which is exactly how the old one survived. So walk the lot.
     #[test]
     fn the_two_halves_of_the_tax_term_are_different_rules_at_every_legal_rate() {
         for rate in 0..=MAX_TAX_RATE {
@@ -235,8 +183,6 @@ mod tests {
         }
     }
 
-    /// The two independent readings of the ceiling, held against each other.
-    ///
     /// `Tax_IncreaseCounty` (`0x0043AA83`) guards `taxRate < 0x32`, so the rate
     /// tops out at 50; and `g_taxHappinessOther` holds one entry per rate. If
     /// either reading were wrong the other would not fit it.
@@ -250,12 +196,6 @@ mod tests {
         );
     }
 
-    /// **Collection is not clamped, and that is not an oversight.**
-    ///
-    /// `Tax_CollectAll` reads the rate byte and multiplies; the 0..=50 guard is
-    /// in the *panel*
-    /// a rate of 100 and it will be collected — while
-    /// [`empire_contribution`] clamps, because it indexes an array.
     #[test]
     fn the_ceiling_is_the_panels_and_the_collection_rule_never_sees_it() {
         let mut c = county_with(1000, 2 * MAX_TAX_RATE, 0);
@@ -283,24 +223,12 @@ mod tests {
         c.castle_building = 2;
         assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 560), 100));
 
-        // A zero castle_building forces type 0 outright.
         let mut c = county_with(1000, 100, 5);
         c.castle_degraded = crate::siege::CASTLE_DEGRADED_BUILDING;
         c.castle_building = 0;
         assert_eq!(collect(T, &mut c, 0), pct(pct(1000, 320), 100));
     }
 
-    /// **An unowned county banks its own tax**, and this is the arithmetic the
-    /// fixtures settle.
-    ///
-    /// County 1 of the battle game is unowned, holds 580 people at rate 6 with
-    /// no castle, and carries a purse of 186 at turn 3 and **297** at turn 4.
-    /// `Pct(Pct(580, 320), 6)` is 111, and `186 + 111 = 297` exactly — which is
-    /// also the `taxCollected` the turn-4 save stores. County 3 does the same
-    /// with 634 people: 121, and `195 + 121 = 316`.
-    ///
-    /// *Ablation*: change [`bank`]'s `owner == 0` arm to do nothing and both
-    /// purse assertions go red while the realm ones stay green.
     #[test]
     fn a_lordless_county_banks_its_tax_in_its_own_purse() {
         let mut realms = vec![Realm::new(); crate::realm::MAX_REALMS];

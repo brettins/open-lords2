@@ -1,19 +1,3 @@
-//! **The letters an army's arrival posts, played through the screens.**
-//!
-//! ```text
-//! cargo test -p l2-game --test arrival
-//! ```
-//!
-//! A player, on build `73DF34969`: *"county did not give me a message when I
-//! moved an army into it."* Every test here puts the armies a scenario would
-//! place, gives the player's orders with two clicks on the campaign map, lets
-//! the frame loop walk them — `turn::tick_units_only`, which `MapScreen::update`
-//! runs — and asserts what the message scroll then says, in the words the
-//! window draws. Nothing here calls `Msg_Enqueue`'s stand-in or writes the ring.
-//!
-//! **Animations are off in every world**, because with them on
-//! `Msg_DrawWindow` plays `cap_cty*.smk` in place of a category `0x0D` window
-//! and dismisses it; that branch is the films' subject.
 
 mod arrival_tests;
 pub use arrival_tests::*;
@@ -29,15 +13,9 @@ use l2_kingdom::movement::{self, Routing};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::campaign;
 
-/// County 1 is `x < 32`, county 2 is the two columns `32` and `33`, county 3 the
-/// rest. The 1 | 2 border is inside the band the campaign screen opens on, so
-/// the player's clicks never scroll — the same choice `tests/castles.rs` makes —
-/// and county 2 is narrow so that a lord's march across it is a few tiles long,
-/// as every march `Unit_OrderMove` is given in these suites is.
 const WEST: usize = 32;
 const EAST: usize = 34;
 
-// ---------------------------------------------------------------------- setup
 
 fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
     let mut ctx = Ctx { game: g, assets: a };
@@ -59,17 +37,12 @@ fn click_tile(m: &mut Machine, g: &mut Game, a: &Assets, at: (u8, u8)) {
     send(m, g, a, Event::Click { x, y });
 }
 
-/// A row on which every one of these columns is on screen.
 fn row_showing(columns: &[u8]) -> u8 {
     (0..64u8)
         .find(|&y| columns.iter().all(|&x| pixel(x, y).is_some()))
         .expect("a row showing every column")
 }
 
-/// Three counties in a row and three more that hold no ground, so a capture's
-/// share and `g_countyCount − 1` are not the same number. Realm 1 is the player
-/// and holds county 1; realm 2, the Countess's lord 3, holds county 3; county
-/// 2's owner is the test's.
 pub(crate) fn world(county_2: u8) -> (Game, Assets, Machine) {
     let mut g = Game::new(0xA441);
     g.prefs.tip_screens = false;
@@ -102,8 +75,6 @@ pub(crate) fn world(county_2: u8) -> (Game, Assets, Machine) {
     g.kingdom.realms[2].lord = 3;
     l2_kingdom::conquest::recount_realm_counties(&g.kingdom.counties, &mut g.kingdom.realms);
     for realm in 1..=2usize {
-        // What `Game_SetupRealmsAndCounties` and every capture since would
-        // have left: nobody here has lost ground.
         g.kingdom.realms[realm].peak_counties = g.kingdom.realms[realm].county_count;
     }
 
@@ -128,7 +99,6 @@ fn army_at(g: &mut Game, owner: u8, men: i32, at: (u8, u8)) -> usize {
     g.kingdom.campaign.units.spawn(u).expect("a free slot")
 }
 
-/// The player's two clicks: the army, then where it is to go.
 fn order(m: &mut Machine, g: &mut Game, a: &Assets, id: usize, to: (u8, u8)) {
     let at = g.kingdom.campaign.units.get(id).map(|u| (u.x, u.y)).expect("the army");
     click_tile(m, g, a, at);
@@ -136,13 +106,11 @@ fn order(m: &mut Machine, g: &mut Game, a: &Assets, id: usize, to: (u8, u8)) {
     assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving), "the order was taken");
 }
 
-/// A lord's march, which no click gives: `Unit_OrderMove`, as the AI calls it.
 fn lord_marches(g: &mut Game, id: usize, to: (u8, u8)) {
     movement::order_move(&g.kingdom.campaign.map, &mut g.kingdom.campaign.units, id, to, Routing::Direct)
         .expect("open ground the whole way");
 }
 
-/// Run frames until the scroll is up, and return what it shows.
 fn next_letter(m: &mut Machine, g: &mut Game, a: &Assets) -> Record {
     for _ in 0..4_000 {
         if m.top_id() == Some(ScreenId::Message) {
@@ -153,7 +121,6 @@ fn next_letter(m: &mut Machine, g: &mut Game, a: &Assets) -> Record {
     panic!("no letter came; the screen is {:?}", m.top_id());
 }
 
-/// Run frames until nothing is walking, and say whether a letter came.
 fn until_still(m: &mut Machine, g: &mut Game, a: &Assets) -> Option<Record> {
     for _ in 0..4_000 {
         if m.top_id() == Some(ScreenId::Message) {
@@ -170,17 +137,14 @@ fn until_still(m: &mut Machine, g: &mut Game, a: &Assets) -> Option<Record> {
     panic!("the march never finished");
 }
 
-/// **The right button closes the scroll, whatever it is** — `Msg_HandleInput`.
 fn close(m: &mut Machine, g: &mut Game, a: &Assets) {
     send(m, g, a, Event::RightClick { x: 320, y: 240 });
     assert_ne!(m.top_id(), Some(ScreenId::Message), "the scroll closed");
 }
 
-/// What the window says: [`scroll::body`], the call its painter makes.
 fn says(g: &mut Game, a: &Assets, r: &Record) -> String {
     let ctx = Ctx { game: g, assets: a };
     scroll::body(&ctx, r)
 }
 
-// ----------------------------------------------------------- crossing a border
 

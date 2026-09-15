@@ -7,8 +7,6 @@ use crate::report::Message;
 use crate::tables::{Season, Tables};
 use l2_net::{Pcg32, Quirk, Quirks};
 
-/// The weapon type *"Weapons found"* and *"Corruption"* move.
-///
 /// **This is a bug and it is reproduced.** `FUN_0044938C` indexes the realm's
 /// weapon array with `(countyId & 3) + 1`
 /// weapon type at `+0x290`, so which weapon a county finds depends on its
@@ -17,7 +15,6 @@ use l2_net::{Pcg32, Quirk, Quirks};
 /// *"Corruption"* handler, computes the same index the same way, which is what
 /// makes it a shared idiom.
 ///
-/// **Switchable** — [`Quirk::FoundWeaponFollowsCountyId`], `docs/bugs.md` B3.
 /// With the quirk fixed the county's own `weapon_type` (`+0x290`) is used, which
 /// is the field both handlers were plainly reaching for, and the crossbow —
 /// weapon slot 0, which `(id & 3) + 1` can never produce — becomes findable.
@@ -30,8 +27,6 @@ pub fn weapon_slot(county_id: usize, county_weapon_type: usize, quirks: Quirks) 
 }
 
 impl EventKind {
-    /// The handler's effect, given the season now beginning.
-    ///
     /// Four of the twenty-four are **seasonal**: *Rats*, *Grain found*,
     /// *Plague* and *Wedding fever* each read `g_season` and pick one of four
     /// percentages. Nothing in `docs/kingdom.md` mentioned that, and it is the
@@ -40,8 +35,6 @@ impl EventKind {
     /// takes the population percentage of the season's natural deaths or births
     /// (C169).
     pub fn effect(self, season: Season) -> Effect {
-        // Indexed Spring, Summer, Autumn, Winter — the order `g_season` is
-        // 1..=4 in, so a table read is `[season.index() - 1]`.
         let by_season = |s: [i32; 4]| s[season.index() as usize - 1];
         match self {
             EventKind::Rats => Effect::GrainPct(by_season([-30, -25, -45, -40])),
@@ -106,8 +99,6 @@ impl EventKind {
             EventKind::Corruption => Guard::Weapons(EVENT_WEAPON_UNITS),
             EventKind::StopThief => Guard::TaxShown(10),
             EventKind::MotherNature | EventKind::Locusts => Guard::FieldAvailable,
-            // `Weapons found`, `Donation`, `Treasure` and `Stone found` have no
-            // guard at all: their handlers are one line.
             EventKind::WeaponsFound
             | EventKind::Donation
             | EventKind::Treasure
@@ -116,7 +107,6 @@ impl EventKind {
     }
 }
 
-/// Whether a county and its realm satisfy an event's guard.
 pub fn guard_passes(
     guard: &Guard,
     county: &County,
@@ -153,9 +143,6 @@ pub fn guard_passes(
     }
 }
 
-/// Apply an event to a county and its realm's purse. Returns `false` — changing
-/// nothing — if the guard failed, which is the original's "clear the flag and
-/// show nothing" case.
 /// **The flags are set before the handler runs, and a failing guard clears
 /// them.** `[V]` — `Event_RollAll` does `eventFired = 1; eventId = <slot>;`
 /// *then* dispatches, and every guarded handler's failing branch is the same two
@@ -163,11 +150,6 @@ pub fn guard_passes(
 /// `if (herd < 0x28) { eventId = 0; eventFired = 0; } else { … }`, and
 /// `FUN_0044934A` (*Mother nature*) clears the same pair when its field change
 /// could not happen.
-///
-/// The order matters because **nothing else clears them** (see [`roll_all`]): a
-/// county carrying a letter nobody has read yet has that letter *destroyed* by a
-/// new event whose guard fails, and left alone by a season that deals it
-/// nothing.
 pub fn fire(
     county: &mut County,
     id: usize,
@@ -194,8 +176,6 @@ pub fn fire(
     true
 }
 
-/// One [`Effect`]. Returns `false` when the effect could not happen at all,
-/// which only the two field events can report.
 fn apply(
     county: &mut County,
     id: usize,

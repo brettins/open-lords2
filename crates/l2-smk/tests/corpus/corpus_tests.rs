@@ -17,7 +17,6 @@ fn every_shipped_film_closes_its_container() {
         assert_eq!((s.tracks, s.rate), (1, 11025), "{name}: one 11,025 Hz track");
     }
     assert_eq!(c.values().map(|s| s.frames).sum::<usize>(), 7652);
-    // Eight stereo tracks and 37 mono, which is docs/formats/smk.md's census.
     assert_eq!(c.values().filter(|s| s.stereo).count(), 8);
 }
 
@@ -31,9 +30,6 @@ fn every_bitstream_is_read_to_its_padding_and_no_further() {
     }
 }
 
-/// **A film's sound track is **
-/// what makes the two candidate clocks one clock.
-///
 /// `Smk_PlayLoop` (`0x0042DBC7`) advances a film only when `SmackWait` answers
 /// 0, and `_SmackWait@4` is 320 bytes at RVA `0x3170` of `Smackw32.dll` whose
 /// only import call is `WINMM.dll!timeGetTime` at `+0xB0` — `[V]`, by scanning
@@ -58,7 +54,6 @@ fn every_track_is_as_long_as_its_picture() {
     for (name, s) in films!() {
         let channels = if s.stereo { 2 } else { 1 };
         let samples = (s.pcm / channels) as i64;
-        // Nanoseconds, both sides, integer throughout.
         let sound = samples * 1_000_000_000 / s.rate as i64;
         let picture = s.frames as i64 * s.period as i64 * 10_000;
         let gap = sound - picture;
@@ -75,7 +70,6 @@ fn every_track_is_as_long_as_its_picture() {
     assert!(worst.0 > 0, "a corpus with no gap at all would mean nothing was measured");
 }
 
-/// The film the game opens with, field by field.
 #[test]
 fn the_intro_is_560_by_144_doubled_at_twelve_frames_a_second() {
     let _ = l2_testkit::install!();
@@ -87,15 +81,6 @@ fn the_intro_is_560_by_144_doubled_at_twelve_frames_a_second() {
     assert_eq!(intro.frame10, 0x73685a67f9360b25, "frame 10, hashed by the other decoder");
 }
 
-/// `(file, frames, video, palette, audio, frame 10)` — FNV-1a over every
-/// frame's stored pixels, every frame's 768 palette bytes, every track-0
-/// sample, and frame 10's pixels alone. **Printed by the other decoder.**
-///
-/// `Pill_brn.smk` is the one row it could not finish: it stops at frame 104 on
-/// a palette copy whose source overlaps its destination, which
-/// `docs/formats/smk.md` diagnosed as a guard of that implementation's rather
-/// than a fault in the file. So that row pins only what the other decoder
-/// reached — frame 10 and the audio, which it decodes separately.
 const ORACLE: &[(&str, usize, u64, u64, u64, u64)] = &[
     ("AXMEN.SMK", 140, 0x3a2ab973bae3d751, 0xbccdaa1c710d55f5, 0x2e522dc1788ec51d, 0x853837d41d47687b),
     ("Axemen.smk", 140, 0x3a2ab973bae3d751, 0xbccdaa1c710d55f5, 0x2e522dc1788ec51d, 0x853837d41d47687b),
@@ -161,8 +146,6 @@ fn every_film_matches_an_independent_decoder() {
         }
         pcm += s.pcm;
     }
-    // The other decoder's total, recorded in docs/formats/smk.md before this
-    // decoder existed.
     assert_eq!(pcm, 8_798_274);
 }
 

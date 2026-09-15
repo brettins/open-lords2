@@ -15,9 +15,6 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::{campaign, Canvas};
 
-/// **The original's variant for one county's grain tiles**, transcribed with
-/// its literals.
-///
 /// ```c
 /// /* Grain_SeasonTick, 0x0044C8AE */
 /// if (g_season == 1 || g_season == 2 || g_season == 3)
@@ -84,8 +81,6 @@ pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) 
     canvas
 }
 
-/// **End Turn, as a player presses it**: the key on the campaign map, then
-/// frames until the turn comes round, then the fade back up.
 pub(super) fn end_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) {
     let before = game.kingdom.turn_count;
     {
@@ -107,15 +102,6 @@ pub(super) fn end_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) 
     assert_eq!(machine.top_id(), Some(ScreenId::Campaign), "back on the campaign map");
 }
 
-/// A field tile nothing is drawn *over*: inside the map, no town or castle or
-/// industry site (plane-0 `0x40`/`0x80`, whose flags and animations are
-/// overlays) within one tile, no unit within three, and no county anchor —
-/// where our own owner marker goes — within one.
-///
-/// A neighbouring pasture's herd is **not** excluded, because [`tile_box`]
-/// reads only the inner part of the tile's own diamond and a herd sprite is a
-/// neighbour's diamond shifted `(+4, −4)` (`Sprite_TopIt`'s farm arm), which
-/// never reaches it.
 pub(super) fn a_quiet_tile(game: &Game, candidates: &[usize]) -> usize {
     let map = &game.kingdom.campaign.map;
     let near = |t: usize, r: i32, test: &dyn Fn(u8, u8) -> bool| {
@@ -180,12 +166,6 @@ fn terrain_with(game: &mut Game, assets: &Assets, screen: &MapScreen, x: usize, 
     canvas
 }
 
-/// The pixels of the inner three-fifths of one tile's diamond, clipped to the
-/// map viewport: `|dx| / (w/2) + |dy| / (h/2) <= 3/5` about the tile's centre.
-///
-/// Inner, because the diamond's rim is shared with what its neighbours draw
-/// after it — a herd shifted `(+4, −4)`, an apex row — and the claim is about
-/// this tile's frame, not theirs.
 fn tile_box(canvas: &Canvas, screen: &MapScreen, x: usize, y: usize) -> Vec<u8> {
     let zoom = screen.zoom();
     let (w, h) = (zoom.tile_w, zoom.tile_h);
@@ -203,9 +183,6 @@ fn tile_box(canvas: &Canvas, screen: &MapScreen, x: usize, y: usize) -> Vec<u8> 
     out
 }
 
-/// Paint the campaign screen on `tile` at one zoom and return which of the four
-/// wheat variants the tile shows, or `None` for none of them. Also returns
-/// whether the four are four different pictures at this zoom.
 pub(crate) fn drawn_variant(game: &mut Game, assets: &Assets, tile: usize, far: bool) -> (Option<u8>, bool) {
     let (x, y) = coords(tile);
     let (x, y) = (x as usize, y as usize);

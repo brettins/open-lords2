@@ -14,12 +14,6 @@ use crate::widget;
 /// **`g_armouryWalkerSheets` (`0x004DE450`)** — thirty sheets, `0x10` bytes
 /// apart, `0x70` (seven slots) per shield colour, indexed by
 /// `[shieldIndex][basketSlot]`.
-///
-/// Slot 0 and slot 1 both name the crossbowman.
-/// names red twice: the tables are indexed by a 1-based slot and a 1-based
-/// shield and each pads its zeroth entry with its first. The order after that
-/// is the basket's — crossbow, mace, sword, pike, archer, knight — which is
-/// **not** [`WALL`]'s order and not [`RACKS`]'s x order.
 #[rustfmt::skip]
 pub const WALKER_SHEETS: [[&str; 7]; 6] = [
     ["Trp_xb_r.pl8", "Trp_xb_r.pl8", "Trp_ma_r.pl8", "Trp_sw_r.pl8", "Trp_pi_r.pl8", "Trp_ar_r.pl8", "Trp_kn_r.pl8"],
@@ -30,12 +24,8 @@ pub const WALKER_SHEETS: [[&str; 7]; 6] = [
     ["Trp_xb_b.pl8", "Trp_xb_b.pl8", "Trp_ma_b.pl8", "Trp_sw_b.pl8", "Trp_pi_b.pl8", "Trp_ar_b.pl8", "Trp_kn_b.pl8"],
 ];
 
-/// `File_ReadChunk(…)`'s fallback when the colour-and-slot read fails —
-/// `s_trp_xb_b_pl8_004DE8E8`, the blue crossbowman.
 pub const WALKER_FALLBACK: &str = "Trp_xb_b.pl8";
 
-/// The sheet one walk is drawn from, clamped the way the original's index
-/// arithmetic is bounded.
 pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
     let colour = (shield_index as usize).min(WALKER_SHEETS.len() - 1);
     let s = slot as usize;
@@ -45,15 +35,6 @@ pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
     WALKER_SHEETS[colour][s]
 }
 
-/// **The soldier who walks over and takes the weapon.**
-///
-/// A player, on `BUILD 3F9C11E`: *"The animations when you pick a weapon to
-/// assign during an army doesn't happen — usually a dude comes and grabs a
-/// weapon."* He is right about the picture and, it turns out, about the
-/// trigger: this is fired by leaving a rack, not by entering one.
-///
-/// # When he appears, which is not where you would look for it
-///
 /// `Armoury_ClickRack` (`0x004358B0`) is three statements and the **first**
 /// one starts the walk:
 ///
@@ -76,14 +57,6 @@ pub fn walker_sheet(shield_index: u8, slot: u8) -> &'static str {
 /// references — so it is presentation state that happens to be stored in the
 /// basket, and it is here for that
 /// reason. `[V]`, by grep over the whole decompilation.
-///
-/// # None of it may reach the simulation
-///
-/// Every field here is display state. It lives on [`crate::game::LevyOrder`],
-/// which is session state the save does not carry and the lockstep digest
-/// cannot see (`docs/netcode.md`); a hundred ticks of this leave
-/// [`l2_kingdom::Kingdom`] byte-identical, which
-/// `crates/l2-game/tests/armoury/main.rs` asserts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Walker {
     /// `DAT_005679D0` — non-zero while a soldier is on the floor.
@@ -101,9 +74,7 @@ pub struct Walker {
     pickup: u8,
     /// `DAT_00568228` — [`WALKER_STOP_X`] for his slot.
     stop_x: i32,
-    /// The basket slot he belongs to; [`walker_sheet`] turns it into a sheet.
     pub slot: u8,
-    /// `g_levyBasket[t] + 0x0C` — what `chosen` was when rack `t` was opened.
     latch: [i32; 8],
 }
 
@@ -123,7 +94,6 @@ impl Default for Walker {
 }
 
 impl Walker {
-    /// `Armoury_ClickRack`'s third statement: `latch[t] = chosen[t]`.
     pub fn latch(&mut self, slot: u8, chosen: i32) {
         if let Some(v) = self.latch.get_mut(slot as usize) {
             *v = chosen;
@@ -132,13 +102,6 @@ impl Walker {
 
     /// **`FUN_004AABD8` (`0x004AABD8`)** — start a walk, or decline to.
     ///
-    /// ```c
-    /// if (0 < type && latch[type] < chosen[type] && walkActive < 1) { … }
-    /// ```
-    ///
-    /// Three guards and all three matter: slot 0 is the unequipped peasants and
-    /// has no weapon to fetch, a rack the player looked at without assigning
-    /// anybody sends nobody, and a walk already in progress is not restarted.
     /// Returns whether a soldier set off, which is what the test ablates.
     pub fn start(&mut self, slot: u8, chosen: i32) -> bool {
         if slot == 0 || self.active {
@@ -157,26 +120,6 @@ impl Walker {
         true
     }
 
-    /// **`Armoury_DrawWalker`'s state half**, one 20 ms pulse of it.
-    ///
-    /// ```c
-    /// if (walkActive < 1) return;
-    /// if (0x280 <= x) { walkActive = 0; return; }
-    /// if (pulse20) {
-    ///     if (pulse80) {
-    ///         if (stopX <= x && pickup != 0) pickup++;
-    ///         cycle = (cycle + 1) & 7;
-    ///     }
-    ///     if (x < stopX || pickup == 0) { x += 4; frame = cycle + (x < stopX ? 0 : 0xD); }
-    ///     else { frame = pickup / 3 + 8; if (0xC < frame) { cycle = 0; pickup = 0; } }
-    /// }
-    /// draw(frame, x, 0xD8);
-    /// ```
-    ///
-/// The last two lines are the seam and they are written out.
-    /// tidied: the frame that *overflows* the pickup run is `0x0D`, which is
-    /// also the first carrying-walk frame, so the reset happens under a picture
-    /// that is already correct and the join is invisible.
     pub(super) fn pulse(&mut self, pulse80: bool) {
         if !self.active {
             return;

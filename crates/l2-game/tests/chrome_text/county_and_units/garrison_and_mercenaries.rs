@@ -19,9 +19,6 @@ use l2_kingdom::tables::Tables;
 use l2_mods::Platform;
 use l2_view::Canvas;
 
-/// **The castle's garrison is `"@40 "`, and *"troops."* is chained off it, so
-/// both moved.**
-///
 /// ```c
 /// /* Screen_CastleBuildPanel, 0x004198AA */
 /// Ui_DrawNumber(g_castleGarrisonCap[sel], '@', &DAT_004D4160, 0xC, 0xE2, &g_fontBody, 0x3F);
@@ -30,12 +27,6 @@ use l2_view::Canvas;
 ///
 /// `DAT_004D4160` is one space. The old `Pen::number(…, true)` drew `"40 "`: the
 /// space right by accident, the lead missing — digits **and** noun four left.
-///
-/// Ablated twice, each red on its own assertion:
-/// * the old `pen.body(…, &format!("{cap} "))` restored at the call site — the
-///   digits are found at **12** where 16 is expected, the defect as it shipped;
-/// * suffix `" "` → `""` — the digits stay at 16 and the noun is found at **51**
-///   where 55 is expected.
 #[test]
 fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
     use l2_game::screens::castle::CastleScreen;
@@ -68,8 +59,6 @@ fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
     );
 }
 
-/// **The mercenary's price line: both numbers moved and neither noun did.**
-///
 /// ```c
 /// /* Screen_RaiseArmy, 0x00418653 */
 /// g_penAdvance = 0;
@@ -78,17 +67,6 @@ fn the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right() {
 /// Ui_DrawNumber(men / 2, '@', &DAT_004D40CC, g_penAdvance + 0x70, …);
 /// Eng_DrawString(0x45, 1, g_penAdvance + 0x70, …);
 /// ```
-///
-/// Both suffixes are NUL. The old `"{n} "` lost four at the front and added four
-/// at the back, so the nouns landed right and the digits did not —
-/// the nouns are asserted as well: a fix that adds the lead and keeps the
-/// invented space moves them.
-///
-/// Ablated twice, each red on its own assertion:
-/// * the price put back to the old `pen.body(…, &format!("{} ", price))` — found
-///   at **112** where 116 is expected;
-/// * the price's suffix `""` → `" "` — the price stays at 116 and *"crowns to
-///   hire."* is found at **164** where 160 is expected.
 #[test]
 fn the_mercenary_price_line_moves_its_numbers_and_not_its_nouns() {
     use l2_game::screens::army::{self, RaiseArmyScreen};

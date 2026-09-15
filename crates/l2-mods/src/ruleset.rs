@@ -1,10 +1,3 @@
-//! The merged ruleset, and the typed accessors the engine reads it through.
-//!
-//! A ruleset is built by applying documents in load order. Assets shadow —
-//! only the top layer's `Base1a.pl8` is used — but **rules accumulate**: every
-//! layer's rule documents are read and merged. That asymmetry is the point. A
-//! sprite has no partial form, so overriding it means replacing it; a rule
-//! table does, so overriding it means changing one number.
 
 use crate::merge::{merge, MergeLog};
 use crate::reader::{self, ParseError};
@@ -13,18 +6,14 @@ use crate::vfs::Vfs;
 use std::fmt;
 use std::path::Path;
 
-/// Where rule documents live inside a layer.
 pub const RULES_DIR: &str = "rules";
 
 #[derive(Debug)]
 pub enum RuleError {
     Syntax(ParseError),
     Io { source_name: String, source: std::io::Error },
-    /// A path the engine needs is absent.
     Missing { path: String },
-    /// A path exists but holds the wrong kind of value.
     Type { path: String, expected: &'static str, found: &'static str, origin: Origin },
-    /// A value is the right type but outside the range the engine can use.
     Range { path: String, message: String, origin: Origin },
 }
 
@@ -52,31 +41,17 @@ impl From<ParseError> for RuleError {
     }
 }
 
-/// The result of merging every enabled layer's rule documents.
 #[derive(Debug, Default)]
 pub struct Ruleset {
     root: Table,
     pub log: MergeLog,
-    /// Document names in the order they were applied.
     pub sources: Vec<String>,
-    /// What each applied document
-    /// leaf path it set, in sorted order.
-    ///
-    /// The merge log records *contests*; this records *claims*. Both are
-    /// needed to answer "why did my mod not take effect", because the two
-    /// answers are different: a rule can lose to a later mod (a contest) or it
-    /// can have been a typo that nothing below ever defined (a claim that
-    /// overrode nothing).
     pub documents: Vec<Document>,
 }
 
-/// One rule document, and the leaf paths it claimed.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct Document {
-    /// `"<layer id>:<relative path>"`.
     pub source: String,
-    /// Every leaf this document set, sorted. `"$delete"` directives are not
-    /// leaves and are not listed here.
     pub leaves: Vec<String>,
 }
 
@@ -85,7 +60,6 @@ impl Ruleset {
         Ruleset::default()
     }
 
-    /// Apply one document's text. `source` names it in diagnostics.
     pub fn apply_str(&mut self, text: &str, source: &str) -> Result<(), RuleError> {
         let doc = reader::parse(text, source)?;
         let Value::Table(table) = doc.value else { unreachable!("parse returns a table") };
@@ -104,12 +78,6 @@ impl Ruleset {
         self.apply_str(&text, source)
     }
 
-    /// Load every layer's rule documents, in layer order.
-    ///
-    /// Within a layer, documents apply in sorted name order,
-    /// mod that wants to be sure it lands last inside its own layer names its
-    /// file `zz-final.toml` and not something alphabetically unlucky. Across
-    /// layers the load order decides, and that is the one that matters.
     pub fn load(vfs: &Vfs) -> Result<Ruleset, RuleError> {
         let mut rs = Ruleset::new();
         for layer in 0..vfs.layers().len() {
@@ -129,9 +97,6 @@ impl Ruleset {
         &self.root
     }
 
-    /// Look up a dotted path. Numeric segments index arrays, so
-    /// `"battle.three_bridges.attacker.crossbows"` and `"campaign.0.name"`
-    /// both work.
     pub fn get(&self, path: &str) -> Option<&Spanned<Value>> {
         let mut segs = path.split('.').filter(|s| !s.is_empty());
         let mut cur = self.root.get(segs.next()?)?;
@@ -150,8 +115,6 @@ impl Ruleset {
         v.value.as_table().ok_or_else(|| self.type_err(path, "table", v))
     }
 
-    /// Keys of a table, or an empty list when the table is absent. Used when
-    /// "no mod defined any troops" is a legitimate state
     pub fn keys(&self, path: &str) -> Vec<&str> {
         match self.get(path).and_then(|v| v.value.as_table()) {
             Some(t) => t.keys().map(|k| k.as_str()).collect(),
@@ -171,7 +134,6 @@ impl Ruleset {
         }
     }
 
-    /// An integer that must fit a range, reported with the line that broke it.
     pub fn integer_in(&self, path: &str, lo: i64, hi: i64) -> Result<i64, RuleError> {
         let v = self.require(path)?;
         let n = v.value.as_integer().ok_or_else(|| self.type_err(path, "integer", v))?;
@@ -201,8 +163,6 @@ impl Ruleset {
         }
     }
 
-    /// Which document last set this value. The answer a mod author wants when
-    /// the number in the game is not the number they wrote.
     pub fn origin(&self, path: &str) -> Option<&Origin> {
         self.get(path).map(|v| &v.origin)
     }
@@ -222,18 +182,6 @@ impl Ruleset {
 }
 
 impl Ruleset {
-    /// The engine's own rules, before any layer is consulted.
-    ///
-    /// OpenXcom's lesson, and `docs/modding.md` §1: **the base game is itself
-    /// the first mod.** These documents are compiled into the binary rather
-    /// than read from disk, for two reasons. They are our own numbers, not the
-    /// player's game files, so `CLAUDE.md` rule 1 does not stop us shipping
-    /// them. And a rules layer that can go missing is a rules layer that can
-    /// go missing *on one peer only*.
-    ///
-    /// They are still plain, readable `.toml` in the source tree, and
-    /// [`crate::core::write_to`] will drop a copy next to a player's mods so
-    /// the first thing a would-be author can do is read the base rules.
     pub fn core() -> Ruleset {
         let mut rs = Ruleset::new();
         for (name, text) in crate::core::DOCUMENTS {
@@ -242,19 +190,12 @@ impl Ruleset {
         rs
     }
 
-    /// Load every layer's rule documents, in layer order, on top of the core
-    /// ruleset.
-    ///
-    /// This is what [`crate::Platform`] uses. [`Ruleset::load`] is the same
-    /// thing without the core layer, kept for callers that want to look at
-    /// exactly one install's documents and nothing else.
     pub fn load_over_core(vfs: &Vfs) -> Result<Ruleset, RuleError> {
         let mut rs = Ruleset::core();
         rs.apply_layers(vfs)?;
         Ok(rs)
     }
 
-    /// Apply every layer's rule documents to an existing ruleset.
     pub fn apply_layers(&mut self, vfs: &Vfs) -> Result<(), RuleError> {
         for layer in 0..vfs.layers().len() {
             let id = vfs.layer_id(layer).to_string();
@@ -269,12 +210,6 @@ impl Ruleset {
         Ok(())
     }
 
-    /// An array of integers of a known length.
-    ///
-    /// Arrays replace whole on merge (merge rule 2), so a mod that wants to
-    /// change one element restates all of them. The length check is what turns
-    /// "restated nine of ten" into an error at load
-    /// tenth slot at turn forty.
     pub fn integer_array(&self, path: &str, len: usize) -> Result<Vec<i64>, RuleError> {
         let v = self.require(path)?;
         let items = v.value.as_array().ok_or_else(|| self.type_err(path, "array", v))?;
@@ -302,13 +237,11 @@ impl Ruleset {
         Ok(out)
     }
 
-    /// How many entries an array of tables has, or an error if it is not one.
     pub fn array_len(&self, path: &str) -> Result<usize, RuleError> {
         let v = self.require(path)?;
         Ok(v.value.as_array().ok_or_else(|| self.type_err(path, "array", v))?.len())
     }
 
-    /// Every leaf path in the merged tree, sorted.
     pub fn leaves(&self) -> Vec<String> {
         let mut out = Vec::new();
         collect_leaves(&self.root, &mut Vec::new(), &mut out);
@@ -316,13 +249,6 @@ impl Ruleset {
         out
     }
 
-    /// Leaf paths whose value is a float.
-    ///
-    /// Not an error — a mod may legitimately carry a float for something the
-    /// simulation never touches — but every one of them is a place a rule
-    /// could reach the lockstep simulation as a float, which `docs/netcode.md`
-    /// forbids. [`crate::Report`] prints them so the question is asked at load
-    ///
     pub fn float_rules(&self) -> Vec<(String, Origin)> {
         let mut out = Vec::new();
         collect_floats(&self.root, &mut Vec::new(), &mut out);
@@ -331,11 +257,6 @@ impl Ruleset {
     }
 }
 
-/// Walk a table, recording the dotted path of every leaf.
-///
-/// A leaf is any non-table value, arrays included: an array replaces whole, so
-/// it is one claim
-/// is skipped.
 fn collect_leaves(table: &Table, stack: &mut Vec<String>, out: &mut Vec<String>) {
     for (key, spanned) in table {
         if key == crate::value::DELETE_KEY {

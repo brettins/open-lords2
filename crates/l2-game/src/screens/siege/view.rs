@@ -10,12 +10,6 @@ use crate::widget;
 
 /// **`Ui_DrawBevelRect(x, y, w, h)` (`0x00403FDD`) — four lines and no fill**,
 /// top and right in palette `0x1F` and bottom and left in `0x10`.
-///
-/// That is the exact inverse of [`crate::shell::inset_rect`]'s lighting, which
-/// is what makes one read as raised and the other as recessed, and it is the
-/// whole of the function. It lives here
-/// `inset_rect` and `button_recess` only because that module was not this
-/// audit's to edit; three screens want it.
 pub fn bevel_rect(canvas: &mut Canvas, x: i32, y: i32, w: i32, h: i32) {
     const LIGHT: u8 = 0x1F;
     const DARK: u8 = 0x10;
@@ -32,7 +26,6 @@ pub fn row_plus(row: usize) -> Rect {
     Rect::new(BUTTON_X, BUTTON_Y[row.min(2)], BUTTON_DIM, BUTTON_DIM)
 }
 
-/// The other half of the pair, 26 pixels below. See [`row_plus`].
 pub fn row_minus(row: usize) -> Rect {
     let plus = row_plus(row);
     Rect::new(plus.x, plus.y + BUTTON_STEP, BUTTON_DIM, BUTTON_DIM)
@@ -51,7 +44,6 @@ impl SiegeScreen {
         Rect::new(BOX_X, BOX_Y, BOX_COLS * 16, BOX_ROWS * 16)
     }
 
-    /// The seasons the *"Siege will take"* line prints.
     pub fn seasons(&self, ctx: &Ctx) -> u8 {
         ctx.game.kingdom.campaign.units.get(self.unit).map_or(0, |u| u.siege_seasons_left)
     }
@@ -88,8 +80,6 @@ impl Screen for SiegeScreen {
         "Siege preparations".to_string()
     }
 
-    /// The painter clears nothing: it draws a `Ui_DrawBox` over the campaign
-    /// map the click came from.
     fn is_overlay(&self) -> bool {
         true
     }
@@ -137,8 +127,6 @@ impl Screen for SiegeScreen {
 
         let Some(unit) = ctx.game.kingdom.campaign.units.get(self.unit) else { return };
 
-        // `Sprite_WGenSprite(county.castleType - 1, 0x150, 0x40)` out of
-        // `sgeplans.pl8`, which the painter reads whole immediately before it.
         let castle = ctx
             .game
             .kingdom
@@ -153,12 +141,9 @@ impl Screen for SiegeScreen {
             }
         }
 
-        // `Eng_DrawString(83, 0, 0x30, 0x58, &g_fontHeading, 0x3F)`.
         let title = p.assets.text(GROUP, HEADING).to_string();
         p.heading(canvas, HEADING_AT.0, HEADING_AT.1, &title, font::TEXT);
 
-        // *"Siege will take"* / N Season(s) / *"to make ready."* — three draws
-        // on two lines, and the third starts where the count ended.
         // `Ui_DrawCount` is itself two draws (a number then the group 8 noun),
         // and [`Pen::count`] returns where the noun ended, which is what places
         // the tail of the sentence. It used to be written out here with the
@@ -173,7 +158,6 @@ impl Screen for SiegeScreen {
         for (row, engine) in ENGINES.iter().enumerate() {
             let record = unit.engines[engine.index()];
             let y = ROW_Y[row];
-            // `Eng_DrawString(83, 1 + row, 0x48, y)` — the engine's own name.
             p.eng(canvas, GROUP, ENGINE_LABEL[row], LABEL_X, y, font::TEXT);
 
             // `Ui_DrawInsetRect` is **four lines and no fill**: the trough is
@@ -189,16 +173,14 @@ impl Screen for SiegeScreen {
             // y + 0x19)`, each suffix `"%"`. This comment used to say no `Pen`
             // method could carry the lead and the suffix, and so the line was
             // built as `"{percent}%"` — **no lead, digits four pixels left**.
+            //
             // `Pen::number_in` carries both. **[V]**
             let percent = record.percent as i32;
             p.number_in(Face::Body, canvas, PERCENT_X, y + PERCENT_DY, percent, '@', "%", font::TEXT);
 
             if record.ordered == 0 {
-                // `Eng_DrawString(83, 8, 0xF0, y + 0x10)`.
                 p.eng(canvas, GROUP, NO_ENGINES, NO_ENGINES_AT.0, y + NO_ENGINES_AT.1, font::TEXT);
             } else {
-                // `Pl8_DrawFrame(g_miscCtySheet, 0x43 + row, 0xD0 + n * step,
-                // y - 8)`, one per engine ordered.
                 for n in 0..record.ordered as i32 {
                     let x = SPRITE_X + n * SPRITE_STEP[row];
                     if !p.misc_frame(canvas, ENGINE_FRAME0 + row, x, y + SPRITE_DY) {
@@ -215,11 +197,6 @@ impl Screen for SiegeScreen {
             p.eng(canvas, GROUP, index, r.x + BUTTON_LABEL_DX, BUTTON_LABEL_Y, font::TEXT);
         }
 
-        // The six order buttons are drawn by `Widget_Draw(0, 0,
-        // &g_siegePrepWidgets, 6)` from `Screen_DrawWidgets`, not by the
-        // painter: `System.pl8` frames 21 and 23 at the table's own
-        // coordinates. **The frames are ours to the extent that we substitute a
-        // labelled box where the sheet is missing.**
         for (row, (record, cap)) in unit.engines.iter().zip(ENGINE_ORDER_CAP).enumerate() {
             let (plus, minus) = (row_plus(row), row_minus(row));
             if !p.system_frame(canvas, WIDGET_FRAME_PLUS, plus.x, plus.y) {

@@ -1,30 +1,3 @@
-//! Land — fertility, fields, grain and livestock.
-//! `docs/kingdom.md` §7.1 and §7.2.
-//!
-//! # The grain cycle
-//!
-//! One number moving through three fields, once round the year:
-//!
-//! ```text
-//! end of Winter   Grain_Sow      sown = fields x sacksPerField ; store -= sown
-//!                                crop = sown x g_grainYieldPerSack
-//! end of Spring   Grain_Grow     crop adjusted
-//! end of Summer   Grain_Grow     crop adjusted
-//! end of Autumn   Grain_Harvest  store += crop
-//! ```
-//!
-//! Remember §3.3's subtlety: `Season_Advance` sets `g_season` to the season
-//! *about to begin* before running the economy, so "sows when `g_season == 1`"
-//! means "sows at the end of Winter". The game's own FAQ page states all three
-//! clauses: *"Grain is only planted at the end of the winter turn, and is
-//! harvested at the end of the Autumn. You will see the extra grain in your
-//! county at the start of each Winter turn."*
-//!
-//! # Fertility
-//!
-//! Three lines, and both of its consequences contradict the printed manual:
-//! **one fallow field per two grain fields is exactly break-even**, and
-//! **cattle fields do not enter the formula at all**.
 
 mod fertility;
 pub use fertility::*;
@@ -41,9 +14,6 @@ use crate::math::{clamp, pct, pct_of, per_myriad};
 use crate::tables::{HerdCrowdingRow, Season, Tables, Weather, HERD_CROWDING_COUNT};
 use l2_net::{Quirk, Quirks};
 
-// ---------------------------------------------------------------------------
-// Fertility
-// ---------------------------------------------------------------------------
 
 /// The fertility scale's bounds. `L2.eng` group 22 names seven levels from
 /// *"Infertile — almost no production"* to *"Excellent fertility — bumper
@@ -52,14 +22,9 @@ use l2_net::{Quirk, Quirks};
 pub const FERTILITY_MIN: i32 = -100;
 pub const FERTILITY_MAX: i32 = 100;
 
-/// A fallow field is worth this much fertility a season.
 pub const FERTILITY_PER_FALLOW: i32 = 6;
-/// A grain field costs this much.
 pub const FERTILITY_PER_GRAIN: i32 = 3;
 
-/// A weather multiplier, as an exact `(numerator, denominator)` pair. Kept as a
-/// ratio so `3/2` is `3/2`
-/// twice.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Factor(pub i32, pub i32);
 
@@ -71,7 +36,6 @@ impl Factor {
     }
 }
 
-/// What one season does to a herd, before the weather and any random event.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct HerdGrowth {
     pub births: i32,
@@ -84,14 +48,6 @@ impl HerdGrowth {
     }
 }
 
-/// What [`grain_labour_estimate`] writes into labour record 0.
-///
-/// The two are the same number whenever the search found anything at all —
-/// `Grain_LabourEstimate` assigns them from the same loop variable — and they
-/// differ in exactly one case, which is the reason they are two fields: a
-/// county whose best result never beats 1 gets a **floor of −1** ("no floor")
-/// and a **ceiling of 0**, because the two are initialised differently and
-/// neither is ever written.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct GrainEstimate {
     /// `+0xC8` — the wanted floor, or [`crate::county::LABOUR_NO_FLOOR`].
@@ -100,14 +56,6 @@ pub struct GrainEstimate {
     pub useful: i32,
 }
 
-/// What [`herd_labour_estimate`] writes into labour record 1 — the same shape
-/// as [`GrainEstimate`], and for the same reason: one search fills two words of
-/// the twelve-byte record and they are not the same number.
-///
-/// Unlike grain's, these two differ in the *common* case: `wanted` is the
-/// staffing at which the herd stops shrinking and `useful` the staffing that
-/// grows it fastest, so a county between them has a stable herd and a slot with
-/// room in it. They coincide only for a herd that can never break even.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct HerdEstimate {
     /// `+0xD4` — the break-even staffing, below which the count is drawn red.
@@ -121,11 +69,9 @@ pub struct HerdEstimate {
 mod tests {
     use super::*;
 
-    /// Faithful. The switched-off answers live in `tests/quirks.rs`.
     #[allow(dead_code)]
     const Q: Quirks = Quirks::FAITHFUL;
 
-    /// The stock ruleset. Every rule below takes it as an argument now.
     const T: &Tables = &Tables::DEFAULT;
 
     /// **One fallow field per two grain fields is exactly break-even**, and
@@ -177,8 +123,6 @@ mod tests {
         assert_eq!(c.fertility, FERTILITY_MIN);
     }
 
-    /// **`docs/kingdom.md` §9 point 3.** With Advanced Farming off, every
-    /// county's fertility in the England turn-one fixture is 0.
     #[test]
     fn basic_farming_pins_fertility_at_zero() {
         let mut c = County::new();
@@ -188,15 +132,11 @@ mod tests {
         assert_eq!(c.fertility, 0);
     }
 
-    /// A county with fields under reclamation and a workforce to spend on
-    /// them. `slots` are the field slots that carry a reclaiming tile; every
-    /// other slot is fallow, so the walk skips it.
     fn reclaiming(slots: &[(usize, u16)], workers: i32) -> (County, crate::map::CampaignMap) {
         let mut map = crate::map::CampaignMap::empty();
         let mut c = County::new();
         c.labour[crate::tables::JOB_FIELD_RECLAMATION] = workers;
         for slot in 0..MAX_FIELDS {
-            // Tile 0 is "no field"; start at 1.
             c.field_tiles[slot] = slot as u16 + 1;
             map.terrain[slot + 1] = crate::field::terrain::FALLOW;
         }
@@ -207,8 +147,6 @@ mod tests {
         (c, map)
     }
 
-    /// Only a field whose *tile* says reclamation is worked on, and the
-    /// progress word alone does not say so.
     #[test]
     fn only_fields_already_started_are_reclaimed() {
         let (mut c, mut map) = reclaiming(&[(1, 100)], 10_000);
@@ -220,8 +158,6 @@ mod tests {
         assert_eq!(c.field_progress[2], 800);
     }
 
-    /// **The manual's rule, and the reason it is a rule:** the per-field step
-    /// is capped at a quarter however large the workforce is.
     #[test]
     fn a_field_under_way_finishes_in_four_seasons_at_most() {
         let (mut c, mut map) = reclaiming(&[(5, 1)], 10_000);
@@ -236,9 +172,6 @@ mod tests {
         );
     }
 
-    /// **The labour is a budget, and this is what closes the gap
-    /// `crates/l2-kingdom/tests/labour_gap.rs` recorded.** Nobody on
-    /// reclamation used to mean a field advanced anyway.
     #[test]
     fn a_county_with_nobody_on_reclamation_reclaims_nothing() {
         let (mut c, mut map) = reclaiming(&[(0, 100), (3, 400)], 0);
@@ -246,39 +179,23 @@ mod tests {
         assert_eq!(c.field_progress[0], 100);
         assert_eq!(c.field_progress[3], 400);
 
-        // Fifty workers buy fifty units, all of it on the leading field.
         c.labour[crate::tables::JOB_FIELD_RECLAMATION] = 50;
         reclaim_fields(T, &mut c, &mut map);
         assert_eq!(c.field_progress[3], 450, "the most advanced field goes first");
         assert_eq!(c.field_progress[0], 100, "and the other gets nothing");
     }
 
-    /// The gang starts on the **most advanced** field, spends at most a
-    /// quarter there, and carries the rest round the rota — including the
-    /// overshoot from a field it has just finished.
     #[test]
     fn the_budget_walks_the_rota_from_the_leading_field() {
         let (mut c, mut map) = reclaiming(&[(0, 0), (7, 700)], 500);
         reclaim_fields(T, &mut c, &mut map);
-        // Slot 7 leads, is offered its quarter, and hands the 100 units of
-        // overshoot straight back to the budget — so 400 wraps round to slot
-        // 0, which can only take its own quarter.
-        //
-        // **The stored progress overshoots to 900 and is not clamped.** The
-        // original refunds the excess to the budget and writes the raw sum
-        // back anyway. It is inert: the tile is already fallow, so the slot is
-        // never offered work again.
         assert_eq!(c.field_progress[7], 900);
         assert_eq!(map.terrain[8], crate::field::terrain::FALLOW);
         assert_eq!(c.field_progress[0], 200);
     }
 
-    /// **The manual says 5 sacks a field, twice, and it is wrong.** Two
-    /// independent players measured 6 fields sowing 60 sacks and 9 fields
-    /// sowing 90.
     #[test]
     fn a_well_supplied_county_sows_ten_sacks_a_field_not_five() {
-        // Plenty of everything.
         assert_eq!(sacks_per_field(T, 6, 10_000, 10_000, true), 10);
         assert_eq!(sacks_per_field(T, 9, 10_000, 10_000, true), 10);
         assert_eq!(6 * sacks_per_field(T, 6, 10_000, 10_000, true), 60);
@@ -287,15 +204,11 @@ mod tests {
 
     #[test]
     fn the_seed_store_is_the_binding_constraint_when_labour_is_plentiful() {
-        // 6 fields, 30 sacks in store: 5 a field fits, 6 does not.
         assert_eq!(sacks_per_field(T, 6, 30, 100_000, true), 5);
         assert_eq!(sacks_per_field(T, 6, 29, 100_000, true), 4);
         assert_eq!(sacks_per_field(T, 6, 5, 100_000, true), 0, "not even one a field");
     }
 
-    /// The labour test is `labour >= 12 * fields * sacks / divisor`, and the
-    /// divisor is *larger* with Advanced Farming on — so the option makes
-    /// sowing cheaper in labour, not dearer.
     #[test]
     fn advanced_farming_needs_less_labour_for_the_same_sowing() {
         for fields in 1..=16 {
@@ -303,7 +216,6 @@ mod tests {
             let basic = sacks_per_field(T, fields, 10_000, 200, false);
             assert!(advanced >= basic, "{fields} fields: {advanced} vs {basic}");
         }
-        // 8 fields x 10 sacks needs 12*80/5 = 192 workers advanced, 480 basic.
         assert_eq!(sacks_per_field(T, 8, 10_000, 192, true), 10);
         assert_eq!(sacks_per_field(T, 8, 10_000, 191, true), 9);
         assert_eq!(sacks_per_field(T, 8, 10_000, 192, false), 4);
@@ -319,13 +231,6 @@ mod tests {
         assert_eq!(c.crop, [0; 3]);
     }
 
-    /// The whole year, in Cloudy weather where every factor is 1: 6 fields at
-    /// 10 sacks is 60 sacks of seed, becoming 720 sacks at harvest.
-    ///
-    /// **And the three crop words are seed, standing crop and harvest** — not
-    /// three growth stages. `crop[0]` is written once, at sowing, and never
-    /// moves again; `crop[1]` is rewritten in place by every grow; `crop[2]` is
-    /// cleared at the top of every season and filled at the harvest.
     #[test]
     fn a_full_year_of_grain_turns_each_sack_into_twelve() {
         let mut c = County::new();
@@ -364,13 +269,11 @@ mod tests {
         c.fields_grain = 6;
         c.fields_grain_standing = 6;
         c.crop = [40, 480, 0];
-        // 480 / 6 = 80 a field: under 81, so band 7.
         for season in [Season::Spring, Season::Summer, Season::Autumn] {
             assert_eq!(grain_stage_band(&c, season), 7, "{season:?} reads crop[1]");
         }
         assert_eq!(grain_stage_band(&c, Season::Winter), 2, "Winter reads crop[2], and it is 0");
         c.crop[2] = 486;
-        // 486 / 6 = 81: the top band.
         assert_eq!(grain_stage_band(&c, Season::Winter), 11);
 
         // **The divisor is `+0x206`, not `fieldsGrain`.** Paint two more grain
@@ -378,10 +281,8 @@ mod tests {
         // picture is unchanged. Banded by `fieldsGrain` it would fall to 3.
         c.fields_grain = 8;
         assert_eq!(grain_stage_band(&c, Season::Summer), 7, "480 / 6, not 480 / 8");
-        // And a trampled field steps it down: 480 / 5 = 96, the top band.
         c.fields_grain_standing = 5;
         assert_eq!(grain_stage_band(&c, Season::Summer), 11);
-        // A byte, as the original reads it.
         c.fields_grain_standing = 0x100 + 6;
         assert_eq!(grain_stage_band(&c, Season::Summer), 7);
     }
@@ -411,14 +312,10 @@ mod tests {
     /// first grain tile of the county in tile-index order takes the crop's band
     /// and every later one is repainted `2`. A tile of another county, and a
     /// pasture of this one, are outside the sweep's tests and keep their bytes.
-    ///
-    /// The screen test's year never sows short, so this is the only test that
-    /// can see the arm.
     #[test]
     fn a_short_sowing_paints_the_crop_on_the_first_grain_tile_and_bare_on_the_rest() {
         use crate::map::{flags, index, CampaignMap};
         let mut map = CampaignMap::empty();
-        // Index order is `y * 64 + x`: (10, 10) comes before (11, 10) and (10, 11).
         let grain = [index(10, 10), index(11, 10), index(10, 11)];
         for &t in &grain {
             map.county[t] = 3;
@@ -439,7 +336,6 @@ mod tests {
         c.fields_grain_standing = 1; // the shortfall records one field
         c.sow_shortfall = true;
         grain_repaint_fields(3, &c, Season::Spring, &mut map);
-        // 60 sacks over one field: under 81, so band 7.
         assert_eq!(map.terrain[grain[0]], 7, "the first grain tile takes the crop");
         assert_eq!((map.terrain[grain[1]], map.terrain[grain[2]]), (2, 2), "the rest are bare");
         assert_eq!(map.terrain[foreign], 2, "another county's field is not swept");
@@ -450,9 +346,6 @@ mod tests {
         assert_eq!(grain.map(|t| map.terrain[t]), [7, 7, 7], "without the flag every one does");
     }
 
-    /// **The labour cap, which is the whole reason the grain ceiling exists.**
-    /// A county that sows a full crop and then puts nobody on the fields grows
-    /// and reaps nothing at all; one that sends half the hands reaps half.
     #[test]
     fn a_crop_nobody_tends_comes_to_nothing() {
         let sow_and_run = |grow_hands: i32| {
@@ -470,16 +363,10 @@ mod tests {
             c.crop[2]
         };
         assert_eq!(sow_and_run(0), 0, "nobody tends it, nobody reaps it");
-        // 10 hands tend 100 sacks a season and 5 of them reap 15, so the cap
-        // that binds at the end is the harvest's, not the growing's.
         assert_eq!(sow_and_run(10), 15);
         assert_eq!(sow_and_run(10_000), 720, "and a full workforce loses nothing");
     }
 
-    /// **Fertility is the crop's multiplier, once per growing season**, and it
-    /// was doing nothing at all in this crate before: `Grain_Grow` applies
-    /// `crop + Pct(crop, fertility / 2)` after the labour cap, and there are
-    /// two grow steps a year.
     #[test]
     fn fertility_multiplies_the_crop_twice_a_year() {
         let year = |fertility: i32| {
@@ -496,9 +383,7 @@ mod tests {
             c.crop[2]
         };
         assert_eq!(year(0), 720);
-        // +100 is +50% a step: 720 -> 1080 -> 1620.
         assert_eq!(year(100), 1620);
-        // -100 is -50% a step: 720 -> 360 -> 180.
         assert_eq!(year(-100), 180);
     }
 
@@ -521,8 +406,6 @@ mod tests {
         grain_season_tick(T, &mut c, Season::Summer, true, Q);
         assert_eq!(c.crop[1], 360);
 
-        // And back the other way: twelve fields on a crop sown on six is still
-        // a crop sown on six.
         c.fields_grain = 12;
         grain_season_tick(T, &mut c, Season::Autumn, true, Q);
         assert_eq!(c.crop[1], 360);
@@ -550,9 +433,6 @@ mod tests {
         assert!(stormy > flooded, "{stormy} vs {flooded}");
     }
 
-    /// `Grain_SeasonTick`'s two panel figures: the event's **magnitude** whatever
-    /// its sign, zeroed on a season with no event, and the weather band's effect
-    /// as the stage after the band less before it.
     #[test]
     fn the_grain_tick_records_what_the_event_and_the_weather_did() {
         let mut c = County::new();
@@ -567,7 +447,6 @@ mod tests {
         grain_season_tick(T, &mut c, Season::Winter, true, Q);
         assert_eq!(c.grain_event_change, 0, "zeroed by the tick that has no event");
 
-        // Sunny growing is `* 3 / 2`: the figure is the half the sun added.
         let mut c = County::new();
         c.fields_grain = 6;
         c.fields_grain_sown = 6;
@@ -603,20 +482,7 @@ mod tests {
         assert_eq!(c.grain, 0);
     }
 
-    // -----------------------------------------------------------------------
-    // The herd
-    //
-    // Every test below has to say what its county's pasture and labour are,
-    // and that is the whole lesson. `County::new()` has no cattle fields and
-    // nobody working, which the old tests took as a neutral background: a
-    // county in that state now loses half its herd a season, and every one of
-    // them was measuring the weather against a slaughterhouse without knowing.
-    // -----------------------------------------------------------------------
 
-    /// A county whose herd is pastured and staffed, so a rule can be measured
-/// on its own. `labour` is stated — three a head is
-    /// full staffing, and a test that wants "well staffed" should have to write
-    /// the number down.
     fn grazing(herd: i32, fields_cattle: i32, labour: i32) -> County {
         let mut c = County::new();
         c.herd = herd;
@@ -632,9 +498,6 @@ mod tests {
     const AUTUMN: u8 = Season::Autumn as u8;
     const WINTER: u8 = Season::Winter as u8;
 
-    /// Only *Sunny* grows the herd and only *Cloudy* leaves it alone — and the
-/// weather is now a term **on top of** the births and deaths
-    /// the only thing that happens.
     #[test]
     fn the_herd_follows_the_weather_table_exactly() {
         for w in Weather::ALL {
@@ -656,9 +519,6 @@ mod tests {
         assert!(after(Weather::Cloudy) > after(Weather::Frost));
     }
 
-    /// `Herd_SeasonTick`'s two panel figures: the weather's signed swing, which
-    /// No Bull forces to zero, and the event's magnitude, which No Bull does not
-    /// have.
     #[test]
     fn the_herd_tick_records_what_the_event_and_the_weather_did() {
         for w in Weather::ALL {
@@ -691,11 +551,6 @@ mod tests {
         assert_eq!(c.event_herd_pct, 0);
     }
 
-    /// **The rule the crate did not have.** `docs/kingdom.md` §13.
-    ///
-/// Walks the whole labour domain,
-    /// because the rule that was here before — none — passed every test at
-    /// every one of them.
     #[test]
     fn three_labourers_a_head_is_full_staffing_and_below_it_cattle_die() {
         let herd = 100;
@@ -716,8 +571,6 @@ mod tests {
             previous_births = g.births;
         }
 
-        // The boundary itself. Deaths are `herd * rate / 100` because the
-        // per-ten-thousand rate is applied to a hundred times the herd.
         let staffed = herd_growth(T, herd, fields, full, crowding, SUMMER);
         let abandoned = herd_growth(T, herd, fields, 0, crowding, SUMMER);
         assert_eq!(staffed.deaths, 1, "1 per 10,000 of 100 head");
@@ -726,15 +579,10 @@ mod tests {
         assert_eq!(abandoned.births, 0, "and a staffing of zero is a birth rate of zero");
         assert!(staffed.net() > 0 && abandoned.net() < 0, "the sign of the season flips");
 
-        // One worker short of full staffing is not yet a penalty - the
-        // shortfall is divided by three and truncated - and a third of the
-        // workforce missing is.
         assert_eq!(herd_growth(T, herd, fields, full - 1, crowding, SUMMER).deaths, 1);
         assert_eq!(herd_growth(T, herd, fields, full / 3, crowding, SUMMER).deaths, 23);
     }
 
-    /// The cap: staffing stops paying at 200%, and the comparison really is
-/// against 199.
     #[test]
     fn the_staffing_benefit_stops_at_twice_the_workers() {
         let (herd, fields) = (10_000, 1_000);
@@ -743,14 +591,10 @@ mod tests {
         let full = herd * T.herd.labour_per_head;
         assert!(at(2 * full) > at(full), "twice the workers is worth having");
         assert_eq!(at(2 * full), at(10 * full), "ten times over is not");
-        // 199% is not rounded up to 200%: the guard is `199 < staffing`.
         let ninety_nine = full * 199 / 100;
         assert!(at(ninety_nine) < at(2 * full));
     }
 
-    /// A small herd breeds faster — **only when it is fully staffed.** The
-    /// bonus sits inside the `staffing >= 100` arm, which is what stops it
-    /// rescuing a herd nobody is looking after.
     #[test]
     fn a_small_herd_breeds_faster_but_only_if_somebody_is_tending_it() {
         for &(below, bonus) in T.herd.small_bonus.iter() {
@@ -767,14 +611,11 @@ mod tests {
             let idle = herd_growth(T, herd, fields, 0, crowding, SUMMER);
             assert!(idle.births <= 1, "and an unstaffed herd of {herd} gets none of it");
         }
-        // Twenty-five head and up is not a small herd.
         let crowding = herd_crowding(T, 25, 10);
         let plain = herd_growth(T, 25, 10, 75, crowding, SUMMER);
         assert_eq!(plain.births, per_myriad(25, 1400).max(1));
     }
 
-    /// `docs/kingdom.md` §13's second
-    /// branch, walked over the whole herd domain it splits.
     #[test]
     fn a_county_with_no_pasture_loses_half_its_herd_or_all_of_it() {
         for herd in 0..=200 {
@@ -824,21 +665,14 @@ mod tests {
         assert_eq!(levels, vec![10, 20, 30, 40], "in that order, and only those");
     }
 
-    /// A county with no pasture is at maximum crowding whatever its herd —
-/// which the binary says twice, and so the last band's rates are
-    /// what an unpastured county would be judged by if the harsher branch above
-    /// it ever stopped firing.
     #[test]
     fn no_pasture_is_maximum_crowding_at_every_herd_size() {
         for herd in 0..=500 {
             assert_eq!(herd_crowding(T, herd, 0), 40, "herd {herd} on no pasture");
         }
-        // An *empty* herd on real pasture is the other extreme.
         assert_eq!(herd_crowding(T, 0, 8), 10);
     }
 
-    /// Crowding is a stored field, not a derived one, and the difference shows:
-    /// the season is worked out at the crowding the herd *had*.
     #[test]
     fn a_season_is_judged_at_last_seasons_crowding_and_then_recomputed() {
         let mut c = grazing(300, 10, 900); // density 30 -> band 30
@@ -848,9 +682,6 @@ mod tests {
         assert_eq!(c.herd_crowding, 10, "and the new pasture counts from next season");
     }
 
-    /// Every crowding band, against every staffing level. Two monotonicities
-    /// that hold across the whole grid, which is the shape of the table rather
-    /// than a sample of it: **more crowding is always worse on both counts.**
     #[test]
     fn a_more_crowded_herd_always_dies_faster_and_breeds_slower() {
         let (herd, fields) = (10_000, 1_000);
@@ -867,8 +698,6 @@ mod tests {
         }
     }
 
-    /// A crowding value the bands do not name falls into the harshest one,
-    /// which is the original's `else` and not a choice of ours.
     #[test]
     fn an_unnamed_crowding_value_is_treated_as_the_worst_one() {
         let (herd, fields, labour) = (10_000, 1_000, 30_000);
@@ -878,7 +707,6 @@ mod tests {
         }
     }
 
-    /// Spring brings calves and Winter kills, both by exactly `3 / 2`.
     #[test]
     fn spring_is_worth_half_again_in_calves_and_winter_half_again_in_losses() {
         let (herd, fields) = (10_000, 1_000);
@@ -890,15 +718,11 @@ mod tests {
         assert_eq!(spring.deaths, plain.deaths, "Spring does not kill");
         assert_eq!(winter.deaths, plain.deaths * 3 / 2);
         assert_eq!(winter.births, plain.births, "and Winter does not calve");
-        // Autumn and Summer are neither, and so is the original's "No Season".
         for season in [SUMMER, AUTUMN, 0] {
             assert_eq!(herd_growth(T, herd, fields, herd * 3, crowding, season), plain);
         }
     }
 
-    /// **A rate that rounds away to nothing still moves one animal**, and the
-    /// direction depends on which rate it was. The last cow in a county nobody
-    /// is farming dies; the last cow in a county that is, calves.
     #[test]
     fn the_last_cow_calves_if_it_is_tended_and_dies_if_it_is_not() {
         let mut kept = grazing(1, 1, 3);
@@ -912,7 +736,6 @@ mod tests {
         assert_eq!(abandoned.herd, 0, "a birth rate of zero and a death rate that is not");
     }
 
-    /// The herd can never go negative, and deaths are capped at the herd.
     #[test]
     fn deaths_never_exceed_the_herd_and_the_herd_never_goes_negative() {
         for herd in 0..=120 {
@@ -927,8 +750,6 @@ mod tests {
         assert_eq!(c.herd, 0);
     }
 
-    /// The rule as a player meets it: a county that stops assigning cattle
-    /// farmers watches the herd go, and one that keeps them watches it grow.
     #[test]
     fn an_untended_herd_dwindles_away_over_a_few_years_and_a_tended_one_does_not() {
         let seasons = [SPRING, SUMMER, AUTUMN, WINTER];
@@ -964,8 +785,6 @@ mod tests {
         assert_eq!(c.herd_deaths_expected, g.deaths);
         assert_eq!(c.herd_change_expected, g.net() - 13, "the coming slaughter, off the net too");
 
-        // An empty county forecasts nothing at all: the original guards on
-        // popBand, which is zero only where there are no people.
         let mut empty = grazing(100, 10, 300);
         empty.pop_band = 0;
         herd_preview(T, &mut empty, SPRING);

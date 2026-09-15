@@ -17,28 +17,11 @@ use l2_kingdom::Options;
 use crate::{Clock, CountyState, IndustryState, RealmState, Scenario};
 
 impl Scenario {
-    /// **A world built from an `L2_maps.dat` slot.**
-    ///
-    /// The second constructor, and the one the *New Game* button needs.
-    /// Everything it produces is the same plain data
-    /// [`Scenario::from_save`] produces, so
-    /// [`Scenario::starting_kingdom`] takes either without knowing which — and
-    /// `crates/l2-scenario/tests/newgame/main.rs` builds England both ways and
-    /// diffs them field by field.
-    ///
-    /// The clock is `Game_NewGame`'s: **Autumn 1267, with Winter next.**
-    /// `Kingdom::start_new_game` then runs the one immediate `Season_Advance`
-    /// that puts a new game in Winter 1268, so this is deliberately the
-/// position *before* it,
-    /// save.
     pub fn from_map(slot: &MapSlot<'_>, setup: &NewGame) -> Result<Scenario, MapError> {
         let world = build(slot, setup)?;
         Scenario::from_map_world(&world, setup)
     }
 
-    /// The same, from an already-built [`MapWorld`] — for a caller that also
-    /// wants the town tiles, the dwelling plots or the runtime frame plane,
-    /// none of which fits on a [`Scenario`].
     pub fn from_map_world(w: &MapWorld, setup: &NewGame) -> Result<Scenario, MapError> {
         if setup.local_player < 1 || setup.local_player as usize >= MAX_REALMS {
             return Err(MapError::LocalPlayer(setup.local_player));
@@ -65,10 +48,6 @@ impl Scenario {
             counties[id] = Some(c);
         }
 
-        // `Game_SetupRealmsAndCounties`' seating half. The economy half — the
-        // county-status row, the crowns, the armoury, the castle level — is
-        // `l2_game::setup::Settings::apply_to`, which already runs on the save
-        // path and now runs on this one too.
         let mut realms = vec![RealmState::default(); MAX_REALMS];
         for id in 1..MAX_REALMS {
             let realm = &mut realms[id];
@@ -82,17 +61,11 @@ impl Scenario {
             realm.shield_index =
                 if assigned.shield[id] != 0 { assigned.shield[id] } else { id as u8 };
             if id > lords {
-                // `Realms_AssignLords` writes `strength = 0` and hands out no
-                // lord; `Game_SetupRealmsAndCounties` then skips the realm
-                // entirely, so it gets no county and no gold.
                 continue;
             }
             realm.in_play = true;
             realm.strength = 1;
             realm.is_human = id == setup.local_player as usize;
-            // The walk already leaves a human at 0 — `g_realms[i].lord = 0` is
-            // the first statement of every iteration — so this is the walk's
-            // answer and not a second rule beside it.
             realm.lord = assigned.lord[id];
             realm.county_count = 1;
             // `g_realms[i].field_0x2a = 1` beside it (`0x00490000.c` setup walk,
@@ -103,9 +76,6 @@ impl Scenario {
                 continue;
             };
             c.owner = id as u8;
-            // **The one industry a start county opens with switched on**, and
-            // it is not the blacksmith: the loop skips record 2 and takes the
-            // first of wood, iron, stone the county has a resource for.
             if let Some(slot) =
                 c.industry.iter_mut().enumerate().find(|(r, s)| *r != IND_WEAPONS && s.has_resource)
             {
@@ -120,18 +90,12 @@ impl Scenario {
         let units = spawn_merchants(w, &map);
 
         // **`Game_SetupRealmsAndCounties`' last statement** (`0x0049BD99`):
+        //
         // `FUN_0046DFD5(g_playerStartTable[g_localPlayer * 2])` — the local
         // player's start county, and a one-tile border, is seen. Every other
         // tile was cleared by `Map_InitScenario` (`FUN_0046DF51`), which is
         // `Explored::new`. Every seated realm gets its own, for the reason
         // `l2_kingdom::explore` gives; only the person's is ever drawn.
-        //
-        // **The garrison's square is not here, and it is not missing from
-        // this line.** The original's `Army_Create` for the starting garrison
-        // reveals thirteen by thirteen round it, and the England fixture's
-        // bits carry it; this build does not raise that garrison yet
-        // (`l2_game::setup::Settings::unhonoured`), and the day it does it
-        // will go through `levy::create_army`, which reveals.
         let mut explored = l2_kingdom::explore::Explored::new();
         for id in 1..=w.county_count {
             if let Some(c) = counties.get(id).and_then(|c| c.as_ref()) {
@@ -144,7 +108,6 @@ impl Scenario {
         Ok(Scenario {
             county_count: w.county_count,
             local_player: setup.local_player,
-            // `County_Reset` opens `g_weatherCounty` on 1.
             weather_county: 1,
             options: setup.options,
             clock: Clock { season: 3, season_next: 4, year: 1267, turn_count: 0 },

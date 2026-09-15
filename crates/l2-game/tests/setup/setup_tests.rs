@@ -24,9 +24,6 @@ fn start_carries_all_twelve_settings_into_the_game() {
     let mut screen = SetupScreen::new(SetupPage::Custom);
     tick(&mut screen, &mut game, &assets);
 
-    // Deliberately not the defaults, and every one of them different from what
-    // the England fixture carries: difficulty 0, no advanced farming, armies
-    // do not eat.
     choose(&mut screen, &mut game, &assets, option::ADVANCED_FARMING, 1); // on
     choose(&mut screen, &mut game, &assets, option::EXPLORATION, 1); // on
     choose(&mut screen, &mut game, &assets, option::ARMIES_EAT, 1); // yes
@@ -38,14 +35,11 @@ fn start_carries_all_twelve_settings_into_the_game() {
     choose(&mut screen, &mut game, &assets, option::STARTING_CASTLE, 5); // royal
     choose(&mut screen, &mut game, &assets, option::FIGHT, 0); // humans
 
-    // Nothing has reached the world yet: the screen holds the selections and
-    // the game is still the one the save described.
     assert!(!game.kingdom.options.advanced_farming, "not until Start");
 
     let t = press_start(&mut screen, &mut game, &assets);
     assert_eq!(t, Transition::Push(ScreenId::Campaign));
 
-    // The six that are rules.
     let o = game.kingdom.options;
     assert!(o.advanced_farming);
     assert!(o.exploration);
@@ -54,17 +48,10 @@ fn start_carries_all_twelve_settings_into_the_game() {
     assert_eq!(o.fight_humans_only_byte, 0, "index 0 is \"humans\", and the byte is inverted");
     assert_eq!(o.time_limit, 240, "\"4 mins\" is 240 seconds, not the index 3");
 
-    // The six that are starting conditions.
     let player = game.player as usize;
     assert_eq!(game.kingdom.realms[player].gold, STARTING_GOLD[4]);
     assert_eq!(game.kingdom.realms[player].weapons, START_ARMOURY[3]);
     assert_eq!(game.kingdom.realms[player].iron, setup::STARTING_MATERIALS);
-    // **The stores are read one season later than they used to be**, because
-    // *Start* now does what `Game_NewGame` does and runs the first
-    // `Season_Advance` before handing the world over — a new game begins in
-    // Winter 1268, not in the Autumn 1267 the county-status row is written
-    // into. So the row is checked where the season leaves it visible:
-    // `pop_last` is the population the pass started from, which is the row's.
     for id in game.kingdom.county_ids() {
         let c = &game.kingdom.counties[id];
         assert_eq!(c.pop_last, COUNTY_STATUS[2].population, "county {id}");
@@ -77,13 +64,6 @@ fn start_carries_all_twelve_settings_into_the_game() {
     assert_eq!(game.kingdom.turn_count, 1);
 }
 
-/// **The *County Status* row reaches the land**, measured through the season
-///
-///
-/// The three rows differ by a factor of eight in the herd and seven in the
-/// population, and one season of eating does not close that — so the ordering
-/// survives, and asserting the ordering asserts the setting arrived without
-/// asserting a number the season is entitled to move.
 #[test]
 fn the_county_status_row_still_orders_the_counties_after_the_first_season() {
     let Some(dir) = install() else {
@@ -93,9 +73,6 @@ fn the_county_status_row_still_orders_the_counties_after_the_first_season() {
     let assets = Assets::load(&platform.vfs).expect("assets load");
     let mut totals = Vec::new();
     for row in 0..3usize {
-        // **From an empty game, not from the fixture.** *Start* replaces the
-        // whole world now
-        // property this whole commit is about, asserted in passing.
         let mut game = Game::new(scenario::SEED);
         let mut screen = SetupScreen::new(SetupPage::Custom);
         tick(&mut screen, &mut game, &assets);
@@ -109,7 +86,6 @@ fn the_county_status_row_still_orders_the_counties_after_the_first_season() {
     let [weak, medium, strong] = <[(i32, i32); 3]>::try_from(totals).unwrap();
     assert!(weak.0 < medium.0 && medium.0 < strong.0, "the herd: {weak:?} {medium:?} {strong:?}");
     assert!(weak.1 < medium.1 && medium.1 < strong.1, "the population");
-    // …and the population really is the row's, fourteen counties of it.
     assert_eq!(strong.1, 14 * COUNTY_STATUS[2].population);
 }
 
@@ -138,8 +114,6 @@ fn difficulty_reaches_the_ai_armoury_and_not_the_persons() {
         }
     }
     assert!(ai > 0, "somebody has to be the AI or this proves nothing");
-// And the option is "none" — the extra is the difficulty's
-    // the table's.
     assert_eq!(START_ARMOURY[0][slot], 0);
 }
 
@@ -148,8 +122,6 @@ fn fewer_lords_than_the_map_seats_leaves_the_rest_of_the_map_neutral() {
     let (mut game, assets) = world!();
     let mut screen = SetupScreen::new(SetupPage::Custom);
     tick(&mut screen, &mut game, &assets);
-    // The England fixture seats five and starts with five realms holding one
-    // county each.
     let before = (1..MAX_REALMS).filter(|&i| game.kingdom.realms[i].in_play).count();
     assert_eq!(before, 5, "the fixture has five realms in play");
 
@@ -160,7 +132,6 @@ fn fewer_lords_than_the_map_seats_leaves_the_rest_of_the_map_neutral() {
     let after = (1..MAX_REALMS).filter(|&i| game.kingdom.realms[i].in_play).count();
     assert_eq!(after, 2, "one person and one lord");
     assert!(game.kingdom.realms[game.player as usize].in_play, "the person is not dropped");
-// A dropped realm's county goes back to nobody.
     for id in game.kingdom.county_ids() {
         let owner = game.kingdom.counties[id].owner as usize;
         assert!(
@@ -175,13 +146,10 @@ fn the_map_list_sets_the_lord_count_from_the_map() {
     let (mut game, assets) = world!();
     let mut screen = SetupScreen::new(SetupPage::Custom);
     tick(&mut screen, &mut game, &assets);
-    // Slot 0 is England, and it seats five.
     assert_eq!(screen.map(), 0);
     assert_eq!(screen.player_starts(), 5, "England seats five");
     assert_eq!(screen.options().lords(), 5);
 
-    // Walk the visible rows of the list; whatever each one seats, the lord
-    // count follows it, and the drop-down is never longer than the seats.
     for row in 0..MAP_LIST_ROWS {
         let y = MAP_LIST_Y + row as i32 * MAP_LIST_ROW + 4;
         click(&mut screen, &mut game, &assets, MAP_LIST_X + 8, y);
@@ -197,9 +165,6 @@ fn the_map_list_sets_the_lord_count_from_the_map() {
     }
 }
 
-/// **Every map in `L2_maps.dat` seats 5, 4 or 2**, which is what
-/// `docs/symbols.md` says `g_playerStartCount` comes out as
-/// *Nobles* drop-down needs shortening at all.
 #[test]
 fn the_shipped_maps_seat_five_four_or_two() {
     let (_game, assets) = world!();
@@ -230,7 +195,6 @@ fn the_defaults_button_restores_the_originals_defaults() {
     tick(&mut screen, &mut game, &assets);
     choose(&mut screen, &mut game, &assets, option::CROWNS, 0); // 100
     choose(&mut screen, &mut game, &assets, option::STARTING_CASTLE, 0); // none
-    // *Defaults* is the third caption on the row.
     click(&mut screen, &mut game, &assets, 0x141 + 20, 0xC6);
     assert_eq!(screen.options(), &SetupOptions::new());
     let s = screen.options().commit(1, l2_kingdom::Quirks::FAITHFUL);
@@ -246,7 +210,6 @@ fn nothing_is_started_by_looking_at_the_page() {
     tick(&mut screen, &mut game, &assets);
     choose(&mut screen, &mut game, &assets, option::DIFFICULTY, 3);
     choose(&mut screen, &mut game, &assets, option::CROWNS, 0);
-    // *Cancel*, not *Start*.
     click(&mut screen, &mut game, &assets, 0xA5 + 20, 0xC6);
     assert_eq!(game.kingdom, before, "only Start may touch the world");
 }

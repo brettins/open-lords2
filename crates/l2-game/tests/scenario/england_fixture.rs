@@ -8,15 +8,6 @@ use l2_game::scenario;
 use l2_kingdom::tables::{Tables, Weather};
 use l2_mods::Platform;
 
-/// The correction. `docs/kingdom.md` §9 and `l2-kingdom`'s reproduction test
-/// both said four counties owned by one realm; the bytes say five owned by five
-/// different realms, at indices 1, 4, 8, 11 and 13.
-///
-/// **Corrected again.** This used to pin the owners as well —
-/// `[(1, 5), (4, 4), (8, 1), (11, 3), (13, 2)]` — and to say the human owns
-/// county 8. Both are rolled per game: a second England turn-one save gives
-/// 1→4, 4→2, 8→5, 11→3, 13→1 and puts the person on county 13. The county set
-/// is scenario, the assignment is not.
 #[test]
 fn the_england_fixture_holds_five_owned_counties_one_for_each_realm() {
     let game = game!();
@@ -47,8 +38,6 @@ fn the_england_fixture_holds_five_owned_counties_one_for_each_realm() {
     assert!(l2_testkit::ENGLAND_TURN1_COUNTIES.contains(&selected));
 }
 
-/// §9 points 1, 2 and 3: the clock, the county count and the two options that
-/// force every county to Cloudy with zero fertility.
 #[test]
 fn the_clock_and_the_options_are_read_out_of_the_save() {
     let game = game!();
@@ -67,9 +56,6 @@ fn the_clock_and_the_options_are_read_out_of_the_save() {
     }
 }
 
-/// §9 point 5 and the health chain of point 7, on the two cases the map has:
-/// an owned county stores happiness 72 = 65 + 5 + 1 + 1, an unowned one stores
-/// 77 with a `+5` from the unowned bonus, and both are at health 67, band 3.
 #[test]
 fn the_happiness_and_health_the_save_stores_are_the_ones_the_rules_predict() {
     let game = game!();
@@ -91,15 +77,10 @@ fn the_happiness_and_health_the_save_stores_are_the_ones_the_rules_predict() {
     }
 }
 
-/// The five realms, their lords and their treasuries, straight out of
-/// `g_realms`.
 #[test]
 fn the_five_realms_are_in_play_with_a_thousand_crowns_each() {
     let game = game!();
 
-    // **Corrected.** This pinned `[0, 1, 2, 4, 3]`. Which lord sits behind
-    // which realm is rolled with the county assignment; what holds is that
-    // realm 1 is the person, lord row 0, and the other four are distinct.
     let lords: Vec<u8> = (1..=5).map(|r| game.kingdom.realms[r].lord).collect();
     assert_eq!(lords[0], 0, "row 0 of every lord-indexed table is the person's");
     let mut sorted = lords.clone();
@@ -116,20 +97,7 @@ fn the_five_realms_are_in_play_with_a_thousand_crowns_each() {
     }
 }
 
-/// **Two independently authored files agreeing, id for id.**
-///
 /// The adjacency a game runs on is the list the save stores at county `+0x5C`.
-/// `L2_maps.dat`'s county plane is a second, entirely separate description of
-/// the same geography, and deriving adjacency from it — a tile of one county
-/// 4-adjacent to a tile of another — reproduces the stored list exactly for all
-/// fourteen counties. Neither file was written with the other in mind, so this
-/// would fail loudly if the county plane were misread, if the map slot were the
-/// wrong one, or if the save's neighbour list were being read at the wrong
-/// offset.
-///
-/// What it does **not** establish: 8-way adjacency gives the same answer on
-/// this map, so the agreement confirms the two readings
-/// of the adjacency rule.
 #[test]
 fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
     let dir = install!();
@@ -153,15 +121,8 @@ fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
     }
     assert_eq!(derived[2], vec![1, 3, 7], "and the lists are ids, not just counts");
 
-    // **The stored order is not ascending**, and that is a fact about the file
-    //
-    // map loader happened to find them in. It is preserved as it is, because
-    // it is the order the original's migration walks, and because it comes
-    // from the file it is the same order on every peer. Sorting it here would
-    // have been a silent change to a rule's input.
     assert_eq!(stored[1], vec![3, 7, 1], "county 2's neighbours, in the file's own order");
 
-    // Adjacency is symmetric.
     for id in game.kingdom.county_ids() {
         for &n in &stored[id - 1] {
             assert!(
@@ -172,9 +133,6 @@ fn adjacency_derived_from_the_map_matches_the_list_stored_in_the_save() {
     }
 }
 
-/// The map the save names decodes, holds fourteen counties, and the slot is
-/// `g_scenarioIndex` **unshifted**.
-///
 /// **This test cannot, on its own, distinguish the two readings**, and saying
 /// so is the point: the shipped index is 0, and `0 >> 2` is also 0. An earlier
 /// revision shifted it right by two on the belief that the low bits named a
@@ -213,10 +171,7 @@ fn every_realm_in_the_save_flies_a_colour_the_banner_frames_have() {
         let c = game.realm_colour[id];
         assert!((1..=5).contains(&c), "realm {id} flies colour {c}");
     }
-    // Realm 0 is never a realm and keeps the sentinel `Game::new` seeded.
     assert_eq!(game.realm_colour[0], 0);
-    // Five realms, five colours, no two the same — which is what makes the
-    // banners in the menu bar tell them apart.
     let mut seen = game.realm_colour[1..].to_vec();
     seen.sort_unstable();
     seen.dedup();

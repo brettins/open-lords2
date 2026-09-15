@@ -1,12 +1,3 @@
-//! The county panels — **four of them**, not one.
-//!
-//! This screen used to be one invented full-screen page listing twenty-two
-//! fields with two arrow rows bolted underneath. It was not what the original
-//! draws, and nobody had looked. `docs/screens-county.md` is the reading; this
-//! is the rebuild.
-//!
-//! # What the original does
-//!
 //! The county's numbers live in the **county strip**, the 162 × 94 plate at
 //! (478, 156) in the campaign map's right-hand column, and the strip is a
 //! **2 × 2 hotspot**: `CountyStrip_Click` (`0x00438CEB`) opens the population
@@ -18,14 +9,6 @@
 //! anywhere. That picture is a cursor arrow pointing into a black hole — a
 //! close button whose artwork is the instruction, and not the tick this file
 //! used to call it. `docs/screens-county.md` §2.6 and §2.7.
-//!
-//! So this screen draws the strip at the original's own coordinates, over the
-//! original's own `Misc_cty.pl8` plates, with the original's own quadrants
-//! live; and it draws one of the four panels at the original's own rectangle,
-//! with the original's own rows in the original's own order, using the
-//! original's `Panels.pl8` box kit and `System2.pl8` buttons.
-//!
-//! # The painters, address by address
 //!
 //! Transcribed from the decompilation, coordinates resolved to decimal in the
 //! trailing comment. Every one of the four opens with `FUN_004050C0()`, which
@@ -127,9 +110,6 @@
 //! `Eng_DrawString` sites pass 1, 2, 3 and 4, and a grep of the whole corpus for
 //! `(0x56,` finds exactly those four. It is the same shape as 31/21 *"Morale"*
 //! and as the court's 70/1 *"Arms"*: a caption the original left in the file.
-//! [`g86::TITLE_NEVER_DRAWN`] names it so nobody goes looking, and **we used to
-//! draw it** — a "TAX IN" heading of ours at (96, 152) that the game has never
-//! put on that panel.
 //!
 //! ```text
 //! Panel_Ration():                                               0x00411B72
@@ -168,16 +148,6 @@
 //!                             Panel_RationSlider()
 //! ```
 //!
-//! # Two things this file used to get wrong about alignment.
-//! same mistake
-//!
-//! * **`Ui_DrawNumber` and `Ui_DrawDelta` draw *left*-aligned from their `x`.**
-//!   `Ui_NumberToBuffer` formats into a buffer and `Ui_DrawText` puts it at `x`;
-//!   nothing measures it. `docs/screens-county.md` §5.1 says *"values
-//!   right-anchored from x = 336"* and that is wrong — 336 is where the digits
-//!   **start**. The `'@'` lead is a blank glyph that reserves one character's
-//!   width for a sign, which is how a `+7` and a `7` line up; it is not
-//!   right-alignment.
 //! * **`Ui_DrawNumberRight` centres.** Its whole body after building the string
 //!   is `FUN_004025D7`, the same helper `Ui_DrawCentred` calls, and that is
 //!   `x + max(0, (width - textWidth) / 2)`. The ration panel's five calls pass
@@ -188,8 +158,6 @@
 //!   numbers sit under their pictures. Right-aligned they would *end* at 208,
 //!   266 and 324 and stand left of every icon. `docs/screens-county.md` §5.4
 //!   calls them right-aligned; they are not.
-//!
-//! # What is still ours, and says so
 //!
 //! * **The history graph, and it is a whole picture.** `Ui_HistoryGraph`
 //!   (`0x004156A7`); here is all of it.
@@ -210,8 +178,6 @@
 //!                          y + 0x9A - value / div)
 //!   ```
 //!
-//!   The two tables are read out of `Lords2.exe` and they agree with the
-//!   artwork, which is the check that makes this more than a transcription:
 //!   `0x004D29F8` is the (threshold, value) ladder `<10 -> 2, <20 -> 4, <30 ->
 //!   6, <40 -> 8, <50 -> 10, <60 -> 12, <80 -> 14, <100 -> 16, <130 -> 18,
 //!   <200 -> 20`, default `22`, and `0x004D2AC0` indexed by that answer gives
@@ -227,16 +193,19 @@
 //!   `Graphs.pl8` is not one of the sheets `l2-view` loads, so the rectangle is
 //!   an empty recess that says so. It is a stub and it is meant to look like
 //!   one, and what is missing is now written down.
+//!
 //! * **The two years under the graph.** `Ui_DrawYear(DAT_00553228, …)` prints
 //! the year at the head of the history window;
 //!   such year, and drawing only the right-hand one would be worse than
 //!   drawing neither. Both are recorded missing.
+//!
 //! *(**Fixed.** This list used to carry a fourth entry: "what is behind the
 //! panels — the original has the campaign map there; the map screen is another
 //! file, so this one paints a flat ground." It no longer does. The panels are
 //! [overlays](crate::screen::Screen::is_overlay) and the machine paints the map
 //! screen beneath them, which is the same correction the village needed —
 //! `docs/decisions.md` C22.)*
+//!
 //! *(**Fixed.** This list used to carry: "the strings on the panels — ours,
 //! transcribed from the `L2.eng` group each row names", and, above it, "the
 //! font on the four panels — the panels still use our own 5 × 7 font at the
@@ -246,20 +215,6 @@
 //! `L2.eng` at the group and index the painter passes. The transcriptions stay
 //! as the **fallback** for a machine with no game, which is what
 //! [`draw_strip`] has always done and what the tests run against.)*
-//! *(**Fixed.** This list used to carry a fifth entry: "the bottom strip reads
-//! BACK TO MAP; the original's is End Turn, which is the map screen's
-//! business." It was a rectangle of ours drawn over — and hit-tested ahead of —
-//! a live control of the game's, at (478, 460), which is `g_sidebarButtons`
-//! record 5 to the pixel. It is gone, and the whole right-hand column is now
-//! passed down to the map screen the way `Screen_FrameInput`'s six guards pass
-//! it.)*
-//!
-//! # What is not here at all
-//!
-//! Labour, sowing, ale and field types, because **none of them is on a county
-//! panel in the original either**. Peasants are moved by rubber-band drag on
-//! the village screen (0x02), ale is bought from the merchant (0x08), and
-//! fields are painted on the map. `docs/screens-county.md` §6.4 and §6.5.
 
 mod layout_part;
 pub use layout_part::*;
@@ -284,11 +239,6 @@ use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
 use crate::input::{Event, Key, Rect};
 use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-/// The four panels, in the order Up and Down cycle them.
-///
-/// **The order is ours**; the original has no ordering because it has no
-/// keyboard route in. Tax and Ration lead because they are the two that take
-/// orders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Panel {
     Tax,
@@ -300,9 +250,6 @@ pub enum Panel {
 pub const PANELS: [Panel; 4] = [Panel::Tax, Panel::Ration, Panel::Population, Panel::Happiness];
 
 // ----------------------------------------------------- the `L2.eng` strings
-//
-// One constant per `(group, index)` the four painters pass, carrying our own
-// transcription as the fallback for a machine with no game.
 
 /// One `L2.eng` reference: the group, the index the painter passes, and our
 /// transcription of it.
@@ -320,7 +267,6 @@ pub const PANELS: [Panel; 4] = [Panel::Tax, Panel::Ration, Panel::Population, Pa
 pub struct Line {
     pub group: usize,
     pub index: usize,
-    /// Upper case because our fallback font has no lower case.
     pub ours: &'static str,
 }
 
@@ -350,7 +296,6 @@ mod g73 {
     pub const IMMIGRANTS: Line = line(GROUP, 6, "TOTAL IMMIGRANTS");
     pub const THIS: Line = line(GROUP, 7, "THIS SEASON");
     pub const GREATEST: Line = line(GROUP, 8, "GREATEST POPULATION");
-    /// Drawn **after** the graph's peak: *"Greatest population" 456 "people."*
     #[allow(dead_code, reason = "named because it is not drawn; the graph has no peak here")]
     pub const PEOPLE: Line = line(GROUP, 9, "PEOPLE.");
     pub const NO_EMIGRATION: Line = line(GROUP, 10, "NO EMIGRATION.");
@@ -377,13 +322,6 @@ mod g85 {
 mod g86 {
     use super::{line, Line};
     pub const GROUP: usize = 86;
-    /// **Index 0, *"Tax in"*, is drawn by nothing.** The painter's four
-    /// `Eng_DrawString` sites pass 1, 2, 3 and 4, and those four are the only
-    /// literal `(0x56,` in the whole corpus. It is the tax panel's counterpart
-    /// of the court's *"Arms"* and of 31/21 *"Morale"*: a caption left in the
-    /// file. Named so the next reader does not go looking, and **never passed
-    /// to [`Pen::eng`](crate::shell::Pen::eng)** — drawing it is what this file
-    /// used to do wrong.
     #[allow(dead_code, reason = "named precisely so that it is never drawn")]
     pub const TITLE_NEVER_DRAWN: Line = line(GROUP, 0, "TAX IN");
     pub const RATE: Line = line(GROUP, 1, "TAX RATE");
@@ -396,7 +334,6 @@ mod g86 {
 /// the **fallback** now: the panel draws the player's own file through [`eng`]
 /// and falls back to these only where the install has nothing.
 ///
-/// The reason is countable.
 /// stylistic: `Panel_Ration` (`0x00411B72`) is the **only consumer of group 87
 /// in the whole binary** — enumerated, not assumed — and it draws seven of the
 /// group's twelve strings. **A group with one consumer *is* that screen's
@@ -415,13 +352,7 @@ mod g87 {
     pub const HEALTH: Line = line(GROUP, 3, "HEALTH:");
     pub const EATEN: Line = line(GROUP, 4, "EATEN");
     pub const FED: Line = line(GROUP, 5, "FED");
-    /// The *Armies Eat* line, drawn only when that option is on.
     pub const FORAGING: Line = line(GROUP, 8, "MEN FORAGING IN THE COUNTY.");
-    /// **Indices 6, 7, 9, 10 and 11 — *"Feeds"*, *"Feeds"*, *"growing"*,
-    /// *"harvested"*, *"planted"* — have no literal call site anywhere in the
-    /// corpus.** Whether some caller reaches them through a computed group is
-    /// not established; `Msg_DrawWindow` takes its group from a table. Recorded
-    ///
     #[allow(dead_code, reason = "an inventory of absences, asserted in tests")]
     pub const UNDRAWN: [usize; 5] = [6, 7, 9, 10, 11];
 }
@@ -438,37 +369,18 @@ mod g61 {
 pub struct CountyScreen {
     county: u8,
     panel: Panel,
-    /// The ration slider is being dragged: the left button went down inside it
-    /// and has not come up. `Ration_SliderClick` fires on `g_mouseLeftDown &&
-    /// g_mouseInputChanged`, so a
-    /// screen driven by discrete events needs to remember the first half.
     slider_held: bool,
     /// The two arrows' press timer and auto-repeat counter — `+0x0D` and
     /// `+0x0E` of `g_taxWidgets` / `g_rationWidgets`. See [`CountyScreen::arrows`].
     press: Press,
 }
 
-/// Geometry tests. The canvas tests that read numbers back off the pixels live
-/// in `tests/screens_county.rs`, because they need the shipped install.
-///
 /// **Nine mutations were checked against these and those**, each turning
 /// exactly one test red and no others. The last three are this audit's, and
 /// every literal in the assertion is pinned from the decompilation
 /// computed from the constant it is about — which is the trap `docs/agents.md`
 /// records: *ablating a constant while computing your probe from that same
 /// constant tests nothing at all*.
-///
-/// | mutation | test that went red |
-/// |---|---|
-/// | `MAX_TAX_RATE` 50 → 51 | `the_tax_rate_stops_at_the_originals_own_ceiling_of_fifty` |
-/// | `delta_value`'s zero guard removed | `a_zero_delta_row_draws_its_label_and_no_number` |
-/// | the value column right-anchored again | `a_zero_delta_row_draws_its_label_and_no_number` |
-/// | `SLIDER_CTRL_Y` 220 → 216 | `the_split_sliders_controls_are_four_pixels_below_its_knob` |
-/// | `JobScreen::ok_button`'s blacksmith arm removed | `the_blacksmith_is_the_one_job_that_is_not_this_window` |
-/// | `HOT_X_LEFT_END` 548 → 560 | `the_strip_quadrants_fit_the_plate_and_leave_the_thermometer_unclickable` |
-/// | `Chrome::load` preferring `System2.pl8` | `the_ration_split_slider_sets_the_field_the_original_sets` |
-/// | the population panel's first row y 266 → 267 | `the_population_panel_opens_from_its_own_quadrant_and_lays_out_where_it_should` |
-/// | the strip's population x 508 → 509 | `the_county_strip_shows_the_saves_numbers_where_the_original_puts_them` |
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -480,9 +392,6 @@ mod tests {
             && inner.y + inner.h <= outer.y + outer.h
     }
 
-    /// The four windows are the four `Ui_DrawBox` calls, and each holds its own
-    /// corner picture. A window that ran off the screen, or a corner outside
-    /// it, would mean a cell count or a button coordinate was misread.
     #[test]
     fn every_panel_window_is_on_screen_and_holds_its_own_ok_button() {
         for p in PANELS {
@@ -493,13 +402,6 @@ mod tests {
         }
     }
 
-    /// The two order panels' arrows sit inside their own windows, on one line,
-    /// with the up arrow to the *left* of the down arrow; the two panels that
-    /// only report have none.
-    ///
-    /// The two pairs are spaced differently and that is the original's, not a
-    /// slip: `g_taxWidgets` puts them at x 192 and 224 — a frame is 24 wide, so
-    /// eight pixels apart — and `g_rationWidgets` at 344 and 368, flush.
     #[test]
     fn only_the_two_order_panels_have_arrows_and_both_pairs_are_inside_them() {
         for p in PANELS {
@@ -535,9 +437,6 @@ mod tests {
         );
     }
 
-    /// `CountyStrip_Click`'s four quadrants do not overlap, all four sit inside
-    /// the 162 x 94 plate, and the gap between the two columns is exactly where
-/// the health thermometer is drawn — so the gap exists.
     #[test]
     fn the_strip_quadrants_fit_the_plate_and_leave_the_thermometer_unclickable() {
         let rects: Vec<Rect> = PANELS.iter().map(|p| p.strip_hotspot()).collect();
@@ -554,15 +453,11 @@ mod tests {
                 assert!(!r.contains(x, 200), "thermometer column {x} is clickable in {r:?}");
             }
         }
-        // And the four between them cover both columns and both rows, so no
-        // quadrant is a degenerate strip.
         for r in &rects {
             assert!(r.w > 40 && r.h > 20, "{r:?} is too small to click");
         }
     }
 
-    /// The slider closes: the caps meet the track with no gap and no overlap,
-    /// and the knob's travel is the track's width.
     #[test]
     fn the_split_sliders_caps_track_and_knob_travel_agree() {
         assert_eq!(SLIDER_CAP_LEFT_X + system::SLIDER_CAP, SLIDER_TRACK_X, "left cap meets track");
@@ -577,8 +472,6 @@ mod tests {
         assert!(inside(Panel::Ration.window(), split_track()), "the track is inside the panel");
     }
 
-    /// No panel window reaches the county strip, which is what lets the click
-    /// handler test the strip's quadrants before the panel's own widgets.
     #[test]
     fn no_panel_window_reaches_the_county_strip() {
         for p in PANELS {
@@ -591,8 +484,6 @@ mod tests {
         }
     }
 
-    /// **The split slider's two y's**, which were one until this audit.
-    ///
     /// `Panel_RationSlider` draws the knob at `0xD8` and the caps at `0xDC`;
     /// `Ration_SliderClick` (`0x0043A379`) hit-tests `(200, 0xDC, 24, 24)`,
     /// `(0x145, 0xDC, 24, 24)` and `(0xE0, 0xDC, 0x66, 24)`. The literals here
@@ -612,33 +503,18 @@ mod tests {
         assert_eq!(split_track().w, 0x66);
     }
 
-    /// **`Armies Eat` makes the ration panel two cells taller and moves its
-    /// corner picture 32 pixels down.** `Panel_Ration` opens
-    /// `rows = g_optArmiesEat ? 2 : 0`, draws `Ui_DrawBox(0x80, 0x60, 0x12,
-    /// rows + 0xF)` and ends with `Ui_OkButton(0x184, (rows + 0xF) * 0x10 +
-    /// 0x44, 0)`.
     #[test]
     fn armies_eat_is_the_one_option_that_changes_a_panels_shape() {
         assert_eq!(Panel::Ration.box_cells_for(false), (0x80, 0x60, 0x12, 0x0F));
         assert_eq!(Panel::Ration.box_cells_for(true), (0x80, 0x60, 0x12, 0x11));
         assert_eq!(Panel::Ration.ok_button_for(false).y, 0x0F * 0x10 + 0x44);
         assert_eq!(Panel::Ration.ok_button_for(true).y, 0x11 * 0x10 + 0x44);
-        // And no other panel notices.
         for p in [Panel::Population, Panel::Happiness, Panel::Tax] {
             assert_eq!(p.box_cells_for(false), p.box_cells_for(true), "{p:?}");
             assert_eq!(p.ok_button_for(false), p.ok_button_for(true), "{p:?}");
         }
     }
 
-    /// **`Ui_DrawNumberRight` centres, and the artwork is the proof.**
-    ///
-    /// The three "Fed" columns are drawn with width `0x40` from x 208, 266 and
-    /// 324; the three icons above them are `Misc_cty` frames `0x21` (36 wide),
-    /// `0x26` (37) and `0x2A` (23) at x 224, 284 and 344. Centred, each number
-    /// lands within a few pixels of its own picture. Right-aligned — which is
-    /// what `docs/symbols.json` calls the function and what
-    /// `docs/screens-county.md` §5.4 repeats — every number would *end* left of
-    /// every icon, which is the assertion below.
     #[test]
     fn the_ration_panels_numbers_centre_under_their_icons() {
         const ICON_X: [i32; 3] = [224, 284, 344];
@@ -650,8 +526,6 @@ mod tests {
                 (centre - icon_centre).abs() <= 4,
                 "column {i}: number centres at {centre}, icon at {icon_centre}"
             );
-            // The falsification: right-alignment would put the number's right
-            // edge at FOOD_COL_X[i], left of the icon's own left edge.
             assert!(FOOD_COL_X[i] < ICON_X[i], "column {i} would be left of its icon");
         }
     }
@@ -666,16 +540,11 @@ mod tests {
         assert_eq!((GROUP_HEALTH_BANDS, GROUP_RATION_LEVELS), (20, 21));
         assert_eq!(CROWN_NOUN, 0, "L2.eng 8/0 and 8/1, Crown. / Crowns.");
 
-        // 86/0 "Tax in" has no call site in the whole corpus; the painter's
-        // four are 1, 2, 3 and 4.
         assert_eq!(g86::TITLE_NEVER_DRAWN.index, 0);
         for l in [g86::RATE, g86::PEOPLE_PAY, g86::THIS_COUNTY, g86::OTHER_COUNTIES] {
             assert_ne!(l.index, g86::TITLE_NEVER_DRAWN.index);
         }
-        // 73/9 "people." belongs to the graph's peak, which needs a history
-        // array we do not have; it is named and not drawn.
         assert_eq!(g73::PEOPLE.index, 9);
-        // And the five ration strings nothing reaches by a literal group.
         for i in g87::UNDRAWN {
             for l in [g87::TITLE, g87::WANTED, g87::ACHIEVED, g87::HEALTH, g87::EATEN, g87::FED] {
                 assert_ne!(l.index, i, "87/{i} is in UNDRAWN and also drawn");

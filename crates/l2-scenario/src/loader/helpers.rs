@@ -13,15 +13,6 @@ use l2_kingdom::tables::{health_band, Tables, Weather, JOB_COUNT};
 use l2_kingdom::unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS, TROOP_TYPES};
 use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 
-/// One county's twenty field tiles, converted from byte offsets to tile
-/// indices.
-///
-/// An offset that is not a multiple of eight, or that lands outside the
-/// 64 × 64 plane, is a misread and not a field: it becomes an **empty slot**
-/// Nothing in the fixture takes that path
-/// — `crates/l2-scenario/tests/import/main.rs` asserts every populated slot is a
-/// real tile —
-/// panicking somewhere else later.
 pub(super) fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_FIELDS], SaveError> {
     let base = COUNTY_FIELD_TILES + county as u32 * COUNTY_FIELD_STRIDE;
     let mut tiles = [0u16; MAX_FIELDS];
@@ -38,8 +29,6 @@ pub(super) fn read_field_tiles(save: &Save, county: usize) -> Result<[u16; MAX_F
     Ok(tiles)
 }
 
-/// `g_tiles`' terrain, flags and county planes, de-interleaved out of the
-/// eight-byte records.
 pub(super) fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     let mut terrain = vec![0u8; MAP_TILES];
     let mut flags = vec![0u8; MAP_TILES];
@@ -66,12 +55,10 @@ pub(super) fn read_explored(save: &Save, local_player: u8) -> Result<Explored, S
     Ok(explored)
 }
 
-/// One signed byte out of a county record, by offset.
 pub(crate) fn county_i8(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
     Ok(save.i8_at(COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + offset)? as i32)
 }
 
-/// One `i32` out of a county record, by offset.
 pub(super) fn county_i32(save: &Save, county: usize, offset: u32) -> Result<i32, SaveError> {
     save.i32_at(COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + offset)
 }
@@ -95,12 +82,6 @@ pub(super) fn read_industry(save: &Save, county: usize) -> Result<[IndustryState
     Ok(out)
 }
 
-/// One word out of each of a county's nine labour records.
-///
-/// `word` is the byte offset inside the twelve-byte record: 0 is the workers
-/// assigned, 4 the wanted floor, 8 the useful ceiling. All three are
-/// read the same way because the record really is three plain `i32`s — which
-/// is the whole reason the stride is twelve and not four.
 pub(crate) fn read_labour(save: &Save, county: usize, word: u32) -> Result<[i32; JOB_COUNT], SaveError> {
     let base = COUNTY_BASE + (county * COUNTY_STRIDE) as u32 + LABOUR_BASE + word;
     let mut jobs = [0i32; JOB_COUNT];

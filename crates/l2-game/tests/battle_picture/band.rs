@@ -1,6 +1,3 @@
-//! **The eight rows at the foot of the battle screen, y 472 … 479,
-//! x 0 … 479** — flagged as having no painter we could find.
-//!
 //! It has one. `Screen_DrawBattlefield` (`0x004233F7`) opens with
 //! `Gfx_ClearScreen` (`0x004B1867`), which is
 //! `FUN_004B3E51(DAT_004EA1A8, 0x4B000)`; `FUN_004B3E51` (`0x004B3E51`) is a
@@ -14,15 +11,10 @@
 
 use super::*;
 
-/// The band's bounds, written out of the binary
-/// [`FIELD_Y1`] or `l2_view::scene`: the sidebar's x and the sprite clip's
-/// lower bound.
 const BAND_X1: usize = 0x1E0;
 const BAND_Y0: usize = 0x1D8;
 const BAND_Y1: usize = 480;
 
-/// A battle repaint onto a canvas whose every pixel was already a colour the
-/// screen never paints, so anything left over is visible.
 fn over_dirt(dirt: u8) -> Canvas {
     let (assets, _platform) = install().expect("checked by the caller");
     let (mut g, mut m) =
@@ -35,11 +27,6 @@ fn over_dirt(dirt: u8) -> Canvas {
     canvas
 }
 
-/// **The band is black, and it is the entry clear that makes it so.**
-///
-/// Ablation: drop `canvas.clear(0)` from `BattlefieldScreen::draw` — red, all
-/// 3,840 pixels of the band still carry the previous screen's colour, which is
-/// what the original's `Gfx_ClearScreen` exists to prevent.
 #[test]
 fn the_bottom_band_is_the_entry_clears_black_and_nothing_repaints_it() {
     if install().is_none() {
@@ -57,16 +44,12 @@ fn the_bottom_band_is_the_entry_clears_black_and_nothing_repaints_it() {
 /// the byte count `Gfx_ClearScreen` passes, so no row of the screen survives a
 /// repaint unpainted — the menu bar's rows and the column's are covered by
 /// their own blits, and the band by nothing.
-///
-/// Ablation: clear only the field's `FIELD_X0 … FIELD_X1` × `FIELD_Y0 …
-/// FIELD_Y1` — red, the band and the strip under the column keep the dirt.
 #[test]
 fn the_entry_clear_covers_the_frame_below_the_column_too() {
     if install().is_none() {
         l2_testkit::skip!("no game install, so no battlefield to repaint");
     }
     let canvas = over_dirt(0xAB);
-    // Two witnesses inside the band, at its two ends.
     for (x, y) in [(0usize, BAND_Y0), (BAND_X1 - 1, BAND_Y1 - 1)] {
         assert_ne!(canvas.at(x, y), 0xAB, "({x}, {y}) is still the previous screen");
     }

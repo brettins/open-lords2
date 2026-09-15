@@ -10,22 +10,11 @@ use l2_net::Pcg32;
 
 /// Kind 0 — `Diplo_ReplyGift` (`0x004A29B2`).
 ///
-/// Three tiers against `bestGift + T/2` and `bestGift + T`, where `T` is the
-/// lord's [`crate::tables::AI_PERSONALITY_GIFT_INCREMENT`]:
-///
 /// | gift | reply | standing |
 /// |---|---|---:|
 /// | `< best + T/2` | group 173 | **−8** |
 /// | `< best + T` | group 172 | **+5** |
 /// | `>= best + T` | group 171 | **+10** |
-///
-/// **The bar ratchets.** `best = max(best, gift)` runs *after* the tier is
-/// chosen and never falls, so every gift is judged against the largest you have
-/// ever sent and the second must beat the first. A gift under half the
-/// increment **costs** 8, which is more than the best gift gains.
-///
-/// The Bishop's `T` is 50 against the Countess's 200, so he is the cheapest
-/// lord to buy — and he is also the one with the fattest cheat income.
 pub fn reply_gift(
     realms: &mut [Realm],
     tables: &Tables,
@@ -88,32 +77,6 @@ pub fn reply_insult(realms: &mut [Realm], me: u8, them: u8) -> Vec<Letter> {
 }
 
 /// Kind 3 — `Diplo_ReplyAllianceOffer` (`0x004A30F6`).
-///
-/// ```text
-/// if pair.atWar                    reply 196 "Retort";        standing -1
-/// else if realmsActive < 3         reply 178;                  standing -2
-/// else if I already have an ally   reply 197;                  standing -1
-/// else if they already have one    reply 178;                  standing -2
-/// else if standing >= 11           reply 179;  ALLY;           standing +4
-/// else if standing < -10           reply 178;                  standing -2
-/// else if rand7B < standing*3 + 45 reply 179;  ALLY;           standing +4
-/// else                             reply 178;                  standing -2
-/// ```
-///
-/// **The two break points are exactly the lord card's three colour bands.**
-/// `Diplo_DrawLordCard` fills the thermometer `0xFA` at ≥ +11, `0xFC` between,
-/// `0xF9` at ≤ −11 — the UI's bands and the AI's branches are the same numbers
-/// written by different code, which is the best corroboration in
-/// `docs/diplomacy.md` that the pair block is what it looks like.
-///
-/// The middle band runs from about **12 %** at standing −10 to about **59 %**
-/// at +10, hinging on 45/128 ≈ 35 % at 0.
-///
-/// Two details not in the document. **It decrements the answering realm's own
-/// `offer_timer`** on every offer it fields, whatever the answer — so being
-/// courted by a person pushes back the turn that realm next courts somebody
-/// itself. And it has **no `is_human` guard**, unlike the three handlers above
-/// it, so it would answer an AI too; nothing in single player posts one.
 pub fn reply_alliance_offer(
     realms: &mut [Realm],
     diplomacy: &mut Diplomacy,
@@ -159,9 +122,6 @@ pub fn reply_alliance_offer(
 ///
 /// The *"Broken alliance."* text, group 182, is not this — it comes from
 /// [`offend`] when an *act* breaks one.
-///
-/// Like kind 3 it has no `is_human` guard, so an AI's termination would also be
-/// honoured; and unlike kind 3 there is nothing to send either way.
 pub fn reply_alliance_end(realms: &mut [Realm], me: u8, them: u8) -> Vec<Letter> {
     break_alliance(realms, me, them);
     move_standing(realms, me, them, -15);
@@ -179,6 +139,7 @@ pub fn reply_alliance_end(realms: &mut [Realm], me: u8, them: u8) -> Vec<Letter>
 /// ```
 ///
 /// > **`personality +0x30` is a population floor, not a treasury one.**
+///
 /// > `docs/diplomacy.md` §3.5 calls it *"a treasury floor … below which an ally
 /// > will not move at all"*; the comparison is against realm `+0x14`, the mean
 /// > population of the realm's counties, which is
@@ -219,9 +180,6 @@ pub fn reply_help_request(
 /// Kind 6 — `Diplo_ReplyAttackRequest` (`0x004A38DB`). The same shape as
 /// [`reply_help_request`] with three constants moved: groups 186/187/188, a
 /// **+2** grudge on refusal, and **half** the acceptance odds (`standing × 2`).
-///
-/// Asking an ally to attack somebody is twice as annoying and half as likely to
-/// work as asking for help at home.
 pub fn reply_attack_request(
     realms: &mut [Realm],
     diplomacy: &mut Diplomacy,
@@ -247,10 +205,6 @@ pub fn reply_attack_request(
     )
 }
 
-/// The three constants that separate kinds 5 and 6. The original is two
-/// near-identical 900-byte functions; keeping them as one shape with a
-/// parameter block makes the difference between them the *only* thing written
-/// down, which is the point of §3.5's table.
 struct RequestShape {
     refused: u16,
     agreed: u16,
@@ -298,18 +252,6 @@ fn reply_request(
 }
 
 /// `Diplo_PayForHelp(ally, payer, county, price)` (`0x004A1B29`).
-///
-/// Moves the price from the payer to the ally **if the payer can afford it**,
-/// increments the pair's `help_price_multiple` so the next purchase costs more,
-/// takes the ally's opinion of the payer **down 4** for having made them do it,
-/// and points the ally's [`crate::realm::Realm::target_county`] at the county.
-///
-/// The multiple starts at 1 and never falls, so help **doubles, trebles,
-/// quadruples**: the Knight's 500 becomes 1,000 then 1,500, and the Countess's
-/// 1,600 becomes 3,200.
-///
-/// **If the payer cannot afford it, nothing at all happens** — not the march,
-/// not the multiple, not the standing. The whole body is inside the test.
 pub fn pay_for_help(realms: &mut [Realm], ally: u8, payer: u8, county: u8, price: i32) {
     if price > realms[payer as usize].gold {
         return;

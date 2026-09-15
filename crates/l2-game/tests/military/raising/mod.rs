@@ -20,19 +20,11 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_kingdom::MercenaryBands;
 use l2_view::campaign;
 
-// ---------------------------------------------------------------------------
-// 1. Raise
-// ---------------------------------------------------------------------------
 
-/// Set the levy slider on the raise-army screen. With no band on offer the
-/// layout's base is 0xA0, and `Levy_SliderClick`'s track is `x - 0xC4` over the
-/// row `base + 0x10 ..< base + 0x40`.
 fn set_levy(m: &mut Machine, g: &mut Game, a: &Assets, percent: i32) {
     click(m, g, a, (army::SLIDER_X + percent, army::base(false) + 0x20));
 }
 
-/// From the map to the crossbow rack with one man given a crossbow — through
-/// the screens, a key and five clicks. Returns where the rack is clicked.
 fn one_crossbowman(m: &mut Machine, g: &mut Game, a: &Assets) -> (i32, i32) {
     press(m, g, a, 'r');
     tick(m, g, a);

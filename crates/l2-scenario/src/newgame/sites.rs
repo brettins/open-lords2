@@ -45,8 +45,6 @@ pub(super) fn adjacency(w: &mut MapWorld) {
             }
         }
     }
-    // A county id above the count cannot be a county; the original's clamp is
-    // `< 0x12` and the shipped maps never exercise the difference.
     for c in 0..MAX_COUNTIES {
         if c == 0 || c > n {
             w.neighbours[c].clear();
@@ -58,13 +56,6 @@ pub(super) fn adjacency(w: &mut MapWorld) {
 
 /// `Counties_PlaceSites` (`0x00468D4F`) — five passes per county, and **the
 /// order is load-bearing**.
-///
-/// The town goes first because the anchor it leaves is what the blacksmith
-/// measures distance from; the resource sites go before the castle because they
-/// stamp a terrain onto the Town-bank `0x80` tiles, and the castle search is
-/// *"a `0x80` tile with no terrain yet"* — which is exactly the tiles the
-/// resource sites did not take. Reorder them and the county's mine becomes its
-/// castle.
 pub(super) fn place_sites(w: &mut MapWorld) {
     for county in 1..=w.county_count {
         let Some((town, anchor)) = find_town_tile(w, county) else { continue };
@@ -81,10 +72,6 @@ pub(super) fn place_sites(w: &mut MapWorld) {
 }
 
 /// `County_FindTownTile` (`0x00467FD1`).
-///
-/// Returns the block's **north-west** tile and the county anchor, which is its
-/// **south-east** one — the original stores the fourth match's `x`/`y` and
-/// returns the first match's offset, and those are not the same tile.
 fn find_town_tile(w: &mut MapWorld, county: usize) -> Option<(usize, (u8, u8))> {
     let mut found = 0;
     let mut first = 0usize;
@@ -142,17 +129,6 @@ fn find_dwelling_plots(w: &mut MapWorld, county: usize) -> [usize; 4] {
 
 /// `County_PlaceResourceSites` (`0x00468E61`) — **where a county's resources
 /// come from is the map, not the county record.**
-///
-/// Three of the four industries: a Town-bank tile of this county drawing frame
-/// 30 is the iron mine, frame 0 is the quarry and frame 20 is the forest. The
-/// fourth, weapons, is [`place_blacksmith`].
-///
-/// **The stone test carries an `iron == 0` guard and it is not symmetric.** The
-/// scan is row-major and iron is tested first at every tile,
-/// quarry comes *before* its mine gets both and one whose mine comes first gets
-/// only the mine. That is the original's arithmetic and it is why iron and
-/// stone are complementary in thirteen of England's fourteen counties rather
-/// than in all of them.
 fn place_resource_sites(w: &mut MapWorld, county: usize) {
     for i in 0..MAP_TILES {
         if w.tiles.county[i] as usize != county || w.tiles.bank_layer(i) != BANK_TOWN {
@@ -179,12 +155,6 @@ fn set_site(w: &mut MapWorld, county: usize, tile: usize, record: usize, terrain
 }
 
 /// `FUN_0046C147` — the flag byte of one 4-neighbour, classified.
-///
-/// The boundary bit is masked off first,
-/// border is still a field; then two corrections fold the mountain and the
-/// woodland into one bit and the reserved plot into nothing when the bank
-/// disagrees. Only bit `0x20` is read by the one caller here, and the mask is
-/// what makes `0x22` count.
 fn neighbour_class(w: &MapWorld, tile: Option<usize>) -> u8 {
     let Some(t) = tile else { return 0 };
     let raw = w.tiles.flags[t];
@@ -211,16 +181,6 @@ fn chebyshev(a: (u8, u8), b: (u8, u8)) -> i32 {
 
 /// `County_PlaceBlacksmith` (`0x0046902A`) — **the weapons site is derived, not
 /// authored, so every county has one.**
-///
-/// The pick is the county's *plain* tile — flags exactly zero, so not a road,
-/// not a field, not a boundary — that is 4-adjacent to one of the county's own
-/// farm fields and nearest the town anchor. Ties go to the first in row-major
-/// order, because the comparison is strict.
-///
-/// It **adds** [`bit::SITE`] to a tile the file had no flag on at all, so this
-/// is one of the two places where the runtime flags plane is not the file's.
-/// The other is a razed field. A reader diffing our flags against
-/// `L2_maps.dat`'s should expect exactly `county_count` extra `0x80` tiles.
 fn place_blacksmith(w: &mut MapWorld, county: usize) {
     let anchor = w.anchor[county];
     let mut best_tile = 0usize;
@@ -248,8 +208,6 @@ fn place_blacksmith(w: &mut MapWorld, county: usize) {
             }
         }
     }
-    // `if ((local_14 != 0) && (flags[local_14] == 0))` — tile 0 is the "none"
-    // encoding, so the north-west corner of the map can never be a blacksmith.
     if best_tile == 0 || w.tiles.flags[best_tile] != 0 {
         return;
     }
@@ -268,10 +226,6 @@ fn place_blacksmith(w: &mut MapWorld, county: usize) {
 /// terrain `0x14` on all four and saves their terrain frames. Raising a castle
 /// on the plot is `FUN_0046826C`, which is keyed on the castle's level and its
 /// build percentage, and is not done here.
-///
-/// Returns the block's **north-west** tile, which is both the returned offset
-/// and the stored `x`/`y` — the opposite of [`find_town_tile`], where they are
-/// different tiles.
 fn find_castle_tile(w: &mut MapWorld, county: usize) -> Option<(usize, (u8, u8))> {
     let mut found = 0;
     let mut first = None;
@@ -296,8 +250,6 @@ fn find_castle_tile(w: &mut MapWorld, county: usize) -> Option<(usize, (u8, u8))
             found += 1;
         }
     }
-    // Fewer than four: the original returns 0 and the county has no castle
-    // tile, but the tiles it did find keep the stamp. Reproduced.
     None
 }
 

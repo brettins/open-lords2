@@ -1,30 +1,6 @@
-//! Worked example: the skirmish army table as rules.
-//!
-//! This is the smallest piece of the game that is genuinely *rules* — 35
-//! battles x 11 troop columns x 2 sides, plus a per-battle defensive
-//! advantage — and it is fully documented in `docs/formats/eng.md`, so it can
-//! be used to demonstrate the whole path without guessing at anything.
-//!
-//! Three things about it are worth noticing,
-//! doing this at all:
-//!
-//! * **The difficulty curve was hard-coded.** `Lords2.exe` reads only the
-//!   "Normal" rows and then synthesises the other four difficulties as
-//!   `Normal +16% / +8% / -8% / -16%`, applying the scaling to troop types
-//!   0-6 and leaving the four siege columns alone. Those five percentages
-//!   exist only as instructions in a 1996 binary. Here they are five lines of
-//!   a rule file, and a mod that wants a harsher curve edits them.
-//! * **The clamps were a parser detail.** The engine clamps the siege columns
-//! to 9 and the advantage to 0..10 because a text file it could not validate
-//! might contain anything. We validate instead,
-//! gets an error naming its file and line.
-//! * **The columns had no names.** The file has an eleven-column header of
-//! two-letter abbreviations and the code has indices. Naming the columns is
-//!   what lets a mod write `crossbows = 40` and change nothing else.
 
 use crate::ruleset::{RuleError, Ruleset};
 
-/// Eleven columns, in the order the file and the `.skr` army record use.
 pub const TROOP_COLUMNS: usize = 11;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -45,22 +21,16 @@ impl Side {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TroopType {
     pub id: String,
-    /// Position in the eleven-column row.
     pub column: usize,
-    /// The two-letter header abbreviation,
-    /// read next to the original.
     pub abbrev: String,
     pub name: String,
-    /// Siege equipment: capped at 9 and exempt from difficulty scaling.
     pub siege_engine: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Difficulty {
     pub id: String,
-    /// Presentation order, easiest first.
     pub order: i64,
-    /// Percentage applied to non-siege columns. 100 is unscaled.
     pub scale_percent: i64,
 }
 
@@ -68,14 +38,11 @@ pub struct Difficulty {
 pub struct Battle {
     pub id: String,
     pub name: String,
-    /// 0..=10.
     pub defensive_advantage: i64,
-    /// The "Normal" row: the only one the original file's data is used for.
     pub attacker: [i64; TROOP_COLUMNS],
     pub defender: [i64; TROOP_COLUMNS],
 }
 
-/// The typed view of the merged ruleset.
 #[derive(Debug, Clone, Default)]
 pub struct TroopRules {
     pub troops: Vec<TroopType>,
@@ -84,11 +51,6 @@ pub struct TroopRules {
 }
 
 impl TroopRules {
-    /// Read the `troop`, `difficulty` and `battle` tables out of a ruleset.
-    ///
-    /// Every failure carries the document and line that caused it, because the
-    /// ruleset carried that provenance through the merge. That is the whole
-    /// reason for the value tree.
     pub fn from_ruleset(rs: &Ruleset) -> Result<TroopRules, RuleError> {
         let mut troops = Vec::new();
         for id in rs.keys("troop").into_iter().map(str::to_string).collect::<Vec<_>>() {
@@ -110,9 +72,6 @@ impl TroopRules {
             let base = format!("difficulty.{id}");
             difficulties.push(Difficulty {
                 order: rs.integer_or(&format!("{base}.order"), 0)?,
-                // A wider range than the original's five values, but not
-                // unbounded: 0 means "no troops at all", and beyond 1000 the
-                // u16 the engine stores overflows.
                 scale_percent: rs.integer_in(&format!("{base}.scale_percent"), 0, 1000)?,
                 id,
             });
@@ -158,8 +117,6 @@ impl TroopRules {
         self.troops.iter().find(|t| t.id == id)
     }
 
-    /// The army a side fields, with the difficulty scaling applied.
-    ///
     /// Reproduces the original's arithmetic exactly: `x * percent / 100` with
     /// truncating integer division (`FUN_00404D6B`), applied only to the
     /// non-siege columns.
@@ -178,7 +135,6 @@ impl TroopRules {
         out
     }
 
-    /// Look a column up by troop id, for callers that think in names.
     pub fn count(&self, army: &[i64; TROOP_COLUMNS], troop_id: &str) -> Option<i64> {
         self.troop(troop_id).map(|t| army[t.column])
     }
@@ -194,13 +150,9 @@ fn read_row(
     let mut row = [0i64; TROOP_COLUMNS];
     for t in troops {
         let path = format!("{base}.{}.{}", side.key(), t.id);
-        // Absent means zero: that is what makes a mod able to write one line.
         let Some(v) = rs.get(&path) else { continue };
         let _ = v;
         row[t.column] = if siege[t.column] {
-            // The original clamps siege columns to 9. We refuse instead,
-            // mod finds out at load.
-            // catapults went.
             rs.integer_in(&path, 0, 9)?
         } else {
             rs.integer_in(&path, 0, u16::MAX as i64)?

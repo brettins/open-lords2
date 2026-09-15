@@ -19,7 +19,6 @@ use l2_view::figures::{self, Anim, Colour};
 use l2_view::scene::{self, BattleAssets, Camera};
 use l2_view::sheet::Sheet;
 
-/// Map a virtual address to a file offset through the PE section headers.
 /// `Lords2.exe` has no ASLR and a fixed image base of `0x400000`, so a virtual
 /// address is a constant.
 fn va_to_offset(exe: &[u8], va: u32) -> Option<usize> {

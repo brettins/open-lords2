@@ -1,8 +1,3 @@
-//! **The mercenary offer's voice, on the path the player walks to it.**
-//!
-//! The report on build `EE0CB9233`: *"No VO for 'A band of scottish pikemen
-//! are available for hire, my lord' with a mercenary."*
-//!
 //! gap of ours.** `L2.eng` group 16 is the twelve nationalities *on the
 //! raise-army screen* (`docs/formats/eng.md` §5: consumers `Screen_RaiseArmy`,
 //! `Screen_SplitArmyRows`, `UnitPanel_Draw`), not a message group;
@@ -12,10 +7,6 @@
 //! FUN_004B3714(offer - 1)`. So the offer *arriving* is silent in the original
 //!
 //! `[V]` on group 16's consumers, `[D]` that no other site plays S016.
-//!
-//! `speech_and_panels.rs` has the button in isolation. These two are the turn
-//! around it: a season's messages read and dismissed first, which is what the
-//! player had on screen when he heard nothing.
 
 #![allow(unused_imports)]
 use super::*;
@@ -27,11 +18,6 @@ use l2_game::message;
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::Game;
 
-/// A season that ends with a message window up, then the ARMY button.
-///
-/// Returns everything the one-shot buffer was asked for, in order, so the
-/// caller can say both *what* spoke and *whether the window's own voice ate
-/// it*.
 fn a_season_then_the_army_button(
     platform: &l2_mods::Platform,
     band: u8,
@@ -49,8 +35,6 @@ fn a_season_then_the_army_button(
     let mut audio = Audio::headless(&platform.vfs);
     let mut director = audio::Director::new();
 
-    // The season's own letter, posted while the map is up — the window the
-    // player was reading when the band walked in.
     let mut rec = message::Record::default();
     rec.group = 130;
     rec.category = message::category::COUNTY_NOTICE;
@@ -82,21 +66,13 @@ fn a_season_then_the_army_button(
     }
     let opened = machine.ids().contains(&ScreenId::RaiseArmy(1));
     director.listen(&mut audio, &machine, &game);
-    // `Audio::heard` is a *set*
-    // ask it what it holds, never what is past an index taken earlier.
     (opened, audio.heard().iter().map(|s| s.to_string()).collect())
 }
 
-/// **The band is announced on the player's own path**, a season's letter read
-/// and dismissed first
-///
 /// `FUN_004B3714(n)` indexes `s_S016_01_wav` (`0x004DF8B8`, `char[16][16]`) by
 /// `offer - 1`, so band 1 — `l2_kingdom::mercenary::ROSTER[1]`, the Scottish
 /// pikemen of the report — is `S016_01.wav`, and band 12, the Angevin knights,
 /// is `S016_12.wav`.
-///
-/// **Ablation, run:** delete the `audio.play_file(name, true)` in
-/// `Director::listen`'s mercenary arm and all three nationalities go red.
 #[test]
 fn the_offer_is_announced_when_the_army_screen_opens_after_the_seasons_letter() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -115,9 +91,6 @@ fn the_offer_is_announced_when_the_army_screen_opens_after_the_seasons_letter() 
     }
 }
 
-/// **Why the player heard silence: the arrival says nothing, and a letter
-/// still up eats the click that would make it speak.**
-///
 /// Half one: `Mercenary_AdvanceAll` (`0x004ACA2B`) writes `+0x1AD` and plays
 /// no sound —, so a season that hands county 1 a
 /// band is silent. Half two: with the window up the sidebar never sees the
@@ -133,8 +106,6 @@ fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let assets = Assets::placeholder();
 
-    // A season in which the band really walks in — `Mercenary_AdvanceAll` on
-    // the fourteen-county England start — with nobody touching a button.
     let mut game = world();
     game.selected = 1;
     let mut bands = l2_kingdom::mercenary::MercenaryBands::init(14);
@@ -161,8 +132,6 @@ fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
         audio.heard(),
     );
 
-    // The same click with the letter still up: the message window takes it,
-    // the raise-army screen never opens, and nothing is said.
     let (opened, heard) = a_season_then_the_army_button(&platform, 1, false);
     assert!(!opened, "the sidebar answered a click the message window was holding");
     assert!(
@@ -171,8 +140,6 @@ fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
     );
 }
 
-/// **`App::tick` (`main.rs`)** — `Machine::update`, then `Director::listen`,
-/// once per simulation tick and never inside one.
 fn tick(
     machine: &mut Machine,
     game: &mut Game,
@@ -186,9 +153,6 @@ fn tick(
     director.listen(audio, machine, game);
 }
 
-/// What the player has in front of him: a campaign map, tips **on** as the game
-/// ships them (`world()` turns them off; `main.rs` turns nothing off), and
-/// county 1 holding `band`.
 fn a_map_with_an_offer(
     platform: &l2_mods::Platform,
     band: u8,
@@ -202,9 +166,6 @@ fn a_map_with_an_offer(
     (game, machine, Audio::headless(&platform.vfs), audio::Director::new())
 }
 
-/// `App::deliver`: `input::LeftButton::pressed` is the [`Event::Click`]
-/// (`WM_LBUTTONDOWN`, `0x201`) and `released` the [`Event::Release`] after it,
-/// and the second lands on whatever the first opened.
 fn press_the_army_button(machine: &mut Machine, game: &mut Game, assets: &Assets) {
     let b = l2_game::screens::map::SIDEBAR_BUTTONS[0];
     assert_eq!(b.name, "ARMY", "the first sidebar button is hotspot 1");
@@ -214,16 +175,10 @@ fn press_the_army_button(machine: &mut Machine, game: &mut Game, assets: &Assets
     send(machine, game, assets, Event::Release { x, y });
 }
 
-/// **The player's path, first half**: the opening tip's window is up, so the
-/// sidebar never sees the click; dismissed, the same click speaks.
-///
 /// `Tip_Show` (`0x00476DA9`) writes `g_screenId = 0x27` and `Screen_FrameInput`
 /// answers the map only on `g_screenId == 0`, so the button is deaf until
 /// `FUN_00476E21` puts the screen back. `[V]`; ours is `ScreenId::Tip` over
 /// `Campaign`.
-///
-/// **Ablation, run:** `game.prefs.tip_screens = false` and the first half goes
-/// red — the click opens the screen straight away.
 #[test]
 fn a_tip_window_holds_the_army_button_and_the_band_is_announced_once_it_is_gone() {
     let Some(dir) = l2_testkit::install_dir() else {
@@ -261,9 +216,6 @@ fn a_tip_window_holds_the_army_button_and_the_band_is_announced_once_it_is_gone(
     }
 }
 
-/// **Second half, and the one the player met**: the band *is* announced, and
-/// the raise-army screen's own tip then talks over it.
-///
 /// `Tip_Update` (`0x00476AA7`) posts group 209 on `g_screenId == 0x17` — the
 /// screen the sidebar has just opened — once `DAT_004F0358` reaches zero, and
 /// `Msg_PlayVoice` (`0x004B35C1`) is `Sound_StopOneShot(); Sound_PlayFile(…)`,
@@ -275,8 +227,6 @@ fn a_tip_window_holds_the_army_button_and_the_band_is_announced_once_it_is_gone(
 /// **Both addresses are `[V]` and this is the original's shape**, so nothing is
 /// changed to stop it; the test is here so that a change to either timer says
 /// so out loud.
-///
-/// **Ablation, run:** `game.prefs.tip_screens = false` and no cut ever comes.
 #[test]
 fn the_raise_army_screens_own_tip_talks_over_the_band() {
     let Some(dir) = l2_testkit::install_dir() else {

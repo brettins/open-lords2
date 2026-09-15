@@ -17,14 +17,10 @@ impl Screen for InfoScreen {
         ScreenId::Info(self.target)
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
-    /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
 
-    /// The garrison widget's picture coming back up. See
-    /// [`Press::take_redraw`].
     fn take_redraw(&mut self) -> bool {
         self.press.take_redraw()
     }
@@ -53,25 +49,16 @@ impl Screen for InfoScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // The release ends the garrison widget's hold, and the pointer leaving
-        // it is the hit test ceasing to match. Before the ladder, because the
-        // pointer arm below is the edge scroll and it must still run.
         if matches!(event, Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft) {
             let fired = self.press.event(&garrison_widgets(), event);
             debug_assert!(fired.is_none(), "the garrison widget is kind 4, not kind 3");
         }
         let Event::Click { x, y } = event else {
             return match event {
-                // The same button opens and closes it.
                 // arm: 0x0042FF10/info-right-close right-release
                 Event::RightClick { .. } => Transition::Pop,
                 // arm: ours/info-keyboard-close key
                 Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
-                // **`Map_EdgeScroll` is the SECOND guard of the `0x04` arm and a
-                // scroll CLOSES the panel**: pushing the pointer into the edge
-                // of the screen with the information panel up puts you back on
-                // the map.
-                //
                 // ```c
                 // if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }
                 // ```
@@ -83,11 +70,6 @@ impl Screen for InfoScreen {
                 // any edge. Its other refusal, a message scroll being up, is
                 // vacuous here: we have no message scroll.
                 //
-                // The *edge* is the outermost pixel of a 640 × 480 screen;
-                // `main.rs` clamps a pointer in the letterbox border onto it,
-                // so the gesture works at the edge of the window. That is
-                // [`crate::screens::map::MapScreen::edge_direction`]'s own
-                // argument and this is the same predicate.
                 // arm: 0x0042FF10/info-edge-scroll-closes pointer
                 Event::Pointer { x, y } if !ctx.game.map_zoom_far && at_screen_edge(x, y) => {
                     Transition::Pop
@@ -100,6 +82,7 @@ impl Screen for InfoScreen {
                 // g_mouseLeftDoubleClick`; then the unit buttons, `Hotspot_Test`
                 // kind 1, `g_mouseLeftPressed` alone; and the minimap epilogue
                 // is guarded by `g_mouseLeftPressed || g_mouseRightPressed`.
+                //
                 // So of the five, one answers. `[V]` This screen dropped it.
                 Event::DoubleClick { .. } => {
                     self.garrison_press(ctx, event);
@@ -108,12 +91,6 @@ impl Screen for InfoScreen {
                 _ => Transition::Stay,
             };
         };
-        // **The campaign minimap is live under this panel**, and it was not:
-        // `Screen_FrameInput`'s epilogue runs `Minimap_Click` on every press on
-        // every screen id but `0x12`, and closes the management surface on a
-        // hit. This screen swallowed the press instead, so the one control that
-        // works from everywhere did not work from here.
-        //
         // **Only the raster, not the column.** `0x04`'s arm does not run the
         // six sidebar guards — the village's and the four county panels' do,
         // and this one does not —
@@ -121,6 +98,7 @@ impl Screen for InfoScreen {
         // 128 × 128 minimap is not. See `screens/court.rs` at the same arm and
         // `docs/arms.json` `0x0042FF10/minimap-closes-the-surface`, which is the
         // campaign map's half of it.
+        //
         // arm: 0x0042FF10/minimap-under-the-info-panel left-press
         if l2_view::chrome::minimap_hit_area().contains(x, y) {
             return Transition::Pass;
@@ -132,11 +110,13 @@ impl Screen for InfoScreen {
         // `FUN_00438990` — the brush, on left **release**, and every button
         // closes the panel afterwards because `Field_SetType` sets
         // `g_screenId = 0`.
+        //
         // arm: 0x00438990/field-brush left-release
         //
         // `0x00438990/tile-panel-hotspots` is the same arm, filed a second time
         // while the table stood in a popup of ours on the campaign map; the
         // popup is gone and both records now name this one test.
+        //
         // arm: 0x00438990/tile-panel-hotspots left-release
         if let Some(ids) = self.brush(ctx) {
             let xs: &[i32] = if ids.len() == 3 { &BRUSH_FIELD_X } else { &BRUSH_WASTE_X };
@@ -161,6 +141,7 @@ impl Screen for InfoScreen {
         // **`FUN_00438A91` — the tile half's one widget.** It is tested between
         // the brush and the unit buttons, and it is the only control on this
         // screen that changes what the panel is *about* without leaving it:
+        //
         // `FUN_00438ACC` writes the county's garrison into `g_pickedTileUnit`
         // and calls the painter again, so the tile half becomes the unit half
 // in place. `g_screenId` never moves, so this is a mutation
@@ -196,6 +177,7 @@ impl Screen for InfoScreen {
                     // asks `L2.eng` 10/13 *"Lift the siege?"* through
                     // `Ui_OpenConfirm` first, and we have no confirm box. It is
 // named in `docs/arms.json`.
+                    //
                     // arm: 0x00437002/info-move left-press
                     (0, false) => {
                         ctx.game.begin_move_order = Some(id);
@@ -220,6 +202,7 @@ impl Screen for InfoScreen {
                         LeftCastle::NotAGarrison => Transition::Stay,
                     },
                     // **`Panel_DisbandButton` (`0x0043733A`)**, in both tables.
+                    //
                     // It picks the county the men would join — the home county,
                     // or the one the army stands in when the home county has
                     // changed hands — and asks *"Disband army?"* only when that
@@ -232,6 +215,7 @@ impl Screen for InfoScreen {
                     // reproduced** — `Ui_OpenConfirm(6, …)` is `L2.eng` 10/6 —
                     // and neither is the message scroll, so the refusal is a
                     // status line of ours.
+                    //
                     // arm: 0x00437002/info-disband left-press
                     (1, _) => match ctx.game.disband_army(id) {
                         Ok((county, men)) => {
@@ -254,6 +238,7 @@ impl Screen for InfoScreen {
                     // `0x0042FF10/back-one-rather-than-to-the-map`, whose note
                     // said ours reached the campaign map "because we have no
                     // unit panel to go back to". There is one now.
+                    //
                     // arm: 0x004378B3/info-split left-press
                     (2, _) => Transition::Push(ScreenId::Divide(id)),
                     _ => Transition::Stay,
@@ -297,11 +282,6 @@ impl Screen for InfoScreen {
                     _ => ENEMY_ARMY,
                 };
                 icon(frame, canvas);
-                // **The heading line, and every arm of it is `&g_fontHeading`.**
-                // We drew the merchant's, the peasants' and the transport's in the
-                // body face through `Pen::eng`, put the transport's at the
-                // others' place, and drew no army's name at all. `UnitPanel_Draw`:
-                //
                 // ```c
                 // if (local_20 == 2) {                                /* transport */
                 //   g_penAdvance = 0;
@@ -357,21 +337,6 @@ impl Screen for InfoScreen {
                     }
                 }
                 if u.kind == UnitKind::Army {
-                    // **Outside the ownership gate**: the name, "An army from"
-                    // record.
-                    // **`w`, not `HEADING_X + w`.** The original writes
-                    // `g_penAdvance = 0; Eng_DrawString(31, 9, 0x28, …);
-                    // Eng_DrawString(100, county, g_penAdvance + 0x28, …)` —
-                    // `g_penAdvance` is the *width the label advanced*, so
-                    // `g_penAdvance + 0x28` is the label's x plus its width.
-                    // Our `Pen` returns that sum already, so adding the x again
-                    // pushed all four of this panel's chained lines a label's
-                    // origin to the right. Four sites here, one on the court,
-                    // one inside `Pen::count` itself and one on the ratings
-                    // sheet: **seven instances of one confusion**, and it is
-// structural — every coordinate in the
-                    // decompilation except `g_penAdvance` is absolute, so
-                    // transcribing a painter faithfully produces it.
                     // `docs/decisions.md` C110.
                     let w = pen.eng(canvas, UNIT_GROUP, ARMY_FROM, HEADING_X, l.y(0x4A), font::TEXT);
                     let name = super::super::super::county::county_name(ctx, u.home_county);
@@ -450,14 +415,12 @@ impl Screen for InfoScreen {
                         let w = pen.number_in(face, canvas, 0xF8, l.y(0x170), left, '@', "", font::TEXT);
                         pen.eng(canvas, UNIT_GROUP, MOVES_LEFT, w, l.y(0x170), font::TEXT);
                     }
-                    // The three buttons, and the sortie frame when garrisoned.
                     let first = if u.garrison_county == 0 { icon::MOVE } else { icon::SORTIE };
                     for (i, &frame) in [first, icon::DISBAND, icon::SPLIT].iter().enumerate() {
                         if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(frame)) {
                             canvas.blit(&f, BUTTON_X[i], l.y(BUTTON_DY - l.row * 16));
                         }
                     }
-                    // The seven troop rows.
                     for t in 0..7usize {
                         let row = (t / 2) as i32 * 13;
                         let (cx, nx) = if t % 2 == 0 { (0x38, 0x58) } else { (0xF8, 0x118) };
@@ -473,9 +436,6 @@ impl Screen for InfoScreen {
                             font::TEXT,
                         );
                     }
-                    // **The mercenary line — `UnitPanel_Draw`'s last block, all
-                    // `&g_fontHeading`, and it was not drawn at all.**
-                    //
                     // ```c
                     // if (unit.mercMen == 0) {
                     //   Eng_DrawString(0x10, 0, 0x38, R * 0x10 + 0x130, &g_fontHeading, 0x3f);
@@ -541,20 +501,14 @@ impl Screen for InfoScreen {
                 // `FUN_0041BEFE`, after the box and the OK button and before
                 // `TileInfo_Draw`: the recessed well the tile panel's words sit in.
                 pen.inset(canvas, Rect::new(0x20, l.y(0x38), 400, (0x18 - l.row) * 16));
-                // **`TileInfo_Draw`'s farmland arm** — the heading, the body or
-                // the report, and the icon. See [`draw_farmland`].
                 if let Some(field) = self.farmland(ctx) {
                     draw_farmland(ctx, &pen, canvas, l, field);
                 }
-                // The county's name, centred over the box in the head-room the
-                // layout granted.
                 if l.headroom != 0 {
                     let name = super::super::super::county::county_name(ctx, map.county[tile]);
                     pen.heading_centred(canvas, 8, l.y(0x18), 0x1C0, &name, font::TEXT);
                 }
-                // The brush, if the tile is one of the player's fields.
                 if let Some(ids) = self.brush(ctx) {
-                    // `Ui_DrawBevelRect` - the reverse lighting of an inset.
                     crate::shell::button_recess(
                         canvas,
                         BRUSH_BEVEL.x,
@@ -585,16 +539,9 @@ impl Screen for InfoScreen {
                         font::TEXT,
                     );
                 }
-                // **`TileInfo_Draw`'s castle arm and `TileInfo_DrawCastle`
-                // under it.** See [`draw_castle`], which also draws 71/14
-                // *"View these troops?"* and its widget — the one place the
-                // original puts either.
                 if let Some(castle) = self.castle_tile(ctx) {
                     draw_castle(ctx, &pen, canvas, l, castle, self.press.is_pressed(0), ink);
                 }
-                // **The other half of the `0x80` arm.** A player clicked a mine
-                //
-                // [`draw_resource_site`].
                 if let Some((site, c)) = self.resource_site(ctx) {
                     draw_resource_site(ctx, &pen, canvas, l, site, c);
                 }
@@ -607,23 +554,11 @@ impl Screen for InfoScreen {
                 // specification, and they come out of the player's `L2.eng`.
                 if self.county_town(ctx).is_some() {
                     icon(COUNTY_TOWN_ICON, canvas);
-                    // **`&g_fontHeading`, not the body face.** `TileInfo_Draw`
-                    // passes `&g_fontHeading` to both of its `Eng_DrawString`
-                    // headings and to the county name's `Ui_DrawCentred` — three
-                    // calls, and its three delegates (`TileInfo_DrawGrain`,
-                    // `…Herd`, `…Castle`) pass it to none. This line used to say
-                    // the unit half drew *its* headings in body through
-                    // `Pen::eng`; it did, and now draws all eight of
-                    // `UnitPanel_Draw`'s heading-face calls in the heading face.
                     let s = a.text(TILE_GROUP, COUNTY_TOWN_HEADING).to_string();
                     pen.heading(canvas, HEADING_X, l.y(HEADING_DY), &s, font::TEXT);
                     let s = a.text(TILE_GROUP, COUNTY_TOWN_BODY).to_string();
                     pen.body_wrapped(canvas, BODY_X, l.y(BODY_DY), TILE_BODY_WRAP, &s, font::TEXT);
                     if self.mercenary_offer(ctx) {
-                        // `g_flagsSheet` frame `0x81` — the *map's* sheet, at
-                        // whichever zoom is loaded, because that is the global
-                        // the original blits from. `Pl8_DrawFrameClipped` takes
-                        // an absolute position and does no centring.
                         let zoom = &l2_view::campaign::ZOOMS[usize::from(ctx.game.map_zoom_far)];
                         let marker = ctx
                             .assets
@@ -644,18 +579,11 @@ impl Screen for InfoScreen {
                         );
                     }
                 }
-                // **The rest of `TileInfo_Draw`'s ladder** — road, sea, the two
-                // villages, mountain, wood
-                // heading, one wrapped body, one icon, all three off
-                // [`TILE_LADDER`]. See [`draw_plain_tile`].
                 if let Some(kind) = self.tile_kind(ctx) {
                     draw_plain_tile(&pen, canvas, l, kind);
                 }
             }
         }
-        // **Ours**, debug overlay only. The original answers a refused disband
-        // with message `0x91` on a scroll we have not built; this is the same
-        // sentence with nowhere else to go.
         if ctx.game.prefs.debug_overlay && !self.status.is_empty() {
             l2_view::text::draw(canvas, 12, 452, &self.status, ink.highlight);
         }

@@ -1,14 +1,6 @@
-//! An indexed 640x480 framebuffer.
-//!
-//! The canvas holds **palette indices**, not colours. That is the whole point:
-//! the endgame for this crate is a pixel-for-pixel diff against `Lords2.exe`'s
-//! own framebuffer.
-//! the very last step, when `present` expands indices through a `.256` palette.
-//!
-//! Two blitters, because the original has two and they differ:
-//!
 //! * **Sprites** skip palette index 0 — `Blit_Unclipped` (`0x004B43B1`) tests
 //!   each byte and leaves the destination alone when it is zero.
+//!
 //! * **Terrain tiles** do not. `Battlefield_Draw32` (`0x004BCBDC`) reaches
 //!   `FUN_004B5333`, a straight copy. **[V]** and, as it happens, unobservable
 //!   on a field battlefield: no frame of `T32_bat1.pl8` contains a single index-0
@@ -20,16 +12,8 @@ use l2_formats::DecodedFrame;
 pub const WIDTH: usize = 640;
 pub const HEIGHT: usize = 480;
 
-/// The game's transparent palette index. An unpainted canvas reads as "nothing
-/// drawn here"
 pub const TRANSPARENT: u8 = 0;
 
-/// A half-open destination rectangle a blit may write inside.
-///
-/// The original does not have this: it has a `Clip_Horizontal` / `Clip_Vertical`
-/// pair that computes skips and row advances into globals, plus — for map tiles
-/// specifically — five fully unrolled blitters whose *shape* is the clipping
-/// (`docs/screens.md` §1.4). A rectangle is the same thing said once.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Clip {
     pub x0: i32,
@@ -39,7 +23,6 @@ pub struct Clip {
 }
 
 impl Clip {
-    /// No clipping beyond the canvas's own edges.
     pub const WHOLE: Clip = Clip { x0: i32::MIN, y0: i32::MIN, x1: i32::MAX, y1: i32::MAX };
 
     pub const fn new(x0: i32, y0: i32, x1: i32, y1: i32) -> Clip {
@@ -59,17 +42,6 @@ impl Clip {
     }
 }
 
-/// A parallel plane of identifiers the same size as a [`Canvas`]: *what* was
-/// drawn at each pixel
-///
-/// This exists because picking a county off an isometric map cannot be done by
-/// inverting the projection. Tiles are diamonds drawn back to front and they
-/// overlap, so which tile a pixel belongs to is decided by the draw order, not
-/// by geometry. Stamping an id while the tile is blitted records exactly that
-/// decision, at one byte per pixel.
-///
-/// Id 0 means "nothing stamped here", which is also why county ids are 1-based
-/// in the original.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Tags {
     pub width: usize,
@@ -90,7 +62,6 @@ impl Tags {
         self.ids.fill(0);
     }
 
-    /// The id at a pixel, or 0 outside the plane.
     #[inline]
     pub fn at(&self, x: i32, y: i32) -> u8 {
         if x < 0 || y < 0 || x as usize >= self.width || y as usize >= self.height {
@@ -103,9 +74,6 @@ impl Tags {
         self.ids.iter().filter(|&&i| i == id).count()
     }
 
-    /// Every distinct non-zero id present, ascending — ascending because a
-    /// caller that walks it must not depend on hash or insertion order
-    /// (`docs/netcode.md` §3).
     pub fn ids_present(&self) -> Vec<u8> {
         let mut seen = [false; 256];
         for &i in &self.ids {
@@ -118,9 +86,6 @@ impl Tags {
 /// **`FUN_004B1310`'s table** — every colour to one of eight dark shades,
 /// `0x3F - (((r + g + b) / 3) >> 3)`.
 ///
-/// The original runs it over the whole back buffer immediately before it
-/// paints an *animated* message window or battle banner, so the screen behind
-/// a film goes dim: the capture and ending branches of `Msg_DrawWindow`.
 /// animated arm of `Screen_BattleOutcome` are its three callers that matter
 /// here. **`[I]` on the scale**: the formula is read off the decompilation, and
 /// it reads `g_paletteRgb`, which holds a `.256` file's **6-bit** values — so
@@ -149,7 +114,6 @@ impl Canvas {
         Canvas { width, height, pixels: vec![TRANSPARENT; width * height] }
     }
 
-    /// The original's screen size.
     pub fn screen() -> Self {
         Canvas::new(WIDTH, HEIGHT)
     }
@@ -171,48 +135,30 @@ impl Canvas {
         }
     }
 
-    /// How many pixels differ from `other`. The measurement the eventual
-    /// differential test against the original is built on.
     pub fn diff_count(&self, other: &Canvas) -> usize {
         self.pixels.iter().zip(other.pixels.iter()).filter(|(a, b)| a != b).count()
     }
 
-    /// Count of pixels holding a given index. Cheap and enough to assert that
-    /// something was drawn without pinning exact artwork.
     pub fn count(&self, index: u8) -> usize {
         self.pixels.iter().filter(|&&p| p == index).count()
     }
 
-    /// Blit honouring index-0 transparency. Sprites.
     pub fn blit(&mut self, frame: &DecodedFrame, ox: i32, oy: i32) {
         self.blit_inner(frame, ox, oy, true)
     }
 
-    /// Blit every pixel, transparent index included. Terrain tiles.
     pub fn blit_opaque(&mut self, frame: &DecodedFrame, ox: i32, oy: i32) {
         self.blit_inner(frame, ox, oy, false)
     }
 
-    /// Blit a sprite and stamp `id` into `tags` at every pixel it
-    /// painted. Transparent pixels leave both planes alone, so the tag plane
-    /// records the shape of the sprite
     pub fn blit_tagged(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, tags: &mut Tags, id: u8) {
         self.blit_full(frame, ox, oy, true, Some((tags, id)), Clip::WHOLE)
     }
 
-    /// Blit honouring index-0 transparency, confined to `clip`.
     pub fn blit_clipped(&mut self, frame: &DecodedFrame, ox: i32, oy: i32, clip: Clip) {
         self.blit_full(frame, ox, oy, true, None, clip)
     }
 
-    /// [`Canvas::blit_tagged`], confined to `clip`.
-    ///
-    /// This is what draws a map tile. `docs/screens.md` §1.4: the original has
-    /// five unrolled blitters for a map tile — whole, top half, bottom half,
-    /// left half, right half —.
-    /// the edge of the viewport writes nothing outside it. Working out where
-    /// their dropped columns land shows a plain clip does the same job, so
-    /// there is one blitter here and a rectangle
     pub fn blit_clipped_tagged(
         &mut self,
         frame: &DecodedFrame,
@@ -225,13 +171,6 @@ impl Canvas {
         self.blit_full(frame, ox, oy, true, Some((tags, id)), clip)
     }
 
-    /// Expand the indexed canvas through a palette into RGBA. The one place
-    /// colour appears at all.
-    ///
-    /// `rgba` holds four bytes per pixel and is written until either it or the
-    /// canvas runs out. This lives here
-    /// that the final image can be asserted on without a GPU —.
-    /// crate needs no presentation dependency to produce one.
     pub fn to_rgba(&self, palette: &l2_formats::Palette, rgba: &mut [u8]) {
         for (px, &idx) in rgba.chunks_exact_mut(4).zip(self.pixels.iter()) {
             let [r, g, b] = palette.rgb(idx);
@@ -242,16 +181,8 @@ impl Canvas {
         }
     }
 
-    /// **`SmackToBuffer`** — one film frame, `width` stored pixels a row,
-    /// copied opaque into the screen at (`ox`, `oy`) with each stored row drawn
-    /// `y_scale` times, clipped to the canvas.
-    ///
     /// `Smk_Open` (`0x0042DA18`) and `Smk_PlayLoop` (`0x0042DBC7`) hand the
     /// original's `SmackToBuffer` the game's own 640 × 480 back buffer.
-    /// film's position, and nothing else: no transparency, no clip rectangle of
-    /// its own. The raster is a plain `&[u8]` so that this crate never learns a
-    /// film decoder exists — a doubled film arrives already `display_height`
-    /// rows tall, with `y_scale` 1; see `l2_smk::YScale`.
     pub fn blit_raster(&mut self, pixels: &[u8], width: usize, ox: i32, oy: i32, y_scale: usize) {
         if width == 0 || y_scale == 0 {
             return;
@@ -324,8 +255,6 @@ impl Canvas {
         }
     }
 
-    /// A filled rectangle, clipped. Used for the panel background and for
-    /// markers a sprite sheet does not supply.
     pub fn fill_rect(&mut self, x: i32, y: i32, w: i32, h: i32, index: u8) {
         for yy in y.max(0)..(y + h).min(self.height as i32) {
             for xx in x.max(0)..(x + w).min(self.width as i32) {
@@ -381,15 +310,11 @@ mod tests {
         assert_eq!(c.count(3), 0, "entirely off-canvas draws nothing");
     }
 
-    /// The tag plane must record what was *painted*, not what was *offered*.
-    /// A sprite with a transparent hole in it leaves the id under the hole
-    /// alone, or picking would claim pixels the player can see through.
     #[test]
     fn tags_are_stamped_only_where_the_sprite_actually_painted() {
         let mut c = Canvas::new(4, 4);
         let mut tags = Tags::new(4, 4);
 
-        // A 2x2 frame with one transparent pixel at its top-left.
         let mut f = frame(2, 2, 5);
         f.indices[0] = 0;
         f.opaque[0] = false;
@@ -400,8 +325,6 @@ mod tests {
         assert_eq!(tags.at(1, 0), 9);
         assert_eq!(c.count(5), 3);
 
-        // Later draws win, which is what makes back-to-front order the
-        // picking rule.
         c.blit_tagged(&frame(2, 2, 6), 1, 1, &mut tags, 4);
         assert_eq!(tags.at(1, 1), 4);
         assert_eq!(tags.ids_present(), vec![4, 9]);

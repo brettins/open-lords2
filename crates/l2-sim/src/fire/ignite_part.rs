@@ -15,20 +15,6 @@ use crate::terrain::{Battlefield, DIM};
 /// +0x3E = cell.surface;  cell.surface = 10;
 /// if (+0x3E == 7) { cell.flags = 0; cell.elevation = 0; flags2 = …; cell.frame = 0; }
 /// ```
-///
-/// A bridge that catches is **flattened and cleared on the spot**: elevation 0,
-/// every flag gone. So a burning bridge is passable ground at the height of the
-/// water, for as long as it burns and after.
-///
-/// **The slot is not checked**, and that is the original's defect
-/// ours: `Missile_Spawn` returns 0 with a hundred records in flight, and the
-/// writes land on a hundred-and-first record past the array. The cell's own
-/// writes still happen — so **a cell set alight with the array full burns for
-/// the rest of the battle**, with no record to put it out. Reproduced for the
-/// cell; the overrun itself is not behaviour (`docs/bugs.md` N4's reasoning)
-/// and is not reproduced. `docs/bugs.md` `B102`.
-///
-/// Returns the cell, for the caller to re-derive what it keeps from the field.
 pub fn ignite(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32, param: i16) -> usize {
     let cell = y as usize * DIM + x as usize;
     let saved = field.cells[cell].surface;
@@ -46,13 +32,6 @@ pub fn ignite(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32, 
 }
 
 /// **Set one woodland cell catching** — `FUN_00485861` (`0x00485861`).
-///
-/// Unlike [`ignite`] this one **does** check the slot, and does nothing at all
-/// without one. The life is `0x280 − 10 × ((x + y) & 0x1F`)
-/// out in a diagonal stripe pattern over 330 to 640 frames
-/// once, and the remembered surface is always woodland.
-///
-/// Returns the cell when it caught.
 pub fn ignite_woodland(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32) -> Option<usize> {
     let slot = missiles.alloc()?;
     let cell = y as usize * DIM + x as usize;
@@ -62,18 +41,11 @@ pub fn ignite_woodland(field: &mut Battlefield, missiles: &mut Missiles, x: i32,
     Some(cell)
 }
 
-/// **A fire goes out** — `Missile_UpdateAll`'s class-5 arm, on the frame its
-/// countdown reads [`FIRE_RESTORE_AT`].
-///
 /// ```c
 /// if (+0x3E == 7)    { surface = 5; flags = 0; elevation = 0; frame = 0; }
 /// else if (+0x3E == 0x0F) { surface = 0; flags = 0; frame = 0; }
 /// else               { surface = +0x3E; }
 /// ```
-///
-/// So what burns away is exactly **a bridge** — left as surface 5 at the
-/// height of the water — and **a wood**, left as surface 0, which no zone of
-/// the battlefield classifier ever writes. Everything else comes back.
 pub fn put_out(field: &mut Battlefield, fire: &Missile) -> usize {
     let cell = fire.cell_y as usize * DIM + fire.cell_x as usize;
     let c = &mut field.cells[cell];
@@ -116,10 +88,6 @@ pub fn put_out(field: &mut Battlefield, fire: &Missile) -> usize {
 /// counts as a neighbour**, oil included. A cell of surface 5 beside the fire
 /// is only scorched: `FUN_00485B47` masks its frame to the low nibble and
 /// touches no rule.
-///
-/// The original walks the square with no bound at the field's edge
-/// within five of it reads cells of the neighbouring row. That is not
-/// behaviour and is not reproduced. Returns every cell it wrote.
 pub fn bridge_fire(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: i32) -> Vec<usize> {
     let mut touched = vec![ignite(field, missiles, x, y, BRIDGE_FIRE_PARAM)];
     let mut c: i16 = 0;
@@ -135,8 +103,6 @@ pub fn bridge_fire(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: 
                         touched.push(ignite(field, missiles, cx, cy, BRIDGE_FIRE_PARAM - c));
                         c = (c + BRIDGE_SPREAD_STEP).min(BRIDGE_FIRE_PARAM);
                     }
-                    // Surface 5 — the bailey, and a bridge that has already
-                    // burnt out, which is written as the same value.
                     crate::siege::SURFACE_BAILEY => {
                         field.cells[cell].gfx &= 0x0F;
                         touched.push(cell);
@@ -160,10 +126,6 @@ pub fn bridge_fire(field: &mut Battlefield, missiles: &mut Missiles, x: i32, y: 
 /// }
 /// ```
 ///
-/// **One ring a frame, through the whole of a connected wood**, and it stops
-/// only when a frame turns nothing from catching to burning. The second pass
-/// lights cells beside `0x11` and writes `0x10`
-/// cannot light its own neighbour until the next frame — the ring is exact.
 /// `spreading` is `DAT_0053E9D0`. Returns every cell it wrote.
 pub fn spread_woodland(field: &mut Battlefield, missiles: &mut Missiles, spreading: &mut bool) -> Vec<usize> {
     let mut touched = Vec::new();

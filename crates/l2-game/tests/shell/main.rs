@@ -1,11 +1,3 @@
-//! The click-through demo: the front end, the thirteen setup pages, the
-//! conquest screen and the shells.
-//!
-//! Two kinds of test, and the split is the point.
-//!
-//! * **Structure**, which needs no game: every page lays out, every hotspot is
-//! where the painter puts it, and the navigation graph reaches every screen
-//!   and comes back. These run on a bare checkout.
 //! * **Fidelity**, which needs the install: `L2.eng` really does say what the
 //!   painters' `(group, index)` pairs claim, the two fonts really do map
 //!   characters the way `g_glyphWidths` says, and that table really is the
@@ -50,12 +42,8 @@ fn eng() -> Option<Eng> {
     Eng::parse(std::fs::read(dir.join("L2.eng")).ok()?).ok()
 }
 
-/// A world and assets with no game behind them. Every structural test below
-/// runs against this, which is what proves the layout does not depend on the
-/// install being present.
 pub(crate) fn bare() -> (Game, Assets) {
     (Game::new(1), Assets::placeholder())
 }
 
-// ------------------------------------------------------------- the machine
 

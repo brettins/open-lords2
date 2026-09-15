@@ -1,22 +1,3 @@
-//! **The cattle labour record's first word — the break-even floor**, against
-//! the number the original wrote into every save it ever made.
-//!
-//! ```text
-//! LORDS2_DIR="F:\games\Lords of the Realm II" \
-//! LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test -p l2-kingdom --test cattle
-//! ```
-//!
-//! # The report
-//!
-//! > *"I don't know why 16 cows are being lost this season."*
-//!
-//! His county held 80 head on eight pastures with 114 milkmaids and a
-//! population of 150. `Herd_BirthsAndDeaths` wants three a head — 240 people —
-//! so the county was at 47 % staffing, and [`l2_kingdom::land::herd_growth`]
-//! adds `(100 − staffing) / 3` to the death rate for the shortfall: seventeen
-//! of the eighteen points that killed those cows were *nobody tending them*.
-//!
-//!
 //! **The game has exactly one way of saying that, and it is a number we never
 //! computed.** `Herd_LabourEstimate` (`0x0044DD4D`) fills both spare words of
 //! labour record 1 out of one loop: `+0xD8`, the growth-maximising staffing,
@@ -24,24 +5,14 @@
 //! births stop trailing deaths**. Four things in the interface read `+0xD4` and
 //! every one of them was reading a zero:
 //!
-//! * `Panel_JobDetail` colours the worker count red — `screens/info.rs`
-//!   `workers_colour`, `screens/job.rs`;
-//! * the county strip's produce icon switches to its *short* frame —
-//!   `screens/county.rs`;
-//! * `Village_RebuildIcons` draws the shortfall as extra unselectable icons in
-//!   the cluster — `screens/village.rs`;
-//! * the minimap's labour overlay drops to band 0 —
-//!   [`l2_kingdom::county::County::minimap_bands`].
-//!
 //! So a player watching a sixth of his herd die every season was shown a black
 //! number, a full cluster and a quiet map. `docs/decisions.md` C187.
-//!
-//! # Why this is an oracle and not a model
 //!
 //! Every original save stores `+0xD4` for all fourteen counties, so the search
 //! can be run against the game's own answer with nothing recovered and nothing
 //! inverted — the same standing as
 //! `tests/reproduction.rs::the_herds_own_forecast_reproduces_for_every_county`.
+//!
 //! [`the_cattle_floor_is_the_break_even_staffing_every_original_save_stored`]
 //! sweeps every `.sav` this machine can open, because
 //! one save agreeing proves nothing (`docs/decisions.md` C1) — and because the
@@ -56,25 +27,10 @@ use l2_scenario::Scenario;
 const SEED: u64 = 0x10D_52;
 const T: &Tables = &Tables::DEFAULT;
 
-/// One county field straight out of the file, at the offset `docs/kingdom.md`
-/// §1 names it at. The same reader `tests/reproduction.rs` uses.
 pub(crate) fn county_i32(save: &Save, id: usize, offset: u32) -> i32 {
     save.i32_at(0x0053_F9B0 + (id as u32) * 0x300 + offset).expect("a saved county address")
 }
 
-/// **The whole of `Herd_LabourEstimate`, against every save on this machine.**
-///
-/// Both words, every county, every `.sav` the install and the fixture directory
-/// hold. The counts printed on failure are deliberate: a run that checks two
-/// numbers is not the same evidence as a run that checks six hundred, and the
-/// difference is invisible from a green tick.
-///
-/// **The fallback arm is exercised and is not a corner.** A county whose herd
-/// cannot break even at any staffing its population could supply stores the
-/// least-bad count instead — which is the argmax, so floor and ceiling come out
-/// equal. `lastturn.sav`'s county 1 stores 302 and 302; two other positions
-/// store 153/153 and 173/173. If the fallback were anything else — −1, zero,
-/// the population — those three would part company and this would say so.
 #[test]
 fn the_cattle_floor_is_the_break_even_staffing_every_original_save_stored() {
     let saves = l2_testkit::every_available_save();
@@ -122,15 +78,6 @@ fn the_cattle_floor_is_the_break_even_staffing_every_original_save_stored() {
     );
 }
 
-/// **The county the player reported**, built from the numbers his save holds:
-/// 80 head, eight pastures, crowding 10, 114 milkmaids, 150 people, entering
-/// Winter.
-///
-/// Three assertions and they are three different claims. The herd really is
-/// shrinking; the shrinkage really is understaffing
-/// season; and the floor the original would have drawn red really is above the
-/// staffing he had. The third is the one that was missing, and before the fix
-/// `labour_wanted[1]` was 0 and `is_short` was false.
 #[test]
 fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
     let mut c = County::new();
@@ -149,8 +96,6 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
     assert_eq!((g.births, g.deaths), (5, 21), "the season he was looking at");
     assert_eq!(g.net(), -16, "and the number he could not account for");
 
-    // Fully tended, the same herd in the same season grows. So the loss is the
-    // staffing and not the pasture, the crowding or the winter cull.
     let tended = herd_growth(T, c.herd, c.fields_cattle, 80 * 3, c.herd_crowding, WINTER);
     assert!(tended.net() > g.net(), "three a head turns it round: {tended:?} against {g:?}");
 
@@ -166,7 +111,6 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
         "and the search never asks for more people than the county has"
     );
 
-    // What the interface does with it, which is the whole point of the number.
     c.labour_wanted[JOB_CATTLE_FARMING] = e.wanted;
     c.labour_useful[JOB_CATTLE_FARMING] = e.useful;
     assert!(
@@ -180,9 +124,6 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
     );
 }
 
-/// **`Herd_SeasonTick`'s own tail writes both words**, which is a separate call
-/// site from `County_RefreshEstimates` and was a separate omission.
-///
 /// It needs its own test and the reason is worth stating,
 /// test does not work: `Panels_RefreshAll` runs later in the same season and
 /// rewrites the record, so deleting this write and running a whole season
@@ -190,14 +131,6 @@ fn the_herd_that_lost_sixteen_head_was_below_its_break_even_floor() {
 /// [`the_season_writes_the_break_even_floor_into_the_labour_record`]. Nothing in
 /// the simulation reads the floor,
 /// either; `Labour_Allocate` reads the ceiling and only the ceiling.
-///
-/// So the pass is run **alone**.
-/// that distinguishes the two call sites, and the write stays because
-/// `Herd_LabourEstimate` is one function filling two words of one record and
-/// writing half of it is the deviation.
-///
-/// **Ablation, run:** delete the `labour_wanted` line from
-/// `Kingdom::herd_season_tick` — red here, green everywhere else in the suite.
 #[test]
 fn the_herds_own_season_tick_writes_the_break_even_floor() {
     let saves = l2_testkit::every_available_save();
@@ -233,11 +166,6 @@ fn the_herds_own_season_tick_writes_the_break_even_floor() {
     assert!(written >= 10, "only {written} counties had a floor written");
 }
 
-/// **And the end of the season leaves the right number in the record**, through
-/// `Panels_RefreshAll`'s `County_RefreshEstimates`.
-///
-/// **Ablation, run:** delete the `labour_wanted` write from
-/// `l2_kingdom::field::refresh_estimates` — red here.
 #[test]
 fn the_season_writes_the_break_even_floor_into_the_labour_record() {
     let saves = l2_testkit::every_available_save();
@@ -283,11 +211,6 @@ fn the_season_writes_the_break_even_floor_into_the_labour_record() {
 /// **An empty county asks for nobody**, which is the `[I]` arm of
 /// [`herd_labour_estimate`]: the search loop never runs, so neither word is
 /// ever assigned and the floor is whatever it was initialised to.
-///
-/// No save holds a county with no people, so the original's initial value is
-/// unobserved. [`LABOUR_NO_FLOOR`] is chosen because it is what every other
-/// job's estimate writes for *no requirement*, and because the alternative
-/// paints a dead county's zero milkmaids red for ever.
 #[test]
 fn a_county_with_nobody_in_it_asks_for_no_milkmaids() {
     let mut c = County::new();

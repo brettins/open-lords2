@@ -18,16 +18,10 @@ pub fn orthogonal_neighbours(cell: usize) -> impl Iterator<Item = usize> {
     })
 }
 
-// ---------------------------------------------------------------------------
-// The siege tower
-// ---------------------------------------------------------------------------
-//
 // The shipped `Readme.txt`, *Siege Towers*: **"Once siege towers reach a wall
 // and 'dock' with it, they can not be moved again."** `docs/battle.md` §14.3b
 // filed that rule as *unlocated*. It is `FUN_00491492` (`0x00491492`), and the
 // reason a docked tower cannot be moved is that **there is no tower any more**:
-// the routine calls `BattleMan_Destroy` on it and writes a ramp into the
-// battlefield where it stood. The engine becomes terrain.
 
 /// `DAT_004D9D90` — **the cell two ahead** of a siege tower's centre in each
 /// polar facing, as byte offsets `-1280, 0, 16, 0, 1280, 0, -16, 0` read out
@@ -36,6 +30,7 @@ pub fn orthogonal_neighbours(cell: usize) -> impl Iterator<Item = usize> {
 pub const DOCK_REACH: [(i32, i32); 8] =
     [(0, -2), (0, 0), (2, 0), (0, 0), (0, 2), (0, 0), (-2, 0), (0, 0)];
 /// `DAT_004D9DB0` — **the cell one ahead**, the tower's own leading edge:
+///
 /// `-640, 0, 8, 0, 640, 0, -8, 0`. `[V]`.
 pub const DOCK_EDGE: [(i32, i32); 8] =
     [(0, -1), (0, 0), (1, 0), (0, 0), (0, 1), (0, 0), (-1, 0), (0, 0)];
@@ -89,12 +84,6 @@ pub const ENGINE_EDGE_DIAG: [[(i32, i32); 5]; 8] = [
 /// **A walking siege tower's polar facing** — `FUN_00488436` (`0x00488436`)'s
 /// troop-8 arm, run every frame the tower walks.
 ///
-/// ```c
-/// dirc 1: c = (polar == 2);          dirc 3: c = (polar == 2) ? 1 : 2;
-/// dirc 5: c = (polar == 6) ? 3 : 2;  dirc 7: c = (polar == 6) ? 3 : 0;
-/// else:   c = dirc >> 1;             polar = c * 2;
-/// ```
-///
 /// The nearest orthogonal to the way it is going, and **on a diagonal it keeps
 /// whichever of the two it already had**. It is also the sprite: a tower is
 /// drawn in four facings, not eight. `[V]`.
@@ -136,11 +125,6 @@ pub fn tower_polar(dirc: u8, polar: u8) -> u8 {
 ///     if (cell[centre + DAT_004D9D90[d]].elevation == 2
 ///         && cell[centre + DAT_004D9DB0[d]].elevation != 1)  → dock facing d
 /// ```
-///
-/// Four orthogonal facings, **starting from the one it faces**, so a tower
-/// that could dock two ways docks the way it was going. Returns the facing and
-/// the wall cell. The original indexes with no bound; a cell off the field is
-/// not a wall here.
 pub fn tower_dock_site(field: &Battlefield, x: i32, y: i32, polar: u8) -> Option<(u8, usize)> {
     let inside = |x: i32, y: i32| (0..DIM as i32).contains(&x) && (0..DIM as i32).contains(&y);
     let mut d = polar as usize % 8;
@@ -173,12 +157,6 @@ pub fn tower_dock_site(field: &Battlefield, x: i32, y: i32, polar: u8) -> Option
 /// wall.frame = (d == 0 || d == 4) ? 1 : 2;
 /// edge.elevation = 2;                       /* the top step                   */
 /// ```
-///
-/// So a docked tower is **a three-cell staircase along its facing, walled on
-/// both flanks**: the far end and the centre at 1, the cell against the wall at
-/// 2, and the wall cell itself stripped of every flag. A man can walk from the
-/// field onto the wall top, one level at a time — which is the entire point of
-/// a tower, and which nothing in this crate allowed before.
 ///
 /// `FUN_004921E5`'s own edge guards test the wrong axis for two of its writes
 /// (`x < 0x4F` guarding a write to `y − 1`); that differs only at the field's

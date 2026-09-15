@@ -21,14 +21,10 @@ fn a_message_crosses_a_real_socket_intact() {
     client.send(PeerId(7), b"move 7 to 34,12").expect("sending");
     assert_eq!(wait_for_message(&mut host), (PeerId(0), b"move 7 to 34,12".to_vec()));
 
-    // And back the other way, on the same connection.
     host.send(PeerId(0), b"acknowledged").expect("sending");
     assert_eq!(wait_for_message(&mut client), (PeerId(7), b"acknowledged".to_vec()));
 }
 
-/// The property the [`Transport`] trait promises and a stream does not:
-/// `send` takes one message and `poll` returns one message. Sizes
-/// chosen so that several fit in one kernel read and one spans several.
 #[test]
 fn message_boundaries_survive_the_stream() {
     let (mut host, addr) = host();
@@ -53,14 +49,6 @@ fn message_boundaries_survive_the_stream() {
     assert_eq!(host.poll(), None, "nothing extra came out of the stream");
 }
 
-/// A partial frame arriving across two reads — the case that happens on
-/// the day of the demo.
-/// `FrameReader` fed by hand.
-///
-/// Every split point is tried, including the three inside the
-/// four-byte length prefix. The `None` assertion cannot race: fewer
-/// bytes than one whole message have been written, so no complete
-/// message can exist however much of it the kernel has delivered.
 #[test]
 fn a_frame_split_across_two_writes_is_reassembled() {
     let (mut host, addr) = host();
@@ -87,10 +75,6 @@ fn a_frame_split_across_two_writes_is_reassembled() {
     }
 }
 
-/// The reason [`MAX_FRAME`] exists: a length prefix is attacker- or
-/// bug-controlled, and believing it means allocating a gigabyte before
-/// noticing. The stream is unrecoverable afterwards — we no longer know
-/// where the next message starts — so the connection goes.
 #[test]
 fn a_hostile_length_prefix_kills_the_connection_instead_of_allocating() {
     let (mut host, addr) = host();
@@ -129,14 +113,9 @@ fn a_message_over_the_frame_limit_is_refused_before_it_is_sent() {
         host.send(PeerId(0), &huge),
         Err(TransportError::FrameTooLong { len: MAX_FRAME + 1 })
     );
-    // And the connection is still perfectly good.
     host.send(PeerId(0), b"still here").expect("sending");
 }
 
-/// A message far larger than any kernel send buffer, which is the only
-/// way to exercise the partial-write path: `send` must own the whole
-/// message even when the kernel takes a fraction of it, and the
-/// remainder must go out later without the caller doing anything.
 #[test]
 fn a_large_message_survives_a_partial_write() {
     let (mut host, addr) = host();
@@ -145,10 +124,6 @@ fn a_large_message_survives_a_partial_write() {
     let payload: Vec<u8> = (0..900_000u32).map(|i| (i % 251) as u8).collect();
     client.send(PeerId(0), &payload).expect("sending");
 
-    // The receiver has to be pumped for the sender's outbox to drain,
-    // which is what makes this a real partial write
-    // memcpy: both ends are in this thread, so nothing moves unless the
-    // test moves it.
     let until = deadline();
     let mut received = None;
     while received.is_none() {

@@ -16,16 +16,11 @@ use l2_kingdom::tables::Tables;
 use l2_kingdom::trade::{self, Good};
 use l2_mods::Platform;
 
-/// **A player can buy grain and sell it back.** The property the whole screen
-/// exists for, asserted at the ends: the treasury before and after, at the
-/// prices the screen itself quoted.
 #[test]
 fn a_player_can_buy_grain_at_the_merchant_and_sell_it_back() {
     let (mut game, assets) = world!();
     let (merchant, _county) = stall(&mut game);
 
-    // Every merchant the game creates carries morale 100, and that is the whole
-    // of the markup: the buy price is exactly twice the sell price.
     assert_eq!(
         game.kingdom.campaign.units.get(merchant).map(|u| u.morale),
         Some(100),
@@ -52,7 +47,6 @@ fn a_player_can_buy_grain_at_the_merchant_and_sell_it_back() {
     assert_eq!(panel.qty(), 10, "and the quantity the thumb agreed to was the ten presses");
     assert_eq!(game.gold(), gold - 10 * q.buy, "ten sacks at the buying price");
 
-    // And back the other way, at the other price.
     let gold = game.gold();
     let mut panel = TradeScreen::new(merchant, Good::Grain.id() as u8);
     let down = down_button();
@@ -63,8 +57,6 @@ fn a_player_can_buy_grain_at_the_merchant_and_sell_it_back() {
     assert_eq!(t, Transition::Pop);
     assert_eq!(game.gold(), gold + 10 * q.sell, "ten sacks at the selling price");
 
-    // The four accumulators — the state `docs/hypotheses.json` needs and that
-    // no fixture has ever carried a non-zero value for.
     let r = &game.kingdom.realms[game.player as usize];
     assert_eq!((r.trade_spent_a, r.trade_spent_b), (10 * q.buy, 10 * q.buy));
     assert_eq!((r.trade_received_a, r.trade_received_b), (10 * q.sell, 10 * q.sell));
@@ -93,8 +85,6 @@ fn buying_swords_fills_the_realms_armoury_slot_group_six_names() {
     assert_eq!(game.kingdom.realms[game.player as usize].weapons[slot], before + 5);
 }
 
-/// **Ale is bought here and drunk immediately**, and its allowance is seasonal.
-///
 /// Both halves in one test, because the second is the correction: a second
 /// purchase in the same season gives nothing, and the season's happiness pass
 /// hands the allowance back. `docs/decisions.md` C53.
@@ -109,8 +99,6 @@ fn ale_gives_five_happiness_a_season_and_no_more_until_the_season_turns() {
     }
     game.kingdom.realms[game.player as usize].gold = 1000;
 
-    // Ale carries no markup, so a barrel is a crown; a tenth of a thousand
-    // people is a hundred crowns a point, and a thousand crowns is the cap.
     let q = trade::quote(&game.kingdom.tables, Good::Ale, 100);
     assert_eq!((q.sell, q.buy), (1, 1), "ale is the one good with no markup");
 
@@ -124,7 +112,6 @@ fn ale_gives_five_happiness_a_season_and_no_more_until_the_season_turns() {
     assert_eq!(after - before, 5, "the whole treasury of ale is worth five, and no more");
     assert_eq!(game.kingdom.counties[county as usize].ale_happiness_given, 5);
 
-    // A second round in the same season buys nothing at all.
     game.kingdom.realms[game.player as usize].gold = 1000;
     let mut panel = TradeScreen::new(merchant, Good::Ale.id() as u8);
     send(&mut panel, &mut game, &assets, Event::Click { x: max.x + 2, y: max.y + 2 });
@@ -135,38 +122,28 @@ fn ale_gives_five_happiness_a_season_and_no_more_until_the_season_turns() {
         "the season's five are spent",
     );
 
-    // The season's happiness pass hands the allowance back.
     l2_kingdom::happiness::update(&mut game.kingdom.counties[county as usize], true, 1);
     assert_eq!(game.kingdom.counties[county as usize].ale_happiness_given, 0);
 }
 
-/// A refusal is a refusal: the panel stays up, says which guard fired, and
-/// nothing moves.
 #[test]
 fn an_order_the_treasury_cannot_cover_is_refused_and_the_panel_stays() {
     let (mut game, assets) = world!();
     let (merchant, county) = stall(&mut game);
     let q = trade::quote(&game.kingdom.tables, Good::Grain, 100);
 
-    // Enough for nine sacks, and ask for far more: the arrows clamp, which is
-    // the *first* line of defence.
     game.kingdom.realms[game.player as usize].gold = 9 * q.buy;
     let mut panel = TradeScreen::new(merchant, Good::Grain.id() as u8);
     let up = up_button();
     for _ in 0..20 {
         send(&mut panel, &mut game, &assets, Event::Click { x: up.x + 2, y: up.y + 2 });
     }
-    // Now empty the treasury behind the panel's back — the second line, and the
-    // one `Merchant_Trade` itself holds. In the original this is what happens
-    // in multiplayer, where the order goes on the wire and the far end's gold
-    // has moved by the time it arrives.
     game.kingdom.realms[game.player as usize].gold = 1;
     let ok = confirm_button();
     let t = send(&mut panel, &mut game, &assets, Event::Click { x: ok.x + 2, y: ok.y + 2 });
     assert_eq!(t, Transition::Stay, "a refused trade leaves the panel up");
     assert_eq!(game.gold(), 1, "and takes nothing");
 
-    // Selling more than the county holds, straight at the rule.
     let grain = game.kingdom.counties[county as usize].grain;
     let order = trade::Order::sell(Good::Grain, grain + 1, q, game.player as usize, county as usize);
     assert_eq!(

@@ -27,19 +27,11 @@ impl ComposeScreen {
         }
     }
 
-    /// **The dialog's widget table, with the kind byte each record carries.**
-    ///
     /// The send and cancel pair is `Diplo_SendClicked`'s — six records across
     /// three layouts at `0x004DDA00`, all **kind 5**, so the gauntlet goes down
     ///
     /// records are `FUN_00436372`'s at `0x004DD9D0`, **kind 4**, so holding
     /// `+` walks the gold up on the ramp.
-    ///
-    /// Index 0 is send, 1 is cancel, 2 is `+` and 3 is `−`.
-    ///
-    /// Each `arm!` is the marker and the kind in one token. The gift stepper's
-    /// two records share one handler and one arm, so they share one
-    /// declaration.
     pub(super) fn widgets(&self) -> Vec<Widget> {
         const GIFT_STEP: crate::press::Kind = crate::arm!("0x00436372/diplo-gift-step", Repeat);
         let (send, cancel) = self.buttons();
@@ -54,15 +46,10 @@ impl ComposeScreen {
         out
     }
 
-    /// One widget's handler, whichever way it was reached. The arms are
-    /// declared on [`ComposeScreen::widgets`].
     pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
         match widget {
             // `Diplo_SendClicked` (`0x00436408`), hotspot 1.
             0 => self.send(ctx),
-            // Hotspot 0 of the same handler, and it is the whole of the
-            // function's first statement: `g_screenId = 0xB`, back to the lord
-            // cards.
             1 => Transition::Pop,
             // `FUN_00436372`, the gift stepper.
             i => {
@@ -77,8 +64,6 @@ impl ComposeScreen {
         self.kind
     }
 
-    /// Whether this shape has a letter in it: `g_diploKind` 1…4, which is the
-    /// `else if (g_diploKind < 5)` rung of the `0x1A` arm.
     pub fn is_letter(&self) -> bool {
         matches!(self.kind, Kind::Compliment | Kind::Insult | Kind::OfferAlliance | Kind::EndAlliance)
     }
@@ -97,13 +82,10 @@ impl ComposeScreen {
         })
     }
 
-    /// What is in the draft box now. Empty for the three shapes that have none.
     pub fn draft(&self) -> String {
         self.letter.as_ref().map_or(String::new(), |f| f.text())
     }
 
-    /// `Edit_Commit(…, 199)` — what a send copies into
-    /// `g_diploLetter + localPlayer * 0xCA`.
     pub fn committed(&self) -> String {
         self.letter.as_ref().map_or(String::new(), |f| f.commit(LETTER_COMMIT))
     }
@@ -112,15 +94,6 @@ impl ComposeScreen {
         self.target
     }
 
-    /// One widget record, drawn the way `Widget_Draw` draws it: the button
-    /// sheet's frame at the record's own `(x, y)`.
-    ///
-    /// **`Widget_Draw` is shared and excluded from the draw-call denominator,
-    /// but a record is one thing on the screen**, so the four the gift dialog
-    /// carries
-    /// `tools/audit/draws-F.json`. Our own recess stands in when the sheet is
-    /// missing, so the button is still a button on a bare install and is
-    /// visibly not the original's.
     /// `frame` is the record`s `+0x04`; `Widget_Draw` adds one to it while the
     /// press timer at `+0x0D` runs, and `index` says which record this is in
     /// [`ComposeScreen::widgets`].
@@ -131,7 +104,6 @@ impl ComposeScreen {
         }
     }
 
-    /// The two widgets every shape has, by shape.
     fn buttons(&self) -> (Rect, Rect) {
         match self.kind {
             Kind::Gift => (GIFT_SEND, GIFT_CANCEL),
@@ -154,19 +126,12 @@ impl ComposeScreen {
         }
     }
 
-    /// `Diplo_SendClicked`'s hotspot 1.
-    ///
-    /// The order is the original's and it matters: **the screen closes first**,
-    /// the draft is copied into the player's per-realm slot second
-    /// validation is third. A refusal is a message on the map.
     fn send(&mut self, ctx: &mut Ctx) -> Transition {
         let refused = refusal(ctx, self.target, self.kind, self.county);
         if let Some(why) = refused {
             self.sent = Some(Err(why));
             return Transition::Pop;
         }
-        // `if (g_diploKind != 0) g_diploGold = 0;` — only a gift carries gold,
-//
         let gold = if self.kind == Kind::Gift { self.gold } else { 0 };
         let me = ctx.game.player;
         ctx.game.kingdom.post_letter(me, self.target, self.kind, gold, self.county);
@@ -180,8 +145,6 @@ impl Screen for ComposeScreen {
         ScreenId::DiploCompose(self.target, self.kind.byte())
     }
 
-    /// `Widget_Test`'s `Sound_RestartSlot(1)`, carried up to the audio
-    /// layer. See [`Screen::take_clicks`].
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
     }
@@ -221,23 +184,14 @@ impl Screen for ComposeScreen {
         let Event::Click { x, y } = event else {
             return match event {
                 // arm: 0x0042FF10/compose-right-exit right-release
-                //
-                // The `0x1A` arm's right-release, and note **where it goes**:
-                // `g_screenId = 0`, the campaign map, not back to `0x0B`. Only
-                // the cross inside the dialog returns to the lord cards. Two
-                // exits from one screen that land in different places
-                // difference is not visible from the dialog.
                 Event::RightClick { .. } => Transition::Replace(ScreenId::Campaign),
                 Event::KeyDown(Key::Escape) => Transition::Pop,
                 Event::KeyDown(Key::Enter) => self.send(ctx),
-                // The release ends a gift stepper's hold; nothing here is a
-                // release widget, so nothing can fire.
                 Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
                     let fired = self.press.event(&self.widgets(), event);
                     debug_assert!(fired.is_none(), "no compose widget is kind 3");
                     Transition::Stay
                 }
-                // **A double click reaches the four widgets and nothing else.**
                 // Send and cancel are kind 5 and the gift stepper kind 4
                 // guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick`; the
                 // county picker `FUN_0043B4CB` opens `else if
@@ -264,8 +218,6 @@ impl Screen for ComposeScreen {
                 return Transition::Stay;
             }
         }
-        // Four widgets of two kinds; [`ComposeScreen::widgets`] says which is
-        // which and [`ComposeScreen::fire`] is what each one does.
         let table = self.widgets();
         if let Some(i) = self.press.event(&table, event) {
             return self.fire(ctx, i);
@@ -273,12 +225,7 @@ impl Screen for ComposeScreen {
         Transition::Stay
     }
 
-    /// `Widget_Test`'s per-frame pass: the gauntlets' countdown
-    /// stepper's ramp.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
-        // The caret's blink. `Edit_DrawCaret` counts frames in itself; ours
-        // steps on a tick, because nothing below the renderer reads a clock.
-        // See [`crate::text`].
         if let Some(f) = self.letter.as_mut() {
             f.tick();
         }
@@ -309,28 +256,14 @@ impl Screen for ComposeScreen {
             shadow: Some(font::SHADOW),
             caps: Some(1),
         };
-        // `Ui_DrawText(&g_playerNames + target * 0x2C, …)` — the typed name
-        // first, which is what this module once got wrong by drawing the lord's
-        // *title* unconditionally. [`lord_name`] keeps that order and puts the
-        // title back only where the field is empty, which is where the front
-        // end would have written it.
         let name = lord_name(ctx, self.target);
 
         match self.kind {
-            // ---------------------------------------- Diplo_DrawGiftGold
             Kind::Gift => {
                 pen.window(canvas, GIFT_WINDOW.x, GIFT_WINDOW.y, 0x16, 0x0B, WINDOW_SET);
                 pen.ok_button(canvas, GIFT_OK.x, GIFT_OK.y, 0);
-                // `Eng_DrawString(72, 10, 0x60, 0xB8)`
-                // `g_penAdvance + 0x60` — two draws, not one formatted string,
-                // because the pen advance is what puts the four-pixel gap in.
                 let w = pen.eng(canvas, GROUP, GIFT_TO, 0x60, 0xB8, font::TEXT);
                 pen.body(canvas, w, 0xB8, &name, font::TEXT);
-                // 72/23 "Last gift was" + pair[me][target].bestGift — read from
-                // **my** record about them, which is the one `Diplo_ReplyGift`
-                // never writes. See the test below: the ratchet the AI judges
-                // by lives in the AI's record, and this panel shows the
-                // player's own, which is always zero in single player.
                 let best = ctx
                     .game
                     .kingdom
@@ -348,7 +281,6 @@ impl Screen for ComposeScreen {
                 self.widget(&pen, canvas, PLUS_FRAME, GIFT_MORE, 2);
                 self.widget(&pen, canvas, MINUS_FRAME, GIFT_LESS, 3);
             }
-            // ------------------------------------ Diplo_DrawCountyRequest
             Kind::AskHelp | Kind::AskAttack => {
                 let k = usize::from(self.kind == Kind::AskAttack);
                 pen.window(canvas, COUNTY_WINDOW.x, COUNTY_WINDOW.y, 0x18, 0x0F, WINDOW_SET);
@@ -381,8 +313,6 @@ impl Screen for ComposeScreen {
                         &l2_view::chrome::MinimapTint::Owner(&owner),
                     );
                 }
-                // 72/19 or 20 while no county is picked; 21 or 22 plus the
-                // county's own name once one is.
                 if self.county == 0 {
                     pen.eng(canvas, GROUP, REQUEST_PROMPT + k, 0x50, 0x140, font::TEXT);
                 } else {
@@ -392,12 +322,9 @@ impl Screen for ComposeScreen {
                 }
                 pen.eng(canvas, GROUP, DISPATCH, 0x140, 0xE0, font::TEXT);
             }
-            // ------------------------------------------ Diplo_DrawLetter
             _ => {
                 pen.window(canvas, LETTER_WINDOW.x, LETTER_WINDOW.y, 0x1C, 0x0D, WINDOW_SET);
                 pen.ok_button(canvas, LETTER_OK.x, LETTER_OK.y, 0);
-                // 72/11 + (kind - 1): "Give a compliment to", "Insult",
-                // "Ask for an alliance with", "End alliance with".
                 let row = LETTER_BASE + self.kind.byte() as usize - 1;
                 let w = pen.eng(canvas, GROUP, row, 0x30, 0xA8, font::TEXT);
                 pen.body(canvas, w, 0xA8, &name, font::TEXT);
@@ -415,8 +342,6 @@ impl Screen for ComposeScreen {
                 // pen position `FUN_0040352F` left — `g_caretX + 0x30`,
                 // `g_caretY + 200` — so the caret of a *wrapped* field is an
                 // absolute point, not the anchor plus the field's own width.
-                // [`crate::text::TextField::draw_caret`] adds that width back,
-                // so the anchor handed to it is the point less `caret_x`.
                 if let Some(f) = self.letter.as_ref() {
                     let m = crate::text::FontMetrics::of(a);
                     let (cx, cy) = caret_pen(&pen, &draft, f.caret(), dx, dy, dw);

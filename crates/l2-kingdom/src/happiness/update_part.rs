@@ -7,24 +7,13 @@ use crate::math::clamp;
 use crate::tables::Tables;
 use l2_net::{Quirk, Quirks};
 
-/// Give back one season of [`crate::county::County::levy_surcharge`].
-///
-/// Guarded on non-zero.
 ///.
-/// one, so a negative value would decay forever.
 pub fn decay_levy_surcharge(county: &mut County) {
     if county.levy_surcharge != 0 {
         county.levy_surcharge -= LEVY_SURCHARGE_DECAY;
     }
 }
 
-/// One county's happiness pass.
-///
-/// `owner_is_human` distinguishes the two owned cases; an unowned county
-/// (`owner == 0`) is neither.
-///
-/// `turn_count` is `g_turnCount`, which is 1 on the first season — the average
-/// is a plain division by it, so this must never be handed 0.
 pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
     decay_levy_surcharge(county);
     county.happiness_last = county.happiness;
@@ -39,6 +28,7 @@ pub fn update(county: &mut County, owner_is_human: bool, turn_count: u32) {
     // **And the ale allowance itself.** `Happiness_UpdateAll` clears `+0x219`
     // in the same breath as the display field beside it, which makes the five
     // points a seasonal allowance.
+    //
     // `docs/kingdom.md` §7.6, `docs/mechanics.md` and `docs/symbols.json` all
     // claimed. Reading the reset off the wrong line for a whole subsystem is
     // C53; the line is here.

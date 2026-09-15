@@ -11,24 +11,12 @@ use l2_sim::siege::{
 };
 use l2_sim::{BattleRunner, End, Muster, Troop, SIDE_A, SIDE_B};
 
-/// **848 men against a garrison of two figures, at every castle level.**
-///
-/// This is the exact position the branch started from, and it is written as a
-/// *long* battle on purpose. The four defects it found were all invisible to a
-/// 600-frame test — the whole suite's previous longest siege — because every
-/// one of them is an order
-/// wrong:
-///
 /// | | |
 /// |---|---|
 /// | a breach was **one cell wide** | `Wall_Smash` (`FUN_0049694F`) opens a 9 × 9 |
 /// | the approach score started at **0** | `Battlefield_BuildCastle` writes 500, and 0 only when there is a ditch |
 /// | the wall stood at **elevation 2** | the builder's structure code 8 writes 1, and a step of 2 cannot be climbed |
 /// | the rampart walk sat **against the wall** | `Wall_Collapse` scores only bailey neighbours, so a catapult earned nothing |
-///
-/// Before them the besieger stood in the field for 400,000 frames. After them
-/// every level ends, and the *cause* differs by level.
-/// the three different ways in are all live.
 #[test]
 fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
     // `Missile_Step`'s counting arm against a wall plays `FUN_004262CF(0xF)`,
@@ -43,11 +31,6 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
         assert!(r.living(SIDE_A) <= 2, "a garrison of at most two figures");
 
         let mut ticks = 0;
-        // `g_attackersOnWall` — side-4 figures standing on surface 5, which
-        // after `Wall_Smash` is the breach and the bailey behind it. It going
-        // positive *is* "the assault was pressed home", and it is recounted
-        // from the figures' own cells every frame
-        // this test can reach.
         let mut got_inside = 0;
         let end = loop {
             r.run(500);
@@ -93,11 +76,6 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
     assert!(walls_struck > 0, "no catapult shot was ever counted against a wall");
 }
 
-/// And the other direction.
-/// either: **the same 848 men lose to a garrison that outnumbers them.**
-///
-/// The pair is the real assertion. One of them alone passes for a model that
-/// has stopped simulating.
 #[test]
 fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
     let mut r = BattleRunner::deploy_siege(

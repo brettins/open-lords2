@@ -41,18 +41,9 @@ use crate::math::pct;
 use crate::tables::{Season, Tables};
 use l2_net::{Quirk, Quirks};
 
-/// Migration is capped at this many people per county per season, before the
-/// unowned halving. `docs/kingdom.md` §5.3.
 pub const MIGRATION_CAP: i32 = 100;
 
-/// The flat number of people a population event adds on top of its percentage:
 /// `Pct(deaths or births, |pct|) + 10`. `[V]` — `Population_UpdateAll`
 /// (`0x00449EF3`) adds the literal `10` in both arms, and nowhere else.
-/// plague always costs at least ten, and a county under fifty people, whose
-/// 20% cap is below ten, loses the whole cap instead.
-///
-/// A `const`
-/// (`docs/modding.md`) and this is the first number the swing needed beyond the
-/// cap.
 pub const EVENT_SWING_FLOOR: i32 = 10;
 

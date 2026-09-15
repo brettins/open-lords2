@@ -2,8 +2,6 @@
 //! `Screen_SplitArmyRows` (`0x00419354`), `g_screenId` `0x11`, `L2.eng` group
 //! 17.
 //!
-//! # What the painter draws
-//!
 //! ```text
 //! File_ReadChunk("icon_tmp.pl8", ...)
 //! Ui_DrawBox(8, 0x30, 0x1C, 0x1A)                  the window, 448 x 416 at (8, 48)
@@ -22,20 +20,6 @@
 //! the two "Total men" lines at y 0x184 with a band, 0x160 without
 //! ```
 //!
-//! **The two columns are two words of one basket slot.** The parent's count is
-//! `g_levyBasket[t].chosen` and the daughter's is `g_levyBasket[t].available` —
-//! the field that means *"how many of this weapon the armoury has"* on the
-//! raise-army screen. `docs/armies.md` §6.2 says the buffer is reused with
-//! different field meanings and this is the confirmation; `l2_kingdom::divide`
-//! models it as two arrays, and says why.
-//!
-//! **Slot 7 is the mercenary band.** It moves whole:
-//! hotspot 7 on either handler swaps which column holds it, and `Army_Split`
-//! carries `mercBand`, `mercMen`, `mercTroop` and the live table's `hiredBy`
-//! across in one piece.
-//!
-//! # Every control on this screen was in the wrong place
-//!
 //! **`Screen_FrameInput`'s `0x11` arm holds no verb at all** — three exits, all
 //! of them to `g_screenId = 0x04`. The buttons are `Screen_HandleInput`'s
 //! `Widget_Test(0, 0, &DAT_004DD388, DAT_0055321C)`, which is the *second* of
@@ -53,8 +37,6 @@
 //! [`crate::screens::info`]'s, which is where `Panel_DisbandButton`
 //! (`0x0043733A`) has always lived — record 1 of the information panel's
 //! `g_infoUnitButtons`. `docs/arms.json` counts all three as inventions.
-//!
-//! # The gate that only the Readme states
 //!
 //! *"An army normally can only be split only at the start of its movement in a
 //! turn."* — `FUN_004378B3` refuses with message `0x95` when `movesUsed >= 1`,

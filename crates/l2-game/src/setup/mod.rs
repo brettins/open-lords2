@@ -1,15 +1,3 @@
-//! **The custom game's twelve options, and what each one**
-//!
-//! `screens::setup` draws them. This module is what they *mean*, and it exists
-//! because the answer turned out not to be the obvious one: the twelve
-//! drop-downs do **not** write `g_optDifficulty` and its neighbours. They write
-//! a second block of globals a hundred bytes further up, and a single function
-//! run at the moment *Start* is pressed turns those twelve selections into the
-//! values the game runs on. Wiring a drop-down straight to `g_optDifficulty`
-//! would have been wrong for five of the twelve and would have looked right.
-//!
-//! # The three functions
-//!
 //! **[V]**, all three, from the decompilation:
 //!
 //! | | | |
@@ -17,8 +5,6 @@
 //! | `Setup_SetOption` | `0x00433BA2` | `(which, value)` — one `if`/`else if` chain of twelve arms, each writing one global. Called from the drop-down's click handler with the row that was clicked. |
 //! | `Setup_DefaultOptions` | `0x004AE539` | writes all twelve at once. This is the *Defaults* button, and it is **not** twelve zeroes. |
 //! | `Setup_CommitOptions` | `0x00499DC3` | reads the twelve and writes the eleven globals a game. Called from the *Start* button's handler, immediately before `Setup_StartGame`. |
-//!
-//! # The twelve, and where each one lands
 //!
 //! Labels are `L2.eng` group 102, values group 103 — the runs
 //! `screens::setup::OPTION_BASE` names.
@@ -38,11 +24,6 @@
 //! | 10 | Time limit | `0x0053F28C` | `g_optTimeLimit` `0x0053F26C` | through [`TIME_LIMIT_SECONDS`] |
 //! | 11 | Fight? | `0x0053F2B4` | `g_optFightHumansOnly` `0x0053F284` | as is
 //!
-//! Five of the twelve go through a table and one is arithmetic; only six are the
-//! direct copies the screen makes them look like.
-//!
-//! # The five tables close against the string lists
-//!
 //! Every table was read out of a GOG `Lords2.exe` at the address the
 //! decompilation names, and each one has **
 //! drop-down has strings** — which is the check that could have failed and did
@@ -54,8 +35,6 @@
 //! begins; three rows of `0x14` end at `0x004DC10C`, four bytes short of
 //! [`START_TROOPS`] at `0x004DC110`. Three adjacent tables, three row counts,
 //! no overlap and no remainder.
-//!
-//! # What this module does not decide
 //!
 //! Six of the twelve are **starting conditions** — gold, castle, armoury,
 //! garrison, county stores, how many lords — and they are spent once, by
@@ -75,7 +54,6 @@ use l2_kingdom::unit::TROOP_TYPES;
 
 use crate::game::Game;
 
-/// How many drop-downs there are.
 pub const OPTION_COUNT: usize = 12;
 
 /// The twelve, in the order the grid draws them and `Setup_SetOption` switches
@@ -95,8 +73,6 @@ pub mod option {
     pub const FIGHT: usize = 11;
 }
 
-/// How many values each drop-down offers.
-///
 /// **A second, independent reading.** `screens::setup::OPTION_COUNT` gets the
 /// same twelve numbers out of the *drop-down geometry* table at `0x004D3158`
 /// (its row count minus the two border cells); these are the lengths of the
@@ -105,16 +81,8 @@ pub mod option {
 pub const VALUE_COUNT: [usize; OPTION_COUNT] = [2, 2, 4, 2, 4, 4, 6, 4, 5, 3, 7, 2];
 
 /// `Setup_DefaultOptions` (`0x004AE539`) — **the *Defaults* button, verbatim.**
-///
-/// Not twelve zeroes, which is what this screen used to reset to and what the
-/// button's own caption invites you to assume. The default game is *five*
-/// nobles, a *keep*, *some* weapons, *1000* crowns and a *medium* county — and
-/// six of those twelve numbers are not zero.
 pub const DEFAULTS: [u8; OPTION_COUNT] = [0, 0, 3, 0, 0, 0, 3, 2, 2, 1, 6, 1];
 
-/// The same function's other branch, for a network game: a four-minute turn
-/// limit instead of none
-///
 /// `DAT_0053F28C = g_multiplayer ? 3 : 6` and
 /// `DAT_0053F2B4 = (g_multiplayer == 0)`.
 pub const DEFAULTS_MULTIPLAYER: [u8; OPTION_COUNT] = [0, 0, 3, 0, 0, 0, 3, 2, 2, 1, 3, 0];
@@ -132,11 +100,6 @@ pub struct CountyStart {
 /// `g_countyStatus` (`0x004DC0D0`) — *County Status*: three rows of five, read
 /// as `{grain, herd, population, healthMeter, happiness}` because that is the
 /// order `FUN_0049BD99` assigns them in.
-///
-/// **`medium` really does start with no grain at all.** It is 0 in the image
-/// where `weak` is 10, and it is reproduced: the two numbers
-/// are both far below a county's appetite and the herd
-/// 40 to 95 to 330, is what the setting.
 pub const COUNTY_STATUS: [CountyStart; 3] = [
     CountyStart { grain: 10, herd: 40, population: 167, health_meter: 45, happiness: 41 },
     CountyStart { grain: 0, herd: 95, population: 417, health_meter: 65, happiness: 65 },
@@ -148,13 +111,9 @@ pub const COUNTY_STATUS: [CountyStart; 3] = [
 /// place the neutral counties are treated differently at setup.
 pub const UNOWNED_COUNTY_GRAIN_BONUS: i32 = 100;
 
-/// Every realm starts with fifty of each, whatever the options say.
 /// `FUN_0049BD99` writes `0x32` into `iron`, `wood` and `stone` unconditionally.
 pub const STARTING_MATERIALS: i32 = 50;
 
-/// An AI realm gets `difficulty * 20` extra mail — `weapons[4]` — on top of its
-/// [`START_ARMOURY`] row, and a person gets none. The one place in the whole
-/// setup path where the difficulty and the equipment meet.
 pub const AI_EXTRA_MAIL_PER_DIFFICULTY: i32 = 20;
 
 /// Which of `Realm::weapons` that extra lands in. `FUN_0049BD99` writes index
@@ -163,14 +122,9 @@ pub const AI_EXTRA_MAIL_PER_DIFFICULTY: i32 = 20;
 /// to settle and the index is not in doubt.
 pub const AI_EXTRA_WEAPON_SLOT: usize = 4;
 
-// ------------------------------------------------------------- the selections
 
 /// **The twelve drop-down selections**, and nothing else: this is
 /// `0x0053F288 … 0x0053F2B4`, twelve indices into twelve string runs.
-///
-/// It is deliberately *not* the settings a game runs on. Turning one into the
-/// other is [`SetupOptions::commit`], and keeping the two types apart is what
-/// stops a screen writing a value straight into a rule.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SetupOptions {
     value: [u8; OPTION_COUNT],
@@ -182,27 +136,16 @@ impl Default for SetupOptions {
     }
 }
 
-/// **What a game**, once the twelve selections have been
-/// through `Setup_CommitOptions` and its five tables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Settings {
-    // The six that are rules and live for the length of the game.
     pub advanced_farming: bool,
     pub exploration: bool,
     pub armies_eat: bool,
     pub difficulty: u8,
     pub fight_humans_only_byte: u8,
     pub time_limit: i32,
-    /// **Ours, not the original.s.** Which of the original.s defects this game
-    /// will reproduce, taken from the quirks page
-    /// ([`crate::screens::options`]) at the moment the game is started.
-    ///
-    /// It sits with the six *rule* settings
-    /// conditions because it is one: it lives for the length of the game, it
-    /// goes into the save, and it is in the lockstep digest.
     /// `docs/decisions.md` C62.
     pub quirks: l2_kingdom::Quirks,
-    // The six that are starting conditions and are spent once.
     pub gold: i32,
     pub castle_type: u8,
     pub armoury: [i32; 6],
@@ -231,8 +174,6 @@ mod tests {
         assert_eq!(START_ARMOURY.len(), VALUE_COUNT[option::WEAPONS]);
         assert_eq!(START_TROOPS.len(), VALUE_COUNT[option::ARMY_SIZE]);
         assert_eq!(COUNTY_STATUS.len(), VALUE_COUNT[option::COUNTY_STATUS]);
-        // The two that are read as an index
-        // have to fit what they index.
         assert_eq!(VALUE_COUNT[option::NOBLES], 4, "two, three, four, five");
         assert_eq!(
             VALUE_COUNT[option::STARTING_CASTLE],
@@ -254,7 +195,6 @@ mod tests {
         assert_eq!(s.difficulty, 0);
         assert_eq!(s.ai_lords, 4);
         assert_ne!(DEFAULTS, [0; OPTION_COUNT], "C21: the reset used to be this");
-        // Every default is inside its own run.
         for i in 0..OPTION_COUNT {
             assert!((DEFAULTS[i] as usize) < VALUE_COUNT[i], "default {i}");
         }
@@ -270,10 +210,6 @@ mod tests {
 
     #[test]
     fn the_start_troops_are_the_start_armoury_shifted_one_slot_right() {
-        // Rows 0, 1 and 2 line up exactly, one slot apart, which is what says
-        // the two tables are indexed by the same six weapons: `START_TROOPS[0]`
-        // is unarmed peasants and 1..=6 are the weapon types, so weapon `w` of
-        // the armoury is troop `w + 1`.
         for row in 0..3 {
             for w in 0..6 {
                 assert_eq!(
@@ -283,12 +219,6 @@ mod tests {
                 );
             }
         }
-        // **Row 3 is the exception and it is in the image, not a slip.** *Many*
-        // weapons is a hundred of each of the five real types — 500 — while
-        // *large* is a hundred each of only swords, pikes and bows: 300 men and
-        // 200 weapons left over in the armoury. So picking both does not give
-        // you five hundred armed men
-        // independently.
         assert_eq!(START_ARMOURY[3], [100, 100, 100, 100, 100, 0]);
         assert_eq!(START_TROOPS[3], [0, 0, 0, 100, 100, 100, 0]);
         assert_eq!(START_ARMOURY[3].iter().sum::<i32>(), 500);
@@ -311,7 +241,6 @@ mod tests {
             o.set_nobles_from_map(seats);
             assert!(o.lords() <= seats.max(2), "{seats} seats seated {}", o.lords());
         }
-        // The list is shortened to match, so the choice cannot be re-broken.
         assert_eq!(SetupOptions::nobles_rows_for_map(5), 4);
         assert_eq!(SetupOptions::nobles_rows_for_map(4), 3);
         assert_eq!(SetupOptions::nobles_rows_for_map(2), 1);
@@ -324,7 +253,6 @@ mod tests {
             o.set(i, 99);
             assert_eq!(o.get(i), VALUE_COUNT[i] - 1, "option {i}");
         }
-        // And every commit off that is still a real row of every table.
         let s = o.commit(1, l2_kingdom::Quirks::FAITHFUL);
         assert_eq!(s.gold, 5000);
         assert_eq!(s.time_limit, 0);

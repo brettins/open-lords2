@@ -9,14 +9,6 @@ use crate::unit::{ArmyNames, Unit, Units, TROOP_TYPES};
 
 /// `FUN_004A6A30` — which of the three ways this battle is settled.
 ///
-/// ```c
-/// if (A.ownerIsHuman == 0 && B.ownerIsHuman == 0) return 0;   /* autocalc, silent   */
-/// bothHuman = A.ownerIsHuman != 0 && B.ownerIsHuman != 0;
-/// ...
-/// if (g_optFightHumansOnly == 0 && !bothHuman) -> autocalc, screen 0x13
-/// else                                        -> screen 0x12, ask
-/// ```
-///
 /// Note what is **not** here: no distance from the view, no army-size cutoff,
 /// no separate "quick battle" toggle. The mid-battle *"Autocalc battle?"*
 /// button is a fourth entry and re-runs [`auto_resolve`] from the counts as
@@ -34,13 +26,7 @@ pub fn settlement(units: &Units, a: usize, b: usize, fight_humans_only_byte: u8)
     Settlement::Prompt
 }
 
-// ------------------------------------------------------------ §2 the autocalc
 
-/// Who won, and by how much — [`auto_resolve`]'s answer, and the argument
-/// [`return_to_campaign`] takes.
-///
-/// > ### The name in the binary is inverted, and this type exists to stop that
-/// > spreading.
 /// >
 /// > `g_battleLoser` (`0x0057C924`) holds the **winner**. Three independent
 /// > sites agree against the name: the autocalc assigns it the side whose
@@ -49,23 +35,11 @@ pub fn settlement(units: &Units, a: usize, b: usize, fight_humans_only_byte: u8)
 /// > B; and `FUN_00478419` maps `g_localPlayer == g_units[g_battleLoser].owner`
 /// > to `L2.eng` group 82's *"won"* string. Implemented on the name, you
 /// > destroy the winner and hand the county to the corpse.
-/// >
-/// > So this type has no field called `loser` next to a field called `winner`
-/// > and no way to fill them in the wrong order: [`Verdict::a_won`] and
-/// > [`Verdict::b_won`] are the only constructors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Verdict {
-    /// The attacker — `g_battleArmyA`. At every call site in the original this
-    /// is the unit that moved.
     pub attacker: usize,
-    /// The defender — `g_battleArmyB`. At every call site this is the garrison,
-    /// the army found at the town, or the defence just levied.
     pub defender: usize,
-    /// True when the attacker won.
     pub attacker_won: bool,
-    /// The percentage of itself the winner kept. Only the autocalc produces
-    /// one; a fought battle counts the survivors instead and leaves this
-    /// `None`.
     pub survival_percent: Option<i32>,
 }
 
@@ -97,29 +71,6 @@ impl Verdict {
 
 /// `FUN_004AAD07` (`0x004AAD07`) — **the autocalc**, the whole of a battle
 /// nobody watches.
-///
-/// ```c
-/// sA = Army_StrengthScore(A);  sB = Army_StrengthScore(B);
-/// if (siege) sB = Pct(sB, castleBonus[level]);
-/// ratio = (sA < sB) ? PctOf(sB, sA) : PctOf(sA, sB);   /* bigger * 100 / smaller */
-/// p = Table_Lookup(ratio, survivalLadder, 10, 100);
-/// winner = (sA < sB) ? B : A;                          /* a tie goes to A */
-/// for t in 0..7: winner.troops[t] = Pct(winner.troops[t], p);
-/// winner.merc.men = Pct(winner.merc.men, p);
-/// winner.men = Σ winner.troops + winner.merc.men;
-/// loser.troops[..] = 0;  release the loser's band;  loser.men = 0;
-/// ```
-///
-/// **A tie goes to the attacker**, because the test is `sA < sB` and nothing
-/// else. And the castle bonus is applied to B alone — B is the defender at
-/// every one of the three call sites,
-/// reading.
-///
-/// The loser is *emptied* here and *destroyed* in [`return_to_campaign`]; the
-/// two are separate because a real battle empties it by killing men instead.
-///
-/// `castle_level` is `Some(level)` for a siege. Sieges are out of scope and
-/// nothing in this crate passes one yet.
 pub fn auto_resolve(
     units: &mut Units,
     attacker: usize,
@@ -134,8 +85,6 @@ pub fn auto_resolve(
         strength_b = pct(strength_b, bonus);
     }
 
-    // `PctOf(a, b) = a * 100 / b` — the larger over the smaller, so the ratio
-    // falls below 100 and the ladder is only ever read from one side.
     let attacker_won = strength_a >= strength_b;
     let (bigger, smaller) =
         if attacker_won { (strength_a, strength_b) } else { (strength_b, strength_a) };
@@ -173,7 +122,6 @@ fn apply_survival(unit: &mut Unit, percent: i32) {
     unit.men = unit.troops.iter().sum::<i32>() + unit.mercenary_men();
 }
 
-// ----------------------------------------------- §2a what the banner says
 
 /// `FUN_00478419` — which banner this battle draws for `local_player`.
 ///
@@ -203,5 +151,4 @@ pub fn outcome(
     }
 }
 
-// ------------------------------------------------- §3 back onto the campaign
 

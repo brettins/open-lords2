@@ -40,9 +40,6 @@ mod tests {
         assert_eq!(k.county_count, 16, "and a refused count changes nothing");
     }
 
-    /// **`docs/kingdom.md` §9 point 1 and §3.3.** A new game starts in Winter
-    /// 1268: `Game_NewGame` sets season 3, next 4, year 1267, next 1268, and
-    /// one `Season_Advance` rolls the year.
     #[test]
     fn a_new_game_starts_in_winter_1268_on_turn_one() {
         let mut k = Kingdom::new(1);
@@ -56,9 +53,6 @@ mod tests {
         assert_eq!(k.season_prev, 3);
     }
 
-    /// The clock, walked for four years. The year rolls in the same call that
-    /// begins Winter — see the errata note in the crate documentation, which is
-    /// **not** what §3.3's prose says.
     #[test]
     fn the_year_rolls_in_the_call_that_begins_winter() {
         let mut k = Kingdom::new(1);
@@ -111,9 +105,6 @@ mod tests {
     /// (`0x004A1847`) are `Turn_Tick`'s phase-7 arm, which a game that has not
     /// started has not reached. End Turn still runs all three, and that is the
     /// second half here.
-    ///
-    /// Ablation: drop either name from the `matches!` in [`Kingdom::start_new_game`]
-    /// — red, *"a new game ran a phase-7 pass"*.
     #[test]
     fn a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three() {
         let phase7 =
@@ -135,7 +126,6 @@ mod tests {
         }
     }
 
-    /// The whole point of the phase machine: only phase 7 advances the season.
     #[test]
     fn only_the_seventh_phase_advances_the_season() {
         let mut k = Kingdom::new(1);
@@ -154,12 +144,6 @@ mod tests {
 
     /// **`Ai_ManageFarmsAll` (`0x0049A990`) farms every realm with strength
     /// and no person behind it, at the stall, and nobody else.**
-    ///
-    /// Three realms each hold one county set up identically — a merchant
-    /// standing in it, no grain, a herd above the grazing style's cattle floor,
-    /// and 4,000 crowns in the treasury. Realm 2 is an AI lord (lord 1, style 1,
-    /// whose only grain line is `if (grain < 100) buy 400`), realm 3 is a
-    /// person, and realm 4 is an AI at strength 0. Only realm 2 buys.
     ///
     /// **The treasury is 4,000 because `Ai_TradeForCounty` (`0x0049E39B`) now
     /// shops first**: the Knight's floor of 1,000 is cleared, the county makes
@@ -205,9 +189,6 @@ mod tests {
         assert_eq!((k.counties[3].grain, k.realms[4].gold), (0, 4_000), "a realm at strength 0 is not farmed");
     }
 
-    /// The determinism property lockstep depends on. Two kingdoms built the
-    /// same way and driven the same way must stay bit-identical, generator
-    /// included.
     #[test]
     fn two_identical_kingdoms_stay_identical_for_forty_seasons() {
         let build = || {
@@ -255,7 +236,6 @@ mod tests {
         }
     }
 
-    /// A kingdom with no counties still keeps its clock, and never panics.
     #[test]
     fn an_empty_kingdom_advances_its_clock_and_nothing_else() {
         let mut k = Kingdom::new(1);
@@ -267,9 +247,6 @@ mod tests {
         assert_eq!(k.turn_count, 21);
     }
 
-    /// **`docs/kingdom.md` §9 point 3.** With Advanced Farming off, every
-    /// county ends the season Cloudy with zero fertility — the two overrides
-    /// §7.2 and §7.3 say the option forces.
     #[test]
     fn basic_farming_forces_cloudy_and_zero_fertility_across_the_map() {
         let mut k = Kingdom::new(1);
@@ -305,10 +282,7 @@ mod tests {
         assert_eq!(k.realms[0].gold, 0, "realm 0 is not a realm");
     }
 
-    // --- the history ring --------------------------------------------------
 
-    /// The ring's shape
-    /// 51,200 bytes, and `400 * 16 * 8` is 51,200.
     #[test]
     fn the_history_ring_is_four_hundred_seasons_of_sixteen_counties() {
         assert_eq!(crate::tables::HISTORY_SEASONS, 400);
@@ -352,8 +326,6 @@ mod tests {
         assert_eq!(latest[1].population, 502, "county 2 is slot 1");
     }
 
-    /// **Counties 1..=16 unconditionally**, not `1..=g_countyCount`. A map with
-    /// four counties still writes sixteen lines, twelve of them zero.
     #[test]
     fn the_ring_writes_every_slot_whatever_the_map_holds() {
         let mut k = Kingdom::new(2);
@@ -371,7 +343,6 @@ mod tests {
         }
     }
 
-    /// A hundred years in, the ring is full and starts forgetting.
     #[test]
     fn the_ring_forgets_its_beginning_after_four_hundred_seasons() {
         let mut k = Kingdom::new(3);
@@ -395,7 +366,6 @@ mod tests {
         assert!(k.history.latest().is_none(), "and nothing before the first season");
     }
 
-    /// The ring is written by the season driver, not only by hand.
     #[test]
     fn advancing_a_season_records_a_line_in_the_ring() {
         let mut k = Kingdom::new(5);
@@ -408,17 +378,7 @@ mod tests {
     }
 
 
-    // --- the tax rate -------------------------------------------------------
 
-    /// **`Tax_RecomputePreview` writes three fields and the panel draws all
-    /// three**, so
-    /// panel stale. A player reported both halves of that in one sentence:
-    /// *"'People pay 0 crowns' on the tax thing always says 0 crowns. And the
-    /// happiness bonus/minus on the tax screen is also stuck."*
-    ///
-    /// `tax_shown` had exactly one writer, [`crate::tax::collect`], which runs
-    /// once a season — so before the first collection it is zero and after it it
-    /// describes last season's rate.
     #[test]
     fn moving_the_tax_rate_moves_what_people_pay_and_the_local_happiness() {
         let mut k = Kingdom::new(21);
@@ -443,20 +403,13 @@ mod tests {
         k.set_tax_rate(1, 40);
         assert!(k.counties[1].tax_shown > paid, "and twice the rate is more crowns");
         assert_eq!(k.counties[1].d_hap_tax_local, 5 - 40);
-        // Ablation: drop the `tax_shown` line from `tax::recompute_preview` and
-        // the second and fourth assertions fail with 0.
     }
 
-    /// **The *Other counties* line really is stuck
-    ///
     /// `taxHapOther` is `g_taxHappinessOther[rate]`, a table
     /// flat zero from 0 to 19. Every county in every fixture sits at rate 0 and
     /// the highest an AI reaches in a hundred turns is 12, so **most of this
     /// mechanic is human-only and no run of ours exercises it** —
     /// `docs/decisions.md` C26.
-    ///
-    /// This is the half of the player's report
-    /// asserted so that nobody "fixes" it later.
     #[test]
     fn the_empire_tax_happiness_term_is_flat_until_the_rate_reaches_twenty() {
         let mut k = Kingdom::new(22);
@@ -478,10 +431,6 @@ mod tests {
         );
     }
 
-    /// **`taxShown` ignores suppression and `taxCollected` does not**, which is
-    /// the whole of how the two fields differ — `docs/kingdom.md` §1.3 lists
-    /// them side by side and says it does not know.
-    ///
     /// `Tax_RecomputePreview` has no suppression test in it; `Tax_Collect`
     /// zeroes the base. So
     /// his people *would* pay while the treasury banks nothing. `[D]`.
@@ -503,7 +452,6 @@ mod tests {
         assert_eq!(k.counties[1].tax_collected, 0);
     }
 
-    // --- the ration split ---------------------------------------------------
 
 
     /// **The third control on the ration panel, found by enumerating the class
@@ -511,9 +459,6 @@ mod tests {
     /// `rationWanted++`, `Ration_Apply`, `County_RefreshEstimates`,
     /// `Panel_Ration` — so asking for more food changes what the county is
     /// recorded as eating, on the spot.
-    ///
-    /// Ours wrote `ration_wanted` and returned, like the split slider and like
-    /// the tax arrows before it.
     #[test]
     fn asking_for_more_food_changes_what_the_county_eats_at_once() {
         let mut k = Kingdom::new(31);
@@ -539,14 +484,8 @@ mod tests {
             "and the Eaten row moves with it: {} was {sacks}",
             k.counties[1].grain_eaten,
         );
-        // Ablation: drop the `ration::preview` call from `set_ration_wanted`
-        // and both comparisons collapse to equality.
     }
 
-    /// The cap is the table's length and the recompute is **outside** the
-/// guard: a click at the top still re-applies, as
-    /// `if (rationWanted < 5) rationWanted++;` followed by an unconditional
-    /// `Ration_Apply` says.
     #[test]
     fn a_click_at_the_top_of_the_ration_scale_still_recomputes() {
         let mut k = Kingdom::new(32);
@@ -559,8 +498,6 @@ mod tests {
             c.grain = 500;
             c.ration_wanted = 5;
         }
-        // A sentinel no pass would ever leave, so the assertion is about the
-// pass having run.
         k.counties[1].ration_achieved = -7;
         assert!(!k.set_ration_wanted(1, 9), "the level did not move");
         assert_eq!(k.counties[1].ration_wanted, 5, "and is clamped to the table");
@@ -570,7 +507,6 @@ mod tests {
         );
     }
 
-    /// It writes what the player asked for and never what the county managed.
     #[test]
     fn the_ration_control_writes_wanted_and_the_pass_writes_achieved() {
         let mut k = Kingdom::new(33);
@@ -588,8 +524,6 @@ mod tests {
         assert_eq!(k.counties[1].ration_achieved, 0, "and the county feeds nobody");
     }
 
-    /// A county that eats some of its herd and some of its grain, which is the
-    /// only state in which the slider's search does anything at all.
     fn a_county_that_eats_both() -> Kingdom {
         let mut k = Kingdom::new(9);
         k.set_county_count(2);
@@ -598,8 +532,6 @@ mod tests {
         c.owner = 1;
         c.population = 2000;
         c.pop_band = 80;
-        // The standing herd feeds five people a head for free, so it has to be
-        // small enough that there is a requirement left to split.
         c.herd = 100;
         c.grain = 900;
         c.ration_wanted = 3;
@@ -607,14 +539,6 @@ mod tests {
         k
     }
 
-    /// **The write is not the behaviour.** `Ration_SetSplit` runs the food pass
-    /// on the spot, so the numbers the panel prints move with the slider — and
-    /// a slider whose effect is invisible is what a player reported as *"moves
-    /// but is inoperable"*.
-    ///
-    /// The old test asserted `ration_split == 37` and passed
-    /// broken the whole time: it was checking the field the gesture writes, and
-    /// the defect was the absence of everything after the write.
     #[test]
     fn moving_the_split_moves_the_numbers_the_panel_prints() {
         let mut k = a_county_that_eats_both();
@@ -627,15 +551,8 @@ mod tests {
         assert!(herd_all > 0, "all-livestock eats the herd");
         assert_eq!(herd_none, 0, "all-grain eats none of it");
         assert!(grain_none > grain_all, "and the grain takes the whole requirement instead");
-        // Ablation: delete the `ration::preview` call in `set_ration_split` and
-        // every one of these is whatever the last season left, so all four
-        // comparisons collapse.
     }
 
-    /// **The store is not touched.** `Ration_Apply` computes and records; the
-    /// season spends. A drag runs it up to a hundred times, so if this were
-    /// [`crate::ration::apply`] the county would be eaten alive by its own
-    /// slider.
     #[test]
     fn dragging_the_split_does_not_feed_anybody() {
         let mut k = a_county_that_eats_both();
@@ -646,29 +563,8 @@ mod tests {
         assert_eq!((k.counties[1].herd, k.counties[1].grain), (herd, grain));
     }
 
-    /// **A track jump that changes nothing springs back**, and an arrow does
-    /// not. The two gestures differ only in `sweep`, and a player can see it.
-    ///
-    /// The search runs when the county has a herd, is eating some of it, the
-    /// value moved, the request is strictly inside 0…100, and `herdEaten` came
-    /// out unchanged. It then walks one point at a time from the old value
-    /// towards the request looking for a split that moves `herdEaten`.
-    ///
-    /// * with `sweep`, reaching the request having found nothing **restores the
-    ///   old split**;
-    /// * without it, `(rationSplit != split) || (sweep == 0)` never terminates
-    ///   the walk at the request, so it carries on in the same direction — one
-    ///   click of an arrow can move the split a long way, and it does not spring
-    ///   back.
     #[test]
     fn a_track_jump_springs_back_where_an_arrow_keeps_walking() {
-        // Chosen so that one point of split is below the rounding: thirty
-        // people, two head of dairy feeding ten of them, so twenty people-worth
-        // left to split. `pct(20, 50)` and `pct(20, 51)` are both 10, and ten
-        // people-worth is one head either way — so
-        // nothing and the search is forced to run. Without that the guard
-        // `herd_eaten != 0` is false, the search never fires, and this test
-        // passes while asserting nothing, which is what its first draft did.
         let mut k = Kingdom::new(11);
         k.set_county_count(2);
         k.realms[1].in_play = true;
@@ -712,8 +608,6 @@ mod tests {
     }
 
 
-    /// The search is bounded
-    /// Nothing here may loop for ever on a county whose herd never moves.
     #[test]
     fn the_search_terminates_on_a_county_whose_herd_never_changes() {
         let mut k = Kingdom::new(12);
@@ -735,10 +629,6 @@ mod tests {
         assert!((0..=100).contains(&k.counties[1].ration_split));
     }
 
-    /// Another realm's county is refused, and
-    /// than the screen's: `Ration_SliderClick` opens
-    /// `if (counties[sel].owner != g_localPlayer) return 0;`, and
-    /// `Game::set_ration_split` is the gate here.
     #[test]
     fn the_split_of_a_county_out_of_range_is_refused() {
         let mut k = a_county_that_eats_both();

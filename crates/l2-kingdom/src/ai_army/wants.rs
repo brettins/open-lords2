@@ -14,9 +14,6 @@ use crate::tables::Tables;
 use crate::unit::{TroopType, UnitKind, Units};
 
 
-// ---------------------------------------------------------------------------
-// Step 4 — what the realm wants to buy
-// ---------------------------------------------------------------------------
 
 /// `FUN_0049D5E0` — the realm's **lowest-numbered** county, or 0.
 pub fn first_owned_county(counties: &[County; MAX_COUNTIES], county_count: usize, realm: u8) -> u8 {
@@ -39,18 +36,6 @@ pub fn first_owned_county(counties: &[County; MAX_COUNTIES], county_count: usize
 /// }
 /// ```
 ///
-/// Two things worth having in the model:
-///
-/// * **The gate is the whole point.** A realm with **one** county buys nothing
-///   at all unless that county is above 14 happiness *and* above 19 on the
-///   health meter — a realm down to one starving county stops shopping, which
-///   is the same shape as the resource grants
-///   ([`crate::ai::grant_resources`]) abandoning a realm that is losing.
-/// * **Slot 2 is zeroed every turn and never written.** The loop that clears
-///   four words is the only thing that touches it. Reproduced.
-///
-/// **One seam.** The per-county term reads the wood and stone a castle build
-/// still owes, and this crate has no such counter:
 /// [`crate::industry::order_castle`] debits the whole cost up front, exactly
 /// as [`crate::ai::choose_industry`] records for the same pair of fields. So
 /// the term evaluates to zero here and the wants are the two floors. `[I]`, and
@@ -87,8 +72,6 @@ pub fn resource_wants(
     if realm.wood < WANT_WOOD_FLOOR {
         realm.want[WANT_WOOD] = WANT_WOOD_FLOOR;
     }
-    // The per-county term is the seam above: with the castle cost debited up
-    // front there is nothing outstanding to add.
 }
 
 /// Realm `+0x70` — wood.
@@ -99,12 +82,8 @@ pub const WANT_IRON: usize = 1;
 pub const WANT_UNUSED: usize = 2;
 /// Realm `+0x7C` — stone.
 pub const WANT_STONE: usize = 3;
-/// The iron floor below which a one-county realm starts buying.
 pub const WANT_IRON_FLOOR: i32 = 50;
-/// The wood floor.
 pub const WANT_WOOD_FLOOR: i32 = 100;
-/// A one-county realm below this happiness buys nothing.
 pub const WANT_MIN_HAPPINESS: i32 = 14;
-/// …or below this on the health meter.
 pub const WANT_MIN_HEALTH: i32 = 19;
 

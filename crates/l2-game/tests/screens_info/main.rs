@@ -1,6 +1,3 @@
-//! The field brush and the tile information panel.
-//!
-//! Split out of `tests/screens.rs`; the shared helpers are in `tests/common/`.
 
 
 #[macro_use]
@@ -27,16 +24,6 @@ use l2_game::Game;
 use l2_view::campaign;
 use l2_view::Canvas;
 
-/// One of `county`'s fields whose centre is on the map at the campaign screen's
-/// **opening** viewport, that picks back to itself and has no unit standing on
-/// it.
-///
-/// **The ruler is a second `MapScreen` that has been drawn once**, because the
-/// map opens on the player's county lazily, on its first `ensure`
-/// (`MapScreen::open_on_the_player`): an undrawn probe is looking at the
-/// constructor's corner of England. The first version of this helper did not
-/// draw it and found no field of the player's in view at all. A [`Machine`]
-/// clicked in these tests is drawn first too, which is also what a player does.
 fn visible_field(
     game: &mut Game,
     assets: &Assets,

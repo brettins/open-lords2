@@ -6,7 +6,6 @@ use std::path::{Path, PathBuf};
 use Disposition::{Retracted, Switchable, Unswitchable, Unwired};
 use Home::{Behavioural, Presentation};
 
-/// How many rows `l2_game::game::PRESENTATION` has.
 fn presentation_rows(root: &Path) -> usize {
     presentation(root).0.len()
 }
@@ -17,7 +16,6 @@ pub(crate) fn repo_root() -> PathBuf {
 
 fn read(root: &Path, rel: &str) -> String {
     let p = root.join(rel);
-    // A `mod.rs` stands for its whole directory: a split module keeps its text in siblings.
     if p.file_name().is_some_and(|f| f == "mod.rs") {
         let dir = p.parent().unwrap();
         let mut names: Vec<_> = std::fs::read_dir(dir)
@@ -31,36 +29,13 @@ fn read(root: &Path, rel: &str) -> String {
     }
     std::fs::read_to_string(&p)
         .unwrap_or_else(|e| panic!("{} is part of this check and could not be read: {e}", p.display()))
-        // `.gitattributes` pins line endings per extension; a check that measures
-        // text must be a property of the text, not of the checkout.
         .replace("\r\n", "\n")
 }
 
-/// Every behavioural entry id in `docs/bugs.md` §2, in the order the document
-/// gives them.
-///
-/// Two shapes carry an entry: a `### B1 — …` heading in §2.1 and a `| **B10** |`
-/// table row everywhere else. A retracted row wears strikethrough,
-/// `| ~~**B11**~~ |`, and is still an entry.
-///
-/// **Scoped to §2 on purpose.** §6.2 quotes B1, B2 and B4 again in a table of
-/// what the ruleset can express, and an unscoped scan counts them twice — which
-/// it did, on the first run of this function.
-///
-/// **A placeholder is an entry.** A branch cannot know the number its new row
-/// will get, so it writes `B` + `NEW-` + a slug and the integrator assigns the
-/// number at merge with `node tools/decisions/corrections.js --assign`. This
-/// parser used to accept digits only:
-/// the branch's own suite was green
-/// the row was numbered, on `main`, in the integrator's hands. Now the row is
-/// seen on the branch, `DISPOSITIONS` has to carry the placeholder, and
-/// `--assign` renames it here in the same pass that renames the document.
 fn catalogue(root: &Path) -> Vec<String> {
     catalogue_of(&read(root, "docs/bugs.md"))
 }
 
-/// [`catalogue`] over a document's text, so the parser can be asked about a
-/// document built to test it.
 fn catalogue_of(doc: &str) -> Vec<String> {
     let mut out = Vec::new();
     let mut inside = false;
@@ -91,11 +66,6 @@ fn catalogue_of(doc: &str) -> Vec<String> {
     out
 }
 
-/// `B` then digits then an optional lower-case suffix: `B1`, `B11a`, `B63a` —
-/// or `B` + `NEW-` + a slug, the placeholder a branch writes (see
-/// [`catalogue`]). The slug is the one `corrections.js` recognises: word
-/// characters in hyphen-separated runs,
-/// part of it.
 fn is_entry_id(s: &str) -> bool {
     let Some(rest) = s.strip_prefix('B') else { return false };
     if let Some(slug) = rest.strip_prefix("NEW-") {
@@ -111,10 +81,6 @@ fn is_entry_id(s: &str) -> bool {
     tail.is_empty() || (tail.len() == 1 && tail.chars().all(|c| c.is_ascii_lowercase()))
 }
 
-/// `Quirk::Name => "Bn",` out of `Quirk::entry`, as `(variant, entry)`.
-///
-/// Parsed from the source, so that the two lists are joined
-/// by *text* — code that compiles is not evidence that two documents agree.
 fn quirk_variants(root: &Path) -> Vec<(String, String)> {
     let src = read(root, "crates/l2-net/src/quirks/mod.rs");
     let body = src
@@ -135,7 +101,6 @@ fn quirk_variants(root: &Path) -> Vec<(String, String)> {
     out
 }
 
-/// Every `.rs` under `crates/`, with its repo-relative path.
 fn sources(root: &Path) -> Vec<(String, String)> {
     fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
         let Ok(entries) = std::fs::read_dir(dir) else { return };
@@ -164,12 +129,6 @@ fn sources(root: &Path) -> Vec<(String, String)> {
         .collect()
 }
 
-/// `(field, docs/bugs.md entry)` out of `l2_game::game::PRESENTATION`
-/// field list of `l2_game::game::Quirks`.
-///
-/// The presentation half of the switch list. Parsed from the source for the same
-/// reason the behavioural half is: a textual join cannot be satisfied by code
-/// that compiles.
 fn presentation(root: &Path) -> (Vec<(String, String)>, Vec<String>) {
     let src = read(root, "crates/l2-game/src/game/mod.rs");
 
@@ -202,16 +161,6 @@ fn presentation(root: &Path) -> (Vec<(String, String)>, Vec<String>) {
     (rows, fields)
 }
 
-/// Rules 1 and 2: the catalogue and the inventory are the same list, every
-/// switch names a real entry, **and every switch is in the home the catalogue
-/// says it is in**.
-///
-/// That last clause is the one the split created the need for. A behavioural
-/// quirk filed on `Assets` because a `bool` is cheaper than a `save::VERSION`
-/// bump would be invisible until a multiplayer desync; a presentation quirk
-/// filed on `Options` would put a text-shadow colour in the state two peers
-/// have to agree on before the first tick. Both fail here, and so does a quirk
-/// implemented in *both* homes at once.
 #[test]
 fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its_own_home() {
     let root = repo_root();
@@ -235,7 +184,6 @@ fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its
 
     let mut problems: Vec<String> = Vec::new();
 
-    // The one that matters most: a quirk cannot be in both homes.
     for entry in behavioural.keys() {
         if presentational.contains_key(entry) {
             problems.push(format!(
@@ -296,9 +244,6 @@ fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its
             ));
         }
     }
-    // The presentation half's own two-way join: table against struct, and table
-    // against catalogue. This is the shape that would have caught a field whose
-    // doc cited an entry that does not exist.
     for (field, entry) in &rows {
         if !fields.iter().any(|f| f == field) {
             problems.push(format!(
@@ -356,20 +301,6 @@ fn every_bug_has_a_disposition_every_switch_has_a_bug_and_every_switch_is_in_its
 
 /// **A placeholder row is a catalogue entry**,
 /// does not say what its switch is goes red on its own branch.
-///
-/// The failure this exists for: a branch added a row as a placeholder, its
-/// suite was green because the parser read digits only, and two tests went red
-/// at merge the moment the row was numbered — so the branch's green was a false
-/// signal, and every branch that adds a row would have hit it.
-///
-/// Ablated: restoring the digits-only `is_entry_id` fails this test, because
-/// the three placeholder entries vanish from the parse; and with the real
-/// catalogue, adding a placeholder heading to `docs/bugs.md` §2 makes
-/// `every_bug_has_a_disposition…` fail with *"docs/bugs.md has BNEW-… and
-/// DISPOSITIONS does not"*, where before this change it passed.
-///
-/// The placeholders are assembled at run time so this file does not itself
-/// carry one — `corrections.js --check` would report it as unassigned.
 #[test]
 fn a_placeholder_row_is_an_entry_so_an_unwired_one_fails_on_its_own_branch() {
     let tag = |slug: &str| format!("{}NEW-{slug}", 'B');
@@ -395,20 +326,12 @@ fn a_placeholder_row_is_an_entry_so_an_unwired_one_fails_on_its_own_branch() {
          invisible to every test in this file until the integrator numbers it"
     );
 
-    // The slug is corrections.js's: what it would not assign, this does not accept.
     for bad in ["NEW-", "NEW-trailing-", "NEW--lead", "NEW-two--hyphens", "NEW-sp ace"] {
         assert!(!is_entry_id(&format!("B{bad}")), "B{bad} is not a placeholder corrections.js recognises");
     }
     assert!(is_entry_id(&tag("herd-four")) && is_entry_id(&tag("group_87")));
 }
 
-/// Rule 3: **a switch that nothing reads is worse than no switch.**
-///
-/// Every `Quirk` variant has to be named somewhere in the workspace that is
-/// neither its own definition nor a test — that is, by the simulation. A
-/// checkbox for a flag no rule consults claims a behaviour is configurable when
-/// it is not, and `docs/agents.md` records four separate occasions where a field
-/// nothing wrote sat behind a green suite.
 #[test]
 fn every_switch_is_read_by_the_simulation() {
     let root = repo_root();
@@ -425,9 +348,6 @@ fn every_switch_is_read_by_the_simulation() {
                 path != "crates/l2-net/src/quirks/mod.rs"
                     && !path.contains("/tests/")
                     && text.contains(&needle)
-                    // Only the *reading* side counts. A `match` arm inside a
-                    // name or summary table is the definition wearing another
-                    // hat
                     && text.contains("reproduces(")
             })
             .map(|(path, _)| path.as_str())
@@ -449,11 +369,6 @@ fn every_switch_is_read_by_the_simulation() {
     );
 }
 
-/// Rule 4: **no quirk reaches `Tables`.**
-///
-/// `l2_kingdom::save::ruleset_fingerprint` hashes `Tables` into the save
-/// *header* and `decode` refuses a save whose supplied tables hash differently,
-///
 /// added — and would frame a quirk as a *rule*, which it is not. It belongs on
 /// `Options`, which is in the save *body* and therefore already inside the
 /// per-tick lockstep digest. `docs/bugs.md` §6.3, `docs/decisions.md` C62.
@@ -461,8 +376,6 @@ fn every_switch_is_read_by_the_simulation() {
 fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     let root = repo_root();
     let tables = read(&root, "crates/l2-kingdom/src/tables/mod.rs");
-    // Everything from `pub struct Tables` to the end of its `Encode` impl is
-    // what the fingerprint covers.
     for needle in ["Quirk", "quirks"] {
         assert!(
             !tables.contains(needle),
@@ -473,8 +386,6 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
              per-tick digest. docs/bugs.md §6.3, docs/decisions.md C62."
         );
     }
-    // And the other direction: `Options` really is the home,
-    // cannot pass by the field having quietly gone away.
     let kingdom = read(&root, "crates/l2-kingdom/src/kingdom/mod.rs");
     assert!(
         kingdom.contains("pub quirks: l2_net::Quirks"),
@@ -491,8 +402,6 @@ fn no_quirk_is_filed_under_tables_where_it_would_reach_the_save_header() {
     );
 }
 
-/// **What this run asserted**, printed every time, in the census's
-/// habit: a number that nobody looks at is a number that drifts.
 #[test]
 fn the_switchable_count_is_reported() {
     let root = repo_root();

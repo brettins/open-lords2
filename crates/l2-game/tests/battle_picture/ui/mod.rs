@@ -23,11 +23,7 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-// third colour and no skip, and not one of the sixteen handlers reads
-// `g_battlePhase`.
 
-/// A string in one of the **original's** fonts, found by its set pixels. The
-/// bar is drawn in `Fntl2_14.pl8`, which our own 5 × 7 probe cannot see.
 fn find_font_text(
     canvas: &Canvas,
     font: &l2_game::shell::font::Font,
@@ -65,7 +61,6 @@ fn find_font_text(
     None
 }
 
-/// A battle with twenty swordsmen a side, staged the way the tests above do.
 fn skirmish() -> (Game, Machine) {
     staged(30, &[(Troop::Swordsmen, 20)], &[(Troop::Swordsmen, 20)], |(x, y)| {
         (x as i32 - 7, y as i32 - 7)

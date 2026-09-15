@@ -17,16 +17,10 @@ use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
-// ---------------------------------------------------------------- the minimap
-//
 // **A fourth report, on build `EE0CB9233`**: *"battle is still a blue mess
 // where the grass should be, a black minimap"*. The blue was C183's palette;
 // the black was a painter we did not have.
 
-/// **The two 2 × 2 sheets, read straight out of the install** — an 8-byte
-/// header, then 16-byte frame records with `dataOffset` at `+4`. Written out
-/// here so the expectation is the
-/// player's own file and not our decoder.
 fn t2_pixels(bytes: &[u8], index: usize) -> [u8; 4] {
     let count = u16::from_le_bytes([bytes[2], bytes[3]]) as usize;
     assert!(index < count, "frame {index} of {count}");
@@ -51,6 +45,7 @@ const PANEL_CELLS: usize = 0x50;
 const PANEL_ROWS_A_FRAME: usize = 4;
 
 /// The colour `FUN_004BC51A` picks for the man standing on each cell:
+///
 /// `g_realms[man.owner].shieldIndex`, or `6` for owner 6, and `0` — no man —
 /// everywhere else. The *cell* is `mapX`/`mapY`, which `FUN_00491B1F` moves at
 /// the start of a crossing; [`l2_view::scene::drawn_cell`] is that rule, and is
@@ -74,7 +69,6 @@ fn expected_occupants(g: &Game) -> Vec<u8> {
     occ
 }
 
-/// The whole 160 × 160 panel as the original would have it this instant.
 fn expected_panel(g: &Game, bat1: &[u8], spri: &[u8]) -> Vec<u8> {
     let occ = expected_occupants(g);
     let side = PANEL_CELLS * 2;
@@ -97,7 +91,6 @@ fn expected_panel(g: &Game, bat1: &[u8], spri: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Which cell rows of the panel on `canvas` disagree with `want`.
 fn stale_rows(canvas: &Canvas, want: &[u8]) -> Vec<usize> {
     let side = PANEL_CELLS * 2;
     (0..PANEL_CELLS)
@@ -123,21 +116,12 @@ fn staged_with_shields(
     (g, m)
 }
 
-/// **The panel is `t2_bat1.pl8` under `t2_spri.pl8`, pixel for pixel, and there
-/// is no rectangle on it.**
-///
 /// `Battle_LoadAssets` (`0x004987B7`) registers the painter with
 /// `FUN_004BC107(t2_bat1, t2_bat2, t2_spri, 0x1E0, 0x18, 2)` — entries `0x0B`,
 /// `0x0C` and `0x11` of the asset table at `0x004DA550` — and `FUN_004BC51A`
 /// draws
 /// `g_realms[owner].shieldIndex` of `t2_spri` over a cell holding a man. It
 /// draws **no viewport rectangle**, and this compares every pixel of the panel,
-///
-/// The expectation is decoded from the install's own two files by [`t2_pixels`].
-///
-/// Ablation: the panel this replaced — `fill_rect(ink.background)`, a dot a
-/// *side*, and a `widget::frame` round the camera — is stale on all eighty
-/// rows.
 #[test]
 fn the_overview_panel_is_t2_bat1_under_t2_spri_with_no_rectangle_on_it() {
     let Some((assets, platform)) = install() else {
@@ -168,8 +152,6 @@ fn the_overview_panel_is_t2_bat1_under_t2_spri_with_no_rectangle_on_it() {
     let stale = stale_rows(&canvas, &want);
     assert!(stale.is_empty(), "the panel disagrees with the install's sheets on cell rows {stale:?}");
 
-    // And the men are coloured by their **realm**, not by their side: shields 2
-    // and 5 are different frames of `t2_spri`, so both colours are on the panel.
     let (a, b) = (t2_pixels(&spri, 2)[0], t2_pixels(&spri, 5)[0]);
     assert_ne!(a, b, "shields 2 and 5 are the same colour in this install's t2_spri.pl8");
     let count = |idx: u8| {
@@ -198,11 +180,6 @@ fn the_overview_panel_is_t2_bat1_under_t2_spri_with_no_rectangle_on_it() {
 /// pass happens once and the panel then lags the field by up to twenty
 /// frames.** Without that decrement the obvious reading is that the full pass
 /// runs every frame, and it does not.
-///
-/// Every cell's tile is changed under the panel, which makes all eighty cell
-/// rows stale at once; one frame may then repaint four of them and no more.
-///
-/// Ablation: paint all eighty rows a frame — red, nothing is ever stale.
 #[test]
 fn the_overview_panel_is_repainted_four_cell_rows_a_frame() {
     let Some((assets, platform)) = install() else {
@@ -212,9 +189,6 @@ fn the_overview_panel_is_repainted_four_cell_rows_a_frame() {
     let spri = platform.vfs.read("T2_spri.pl8").expect("T2_spri.pl8");
 
     let (mut g, mut m) = staged_with_shields(74, &[(Troop::Swordsmen, 3)], &[(Troop::Macemen, 3)]);
-    // Paused, so the men stand still and the only thing that changes under the
-    // panel is what this test changes. `Battle_Frame` schedules the panel
-    // whether or not the battle is paused.
     g.battle.as_mut().expect("a live battle").paused = true;
     let mut canvas = Canvas::screen();
     // The entry pass: `Screen_DrawBattlefield`'s `FUN_004bc1d1(0x50)`.
@@ -241,8 +215,6 @@ fn the_overview_panel_is_repainted_four_cell_rows_a_frame() {
         "the field did not change under the panel"
     );
 
-    // One frame repaints four rows, and they are the four the cursor lands on:
-    // the entry pass left it at 0, so `0 + 4`.
     frame(&mut m, &mut g, &assets, &mut canvas);
     let stale = stale_rows(&canvas, &want);
     let fresh: Vec<usize> = (0..PANEL_CELLS).filter(|r| !stale.contains(r)).collect();
@@ -252,7 +224,6 @@ fn the_overview_panel_is_repainted_four_cell_rows_a_frame() {
         "one frame repainted cell rows {fresh:?}"
     );
 
-    // And the cursor wraps: eighty rows at four a frame is twenty frames.
     for _ in 1..(PANEL_CELLS / PANEL_ROWS_A_FRAME) {
         frame(&mut m, &mut g, &assets, &mut canvas);
     }
@@ -260,9 +231,6 @@ fn the_overview_panel_is_repainted_four_cell_rows_a_frame() {
     assert!(left.is_empty(), "twenty frames left cell rows {left:?} stale");
 }
 
-/// The same with the install's artwork, so the painter that runs is
-/// `l2_view::scene::draw` — the one this file changed —
-/// placeholder's blocks.
 #[test]
 fn painting_the_battlefield_with_its_artwork_does_not_change_the_battle() {
     let Some((assets, _platform)) = install() else {
@@ -272,5 +240,4 @@ fn painting_the_battlefield_with_its_artwork_does_not_change_the_battle() {
     same_battle(&drawn, &blind, "install", killed);
 }
 
-// ------------------------------------------------- the arrow and the engine
 
