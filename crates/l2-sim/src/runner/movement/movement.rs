@@ -418,8 +418,11 @@ impl BattleRunner {
         }
         let f = &mut self.fighters[i];
         f.anim = Motion::Dying;
-        // The death timer at its bound, which is what `corpse_gone` reads: the
-        // original frees the record, so nothing may draw this slot again.
+        // **[D]** — a substitute, not the original's write. `BattleMan_Destroy`
+        // (`0x0046EBE4`) calls `BattleMan_Clear` and never touches `+0x173`; it
+        // frees the record outright, and a freed slot cannot be drawn. We keep
+        // the slot, so we park the death timer at its bound instead, which is
+        // what `corpse_gone` reads and what stops anything drawing this man.
         f.corpse = f.corpse_frames();
         f.path.clear();
     }

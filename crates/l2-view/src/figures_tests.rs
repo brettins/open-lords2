@@ -192,6 +192,25 @@
         }
     }
 
+    /// **A dead knight stands.** `Anim_CollapseA2` `00480000.c:3103-3109`
+    /// sends `troopType` 6 to `Anim_Stand()`, whose knight arm (`2896-2900`) is
+    /// the bare `dirc`; `Anim_DyingA2` `3004-3006` returns with the frame
+    /// untouched, and the frozen `facingDrawn` is what reaches us.
+    ///
+    /// **Ablation**: drawing either from `knight_base` puts a fallen knight in
+    /// the swing frames, which is what the strike table's base is.
+    #[test]
+    fn a_dead_or_shovelling_knight_wears_the_standing_frame() {
+        for facing in 0..8u8 {
+            for phase in 0..=120u8 {
+                for anim in [Anim::Dying, Anim::Shovelling] {
+                    let f = frame(Troop::Knights, anim, facing, phase);
+                    assert_eq!(f, facing as usize, "facing {facing} {anim:?} -> {f}");
+                }
+            }
+        }
+    }
+
     /// The horse carries the walk's six-pose cadence and stands still under a
     /// knight who is not walking — `horseFrame` in `00480000.c:2762` / `2896`.
     #[test]

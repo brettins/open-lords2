@@ -296,9 +296,15 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         return match anim {
             Anim::Attacking => base + strike_cycle(troop)[((phase % 40) / 4) as usize] as usize,
             Anim::Walking | Anim::Idle => facing,
-            // Knights have no separate dying block in this table, and
-            // `Anim_CollapseA2` / `Anim_DyingA2` have no knight arm at all.
-            Anim::Dying | Anim::Shovelling => base,
+            // **A dead knight stands.** `Anim_CollapseA2` has no dying band for
+            // him: `00480000.c:3103-3109` sends `troopType` 6 to `Anim_Stand()`
+            // and returns, and that arm (`2896-2900`) is the bare `dirc`.
+            //
+            // `Anim_DyingA2` `3004-3006` returns for him with `frame` and
+            // `facingDrawn` untouched, so a shovelling knight holds what he
+            // arrived with; [`l2_sim`]'s `shovel` stops writing `facingDrawn`,
+            // which freezes the `facing` handed in here. **[V]**.
+            Anim::Dying | Anim::Shovelling => facing,
             // Handled above: `Anim_DrawBowA2` has no knight arm either.
             Anim::Shooting => drawbow::frame(troop, facing as u8, pose.swing),
         };
@@ -327,7 +333,8 @@ pub fn frame(troop: Troop, anim: Anim, facing: u8, pose: impl Into<Pose>) -> usi
         // **`Anim_CollapseA2` `0x00487CE4` — falling over, and the only pose
         // state 2 has.** Six frames at `8N+0`, one every four ticks of the
         // *death timer* `+0x173`, and **held** once `timer >> 2` reaches 6
-        // (`00480000.c:3112` writes the frame only under that test). No facing
+        // (`00480000.c:3114` tests `timer >> 2 < 6`, `3115` writes the frame
+        // only under it). No facing
         // term: the six are shared.
         //
         // Ours drew the corpse from `Anim_DyingA2`'s band below, which

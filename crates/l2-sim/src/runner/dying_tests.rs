@@ -65,3 +65,30 @@ fn a_man_shovelling_earth_into_the_moat_is_alive_and_not_a_corpse() {
     // `animPhase += 1` clamped at 0x5F, which is what walks the three frames.
     assert!(r.fighters[0].phase <= 0x5F);
 }
+
+/// **`Anim_DyingA2` has no knight arm.** `00480000.c:3004-3006` returns for
+/// every `troopType` the band misses — of 0 … 6 that is 6 alone — *before*
+/// `animPhase += 1` and *before* `facingDrawn = dirc`, so a shovelling knight
+/// holds both.
+///
+/// **Ablation**: step them anyway and the knight walks a band drawn for men on
+/// foot, his drawn facing following `dirc` while his frame does not.
+#[test]
+fn a_shovelling_knight_holds_his_phase_and_his_drawn_facing() {
+    let mut r = BattleRunner::deploy_armies(
+        blank_field(),
+        0x5EED,
+        Army { troops: &[(Troop::Knights, 6)], owner: 1, human: false },
+        Army { troops: &[(Troop::Peasants, 6)], owner: 2, human: true },
+    );
+    let i = r.fighters.iter().position(|f| f.troop == Troop::Knights).unwrap();
+    r.fighters[i].phase = 7;
+    r.fighters[i].facing = 3;
+    r.fighters[i].facing_drawn = 5;
+    for _ in 0..200 {
+        r.shovel(i);
+        assert_eq!(r.fighters[i].anim, Motion::Shovelling);
+        assert_eq!(r.fighters[i].phase, 7, "the knight's phase was stepped");
+        assert_eq!(r.fighters[i].facing_drawn, 5, "the knight's drawn facing moved");
+    }
+}
