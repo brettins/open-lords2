@@ -20,7 +20,7 @@ const shape = (agents.match(/### The comment shape[\s\S]*?```rust\n([\s\S]*?)```
 const RULES = `You restate Rust comment blocks in the shape of these lines, which are the standard:
 
 ${shape}
-A block is: the function, its address and the decompilation line; what it does, with the numbers; then one line per claim that is inferred or a departure, [I] or [D] with the reason. State facts. Keep every backticked name, address, number, path, [V]/[I]/[D] mark and C-number that the block carries, each beside the same name it stood beside; never attach an address to a different name. Keep the comment marker (//, /// or //!) and indentation on every line. Drop framing, contrast and emphasis; keep the meaning. Fewer lines are better; never more lines than the block has. Wrap at 90 columns.
+A block is: the function, its address and the decompilation line; what it does, with the numbers; then one line per claim that is inferred or a departure, [I] or [D] with the reason. State facts. Keep every backticked name, address, number, path, [V]/[I]/[D] mark and C-number that the block carries, each beside the same name it stood beside; never attach an address to a different name. Keep the comment marker (//, /// or //!) and indentation on every line. Drop framing, contrast, emphasis, restatement and anything the code beside the comment says itself; keep every fact. A block already in the shape comes back unchanged. Never more lines than the block has. Wrap at 90 columns.
 The input is a JSON array of blocks, each an array of lines. Return a JSON array of the same length: each element the block's new lines as an array of strings. Nothing else.`;
 const TOKEN = /`[^`]+`|0x[0-9A-Fa-f]{3,}|\+0x[0-9A-Fa-f]+|\b\d+\b|\[[VID]\]|\bC\d{1,3}\b|[\w./-]+\.(rs|md|c|json|pl8|wav|smk)\b/g;
 const tokens = ls => new Set(ls.join("\n").match(TOKEN) || []);
@@ -41,10 +41,10 @@ async function ask(blocks) {
     const p = path.resolve(root, f); const lines = fs.readFileSync(p, "utf8").split("\n");
     const isC = l => /^\s*\/\/[/!]?(\s|$)/.test(l) && !/^\s*\/\/\s*(arm|sfx):/.test(l);
     const blocks = []; let i = 0;
-    while (i < lines.length) { if (!isC(lines[i])) { i++; continue; } let j = i; while (j < lines.length && isC(lines[j])) j++; if (j - i >= 2 || /\*\*|[A-Z]{4,}/.test(lines[i])) blocks.push([i, j]); i = j; }
+    while (i < lines.length) { if (!isC(lines[i])) { i++; continue; } let j = i; while (j < lines.length && isC(lines[j])) j++; blocks.push([i, j]); i = j; }
     if (!blocks.length) { console.log(`${f}: no blocks`); continue; }
     const { out, tokens: used } = await ask(blocks.map(([a, b]) => lines.slice(a, b)));
-    let changed = 0, kept = 0, fewer = 0; const why = [];
+    let changed = 0, kept = 0, fewer = 0, same = 0, wOld = 0, wNew = 0; const why = [];
     const next = []; let cur = 0;
     for (let k = 0; k < blocks.length; k++) {
       const [a, b] = blocks[k]; next.push(...lines.slice(cur, a)); cur = b;
@@ -54,13 +54,14 @@ async function ask(blocks) {
       else if (neu.length > old.length) reason = "longer";
       else if (!neu.every(isC)) reason = "a line is not a comment";
       else { const miss = [...tokens(old)].filter(t => !tokens(neu).has(t)); if (miss.length) reason = "dropped " + miss.slice(0, 3).join(" "); else { const np = pairs(neu), op = pairs(old); const bad = [...np].filter(x => !op.has(x)); if (bad.length) reason = "new pairing " + bad[0]; } }
-      if (!reason && neu.join("\n") !== old.join("\n")) { next.push(...neu); changed++; fewer += old.length - neu.length; }
-      else { next.push(...old); if (reason) { kept++; why.push(`  block ${a + 1}: ${reason}`); } }
+      const words = ls => ls.join(" ").replace(/^\s*\/\/[/!]?/gm, "").split(/\s+/).filter(Boolean).length;
+      if (!reason && neu.join("\n") !== old.join("\n")) { next.push(...neu); changed++; fewer += old.length - neu.length; wOld += words(old); wNew += words(neu); }
+      else { next.push(...old); wOld += words(old); wNew += words(old); if (reason) { kept++; why.push(`  block ${a + 1}: ${reason}`); } else if (words(old) > 20) { same++; why.push(`  block ${a + 1}: unchanged (${words(old)} words)`); } }
     }
     next.push(...lines.slice(cur));
     const codeOld = lines.filter(l => !isC(l)).join("\n"), codeNew = next.filter(l => !isC(l)).join("\n");
     if (codeOld !== codeNew) { console.error(`${f}: a code line moved; nothing written`); continue; }
-    console.log(`${f}: ${blocks.length} blocks, ${changed} restated, ${kept} kept, ${fewer} lines fewer, ${used} tokens, think ${think}`);
+    console.log(`${f}: ${blocks.length} blocks, ${changed} restated, ${kept} kept, ${same} left as they were, ${fewer} lines fewer, comment words ${wOld} -> ${wNew}, ${used} tokens, think ${think}`);
     if (why.length) console.log(why.join("\n"));
     if (!dry) fs.writeFileSync(p, next.join("\n"));
   }
