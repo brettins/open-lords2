@@ -458,13 +458,26 @@ impl LiveBattle {
     /// It is skipped entirely while the battle is paused in a multiplayer game,
     /// which is the one clause here that has no single-player effect.
     ///
+    /// **`Battle_ClassifyDrag` runs first, and kind 0 declines.** The held
+    /// branch of `FUN_0043BF07` is
+    /// `iVar1 = Battle_ClassifyDrag(); if (iVar1 == 0) return 0; else if
+    /// (g_mouseInputChanged == 0) return 1; else commit(0)`. So while the
+    /// gesture is still under 25 pixels on both axes and over nobody, a drag in
+    /// flight **touches the selection at all** — a player's hand shake between
+    /// the press and the release leaves what he already holds standing. Ours
+    /// re-boxed on every pixel of motion, which cleared the selection under the
+    /// press and left the release with nothing to order: the move order a
+    /// player aimed at empty ground went missing unless his mouse never moved.
+    ///
     /// // arm: 0x0043BF07/drag-update drag
     pub fn drag_to(&mut self, x: i32, y: i32) -> bool {
-        let Some(d) = self.drag.as_mut() else { return false };
-        if d.px == (x, y) {
+        let Some(mut d) = self.drag else { return false };
+        let moved = d.px != (x, y);
+        d.px = (x, y);
+        self.drag = Some(d);
+        if self.drag_kind(d, x, y) == DragKind::Nothing || !moved {
             return false;
         }
-        d.px = (x, y);
         let (a, b) = (d.anchor_px, d.px);
         let (lo, hi) = self.box_corners(a, b);
         self.runner.pick_box(self.owner, lo, hi, false);
