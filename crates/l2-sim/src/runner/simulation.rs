@@ -63,7 +63,7 @@ impl BattleRunner {
             runner.siege = crate::siege::SiegeState::castle(level);
             runner.ai.is_siege = true;
             runner.ai_field = match tables {
-                Some(t) => crate::castle::ai_field(&runner.field, level, t),
+                Some(t) => crate::castle::ai_field(&runner.field, level, t, runner.ai.approach_lane),
                 None => crate::siege::our_castle_ai_field(&runner.field, level),
             };
             runner.ai.approach_score = crate::siege::approach_score_at_build(&runner.field);

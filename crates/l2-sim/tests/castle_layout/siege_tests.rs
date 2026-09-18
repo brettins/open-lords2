@@ -36,7 +36,7 @@ fn the_structure_layer_fills_the_tables_the_ai_reads() {
         let sheet = s.get(level).unwrap();
         let f = castle::build(level, sheet);
         let t = castle::tables(sheet);
-        let ai = castle::ai_field(&f, level, &t);
+        let ai = castle::ai_field(&f, level, &t, 0);
         assert!(ai.wall_slot[0][0] != (0, 0), "level {level}: no wall slots");
         assert!(ai.wall_slot[1][0] != (0, 0), "level {level}: no inner wall slots");
         assert!(ai.castle_ref != (0, 0), "level {level}: no reference cell");
@@ -174,5 +174,47 @@ fn a_ram_sets_the_orientation_the_approach_handler_reads() {
             level,
         );
         assert_eq!(r.ai_field.orientation, 1, "level {level}");
+    }
+}
+
+/// **The muster corner is the sheet's, not a constant** — the `0x47` staging
+/// row of `stnfield.pl8`, lane by lane, and the corner
+/// `Battlefield_BuildCastle` (`0x0047C4BA`):5254-5262 derives from it. Both
+/// columns are read out of the shipped file: **eleven of the twenty pairs are
+/// not 1**, which is what [`l2_sim::castle::ai_field`] used to hard-code, and
+/// levels 3 and 4 have a lane that stages past `y = 0x3d` and so musters at no
+/// corner at all.
+///
+/// Lane 0's point is the one a rescan of the raster does **not** reproduce:
+/// level 0 carries `0f 47 47 0f` at `(7, 39)` and another `0x47` at `(49, 76)`,
+/// and the destructive read — `FUN_0047D474` zeroes the kind byte at `+1` and
+/// at `+3`, `Marker_Index2Bit` zeroes four bit cells — eats the later one. The
+/// numbers below are therefore the reader's, not the file's naive contents.
+///
+/// **Ablation.** Swap the two thresholds in [`l2_sim::castle::layout`] —
+/// `x < 0x3d` outside, `y < 0x28` inside — and fifteen of these twenty change.
+#[test]
+fn every_shipped_castle_derives_its_muster_corner_from_the_staging_row() {
+    let s = sheets!();
+    let expect: [[((i16, i16), u8); 4]; 5] = [
+        [((9, 41), 1), ((66, 56), 2), ((65, 40), 2), ((39, 16), 1)],
+        [((71, 45), 2), ((9, 57), 1), ((72, 28), 2), ((7, 11), 1)],
+        [((14, 38), 1), ((13, 48), 1), ((65, 39), 2), ((65, 53), 2)],
+        [((4, 36), 1), ((27, 69), 0), ((75, 43), 2), ((38, 6), 1)],
+        [((2, 47), 1), ((23, 71), 0), ((78, 44), 2), ((45, 3), 2)],
+    ];
+    for level in 0..=4u8 {
+        let sheet = s.get(level).unwrap();
+        let t = castle::tables(sheet);
+        let f = castle::build(level, sheet);
+        for (lane, &(point, want)) in expect[level as usize].iter().enumerate() {
+            assert_eq!(t.approach[3][lane], point, "level {level} lane {lane}: staging");
+            // The thresholds, spelled out again from :5255 and :5256.
+            let (x, y) = point;
+            assert_eq!(want, u8::from(y < 0x3d) * if x < 0x28 { 1 } else { 2 });
+            assert_eq!(castle::layout(&t.approach[3], lane), want, "level {level} lane {lane}");
+            let ai = castle::ai_field(&f, level, &t, lane);
+            assert_eq!(ai.layout, want, "level {level} lane {lane}: the AI field");
+        }
     }
 }
