@@ -290,7 +290,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 636;
+pub(crate) const GATED_TOTAL: usize = 637;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),
