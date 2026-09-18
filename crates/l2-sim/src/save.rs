@@ -206,6 +206,9 @@ impl Encode for Figure {
         self.stats.encode(out);
         out.u16(self.hits_per_casualty);
         out.u16(self.reload_counter);
+        out.u8(self.firing);
+        out.bool(self.engaged);
+        out.bool(self.straffed);
         out.u16(self.full_men);
         out.u8(self.selected);
     }
@@ -245,6 +248,9 @@ impl Decode for Figure {
             stats: TroopStats::decode(input)?,
             hits_per_casualty: input.u16()?,
             reload_counter: input.u16()?,
+            firing: input.u8()?,
+            engaged: input.bool()?,
+            straffed: input.bool()?,
             full_men: input.u16()?,
             selected: input.u8()?,
         })
