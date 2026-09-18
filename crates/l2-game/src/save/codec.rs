@@ -17,6 +17,10 @@ pub(super) fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.u32(game.map_slot as u32);
     out.u8(game.selected);
     out.u32(game.turns_played);
+    // **Block 174, `DAT_005440C8`** — the turn clock's whole seconds, and the
+    // only word of it in the file. See
+    // [`crate::turn_clock::TurnClock::from_save`].
+    out.i32(game.turn_clock.remaining());
 
     out.section("realms");
     out.u32(MAX_REALMS as u32);
@@ -177,6 +181,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         return Err(LoadError::Selected(selected));
     }
     let turns_played = input.u32()?;
+    let turn_clock = crate::turn_clock::TurnClock::from_save(input.i32()?);
 
     let realms = input.u32()? as usize;
     if realms != MAX_REALMS {
@@ -242,10 +247,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         begin_move_order: None,
         combine_ask: None,
         map_zoom_far: false,
-        // And a seventh: `Setup_StartGame` sets `DAT_005440C8 = g_optTimeLimit`
-        // for a loaded game as for a new one, so the turn timer starts from the
-        // full limit on its first tick. See `crate::turn_clock`.
-        turn_clock: crate::turn_clock::TurnClock::default(),
+        turn_clock,
         unit_frames: crate::game::UnitFrames::default(),
         map_slot: map_slot as usize,
         realm_colour,

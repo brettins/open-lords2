@@ -1,0 +1,55 @@
+{
+  "reviewed": "1c7e3484",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/castle/builder.rs",
+      "line": 177,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/castle/builder.rs",
+      "line": 154,
+      "address": "0x0047C4BA",
+      "verdict": "departure",
+      "note": "coin drawn from the escape-cell LFSR (FUN_00404B2C state DAT_00591564); :5271 calls Rand_Advance (0x00404A46) and reads g_rand7A from g_randStateA, a different generator | fixed 1c7e3484: one Ai::rng draw for the Rand_Advance A stream, value [D]; stand-in castle [D]"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation.rs",
+      "line": 81,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation.rs",
+      "line": 74,
+      "address": "0x0047C4BA",
+      "verdict": "departure",
+      "note": "stand-in castle without a frame layer keeps orientation 0; reason given but no [D] mark"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation.rs",
+      "line": 609,
+      "address": "0x00481B9A",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/types.rs",
+      "line": 53,
+      "address": "0x0048BCFB",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/types.rs",
+      "line": 57,
+      "address": "0x0048D013",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

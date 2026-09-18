@@ -1426,8 +1426,54 @@ all, so `wall > 0` is false there. What does hold at every level is that there
 is something the besieger can open — a curtain block or a drawbridge, asserted
 by `every_castle_offers_the_besieger_something_to_open`.
 
+**`DAT_004EEB6C` is not an orientation; it is a ram escort.** The builder's
+last act before `Path_BuildStepCost` (`Battlefield_BuildCastle` (`0x0047C4BA`),
+00470000.c:5265-5272) is one draw:
+
+```c
+local_18 = (g_units[g_battleArmyA].troops[9] == 0) ? 0 : 0x80;   /* battering rams */
+Rand_Advance();
+DAT_004eeb6c = (uint)(g_rand7A < local_18 + troops[8] * -0x14 + troops[7] * -10);
+```
+
+The draw is `Rand_Advance` (`0x00404A46`), which steps `g_randStateA/B` and
+writes `g_rand7A = g_randStateA & 0x7f` (00400000.c:2421) — **the A stream**,
+shared with `Battle_Frame` and the kingdom AI, and *not* the `FUN_00404B2C` /
+`DAT_00591564` generator the frame loop at :5137 steps per escape cell. So the
+flag is not a function of the layout at all.
+
+`0x0047CE58` is `cmp [g_rand7A], eax` then `jge` — a **signed** compare, read
+off the bytes of the player's own `Lords2.exe` — so with no ram the threshold
+is `-20 x towers - 10 x catapults <= 0` and `g_rand7A` (0…127) is never under
+it. **No ram, no flag**; one ram alone is `0x80`, which beats every draw. Slot
+9 is the ram, 8 the tower, 7 the catapult (`docs/armies.md`, the engine table),
+and `g_battleArmyA` is the aggressor. **[V]**
+
+It rotates nothing. Two order handlers read it, and at 1 they abandon the four
+approach lanes for a fixed offset from `0x0055CDD0` (`AiField::castle_ref`,
+approach row 2 lane 0): `Order_ToCastleApproach` (`0x0048BCFB`) sends category 1
+to `+(10, 10)` and everyone else to `+(2, 15)`, `Order_ToSiegeStaging`
+(`0x0048D013`) to `+(2, 12)`. **Rams — category 7 — always keep the lane
+table**, so the wall the ram reaches never changes; what changes is that the
+storming column packs in behind it instead of fanning out. And
+`Battle_CountMenByType` (`0x00481B9A`, 00480000.c:739 and :790) clears the flag
+on any frame no living figure has troop type 9 — **the escort lasts exactly as
+long as a ram does**. **[V]**
+
+Ours is `l2_sim::castle::orientation`, drawn in `deploy_muster_on` from
+`Ai::rng` — our Pcg32 stand-in for the A stream, D-3a of `docs/netcode.md` — and
+cleared in `BattleRunner::recount_siege`. One advance, taken where
+`Battle_Start` (`0x004778A0`) builds the castle, ahead of
+`Battle_UpdateStrengthAdvantage`, that stream's other battle consumer: the
+**count** of advances is `[V]`, the **value** `[D]`, because the original's
+stream is not reproduced. On the stand-in castle neither the draw nor the
+flag happens, `[D]`: `our_castle_ai_field` invents `castle_ref`, the cell the
+flag's readers aim at, so a 1 there would send the storming party at a
+fabricated point — and not drawing leaves the existing stand-in siege fixtures
+on their stream.
+
 `l2_sim::castle` is the reader — `parse`, `build` (`Battlefield_BuildCastle`),
-`classify` (`Battlefield_ClassifySurfaces`), `tables`
+`orientation`, `classify` (`Battlefield_ClassifySurfaces`), `tables`
 (`Battlefield_ReadStructureLayer`), `ai_field` — and it takes bytes, never a
 path; `l2_game::castle` does the read, into a `OnceLock`, because the original
 reads the file from a process global too and `begin_fight` is reached through
@@ -2849,7 +2895,7 @@ the longer axis (x wins a tie), and `FUN_004262CF(3)`. **The pot is spent by its
 
 `Missile_UpdateAll`'s class-7 arm, every frame the stream flies, sets **the cell under it and its
 four orthogonal neighbours** burning — each unless it is already 7 or 10 — with argument
-`(ticksFlown − 1) × 32 + bias`, the bias `0x28` for the centre and the north, **0** for the south,
+(ticksFlown − 1) × 32 + bias, the bias `0x28` for the centre and the north, **0** for the south,
 `0x19` east, 10 west. Half a cell a frame for sixteen frames is a strip about eight cells long and
 three wide, the head burning longest (≈ 470 frames) and the tail shortest (≈ 120).
 only by that fire**: nothing in `Missile_Step` can hurt a man with class 7. Why the south arm's

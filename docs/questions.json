@@ -71,11 +71,22 @@
     {
       "q": "Q9",
       "row": "save-mid-battle",
-      "state": "open",
+      "state": "answered",
       "title": "When the save failed, was a battle on screen?",
       "inplay": "In the original you can save from the battlefield menu bar in the middle of a battle. Ours refused that save silently, which looked like a hang. Both halves are now fixed and merged: a refused save repaints, and a mid-battle save writes and loads back onto the battlefield with the same battle running.",
       "todo": "Only to confirm the diagnosis: were you on the battlefield or the campaign map when you typed the name and clicked Save? If the map, the cause is still unknown and I will reopen it.",
-      "ask": "Reply: Q9 battle, or Q9 map"
+      "ask": "Reply: Q9 battle, or Q9 map",
+      "answer": "map",
+      "outcome": "So the mid-battle refusal was not your case. The cause is still unknown; Q10 asks for one more try on a current build, which now shows what it refuses."
+    },
+    {
+      "q": "Q10",
+      "row": "save-from-map-refused",
+      "state": "open",
+      "title": "Save once more from the campaign map on a current build",
+      "inplay": "Your save from the map wrote no file, and nothing we tried reproduced it. Two things changed since: a refused save now paints its reason instead of sitting on the wait text, and saving is no longer refused on the battlefield.",
+      "todo": "Build from current main, play to the campaign map, File then Save, type a name, click Save. Note exactly what the box shows next: the name in the Load list, or a message, and its words.",
+      "ask": "Reply: Q10 saved, or Q10 with the message shown"
     }
   ],
   "reports": [

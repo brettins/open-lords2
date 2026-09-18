@@ -311,6 +311,9 @@ pub fn our_castle_ai_field(field: &Battlefield, level: u8) -> crate::AiField {
         (cy + h) as usize * DIM + cx as usize,
     ];
     f.castle_index = 13;
+    // Not [`crate::castle::layout`]'s derivation — it reads the lane's staging
+    // row and the rows below are invented. 1 is the commonest of the twenty
+    // (level, lane) pairs the shipped sheets derive. **[I]**
     f.layout = 1;
     f.castle_layout_flag = level >= 3;
 

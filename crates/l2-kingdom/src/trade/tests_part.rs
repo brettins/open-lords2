@@ -255,5 +255,34 @@ mod tests {
         assert_eq!(Good::from_id(15), None);
         assert_eq!(ALL_GOODS.len() + 1, GOOD_COUNT);
     }
+
+    /// `Merchant_Trade` settles with `Ration_Apply(county,g_season)`
+    /// (`00420000.c:3163`, `3166`), not `g_seasonNext`. Season 4 is
+    /// `Ration_Apply`'s seed gate (`0x0044DF5F`, `if (season == 4)`), so under
+    /// Winter the sowing seed is out of `grainAvailable` — `docs/kingdom.md`
+    /// §4.3.
+    ///
+    /// *Ablation*: pass `kingdom.season_next` to `Sowing::from_index` in
+    /// `engine::settle` and `grain_available` comes back at the full store.
+    #[test]
+    fn a_winter_trade_settles_on_g_season_so_the_seed_is_reserved() {
+        let mut k = kingdom();
+        k.season = crate::tables::Season::Winter.index();
+        k.season_next = crate::tables::Season::Spring.index();
+        k.counties[1].fields_grain = 4;
+        // `Labour_Allocate` runs between the two `Ration_Apply` lines, so the
+        // grain workers have to come from the share and the ceiling.
+        k.counties[1].labour_share[T.job.grain_farming] = 100;
+        k.counties[1].labour_useful[T.job.grain_farming] = 200;
+        let q = quote(T, Good::Grain, 100);
+        trade(&mut k, Order::buy(Good::Grain, 1, q, 1, 1)).unwrap();
+        let c = &k.counties[1];
+        assert!(
+            c.grain_available < c.grain,
+            "store {}, available {}",
+            c.grain,
+            c.grain_available
+        );
+    }
 }
 

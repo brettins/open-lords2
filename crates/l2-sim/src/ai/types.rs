@@ -48,9 +48,20 @@ pub struct AiField {
     pub defence_posts: [usize; 20],
     /// `0x004EEB64`: 1 and 2 name the two fixed field corners `(6, 74)` and
     /// `(74, 74)`; anything else sends the unit to a castle approach point
-    /// instead. **[D]**
+    /// instead — `Order_ToFieldCorner` (`0x0048BECD`), its only reader.
+    /// Derived by [`crate::castle::layout`] from [`Self::staging`] and the
+    /// battle's lane, `Battlefield_BuildCastle` 00470000.c:5254-5262. **[V]**
+    /// on the tables path, **[I]** (1) on the stand-in's.
     pub layout: u8,
-    /// `0x004EEB6C`, the castle orientation flag. **[I]**
+    /// `0x004EEB6C`. Drawn by [`crate::castle::orientation`] off [`Ai::rng`],
+    /// our stand-in for the `Rand_Advance` A stream — one advance, `[D]` on the
+    /// value — and cleared the
+    /// frame the last ram dies. It rotates nothing: at 1 every besieger but
+    /// the ram abandons the four approach lanes for a fixed offset from
+    /// [`Self::castle_ref`] — `Order_ToCastleApproach` (`0x0048BCFB`) +(10,10)
+    /// for category 1 and +(2,15) for the rest, `Order_ToSiegeStaging`
+    /// (`0x0048D013`) +(2,12). Rams (category 7) keep the lane table, so the
+    /// wall the ram reaches never changes. **[V]**
     pub orientation: u8,
     /// `0x00542CD4`, the castle layout flag two handlers jump their `orders` to
     /// 100 on. **[I]**

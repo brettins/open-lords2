@@ -63,11 +63,34 @@ impl BattleRunner {
             runner.siege = crate::siege::SiegeState::castle(level);
             runner.ai.is_siege = true;
             runner.ai_field = match tables {
-                Some(t) => crate::castle::ai_field(&runner.field, level, t),
+                Some(t) => crate::castle::ai_field(&runner.field, level, t, runner.ai.approach_lane),
                 None => crate::siege::our_castle_ai_field(&runner.field, level),
             };
             runner.ai.approach_score = crate::siege::approach_score_at_build(&runner.field);
             runner.ai.ramparts_breached = runner.siege.ramparts_breached as i32;
+            // `Battlefield_BuildCastle` (`0x0047C4BA`):5265-5272, on
+            // `g_units[g_battleArmyA]` — army A, the aggressor, is `army_a`.
+            // One `Rand_Advance` (`0x00404A46`) on the A stream, taken here
+            // because `Battle_Start` (`0x004778A0`) builds the castle before
+            // `Battle_UpdateStrengthAdvantage`, [`Ai::rng`]'s other consumer.
+            // `Ai::rng` is a Pcg32 stand-in for that stream, so the count of
+            // advances is **[V]** and the value **[D]** — `docs/netcode.md`
+            // D-3a. **[D]**: neither the draw nor the flag happens on the
+            // stand-in castle, where `our_castle_ai_field` invents
+            // `castle_ref` — the cell the flag's readers aim at — so a 1 there
+            // would send the storming party at a fabricated point.
+            if tables.is_some() {
+                let basket = |t: Troop| {
+                    army_a.troops.iter().filter(|(k, _)| *k == t).map(|(_, n)| *n).sum::<u32>()
+                };
+                let draw = runner.ai.rng.next_u32();
+                runner.ai_field.orientation = crate::castle::orientation(
+                    draw,
+                    basket(Troop::BatteringRams),
+                    basket(Troop::SiegeTowers),
+                    basket(Troop::Catapults),
+                );
+            }
         }
         runner.raise_men(&army_a, mpf_a, SIDE_B);
         runner.raise_men(&army_b, mpf_b, SIDE_A);
@@ -564,12 +587,19 @@ impl BattleRunner {
     fn recount_siege(&mut self) {
         let mut on_wall = 0;
         let mut engines = 0;
+        // `Battle_CountMenByType` (`0x00481B9A`), 00480000.c:739 and :790 —
+        // `if (troopType == 9) bVar1 = true;` … `if (!bVar1) DAT_004eeb6c = 0;`.
+        // The orientation outlives the coin only while a ram does.
+        let mut rams = 0;
         for f in self.fighters.iter() {
             if !self.sim.figures[f.sim].is_alive() {
                 continue;
             }
             if f.troop.index() >= 7 && f.troop.index() <= 9 {
                 engines += 1;
+            }
+            if f.troop == Troop::BatteringRams {
+                rams += 1;
             }
             if f.side == SIDE_B
                 && self.field.cells[f.y as usize * DIM + f.x as usize].surface
@@ -581,6 +611,9 @@ impl BattleRunner {
         self.ai.attackers_on_wall = on_wall;
         self.ai.siege_engine_count = engines;
         self.ai.ramparts_breached = self.siege.ramparts_breached as i32;
+        if rams == 0 {
+            self.ai_field.orientation = 0;
+        }
     }
 
 

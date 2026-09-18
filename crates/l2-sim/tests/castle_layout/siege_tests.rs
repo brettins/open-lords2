@@ -36,7 +36,7 @@ fn the_structure_layer_fills_the_tables_the_ai_reads() {
         let sheet = s.get(level).unwrap();
         let f = castle::build(level, sheet);
         let t = castle::tables(sheet);
-        let ai = castle::ai_field(&f, level, &t);
+        let ai = castle::ai_field(&f, level, &t, 0);
         assert!(ai.wall_slot[0][0] != (0, 0), "level {level}: no wall slots");
         assert!(ai.wall_slot[1][0] != (0, 0), "level {level}: no inner wall slots");
         assert!(ai.castle_ref != (0, 0), "level {level}: no reference cell");
@@ -129,3 +129,92 @@ fn only_a_dry_castle_opens_the_approach_a_siege_tower_needs() {
     assert_eq!(wet, 3, "three of the five castles ship a ditch");
 }
 
+/// **No ram, no coin.** `Battlefield_BuildCastle` (`0x0047C4BA`):5265-5272
+/// gates the whole threshold on `troops[9]`:
+/// `0x80 * (rams != 0) - 20 * towers - 10 * catapults`, and `0x0047CE58`'s
+/// `jge` makes the compare signed, so without a ram the threshold is at most 0
+/// and `g_rand7A` — `g_randStateA & 0x7f`, 00400000.c:2421 — is never below it.
+///
+/// **Ablation.** Drop the `rams > 0` term — leave `0x80` in unconditionally —
+/// and the first loop flips to 1 on every draw. The calls differ in that term
+/// alone, so the assertions hold for any stand-in of the A stream.
+#[test]
+fn the_castle_orientation_coin_is_the_besiegers_ram() {
+    for draw in 0..=0x7Fu32 {
+        assert_eq!(castle::orientation(draw, 0, 4, 4), 0, "{draw}: no ram, no coin");
+        assert_eq!(castle::orientation(draw, 0, 0, 0), 0, "{draw}: nothing at all");
+        // 0x80 beats every value of `g_randStateA & 0x7f`.
+        assert_eq!(castle::orientation(draw, 1, 0, 0), 1, "{draw}: a ram alone");
+        assert_eq!(castle::orientation(draw, 2, 0, 0), 1, "{draw}: the count is a flag");
+        // `-20 * towers` and `-10 * catapults` can only take it back down.
+        assert_eq!(castle::orientation(draw, 1, 7, 0), 0, "{draw}: 128 - 140");
+        assert_eq!(castle::orientation(draw, 1, 0, 13), 0, "{draw}: 128 - 130");
+    }
+    // Only the low seven bits are read.
+    assert_eq!(castle::orientation(0xFFFF_FF80, 1, 0, 12), 1, "128 - 120 over a 0 draw");
+}
+
+/// The flag reaches the AI field a besieger with a ram deploys against, and
+/// `Order_ToCastleApproach` (`0x0048BCFB`) reads it — so a siege that carries
+/// one packs behind [`l2_sim::AiField::castle_ref`] instead of fanning across
+/// the four approach lanes.
+#[test]
+fn a_ram_sets_the_orientation_the_approach_handler_reads() {
+    let s = sheets!();
+    let attacker = [(Troop::Peasants, 200u32), (Troop::BatteringRams, 1)];
+    let defender = [(Troop::Archers, 200u32)];
+    for level in 0..=4u8 {
+        let sheet = s.get(level).unwrap();
+        let r = BattleRunner::deploy_siege_on_sheet(
+            castle::build(level, sheet),
+            &castle::tables(sheet),
+            0x0C_A571_E0u64,
+            Muster { troops: &attacker, owner: 1, human: false },
+            Muster { troops: &defender, owner: 2, human: false },
+            level,
+        );
+        assert_eq!(r.ai_field.orientation, 1, "level {level}");
+    }
+}
+
+/// **The muster corner is the sheet's, not a constant** — the `0x47` staging
+/// row of `stnfield.pl8`, lane by lane, and the corner
+/// `Battlefield_BuildCastle` (`0x0047C4BA`):5254-5262 derives from it. Both
+/// columns are read out of the shipped file: **eleven of the twenty pairs are
+/// not 1**, which is what [`l2_sim::castle::ai_field`] used to hard-code, and
+/// levels 3 and 4 have a lane that stages past `y = 0x3d` and so musters at no
+/// corner at all.
+///
+/// Lane 0's point is the one a rescan of the raster does **not** reproduce:
+/// level 0 carries `0f 47 47 0f` at `(7, 39)` and another `0x47` at `(49, 76)`,
+/// and the destructive read — `FUN_0047D474` zeroes the kind byte at `+1` and
+/// at `+3`, `Marker_Index2Bit` zeroes four bit cells — eats the later one. The
+/// numbers below are therefore the reader's, not the file's naive contents.
+///
+/// **Ablation.** Swap the two thresholds in [`l2_sim::castle::layout`] —
+/// `x < 0x3d` outside, `y < 0x28` inside — and fifteen of these twenty change.
+#[test]
+fn every_shipped_castle_derives_its_muster_corner_from_the_staging_row() {
+    let s = sheets!();
+    let expect: [[((i16, i16), u8); 4]; 5] = [
+        [((9, 41), 1), ((66, 56), 2), ((65, 40), 2), ((39, 16), 1)],
+        [((71, 45), 2), ((9, 57), 1), ((72, 28), 2), ((7, 11), 1)],
+        [((14, 38), 1), ((13, 48), 1), ((65, 39), 2), ((65, 53), 2)],
+        [((4, 36), 1), ((27, 69), 0), ((75, 43), 2), ((38, 6), 1)],
+        [((2, 47), 1), ((23, 71), 0), ((78, 44), 2), ((45, 3), 2)],
+    ];
+    for level in 0..=4u8 {
+        let sheet = s.get(level).unwrap();
+        let t = castle::tables(sheet);
+        let f = castle::build(level, sheet);
+        for (lane, &(point, want)) in expect[level as usize].iter().enumerate() {
+            assert_eq!(t.approach[3][lane], point, "level {level} lane {lane}: staging");
+            // The thresholds, spelled out again from :5255 and :5256.
+            let (x, y) = point;
+            assert_eq!(want, u8::from(y < 0x3d) * if x < 0x28 { 1 } else { 2 });
+            assert_eq!(castle::layout(&t.approach[3], lane), want, "level {level} lane {lane}");
+            let ai = castle::ai_field(&f, level, &t, lane);
+            assert_eq!(ai.layout, want, "level {level} lane {lane}: the AI field");
+        }
+    }
+}

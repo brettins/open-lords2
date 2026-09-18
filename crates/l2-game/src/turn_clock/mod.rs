@@ -56,8 +56,9 @@
 //! same frame, which hands a slow turn's processing to the next turn (`docs/
 //! bugs.md` B99); a fought battle's `+10`
 //! (`Battle_Start` saves `DAT_005440C8 + 10` into `DAT_0053E994`,
-//! `Battle_ReturnToCampaign(1)` rebases the start on it); and a siege assault
-//! zeroing `DAT_0055403C` so that the next turn does not restart the count.
+//! `Battle_ReturnToCampaign(1)` rebases the start on it); a siege assault
+//! zeroing `DAT_0055403C` so that the next turn does not restart the count; and
+//! an in-game load's own `+10` — [`TurnClock::resumed`].
 //!
 //! * the count carrying on through the rest of phase 4 after End Turn while the
 //!   AI realms finish stepping — ours freezes it at the click, because our
@@ -67,10 +68,7 @@
 //!   rotation puts those phases first in ours;
 //! * the network game's 2.5-second restart delay and its ten-second `Turn_End`
 //!   resend. `g_multiplayer` is never set in this workspace, and a multiplayer
-//!   clock is `docs/netcode.md`'s to design, not this module's to port;
-//! * `FUN_004976A1`, the in-game load's `DAT_005440C8 += 10`. A game loaded
-//!   here starts the count at the full limit, which is what `Setup_StartGame`'s
-//!   own two lines do.
+//!   clock is `docs/netcode.md`'s to design, not this module's to port.
 
 mod clock;
 pub use clock::*;
@@ -98,6 +96,9 @@ pub const SUFFIX: &str = " ";
 pub const COLOUR: u8 = 0x3F;
 /// `Battle_Start` (`0x004778A0`): `DAT_0053E994 = DAT_005440C8 + 10`.
 pub const BATTLE_GRACE: i32 = 10;
+/// `FUN_004976A1` (`0x004976A1`): `DAT_005440C8 = DAT_005440C8 + 10`,
+/// `00490000.c:3081`.
+pub const LOAD_GRACE: i32 = 10;
 pub const EXPIRED: i32 = -1;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -280,6 +281,31 @@ mod tests {
 
         c.tick(players(120));
         assert_eq!(c.value(120, false, false), Some(30));
+    }
+
+    /// **`FUN_004976A1`'s `DAT_005440C8 += 10`** (`00490000.c:3081`): a load
+    /// resumes the count where the file left it, plus ten — not at the whole
+    /// limit. Ablation: drop that line from [`TurnClock::resumed`] and the
+    /// reloaded clock shows 20, the saved value.
+    #[test]
+    fn a_load_resumes_the_count_ten_seconds_above_what_the_file_held() {
+        let mut c = TurnClock::default();
+        run(&mut c, players(120), ticks_for(100_000));
+        assert_eq!(c.remaining(), 20, "block 174");
+
+        let mut back = TurnClock::from_save(c.remaining());
+        back.resumed(120);
+        assert_eq!(back.value(120, false, false), Some(30));
+        // `DAT_0055403C = 0` (`:3080`): the loaded turn is the person's own and
+        // live, so the resumed count is the one that runs.
+        assert_eq!(back.tick(players(120)), Tick::Running, "not Restarted");
+
+        // `_DAT_00568D9C` is rebased, not reset: the next second off the clock
+        // is 29, and the count runs out 30 seconds on, not 120.
+        run(&mut back, players(120), ticks_for(1_008));
+        assert_eq!(back.value(120, false, false), Some(29));
+        run(&mut back, players(120), ticks_for(30_000));
+        assert!(back.end_turn_pending(), "Turn_End 30 seconds after the load");
     }
 
     /// `DAT_0055403C = 0` before every siege assault: the next turn does not

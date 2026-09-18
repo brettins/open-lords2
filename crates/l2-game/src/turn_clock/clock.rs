@@ -13,6 +13,51 @@ impl TurnClock {
         self.remaining
     }
 
+    /// **Block 174 is `DAT_005440C8` alone** — 4 bytes at file offset 266,448,
+    /// `node tools/kingdom/savedump.js layout`. The anchor `_DAT_00568D9C`,
+    /// `DAT_0055403C` and `DAT_0053E994` are in none of the 225 blocks, so the
+    /// word below is the whole of the clock a file carries and
+    /// [`TurnClock::resumed`] rebuilds the rest.
+    pub fn from_save(remaining: i32) -> TurnClock {
+        TurnClock { remaining, ..TurnClock::default() }
+    }
+
+    /// **`FUN_004976A1` (`0x004976A1`)**, what `Save_Read` runs once the blocks
+    /// are in — `00490000.c:3080-3082`:
+    ///
+    /// ```c
+    /// DAT_0055403C = 0;
+    /// DAT_005440C8 = DAT_005440C8 + 10;
+    /// _DAT_00568D9C = DVar1 + (g_optTimeLimit - DAT_005440C8) * -1000;
+    /// ```
+    ///
+    /// So a load does **not** hand the whole limit back: the count resumes at
+    /// what the file held plus ten seconds, and `Turn_Tick`'s
+    /// `g_optTimeLimit - (now - start) / 1000` reads exactly that on the first
+    /// frame. `Battle_ReturnToCampaign` rebases the same way off `DAT_0053E994`
+    /// (`004a0000.c:4711-4713`). `DAT_0055403C = 0` is the loaded turn made
+    /// live: `1 < DAT_0055403C` is what `Turn_Tick` restarts the count on and
+    /// `DAT_0055403C < 1` what `FUN_0041A639` draws it behind. `[V]`
+    ///
+    /// `[D]` on the other two lines of `FUN_004976A1`, both multiplayer-only:
+    /// `DAT_0052AFCC = 1` (`00490000.c:3079`) is the sync-skip counter, read in
+    /// `FUN_00440666` (`00440000.c:239`) and `FUN_004407E5` and in neither
+    /// before `g_multiplayer != 0`; `DAT_00553FC8 = 0` (`:3083`) is the
+    /// sync-wait latch, raised only under `g_multiplayer != 0`
+    /// (`00490000.c:5294`, `:5391`).
+    ///
+    /// `[D]` on one more: `Setup_StartGame` (`0x004329EC`) writes
+    /// `DAT_005440C8 = g_optTimeLimit` before the first frame and ours starts
+    /// on its first tick instead, so a file written before one would resume at
+    /// its word plus ten rather than the limit plus ten. The frame driver ticks
+    /// the clock every frame, so no save box is up before the first one.
+    pub fn resumed(&mut self, limit: i32) {
+        self.started = true;
+        self.restart_pending = false;
+        self.remaining = self.remaining.saturating_add(LOAD_GRACE);
+        self.elapsed_ms = (i64::from(limit) - i64::from(self.remaining)) * 1000;
+    }
+
     pub fn end_turn_pending(&self) -> bool {
         self.end_turn
     }

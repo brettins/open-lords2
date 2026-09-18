@@ -150,6 +150,74 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
     field
 }
 
+/// **The besieger's ram-escort coin** — `Battlefield_BuildCastle`
+/// (`0x0047C4BA`), 00470000.c:5265-5272.
+///
+/// ```c
+/// if (g_units[g_battleArmyA].troops[9] == 0) { local_18 = 0; } else { local_18 = 0x80; }
+/// sVar2 = g_units[g_battleArmyA].troops[8];
+/// sVar3 = g_units[g_battleArmyA].troops[7];
+/// Rand_Advance();
+/// DAT_004eeb6c = (uint)(g_rand7A < local_18 + sVar2 * -0x14 + sVar3 * -10);
+/// ```
+///
+/// `draw` is `g_rand7A`. `Rand_Advance` (`0x00404A46`) steps `g_randStateA/B`
+/// and writes `g_rand7A = g_randStateA & 0x7f` (00400000.c:2421) — the **A
+/// stream**, which `Battle_Frame` and the kingdom AI share, *not* the
+/// `FUN_00404B2C` / `DAT_00591564` generator [`build`] steps per escape cell.
+/// Our stand-in for it is [`crate::Ai::rng`]; `docs/netcode.md` D-3a.
+///
+/// `0x0047CE58: 39 05 7c fd 58 00` `cmp [g_rand7A], eax` then `0f 8d` **`jge`**
+/// — the compare is **signed**, so with no ram the threshold is
+/// `-20 * towers - 10 * catapults <= 0` and `g_rand7A` is 0..127: **no ram, no
+/// coin**. **[V]** on the bytes.
+///
+/// Basket slot 9 is the battering ram, 8 the siege tower, 7 the catapult —
+/// `docs/armies.md` engine table. `g_battleArmyA` is the aggressor
+/// (`Battle_BeginArmyFight`: `g_battleArmyA = mover`). **[V]**
+pub fn orientation(draw: u32, rams: u32, towers: u32, catapults: u32) -> u8 {
+    let threshold = i32::from(rams > 0) * 0x80 - 20 * towers as i32 - 10 * catapults as i32;
+    let rand7a = (draw & 0x7F) as i32;
+    u8::from(rand7a < threshold)
+}
+
+/// **The muster corner** — `Battlefield_BuildCastle` (`0x0047C4BA`),
+/// 00470000.c:5254-5262, `DAT_004EEB64`.
+///
+/// ```c
+/// DAT_004eeb64 = 0;
+/// if (*(int *)(&DAT_0055cdf4 + g_battleApproachLane * 8) < 0x3d) {
+///   if (*(int *)(&DAT_0055cdf0 + g_battleApproachLane * 8) < 0x28) {
+///     DAT_004eeb64 = 1;
+///   }
+///   else {
+///     DAT_004eeb64 = 2;
+///   }
+/// }
+/// ```
+///
+/// `DAT_0055CDF0`/`F4` is the secondary staging table — four lanes of `(x, y)`
+/// eight bytes apart, [`crate::AiField::staging`], filled by `FUN_0047CEC1`
+/// (00470000.c:5407-5408) from the side-4 marker of kind `0x47` at
+/// `(g_foundTileX + 2, g_foundTileY + 2)`. So the layout is read off **this
+/// battle's own lane**: `y < 0x3d` means that lane stages in the castle's half
+/// of the 80-cell field rather than out on the attacker's edge, and then
+/// `x < 0x28` says which side of the centre line it sits on.
+///
+/// Its one reader is `Order_ToFieldCorner` (`0x0048BECD`) — 1 musters at
+/// `(6, 74)`, 2 at `(74, 74)`, and 0 skips the corner for
+/// `Order_ToCastleApproach`. **[V]**
+pub fn layout(staging: &[(i16, i16); 4], lane: usize) -> u8 {
+    let (x, y) = staging[lane & 3];
+    if y >= 0x3d {
+        0
+    } else if x < 0x28 {
+        1
+    } else {
+        2
+    }
+}
+
 /// **The surface classifier** — `Battlefield_ClassifySurfaces` (`0x0047E230`), six flood
 /// passes over the whole field, each looping until it changes nothing.
 ///
