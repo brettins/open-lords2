@@ -49,6 +49,16 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
             assert_eq!(ours.cargo_county, cargo, "{at}: +0x167 as a cargo county");
             assert_eq!(ours.garrison_county, f.garrison_county, "{at}: garrison");
             assert_eq!(ours.besieging_county, f.besieging_county, "{at}: besieging");
+            assert_eq!(ours.besieged_by, f.besieged_by, "{at}: +0x19A");
+            // `+0x182 + e*6` and `+0x19C`. Defaulted, `Siege_BuildTick`
+            // (`0x004A8507`) skips every `ordered == 0` record and reports
+            // ready on the first tick. C235.
+            for e in 0..3 {
+                assert_eq!(ours.engines[e].ordered, f.engines[e].ordered, "{at}: engine {e}");
+                assert_eq!(ours.engines[e].percent, f.engines[e].percent, "{at}: engine {e} %");
+                assert_eq!(ours.engines[e].work_done, f.engines[e].work_done, "{at}: engine {e} work");
+            }
+            assert_eq!(ours.siege_seasons_left, f.siege_seasons_left, "{at}: +0x19C");
             assert_eq!(ours.needs_destination, f.needs_destination, "{at}: idle");
             assert_eq!(ours.dest_county, f.dest_county, "{at}: dest county");
             assert_eq!(ours.path.len(), f.path_len as usize, "{at}: path length");

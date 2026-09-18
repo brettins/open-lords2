@@ -190,7 +190,23 @@ pub struct Unit {
     pub garrison_county: u8,
     pub besieging_county: u8,
     pub besieged_by: u8,
+    /// `+0x182 + e*6` — the three build records, read so an imported besieger
+    /// resumes its build instead of `Siege_BuildTick` (`0x004A8507`) skipping
+    /// every `ordered == 0` record and reporting ready on its first tick.
+    pub engines: [SiegeEngine; UNIT_SIEGE_ENGINES],
     pub siege_seasons_left: u8,
+}
+
+/// One siege engine's build record — three `i16` at `+0x182 + e*6`.
+/// `docs/armies.md` §4; e = 0 catapult, 1 siege tower, 2 battering ram.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct SiegeEngine {
+    /// `+0` — `Siege_BuildTick` skips a record with `ordered == 0`.
+    pub ordered: i16,
+    /// `+2` — `Siege_RecomputeBuildTime` (`0x004A80DB`): `work * 100 / total`.
+    pub percent: i16,
+    /// `+4` — man-seasons done, against `g_siegeEngineWork` (`0x004DE440`).
+    pub work_done: i16,
 }
 
 impl Unit {

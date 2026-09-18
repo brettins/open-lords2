@@ -241,6 +241,18 @@ impl Save {
             garrison_county: self.u8_at(base + 0x198)?,
             besieging_county: self.u8_at(base + 0x199)?,
             besieged_by: self.u8_at(base + 0x19A)?,
+            engines: {
+                let mut e = [SiegeEngine::default(); UNIT_SIEGE_ENGINES];
+                for (n, record) in e.iter_mut().enumerate() {
+                    let at = base + 0x182 + (n * 6) as u32;
+                    *record = SiegeEngine {
+                        ordered: self.i16_at(at)?,
+                        percent: self.i16_at(at + 2)?,
+                        work_done: self.i16_at(at + 4)?,
+                    };
+                }
+                e
+            },
             siege_seasons_left: self.u8_at(base + 0x19C)?,
         })
     }

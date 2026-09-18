@@ -171,14 +171,16 @@ fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError> {
         // `Merchant_SpawnAll` writes once and nothing ever updates.
         defence_mark: if kind.is_combatant() { u.role } else { 0 },
         cargo_county: if kind.is_combatant() { 0 } else { u.role },
-        // The siege build records and the countdown are
-        // yet - the unit block holds them and `l2-formats` does not surface them -
-        // so an imported army starts with no engines ordered. A besieging army
-        // imported mid-build therefore resumes at zero work, which is wrong and
-// is recorded here: it needs the three `+0x16C` words
-        // and the countdown adding to `l2_formats::save`.
-        engines: Default::default(),
-        siege_seasons_left: 0,
+        // `+0x182 + e*6` and `+0x19C`. Defaulted, `Siege_BuildTick`
+        // (`0x004A8507`) skipped every `ordered == 0` record, so `remaining`
+        // was 0 and the first tick reported ready: phase 2 launched the assault
+        // three seasons early. `docs/decisions.md` C235.
+        engines: core::array::from_fn(|e| l2_kingdom::siege::EngineBuild {
+            ordered: u.engines[e].ordered,
+            percent: u.engines[e].percent,
+            work_done: u.engines[e].work_done,
+        }),
+        siege_seasons_left: u.siege_seasons_left,
         // Unit `+0x1A` and `+0x19B` — the AI's mission byte and the county it
         // is about (`l2_kingdom::ai_army::Mission`). **Neither is surfaced by
         // `l2_formats::save`'s unit block yet**, so an imported army starts
