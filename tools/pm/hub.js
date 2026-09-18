@@ -8,6 +8,7 @@ const { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..', '..');
 const work = JSON.parse(fs.readFileSync(path.join(root, 'docs/work.json'), 'utf8'));
 const qs = JSON.parse(fs.readFileSync(path.join(root, 'docs/questions.json'), 'utf8'));
+const feats = JSON.parse(fs.readFileSync(path.join(root, 'docs/features.json'), 'utf8'));
 const status = execFileSync('node', [path.join(__dirname, 'work.js'), '--status'], { encoding: 'utf8' });
 const head = (execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: root, encoding: 'utf8' })).trim();
 const merged = execFileSync('git', ['log', '--merges', '--since=36 hours', '--format=%h %s'], { cwd: root, encoding: 'utf8' })
@@ -39,6 +40,16 @@ const qOpen = open.map((q) => `
 const qDone = answered.map((q) => `<tr><td>${q.q}</td><td>${esc(q.title)}</td><td>${esc(q.answer || '')}</td><td>${esc(q.outcome || '')}</td></tr>`).join('\n');
 const reports = (qs.reports || []).map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.text)}</td><td>${esc(r.outcome || '')}</td></tr>`).join('\n');
 
+const MARK = { done: ['&#10003;', 'done'], partial: ['&#9684;', 'partial'], missing: ['&#10007;', 'missing'], 'not-assessed': ['&#9675;', 'not assessed'], 'out-of-scope': ['&#8212;', 'out of scope'] };
+const byStatus = (list) => Object.keys(MARK).map((k) => [k, list.filter((f) => f.status === k).length]).filter((e) => e[1]);
+const featureTabs = Object.entries(feats.areas).map(([key, name]) => {
+  const list = feats.features.filter((f) => f.area === key);
+  const counts = byStatus(list).map(([k, n]) => `<span class="fc ${k}">${n} ${MARK[k][1]}</span>`).join(' ');
+  const items = list.map((f) => `<li class="f ${esc(f.status)}"><span class="mark" title="${MARK[f.status][1]}">${MARK[f.status][0]}</span><span class="fname">${esc(f.name)}</span>${f.gap ? `<span class="gap">${esc(f.gap)}</span>` : ''}${f.rows && f.rows.length ? `<span class="frows">${f.rows.map(esc).join(', ')}</span>` : ''}</li>`).join('\n');
+  return `<section class="area"><h2>${esc(name)} <span class="counts">${counts}</span></h2><ul class="feats">${items}</ul></section>`;
+}).join('\n');
+const featTotals = byStatus(feats.features).map(([k, n]) => `<div><span>${MARK[k][1]}</span><b>${n}</b></div>`).join('');
+
 const html = `<title>Lords2 Hub</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
 <style>
@@ -67,6 +78,11 @@ td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertic
 th{font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 td:first-child{font-family:var(--mono);font-size:13px;white-space:nowrap}
 .muted{color:var(--muted);font-size:14px}
+.feats{list-style:none;margin:0;padding:0}.f{display:grid;grid-template-columns:22px 1fr;gap:2px 10px;padding:6px 0;border-bottom:1px solid var(--rule);align-items:baseline}
+.mark{font-size:15px;text-align:center}.f.done .mark{color:#2E7D4F}.f.partial .mark{color:var(--ochre)}.f.missing .mark{color:#A03A3A}.f.not-assessed .mark,.f.out-of-scope .mark{color:var(--muted)}
+.fname{font-weight:600}.gap,.frows{grid-column:2;font-size:13px;color:var(--muted)}.frows{font-family:var(--mono);font-size:12px}
+.counts{font-weight:400;letter-spacing:0;text-transform:none;margin-left:8px}.fc{margin-right:8px}.fc.done{color:#2E7D4F}.fc.partial{color:var(--ochre)}.fc.missing{color:#A03A3A}
+.area h2{display:flex;flex-wrap:wrap;align-items:baseline}
 @media (max-width:520px){.q{grid-template-columns:1fr}}
 </style>
 <main>
@@ -74,6 +90,7 @@ td:first-child{font-family:var(--mono);font-size:13px;white-space:nowrap}
 <p class="stamp">main <code>${head}</code>, ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC. Answer questions in chat by number, e.g. <code>Q5</code>.</p>
 <nav role="tablist">
 <button role="tab" id="t-progress" aria-selected="true" aria-controls="p-progress">Progress</button>
+<button role="tab" id="t-features" aria-selected="false" aria-controls="p-features">Features</button>
 <button role="tab" id="t-questions" aria-selected="false" aria-controls="p-questions">Questions${open.length ? ` (${open.length})` : ''}</button>
 <button role="tab" id="t-activity" aria-selected="false" aria-controls="p-activity">Activity</button>
 </nav>
@@ -87,6 +104,12 @@ ${figures.map(([name, f, what]) => `<div><span>${esc(name)}</span><b>${f.n} <spa
 <div class="tw"><table><tr><th>State</th><th>Rows</th><th>Meaning</th></tr>
 ${Object.entries(work.states).map(([s, m]) => `<tr><td>${esc(s)}</td><td>${byState(s).length}</td><td>${esc(m)}</td></tr>`).join('\n')}
 </table></div>
+</section>
+
+<section id="p-features" role="tabpanel" aria-labelledby="t-features" hidden>
+<div class="figs">${featTotals}</div>
+<p class="muted">${feats.features.length} features of the original in ${Object.keys(feats.areas).length} areas, graded in docs/features.json against evidence in the tree. A partial one names its gap and the ledger rows that cover it.</p>
+${featureTabs}
 </section>
 
 <section id="p-questions" role="tabpanel" aria-labelledby="t-questions" hidden>
