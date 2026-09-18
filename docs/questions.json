@@ -15,7 +15,7 @@
       "state": "answered",
       "title": "Soldiers changing places: whole rule vs the auto-resolved yardstick",
       "answer": "auto-resolve weighs troop types; a fought battle has counters (crossbows one-shot knights, waste on peasants), so its verdict is no yardstick for a fought one",
-      "outcome": "The fought check no longer demands the auto-resolve's winner. The whole changing-places rule re-lands at the next seat."
+      "outcome": "Merged: the whole changing-places rule, oracle-checked; the fought check no longer demands the auto-resolve's winner."
     },
     {
       "q": "Q3",
@@ -36,11 +36,13 @@
     {
       "q": "Q5",
       "row": "oracle-advanced-farming",
-      "state": "open",
+      "state": "answered",
       "title": "Two End Turns in a game with Advanced Farming on",
       "inplay": "Advanced Farming is the new-game option that changes how your fields work each season. Every save we have was played with it off, so those farming rules have never been checked against the original.",
       "todo": "Start any new game with Advanced Farming on and play through two End Turns. Nothing else is needed. The game's own autosaves from that point are the two saves one turn apart the End Turn check needs; I will copy them from the install.",
-      "ask": "Reply: Q5 after the second End Turn"
+      "ask": "Reply: Q5 after the second End Turn",
+      "answer": "done 20:57",
+      "outcome": "Three autosaves copied as advfarm-* fixtures; the End Turn check over them is queued."
     },
     {
       "q": "Q6",
