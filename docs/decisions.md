@@ -9888,6 +9888,21 @@ no side test on the walking arm. The archers that walked were as likely the play
 is untouched and still held; what changes is that its premise now has to be re-measured against a
 `begin_fight` that orders nobody.
 
+**Re-measured 2026-09-17, against a save of a battle the player gave no order in.**
+`noorders-start.sav` / `noorders-end.sav`: 52 men against a 129-man county levy, no order, the
+defence held with 60 of its 129. Fought unordered, ours holds it eight times out of eight and
+leaves the defence 47 — `tests/seam/no_orders.rs`. So the held branch's state 17 lands, and the
+premise it was held on is answered from the *AI's* side: of 322 arrows in that battle 83 leave
+state 17, none of them before the first melee casualty, because `Order_ShootAtUnit` sits on
+`UnitOrder_FieldFoot`'s aggressive arm and the AI has to be hit first.
+
+**And the stand-in had to point twice.** One order runs out: state 17 stops a closing archer at
+bow range and `movStraff` holds it there, the unit re-forms on it, and a cautious remnant 40 cells
+away never comes — `engagement::tests` and the seam's fought battle both stood off at 12,000
+ticks. `point_again_for_the_absent_player` re-issues the charge each 100-tick window **at the
+enemy's living centre** rather than at its home marker, which is what a player's clicks do; the
+opening order is unchanged, so no fixture's first frame moved.
+
 **The rule this is under is rule 5, and the failure mode is the one rule 5 exists for.** The
 deviation was *declared* — the module header said `fight` issues *"the one order a player always
 issues"* — and declaring it is what made it invisible. A stand-in for a missing input belongs on
@@ -12415,7 +12430,26 @@ Imported: the three build records at unit `+0x182 + e*6` (three `i16`: ordered, 
 
 `crates/l2-game/tests/differential.rs`: 914 → 927 of 932 agree, 271 → 278 of the 279 fields the original's End Turn moved. Both siege pairs' `realm.strength`, `realm.score` and `realm.wages` rows went and none arrived; siege 12->13 is clean but for the unsimulated `global.ai_lords`. Ablated by measurement in both directions on one tree.
 
-**C236 — C221's mid-battle save refusal is reversed: the original's block table already carries the battle, and now so does ours.**
+**CNEW-moat-slot — C81 said a unit at the ditch walks to "a dry slot beside it". It walks onto the moat.**
+
+`Formation_FindNearbySlot` (`0x0048A38E`, `00480000.c:4077-4081`) opens on
+`if (surface == 2) { g_formationOriginX = targX; g_formationOriginY = targY; return 1; }` —
+a short-circuit ahead of the catapult arm at `:4082` and ahead of the ring search, and the
+one arm C81 never read. `Formation_RectIsClear` (`0x00489F9D`, `:3974`) does reject the
+rectangle for `surface == 2`, which is the half C81 has right; what follows is not a search
+for dry ground but the target cell handed straight back. `Formation_AssignSearchedSlots`
+(`0x00489798`, `:3758`) calls it once per figure and the claim list at `:4118-4121` is only
+written on the loop path, so **every figure of the unit is sent to the same moat cell**, and
+`BattleMan_Step`'s state-9 arm latches the cell it is already standing at rather than one it
+was stopped by.
+
+C81's three findings stand — the flag is `DAT_00553FE4` off the *unit's* destination, the
+handler's tail retargets, the reform gate exists. Only its account of where the figures walk
+is corrected, in `crates/l2-sim/src/runner/orders.rs`.
+
+---
+
+**CNEW-midbattle — C221's mid-battle save refusal is reversed: the original's block table already carries the battle, and now so does ours.**
 
 C221 refused the save because encoding `LiveBattle` was priced at 196 fields over 16 structs. The price stands; the reason to pay it is that `Save_Write` (`0x004ADE93`) does not serialise anything either — it walks `{u32 address, u32 length}` records at `0x004DE960` and writes live memory, and four of the 225 blocks **are** the battle: `g_battlefield` (`0x005440E0`, 51,200 = 80x80x8, block 1), `g_battleMen` (`0x00554480`, 34,992 = 81 x 0x1B0, block 7), the missiles (`0x0057A100`, 7,676 = 101 x 0x4C, block 8) and `g_battleUnits` (`0x00566520`, 4,212 = 81 x 0x34, block 9). **[V]** — all four are all-zero in `battle-before.sav`, saved on the map, and non-zero in `noorders-start.sav` and `fought-start.sav`, saved with the battle screen open; so are `g_battleArmyA` / `g_battleArmyB` (blocks 33 and 34, `0x00568210` / `0x00568218`). A refusal was our format's, not the game's.
 

@@ -119,6 +119,58 @@ pub(super) fn charge_for_the_absent_player(
     }
 }
 
+/// **The stand-in points again, at the men and not at the cell.** C186's charge
+/// is one order, and one order runs out: a closing archer stops at bow range
+/// and `movStraff` holds it (`BattleMan_StateCloseToAttack`, `0x00484BF9`), so
+/// the unit re-forms on it and the last enemy remnant — cautious, out of its
+/// own charge radius — never comes. The opening order stays the enemy's home
+/// so that no fixture's first frame moves; this one follows the survivors, as a
+/// player's clicks do. `[I]`, C186.
+pub(super) fn point_again_for_the_absent_player(
+    kingdom: &Kingdom,
+    runner: &mut BattleRunner,
+    attacker: usize,
+    defender: usize,
+) {
+    let human = |id: usize| kingdom.campaign.units.get(id).is_some_and(|u| u.owner_is_human);
+    for (side, id) in [(SIDE_B, attacker), (SIDE_A, defender)] {
+        if !human(id) {
+            continue;
+        }
+        // **Nothing in the binary re-orders a human unit.** The whole order
+        // table sits inside `Battle_UpdateAllUnits`'s `if (humanControlled ==
+        // 0)` (`0x00489401`, `00480000.c:3640-3654`); only the recentre and the
+        // 500-frame reform at `:3655-3662` run outside it, and the reform reads
+        // the destination this stand-in has to write.
+        //
+        // At the nearest enemy **unit**, per unit of ours: that is what the
+        // handlers behind that guard point at. `UnitOrder_FieldMissile`
+        // (`0x0048A9D2`, `:4294`) and `UnitOrder_FieldMelee` (`0x0048B02B`,
+        // `:4502`) both take `Enemy_NearestUnit`'s unit; none of them orders at
+        // a centre of mass.
+        let mine: Vec<usize> =
+            runner.units.live().filter(|&u| runner.units.get(u).side == side).collect();
+        for u in mine {
+            let (mx, my) = (runner.units.get(u).x, runner.units.get(u).y);
+            let at = runner
+                .units
+                .live()
+                .filter(|&e| runner.units.get(e).side != side)
+                .min_by_key(|&e| {
+                    let t = runner.units.get(e);
+                    (t.x - mx).abs() as i32 + (t.y - my).abs() as i32
+                })
+                .map(|e| {
+                    let t = runner.units.get(e);
+                    (t.x.clamp(0, 79) as u8, t.y.clamp(0, 79) as u8)
+                });
+            if let Some(at) = at {
+                runner.order_unit(u, at.0, at.1);
+            }
+        }
+    }
+}
+
 /// `FUN_0047F474` rebuilds both campaign records from the figures still
 /// standing, and the winner is the side the conclusion names. The stall arm is
 /// ours — the original has no clock — and it is a separate [`Resolution`]

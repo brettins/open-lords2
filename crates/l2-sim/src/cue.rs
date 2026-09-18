@@ -26,6 +26,10 @@ pub struct Cues {
     missile_casualties: [u32; 2],
     missile_deaths: u32,
     loosed: [u32; 3],
+    /// **State 17 loosed its own missile**, `[bow, crossbow]` —
+    /// `BattleMan_StateCloseToAttack` (`0x00484BF9`), a call site apart from
+    /// `BattleMan_FireMissile`'s.
+    closing_loosed: [u32; 2],
     walls_struck: u32,
     walls_missed: u32,
     /// `Wall_Smash` (`FUN_0049694F`) opened a stretch of wall.
@@ -80,6 +84,15 @@ impl Cues {
     pub fn loosed(&self, class: WeaponClass) -> u32 {
         self.loosed[class.index() as usize - 1]
     }
+    /// State 17's own loose. Zero for [`WeaponClass::Catapult`]: the handler
+    /// only sounds for class 2 and class 1.
+    pub fn closing_loosed(&self, class: WeaponClass) -> u32 {
+        match class {
+            WeaponClass::Bow => self.closing_loosed[0],
+            WeaponClass::Crossbow => self.closing_loosed[1],
+            WeaponClass::Catapult => 0,
+        }
+    }
     pub fn walls_struck(&self) -> u32 {
         self.walls_struck
     }
@@ -110,6 +123,7 @@ impl Cues {
             missile_casualties: [1; 2],
             missile_deaths: 1,
             loosed: [1; 3],
+            closing_loosed: [1; 2],
             walls_struck: 1,
             walls_missed: 1,
             walls_smashed: 1,
@@ -129,6 +143,7 @@ impl Cues {
             .chain(self.missile_hits.iter().zip(&earlier.missile_hits))
             .chain(self.missile_casualties.iter().zip(&earlier.missile_casualties))
             .chain(self.loosed.iter().zip(&earlier.loosed))
+            .chain(self.closing_loosed.iter().zip(&earlier.closing_loosed))
             .chain(self.burn_deaths.iter().zip(&earlier.burn_deaths))
             .chain([
                 (&self.missile_deaths, &earlier.missile_deaths),
@@ -172,6 +187,13 @@ impl Cues {
     }
     pub(crate) fn loose(&mut self, class: WeaponClass) {
         bump(&mut self.loosed[class.index() as usize - 1]);
+    }
+    pub(crate) fn closing_loose(&mut self, class: WeaponClass) {
+        match class {
+            WeaponClass::Bow => bump(&mut self.closing_loosed[0]),
+            WeaponClass::Crossbow => bump(&mut self.closing_loosed[1]),
+            WeaponClass::Catapult => {}
+        }
     }
     pub(crate) fn wall_struck(&mut self) {
         bump(&mut self.walls_struck);

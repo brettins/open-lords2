@@ -138,20 +138,21 @@ the verdicts a reader wants:
 
 | status | sites | means |
 |---|---:|---|
-| `reproduced` | **89** | we fire it; a `// sfx:` marker is on the line |
-| `blocked` | **19** | the mechanic behind it is not built, and `note` **names** it |
-| `missing` | **31** | reachable and unwired — no excuse, just not done |
-| `dead` | **4** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
+| `reproduced` | **124** | we fire it; a `// sfx:` marker is on the line |
+| `blocked` | **7** | the mechanic behind it is not built, and `note` **names** it |
+| `missing` | **7** | reachable and unwired — no excuse, just not done |
+| `dead` | **5** | the shipped game cannot reach it; `note` is the evidence and `docs/bugs.md` has the entry |
 
-**Four are dead, and this section used to say none were.** `tests/sfx.rs` asserted
+**Five are dead, and this section used to say none were.** `tests/sfx.rs` asserted
 the `dead` list empty *so that the first entry costs a decision*, and these are that
-decision — it now pins them by name, so the fifth costs the same:
+decision — it now pins them by name, so the sixth costs the same:
 
 | id | why it cannot run | `docs/bugs.md` |
 |---|---|---|
 | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller** — zero rel32 calls, zero jumps, zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 | `Battle_PauseButton#1` | guarded `== 1` on a word that alternates between 0 and −1; the one writer that could make it 1, `FUN_00434E68`, is unreferenced too | D38 |
 | `FUN_004b39e8#1` | the degraded castle's three lines, `S075_02/03/04` — the thunk that plays them has no caller either, by the same scan, with its own sibling `FUN_004B3714` (one rel32 caller, inside `Sidebar_Button`) as the near control | **D40** |
+| `FUN_0047fe0b#1` | **in single player.** `Realm_Eliminate`, its one caller, has three call sites: two behind `g_multiplayer != 0`, and one in `FUN_0049CEBE`, which nothing references. A network game reaches it when a peer leaves mid-battle — the session layer our netcode replaces | `DNEW-midbattle` |
 
 **The third was already on the bug list, and this file had it as `missing`.** The
 assertion of emptiness is what kept it there: the inventory could not say what the
@@ -177,8 +178,10 @@ with no path.
 | a channel from a click to the audio layer (the field brush) | 5 | 3 |
 | the battle verdict (`ff_lose.wav`) | 2 | 1 |
 | the two delegated message painters (categories `0x0C`, `0x14`) | 2 | 0 — both `ff_msg.wav` |
-| state 17's own loose — `BattleMan_StateCloseToAttack` ×2 | 2 | 0 — the bow and crossbow already sound from state 5 |
-| a realm eliminated mid-battle — `FUN_0047FE0B` | 1 | 0 — `deadguy4.wav` already sounds |
+
+**State 17's own loose left this table too** — `BattleMan_StateCloseToAttack` ×2, both
+`reproduced`, no new file: the bow and crossbow already sound from state 5. And
+`FUN_0047FE0B`, a realm eliminated mid-battle, left it for `dead`.
 
 **Four rows left this table together**: battlefield fire (`BattleMan_BurnTick` ×2 and the
 bridge fire `FUN_0048551D`), boiling oil (`FUN_0047A814`), a siege tower docking

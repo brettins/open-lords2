@@ -245,12 +245,72 @@ function callsIn(fn) {
   // the name and its parenthesis meet. Comments are already gone, so this
   // cannot join a line into a `//` that would then swallow it.
   const joined = stripped.join('\n').replace(/\n\s*(?=\()/g, '').split('\n');
+  // **The scan runs over the whole body, not line by line, and it must not
+  // change what is counted.** The per-line version matched `\bname\s*\(`, and
+  // within one line `\s` can only be a space or a tab — so `[ \t]*` over the
+  // joined document finds exactly the same call sites, and `--check` confirms
+  // the totals did not move. What the document-wide form buys is the
+  // **argument list**: `tools/draws/drawcoords.js` needs the coordinates, and
+  // a call's arguments routinely run past the end of its own line.
+  const doc = joined.join('\n');
+  const starts = [0];
+  for (let i = 0; i < doc.length; i++) if (doc[i] === '\n') starts.push(i + 1);
+  const lineOf = off => {
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= off) lo = mid; else hi = mid - 1; }
+    return lo;
+  };
   const out = [];
-  joined.forEach((text, i) => {
-    if (!text.trim()) return;
-    let m; CALL.lastIndex = 0;
-    while ((m = CALL.exec(text))) out.push({ line: i, name: m[1], text: text.trim() });
-  });
+  const DOC_CALL = /\b([A-Za-z_][A-Za-z0-9_]*)[ \t]*\(/g;
+  let m;
+  while ((m = DOC_CALL.exec(doc))) {
+    const i = lineOf(m.index);
+    out.push({ line: i, name: m[1], text: joined[i].trim(), args: splitArgs(balanced(doc, m.index + m[0].length - 1)) });
+  }
+  return out;
+}
+
+/**
+ * The text between a `(` at `open` and its matching `)`, or `null` if the
+ * parenthesis never closes. Character and string literals are skipped, because
+ * the decompiler writes `Ui_DrawNumber(v,' ',"%",…)` and both `','` and a `"("`
+ * would otherwise throw the depth count off.
+ */
+function balanced(s, open) {
+  let depth = 0;
+  for (let i = open; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\') { i++; continue; }
+    if (c === '"' || c === "'") {
+      const q = c;
+      for (i++; i < s.length && s[i] !== q; i++) if (s[i] === '\\') i++;
+      continue;
+    }
+    if (c === '(') depth++;
+    else if (c === ')') { if (--depth === 0) return s.slice(open + 1, i); }
+  }
+  return null;
+}
+
+/** Top-level commas only — `f(a, g(b, c), d)` is three arguments, not four. */
+function splitArgs(s) {
+  if (s === null) return null;
+  const out = [];
+  let depth = 0, start = 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === '\\') { i++; continue; }
+    if (c === '"' || c === "'") {
+      const q = c;
+      for (i++; i < s.length && s[i] !== q; i++) if (s[i] === '\\') i++;
+      continue;
+    }
+    if (c === '(' || c === '[' || c === '{') depth++;
+    else if (c === ')' || c === ']' || c === '}') depth--;
+    else if (c === ',' && depth === 0) { out.push(s.slice(start, i).trim()); start = i + 1; }
+  }
+  const tail = s.slice(start).trim();
+  if (tail || out.length) out.push(tail);
   return out;
 }
 function lookup(n) {
@@ -402,37 +462,66 @@ const REAL_EXTRA = /\b[a-z_0-9]+\.(draw|draw_centred|draw_right|draw_system|draw
 const LITERAL = /\b(text::draw|text::draw_centred|text::draw_right|widget::button|widget::label)\s*\([^;]*?"([A-Za-z][^"]*)"/g;
 
 function ourKinds(moduleFile) {
-  const p = path.join(SCREENS_DIR, moduleFile);
-  if (!fs.existsSync(p)) return null;
+  const files = moduleFiles(moduleFile);
+  if (!files) return null;
   let real = 0, placeholder = 0;
   const literals = [];
-  fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
-    if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;
-    let m;
-    OURS_CALL.lastIndex = 0;
-    while ((m = OURS_CALL.exec(l))) if (!NOT_OURS.has(m[1]) && OURS.has(m[1])) real++;
-    REAL_EXTRA.lastIndex = 0; while (REAL_EXTRA.exec(l)) real++;
-    PLACEHOLDER.lastIndex = 0; while (PLACEHOLDER.exec(l)) placeholder++;
-    LITERAL.lastIndex = 0;
-    while ((m = LITERAL.exec(l))) literals.push({ line: i + 1, text: m[2] });
-  });
+  for (const { file, path: p } of files) {
+    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
+      if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;
+      let m;
+      OURS_CALL.lastIndex = 0;
+      while ((m = OURS_CALL.exec(l))) if (!NOT_OURS.has(m[1]) && OURS.has(m[1])) real++;
+      REAL_EXTRA.lastIndex = 0; while (REAL_EXTRA.exec(l)) real++;
+      PLACEHOLDER.lastIndex = 0; while (PLACEHOLDER.exec(l)) placeholder++;
+      LITERAL.lastIndex = 0;
+      while ((m = LITERAL.exec(l))) literals.push({ file, line: i + 1, text: m[2] });
+    });
+  }
   return { real, placeholder, literals };
 }
 
 const SCREENS_DIR = path.join(__dirname, '..', '..', 'crates', 'l2-game', 'src', 'screens');
+
+/**
+ * A record's `module` names one screen's source, and since the split that is a
+ * **directory** as often as a file: `county.rs` became `county/{mod,layout,…}.rs`
+ * and `county/draw/*.rs`. Resolving one name to every `.rs` under it is what
+ * keeps the record a claim about a screen rather than about a filename — the
+ * alternative, nineteen records renamed to `county/mod.rs`, would have counted
+ * one file of five. Returns `null` when nothing of that name exists, which is
+ * what `--check` reports.
+ */
+function moduleFiles(mod) {
+  const root = path.join(SCREENS_DIR, mod);
+  if (!fs.existsSync(root)) return null;
+  if (!fs.statSync(root).isDirectory()) return [{ file: mod, path: root }];
+  const out = [];
+  (function walk(d, rel) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : 1)) {
+      const p = path.join(d, e.name), r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(p, r);
+      else if (e.name.endsWith('.rs')) out.push({ file: `${mod}/${r}`, path: p });
+    }
+  })(root, '');
+  return out;
+}
+
 const OURS_CALL = /\b[a-z_][a-z_0-9]*\.([a-z_][a-z_0-9]*)\s*\(/g;
 function ourSites(moduleFile) {
-  const p = path.join(SCREENS_DIR, moduleFile);
-  if (!fs.existsSync(p)) return null;
+  const files = moduleFiles(moduleFile);
+  if (!files) return null;
   const sites = [];
-  fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
-    if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;   // a comment, including `//!` docs
-    let m; OURS_CALL.lastIndex = 0;
-    while ((m = OURS_CALL.exec(l))) {
-      if (NOT_OURS.has(m[1])) continue;
-      if (OURS.has(m[1])) sites.push({ line: i + 1, name: m[1], text: l.trim() });
-    }
-  });
+  for (const { file, path: p } of files) {
+    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
+      if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;   // a comment, including `//!` docs
+      let m; OURS_CALL.lastIndex = 0;
+      while ((m = OURS_CALL.exec(l))) {
+        if (NOT_OURS.has(m[1])) continue;
+        if (OURS.has(m[1])) sites.push({ file, line: i + 1, name: m[1], text: l.trim() });
+      }
+    });
+  }
   return sites;
 }
 
@@ -490,7 +579,7 @@ function checkCounts() {
         `but ${rec.roots.join(' + ')} makes ${o} draw calls.\n` +
         `  run: node tools/draws/screendraws.js --write`);
     }
-    if (rec.module && !fs.existsSync(path.join(SCREENS_DIR, rec.module))) {
+    if (rec.module && !moduleFiles(rec.module)) {
       bad++;
       console.error(`screendraws: ${rec.screen} names module ${rec.module}, which does not exist`);
     }
@@ -532,7 +621,7 @@ function main() {
     }
     console.log(`=== ${rec.screen} ${rec.name} — ours (${rec.module || 'no module'})`);
     for (const s of (rec.module ? ourSites(rec.module) || [] : [])) {
-      console.log(`  ${rec.module}:${s.line}  ${s.name}  — ${OURS.get(s.name)}`);
+      console.log(`  ${s.file}:${s.line}  ${s.name}  — ${OURS.get(s.name)}`);
     }
     const k = rec.module ? ourKinds(rec.module) : null;
     if (k) {
@@ -610,8 +699,13 @@ function main() {
 
 /** Every screen module, whether or not the inventory has reached it yet. */
 function allModules() {
-  return fs.readdirSync(SCREENS_DIR).filter(f => f.endsWith('.rs') && f !== 'mod.rs');
+  return fs.readdirSync(SCREENS_DIR, { withFileTypes: true })
+    .filter(e => e.isDirectory() || (e.name.endsWith('.rs') && e.name !== 'mod.rs'))
+    .map(e => e.name);
 }
-module.exports = { originalSites, ourSites, ourKinds, allModules, inventory, OURS, LEAF };
+module.exports = {
+  originalSites, ourSites, ourKinds, allModules, moduleFiles, inventory, OURS, LEAF,
+  balanced, splitArgs, corpusLoaded: () => byName.size > 0,
+};
 
 if (require.main === module) main();

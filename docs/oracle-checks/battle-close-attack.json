@@ -1,0 +1,26 @@
+{
+  "reviewed": "ce88b50cd3991008fe8112e253fe4ca090e66f29",
+  "date": "2026-09-17",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 7, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 37, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 51, "address": "0x00484BF9", "verdict": "departure", "note": "[I] re-runs Missile_FindTarget for a cell-aimed volley; :1999 has no reacquisition" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 57, "address": "0x00484BF9", "verdict": "departure", "note": "[D] progress.free stands in for stepFlags&1 (and for &2 on the no-target arm)" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 62, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 83, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 96, "address": "0x00484BF9", "verdict": "mismatch", "note": "aiming arm sets Motion::Idle; :2106 ends the arm with Anim_DrawBow() every tick" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 104, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 117, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 131, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 138, "address": "0x00479E90", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 252, "address": "0x00489F9D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 461, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 639, "address": "0x00484BF9", "verdict": "departure", "note": "[D] battle tick stands in for Gtime DAT_0057C998 in the blocked seed" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 689, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 819, "address": "0x00492C8B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 898, "address": "0x00492C8B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/audio/events.rs", "line": 162, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/ai/world/methods.rs", "line": 29, "address": "0x00479E90", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/engagement/fight/fight_session.rs", "line": 129, "address": "0x00484BF9", "verdict": "departure", "note": "[I] C186 stand-in re-points at the enemy's living centre; the original has no such order" }
+  ]
+}

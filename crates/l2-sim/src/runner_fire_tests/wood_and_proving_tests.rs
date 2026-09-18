@@ -196,7 +196,8 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
         plain.step();
     }
     assert!(!plain.wood_fire, "no targetCell, no fire arrow");
-    assert!(plain.sim.cues.loosed(WeaponClass::Bow) > 0, "though the archer shot");
+    // State 17's own loose, not `BattleMan_FireMissile`'s.
+    assert!(plain.sim.cues.closing_loosed(WeaponClass::Bow) > 0, "though the archer shot");
 }
 
 /// **A shot a launch step removed is silent.** `BattleMan_FireMissile`
@@ -258,4 +259,34 @@ fn a_volley_from_state_seventeen_raises_the_units_firing_byte() {
         seen = seen.max(r.units.get(unit).firing);
     }
     assert_eq!(seen, 0x78, "120 frames, raised the frame the arrow leaves");
+}
+
+/// `BattleMan_StateCloseToAttack` (`0x00484BF9`, `00480000.c:2053` and
+/// `:2055-2056`): the man's own `+0x182` beside the unit's `+0x0F`, and the
+/// unit's `targX`/`targY` pinned to **the shooter's own cell**.
+///
+/// Ablation: drop `loose_from`'s `self.sim.figures[sim].firing` write and
+/// `firing` stays 0; drop `close_to_attack_tick`'s `target_x`/`target_y` write
+/// and the destination stays the (40, 58) `Order_StopShortOfTarget` left it at.
+#[test]
+fn a_volley_from_state_seventeen_marks_the_man_and_moves_the_units_destination() {
+    let (mut r, unit, archer) = a_player_archer_and_a_man_in_the_wood();
+    let sim = r.fighters[archer].sim;
+    // Far enough that the pulled-back destination is not the archer's own cell.
+    r.order_full(unit, 40, 70, None, true, Formation::Keep);
+    let here = (r.fighters[archer].x as i16, r.fighters[archer].y as i16);
+    let ordered = {
+        let u = r.units.get(unit);
+        (u.target_x, u.target_y)
+    };
+    assert_ne!(ordered, here, "the order starts somewhere else");
+
+    let mut firing = 0u8;
+    for _ in 0..600 {
+        r.step();
+        firing = firing.max(r.sim.figures[sim].firing);
+    }
+    assert_eq!(firing, crate::unit::FIRING, "0x78 the frame the arrow leaves");
+    let u = r.units.get(unit);
+    assert_eq!((u.target_x, u.target_y), here, "the shooter's cell, not {ordered:?}");
 }

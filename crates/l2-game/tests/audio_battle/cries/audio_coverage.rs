@@ -16,7 +16,7 @@ use l2_sim::runner::{Army, BattleRunner};
 use l2_sim::{Cues, Troop, SIDE_A, SIDE_B};
 
 #[test]
-fn the_battle_ladder_is_twenty_two_calls_and_seventeen_files() {
+fn the_battle_ladder_is_twenty_four_calls_and_seventeen_files() {
     let every = Cues::of_every_occasion();
     let asked = audio::battle_requests(&Cues::default(), &every);
     assert_eq!(
@@ -40,6 +40,10 @@ fn the_battle_ladder_is_twenty_two_calls_and_seventeen_files() {
             Request::Slot(9),
             Request::Slot(7),
             Request::Slot(0xe),
+            // State 17's two sites add two calls and no file — the bow and the
+            // crossbow already sounded from `BattleMan_FireMissile`.
+            Request::Slot(9),
+            Request::Slot(7),
             Request::File("bathit2.wav"),
             Request::Slot(3),
             Request::Slot(0x11),

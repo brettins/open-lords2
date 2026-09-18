@@ -152,6 +152,7 @@ impl BattleRunner {
             }
         }
         self.pour_on_order(unit, x as i16, y as i16);
+        self.clear_straff(unit);
         self.reform_unit(unit);
     }
 
@@ -480,14 +481,20 @@ impl BattleRunner {
         for u in ordered {
             let (tx, ty) = (self.units.get(u).target_x, self.units.get(u).target_y);
             self.pour_on_order(u, tx, ty);
+            // The AI's action routines reach the figures through
+            // `BattleUnit_Order`, which clears `movStraff` before it reforms.
+            self.clear_straff(u);
             self.reform_unit(u);
         }
         for u in reform {
             self.reform_unit(u);
         }
 
+        // `Battle_UpdateAllMen` (`0x004822ED`): `targeted` `:893-894` and
+        // `firing` `:896-897`, each counted down to zero.
         for f in self.sim.figures.iter_mut() {
             f.targeted = f.targeted.saturating_sub(1);
+            f.firing = f.firing.saturating_sub(1);
         }
 
         self.humans_in_woods = 0;

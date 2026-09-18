@@ -388,6 +388,12 @@ is cheaper and fires on ordinary work:
 
 1. **`screendraws.js --check`**: the stored count against the binary.
 2. **`figures.js --check`**: the quoted count against the stored one.
+2b. **`drawcoords.js --check`**: *where* a draw lands, against `docs/draw-coords.json` —
+   the counts and the near misses, run by
+   `crates/l2-testkit/tests/draw_coords.rs::our_coordinates_are_the_originals`. It pairs a
+   literal `(x, y)` of ours with the original's inside one family (a box, a sheet frame,
+   glyphs) and reports anything within 24 px that does not agree. Ablation: `FROM_AT` in
+   `screens/supplies/mod.rs` from `0x9E` to `0x9C` reports `supplies/screen.rs:239 … 2 px out`.
 3. **The `L2.eng` check** in `crates/l2-game/tests/shell/main.rs`: every `(group, index)` a
    screen's named constants declare exists in the player's own `L2.eng`.
 4. **The font split**, printed with the count and never typed.
