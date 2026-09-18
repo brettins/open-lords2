@@ -84,7 +84,8 @@ pub const UNIT_RECORDS: usize = 151;
 /// at `+0x182` immediately before a battle. `docs/armies.md` §1.3.
 pub const UNIT_TROOP_SLOTS: usize = 11;
 
-/// `+0x182 + e*6` — catapult, siege tower, battering ram. `docs/armies.md` §4.
+/// `+0x182 + e*6` — catapult, siege tower, battering ram. `docs/armies.md` §4;
+/// the count is `local_8 < 3` in `Siege_BuildTick` `0x004A8507` (004a0000.c:3520).
 pub const UNIT_SIEGE_ENGINES: usize = 3;
 
 /// `+0x1D … +0x148` — 150 `(x, y)` pairs, and `+0x1D + 150 × 2 = +0x149`, the

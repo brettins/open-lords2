@@ -58,7 +58,7 @@
       "state": "answered",
       "title": "Relaunch the stopped siege-army work",
       "answer": "a",
-      "outcome": "Queued for the next free seat from its handoff."
+      "outcome": "Merged: the siege residual was a defaulted save import, not an AI or battle rule; the End Turn check went from 271 to 278 of 279 fields."
     },
     {
       "q": "Q8",

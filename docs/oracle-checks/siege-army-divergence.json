@@ -1,0 +1,34 @@
+{
+  "reviewed": "14e61840808c37e9df2498f3ffb5e2b3680f05e0",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-formats/src/save/types.rs",
+      "line": 203,
+      "address": "0x004A80DB",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/save/types.rs",
+      "line": 196,
+      "address": "0x004A8507",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-scenario/src/loader/units.rs",
+      "line": 178,
+      "address": "0x004A8507",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-scenario/src/loader/units.rs",
+      "line": 183,
+      "address": "0x004A8507",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

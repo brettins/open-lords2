@@ -241,6 +241,8 @@ impl Save {
             garrison_county: self.u8_at(base + 0x198)?,
             besieging_county: self.u8_at(base + 0x199)?,
             besieged_by: self.u8_at(base + 0x19A)?,
+            // `Siege_BuildTick` `0x004A8507` 004a0000.c:3533-3535: shorts at 0x52f232/34/36,
+            // stride 6, three records; 0x52f232 - g_units 0x52f0b0 = 0x182.
             engines: {
                 let mut e = [SiegeEngine::default(); UNIT_SIEGE_ENGINES];
                 for (n, record) in e.iter_mut().enumerate() {

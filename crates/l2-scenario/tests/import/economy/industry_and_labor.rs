@@ -208,12 +208,11 @@ fn every_saved_industry_forecast_is_what_its_own_records_workers_make() {
     let mut discriminating = 0usize;
     for f in l2_testkit::saves!() {
         let s = &f.save;
-        assert_eq!(
-            s.globals().unwrap().opt_advanced_farming,
-            0,
-            "{}: Advanced Farming is on, so the flat 80 below is not the rule",
-            f.label()
-        );
+        // Advanced Farming is on in advfarm-*.sav (2026-09-17): the flat 80 below is
+        // not that rule; row advfarm-differential finds it.
+        if s.globals().unwrap().opt_advanced_farming != 0 {
+            continue;
+        }
         let scenario = Scenario::from_save(s).expect("import");
         let kingdom = scenario.kingdom(1);
         for id in 1..17usize {
