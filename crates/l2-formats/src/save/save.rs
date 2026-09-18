@@ -241,6 +241,10 @@ impl Save {
             garrison_county: self.u8_at(base + 0x198)?,
             besieging_county: self.u8_at(base + 0x199)?,
             besieged_by: self.u8_at(base + 0x19A)?,
+            // `Ai_RunMission` `0x004A57AC` 004a0000.c:2289 reads `+0x1A`;
+            // `Ai_MissionAssistAlly` `0x004A599D` 004a0000.c:2357 reads `+0x19B`.
+            mission: self.u8_at(base + 0x1A)?,
+            mission_county: self.u8_at(base + 0x19B)?,
             // `Siege_BuildTick` `0x004A8507` 004a0000.c:3533-3535: shorts at 0x52f232/34/36,
             // stride 6, three records; 0x52f232 - g_units 0x52f0b0 = 0x182.
             engines: {
