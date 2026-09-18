@@ -28,7 +28,7 @@ impl Settings {
     /// | `realm.gold` from the crowns row, `iron`/`wood`/`stone` = 50 | yes |
     /// | `realm.weapons` from the armoury row, `+ difficulty * 20` mail for an AI | yes |
     /// | the start county's `castleType` from the castle row | yes |
-    /// | realms past the lord count get `strength = 0` and no county | yes |
+    /// | realms past the lord count get `strength = 0` and no county — but keep `countyCount`/`peakCounties` 1 | yes |
     /// | `Army_Create` for the starting garrison | yes — see the arm below |
     /// | seating the realms from the map's player-start table | **no** — the save already seats them |
     pub fn apply_to(&self, game: &mut Game) {
@@ -71,11 +71,24 @@ impl Settings {
         for id in 1..MAX_REALMS {
             if dropped[id] {
                 let realm = &mut game.kingdom.realms[id];
+                // `strength = 0` (`+0x04`) and `lord = 0` (`+0x07`) are
+                // `Realms_AssignLords`' (`0x0049CAAA`) own writes for an
+                // unbudgeted realm (`00490000.c:5807`, `:5842`).
+                // `+0x29`/`+0x2A` are **not**: its tail loop writes 1 into
+                // both for every realm 1 … 5 (`00490000.c:5800-5801`), and
+                // `Game_SetupRealmsAndCounties` skips the realm entirely
+                // (`:5491`), so zeroing them here was ours alone.
                 realm.strength = 0;
                 realm.in_play = false;
                 realm.lord = 0;
-                realm.county_count = 0;
-                realm.gold = 0;
+                realm.county_count = 1;
+                realm.peak_counties = 1;
+                // Gold is left. `FUN_0049C995` (`00490000.c:5719`) wrote
+                // `g_startingGoldChosen` into all of 1 … 5 when the lobby was
+                // entered — *before* `Setup_CommitOptions` (`0x00499DC3`) set
+                // it — so the original's value here is the previous game's,
+                // 0 in a fresh process. A new `Game` is built per game, so
+                // ours is 0. [I]
                 continue;
             }
             let realm = &mut game.kingdom.realms[id];
