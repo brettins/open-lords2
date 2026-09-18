@@ -10,6 +10,8 @@ mod battle;
 pub use battle::*;
 mod no_orders;
 pub use no_orders::*;
+mod no_orders_field;
+pub use no_orders_field::*;
 mod realm;
 pub use realm::*;
 

@@ -71,11 +71,22 @@ fn the_position(save: &Save) -> (Kingdom, usize, usize) {
     (k, attacker, defender)
 }
 
-struct Fight {
-    attacker: (i32, i32),
-    defender: (i32, i32),
-    attacker_won: bool,
-    ticks: u32,
+/// The same roster as a muster: `Battle_InitArmies` (`0x0047EFEE`) raises a
+/// side from `g_units` `+0x16C + t*2`, and the campaign record carries seven of
+/// the eleven troop words.
+fn muster(save: &Save, slot: usize) -> Vec<(Troop, u32)> {
+    let (troops, _) = roster(save, slot);
+    (0..TROOP_TYPES)
+        .filter(|&t| troops[t] > 0)
+        .map(|t| (l2_sim::ALL_TROOPS[t], troops[t] as u32))
+        .collect()
+}
+
+pub struct Fight {
+    pub attacker: (i32, i32),
+    pub defender: (i32, i32),
+    pub attacker_won: bool,
+    pub ticks: u32,
     /// Closing loosings by class before the first melee casualty of the
     /// battle — state 17's own shot, `BattleMan_StateCloseToAttack`.
     closing_before_contact: (u32, u32),
@@ -88,12 +99,24 @@ struct Fight {
 /// through `charge_for_the_absent_player`; the player of `noorders-start.sav`
 /// issued none, so the loop is driven here without it. Everything else is
 /// `fight`'s: `begin_fight`, run to a conclusion, `conclude_fight`.
-fn fight_unordered(save: &Save, seed: u64) -> Fight {
+///
+/// `on` stands in for the field `begin_fight` builds. Nothing publishes
+/// `batfield.pl8` into this test binary, so `batfield::field_frame` falls back
+/// to [`l2_sim::runner::blank_field`] and `None` is that blank ground.
+pub fn fight_unordered(save: &Save, seed: u64, on: Option<l2_sim::Battlefield>) -> Fight {
     let (mut k, attacker, defender) = the_position(save);
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (a0, d0) = (before(&k, attacker), before(&k, defender));
-    let mut runner =
-        engagement::begin_fight(&mut k, attacker, defender, None, seed).expect("a field");
+    let (a, d) = (muster(save, ARMY), muster(save, LEVY));
+    let mut runner = match on {
+        Some(field) => l2_sim::runner::BattleRunner::deploy_muster(
+            field,
+            seed,
+            l2_sim::runner::Muster { troops: &a, owner: 1, human: true },
+            l2_sim::runner::Muster { troops: &d, owner: 6, human: false },
+        ),
+        None => engagement::begin_fight(&mut k, attacker, defender, None, seed).expect("a field"),
+    };
 
     let (mut closing, mut standing) = ((0, 0), (0, 0));
     let mut contact = false;
@@ -181,6 +204,7 @@ fn the_position_the_player_gave_no_order_in_is_held_by_the_defence() {
             fight_unordered(
                 &start,
                 l2_sim::runner::DEFAULT_SEED.wrapping_add(i.wrapping_mul(0x9E37_79B9)),
+                None,
             )
         })
         .collect();
@@ -222,6 +246,8 @@ fn the_position_the_player_gave_no_order_in_is_held_by_the_defence() {
     // `close_to_attack_tick`'s loose arm and this is 0 on every seed. Not
     // every seed reaches it: `Battle_Start`'s lane draw (`0x004778A0`,
     // 00470000.c:3060) sends the defence to a different end of the field, and
-    // on two of the four lanes the two sides meet without a closing shot.
+    // on two of the four lanes the two sides meet without a closing shot. The
+    // lane the original dealt here was 3 — `no_orders_field`, which fights it
+    // on the frame the save names and reaches the save's 60.
     assert!(fights.iter().any(|f| f.closing.0 > 0), "no arrow ever left state 17");
 }

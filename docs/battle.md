@@ -411,6 +411,18 @@ Which side is the *attacker* is a separate question and is **not settled here**.
 piece of evidence: in a siege, army B (side 0) is the side raised by
 `Battle_RaiseSideSiege`, the castle-aware path — so army B is the defender. **[I]**
 
+#### A save taken during a battle names the frame it is being fought on
+
+**[V]** The *n*-th unit of a side is created standing on that side's *n*-th deploy marker,
+so unit `+0x04` (firstFigure) resolved through figure `+0x20`/`+0x22` is a marker cell of
+the `batfield.pl8` frame. `g_battleUnits` (block 9) and `g_battleMen` (block 7) are both
+saved, so a save taken with a battle up carries seven or so of those cells — and in
+`noorders-start.sav` **exactly one of the 48 frames carries all seven**, frame 17. The
+playlist cursor `DAT_005653F8` is not saved, so this is the only way back to the frame.
+`g_battleApproachLane` (`0x0056D6B0`) and `g_battleRallyGroup` (`0x0053F654`) *are* saved,
+as their own 4-byte blocks (92 and 93): that save holds 3 and 1.
+`crates/l2-game/tests/seam/no_orders_field.rs` does the search and fights the result.
+
 ### 4.4 Where a skirmish army comes from
 
 **[V]** `Skirmish_Setup` sets army A = campaign unit 1 and army B = unit 2, loads
