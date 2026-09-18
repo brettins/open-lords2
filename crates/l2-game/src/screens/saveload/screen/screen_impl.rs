@@ -35,6 +35,12 @@ impl Screen for SaveLoadScreen {
         if self.working > 0 {
             self.working -= 1;
             if self.working == 0 {
+                // `g_redrawRequest = 2`, the statement after `SaveLoad_Tick`'s
+                // three `g_screenId` arms (`0x004AD9F0`). Without it a
+                // `Transition::Stay` marks nothing dirty and the box keeps the
+                // frame the count ran under — group 40 index 3, *"Saving game.
+                // Please wait."* — so a refused save reads as a hang.
+                self.redraw = true;
                 return self.confirm(ctx);
             }
         }
@@ -46,7 +52,7 @@ impl Screen for SaveLoadScreen {
     }
 
     fn take_redraw(&mut self) -> bool {
-        self.press.take_redraw()
+        self.press.take_redraw() | core::mem::take(&mut self.redraw)
     }
 
     fn is_overlay(&self) -> bool {

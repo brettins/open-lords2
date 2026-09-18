@@ -15,7 +15,7 @@
       "state": "answered",
       "title": "Soldiers changing places: whole rule vs the auto-resolved yardstick",
       "answer": "auto-resolve weighs troop types; a fought battle has counters (crossbows one-shot knights, waste on peasants), so its verdict is no yardstick for a fought one",
-      "outcome": "The fought check no longer demands the auto-resolve's winner. The whole changing-places rule re-lands at the next seat."
+      "outcome": "Merged: the whole changing-places rule, oracle-checked; the fought check no longer demands the auto-resolve's winner."
     },
     {
       "q": "Q3",
@@ -36,11 +36,13 @@
     {
       "q": "Q5",
       "row": "oracle-advanced-farming",
-      "state": "open",
+      "state": "answered",
       "title": "Two End Turns in a game with Advanced Farming on",
       "inplay": "Advanced Farming is the new-game option that changes how your fields work each season. Every save we have was played with it off, so those farming rules have never been checked against the original.",
       "todo": "Start any new game with Advanced Farming on and play through two End Turns. Nothing else is needed. The game's own autosaves from that point are the two saves one turn apart the End Turn check needs; I will copy them from the install.",
-      "ask": "Reply: Q5 after the second End Turn"
+      "ask": "Reply: Q5 after the second End Turn",
+      "answer": "done 20:57",
+      "outcome": "Three autosaves copied as advfarm-* fixtures; the End Turn check over them is queued."
     },
     {
       "q": "Q6",
@@ -48,7 +50,7 @@
       "state": "answered",
       "title": "Saving a game never finishes",
       "answer": "type a name, click Save: the wait text appears, the dialog stays until thumbs-down, and Load lists no such game",
-      "outcome": "In flight as a fix: the save is never written."
+      "outcome": "Merged: a refused save now repaints, as the original does. Saving mid-battle is its own row; Q9 asks which screen you were on."
     },
     {
       "q": "Q7",
@@ -56,7 +58,7 @@
       "state": "answered",
       "title": "Relaunch the stopped siege-army work",
       "answer": "a",
-      "outcome": "Queued for the next free seat from its handoff."
+      "outcome": "Merged: the siege residual was a defaulted save import, not an AI or battle rule; the End Turn check went from 271 to 278 of 279 fields."
     },
     {
       "q": "Q8",
@@ -64,7 +66,16 @@
       "state": "answered",
       "title": "Relaunch the stopped screen-position audit",
       "answer": "a",
-      "outcome": "Queued for the next free seat from its handoff."
+      "outcome": "Relaunched from its handoff."
+    },
+    {
+      "q": "Q9",
+      "row": "save-mid-battle",
+      "state": "open",
+      "title": "When the save failed, was a battle on screen?",
+      "inplay": "In the original you can save from the battlefield menu bar in the middle of a battle. Ours refuses that save silently, because our save file does not yet carry a live battle. The refusal was never painted, so it looked like a hang; that part is fixed. The mid-battle save itself is filed to build either way.",
+      "todo": "Remember what was on screen when you typed the save name and clicked Save: the battlefield, or the campaign map.",
+      "ask": "Reply: Q9 battle, or Q9 map"
     }
   ],
   "reports": [
@@ -77,7 +88,8 @@
     {
       "date": "2026-09-17",
       "text": "Saving a game never finishes and no file appears.",
-      "row": "save-game-hangs"
+      "row": "save-game-hangs",
+      "outcome": "A refused save never repainted, so it looked like a hang; fixed, under oracle check. The likely refusal is saving mid-battle, which the original allows and ours does not yet: filed to build, Q9 asks which screen you were on."
     }
   ]
 }

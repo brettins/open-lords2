@@ -867,9 +867,13 @@ Direction each cell:
 **[V] A step is only allowed when the two cells' elevations differ by at most 1**, unless
 the destination's elevation is exactly 5. That is the whole terrain-height movement rule.
 
-Blocked by a friendly figure of the same troop type walking to the same place?
+Blocked by a figure of his own unit and the same troop type, walking somewhere *else*?
 `BattleMen_SwapPlaces` exchanges the two figures' positions, cells, hits and men. **[V]**
-It is a genuine swap of state between records, not a move.
+It is a genuine swap of state between records, not a move. **Not to the same place**:
+`00490000.c:53-56` is `if (cur.tgX == other.tgX && cur.tgY == other.tgY) return 0`, so a
+marching unit — all one target — never swaps through itself. This paragraph had that
+condition the wrong way round. The whole answer, and the wait `BattleMan_Step` takes on a
+0 (`00480000.c:6456-6460`), is `BattleRunner::swap_verdict` / `friendly_step`.
 
 ---
 
@@ -2861,7 +2865,7 @@ stops it**, friend or foe.
 
 For troop type 8 only: from its polar facing (`+0x168`, which `FUN_00488436` keeps on the nearest
 orthogonal with hysteresis on a diagonal) through the four orthogonals clockwise, the first where
-the cell two ahead is **exactly 2 high** and the cell one ahead is **not exactly 1**. Then: that
+the cell two ahead is **exactly 2 high** and the cell one ahead is **not
 wall cell's flags cleared; **`BattleMan_Destroy` (`0x0046EBE4`)**; `FUN_004921E5` writes a ramp —
 the tower's cell and the far step at 1, the flanks and diagonals `|= 0x10`; the 3 × 3's flags
 `|= 1` and frames from `DAT_004D9DD0[k + d × 9]`; the wall cell's frame 1 or 2; the near step at

@@ -36,7 +36,10 @@ fn owner_bytes_and_realm_tallies_agree_in_every_save() {
                 );
             }
         }
-        for r in realms.iter().skip(1) {
+        // [V] only realms in play: fought-old_turn.sav is turn one of a two-realm
+        // Quaintville game and realm 3, out of play, still carries county_count 1
+        // from the game before; the new game left the byte (row newgame-stale-realm-count).
+        for r in realms.iter().skip(1).filter(|r| r.in_play()) {
             let held =
                 counties.iter().filter(|c| c.is_county() && c.owner as usize == r.index).count();
             assert_eq!(
