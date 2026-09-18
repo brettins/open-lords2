@@ -119,6 +119,40 @@ pub(super) fn charge_for_the_absent_player(
     }
 }
 
+/// **The stand-in points again, at the men and not at the cell.** C186's charge
+/// is one order, and one order runs out: a closing archer stops at bow range
+/// and `movStraff` holds it (`BattleMan_StateCloseToAttack`, `0x00484BF9`), so
+/// the unit re-forms on it and the last enemy remnant — cautious, out of its
+/// own charge radius — never comes. The opening order stays the enemy's home
+/// so that no fixture's first frame moves; this one follows the survivors, as a
+/// player's clicks do. `[I]`, C186.
+pub(super) fn point_again_for_the_absent_player(
+    kingdom: &Kingdom,
+    runner: &mut BattleRunner,
+    attacker: usize,
+    defender: usize,
+) {
+    let human = |id: usize| kingdom.campaign.units.get(id).is_some_and(|u| u.owner_is_human);
+    for (side, id) in [(SIDE_B, attacker), (SIDE_A, defender)] {
+        if !human(id) {
+            continue;
+        }
+        let them = l2_sim::runner::other_side(side);
+        let mut n = 0u32;
+        let (mut sx, mut sy) = (0u32, 0u32);
+        for (i, f) in runner.fighters.iter().enumerate() {
+            if f.side == them && runner.is_alive(i) {
+                sx += f.x as u32;
+                sy += f.y as u32;
+                n += 1;
+            }
+        }
+        if n > 0 {
+            runner.order_side(side, (sx / n) as u8, (sy / n) as u8);
+        }
+    }
+}
+
 /// `FUN_0047F474` rebuilds both campaign records from the figures still
 /// standing, and the winner is the side the conclusion names. The stall arm is
 /// ours — the original has no clock — and it is a separate [`Resolution`]

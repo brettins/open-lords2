@@ -9888,6 +9888,21 @@ no side test on the walking arm. The archers that walked were as likely the play
 is untouched and still held; what changes is that its premise now has to be re-measured against a
 `begin_fight` that orders nobody.
 
+**Re-measured 2026-09-17, against a save of a battle the player gave no order in.**
+`noorders-start.sav` / `noorders-end.sav`: 52 men against a 129-man county levy, no order, the
+defence held with 60 of its 129. Fought unordered, ours holds it eight times out of eight and
+leaves the defence 47 — `tests/seam/no_orders.rs`. So the held branch's state 17 lands, and the
+premise it was held on is answered from the *AI's* side: of 322 arrows in that battle 83 leave
+state 17, none of them before the first melee casualty, because `Order_ShootAtUnit` sits on
+`UnitOrder_FieldFoot`'s aggressive arm and the AI has to be hit first.
+
+**And the stand-in had to point twice.** One order runs out: state 17 stops a closing archer at
+bow range and `movStraff` holds it there, the unit re-forms on it, and a cautious remnant 40 cells
+away never comes — `engagement::tests` and the seam's fought battle both stood off at 12,000
+ticks. `point_again_for_the_absent_player` re-issues the charge each 100-tick window **at the
+enemy's living centre** rather than at its home marker, which is what a player's clicks do; the
+opening order is unchanged, so no fixture's first frame moved.
+
 **The rule this is under is rule 5, and the failure mode is the one rule 5 exists for.** The
 deviation was *declared* — the module header said `fight` issues *"the one order a player always
 issues"* — and declaring it is what made it invisible. A stand-in for a missing input belongs on

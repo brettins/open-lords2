@@ -193,6 +193,7 @@ fn fight(
         if runner.conclusion().is_some() {
             break;
         }
+        point_again_for_the_absent_player(kingdom, &mut runner, attacker, defender);
     }
     let damage = runner.castle_damage();
     let (verdict, resolution) = conclude_fight(kingdom, attacker, defender, runner);

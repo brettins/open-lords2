@@ -1955,6 +1955,25 @@ argument set — and parks figure 0 on the cell as a stand-in target. `Missile_S
 sets surface 15 alight from `+0x44` (on any cell for an AI shooter, on that cell only
 for a human's) and zeroes `targetCell` and figure 0's owner. That is fire.
 
+**What the no-orders pair says.** `E:\dev\lords2-fixtures\noorders-start.sav` is the
+battle screen the frame it opened and `noorders-end.sav` the campaign map after it: the
+player's 52 men (2 peasants, 25 swordsmen, 25 archers, `g_units` slot 5 `+0x168`) against
+a county levy of 129 (69 peasants, 60 archers, slot 6), and **the player gave no order at
+all**. The defence held — slot 5 free, county 1 `owner` still 0, `population` 388 → 448,
+realm 1 `strength` 4 → 3 — so **60 of its 129 walked home**. `[V]`
+`crates/l2-game/tests/seam/no_orders.rs` fights it unordered over eight seeds: the
+defence holds all eight and the player's army is destroyed in every one, at 47 of 129
+against the save's 60, in 3,943 ticks. The eight are identical — with no order issued
+nothing in this position reads the seed, which is a finding about the position and not
+about the seed.
+
+**State 17 is reached in that battle, but not before the first blow.** Of 322 arrows,
+83 leave state 17 and all 83 after the first melee casualty: the AI's `Order_ShootAtUnit`
+sits on the aggressive arm of `UnitOrder_FieldFoot`, which is what *being shot at* turns
+on (`docs/battle-ai.md`), so the 45 arrows before contact are the player's own archers
+standing in state 5. An AI archer closing before contact needs the order arm, not this
+state.
+
 ### 14.3 How a castle comes down
 
 Not written down anywhere before. Two accumulators, and they are not
@@ -2865,7 +2884,7 @@ stops it**, friend or foe.
 
 For troop type 8 only: from its polar facing (`+0x168`, which `FUN_00488436` keeps on the nearest
 orthogonal with hysteresis on a diagonal) through the four orthogonals clockwise, the first where
-the cell two ahead is **exactly 2 high** and the cell one ahead is **not
+the cell two ahead is **not
 wall cell's flags cleared; **`BattleMan_Destroy` (`0x0046EBE4`)**; `FUN_004921E5` writes a ramp —
 the tower's cell and the far step at 1, the flanks and diagonals `|= 0x10`; the 3 × 3's flags
 `|= 1` and frames from `DAT_004D9DD0[k + d × 9]`; the wall cell's frame 1 or 2; the near step at
