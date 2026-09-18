@@ -23,6 +23,7 @@ impl SaveLoadScreen {
             status: Status::Idle,
             press: Press::new(),
             working: 0,
+            redraw: false,
         };
         if mode == Mode::Load {
             screen.select(0);
