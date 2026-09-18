@@ -12449,7 +12449,7 @@ is corrected, in `crates/l2-sim/src/runner/orders.rs`.
 
 ---
 
-**CNEW-midbattle — C221's mid-battle save refusal is reversed: the original's block table already carries the battle, and now so does ours.**
+**C237 — C221's mid-battle save refusal is reversed: the original's block table already carries the battle, and now so does ours.**
 
 C221 refused the save because encoding `LiveBattle` was priced at 196 fields over 16 structs. The price stands; the reason to pay it is that `Save_Write` (`0x004ADE93`) does not serialise anything either — it walks `{u32 address, u32 length}` records at `0x004DE960` and writes live memory, and four of the 225 blocks **are** the battle: `g_battlefield` (`0x005440E0`, 51,200 = 80x80x8, block 1), `g_battleMen` (`0x00554480`, 34,992 = 81 x 0x1B0, block 7), the missiles (`0x0057A100`, 7,676 = 101 x 0x4C, block 8) and `g_battleUnits` (`0x00566520`, 4,212 = 81 x 0x34, block 9). **[V]** — all four are all-zero in `battle-before.sav`, saved on the map, and non-zero in `noorders-start.sav` and `fought-start.sav`, saved with the battle screen open; so are `g_battleArmyA` / `g_battleArmyB` (blocks 33 and 34, `0x00568210` / `0x00568218`). A refusal was our format's, not the game's.
 

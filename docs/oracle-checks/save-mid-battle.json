@@ -1,0 +1,153 @@
+{
+  "reviewed": "f2d319d3",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/save.rs",
+      "line": 1,
+      "address": "0x004ADE93",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/terrain/save.rs",
+      "line": 1,
+      "address": "0x005440E0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/save.rs",
+      "line": 1,
+      "address": "0x00554480",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/missile/save.rs",
+      "line": 1,
+      "address": "0x0057A100",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/unit/save.rs",
+      "line": 1,
+      "address": "0x00566520",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/save.rs",
+      "line": 1,
+      "address": "0x00554034",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/save.rs",
+      "line": 2,
+      "address": "0x00568DA4",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/save.rs",
+      "line": 3,
+      "address": "0x00569588",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/save.rs",
+      "line": 4,
+      "address": "0x0055307C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/save.rs",
+      "line": 1,
+      "address": "0x004EEA98",
+      "verdict": "match",
+      "note": "g_aiStrengthAdvantage is 0x004EEA98 and is in no save block; 0x0053E984 (block 63) is the ordered battle unit of Battle_FormationKey (0x0043C77A). | fixed f2d319d3: block 14 0x0057C8FC / the AI blocks named"
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 1,
+      "address": "0x00553400",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 2,
+      "address": "0x0055CE70",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 3,
+      "address": "0x0055322C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 4,
+      "address": "0x0052AF9C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 5,
+      "address": "0x0057A0F0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 6,
+      "address": "0x00568470",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/battle.rs",
+      "line": 7,
+      "address": "0x00568210",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/save/codec.rs",
+      "line": 66,
+      "address": "0x005440E0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/game/mod.rs",
+      "line": 525,
+      "address": "0x004ADE93",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/methods.rs",
+      "line": 126,
+      "address": "0x0057C8FC",
+      "verdict": "match",
+      "note": "Block 73 (0x00569584) is g_turnPhase; g_battlePhase is 0x0057C8FC, save block 14. | fixed f2d319d3: block 14 0x0057C8FC / the AI blocks named"
+    },
+    {
+      "file": "crates/l2-game/src/screen/types.rs",
+      "line": 124,
+      "address": "0x0057C8FC",
+      "verdict": "match",
+      "note": "Same wrong block: the byte that says a battle is live is g_battlePhase 0x0057C8FC (block 14), not block 73. | fixed f2d319d3: block 14 0x0057C8FC / the AI blocks named"
+    }
+  ]
+}

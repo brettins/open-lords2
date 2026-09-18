@@ -73,8 +73,8 @@
       "row": "save-mid-battle",
       "state": "open",
       "title": "When the save failed, was a battle on screen?",
-      "inplay": "In the original you can save from the battlefield menu bar in the middle of a battle. Ours refuses that save silently, because our save file does not yet carry a live battle. The refusal was never painted, so it looked like a hang; that part is fixed. The mid-battle save itself is filed to build either way.",
-      "todo": "Remember what was on screen when you typed the save name and clicked Save: the battlefield, or the campaign map.",
+      "inplay": "In the original you can save from the battlefield menu bar in the middle of a battle. Ours refused that save silently, which looked like a hang. Both halves are now fixed and merged: a refused save repaints, and a mid-battle save writes and loads back onto the battlefield with the same battle running.",
+      "todo": "Only to confirm the diagnosis: were you on the battlefield or the campaign map when you typed the name and clicked Save? If the map, the cause is still unknown and I will reopen it.",
       "ask": "Reply: Q9 battle, or Q9 map"
     }
   ],
@@ -89,7 +89,7 @@
       "date": "2026-09-17",
       "text": "Saving a game never finishes and no file appears.",
       "row": "save-game-hangs",
-      "outcome": "A refused save never repainted, so it looked like a hang; fixed, under oracle check. The likely refusal is saving mid-battle, which the original allows and ours does not yet: filed to build, Q9 asks which screen you were on."
+      "outcome": "Fixed and merged twice over: a refused save repaints, and saving mid-battle now works as in the original (C237). Q9 asks which screen you were on, to confirm the cause."
     }
   ]
 }
