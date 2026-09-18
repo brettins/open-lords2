@@ -401,6 +401,17 @@ impl BattleRunner {
         self.withdrawn = Some(side);
     }
 
+    pub fn withdrawal(&self) -> Option<Side> {
+        self.withdrawn
+    }
+
+    /// `g_battleWithdrawal = 0` — `Battle_Resume` (`0x00477C89`),
+    /// `00470000.c:3220`. Neither `0x0056D5C8` nor `0x005656F8` is in
+    /// `g_saveBlocks` (`0x004DE960`), so a load cannot carry a withdrawal.
+    pub fn clear_withdrawal(&mut self) {
+        self.withdrawn = None;
+    }
+
     pub fn men_per_figure(&self, side: Side) -> u16 {
         self.men_per_figure[usize::from(side != SIDE_A)]
     }

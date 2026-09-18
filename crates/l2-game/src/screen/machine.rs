@@ -602,10 +602,12 @@ impl Machine {
                     self.stack.push(id.build());
                 }
             },
-            // `[D]`: the original restores `g_battlePhase` (`0x0057C8FC`, save
-            // block 14) and not `g_screenId` (`0x004EAC50`, in no block), so it
-            // has no screen to go back to and we do. Truncating to `depth` is
-            // what keeps the campaign map under a battlefield raised here.
+            // `[D]`: the loader `FUN_004976A1` (`0x004976A1`) writes the screen
+            // itself — `g_screenId = 0` (`00490000.c:3098`), then `0x29` inside
+            // `FUN_00477C89` (`00470000.c:3194`) on `g_battlePhase == 2` — so
+            // the original arrives with one screen and no stack under it, and we
+            // have one. Truncating to `depth` is what keeps the campaign map
+            // under a battlefield raised here.
             Transition::Resume(id) => match self.stack.iter().position(|s| s.id() == id) {
                 Some(at) => self.stack.truncate(at + 1),
                 None => {

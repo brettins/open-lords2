@@ -48,6 +48,13 @@ pub(super) fn encode_prefix(game: &Game, out: &mut Canonical) {
     // save on the campaign map with three obituaries still queued behind the one
     // on screen, and a save that dropped them would be a save that can never be
     // won. `docs/decisions.md` C113.
+    //
+    // `[D]`, and now measured: the original **drops the whole ring on a load**.
+    // `Save_Read` (`0x004ADFE6`) opens with `Msg_Reset()` (`004a0000.c:5930`)
+    // and `g_messagePending` (`0x00565484`), `g_messageQueueHead` (`0x00543FD0`)
+    // and `g_messageQueueTail` (`0x00553EC4`) are in no save block, so nothing
+    // reads them back — `node tools/kingdom/savedump.js layout`. C113 keeps them
+    // anyway, for the reason above.
     out.section("campaign");
     let c = &game.campaign;
     out.u8(match c.track {
