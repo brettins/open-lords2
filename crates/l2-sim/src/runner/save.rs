@@ -20,6 +20,41 @@ use crate::unit::Units;
 /// the length check below are this format's and not the game's.
 const NO_OCCUPANT: u16 = u16::MAX;
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runner::blank_field;
+    use crate::Troop;
+
+    /// **`DAT_005530E8` is in no save block** — 225 blocks,
+    /// `node tools/kingdom/savedump.js layout` — because `Battle_UpdateAllMen`
+    /// (`0x004822ED`) opens with `DAT_005530E8 = 0` (`00480000.c:869`) and
+    /// counts the woodland figures again before its one reader
+    /// (`00480000.c:1484`). Ablation: put `out.u32(self.humans_in_woods)` and
+    /// its `input.u32()?` back and the first assertion fails.
+    #[test]
+    fn the_woodland_count_is_not_in_the_save_and_a_step_rebuilds_it() {
+        let mut kept = BattleRunner::deploy(
+            blank_field(),
+            &[(Troop::Swordsmen, 6), (Troop::Archers, 4)],
+            &[(Troop::Pikemen, 6), (Troop::Peasants, 4)],
+        );
+        kept.humans_in_woods = 7;
+
+        let mut out = Canonical::recording();
+        kept.encode(&mut out);
+        let bytes = out.finish().bytes.expect("a recording encoder keeps its bytes");
+        let mut reader = Reader::new(&bytes);
+        let mut back = BattleRunner::decode(&mut reader).expect("our own bytes");
+        assert_eq!(back.humans_in_woods, 0, "the file carries no DAT_005530E8");
+
+        kept.step();
+        back.step();
+        assert_eq!(back.humans_in_woods, kept.humans_in_woods, "the sweep counts it again");
+        assert_eq!(back.fighters, kept.fighters, "and the step agrees figure for figure");
+    }
+}
+
 fn end_tag(e: End) -> u8 {
     match e {
         End::Annihilation => 0,
@@ -144,7 +179,19 @@ impl Encode for BattleRunner {
         out.u16(self.men_per_figure[1]);
         out.u8(self.size_class);
         out.bool(self.wood_fire);
-        out.u32(self.humans_in_woods);
+        // `humans_in_woods` is **not** here: `DAT_005530E8` is in no save block
+        // (225 blocks, `node tools/kingdom/savedump.js layout`) because
+        // `Battle_UpdateAllMen` (`0x004822ED`) opens with `DAT_005530E8 = 0`
+        // (`00480000.c:869`) and counts it again over `g_battleMen[1..80]`.
+        // [`BattleRunner::step`] does the same before its fighter loop, so a
+        // decoded value is overwritten before its one reader
+        // (`00480000.c:1484`, ours `BattleRunner::loose`).
+        //
+        // `[D]` on carrying `tick`: `DAT_0057C998`, the `Gtime` it stands in
+        // for, is in no block either, so the original resumes a load with
+        // whatever the process held. Ours feeds `tick` to a missile's
+        // `blocked_ticks` seed (`00480000.c:2088`), which is simulation state,
+        // and `docs/netcode.md` does not let that come from process memory.
         out.u32(self.tick);
         out.end_section();
     }
@@ -191,7 +238,7 @@ impl Decode for BattleRunner {
             men_per_figure: [input.u16()?, input.u16()?],
             size_class: input.u8()?,
             wood_fire: input.bool()?,
-            humans_in_woods: input.u32()?,
+            humans_in_woods: 0,
             tick: input.u32()?,
         })
     }

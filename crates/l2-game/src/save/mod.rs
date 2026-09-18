@@ -17,7 +17,7 @@ use crate::screens::setup::MAP_COUNT;
 
 pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 
-pub const VERSION: u32 = 7;
+pub const VERSION: u32 = 8;
 
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
 
@@ -167,10 +167,8 @@ pub fn decode(bytes: &[u8], tables: Tables) -> Result<Game, LoadError> {
 /// block — `node tools/kingdom/savedump.js layout`, 225 blocks — so the pair of
 /// `g_battlePhase` (block 14) tests is the whole rule. `[V]`
 ///
-/// The rest of `FUN_004976A1` that we can answer is below. Not carried: the
-/// multiplayer turn clock `DAT_005440C8 += 10` (`00490000.c:3081`, block 174)
-/// and its anchor `_DAT_00568D9C`, which we do not model; the map and pathing
-/// rebuilds (`Map_BuildLattice` … `Path_BuildStepCost`), which
+/// The rest of `FUN_004976A1` that we can answer is below. Not carried: the map
+/// and pathing rebuilds (`Map_BuildLattice` … `Path_BuildStepCost`), which
 /// [`l2_sim::BattleRunner::decode`] already does from the decoded field.
 ///
 /// `[D]` on `DAT_0057C910` (`00470000.c:3212-3218`, block 202): it is
@@ -178,6 +176,9 @@ pub fn decode(bytes: &[u8], tables: Tables) -> Result<Game, LoadError> {
 /// `l2_sim::castle::builder` derive `1 < level` where they need it, from the
 /// level recomputed here.
 pub fn resume(game: &mut Game) {
+    // `DAT_0055403C = 0; DAT_005440C8 += 10; _DAT_00568D9C = …` —
+    // `00490000.c:3080-3082`, the load's ten-second grace on the turn clock.
+    game.turn_clock.resumed(game.kingdom.options.time_limit);
     // `for (r = 1; r < 6; r++) if (g_realms[r].strength != 0) g_realms[r].aiStep = 1;`
     // — `00490000.c:3084-3087`. A realm parked at `AI_STEP_DONE` restarts its
     // program, and the step-0 prologue is skipped for every realm.

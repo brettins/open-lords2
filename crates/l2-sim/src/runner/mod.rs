@@ -263,6 +263,12 @@ pub struct BattleRunner {
     /// the sweep sees only the figures before it. Over three of them and an AI
     /// garrison looses fire arrows. Recomputed every frame before it is read,
     /// so it carries nothing from one frame to the next.
+    ///
+    /// not-encoded: `DAT_005530E8` is in none of the 225 save blocks
+    /// (`node tools/kingdom/savedump.js layout`) because
+    /// `Battle_UpdateAllMen` (`0x004822ED`) opens with `DAT_005530E8 = 0`
+    /// (`00480000.c:869`); [`BattleRunner::step`] does the same before its
+    /// fighter loop, so a decoded value never reaches `00480000.c:1484`.
     humans_in_woods: u32,
     pub tick: u32,
 }
