@@ -96,7 +96,7 @@ ${open.length ? qOpen : '<p class="muted">Nothing waits on you.</p>'}
 ${qDone}
 </table></div>
 <h2>Your reports</h2>
-<div class="tw"><table><tr><th>Date</th><th>Report</th><th>Row</th></tr>
+<div class="tw"><table><tr><th>Date</th><th>Report</th><th>What happened</th></tr>
 ${reports}
 </table></div>
 </section>
