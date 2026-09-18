@@ -1,17 +1,83 @@
 {
   "about": "Questions to the player, numbered once and never reused. The lead is the only writer. Wording is in play terms: what the original does, what ours does, what to do. answered rows keep their answer and outcome.",
   "questions": [
-    {"q": "Q1", "row": "firemissile-port-order", "state": "answered", "title": "Archers marking themselves as firing", "answer": "b, closer to the original", "outcome": "Merged 85611ebf: archers mark themselves firing as the original does."},
-    {"q": "Q2", "row": "swap-places-arm-whole", "state": "answered", "title": "Soldiers changing places: whole rule vs the auto-resolved yardstick", "answer": "auto-resolve weighs troop types; a fought battle has counters (crossbows one-shot knights, waste on peasants), so its verdict is no yardstick for a fought one", "outcome": "The fought check no longer demands the auto-resolve's winner. The whole changing-places rule re-lands at the next seat."},
-    {"q": "Q3", "row": "battle-close-attack-and-elimination", "state": "answered", "title": "Do the computer's archers shoot while marching?", "answer": "nothing to answer; waits on Q4", "outcome": "Reads against the Q4 saves at the next seat."},
-    {"q": "Q4", "row": "oracle-battle-no-orders", "state": "answered", "title": "One battle with no orders, saved at start and end", "answer": "done 20:24: startbtl and endbtltl", "outcome": "Filed as noorders-start and noorders-end fixtures."},
-    {"q": "Q5", "row": "oracle-advanced-farming", "state": "open", "title": "Two End Turns in a game with Advanced Farming on", "inplay": "Advanced Farming is the new-game option that changes how your fields work each season. Every save we have was played with it off, so those farming rules have never been checked against the original.", "todo": "Start any new game with Advanced Farming on and play through two End Turns. Nothing else is needed. The game's own autosaves from that point are the two saves one turn apart the End Turn check needs; I will copy them from the install.", "ask": "Reply: Q5 after the second End Turn"},
-    {"q": "Q6", "row": "save-game-hangs", "state": "answered", "title": "Saving a game never finishes", "answer": "type a name, click Save: the wait text appears, the dialog stays until thumbs-down, and Load lists no such game", "outcome": "In flight as a fix: the save is never written."},
-    {"q": "Q7", "row": "siege-army-divergence", "state": "answered", "title": "Relaunch the stopped siege-army work", "answer": "a", "outcome": "Queued for the next free seat from its handoff."},
-    {"q": "Q8", "row": "draw-placement-audit", "state": "answered", "title": "Relaunch the stopped screen-position audit", "answer": "a", "outcome": "Queued for the next free seat from its handoff."}
+    {
+      "q": "Q1",
+      "row": "firemissile-port-order",
+      "state": "answered",
+      "title": "Archers marking themselves as firing",
+      "answer": "b, closer to the original",
+      "outcome": "Merged 85611ebf: archers mark themselves firing as the original does."
+    },
+    {
+      "q": "Q2",
+      "row": "swap-places-arm-whole",
+      "state": "answered",
+      "title": "Soldiers changing places: whole rule vs the auto-resolved yardstick",
+      "answer": "auto-resolve weighs troop types; a fought battle has counters (crossbows one-shot knights, waste on peasants), so its verdict is no yardstick for a fought one",
+      "outcome": "The fought check no longer demands the auto-resolve's winner. The whole changing-places rule re-lands at the next seat."
+    },
+    {
+      "q": "Q3",
+      "row": "battle-close-attack-and-elimination",
+      "state": "answered",
+      "title": "Do the computer's archers shoot while marching?",
+      "answer": "nothing to answer; waits on Q4",
+      "outcome": "Reads against the Q4 saves at the next seat."
+    },
+    {
+      "q": "Q4",
+      "row": "oracle-battle-no-orders",
+      "state": "answered",
+      "title": "One battle with no orders, saved at start and end",
+      "answer": "done 20:24: startbtl and endbtltl",
+      "outcome": "Filed as noorders-start and noorders-end fixtures."
+    },
+    {
+      "q": "Q5",
+      "row": "oracle-advanced-farming",
+      "state": "open",
+      "title": "Two End Turns in a game with Advanced Farming on",
+      "inplay": "Advanced Farming is the new-game option that changes how your fields work each season. Every save we have was played with it off, so those farming rules have never been checked against the original.",
+      "todo": "Start any new game with Advanced Farming on and play through two End Turns. Nothing else is needed. The game's own autosaves from that point are the two saves one turn apart the End Turn check needs; I will copy them from the install.",
+      "ask": "Reply: Q5 after the second End Turn"
+    },
+    {
+      "q": "Q6",
+      "row": "save-game-hangs",
+      "state": "answered",
+      "title": "Saving a game never finishes",
+      "answer": "type a name, click Save: the wait text appears, the dialog stays until thumbs-down, and Load lists no such game",
+      "outcome": "In flight as a fix: the save is never written."
+    },
+    {
+      "q": "Q7",
+      "row": "siege-army-divergence",
+      "state": "answered",
+      "title": "Relaunch the stopped siege-army work",
+      "answer": "a",
+      "outcome": "Queued for the next free seat from its handoff."
+    },
+    {
+      "q": "Q8",
+      "row": "draw-placement-audit",
+      "state": "answered",
+      "title": "Relaunch the stopped screen-position audit",
+      "answer": "a",
+      "outcome": "Queued for the next free seat from its handoff."
+    }
   ],
   "reports": [
-    {"date": "2026-09-17", "text": "The player starts on the east side of Quantville; in the original always west.", "row": "quantville-start-side"},
-    {"date": "2026-09-17", "text": "Saving a game never finishes and no file appears.", "row": "save-game-hangs"}
+    {
+      "date": "2026-09-17",
+      "text": "The player starts on the east side of Quantville; in the original always west.",
+      "row": "quantville-start-side",
+      "outcome": "Found: our new game always dealt the same hand, the one-in-four east start. The original re-rolls each game and puts you west three games in four. Fix delivered, under oracle check."
+    },
+    {
+      "date": "2026-09-17",
+      "text": "Saving a game never finishes and no file appears.",
+      "row": "save-game-hangs"
+    }
   ]
 }
