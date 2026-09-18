@@ -141,7 +141,7 @@ impl BattleRunner {
         // itself, and `Formation_AssignSearchedSlots` (`0x00489798`, `:3758`)
         // never reaches the claim list on this path, so they share the one cell.
         // Corrects C81's "a dry slot beside it" — `docs/decisions.md`
-        // correction CNEW-moat-slot.
+        // correction C236.
         if dest.surface == crate::siege::SURFACE_WATER {
             return Some((target.0 as i32, target.1 as i32));
         }
@@ -245,7 +245,7 @@ impl BattleRunner {
     ///
     /// C81's "a dry slot beside it" is wrong: `Formation_FindNearbySlot`
     /// (`0x0048A38E`, `00480000.c:4077`) hands the moat cell itself back to
-    /// every figure. Correction `CNEW-moat-slot`.
+    /// every figure. Correction `C236`.
     fn send_figure(&mut self, unit: usize, fighter: usize, x: i32, y: i32, dest_is_water: bool) {
         let sim = self.fighters[fighter].sim;
         let gate = self.units.get(unit).reform_gate;

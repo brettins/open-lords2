@@ -152,7 +152,7 @@ decision — it now pins them by name, so the sixth costs the same:
 | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller** — zero rel32 calls, zero jumps, zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 | `Battle_PauseButton#1` | guarded `== 1` on a word that alternates between 0 and −1; the one writer that could make it 1, `FUN_00434E68`, is unreferenced too | D38 |
 | `FUN_004b39e8#1` | the degraded castle's three lines, `S075_02/03/04` — the thunk that plays them has no caller either, by the same scan, with its own sibling `FUN_004B3714` (one rel32 caller, inside `Sidebar_Button`) as the near control | **D40** |
-| `FUN_0047fe0b#1` | **in single player.** `Realm_Eliminate`, its one caller, has three call sites: two behind `g_multiplayer != 0`, and one in `FUN_0049CEBE`, which nothing references. A network game reaches it when a peer leaves mid-battle — the session layer our netcode replaces | `DNEW-midbattle` |
+| `FUN_0047fe0b#1` | **in single player.** `Realm_Eliminate`, its one caller, has three call sites: two behind `g_multiplayer != 0`, and one in `FUN_0049CEBE`, which nothing references. A network game reaches it when a peer leaves mid-battle — the session layer our netcode replaces | `D42` |
 
 **The third was already on the bug list, and this file had it as `missing`.** The
 assertion of emptiness is what kept it there: the inventory could not say what the

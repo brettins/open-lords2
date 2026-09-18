@@ -12430,7 +12430,7 @@ Imported: the three build records at unit `+0x182 + e*6` (three `i16`: ordered, 
 
 `crates/l2-game/tests/differential.rs`: 914 → 927 of 932 agree, 271 → 278 of the 279 fields the original's End Turn moved. Both siege pairs' `realm.strength`, `realm.score` and `realm.wages` rows went and none arrived; siege 12->13 is clean but for the unsimulated `global.ai_lords`. Ablated by measurement in both directions on one tree.
 
-**CNEW-moat-slot — C81 said a unit at the ditch walks to "a dry slot beside it". It walks onto the moat.**
+**C236 — C81 said a unit at the ditch walks to "a dry slot beside it". It walks onto the moat.**
 
 `Formation_FindNearbySlot` (`0x0048A38E`, `00480000.c:4077-4081`) opens on
 `if (surface == 2) { g_formationOriginX = targX; g_formationOriginY = targY; return 1; }` —
