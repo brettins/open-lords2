@@ -128,6 +128,13 @@ pub fn ration_wanted(t: &Tables, county: &County, armies_eat: bool) -> i32 {
 /// the reason it is safe to tidy is that `Ration_Apply` reads `rationSplit`
 /// only at the top of each iteration, after it has already been set to the
 /// candidate.
+///
+/// `sowing` is **next** season's: all three calls are
+/// `Ration_Apply(county,g_seasonNext)` (`004a0000.c:1794`, `1805`, `1816`),
+/// and `Season_Advance` (`0x00448440`) runs `Ai_ManageFarmsAll()` before
+/// `g_season = g_seasonNext`, so `g_seasonNext` is the season being entered.
+/// The sweep's probes carry it too — the seed reservation `Ration_Apply`'s
+/// `if (season == 4)` makes is inside the loop the original scores. `[V]`
 pub fn set_rations(
     t: &Tables,
     county: &mut County,
@@ -139,7 +146,7 @@ pub fn set_rations(
     let score = |county: &County, split: i32| -> i32 {
         let mut probe = county.clone();
         probe.ration_split = split;
-        ration::choose(t, &probe, armies_eat).level
+        ration::preview(t, &mut probe, armies_eat, sowing).level
     };
     let chosen = match search {
         SplitSearch::Fixed(split) => split,

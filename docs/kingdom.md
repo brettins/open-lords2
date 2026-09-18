@@ -389,7 +389,7 @@ if (ended == 4) { g_year = g_yearNext; g_yearNext++; }
 group 29** — `No Season, Spring, Summer, Autumn, Winter` — at `0x0041A113`. The year rolls
 390: after season 4, so **season 4 is Winter and the year runs Spring → Winter**.
 
-392: The important subtlety, and the thing that makes every seasonal rule read correctly:
+392: The important subtlety,
 `Season_Advance` sets `g_season` to the season *about to begin* **before** running the
 394: economy. So a rule guarded by `g_season == 1` fires at the **end of Winter**.
 
@@ -660,8 +660,8 @@ and slow at the top, which is what the sign pattern in the table's last column e
 
 ### 4.3 Where the food comes from
 
-`Ration_Apply` (`0x0044DF5F`) descends from `rationWanted + 1` until the requirement fits
-what the county can feed, then spends, in order:
+`Ration_Apply` (`0x0044DF5F`) descends the ladder **twice**, and the two descents ask
+different questions. Pricing a level is the same three steps each time:
 
 1. **Dairy, free.** `Food_FromDairy` = `herd × g_dairyPerHead`, and
    **`g_dairyPerHead` (`0x00553F60`) is 5**. The standing herd feeds five people per head
@@ -671,10 +671,30 @@ what the county can feed, then spends, in order:
 2. The remainder is split by `county.rationSplit` percent between
    **`Food_HeadsForPeople` = `DivCeil(people, 10)`** (`g_foodPerHead` = 10, one slaughtered
    animal feeds ten) and **`Food_SacksForPeople` = `DivCeil(people, 6)`** (`g_foodPerSack`
-   674: = 6, one sack of grain feeds six). **[V]** on the constants and the rounding;
+   = 6, one sack of grain feeds six). **[V]** on the constants and the rounding;
    **[D]** on the commodity each side denotes.
-676: 3. Each side is capped at what is in store, and the loop drops a ration level and
-   retries if the total will not fit.
+3. Each side is capped at what is in store: `herdEaten = min(iVar4, herdAvailable)`,
+   `grainEaten = min(iVar3, grainAvailable)` — `00440000.c:7962-7971`.
+
+**The first descent tests the total.** `iVar3 = Food_Available(county)` is taken once,
+before the loop (`00440000.c:7928`), and the six iterations descend from `rationWanted + 1`
+until `if (local_2c <= iVar3) break;` (`:7940`). `Food_Available` (`0x0044E7B4`) sums dairy
++ `herdAvailable × g_foodPerHead` + `grainAvailable × g_foodPerSack`, so a larder large
+enough **in sum** passes a level even when `rationSplit` aims the demand at the empty side.
+That level is then priced by the three steps above.
+
+**The second tests what was actually fetched**, and is where the split bites:
+`if (local_2c <= iVar5 + iVar4 + iVar3) break;` (`:7982`), the dairy plus the capped
+`herdEaten`/`grainEaten` converted back to people. The level it reaches is priced by the
+same three steps, and *that* `herdEaten`/`grainEaten` pair is the one the county keeps.
+The first loop decrements before its test and the second after, so the first is tested at
+`rationWanted` and the second at the level the first left.
+
+`Ration_Apply`'s seed reservation is ahead of both: `if (season == 4) local_24 =
+Grain_Sow(...)` (`:7921`), subtracted from `grainAvailable` — and `season` is the caller's,
+`g_seasonPrev` from `Ration_ApplyAll` (`0x0044BF04`) and `g_seasonNext` from `Ai_SetRations`
+(`0x004A4782`). **[V]**; `crates/l2-kingdom/src/ration.rs`'s `choose_within` is both
+descents.
 
 > **What reproduces — all of it, now. Corrected twice.** An earlier revision of this box
 > said the nine unowned counties reproduced, the *"four player-owned"* ones did not, and
@@ -884,7 +904,6 @@ source is — a county at 100 happiness never emigrates, whatever its neighbours
 
 > **A likely bug.** The loop that records the source county in the destination's
 > 16-byte inflow list has no `break`: it writes the source id into **every** free slot
-887: > rather than the first. The list therefore ends up holding one repeated value, and the
 > pass that reads it back only takes a maximum, so the visible effect is limited to the
 > *"arrive from"* line of the population panel naming the wrong county. **[D]** — read
 > from decompiled C, not observed.
@@ -1069,7 +1088,6 @@ end of Summer   Grain_Grow     crop adjusted
 end of Autumn   Grain_Harvest  store += crop
 ```
 
-1072: **The three crop words are the seed, the standing crop, and the harvest — not three growth
 stages**, and this document's field table implied otherwise. `crop[0]` (`+0x240`) is written
 once a year, at sowing, and holds the sacks that went into the ground; `crop[1]`
 (`+0x244`) is the **one** word the whole year's crop lives in, rewritten in place by each
@@ -1500,7 +1518,6 @@ save's setting and more than five times the base — so the published *"15 % eff
 describes the advanced game only.
 
 **[V] `resourceLimit` is `FUN_0044EF4E`.** For wood, iron and stone it is a flag test
-1503: rather than a quantity: the industry must be enabled (`+0x297`), must have its resource in
 the ground (`+0x295`) and must not be counting down a disablement (`+0x296`); if all three
 hold the limit is a literal **999** and otherwise **0**. For weapons it is the realm's
 share of the stock the weapon costs — `(stock × cost / denominator) / cost` for wood and
@@ -2839,7 +2856,7 @@ foresters or a county full of idlers.
 2839: allocation pass. It is now the record of closing it, and the shape of the job is worth
 keeping because it is the same shape every "why is this pass not wired in" question has.
 
-2842: The blocker was never the allocator. It was that **`Season_Advance` does not call
+2842: The blocker
 `County_RefreshEstimates` before either of its two `Labour_AllocateAll`s** — each of the
 nine ceilings is refreshed by the pass that invalidates it, as that pass's *tail call*:
 
