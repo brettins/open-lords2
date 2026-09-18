@@ -1,0 +1,48 @@
+{
+  "reviewed": "28b6078fd2535018b42d01052b35e5ed00ad8cbb",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/fire/mod.rs",
+      "line": 120,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": "inverse of y*0x280+x*8 at 00470000.c:4290; DIM 80"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/closing.rs",
+      "line": 48,
+      "address": "0x00484BF9",
+      "verdict": "match",
+      "note": "targetCell != 0 now falls to the :2013/:2020 chain, as the else-if does"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/closing.rs",
+      "line": 47,
+      "address": "0x00484BF9",
+      "verdict": "match",
+      "note": "dropped `cell != 0 ||` from the None arm's early return; dead once None requires cell == 0"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/closing.rs",
+      "line": 137,
+      "address": "0x00484BF9",
+      "verdict": "match",
+      "note": ":1999 other.owner == 0 && targetCell == 0; stale mapX/mapY of a freed slot kept"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/closing.rs",
+      "line": 147,
+      "address": "0x00479E90",
+      "verdict": "departure",
+      "note": "[D] decodes the unit's own targetCell where the original reads one global g_battleMen[0] parked at :4291-4292"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/closing.rs",
+      "line": 45,
+      "address": "0x00484BF9",
+      "verdict": "match",
+      "note": "the [I] Missile_FindTarget reacquisition removed; :1999 has none"
+    }
+  ]
+}
