@@ -646,6 +646,33 @@ mod tests {
         assert_eq!(low.ration_achieved, high.ration_achieved, "and both feed the county the same");
     }
 
+    /// **`Ai_SetRations` (`0x004A4782`) rations against *next* season.** Its
+    /// three calls are `Ration_Apply(county,g_seasonNext)` (`004a0000.c:1794`,
+    /// `1805`, `1816`), and `Ration_Apply`'s seed reservation is gated
+    /// `if (season == 4)` — so an AI county holds its seed back the turn it
+    /// *faces* Winter, not the turn it is in Winter.
+    ///
+    /// *Ablation*: pass `env.season` at `layout.rs`'s `set_rations` call and
+    /// the two rows swap.
+    #[test]
+    fn the_ai_holds_its_seed_back_the_turn_it_faces_winter() {
+        let available = |season, season_next| {
+            let (mut c, mut map) = county_with(8);
+            for i in 0..8u8 {
+                map.terrain[crate::map::index(i, 8)] = terrain::GRAIN;
+            }
+            crate::field::recount(&mut c, &map);
+            c.grain = 400;
+            c.labour_useful[T.job.grain_farming] = 5_000; // labour never binds
+            let mut e = FarmEnv::new(season, season_next);
+            e.advanced_farming = false;
+            lay(FarmStyle::RealmMixed, &mut c, &mut map, &e);
+            c.grain_available
+        };
+        assert_eq!(available(Season::Winter, Season::Spring), 400, "in Winter, none held");
+        assert_eq!(available(Season::Autumn, Season::Winter), 352, "facing Winter: 400 - 48");
+    }
+
     #[test]
     fn a_fixed_split_is_used_as_it_stands() {
         let mut c = County::new();

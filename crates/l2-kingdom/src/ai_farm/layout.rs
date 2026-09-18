@@ -27,12 +27,13 @@ pub fn lay_out(
     labour::allocate(&mut counties[id]);
 
     let search = split_search(style, &counties[id]);
+    // `Ai_SetRations` (`0x004A4782`) runs `Ration_Apply(county,g_seasonNext)`.
     set_rations(
         t,
         &mut counties[id],
         search,
         env.armies_eat,
-        crate::ration::Sowing::new(env.season, env.advanced_farming),
+        crate::ration::Sowing::new(env.season_next, env.advanced_farming),
     );
 
     let winter = env.season == Season::Winter;
