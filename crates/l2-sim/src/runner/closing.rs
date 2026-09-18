@@ -15,10 +15,10 @@ impl BattleRunner {
     /// ```text
     /// :1995  reTarg>0, unit not human, figure not engaged -> reTarg = 0x32
     /// :1999  other.owner == 0 && targetCell == 0 -> own cell; stepFlags&2: state 5
-    /// :2012  stepFlags & 1 clear                  -> keep walking
-    /// :2024  range>>3 < chebyshev + 2             -> walk at it (own cell if
+    /// :2013  stepFlags & 1 clear                  -> keep walking
+    /// :2025  range>>3 < chebyshev + 2             -> walk at it (own cell if
     ///                                               movStraff); engaged = 1
-    /// :2042  otherwise                            -> face; swingTimer++; loose
+    /// :2043  otherwise                            -> face; swingTimer++; loose
     /// ```
     ///
     /// It never calls `BattleMan_FireMissile`: it shoots from its range **less
@@ -67,19 +67,19 @@ impl BattleRunner {
             self.sim.figures[sim].state = State::Idle;
             return false;
         };
-        // `:2012`
+        // `:2013`
         if mid_step {
             return true;
         }
 
         let (tx, ty) = (self.fighters[t].x, self.fighters[t].y);
         let (sx, sy) = (self.fighters[i].x, self.fighters[i].y);
-        // `Dist_Chebyshev`, `:2019`.
+        // `Dist_Chebyshev`, `:2021`.
         let distance = (tx as i32 - sx as i32).abs().max((ty as i32 - sy as i32).abs());
         let class = WeaponClass::for_troop(self.fighters[i].troop);
         // `range >> 3`, in cells. No weapon is range 0, so it walks for ever.
         let range = class.map_or(0, |c| c.stats().range as i32);
-        // `:2024-2038`
+        // `:2025-2039`
         if range < distance + 2 {
             let straffed = self.sim.figures[sim].straffed;
             self.fighters[i].target = if straffed { (sx, sy) } else { (tx, ty) };
@@ -87,7 +87,7 @@ impl BattleRunner {
             return true;
         }
 
-        // `:2042-2047`
+        // `:2043-2047`
         {
             let f = &mut self.fighters[i];
             if let Some(fc) = facing_from_delta(tx as i32 - sx as i32, ty as i32 - sy as i32) {
@@ -104,11 +104,11 @@ impl BattleRunner {
             f.reload_counter = f.reload_counter.saturating_add(1);
             f.reload_counter
         };
-        // `:2048`, `reloadTicks < swingTimer`.
+        // `:2049`, `reloadTicks < swingTimer`; `:2048` is the step.
         if counter <= class.stats().reload {
             return false;
         }
-        // `:2049-2056`. The unit's destination becomes the shooter's own cell,
+        // `:2050-2057`. The unit's destination becomes the shooter's own cell,
         // so its next reform forms it up where it last shot from.
         {
             let f = &mut self.sim.figures[sim];

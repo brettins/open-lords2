@@ -637,7 +637,7 @@ impl BattleRunner {
             return;
         };
         if closing {
-            // `:2087-2088`, `((char)DAT_0057c998 + (char)g_curBattleMan & 0x10) + 4`.
+            // `:2088-2089`, `((char)DAT_0057c998 + (char)g_curBattleMan & 0x10) + 4`.
             // `DAT_0057C998` is the debug panel's `Gtime`, zeroed at turn phase
             // 7 and not at the start of a battle; the battle's tick stands in
             // for it. `[D]` on the stand-in — the only effect is whether a
