@@ -60,6 +60,15 @@ impl Scenario {
             // and nowhere else.
             realm.shield_index =
                 if assigned.shield[id] != 0 { assigned.shield[id] } else { id as u8 };
+            // `Realms_AssignLords` (`0x0049CAAA`) closes on a loop over realms
+            // 1 … 5 that runs whether or not the realm is seated
+            // (`00490000.c:5800-5801`): `+0x2A = 1; +0x29 = +0x2A;`. So a realm
+            // above the lord count carries `countyCount = 1` and owns nothing,
+            // and `Realm_UpdateTotals` (`0x0049D1E0`) never recounts it — it is
+            // called only for an in-play realm. `fought-old_turn.sav` realms
+            // 3 … 5: `strength 0`, `countyCount 1`, `peakCounties 1`. [V]
+            realm.county_count = 1;
+            realm.peak_counties = 1;
             if id > lords {
                 continue;
             }
@@ -67,10 +76,6 @@ impl Scenario {
             realm.strength = 1;
             realm.is_human = id == setup.local_player as usize;
             realm.lord = assigned.lord[id];
-            realm.county_count = 1;
-            // `g_realms[i].field_0x2a = 1` beside it (`0x00490000.c` setup walk,
-            // `Game_SetupRealmsAndCounties`): the most counties ever held.
-            realm.peak_counties = 1;
             let Some(&county) = seats.get(id - 1) else { continue };
             let Some(c) = counties.get_mut(county as usize).and_then(|c| c.as_mut()) else {
                 continue;
