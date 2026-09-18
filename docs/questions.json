@@ -121,6 +121,12 @@
       "text": "The AI raises three armies and they just sit; in the original the knight takes a county in the first year.",
       "row": "ai-armies-idle",
       "outcome": "Filed with your autosaves; next free seat."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "The Knight never replied to a message.",
+      "row": "ai-lord-no-reply",
+      "outcome": "Filed; goes with the idle armies to the next free seat."
     }
   ]
 }
