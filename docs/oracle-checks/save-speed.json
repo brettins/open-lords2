@@ -1,0 +1,14 @@
+{
+  "reviewed": "8c4169d3e1678a48b84c3a1b51bad291a2a7733c",
+  "date": "2026-09-18",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/saveload/mod.rs", "line": 224,
+      "address": "0x004B27BF",
+      "verdict": "match",
+      "note": "Frame_Tick counted from Gfx_Present (00452160, budget-capped at 0x31 ms but non-blocking) and Battle_Frame; App_LogExit 0x004B2636 logs g_frameRateSum/g_frameRateSeconds+1, so the loop is unthrottled as claimed" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/methods.rs", "line": 95,
+      "address": "0x004AD9F0",
+      "verdict": "departure",
+      "note": "original sets DAT_0057d3c4 = 0x96 (004a0000.c:5773) and decrements once per SaveLoad_Tick; ours uses 1 tick on ms-equivalence grounds, reasoned but carrying no [D] mark or C-number" }
+  ]
+}

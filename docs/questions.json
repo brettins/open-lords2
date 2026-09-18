@@ -108,7 +108,7 @@
       "date": "2026-09-18",
       "text": "Saving takes about three seconds; should be near instant.",
       "row": "save-takes-seconds",
-      "outcome": "In flight."
+      "outcome": "Merged: the original's wait is 150 loops of an unthrottled loop, about a millisecond; ours now waits one tick."
     },
     {
       "date": "2026-09-18",
