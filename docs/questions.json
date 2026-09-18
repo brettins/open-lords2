@@ -66,7 +66,7 @@
       "state": "answered",
       "title": "Relaunch the stopped screen-position audit",
       "answer": "a",
-      "outcome": "Relaunched from its handoff."
+      "outcome": "Merged: every draw we could pair by coordinate sits exactly where the original draws it (115 of 115); the check is stored and tested. The near misses were the instrument's, not the screens'."
     },
     {
       "q": "Q9",
