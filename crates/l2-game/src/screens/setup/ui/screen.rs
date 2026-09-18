@@ -164,7 +164,7 @@ impl Screen for SetupScreen {
         };
         let pen = head.flat();
         let base = if self.page == SetupPage::Dropdown { self.under } else { self.page };
-        // `FUN_0041E61D` (`00410000.c:4674-4679`): pages 11 and up take
+        // `FUN_0041E61D` (`00410000.c:5119-5126`): pages 11 and up take
         // `skirmish.256` either way, and `DAT_0056899C` picks between
         // `skirmish.pl8` and `skircust.pl8`. The palette does not change.
         let background = base.background_custom(self.skirmish.custom);

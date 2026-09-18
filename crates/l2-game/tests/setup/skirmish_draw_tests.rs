@@ -58,7 +58,7 @@ fn battles_eng_is_fifty_seven_whole_triples() {
     assert_eq!(assets.shell.battles.count(), 57);
 }
 
-/// **`FUN_00420D40`** (`00420000.c:4761-4765`): one frame per 100 ms, twelve of
+/// **`FUN_00420D40`** (`00420000.c:296-325`): one frame per 100 ms, twelve of
 /// them, and `Gfx_MarkAllDirty` on each step. Ablate the wrap and frame 12 is
 /// asked of a sheet that has eleven past `0x21`.
 #[test]
@@ -132,7 +132,7 @@ fn the_shipped_table_is_normal_plus_or_minus_the_engines_curve() {
 }
 
 /// **`FUN_0042130F`** draws **eleven** rows of counts when the category is a
-/// castle and **seven** otherwise (`00420000.c:5361-5365`), because the four
+/// castle and **seven** otherwise (`00420000.c:467-472`), because the four
 /// siege columns are only offered for a siege. The eighth row's band is the
 /// ablation: fix the count at seven and the two paints are the same.
 #[test]
@@ -157,7 +157,7 @@ fn the_custom_muster_grows_four_rows_for_a_siege() {
     );
 }
 
-/// **`FUN_0041E61D`** (`00410000.c:4674-4679`) reads `skirmish.256` for pages
+/// **`FUN_0041E61D`** (`00410000.c:5119-5126`) reads `skirmish.256` for pages
 /// 11 and up either way and swaps only the `.pl8`.
 #[test]
 fn the_custom_flag_swaps_the_background_and_not_the_palette() {
@@ -239,6 +239,21 @@ fn the_field_go_raises_is_the_row_and_not_the_seed() {
 fn field_of(s: &SetupScreen, game: &mut Game, assets: &Assets) -> Vec<l2_sim::terrain::Cell> {
     let ctx = Ctx { game, assets };
     s.skirmish_field(&ctx, 1).cells
+}
+
+/// **`Skirmish_Setup` calls `FUN_00498DCB`** (`00420000.c:4565`), which leaves
+/// `misc_ske.PL8` in `g_miscCtySheet` (`00490000.c:3999`); *Back* puts
+/// `misc_sel.PL8` back (`FUN_00499034`, `00430000.c:7806`). The two files
+/// settle which the banner draws from: it asks for frames 0x21…0x2C.
+#[test]
+fn the_banners_sheet_is_the_one_that_has_its_frames() {
+    let (_game, assets) = world!();
+    let Some(battle) = assets.shell.sheet("Misc_ske.PL8") else {
+        l2_testkit::skip!("no Misc_ske.PL8 in this install");
+    };
+    assert!(battle.frame(0x2C).is_some(), "0x21 + 11, the last banner frame");
+    let sel = assets.shell.sheet("Misc_sel.pl8").expect("Misc_sel.pl8");
+    assert!(sel.frame(0x21).is_none(), "seventeen frames, so not this one");
 }
 
 /// How many pixels of the two count columns' band carry one of the two ink

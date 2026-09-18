@@ -64,6 +64,12 @@ pub fn file_for(multiplayer: bool, local_attacks: bool) -> &'static str {
 }
 
 /// The token scan alone (`00420000.c:4372-4416`).
+///
+/// **[D]** the two refusals are ours. `Troops_Load` takes whatever it finds:
+/// with no `*` it scans from offset 0, and it stops at row 0x22 rather than
+/// counting tokens, so a short file leaves the rest of the table at the zeroes
+/// the first pass wrote. We refuse instead, because a table half-read is a
+/// skirmish with no men in it and no way to see why.
 pub fn parse_raw(bytes: &[u8]) -> Result<RawTroops> {
     let start = bytes.iter().position(|&b| b == b'*').ok_or(Error::TroopsNoMarker)?;
     let mut tokens: Vec<i16> = Vec::with_capacity(TOKENS);
@@ -121,6 +127,9 @@ impl Troops {
                         let mut v = raw.counts[row][diff][side][slot];
                         // `00420000.c:4418-4452`, and it runs before the
                         // overwrite, so it bites on every column the file wrote.
+                        // **[D]** ours clamps `v` before the copy; the
+                        // original clamps the ten sub-arrays in place. Same
+                        // result, because the overwrite follows either way.
                         if slot >= SIEGE_SLOT && v > SIEGE_MAX {
                             v = SIEGE_MAX;
                         }

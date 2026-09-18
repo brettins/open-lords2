@@ -37,6 +37,8 @@ pub const SHEETS: &[&str] = &[
     "Skirmish.pl8",
     "Skircust.pl8",
     "Misc_sel.pl8",
+    // g_miscCtySheet on setup pages 11-13: FUN_00498DCB (00490000.c:3999).
+    "Misc_ske.PL8",
     "Merchant.pl8",
     "Mercgrid.pl8",
     "Icontrad.pl8",

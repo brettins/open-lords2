@@ -173,7 +173,11 @@ impl ShellAssets {
 /// `Files_Enumerate("*.skr", 1)` (`0x004AECF0`): every `.skr` in the working
 /// directory, lower-cased, extension kept, the first hundred only.
 ///
-/// **[D]** the order. The original's is `FindFirstFileA`'s, bubbled by
+/// **[D]** the `/` filter and the order. `FindFirstFileA("*.skr")` sees one
+/// directory; our VFS index is recursive, so a `.skr` in a mod subdirectory
+/// would be listed where the original lists none, and the filter drops it.
+///
+/// The order is the original's `FindFirstFileA`, bubbled by
 /// [`FUN_004AEE3E`]'s comparison — which reads **only the first byte** of each
 /// name (`004a0000.c:6590`) — so two files sharing a first letter keep
 /// directory order. Ours is the VFS index's full sort, which that pass would

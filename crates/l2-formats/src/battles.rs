@@ -27,11 +27,11 @@ pub const FIELDS: usize = 3;
 /// [`crate::skr::ScenarioText`]).
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct BattleText {
-    /// The list row, `FUN_00421005` at `(0x1D4, 0xBA + 16n)`.
+    /// The list row, `FUN_00421005` at `(0x1D4, 0xBA + 16n)`, width `0x85`.
     pub name: String,
-    /// The heading `FUN_00421231` draws at `(0x78, 0x179)` in `g_fontHeading`.
+    /// The heading `FUN_00421231` draws at x `0x25`, centred in `0x179`.
     pub title: String,
-    /// The two-line body at `(0x98, 0x172)`.
+    /// The body `FUN_0040352F` wraps at x `0x28` in width `0x172`.
     pub description: String,
 }
 
@@ -70,8 +70,12 @@ impl Battles {
         self.entries.len() / FIELDS
     }
 
-    /// One entry, or `""`. The original walks off the end of the buffer
-    /// instead; we stop.
+    /// One entry, or `""`.
+    ///
+    /// **[D]** the original walks off the end of `DAT_0051FD50` instead —
+    /// `FUN_0042AB15`'s seek has no bound and its first iteration even reads
+    /// `g_engCursor[-1]`, the byte before the buffer. Refusing to read past
+    /// the file is ours.
     pub fn entry(&self, n: usize) -> &str {
         self.entries.get(n).map_or("", String::as_str)
     }

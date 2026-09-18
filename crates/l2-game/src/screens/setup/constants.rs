@@ -175,5 +175,5 @@ pub const SKIRMISH_FILE_OK: (i32, i32) = (0x1F8, 0x164);
 
 
 /// `FUN_00414E06`'s loop runs while `local_c < 9` and then once more
-/// (`00410000.c:4835`), so **ten** rows.
+/// (`00410000.c:1806`), so **ten** rows.
 pub const SKIRMISH_FILE_ROWS: usize = 10;

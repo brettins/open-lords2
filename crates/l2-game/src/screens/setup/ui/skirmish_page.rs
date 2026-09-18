@@ -67,17 +67,17 @@ impl SetupScreen {
         }
 
         self.paint_skirmish_banner(canvas, pen);
-        // `FUN_0042051C` (`00420000.c:122-131`): `DAT_0056899C` picks
+        // `FUN_0042051C` (`00420000.c:124-131`): `DAT_0056899C` picks
         // `FUN_00421231` + `FUN_004209C1` or `FUN_0042130F` + `FUN_00420DE4`.
         if s.custom {
-            self.paint_skirmish_custom(canvas, pen);
+            self.paint_skirmish_custom(ctx, canvas, pen);
         } else {
             self.paint_skirmish_battle(ctx, canvas, pen);
             self.paint_skirmish_armies(canvas, pen);
         }
     }
 
-    /// **`FUN_00421231` (`0x00421231`, `00420000.c:4685-4702`)** — the lit
+    /// **`FUN_00421231` (`0x00421231`, `00420000.c:422-447`)** — the lit
     /// battle's heading and its description, the other two thirds of the
     /// `BATTLES.ENG` triple the list row draws the first of.
     ///

@@ -85,7 +85,7 @@ impl SetupPage {
     }
 
     /// The same, with `DAT_0056899C` in hand: `FUN_0041E61D`
-    /// (`00410000.c:4674-4679`) swaps `skirmish.pl8` for `skircust.pl8` on the
+    /// (`00410000.c:5119-5126`) swaps `skirmish.pl8` for `skircust.pl8` on the
     /// skirmish pages alone, and leaves every other page's chain untouched.
     pub fn background_custom(self, custom: bool) -> &'static str {
         match self {

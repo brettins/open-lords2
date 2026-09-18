@@ -98,12 +98,15 @@ impl SetupScreen {
         crate::batfield::skirmish_field(s.kind, s.row, seed)
     }
 
-    /// **`FUN_00420D40` (`0x00420D40`, `00420000.c:4753-4766`)** — twelve
+    /// **`FUN_00420D40` (`0x00420D40`, `00420000.c:296-325`)** — twelve
     /// frames of `Misc_sel.pl8` from `0x21`, one step per 100 ms, and
     /// `Gfx_MarkAllDirty` on each step.
     ///
-    /// The original's clock is `timeGetTime()`; ours is the frame tick, so the
-    /// step lands on the first tick past 100 ms rather than exactly on it.
+    /// **[D]** the original's clock is `timeGetTime()` and it stores the
+    /// reading rather than adding 100, so its steps drift with the frame. Ours
+    /// counts `press::TICK_MS` ticks, which is deterministic — `docs/netcode.md`
+    /// — and lands on the first tick past 100 ms. Presentation only: the frame
+    /// number reaches no digest.
     pub(crate) fn tick_banner(&mut self) {
         self.banner_ms += crate::press::TICK_MS;
         if self.banner_ms <= BANNER_MS {
