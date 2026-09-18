@@ -187,7 +187,7 @@ impl Encode for BattleRunner {
         // decoded value is overwritten before its one reader
         // (`00480000.c:1484`, ours `BattleRunner::loose`).
         //
-        // `[D]` on carrying `tick`: `DAT_0057C998`, the `Gtime` it stands in
+        // `[D]` on carrying `tick`: `DAT_0057C998` (`0x0057C998`), the `Gtime` it stands in
         // for, is in no block either, so the original resumes a load with
         // whatever the process held. Ours feeds `tick` to a missile's
         // `blocked_ticks` seed (`00480000.c:2088`), which is simulation state,
