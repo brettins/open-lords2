@@ -115,20 +115,29 @@ fn a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag() {
 
 #[test]
 fn a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at() {
-    let mut r = storming_party(2);
     let damaged = |r: &BattleRunner, s: u8| {
         r.field.cells.iter().filter(|c| c.terrain > 1 && c.surface == s).count()
     };
-    let mut walk = 0;
-    for _ in 0..60 {
-        r.run(500);
-        walk = damaged(&r, SURFACE_RAMPART_WALK);
-        if walk > 0 {
-            break;
+    // `Battle_Start` (`0x004778A0`, 00470000.c:3060) draws the approach lane,
+    // so which of the four the party climbs is the seed's; the storming party
+    // reaches the masonry on some of them and not others.
+    let mut struck = 0;
+    for lane in 0..4usize {
+        let mut r = storming_party(2);
+        r.ai.approach_lane = lane;
+        let mut walk = 0;
+        for _ in 0..60 {
+            r.run(500);
+            walk = damaged(&r, SURFACE_RAMPART_WALK);
+            if walk > 0 {
+                break;
+            }
+        }
+        if r.sim.cues.walls_struck() > 0 && walk > 0 {
+            struck += 1;
         }
     }
-    assert!(r.sim.cues.walls_struck() > 0, "a shot was counted against a wall");
-    assert!(walk > 0, "and the flag-free walk it was aimed at is what holds the count");
+    assert!(struck > 0, "no lane counted a shot against the flag-free rampart walk");
 }
 
 
