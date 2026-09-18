@@ -23,7 +23,7 @@
       "state": "answered",
       "title": "Do the computer's archers shoot while marching?",
       "answer": "nothing to answer; waits on Q4",
-      "outcome": "Reads against the Q4 saves at the next seat."
+      "outcome": "Merged: the computer's archers shoot while closing, as the original's code reads, and they hold the bow drawn while aiming. Your no-orders battle held with 60 of 129; ours holds with 47, filed."
     },
     {
       "q": "Q4",

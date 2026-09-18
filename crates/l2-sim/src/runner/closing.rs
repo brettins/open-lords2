@@ -93,7 +93,9 @@ impl BattleRunner {
             if let Some(fc) = facing_from_delta(tx as i32 - sx as i32, ty as i32 - sy as i32) {
                 f.facing = fc;
             }
-            f.anim = Motion::Idle;
+            // `:2106` `Anim_DrawBow()` ends the arm every tick (oracle check 2026-09-17).
+            f.anim = Motion::Shooting;
+            f.facing_drawn = f.facing;
             f.progress = Progress::default();
         }
         let Some(class) = class else {
