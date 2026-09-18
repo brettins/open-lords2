@@ -132,6 +132,13 @@ const PAIRS: &[FixturePair] = &[
         before: "siege-old_turn.sav",
         after: "siege-lastturn.sav",
     },
+    // The first pair played with `g_optAdvancedFarming` set; every pair above
+    // it has the option off.
+    FixturePair {
+        label: "advfarm 3->4",
+        before: "advfarm-old_turn.sav",
+        after: "advfarm-lastturn.sav",
+    },
 ];
 
 const SAME_TURN_TRIPLES: &[[&str; 3]] = &[
@@ -405,7 +412,7 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 
     let was_realms = before.realms().map_err(|e| e.to_string())?;
     let realms = after.realms().map_err(|e| e.to_string())?;
-    // **Realms 3, 4 and 5 are out of play in all four pairs**, so nothing here
+    // **Realms 3, 4 and 5 are out of play in all five pairs**, so nothing here
     // ever farmed or compared them: measured off this test's own printout,
     // which names realms 1 and 2 and no other. A ledger row claiming AI realm 3
     // never plants where the original does cannot be seen from here, and the
@@ -536,8 +543,37 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 /// **What is left on siege 13->14 is `realm.gold` realm 1, +500**, and it is
 /// not the siege: it is the player's own half of the step, an armoury or castle
 /// spend this pair cannot replay. `[I]`.
+///
+/// # `advfarm 3->4`, the first pair played with *Advanced Farming* on
+///
+/// It arrives at 226 of 233, and the seven are one cause. Six are
+/// `county.herd`/`county.herd_available` on counties 1, 2 and 3, each +5, and
+/// each is that county's `herd_weather_change` (`+0x270`): our weather byte
+/// came out *Sunny* where the original's is *Cloudy*, and
+/// `HERD_WEATHER_PCT` is +5 % against 0 %. County 4 drew *Cloudy* on both
+/// sides and its herd agrees exactly, 146.
+///
+/// **So it is the excluded `county.weather` leaking downstream, not a missing
+/// rule**, and it could not show up before: `Weather_UpdateAll`
+/// (`0x00449889`) flattens every county to *Cloudy* when the option is off,
+/// which is every earlier pair. The dryness decomposes under our own
+/// `update_all` on both sides — ours is `delta = 8`, chosen county 3,
+/// neighbours 1, 2 and 4 (+8/+12/+16); the original's is `delta = 3`, chosen
+/// county 1, neighbours 2 and 3 (+3/+4/+6) — the same rule over a different
+/// draw from the two 31-bit LFSRs (`FUN_00404A46`). Not closable from a save.
+///
+/// **Every other Advanced Farming branch agrees on this pair, and each is one
+/// the option decides.** `Fertility_Update` (`0x0044BFD5`) is forced to 0 with
+/// the option off and here moves 42 -> 54, 24 -> 36 and 54 -> 72, all three
+/// ours exactly. `Industry_EfficiencyRamp` (`0x0044F248`) is a flat 80 with it
+/// off and county 4's four efficiencies are 100/100/100/0 on both sides.
+/// Nothing was ported: the branches were already built, and this is the first
+/// pair that runs them.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
+    ("advfarm 3->4", "county.herd", 3),
+    ("advfarm 3->4", "county.herd_available", 3),
+    ("advfarm 3->4", "global.ai_lords", 1),
     ("battle 3->4", "global.ai_lords", 1),
     ("battle 4->5", "global.ai_lords", 1),
     ("siege 12->13", "global.ai_lords", 1),
@@ -545,13 +581,13 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "realm.gold", 1),
 ];
 
-const COMPARED_TOTAL: usize = 932;
+const COMPARED_TOTAL: usize = 1165;
 
-const AGREE_TOTAL: usize = 927;
+const AGREE_TOTAL: usize = 1153;
 
-const MOVED_TOTAL: usize = 279;
+const MOVED_TOTAL: usize = 351;
 
-const MOVED_AGREE_TOTAL: usize = 278;
+const MOVED_AGREE_TOTAL: usize = 344;
 
 
 #[test]
@@ -596,7 +632,7 @@ fn the_pairs_are_one_end_turn_apart() {
             pair.after
         );
     }
-    eprintln!("\nthe four one-End-Turn pairs:\n{}\n", lines.join("\n"));
+    eprintln!("\nthe one-End-Turn pairs:\n{}\n", lines.join("\n"));
 }
 
 #[test]
