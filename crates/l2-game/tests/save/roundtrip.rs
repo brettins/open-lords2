@@ -167,6 +167,27 @@ fn ten_seasons_from_a_reloaded_england_are_the_same_ten() {
 }
 
 
+/// **The load's ten-second grace on the turn clock.** `Save_Write` block 174 is
+/// `DAT_005440C8` and nothing else; `FUN_004976A1` (`00490000.c:3081`) then
+/// adds ten and rebases `_DAT_00568D9C` on the sum. Ablation: drop
+/// `game.turn_clock.resumed(…)` from `save::resume` and the reloaded game shows
+/// the 200 the file held instead of 210.
+#[test]
+fn a_reloaded_game_gets_ten_seconds_back_on_its_turn_clock() {
+    let mut game = furnished(3);
+    assert_eq!(game.kingdom.options.time_limit, 240);
+    for _ in 0..(40_000 / l2_game::TICK_MS) {
+        game.turn_clock.tick(l2_game::turn_clock::Frame::of(&game));
+    }
+    assert_eq!(game.turn_clock.remaining(), 200, "forty seconds of a four-minute turn");
+
+    let bytes = save::encode(&game);
+    let mut back = save::decode(&bytes, Tables::DEFAULT).expect("our own bytes");
+    assert_eq!(back.turn_clock.remaining(), 200, "block 174 survives the file");
+    save::resume(&mut back);
+    assert_eq!(back.turn_clock.value(240, false, false), Some(210));
+}
+
 #[test]
 fn a_version_this_build_does_not_understand_is_named_rather_than_half_loaded() {
     let mut bytes = save::encode(&furnished(1));

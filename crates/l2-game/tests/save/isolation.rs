@@ -106,6 +106,22 @@ fn a_save_written_by_another_test_is_in_neither_this_listing_nor_this_load_scree
     });
 }
 
+/// **A read is not the identity.** `saves::read` runs `save::resume`, which is
+/// `FUN_004976A1`, and its `DAT_005440C8 += 10` (`00490000.c:3081`) is the one
+/// field of a loaded game that is deliberately not what was written. The grace
+/// itself is
+/// `roundtrip::a_reloaded_game_gets_ten_seconds_back_on_its_turn_clock`; here it
+/// is checked and set aside so the rest of the game can be compared field for
+/// field.
+fn less_the_load_grace(back: &mut Game, was: &Game) {
+    assert_eq!(
+        back.turn_clock.remaining(),
+        was.turn_clock.remaining() + l2_game::turn_clock::LOAD_GRACE,
+        "the load's ten seconds"
+    );
+    back.turn_clock = was.turn_clock;
+}
+
 #[test]
 fn a_save_written_to_disk_reads_back_as_the_same_game() {
     let own = Saves::new("round-trip");
@@ -117,7 +133,8 @@ fn a_save_written_to_disk_reads_back_as_the_same_game() {
     assert_eq!(path.extension().unwrap(), save::EXTENSION, "ours, and never .sav");
     assert!(path.starts_with(&own.path), "a save must land in the save directory: {path:?}");
 
-    let back = saves::read(name, Tables::DEFAULT).expect("read");
+    let mut back = saves::read(name, Tables::DEFAULT).expect("read");
+    less_the_load_grace(&mut back, &game);
     assert_eq!(back, game);
 
     assert!(saves::list().iter().any(|e| e.name == name), "and it is in the listing");
@@ -144,7 +161,8 @@ fn a_failed_write_cannot_destroy_the_save_it_was_replacing() {
     let second = played(1);
     saves::write(name, &first).expect("write");
     saves::write(name, &second).expect("overwrite");
-    let back = saves::read(name, Tables::DEFAULT).expect("read");
+    let mut back = saves::read(name, Tables::DEFAULT).expect("read");
+    less_the_load_grace(&mut back, &second);
     assert_eq!(back, second);
     assert_eq!(own.files(), vec![file(name)], "a temporary file was left in the save directory");
 }
