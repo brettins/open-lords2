@@ -23,7 +23,7 @@
       "state": "answered",
       "title": "Do the computer's archers shoot while marching?",
       "answer": "nothing to answer; waits on Q4",
-      "outcome": "Reads against the Q4 saves at the next seat."
+      "outcome": "Merged: the computer's archers shoot while closing, as the original's code reads, and they hold the bow drawn while aiming. Your no-orders battle held with 60 of 129; ours holds with 47, filed."
     },
     {
       "q": "Q4",
@@ -66,7 +66,7 @@
       "state": "answered",
       "title": "Relaunch the stopped screen-position audit",
       "answer": "a",
-      "outcome": "Relaunched from its handoff."
+      "outcome": "Merged: every draw we could pair by coordinate sits exactly where the original draws it (115 of 115); the check is stored and tested. The near misses were the instrument's, not the screens'."
     },
     {
       "q": "Q9",

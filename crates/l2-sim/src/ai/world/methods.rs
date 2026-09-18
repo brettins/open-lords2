@@ -20,6 +20,15 @@ impl World<'_> {
         let u = self.units.get_mut(cur);
         u.target_x = x;
         u.target_y = y;
+        // `BattleUnit_Order` (`0x00479E90`) opens with `movStraff = 0` for every
+        // figure of the unit, whether or not the destination moved — and every
+        // AI order routine reaches the figures through it. Without this a
+        // closing archer that has shot once never follows again. `[V]`
+        for f in self.figures.iter_mut() {
+            if f.unit as usize == cur {
+                f.straffed = false;
+            }
+        }
     }
 
     fn clear_withdrawing(&mut self, cur: usize) {

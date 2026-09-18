@@ -112,17 +112,42 @@ pub(super) fn charge_for_the_absent_player(
 ) {
     let human = |id: usize| kingdom.campaign.units.get(id).is_some_and(|u| u.owner_is_human);
     for (side, id) in [(SIDE_B, attacker), (SIDE_A, defender)] {
+        if human(id) {
+            let enemy = runner.home(l2_sim::runner::other_side(side));
+            runner.order_side(side, enemy.0, enemy.1);
+        }
+    }
+}
+
+/// **The stand-in points again, at the men and not at the cell.** C186's charge
+/// is one order, and one order runs out: a closing archer stops at bow range
+/// and `movStraff` holds it (`BattleMan_StateCloseToAttack`, `0x00484BF9`), so
+/// the unit re-forms on it and the last enemy remnant — cautious, out of its
+/// own charge radius — never comes. The opening order stays the enemy's home
+/// so that no fixture's first frame moves; this one follows the survivors, as a
+/// player's clicks do. `[I]`, C186.
+pub(super) fn point_again_for_the_absent_player(
+    kingdom: &Kingdom,
+    runner: &mut BattleRunner,
+    attacker: usize,
+    defender: usize,
+) {
+    let human = |id: usize| kingdom.campaign.units.get(id).is_some_and(|u| u.owner_is_human);
+    for (side, id) in [(SIDE_B, attacker), (SIDE_A, defender)] {
         if !human(id) {
             continue;
         }
-        let home = runner.home(l2_sim::runner::other_side(side));
-        // **At the nearest enemy unit, not at the enemy's corner.** A charge
-        // issued once at the corner stops being a charge the moment a unit
-        // shoots: `BattleMan_StateCloseToAttack` (`0x00484BF9`,
-        // `00480000.c:2055-2056`) pins the unit's destination to the shooter's
-        // own cell, and the 500-frame reform then re-forms it where it stands.
-        // The AI rewrites its own units' destinations every think; nothing
-        // rewrites a human's, so the stand-in has to.
+        // **Nothing in the binary re-orders a human unit.** The whole order
+        // table sits inside `Battle_UpdateAllUnits`'s `if (humanControlled ==
+        // 0)` (`0x00489401`, `00480000.c:3640-3654`); only the recentre and the
+        // 500-frame reform at `:3655-3662` run outside it, and the reform reads
+        // the destination this stand-in has to write.
+        //
+        // At the nearest enemy **unit**, per unit of ours: that is what the
+        // handlers behind that guard point at. `UnitOrder_FieldMissile`
+        // (`0x0048A9D2`, `:4294`) and `UnitOrder_FieldMelee` (`0x0048B02B`,
+        // `:4502`) both take `Enemy_NearestUnit`'s unit; none of them orders at
+        // a centre of mass.
         let mine: Vec<usize> =
             runner.units.live().filter(|&u| runner.units.get(u).side == side).collect();
         for u in mine {
@@ -138,9 +163,10 @@ pub(super) fn charge_for_the_absent_player(
                 .map(|e| {
                     let t = runner.units.get(e);
                     (t.x.clamp(0, 79) as u8, t.y.clamp(0, 79) as u8)
-                })
-                .unwrap_or(home);
-            runner.order_unit(u, at.0, at.1);
+                });
+            if let Some(at) = at {
+                runner.order_unit(u, at.0, at.1);
+            }
         }
     }
 }

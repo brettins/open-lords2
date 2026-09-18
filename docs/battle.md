@@ -154,8 +154,8 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x17B` | i8 | — | [D] | melee recovery counter; the attacker decrements it, and a blow lands when it reaches 0. |
 | `+0x17E` | u8 | opponent | [D] | the other figure in a melee duel. |
 | `+0x180` | i16 | — | [D] | reload / swing timer. |
-| `+0x182` | u8 | — | [D] | set to 120 on firing, counts down; the figure-level twin of unit `+0x0F`. |
-| `+0x183` | u8 | engaged | [D] | "in contact, stop walking". |
+| `+0x182` | u8 | **firing** | [V] | 0x78 beside each of the three unit-level writes — `BattleMan_FireMissile` `00480000.c:1478`, `BattleMan_StateEngineFire` `:1837`, `BattleMan_StateCloseToAttack` `:2053` — and counted down by `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`), which is its only other reference. The figure-level twin of unit `+0x0F`, and unlike that one it has no reader. `Figure::firing`. |
+| `+0x183` | u8 | engaged | [V] | set by state 17 while it walks to close the range and cleared as it looses; set by `Missile_Step` on the shooter when a blocked shot is given up or a shot runs out of range. Read by state 17 to hold an AI unit's reform, and by `BattleMan_StateEngineFire`. §14.2a. |
 | `+0x184` | i8 | exchange | [D] | ticks left holding the attacker role in a duel. |
 | `+0x185` | u8 | role | [D] | 1 = attacker this exchange, 2 = defender. |
 | `+0x18C` | u8 | blowUsed | [D] | set once the heavy-blow bonus has been spent. |
@@ -1893,6 +1893,87 @@ when a friendly figure blocks the step. **State 2 is a corpse**: it steps the
 collapse animation and counts `+0x173` to 80 before freeing the slot, and state
 15 is its siege-engine twin at 120. `+0x173` is a field §2.3 does not list.
 
+### 14.2a State 17 closes, shoots its own arrows, and holds  **[V]**
+
+`BattleMan_StateCloseToAttack` (`0x00484BF9`; slot 17 is the dword at `0x004D91B4`,
+its one absolute reference). It is the shooting state a player reaches by sending a
+missile unit **onto an enemy**, and it never calls `BattleMan_FireMissile`: it carries
+its own copy of the spawn, the band scaling, the eight launch steps and both sounds.
+`l2-sim`: `runner::close_to_attack_tick`.
+
+**Who enters it.** Two writers.
+
+* `Formation_SendFigure` (`0x00489B8D`): a figure with weapon class 1 or 2, when
+  `DAT_005681FC` holds a figure of another owner **or** the unit's `targetCell` (`+0x30`)
+  is set. Its walk destination becomes its own cell. `DAT_005681FC` is the occupant of
+  the **unit's** destination, cached by `Formation_RectIsClear` (`0x00489F9D`) before any
+  slot is assigned — so every bow and crossbow in the unit takes the same target.
+  `l2-sim` read the slot's occupant until this section was written, which put almost
+  nobody into state 17.
+* `Order_ShootAtUnit` (`0x0048C974`): every figure of an AI unit that `Missile_FindTarget`
+  found a target for, unless the shooter stands on surface 1 and the target on surface 5.
+
+**One frame**, in the handler's order:
+
+| test | does |
+|---|---|
+| unit `reTarg` > 0, unit not human, figure not `engaged` (`+0x183`) | `reTarg = 50`. `Battle_UpdateAllUnits` has already counted it down this frame, so a shooting AI unit's reform is **held**, and runs out 50 frames after its last figure stops |
+| target's `owner == 0` and `targetCell == 0` | walk to its own cell; on arrival (`stepFlags & 2`) state 5 |
+| `stepFlags & 1` clear — between cells | keep walking |
+| `range >> 3 < Dist_Chebyshev + 2` — out of range | walk at the target, or stand if `movStraff`; `engaged = 1` |
+| otherwise | face it; `+0x180` += 1; past `reloadTicks`, loose |
+
+**The loose** clears `engaged` and the reload counter, sets `movStraff`, sets the
+figure's and the unit's `firing` to 120, **writes the unit's `targX`/`targY` to the
+shooter's own cell**, and spawns at the target's current cell with `+0x44 =
+targetCell`. The blocked counter is seeded `((Gtime + figure) & 0x10) + 4` where
+`BattleMan_FireMissile` seeds `(figure & 0x10) + 4`; `Gtime` is `DAT_0057C998`, the
+debug panel's own label. After the launch steps it plays slot 9 for class 2 and 7 for
+class 1, **reading the class byte back out of the record** — a shot the launch steps
+retired has been zeroed by `FUN_0046EB78`, and is silent.
+
+**What a player sees.**
+
+* **An archer shoots from its range less two cells**: 13 for a bow, 6 for a crossbow.
+  That is how far it will *walk to*, where state 5's `Missile_FindTarget` is how far it
+  will *look* (15 and 8).
+* **After its first shot it holds its ground.** `movStraff` is cleared only by
+  `BattleUnit_Order`, so a target that steps back out of range is let go until the unit
+  is ordered again. `movStraff` has no symbol; `mov straff` is the debug panel's label
+  (`00420000.c:1521`).
+* **A shooter keeps aiming at a body for 80 frames.** `BattleMan_StateDead` frees the
+  slot past 80 (`BattleMan_StateEngineDead` past 120), and `owner == 0` is the only
+  test that lets go. Then it drops to state 5 and picks its own targets.
+* **The unit's destination follows its shots**, so its next reform forms it up where it
+  last shot from.
+* `Missile_Step` writes `engaged = 1` on the shooter when a blocked shot is given up and
+  when a shot runs out of range.
+
+**Not built: the cell arm.** `BattleUnit_Order` writes `targetCell` on one branch only
+— a side-0 missile unit ordered at a cell with no figure target and the woodland
+argument set — and parks figure 0 on the cell as a stand-in target. `Missile_Step` then
+sets surface 15 alight from `+0x44` (on any cell for an AI shooter, on that cell only
+for a human's) and zeroes `targetCell` and figure 0's owner. That is fire.
+
+**What the no-orders pair says.** `E:\dev\lords2-fixtures\noorders-start.sav` is the
+battle screen the frame it opened and `noorders-end.sav` the campaign map after it: the
+player's 52 men (2 peasants, 25 swordsmen, 25 archers, `g_units` slot 5 `+0x168`) against
+a county levy of 129 (69 peasants, 60 archers, slot 6), and **the player gave no order at
+all**. The defence held — slot 5 free, county 1 `owner` still 0, `population` 388 → 448,
+realm 1 `strength` 4 → 3 — so **60 of its 129 walked home**. `[V]`
+`crates/l2-game/tests/seam/no_orders.rs` fights it unordered over eight seeds: the
+defence holds all eight and the player's army is destroyed in every one, at 47 of 129
+against the save's 60, in 3,943 ticks. The eight are identical — with no order issued
+nothing in this position reads the seed, which is a finding about the position and not
+about the seed.
+
+**State 17 is reached in that battle, but not before the first blow.** Of 322 arrows,
+83 leave state 17 and all 83 after the first melee casualty: the AI's `Order_ShootAtUnit`
+sits on the aggressive arm of `UnitOrder_FieldFoot`, which is what *being shot at* turns
+on (`docs/battle-ai.md`), so the 45 arrows before contact are the player's own archers
+standing in state 5. An AI archer closing before contact needs the order arm, not this
+state.
+
 ### 14.3 How a castle comes down
 
 Not written down anywhere before. Two accumulators, and they are not
@@ -2803,7 +2884,7 @@ stops it**, friend or foe.
 
 For troop type 8 only: from its polar facing (`+0x168`, which `FUN_00488436` keeps on the nearest
 orthogonal with hysteresis on a diagonal) through the four orthogonals clockwise, the first where
-the cell two ahead is **exactly 2 high** and the cell one ahead is **not
+the cell two ahead is **not
 wall cell's flags cleared; **`BattleMan_Destroy` (`0x0046EBE4`)**; `FUN_004921E5` writes a ramp —
 the tower's cell and the far step at 1, the flanks and diagonals `|= 0x10`; the 3 × 3's flags
 `|= 1` and frames from `DAT_004D9DD0[k + d × 9]`; the wall cell's frame 1 or 2; the near step at

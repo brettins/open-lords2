@@ -643,6 +643,13 @@ impl Simulation for RunnerNetBattle {
             out.u8(f.targeted);
             out.option(f.opponent.as_ref(), |c, i| c.len32(*i));
             out.u16(f.reload_counter);
+            // **State 17.** Whether a closing archer walks or stands, whether
+            // its AI unit's reform is held, and when a dead target is let go
+            // are each decided by one of these — and the target itself is who
+            // it walks at and shoots.
+            out.bool(f.engaged);
+            out.bool(f.straffed);
+            out.option(f.target.as_ref(), |c, i| c.len32(*i));
         }
         out.end_section();
 

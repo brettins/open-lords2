@@ -77,11 +77,12 @@ const STATUSES: &[&str] = &["reproduced", "blocked", "dead", "missing"];
 /// | `FUN_0040d6ad#1`, `FUN_0040d7b8#1` | the two arrows of a slider widget whose hit-tester `FUN_0040D3F5` has **no caller**: zero rel32 calls, zero jumps and zero absolute references in the image, against 36 rel32 callers for `Widget_Test` as the control | `D39` |
 /// | `Battle_PauseButton#1` | guarded on a word that alternates between 0 and −1; the only writer that could make it 1, `FUN_00434E68`, has no reference either | D38 |
 /// | `FUN_004b39e8#1` | the degraded castle's three lines: the thunk that plays them has **no caller** — zero rel32 calls, zero jumps and zero dword references in the image, against one rel32 caller for its sibling `FUN_004B3714` as the control | `D40` |
+/// | `FUN_0047fe0b#1` | dead in single player: its one caller `Realm_Eliminate` has three call sites, two behind `g_multiplayer != 0` (whose only writer of 1 is `Net_JoinGame` after a connection succeeds) and one in `FUN_0049CEBE`, which has no reference in the image | `DNEW-midbattle` |
 ///
 /// **A pinned set, not a relaxed check.** The fourth entry cost exactly what the
 /// first did, and so will the fifth: say in `note` which guard can never hold —
 /// or, as `FUN_004b39e8#1` does, that *nothing calls the function at all* — add
 /// it to `docs/bugs.md`, and add its id here.
 const DEAD_IN_THE_SHIPPED_GAME: &[&str] =
-    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1", "FUN_004b39e8#1"];
+    &["Battle_PauseButton#1", "FUN_0040d6ad#1", "FUN_0040d7b8#1", "FUN_0047fe0b#1", "FUN_004b39e8#1"];
 

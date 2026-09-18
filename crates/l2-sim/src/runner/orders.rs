@@ -264,7 +264,15 @@ impl BattleRunner {
         let troop = self.fighters[fighter].troop;
         let owner = self.sim.figures[sim].owner;
 
-        let enemy_there = self.occupant[y as usize * DIM + x as usize].and_then(|o| {
+        // **The occupant of the *unit's* destination, not of this slot.**
+        // `DAT_005681FC`'s one writer is `Formation_RectIsClear`
+        // (`0x00489F9D`, `00480000.c:3963`):
+        // `DAT_005681fc = g_battlefield[targY * 0x50 + targX].figure`, cached
+        // off the unit's `targX`/`targY` before a slot is assigned. `[V]` A
+        // slot is by construction a cell a figure can walk to, so reading the
+        // slot's occupant put almost nobody into state 17.
+        let (ux, uy) = self.unit_dest(unit);
+        let enemy_there = self.occupant[uy as usize * DIM + ux as usize].and_then(|o| {
             let o = o as usize;
             (self.sim.figures[self.fighters[o].sim].owner != owner).then_some(o)
         });
@@ -472,7 +480,18 @@ impl BattleRunner {
             return;
         }
 
-        if self.fighters[i].at_target() {
+        if self.sim.figures[self.fighters[i].sim].state == State::Shooting {
+            // **State 17 is its own handler.** It never reaches
+            // `BattleMan_FireMissile`; it decides for itself whether to walk.
+            if !self.close_to_attack_tick(i) {
+                return;
+            }
+            if self.fighters[i].at_target() {
+                self.fighters[i].anim = Motion::Idle;
+                self.fighters[i].progress = Progress::default();
+                return;
+            }
+        } else if self.fighters[i].at_target() {
             self.stand(i);
             self.fighters[i].progress = Progress::default();
             self.fire_tick(i);
@@ -528,7 +547,8 @@ impl BattleRunner {
                     self.fighters[i].target = (tx, ty);
                 }
             }
-            State::Shooting => self.close_to_attack(i),
+            // State 17 follows its target, looses and lets go inside its own
+            // handler, [`Self::close_to_attack_tick`].
             _ => {}
         }
     }
@@ -585,7 +605,21 @@ impl BattleRunner {
         self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
     }
 
-    pub(super) fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
+    fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
+        self.loose_from(shooter, class, at, false);
+    }
+
+    /// `closing` picks `BattleMan_StateCloseToAttack`'s copy of the launch
+    /// (`00480000.c:2057-2104`) over `BattleMan_FireMissile`'s. The two differ
+    /// in the blocked seed — `((Gtime + figure) & 0x10) + 4` against `(figure &
+    /// 0x10) + 4` — and in which occasion the sound is asked on. `[V]`
+    pub(super) fn loose_from(
+        &mut self,
+        shooter: usize,
+        class: WeaponClass,
+        at: (u8, u8),
+        closing: bool,
+    ) {
         let sim = self.fighters[shooter].sim;
         // `BattleMan_FireMissile` (`0x00483337`, `00480000.c:1478-1479`)
         // `g_battleMen[cur].firing = 0x78; g_battleUnits[sVar2].firing = 0x78;`
@@ -626,6 +660,15 @@ impl BattleRunner {
         ) else {
             return;
         };
+        if closing {
+            // `:2088-2089`, `((char)DAT_0057c998 + (char)g_curBattleMan & 0x10) + 4`.
+            // `DAT_0057C998` is the debug panel's `Gtime`, zeroed at turn phase
+            // 7 and not at the start of a battle; the battle's tick stands in
+            // for it. `[D]` on the stand-in — the only effect is whether a
+            // blocked volley gives up after 4 frames or 20.
+            self.missiles.get_mut(slot).blocked_ticks =
+                ((self.tick as u8).wrapping_add(sim as u8) & 0x10) + 4;
+        }
         // **A fire arrow.** `BattleMan_FireMissile` writes `+0x44 = 1` when the
         // shooter's unit is an AI's, of side 0, and more than three of a
         // human's figures are standing in woodland — the garrison sets the
@@ -667,7 +710,11 @@ impl BattleRunner {
         // `BattleMan_StateEngineFire` (`0x004843BC`, `:1861`) plays slot `0xE`
         // with no such test. `[V]`
         if class == WeaponClass::Catapult || self.missiles.get(slot).class == class.index() {
-            self.sim.cues.loose(class);
+            if closing {
+                self.sim.cues.closing_loose(class);
+            } else {
+                self.sim.cues.loose(class);
+            }
         }
     }
 
@@ -793,6 +840,7 @@ impl BattleRunner {
             if spent {
                 // `:1264`, a shot that fell short.
                 self.shots_wasted(slot, crate::unit::SHOTS_WASTED_SHORT);
+                self.mark_shooter_engaged(slot);
                 self.missiles.free(slot);
                 return false;
             }
@@ -813,6 +861,17 @@ impl BattleRunner {
 
     /// `g_battleUnits[sVar3].field_0x2d = n`, where `sVar3` is
     /// `g_battleMen[m.+0x06].unit` (`00490000.c:1219-1220`).
+    /// `g_battleMen[shooter].engaged = 1` beside each of `Missile_Step`'s three
+    /// give-up arms — `00490000.c:1246`, `:1252` and `:1263`. State 17 reads it
+    /// back to decide whether to hold an AI unit's reform. `[V]` — the hit arm
+    /// at `:1353` writes `field_0x2d` and no `engaged`.
+    fn mark_shooter_engaged(&mut self, slot: usize) {
+        let shooter = self.missiles.get(slot).shooter as usize;
+        if let Some(f) = self.sim.figures.get_mut(shooter) {
+            f.engaged = true;
+        }
+    }
+
     fn shots_wasted(&mut self, slot: usize, n: u8) {
         let shooter = self.missiles.get(slot).shooter as usize;
         let u = self.sim.figures.get(shooter).map_or(0, |f| f.unit as usize);
@@ -860,6 +919,7 @@ impl BattleRunner {
                 if m.blocked_ticks > missile::BLOCKED_LIMIT || m.launch_elevation == elevation {
                     // `:1247` and `:1253`, a shot the ground stopped.
                     self.shots_wasted(slot, crate::unit::SHOTS_WASTED_BLOCKED);
+                    self.mark_shooter_engaged(slot);
                     self.missiles.free(slot);
                     return false;
                 }
