@@ -190,6 +190,14 @@ pub struct Unit {
     pub garrison_county: u8,
     pub besieging_county: u8,
     pub besieged_by: u8,
+    /// `+0x1A` — the AI mission enum `Ai_RunMission` (`0x004A57AC`) dispatches
+    /// on: 2 seek, 3 hold home, 4 join garrison, 5 in garrison, 6 assist ally,
+    /// 7 raid; any other value is rewritten to 2. `docs/armies.md` §10.
+    pub mission: u8,
+    /// `+0x19B` — the ally-help target county, written by `FUN_0049FDA5`
+    /// (00490000.c:6900) from realm `+0xE8` and re-validated by
+    /// `Ai_MissionAssistAlly` (`0x004A599D`, 004a0000.c:2357).
+    pub mission_county: u8,
     /// `+0x182 + e*6` — the three build records, read so an imported besieger
     /// resumes its build instead of `Siege_BuildTick` (`0x004A8507`) skipping
     /// every `ordered == 0` record and reporting ready on its first tick.
