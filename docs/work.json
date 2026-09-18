@@ -25,7 +25,7 @@
       "branch": "worktree-agent-a3a44aefeb7db16dc",
       "depends_on": [],
       "source": "differential.rs: this one behaviour is the whole residual score and strength gap on both siege pairs",
-      "next": "user decides whether to relaunch; WIP and HANDOFF.md are preserved on the branch",
+      "next": "Q7 user decides whether to relaunch; WIP and HANDOFF.md are preserved on the branch",
       "note": "stopped by the user | detail: Why our realm 2 destroys the 43-man army the original leaves standing on the siege saves"
     },
     {
@@ -37,7 +37,7 @@
       "branch": "worktree-agent-add2587f15d580aa2",
       "depends_on": [],
       "source": "four placement defects in two days found only by a player looking (C140, C150, BODY_WRAP)",
-      "next": "user decides whether to relaunch; WIP and HANDOFF.md are preserved on the branch",
+      "next": "Q8 user decides whether to relaunch; WIP and HANDOFF.md are preserved on the branch",
       "note": "stopped by the user | detail: Compare where the original draws against where we draw"
     },
     {
@@ -145,7 +145,7 @@
       "branch": "worktree-agent-a55ac6f31e368d8c9",
       "depends_on": [],
       "source": "battle-sound agent: three sound sites blocked",
-      "next": "held from merge: a battle where the player gives no orders, recorded in the original, must decide whether AI archers closing to attack is faithful",
+      "next": "Q3 held from merge: a battle where the player gives no orders, recorded in the original, must decide whether AI archers closing to attack is faithful",
       "note": "state 17 built and sounding; mid-battle elimination filed dead in single player. seam.rs's fought battle now goes to the attacker, because defending AI archers walk to 13 cells instead of standing and shooting. That test's save was a battle played by hand while our side gives no orders, so it was never a like-for-like comparison | when it moves again: rebase onto C181 (siege, 3774de3), which also changes l2-sim cue.rs, runner.rs and tests/lockstep.rs | check own-units-move-before-orders first: the player saw his own men walk while the enemy stood still, so if our battle AI drives the wrong side, this branch's evidence about defending AI archers may be describing the player's own units | premise refuted: that branch measured no AI unit. Its 13-cell walk is a unit test whose archer is human: true, and seam.rs records no side. Re-measure it against a begin_fight that orders nobody"
     },
     {
@@ -289,7 +289,7 @@
       "branch": null,
       "depends_on": [],
       "source": "close-attack agent: only an unordered battle in the original can say whether AI archers close to attack or stand and shoot",
-      "next": "start a battle, give your army no orders, save before and after",
+      "next": "Q4 start a battle, give your army no orders, save before and after",
       "note": "decides whether the close-attack branch merges | narrowed: the player has answered that the player's own units do not advance on their own, so only the AI side is still wanted"
     },
     {
@@ -313,7 +313,7 @@
       "branch": "agent/firemissile-order",
       "depends_on": [],
       "source": "close-attack agent: BattleMan_FireMissile's port records its sound too early and never sets the unit's firing; the original sets it, and stays silent if a launch step removed the missile",
-      "next": "ae0d8fc8 holds: sound after the eight steps, firing 0x78 set (00480000.c:1478-1479), unit +0x2D shots-wasted ported (00490000.c:1247/1253/1264/1353, rebuild 3529-3532). Oracle-checked: matches. But with firing set, UnitOrder_FieldMissile's u.firing == 0 arm (ai/handlers/field.rs:64, a line-for-line match of :4335-4339) stops AI archers stepping away and the seam militia falls 4 of 8 to 3 of 8 (floor 4). The binary says set it; the save says the militia held; a third thing is wrong. Choose: (a) merge with the firing write held behind a [D] so the seam holds, or (b) accept 3 of 8 as the new floor and find the third thing (the seam battle is flat, +0x2D only ever takes the one-frame 1)",
+      "next": "Q1 ae0d8fc8 holds: sound after the eight steps, firing 0x78 set (00480000.c:1478-1479), unit +0x2D shots-wasted ported (00490000.c:1247/1253/1264/1353, rebuild 3529-3532). Oracle-checked: matches. But with firing set, UnitOrder_FieldMissile's u.firing == 0 arm (ai/handlers/field.rs:64, a line-for-line match of :4335-4339) stops AI archers stepping away and the seam militia falls 4 of 8 to 3 of 8 (floor 4). The binary says set it; the save says the militia held; a third thing is wrong. Choose: (a) merge with the firing write held behind a [D] so the seam holds, or (b) accept 3 of 8 as the new floor and find the third thing (the seam battle is flat, +0x2D only ever takes the one-frame 1)",
       "note": ""
     },
     {
@@ -397,7 +397,7 @@
       "branch": null,
       "depends_on": [],
       "source": "industry agent: every save on this machine has Advanced Farming off, and a second cause of wrong industry numbers only shows with it on",
-      "next": "answer the question; if on, share two autosaves one End Turn apart",
+      "next": "Q5 answer the question; if on, share two autosaves one End Turn apart",
       "note": "also enables the multi-turn sidebar check, which needs saves from a game where workers were dragged"
     },
     {
@@ -735,7 +735,7 @@
       "branch": null,
       "depends_on": [],
       "source": "sidestep-seam agent, 2026-09-14: BattleMen_SwapPlaces 0x0049005F returns 0 when the two men share a target (FUN_004928A3 an empty stub) and for other.state 2/3/8; ours swaps exactly that pair. Inverting alone drops the fought seam to 1 of 8 because the rest of the arm (cur waits with delay = (other & 1) + 1 instead of asking for a route, C103) must move with it",
-      "next": "the whole arm cannot hold the fought seam (crates/l2-game/tests/seam/battle.rs, the militia must hold 4 of 8 seeds): measured 2026-09-14 with l2-sim green each time: the arm literal 1 of 8; keeping main's comrade side-step suppression 2; minus the wait 3; minus the wait and the ownerIsHuman head guard 4, but that fails no_drawn_man_ever_jumps_half_a_cell_in_one_tick at 8 jumps where the whole arm gives 0. The two verified pieces that cost verdicts: the wait (cur.state = 1; cur.delay = (other & 1) + 1) and the AI-owner refusal (an AI unit never swaps in a field battle). The port sits uncommitted in worktree .claude/worktrees/agent-abb80c30f51e03305 (sidestep.rs friendly_step/swap_verdict, tests_swap_arm.rs, 7 tests). Player's call: the seam pins the save's verdict on our sim over eight seeds; if the original's own arm loses that battle, the seam's verdict claim is the thing to re-read (fight it in the original from battle-before.sav several times, docs/oracle-requests.md)",
+      "next": "Q2 the whole arm cannot hold the fought seam (crates/l2-game/tests/seam/battle.rs, the militia must hold 4 of 8 seeds): measured 2026-09-14 with l2-sim green each time: the arm literal 1 of 8; keeping main's comrade side-step suppression 2; minus the wait 3; minus the wait and the ownerIsHuman head guard 4, but that fails no_drawn_man_ever_jumps_half_a_cell_in_one_tick at 8 jumps where the whole arm gives 0. The two verified pieces that cost verdicts: the wait (cur.state = 1; cur.delay = (other & 1) + 1) and the AI-owner refusal (an AI unit never swaps in a field battle). The port sits uncommitted in worktree .claude/worktrees/agent-abb80c30f51e03305 (sidestep.rs friendly_step/swap_verdict, tests_swap_arm.rs, 7 tests). Player's call: the seam pins the save's verdict on our sim over eight seeds; if the original's own arm loses that battle, the seam's verdict claim is the thing to re-read (fight it in the original from battle-before.sav several times, docs/oracle-requests.md)",
       "note": "the side-step FUN_004904EC, the give-up Path_DetourTooLong 0x00472227, Fighter::delay and BattleMan_NextPathDir 0x00491A34 one-cell steps landed 2026-09-14"
     },
     {
@@ -819,7 +819,7 @@
       "branch": null,
       "depends_on": [],
       "source": "player, 2026-09-14: 'it says saving game please wait, then stays on that screen; if I thumbs down after and reopen the new save isn't there' (worked before today)",
-      "next": "landed 2026-09-14: the map-click dismissal runs Msg_Dismiss whole (FUN_00476710 -> Msg_Dismiss -> FUN_00476E21, so the tip host is released and the twenty-frame delay re-armed; a game-over letter clicked away now leaves for the conquest screen), and the tip host seats over the screen Tip_Show read (Machine::tip_seat). The player's exact clicks were not reproduced: a seated tip swallows every map click in the original too. The player tries a save on the build after 2882-green main; if it still hangs, say what was on screen when File > Save was pressed (a tip, a letter, the turn winding)",
+      "next": "Q6 landed 2026-09-14: the map-click dismissal runs Msg_Dismiss whole (FUN_00476710 -> Msg_Dismiss -> FUN_00476E21, so the tip host is released and the twenty-frame delay re-armed; a game-over letter clicked away now leaves for the conquest screen), and the tip host seats over the screen Tip_Show read (Machine::tip_seat). The player's exact clicks were not reproduced: a seated tip swallows every map click in the original too. The player tries a save on the build after 2882-green main; if it still hangs, say what was on screen when File > Save was pressed (a tip, a letter, the turn winding)",
       "note": ""
     },
     {
