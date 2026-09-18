@@ -23,6 +23,7 @@ mod anim_tests;
 mod dying_tests;
 mod fighter;
 pub use fighter::*;
+mod save;
 mod muster;
 pub use muster::*;
 mod conclusion;
@@ -234,9 +235,13 @@ pub struct BattleRunner {
     pub units: Units,
     pub ai: Ai,
     pub ai_field: AiField,
+    /// not-encoded: `sync_positions` is its only writer and copies
+    /// `fighters[i].x`/`.y`.
     positions: Vec<(u8, u8)>,
     occupant: Vec<Option<u16>>,
     pub missiles: crate::missile::Missiles,
+    /// not-encoded: `rebuild_blocked` is its only writer and it is
+    /// `field.cells[c].impassable()`.
     blocked: Vec<bool>,
     pub siege: crate::siege::SiegeState,
     wall_missile_latch: u8,

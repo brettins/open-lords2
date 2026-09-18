@@ -195,3 +195,49 @@ impl Cues {
         bump(&mut self.burn_deaths[side_index(side)]);
     }
 }
+
+impl l2_net::Encode for Cues {
+    fn encode(&self, out: &mut l2_net::Canonical) {
+        let mut put = |vs: &[u32]| {
+            for v in vs {
+                out.u32(*v);
+            }
+        };
+        put(&self.melee_casualties);
+        put(&self.melee_deaths);
+        put(&self.missile_hits);
+        put(&self.missile_casualties);
+        put(&[self.missile_deaths]);
+        put(&self.loosed);
+        put(&[self.walls_struck, self.walls_missed, self.walls_smashed]);
+        put(&[self.oil_poured, self.towers_docked, self.bridges_fired]);
+        put(&self.burn_deaths);
+    }
+}
+
+impl l2_net::Decode for Cues {
+    fn decode(input: &mut l2_net::Reader<'_>) -> Result<Cues, l2_net::CodecError> {
+        let mut c = Cues::default();
+        for v in c
+            .melee_casualties
+            .iter_mut()
+            .chain(&mut c.melee_deaths)
+            .chain(&mut c.missile_hits)
+            .chain(&mut c.missile_casualties)
+            .chain(core::iter::once(&mut c.missile_deaths))
+            .chain(&mut c.loosed)
+            .chain([
+                &mut c.walls_struck,
+                &mut c.walls_missed,
+                &mut c.walls_smashed,
+                &mut c.oil_poured,
+                &mut c.towers_docked,
+                &mut c.bridges_fired,
+            ])
+            .chain(&mut c.burn_deaths)
+        {
+            *v = input.u32()?;
+        }
+        Ok(c)
+    }
+}

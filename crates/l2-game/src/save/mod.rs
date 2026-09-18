@@ -1,4 +1,6 @@
 
+mod battle;
+pub use battle::*;
 mod codec;
 pub use codec::*;
 
@@ -15,7 +17,7 @@ use crate::screens::setup::MAP_COUNT;
 
 pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 
-pub const VERSION: u32 = 6;
+pub const VERSION: u32 = 7;
 
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
 

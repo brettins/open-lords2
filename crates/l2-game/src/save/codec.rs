@@ -7,7 +7,7 @@ use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::report::{Message, SeasonReport};
 use l2_kingdom::tables::Tables;
 use l2_kingdom::{EventKind, Kingdom, Pass, SEASON_PIPELINE};
-use l2_net::canonical::{Canonical, CodecError, Reader};
+use l2_net::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 use crate::game::Game;
 use crate::screens::setup::MAP_COUNT;
 
@@ -62,6 +62,15 @@ pub(super) fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.u8(c.ranking.realms_in_play);
 
     encode_messages(out, game);
+
+    // The four battle blocks of `Save_Write`'s table are written whether or not
+    // one is running — `g_battlefield` (`0x005440E0`), `g_battleMen`
+    // (`0x00554480`), the missiles (`0x0057A100`) and `g_battleUnits`
+    // (`0x00566520`) are all-zero in `battle-before.sav` and set in
+    // `noorders-start.sav`. Ours carries the same thing behind one tag.
+    out.section("battle");
+    out.option(game.battle.as_deref(), |c, b| b.encode(c));
+    out.end_section();
 }
 
 fn encode_messages(out: &mut Canonical, game: &Game) {
@@ -198,6 +207,9 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
     };
     let campaign = decode_campaign(input)?;
     let messages = decode_messages(input)?;
+    let battle = input
+        .option(crate::battlefield::LiveBattle::decode)?
+        .map(Box::new);
 
     Ok(Game {
         kingdom,
@@ -219,7 +231,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         field_policy: crate::engagement::Answer::Decline,
         turn: None,
         levy: crate::game::LevyOrder::default(),
-        battle: None,
+        battle,
         begin_move_order: None,
         combine_ask: None,
         map_zoom_far: false,

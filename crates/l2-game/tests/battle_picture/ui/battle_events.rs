@@ -20,13 +20,13 @@ use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
 /// `Menu_SaveGame` (`0x00433F49`) is reachable from `0x29` and does not test
-/// `g_battlePhase` — the original saves mid-battle, because its `.sav` is a
-/// memory dump. Ours is a versioned format that does not encode
-/// `LiveBattle`, and `crate::save::decode` puts `battle: None` back, so the
-/// file would quietly lose the fight. `docs/arms.json`
-/// `ours/save-refuses-mid-battle`.
+/// `g_battlePhase`; `Save_Write` (`0x004ADE93`) then writes `g_battlefield`
+/// (`0x005440E0`), `g_battleMen` (`0x00554480`), the missiles (`0x0057A100`)
+/// and `g_battleUnits` (`0x00566520`) as blocks 1, 7, 8 and 9 of its table.
+/// **[V]** — those four are all-zero in `battle-before.sav`, saved on the map,
+/// and set in `noorders-start.sav`, saved with the battle screen open.
 #[test]
-fn saving_is_refused_while_a_battle_is_live() {
+fn saving_mid_battle_writes_it_and_loading_lands_back_on_the_field() {
     let Some((assets, _p)) = install() else {
         l2_testkit::skip!("no game install");
     };
@@ -43,28 +43,30 @@ fn saving_is_refused_while_a_battle_is_live() {
     };
 
     let (mut g, mut m) = skirmish();
-    let titles = {
-        let ctx = Ctx { game: &mut g, assets: &assets };
-        menubar::titles(&ctx)
-    };
-    let at = (titles[0].x + titles[0].w / 2, titles[0].y + titles[0].h / 2);
-    send(&mut m, &mut g, &assets, Event::Pointer { x: at.0, y: at.1 });
-    send(&mut m, &mut g, &assets, Event::Click { x: at.0, y: at.1 });
-    let row = menubar::item_rect(&titles, 0, 2);
-    let on_row = (row.x + row.w / 2, row.y + row.h / 2);
-    send(&mut m, &mut g, &assets, Event::Pointer { x: on_row.0, y: on_row.1 });
-    send(&mut m, &mut g, &assets, Event::Click { x: on_row.0, y: on_row.1 });
-    assert_eq!(
-        m.top_id(),
-        Some(ScreenId::SaveLoad(l2_game::screens::saveload::Mode::Save)),
-        "File > Save did not open the save box from the battlefield"
-    );
+    for _ in 0..40 {
+        let mut ctx = Ctx { game: &mut g, assets: &assets };
+        m.update(&mut ctx);
+    }
+    let saved_tick = live(&g).runner.tick;
+    assert!(saved_tick > 0, "the battle never ran, so there is nothing to lose");
 
-    // Type a name and confirm. **`SaveLoad_Tick`'s latch**: Enter arms it and
-    // the file is written `WORK_FRAMES` frames later, so the frames have to be
-    // run before a directory listing means anything. The name comes out
-    // lowercase — `Edit_TypeChar`'s `0x004011B0`, `if ('A' <= ch && ch <= 'Z')
-    // ch += 0x20`, which a filename field takes and a text field does not.
+    let menu = |m: &mut Machine, g: &mut Game, item: usize| {
+        let titles = {
+            let ctx = Ctx { game: g, assets: &assets };
+            menubar::titles(&ctx)
+        };
+        let at = (titles[0].x + titles[0].w / 2, titles[0].y + titles[0].h / 2);
+        send(m, g, &assets, Event::Pointer { x: at.0, y: at.1 });
+        send(m, g, &assets, Event::Click { x: at.0, y: at.1 });
+        let row = menubar::item_rect(&titles, 0, item);
+        let on_row = (row.x + row.w / 2, row.y + row.h / 2);
+        send(m, g, &assets, Event::Pointer { x: on_row.0, y: on_row.1 });
+        send(m, g, &assets, Event::Click { x: on_row.0, y: on_row.1 });
+    };
+
+    // **`SaveLoad_Tick`'s latch**: Enter arms it and the file is written
+    // `WORK_FRAMES` frames later. The name comes out lowercase —
+    // `Edit_TypeChar`'s `0x004011B0`, `if ('A' <= ch && ch <= 'Z') ch += 0x20`.
     let frames = l2_game::screens::saveload::WORK_FRAMES as u32 + 4;
     let typed = |m: &mut Machine, g: &mut Game| {
         for c in "MIDFIGHT".chars() {
@@ -77,56 +79,51 @@ fn saving_is_refused_while_a_battle_is_live() {
         }
     };
 
-    typed(&mut m, &mut g);
-    assert!(
-        written().is_empty(),
-        "a save was written while a battle was live; it would have lost the battle: {:?}",
-        written()
-    );
+    menu(&mut m, &mut g, 2);
     assert_eq!(
         m.top_id(),
         Some(ScreenId::SaveLoad(l2_game::screens::saveload::Mode::Save)),
-        "the box closed on a refusal, so the player was told nothing"
+        "File > Save did not open the save box from the battlefield"
     );
-
-    {
-        let mut screen = l2_game::screens::saveload::SaveLoadScreen::new(
-            l2_game::screens::saveload::Mode::Save,
-        );
-        let mut ctx = Ctx { game: &mut g, assets: &assets };
-        for c in "MIDFIGHT2".chars() {
-            l2_game::Screen::handle(&mut screen, Event::Text(c), &mut ctx);
-        }
-        let mut t = l2_game::Screen::handle(
-            &mut screen,
-            Event::KeyDown(l2_game::input::Key::Enter),
-            &mut ctx,
-        );
-        for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
-            t = l2_game::Screen::update(&mut screen, &mut ctx);
-        }
-        assert_eq!(t, l2_game::Transition::Stay, "a refused save leaves the box open");
-        assert_eq!(
-            screen.status(),
-            &l2_game::screens::saveload::Status::Failed(
-                l2_game::screens::saveload::BATTLE_REFUSAL.into()
-            ),
-            "the refusal must say the battle is not saved"
-        );
-        assert!(
-            l2_game::screens::saveload::BATTLE_REFUSAL.contains("NOT SAVED"),
-            "and it must say it in words, not in a format name"
-        );
-    }
-
-    let mut plain = Machine::new(ScreenId::SaveLoad(l2_game::screens::saveload::Mode::Save));
-    g.battle = None;
-    typed(&mut plain, &mut g);
+    typed(&mut m, &mut g);
     assert_eq!(
         written(),
         vec!["midfight.l2sav".to_string()],
-        "the refusal fires with no battle live, so it is not testing the battle"
+        "the save was refused or written elsewhere"
     );
+    assert_eq!(m.top_id(), Some(ScreenId::Battlefield), "the box did not close on success");
+    // The file is written on `SaveLoad_Tick`'s `WORK_FRAMES`th frame and the
+    // battle winds on underneath the box, so this is the frame the file holds
+    // plus the few the closing box ran.
+    let wrote_at = live(&g).runner.tick;
+    assert!(wrote_at > saved_tick, "the battle stood still under the save box");
+
+    // Run the battle on, so a load that did nothing would be visible.
+    for _ in 0..120 {
+        let mut ctx = Ctx { game: &mut g, assets: &assets };
+        m.update(&mut ctx);
+    }
+    let before_load = live(&g).runner.tick;
+    assert!(before_load > saved_tick + 60, "the battle stood still while the box was open");
+
+    menu(&mut m, &mut g, 1);
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::SaveLoad(l2_game::screens::saveload::Mode::Load)),
+        "File > Load did not open the load box from the battlefield"
+    );
+    typed(&mut m, &mut g);
+    assert_eq!(
+        m.top_id(),
+        Some(ScreenId::Battlefield),
+        "a load of a mid-battle save must land on the battlefield"
+    );
+    // The loader lands `WORK_FRAMES` into the run and the battlefield winds the
+    // battle for the few frames after it, so the tick is the written one plus
+    // those - and nowhere near where the run had got to.
+    let back = live(&g).runner.tick;
+    assert!(back + 60 < before_load, "the battle carried on instead of coming back from the file");
+    assert!(back <= wrote_at + 8, "the battle came back at frame {back}, written at {wrote_at}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

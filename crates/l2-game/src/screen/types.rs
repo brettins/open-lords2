@@ -121,6 +121,14 @@ pub enum Transition {
     /// it, because the original has no stack to leave it on: `g_screenId` is one
     /// byte.
     Goto(ScreenId),
+    /// [`Goto`] that **keeps what is underneath**: the screen if the stack
+    /// already holds it, otherwise in the place of the screen that asked.
+    ///
+    /// A load is the case. `g_battlePhase` is the original's whole answer to
+    /// *what am I looking at after `Save_Read`* — one byte, restored from block
+    /// 73 (`0x00569584`) with the four battle blocks — and it has no stack to
+    /// clear or to leave a duplicate on.
+    Resume(ScreenId),
 }
 
 pub struct Ctx<'a> {

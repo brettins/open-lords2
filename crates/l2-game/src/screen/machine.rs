@@ -602,6 +602,13 @@ impl Machine {
                     self.stack.push(id.build());
                 }
             },
+            Transition::Resume(id) => match self.stack.iter().position(|s| s.id() == id) {
+                Some(at) => self.stack.truncate(at + 1),
+                None => {
+                    self.stack.truncate(depth);
+                    self.stack.push(id.build());
+                }
+            },
         }
     }
 }

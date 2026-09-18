@@ -13,6 +13,7 @@ pub mod movement;
 pub mod pathfind;
 pub mod proving;
 pub mod runner;
+pub mod save;
 pub mod siege;
 pub mod terrain;
 pub mod troop;

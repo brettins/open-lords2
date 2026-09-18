@@ -33,6 +33,7 @@ mod builder;
 pub use builder::*;
 mod field;
 pub use field::*;
+mod save;
 
 pub const DIM: usize = 80;
 pub const CELLS: usize = DIM * DIM;

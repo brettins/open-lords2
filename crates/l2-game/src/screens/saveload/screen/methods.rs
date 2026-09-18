@@ -123,6 +123,20 @@ impl SaveLoadScreen {
         }
     }
 
+    /// Where a load lands. `Save_Write`'s blocks 1, 7, 8 and 9 carry the battle
+    /// and block 73 (`0x00569584`) carries `g_battlePhase`, so a save made on
+    /// the battlefield comes back onto it.
+    fn landing(&self, ctx: &Ctx) -> Transition {
+        if ctx.game.battle.is_some() {
+            Transition::Resume(ScreenId::Battlefield)
+        } else {
+            // A battlefield left standing over a save with no battle pops
+            // itself: `BattlefieldScreen::handle`'s first statement is
+            // `if ctx.game.battle.is_none() { return Transition::Pop }`.
+            Transition::Pop
+        }
+    }
+
     /// The load or the save itself — what `SaveLoad_Tick` does when
     /// `DAT_0057D3C4` reaches zero. Everything that can go wrong comes back as
     /// a [`Status`] and the screen stays open; only success closes it.
@@ -150,7 +164,7 @@ impl SaveLoadScreen {
                         let tips = ctx.game.tips;
                         *ctx.game = game;
                         ctx.game.tips = tips;
-                        Transition::Pop
+                        self.landing(ctx)
                     }
                     Err(e) => {
                         self.status = Status::Failed(e.to_string().to_uppercase());
@@ -163,15 +177,8 @@ impl SaveLoadScreen {
                 // battlefield — `Screen_FrameInput`'s `0x29` arm opens with
                 // `Menu_OpenDropdown` and neither the opener nor the handler
                 // tests `g_battlePhase` — and the original's `.sav` is a memory
-                // dump, so the battle goes into it. Ours is a versioned format
-                // that does not encode `crate::battlefield::LiveBattle`, and
-                // `crate::save::decode` puts `battle: None` back.
-                //
-                // arm: ours/save-refuses-mid-battle left-press
-                if ctx.game.battle.is_some() {
-                    self.status = Status::Failed(BATTLE_REFUSAL.into());
-                    return Transition::Stay;
-                }
+                // dump, so the battle goes into it. `crate::save::battle` now
+                // writes it, and the refusal that stood here is gone.
                 let name = self.name.text().trim().to_string();
                 if !saves::is_valid_name(&name) {
                     self.status = Status::Failed(format!("{name:?} IS NOT A SAVE NAME"));
