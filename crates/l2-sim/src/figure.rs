@@ -101,6 +101,11 @@ pub struct Figure {
     /// Figure record `+0x180` — **the reload counter**, which
     /// `BattleMan_FireMissile` counts up once a tick.
     pub reload_counter: u16,
+    /// Figure record `+0x182` — the man's own firing countdown, set to `0x78`
+    /// at each of the three looses (`00480000.c:1478`, `:1837`, `:2053`) beside
+    /// the unit's `+0x0F`. `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`) is
+    /// its only other reference, its own decrement. `[V]`
+    pub firing: u8,
     /// Figure record `+0x183`, **`engaged`**. State 17
     /// (`BattleMan_StateCloseToAttack`) sets it while it closes and clears it
     /// on the tick it looses; `Missile_Step` (`0x00492C8B`) sets it on the
@@ -158,6 +163,7 @@ impl Figure {
             stats,
             hits_per_casualty: table.hits_per_casualty(troop),
             reload_counter: 0,
+            firing: 0,
             engaged: false,
             straffed: false,
             full_men: men,

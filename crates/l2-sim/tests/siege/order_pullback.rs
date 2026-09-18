@@ -162,3 +162,65 @@ fn the_garrison_is_refused_an_empty_cell_of_surface_under_four() {
         "the besieger is side 4, so the branch does not fire"
     );
 }
+
+/// `Formation_FindNearbySlot` (`0x0048A38E`, `00480000.c:4077-4081`): a
+/// destination of surface 2 is handed straight back, ahead of the catapult arm
+/// at `:4082` and ahead of the ring search. Correction `C236`, against
+/// C81's "a dry slot beside it".
+///
+/// Ablation: delete the `dest.surface == SURFACE_WATER` return in
+/// `find_nearby_slot` and the answer is a dry cell — `Formation_SlotIsUsable`
+/// rejects the moat, which is empty and impassable — so `got != moat` here.
+#[test]
+fn a_unit_ordered_onto_the_moat_is_given_the_moat_cell_itself() {
+    let r = siege_battle(4, 0x5E1_70u64);
+    let moat = (0..DIM * DIM)
+        .find(|&c| r.field.cells[c].surface == l2_sim::siege::SURFACE_WATER)
+        .expect("a level-4 castle has a moat");
+    let moat = ((moat % DIM) as i16, (moat / DIM) as i16);
+    assert!(
+        r.field.at(moat.0 as usize, moat.1 as usize).impassable(),
+        "the cell the search would have refused"
+    );
+    let unit = r
+        .units
+        .live()
+        .find(|&u| r.units.get(u).side == SIDE_B)
+        .expect("a besieging unit");
+
+    assert_eq!(
+        r.find_nearby_slot(unit, moat, &[]),
+        Some((moat.0 as i32, moat.1 as i32)),
+        "surface 2 short-circuits"
+    );
+    // `Formation_AssignSearchedSlots` (`0x00489798`, `:3758`) never reaches the
+    // claim list on this path, so the second figure is given the same cell.
+    assert_eq!(
+        r.find_nearby_slot(unit, moat, &[(moat.0 as i32, moat.1 as i32)]),
+        Some((moat.0 as i32, moat.1 as i32)),
+        "the claim list does not divert it"
+    );
+}
+
+/// `Formation_FindNearbySlot` (`0x0048A38E`, `00480000.c:4112-4113`): the ring
+/// search's own guard, `0 < x < 0x4f && 0 < y < 0x4f`, ahead of the
+/// `Formation_SlotIsUsable` call in the same `if`.
+///
+/// Ablation: delete the `(1..0x4f)` guard in `find_nearby_slot`'s inner loop and
+/// the corner target answers `(0, 0)`, which is on the border ring.
+#[test]
+fn the_ring_search_never_answers_with_a_border_cell() {
+    let r = siege_battle(4, 0x5E1_71u64);
+    let unit = r
+        .units
+        .live()
+        .find(|&u| r.units.get(u).side == SIDE_B)
+        .expect("a besieging unit");
+    for corner in [(0i16, 0i16), (79, 0), (0, 79), (79, 79)] {
+        let got = r.find_nearby_slot(unit, corner, &[]).expect("open ground near every corner");
+        assert!(
+            (1..0x4f).contains(&got.0) && (1..0x4f).contains(&got.1),
+            "target {corner:?} answered {got:?}"
+        );
+    }
+}

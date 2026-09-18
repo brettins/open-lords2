@@ -137,18 +137,36 @@ pub(super) fn point_again_for_the_absent_player(
         if !human(id) {
             continue;
         }
-        let them = l2_sim::runner::other_side(side);
-        let mut n = 0u32;
-        let (mut sx, mut sy) = (0u32, 0u32);
-        for (i, f) in runner.fighters.iter().enumerate() {
-            if f.side == them && runner.is_alive(i) {
-                sx += f.x as u32;
-                sy += f.y as u32;
-                n += 1;
+        // **Nothing in the binary re-orders a human unit.** The whole order
+        // table sits inside `Battle_UpdateAllUnits`'s `if (humanControlled ==
+        // 0)` (`0x00489401`, `00480000.c:3640-3654`); only the recentre and the
+        // 500-frame reform at `:3655-3662` run outside it, and the reform reads
+        // the destination this stand-in has to write.
+        //
+        // At the nearest enemy **unit**, per unit of ours: that is what the
+        // handlers behind that guard point at. `UnitOrder_FieldMissile`
+        // (`0x0048A9D2`, `:4294`) and `UnitOrder_FieldMelee` (`0x0048B02B`,
+        // `:4502`) both take `Enemy_NearestUnit`'s unit; none of them orders at
+        // a centre of mass.
+        let mine: Vec<usize> =
+            runner.units.live().filter(|&u| runner.units.get(u).side == side).collect();
+        for u in mine {
+            let (mx, my) = (runner.units.get(u).x, runner.units.get(u).y);
+            let at = runner
+                .units
+                .live()
+                .filter(|&e| runner.units.get(e).side != side)
+                .min_by_key(|&e| {
+                    let t = runner.units.get(e);
+                    (t.x - mx).abs() as i32 + (t.y - my).abs() as i32
+                })
+                .map(|e| {
+                    let t = runner.units.get(e);
+                    (t.x.clamp(0, 79) as u8, t.y.clamp(0, 79) as u8)
+                });
+            if let Some(at) = at {
+                runner.order_unit(u, at.0, at.1);
             }
-        }
-        if n > 0 {
-            runner.order_side(side, (sx / n) as u8, (sy / n) as u8);
         }
     }
 }

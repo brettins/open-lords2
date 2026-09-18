@@ -126,17 +126,28 @@ impl BattleRunner {
         }
     }
 
-    /// `Formation_FindNearbySlot` (`0x0048A38E`), reduced to the field case:
-    fn find_nearby_slot(
+    /// `Formation_FindNearbySlot` (`0x0048A38E`): two short-circuits, then the
+    /// expanding-ring search.
+    pub fn find_nearby_slot(
         &self,
         unit: usize,
         target: (i16, i16),
         claimed: &[(i32, i32)],
     ) -> Option<(i32, i32)> {
         let dest = self.field.at(target.0 as usize, target.1 as usize);
+        // `if (surface == 2) { origin = target; return 1; }` — `00480000.c:4077`,
+        // the **first** short-circuit, ahead of the catapult arm at `:4082`.
+        // Every figure of a unit ordered onto the moat is sent to the moat cell
+        // itself, and `Formation_AssignSearchedSlots` (`0x00489798`, `:3758`)
+        // never reaches the claim list on this path, so they share the one cell.
+        // Corrects C81's "a dry slot beside it" — `docs/decisions.md`
+        // correction C236.
+        if dest.surface == crate::siege::SURFACE_WATER {
+            return Some((target.0 as i32, target.1 as i32));
+        }
         // `if (surface == 4 && g_battleUnits[unit].category == 5) { origin =
-        // target; return 1; }` — the short-circuit that stands ahead of the
-        // loop, so the rampart-walk branch below never refuses a catapult.
+        // target; return 1; }` — `:4082`, the second, so the rampart-walk
+        // branch below never refuses a catapult.
         if dest.surface == crate::siege::SURFACE_RAMPART_WALK && self.units.get(unit).category == 5 {
             return Some((target.0 as i32, target.1 as i32));
         }
@@ -147,6 +158,13 @@ impl BattleRunner {
             let y1 = (target.1 as i32 + radius + 1).min(DIM as i32);
             for y in y0..y1 {
                 for x in x0..x1 {
+                    // `0 < local_40 && local_40 < 0x4f && 0 < local_10 &&
+                    // local_10 < 0x4f` — `:4112-4113`, ahead of the
+                    // `Formation_SlotIsUsable` call in the same `if`: the search
+                    // never answers with a cell on the map's border ring.
+                    if !(1..0x4f).contains(&x) || !(1..0x4f).contains(&y) {
+                        continue;
+                    }
                     if claimed.contains(&(x, y)) {
                         continue;
                     }
@@ -220,10 +238,14 @@ impl BattleRunner {
     /// > `State::FillingMoat` had no writer at all. The original instead caches
     /// > the flag in `Formation_RectIsClear` off the *unit's* destination and
     /// > then rejects the rectangle for the same reason,
-    /// > the ditch has every one of its figures enter state 9 while walking to a
-    /// > **dry** slot beside it; `BattleMan_Step`'s state-9 arm then latches
-    /// > whatever impassable cell stops it. `docs/decisions.md`
-    /// > `C81`. `[V]` — two functions and one global.
+    /// > the ditch has every one of its figures enter state 9;
+    /// > `BattleMan_Step`'s state-9 arm then latches whatever impassable cell
+    /// > stops it. `docs/decisions.md` `C81`. `[V]` — two functions and one
+    /// > global.
+    ///
+    /// C81's "a dry slot beside it" is wrong: `Formation_FindNearbySlot`
+    /// (`0x0048A38E`, `00480000.c:4077`) hands the moat cell itself back to
+    /// every figure. Correction `C236`.
     fn send_figure(&mut self, unit: usize, fighter: usize, x: i32, y: i32, dest_is_water: bool) {
         let sim = self.fighters[fighter].sim;
         let gate = self.units.get(unit).reform_gate;
@@ -609,8 +631,10 @@ impl BattleRunner {
         // and slot 0 is the original's unused record, which ours is too — the
         // bound is only what keeps an out-of-range `+0x178` from panicking.
         //
-        // `[D]` figure `+0x182` omitted: its one reader in the binary is its
-        // own decrement, `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`).
+        // `g_battleMen[cur].firing = 0x78` stands beside each of the three
+        // unit-level writes — `:1478`, `:1837`, `:2053`. Stepped down by
+        // `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`), its only reader.
+        self.sim.figures[sim].firing = crate::unit::FIRING;
         {
             let u = self.sim.figures[sim].unit as usize;
             if u <= MAX_UNITS {

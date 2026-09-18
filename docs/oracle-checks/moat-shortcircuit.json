@@ -1,0 +1,22 @@
+{
+  "reviewed": "4ca5ce8013926ca7e9151d7a3eecab17aa932b0a",
+  "date": "2026-09-17",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 145, "address": "0x0048A38E", "verdict": "match",
+      "note": "surface == 2 returns the unit's target cell, ahead of the catapult arm; 00480000.c:4077-4080" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 165, "address": "0x0048A38E", "verdict": "match",
+      "note": "1..0x4e interior guard == 0 < x < 0x4f && 0 < y < 0x4f at :4112-4113" },
+    { "file": "crates/l2-sim/src/runner/closing.rs", "line": 10, "address": "0x00484BF9", "verdict": "match",
+      "note": "targX/targY = the shooter's mapX/mapY at :2055-2056" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 603, "address": "0x00483337", "verdict": "match",
+      "note": "g_battleMen[cur].firing = 0x78 beside the unit byte at :1478, :1837, :2053" },
+    { "file": "crates/l2-sim/src/figure.rs", "line": 104, "address": "0x004822ED", "verdict": "match",
+      "note": "figure +0x182, docs/battle.md line 157 still marks it [D]" },
+    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 493, "address": "0x004822ED", "verdict": "match",
+      "note": "counted down once a frame beside targeted, :896-897" },
+    { "file": "crates/l2-game/src/engagement/fight/battle_runner.rs", "line": 203, "address": "0x00484BF9", "verdict": "departure",
+      "note": "C186: the headless stand-in's re-issued charge is ours; the original never re-orders a human unit" },
+    { "file": "crates/l2-game/src/engagement/fight/fight_session.rs", "line": 143, "address": "0x00484BF9", "verdict": "departure",
+      "note": "C186: charging the nearest enemy unit with a 0..79 clamp is ours, no original order path" }
+  ]
+}
