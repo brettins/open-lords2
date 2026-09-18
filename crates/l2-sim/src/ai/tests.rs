@@ -267,6 +267,24 @@ mod tests {
         assert_eq!(ai.rng, before, "and the generator was not advanced");
     }
 
+    /// `Battle_Start` (`0x004778A0`, 00470000.c:3063-3072): a network game
+    /// advances the pair instead of drawing it, lane wrapping at 3 and group
+    /// at 1. Ablation: draw in the `multiplayer` arm and the cycle breaks.
+    #[test]
+    fn a_network_battle_steps_the_lane_and_the_group_instead_of_drawing_them() {
+        let mut prev = (0, 0);
+        let seen: Vec<(usize, usize)> = (0..5)
+            .map(|_| {
+                let ai = Ai::new_for_battle(99, true, prev);
+                prev = (ai.approach_lane, ai.rally_group);
+                prev
+            })
+            .collect();
+        assert_eq!(seen, vec![(1, 1), (2, 0), (3, 1), (0, 0), (1, 1)]);
+        let drawn = Ai::new_for_battle(99, false, (0, 0));
+        assert_eq!(drawn.approach_lane & 1, drawn.rally_group, "one value, masked twice");
+    }
+
     #[test]
     fn the_advantage_is_recomputed_every_hundred_and_first_frame() {
         let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);

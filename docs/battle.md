@@ -882,7 +882,7 @@ the destination's elevation is exactly 5. That is the whole terrain-height movem
 Blocked by a figure of his own unit and the same troop type, walking somewhere *else*?
 `BattleMen_SwapPlaces` exchanges the two figures' positions, cells, hits and men. **[V]**
 It is a genuine swap of state between records, not a move. **Not to the same place**:
-`00490000.c:53-56` is `if (cur.tgX == other.tgX && cur.tgY == other.tgY) return 0`
+`00490000.c:53-56` is `if (cur.tgX == other.tgX && cur.tgY == other.tgY) return 0`, so a
 marching unit — all one target — never swaps through itself. This paragraph had that
 condition the wrong way round. The whole answer, and the wait `BattleMan_Step` takes on a
 0 (`00480000.c:6456-6460`), is `BattleRunner::swap_verdict` / `friendly_step`.
@@ -1929,7 +1929,7 @@ its own copy of the spawn, the band scaling, the eight launch steps and both sou
 
 | test | does |
 |---|---|
-| unit `reTarg` > 0, unit not human, figure not `engaged` (`+0x183`) | `reTarg = 50`. `Battle_UpdateAllUnits` has already counted it down this frame |
+| unit `reTarg` > 0, unit not human, figure not `engaged` (`+0x183`) | `reTarg = 50`. `Battle_UpdateAllUnits` has already counted it down this frame, so a shooting AI unit's reform is **held**, and runs out 50 frames after its last figure stops |
 | target's `owner == 0` and `targetCell == 0` | walk to its own cell; on arrival (`stepFlags & 2`) state 5 |
 | `stepFlags & 1` clear — between cells | keep walking |
 | `range >> 3 < Dist_Chebyshev + 2` — out of range | walk at the target, or stand if `movStraff`; `engaged = 1` |
@@ -1950,7 +1950,7 @@ retired has been zeroed by `FUN_0046EB78`, and is silent.
   That is how far it will *walk to*, where state 5's `Missile_FindTarget` is how far it
   will *look* (15 and 8).
 * **After its first shot it holds its ground.** `movStraff` is cleared only by
-  `BattleUnit_Order`
+  `BattleUnit_Order`, so a target that steps back out of range is let go until the unit
   is ordered again. `movStraff` has no symbol; `mov straff` is the debug panel's label
   (`00420000.c:1521`).
 * **A shooter keeps aiming at a body for 80 frames.** `BattleMan_StateDead` frees the
@@ -2008,7 +2008,7 @@ interchangeable:
 
 A man on foot adds **1** per frame; a battering ram in state 14 adds **20**. So
 one ram opens a gate in a thousand frames where a lone swordsman needs twenty
-breaches; the rampart counter does
+breaches; the rampart counter does, so a wall can be chewed through repeatedly.
 Surface 4 is what `Siege_FindCellSurface4` then hunts for, which is how the
 order layer learns the wall is down.
 

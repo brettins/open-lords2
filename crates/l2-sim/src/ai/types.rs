@@ -233,14 +233,28 @@ pub struct Ai {
 }
 
 impl Ai {
-    pub fn new(seed: u64) -> Self {
-        // `Battle_Start` (`0x004778A0`, 00470000.c:3060-3062), single player:
-        //   FUN_00404b2c();
-        //   g_battleApproachLane = DAT_005c9a84 & 3;
-        //   g_battleRallyGroup   = DAT_005c9a84 & 1;
-        // One step of the `FUN_00404B2C` LFSR ([`crate::terrain::Lfsr`]),
-        // masked twice, so the two agree in their low bit.
-        let r = crate::terrain::Lfsr::new(seed as u32).next();
+    /// `prev` is the previous battle's pair, `g_battleApproachLane`
+    /// (`0x0056D6B0`) and `g_battleRallyGroup`, which are session globals the
+    /// next `Battle_Start` reads. Nothing here persists them: no caller passes
+    /// `multiplayer` true yet, so ours always opens a battle at `(0, 0)` and
+    /// the pair stays out of the digest.
+    pub fn new_for_battle(seed: u64, multiplayer: bool, prev: (usize, usize)) -> Self {
+        // `Battle_Start` (`0x004778A0`, 00470000.c:3059-3072):
+        //   if (g_multiplayer == 0) {
+        //     FUN_00404b2c();
+        //     g_battleApproachLane = DAT_005c9a84 & 3;
+        //     g_battleRallyGroup   = DAT_005c9a84 & 1;
+        //   } else { lane = lane + 1; if (3 < lane) lane = 0;
+        //            group = group + 1; if (1 < group) group = 0; }
+        // The draw is one step of the `FUN_00404B2C` LFSR
+        // ([`crate::terrain::Lfsr`]) masked twice, so the two agree in their
+        // low bit; the network arm never draws.
+        let (lane, group) = if multiplayer {
+            (if prev.0 >= 3 { 0 } else { prev.0 + 1 }, if prev.1 >= 1 { 0 } else { prev.1 + 1 })
+        } else {
+            let r = crate::terrain::Lfsr::new(seed as u32).next() as usize;
+            (r & 3, r & 1)
+        };
         Ai {
             strength_advantage: 0,
             advantage_timer: 0,
@@ -254,10 +268,10 @@ impl Ai {
             men_missile: 0,
             men_knight: 0,
             season: 0,
-            approach_lane: (r & 3) as usize,
-            rally_group: (r & 1) as usize,
+            approach_lane: lane,
+            rally_group: group,
             is_siege: false,
-            multiplayer: false,
+            multiplayer,
             rng: Pcg32::from_seed(seed),
             approach_score: 0,
             breach_score: 0,
@@ -279,6 +293,10 @@ impl Ai {
             defence_post_owner: [0; 20],
             last_action: vec![Action::NoThink; MAX_UNITS + 1],
         }
+    }
+
+    pub fn new(seed: u64) -> Self {
+        Ai::new_for_battle(seed, false, (0, 0))
     }
 
     /// `Battle_CountMenByType` (`0x00481B9A`), the three totals the handlers
