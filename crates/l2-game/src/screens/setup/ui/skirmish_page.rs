@@ -4,15 +4,14 @@ use crate::screens::setup::skirmish::ROWS_SHOWN;
 
 /// Page 12's own furniture, under the three captions `FUN_00420630` draws
 /// first: the battle list, the four categories, the two sides and the
-/// handicap. The animated banner (`FUN_00420D40`, twelve `Misc_sel.pl8`
-/// frames on a 100 ms timer) and the battle's name and description
-/// (`FUN_00421231`, out of `BATTLES.ENG`, which is not `L2.eng`) are not
-/// drawn.
+/// handicap.
 impl SetupScreen {
-    pub(crate) fn paint_skirmish_page(&self, canvas: &mut Canvas, pen: &Pen) {
+    pub(crate) fn paint_skirmish_page(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
         let s = &self.skirmish;
 
-        // **`FUN_00421005`** — six rows at `(0x1D4, 0xB9 + 16n)`, 0x85 by 0x10.
+        // **`FUN_00421005`** — six rows at `(0x1D4, 0xB9 + 16n)`, 0x85 by 0x10,
+        // and the name centred one pixel lower in the *opposite* colour
+        // (`00420000.c:383-399`): the lit row is a `0x3F` bar with `0x66` text.
         for n in 0..ROWS_SHOWN {
             if s.top + n >= s.rows {
                 break;
@@ -20,6 +19,8 @@ impl SetupScreen {
             let y = 0xB9 + n as i32 * 0x10;
             let lit = s.slot == n;
             canvas.fill_rect(0x1D4, y, 0x85, 0x10, if lit { 0x3F } else { 0x66 });
+            let text = self.battle_text(ctx, s.top + n);
+            pen.body_centred(canvas, 0x1D4, y + 1, 0x85, &text.name, if lit { 0x66 } else { 0x3F });
         }
         // **The scrollbar is three segments** (`00420000.c:401-416`): the gap
         // above the thumb and the gap below it in `0x66`, the thumb in `0x3F`.
@@ -65,8 +66,34 @@ impl SetupScreen {
             None => pen.eng_centred(canvas, GROUP, 0x23, 0x1EF, 0x188, 0x8D, 0xF9),
         }
 
-        // **`FUN_004209C1`** — the two names, the two roles and the strengths.
-        //
+        self.paint_skirmish_banner(canvas, pen);
+        // `FUN_0042051C` (`00420000.c:122-131`): `DAT_0056899C` picks
+        // `FUN_00421231` + `FUN_004209C1` or `FUN_0042130F` + `FUN_00420DE4`.
+        if s.custom {
+            self.paint_skirmish_custom(canvas, pen);
+        } else {
+            self.paint_skirmish_battle(ctx, canvas, pen);
+            self.paint_skirmish_armies(canvas, pen);
+        }
+    }
+
+    /// **`FUN_00421231` (`0x00421231`, `00420000.c:4685-4702`)** — the lit
+    /// battle's heading and its description, the other two thirds of the
+    /// `BATTLES.ENG` triple the list row draws the first of.
+    ///
+    /// `DAT_0058FE2C = 1` for the heading and 0 for the body, so the heading
+    /// takes the drop capitals and the description does not. Both are flat:
+    /// `DAT_005AEA40` is up across the whole painter.
+    fn paint_skirmish_battle(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
+        let text = self.battle_text(ctx, self.skirmish.row);
+        pen.drop_caps().heading_centred(canvas, 0x25, 0x78, 0x179, &text.title, 0x3F);
+        // `FUN_0040352F` — wrapped and left-aligned, not centred.
+        pen.body_wrapped(canvas, 0x28, 0x98, 0x172, &text.description, 0x3F);
+    }
+
+    /// **`FUN_004209C1`** — the two names, the two roles and the strengths.
+    fn paint_skirmish_armies(&self, canvas: &mut Canvas, pen: &Pen) {
+        let s = &self.skirmish;
         // The two name boxes come first (`00420000.c:244-245`): `DAT_00553D80`
         // at x 0xE and `DAT_00553DAC` at x 0x118, both `FUN_004025D7`-centred
         // in 0x96. They are realm 1's and realm 2's, keyed to the realm and
@@ -103,9 +130,13 @@ impl SetupScreen {
         // not by the side.
         let (mine, theirs) = s.fill_armies(&self.troops);
         let (realm1, realm2) = if s.local_realm() == 1 { (mine, theirs) } else { (theirs, mine) };
+        //
+        // `g_penAdvance + x` is a *width* added to the caption's own origin,
+        // and [`Pen::eng`] already returns that sum: `x + w` put the number a
+        // whole caption too far right. C61.
         for (x, army) in [(0x34, realm1), (0x148, realm2)] {
             let w = pen.eng(canvas, GROUP, 0x1C, x, 0x1C6, font::TEXT);
-            pen.body(canvas, x + w, 0x1C6, &army.strength.to_string(), font::TEXT);
+            pen.number_in(Face::Body, canvas, w, 0x1C6, army.strength, ' ', " ", font::TEXT);
         }
     }
 }

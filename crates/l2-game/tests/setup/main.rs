@@ -37,6 +37,8 @@ macro_rules! world {
 
 mod setup_tests;
 pub use setup_tests::*;
+mod skirmish_draw_tests;
+pub use skirmish_draw_tests::*;
 mod skirmish_tests;
 pub use skirmish_tests::*;
 mod title_tests;

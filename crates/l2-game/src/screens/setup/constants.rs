@@ -173,3 +173,7 @@ pub const MAP_THUMB: (i32, i32) = (MAP_LIST_X - 2, 9 + 3);
 pub const SKIRMISH_FILE_LIST: Rect = Rect::new(0x78, 0xAC, 0x160, 0xA5);
 pub const SKIRMISH_FILE_OK: (i32, i32) = (0x1F8, 0x164);
 
+
+/// `FUN_00414E06`'s loop runs while `local_c < 9` and then once more
+/// (`00410000.c:4835`), so **ten** rows.
+pub const SKIRMISH_FILE_ROWS: usize = 10;

@@ -145,7 +145,7 @@ impl SetupScreen {
                 self.paint_custom(ctx, canvas, pen, page)
             }
             SetupPage::Skirmish | SetupPage::SkirmishMulti | SetupPage::SkirmishFile => {
-                self.paint_skirmish(canvas, pen, head, page)
+                self.paint_skirmish(ctx, canvas, pen, head, page)
             }
         }
     }
@@ -362,7 +362,7 @@ impl SetupScreen {
     /// drawn here. What is drawn is the page's own furniture: the background,
     /// and the three captions at `y = 0x1B8` that `FUN_0042051C` and
     /// `FUN_00420630` put there.
-    fn paint_skirmish(&self, canvas: &mut Canvas, pen: &Pen, head: &Pen, page: SetupPage) {
+    fn paint_skirmish(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen, head: &Pen, page: SetupPage) {
         let items: [usize; 3] = match page {
             SetupPage::SkirmishFile => [0x24, 0x25, 0x26],
             _ => [0x25, 0x26, 0x24],
@@ -371,17 +371,14 @@ impl SetupScreen {
             pen.eng_centred(canvas, GROUP, items[i], *x, 0x1B8, 0x38, self.colour(i));
         }
         if page == SetupPage::Skirmish {
-            self.paint_skirmish_page(canvas, pen);
+            self.paint_skirmish_page(ctx, canvas, pen);
         }
         if page == SetupPage::SkirmishFile {
             // `FUN_0042150B` opens `Ui_DrawBox(0x60, 100, 0x1C, 0x12)` — border
             // set **0**, the only window on any of these pages that is not set
             // 1 — over the skirmish page, and draws group 40's file captions
             // into it. The rest is `FUN_00414E06(999)`: a parchment plate, the
-            // same outline again, and up to ten `.skr` names at (128, 176 + 16n)
-            // with the selected one on a `0x3F` bar. Nothing here reads a
-            // directory of skirmish files, so the rows are absent and the box
-            // they sit in is not.
+            // same outline again, and up to ten `.skr` names at (128, 176 + 16n).
             pen.window(canvas, 0x60, 100, 0x1C, 0x12, 0);
             head.eng_heading_centred(canvas, GROUP_FILE, 6, 0x60, 0x84, 0x1C0, font::TEXT);
             outline_rect(canvas, SKIRMISH_FILE_LIST, font::TEXT);
@@ -392,6 +389,16 @@ impl SetupScreen {
             // the second draw puts it back — the original's overdraw, kept.
             pen.box_interior(canvas, 0x7E, 0xAE, 0x15, 0xB);
             outline_rect(canvas, SKIRMISH_FILE_LIST, font::TEXT);
+            // `FUN_00414E06`'s ten rows, `g_fileListTop` first, at
+            // `(0x80, 0xB0 + 16n)` — and page 13 passes **999** as the
+            // selected index (`00420000.c:513`), so the `0x3F` bar and the
+            // `0x66` text of its `local_8 == param_1` arm never draw here.
+            for row in 0..SKIRMISH_FILE_ROWS {
+                let Some(name) = self.skirmish_files.get(self.skirmish_file_top + row) else {
+                    break;
+                };
+                pen.body(canvas, 0x80, 0xB0 + row as i32 * 0x10, name, font::TEXT);
+            }
             pen.ok_button(canvas, SKIRMISH_FILE_OK.0, SKIRMISH_FILE_OK.1, 0);
         }
     }

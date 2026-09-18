@@ -37,6 +37,10 @@ impl SetupScreen {
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
             skirmish: Default::default(),
             troops: Default::default(),
+            troops_file: None,
+            banner: 0,
+            banner_ms: 0,
+            skr_text: Vec::new(),
             skirmish_files: Vec::new(),
             skirmish_file_top: 0,
             clock_minute: None,
@@ -318,20 +322,26 @@ impl SetupScreen {
                 self.read_map(ctx);
                 Transition::Stay
             }
-            Action::Skirmish(arm) => self.skirmish_arm(arm),
+            Action::Skirmish(arm) => self.skirmish_arm(arm, ctx),
         }
     }
 
     /// Page 12's five arms and page 13's one, each of which ends the same way
     /// in the original: `Skirmish_FillArmies` (`0x0042BF46`) and a redraw.
-    fn skirmish_arm(&mut self, arm: SkirmishArm) -> Transition {
+    fn skirmish_arm(&mut self, arm: SkirmishArm, ctx: &Ctx) -> Transition {
         match arm {
             SkirmishArm::Row(r) => {
                 self.skirmish.pick_row(r);
             }
             SkirmishArm::Scroll(d) => self.skirmish.scroll(d),
             SkirmishArm::Kind(k) => self.skirmish.choose_kind(k),
-            SkirmishArm::Sides => self.skirmish.swap_sides(),
+            // `00430000.c:8120-8126` — the move of `DAT_0053EF5C` and then
+            // `Troops_Load`, which is the whole point of the arm: the table
+            // the page shows comes out of a different file on each side.
+            SkirmishArm::Sides => {
+                self.skirmish.swap_sides();
+                self.load_troops(ctx);
+            }
             SkirmishArm::Handicap(h) => self.skirmish.handicap(h),
             // `FUN_0043DDF4` opens page 13 only on `0 < DAT_005653E8`
             // (`00430000.c:8140`) — the count of `.skr` files found. With
@@ -350,6 +360,8 @@ impl SetupScreen {
                 let name = self.skirmish_files.get(self.skirmish_file_top + r).cloned();
                 if let Some(name) = name {
                     if self.skirmish.choose_file(&name) {
+                        // `00430000.c:1372` — `FUN_0042D4AA` on the way out.
+                        self.load_skr(ctx, &name);
                         return self.go(SetupPage::Skirmish);
                     }
                 }

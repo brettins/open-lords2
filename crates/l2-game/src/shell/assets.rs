@@ -26,8 +26,21 @@ impl ShellAssets {
                 palettes.insert(key(name), p);
             }
         }
+        let mut troops = BTreeMap::new();
+        for name in TROOPS_FILES {
+            if let Some(t) = read(name).and_then(|b| l2_formats::Troops::load(&b).ok()) {
+                troops.insert(key(name), t);
+            }
+        }
         let loaded = ShellAssets {
             eng: read("L2.eng").and_then(|b| Eng::parse(b).ok()),
+            battles: l2_formats::Battles::parse(&read(BATTLES_FILE).unwrap_or_default()),
+            troops,
+            skirmish_files: skirmish_files(vfs),
+            skirmish_skr: skirmish_files(vfs)
+                .into_iter()
+                .filter_map(|n| read(&n).map(|b| (n, b)))
+                .collect(),
             body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()).map(Font::raising_accents),
             heading: read(font::HEADING).and_then(|b| Font::new(b, 24).ok()),
             small: read(font::SMALL).and_then(|b| Font::new(b, 12).ok()),
@@ -86,6 +99,10 @@ impl ShellAssets {
     pub fn empty() -> ShellAssets {
         ShellAssets {
             eng: None,
+            battles: l2_formats::Battles::default(),
+            troops: BTreeMap::new(),
+            skirmish_files: Vec::new(),
+            skirmish_skr: BTreeMap::new(),
             body: None,
             heading: None,
             small: None,
@@ -135,9 +152,39 @@ impl ShellAssets {
         self.eng.as_ref().map_or("", |e| e.text(group, index))
     }
 
+    /// The table `Troops_Load` (`00420000.c:4349-4369`) would have parsed:
+    /// `TROOPS.ENG` in multiplayer, else `TROOPS2.ENG` when the local player
+    /// attacks and `TROOPS3.ENG` when he does not.
+    pub fn troops(&self, multiplayer: bool, local_attacks: bool) -> Option<&l2_formats::Troops> {
+        self.troops.get(&key(l2_formats::troops::file_for(multiplayer, local_attacks)))
+    }
+
+    /// One `.skr` by the name page 13 lists, parsed — `DAT_0053F5FC` as
+    /// `FUN_0042D4AA` and `Skr_ReadMap` (`0x0042D806`) read it.
+    pub fn skr(&self, name: &str) -> Option<l2_formats::Skr<'_>> {
+        l2_formats::Skr::parse(self.skirmish_skr.get(&key(name))?).ok()
+    }
+
     pub fn has_artwork(&self) -> bool {
         self.eng.is_some() && self.body.is_some() && !self.sheets.is_empty()
     }
+}
+
+/// `Files_Enumerate("*.skr", 1)` (`0x004AECF0`): every `.skr` in the working
+/// directory, lower-cased, extension kept, the first hundred only.
+///
+/// **[D]** the order. The original's is `FindFirstFileA`'s, bubbled by
+/// [`FUN_004AEE3E`]'s comparison — which reads **only the first byte** of each
+/// name (`004a0000.c:6590`) — so two files sharing a first letter keep
+/// directory order. Ours is the VFS index's full sort, which that pass would
+/// leave alone.
+fn skirmish_files(vfs: &Vfs) -> Vec<String> {
+    vfs.entries_with_extension("skr")
+        .into_iter()
+        .filter(|name| !name.contains('/'))
+        .take(SKIRMISH_FILE_MAX)
+        .map(str::to_string)
+        .collect()
 }
 
 fn read_grid(read: &impl Fn(&str) -> Option<Vec<u8>>, name: &str) -> Vec<u8> {

@@ -84,6 +84,20 @@ impl SetupPage {
         }
     }
 
+    /// The same, with `DAT_0056899C` in hand: `FUN_0041E61D`
+    /// (`00410000.c:4674-4679`) swaps `skirmish.pl8` for `skircust.pl8` on the
+    /// skirmish pages alone, and leaves every other page's chain untouched.
+    pub fn background_custom(self, custom: bool) -> &'static str {
+        match self {
+            SetupPage::SkirmishMulti | SetupPage::Skirmish | SetupPage::SkirmishFile
+                if custom =>
+            {
+                "Skircust.pl8"
+            }
+            _ => self.background(),
+        }
+    }
+
     pub fn palette(self) -> &'static str {
         match self {
             SetupPage::Custom | SetupPage::CustomMulti | SetupPage::Dropdown => "Custom.256",

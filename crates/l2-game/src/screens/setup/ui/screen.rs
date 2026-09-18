@@ -41,6 +41,15 @@ impl Screen for SetupScreen {
         if self.page == SetupPage::Shield {
             self.name.tick();
         }
+        // `Skirmish_Setup` (`0x0042B7F7`) runs when page 12 opens, and the
+        // `.skr` scan `FUN_0042D389` (`00420000.c:5204-5205`) with it.
+        if matches!(self.page, SetupPage::Skirmish | SetupPage::SkirmishMulti) {
+            if self.troops_file.is_none() {
+                self.skirmish_files = ctx.assets.shell.skirmish_files.clone();
+                self.load_troops(ctx);
+            }
+            self.tick_banner();
+        }
         if self.page == SetupPage::Title {
             let minute = ctx.assets.wall_clock.map(crate::wallclock::minute);
             if minute != self.clock_minute {
@@ -155,13 +164,14 @@ impl Screen for SetupScreen {
         };
         let pen = head.flat();
         let base = if self.page == SetupPage::Dropdown { self.under } else { self.page };
-        if !shell::background(canvas, a, base.background()) {
+        // `FUN_0041E61D` (`00410000.c:4674-4679`): pages 11 and up take
+        // `skirmish.256` either way, and `DAT_0056899C` picks between
+        // `skirmish.pl8` and `skircust.pl8`. The palette does not change.
+        let background = base.background_custom(self.skirmish.custom);
+        if !shell::background(canvas, a, background) {
             canvas.clear(ctx.assets.ink.background);
-            let line = format!(
-                "SETUP PAGE {} - NO {}",
-                base.number(),
-                base.background().to_uppercase()
-            );
+            let line =
+                format!("SETUP PAGE {} - NO {}", base.number(), background.to_uppercase());
             l2_view::text::draw(canvas, 4, 4, &line, ctx.assets.ink.dim);
         }
         self.paint(ctx, canvas, &pen, &head, base);

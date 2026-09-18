@@ -1,15 +1,19 @@
 
+pub mod battles;
 pub mod cursors;
 pub mod maps;
 pub mod palette;
 pub mod pl8;
 pub mod save;
 pub mod skr;
+pub mod troops;
 
 pub use maps::{MapSet, MapSlot, Plane};
 pub use save::{County, Layout, Save, SaveError};
 pub use palette::Palette;
 pub use skr::{Army, ScenarioText, Side, Skr, Troop};
+pub use battles::{BattleText, Battles};
+pub use troops::Troops;
 pub use pl8::{DecodedFrame, FrameInfo, Pl8, Shape, Storage};
 
 use std::fmt;
@@ -27,6 +31,9 @@ pub enum Error {
     BadPaletteLength(usize),
     PartialMapSlot { len: usize, slot_len: usize },
     BadSkrLength { len: usize, expected: usize },
+    TroopsNoMarker,
+    TroopsTokenCount { found: usize, expected: usize },
+    TroopsBadToken(String),
 }
 
 impl fmt::Display for Error {
@@ -61,6 +68,11 @@ impl fmt::Display for Error {
             Error::BadSkrLength { len, expected } => {
                 write!(f, "skr file is {len} bytes, expected exactly {expected}")
             }
+            Error::TroopsNoMarker => write!(f, "no '*' marker: not a TROOPS*.ENG file"),
+            Error::TroopsTokenCount { found, expected } => {
+                write!(f, "found {found} numbers, expected {expected}")
+            }
+            Error::TroopsBadToken(t) => write!(f, "'{t}' is not a number"),
         }
     }
 }

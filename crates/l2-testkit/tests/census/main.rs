@@ -153,6 +153,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/newgame/campaign.rs", "other", 3),
     ("crates/l2-game/tests/newgame/heraldry.rs", "other", 4),
     ("crates/l2-game/tests/newgame/quaintville.rs", "other", 1),
+    ("crates/l2-game/tests/newgame/realm_fields.rs", "other", 1),
     ("crates/l2-game/tests/newgame/start_game.rs", "install", 2),
     ("crates/l2-game/tests/newgame/start_game.rs", "other", 3),
     ("crates/l2-game/tests/overlay_palette/overlay_palette.rs", "install", 2),
@@ -205,13 +206,14 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_village/interaction/peasant_drag.rs", "england", 2),
     ("crates/l2-game/tests/screens_village/render/render_tests.rs", "england", 5),
     ("crates/l2-game/tests/seam/battle.rs", "fixture", 2),
+    ("crates/l2-game/tests/seam/conquest_part.rs", "fixture", 1),
     ("crates/l2-game/tests/seam/no_orders.rs", "fixture", 1),
     ("crates/l2-game/tests/seam/no_orders_field.rs", "fixture", 1),
-    ("crates/l2-game/tests/seam/conquest_part.rs", "fixture", 1),
     ("crates/l2-game/tests/seam/realm.rs", "fixture", 1),
     ("crates/l2-game/tests/setup/held_tests.rs", "england", 6),
     ("crates/l2-game/tests/setup/setup_tests.rs", "england", 7),
     ("crates/l2-game/tests/setup/setup_tests.rs", "install", 1),
+    ("crates/l2-game/tests/setup/skirmish_draw_tests.rs", "england", 8),
     ("crates/l2-game/tests/setup/skirmish_tests.rs", "england", 12),
     ("crates/l2-game/tests/setup/title_tests/build_stamp_tests.rs", "england", 2),
     ("crates/l2-game/tests/setup/title_tests/clock_tests.rs", "england", 6),
@@ -289,7 +291,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 635;
+pub(crate) const GATED_TOTAL: usize = 644;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

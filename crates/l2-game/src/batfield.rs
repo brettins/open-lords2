@@ -17,11 +17,19 @@ use l2_sim::Battlefield;
 
 static SHEETS: OnceLock<FieldSheets> = OnceLock::new();
 
+/// `batfiel2.pl8` — entry **2** of the builder's filename table at
+/// `0x004D9103` (14 bytes a name, the name at `+5`), which
+/// `Battlefield_BuildRandom` takes whenever `DAT_0057A0F0` is up.
+static SKIRMISH_SHEETS: OnceLock<FieldSheets> = OnceLock::new();
+
 pub fn publish(sheets: FieldSheets) -> bool {
     SHEETS.set(sheets).is_ok()
 }
 
-pub fn publish_from(read: impl FnOnce(&str) -> Option<Vec<u8>>) -> usize {
+pub fn publish_from(read: impl Fn(&str) -> Option<Vec<u8>>) -> usize {
+    if let Some(s) = read(FieldSheets::SKIRMISH_FILE).as_deref().and_then(FieldSheets::parse) {
+        let _ = SKIRMISH_SHEETS.set(s);
+    }
     let Some(bytes) = read(FieldSheets::FILE) else { return 0 };
     let Some(sheets) = FieldSheets::parse(&bytes) else { return 0 };
     let n = sheets.len();
@@ -36,11 +44,23 @@ pub fn loaded() -> bool {
     SHEETS.get().is_some()
 }
 
-/// **No playlist.** `Battlefield_BuildRandom` (`0x0047AAA3`) takes this branch
-/// when `DAT_0057A0F0 != 0` — the skirmish flag — and reads `DAT_0056D590`
-/// (+10 for `batfiel2.pl8`) instead of walking `DAT_0057CAE0`. Ours picks from
-/// the seed; that choice is the skirmish screen's and is untouched by the
-/// playlist.
+/// **No playlist and no draw** — `Battlefield_BuildRandom`'s `DAT_0057A0F0`
+/// branch (`00470000.c:4487-4493`): `DAT_00553528 = DAT_0056D590` for category
+/// 0 and `+ 10` for category 1, out of `batfiel2.pl8` for both. The row *is*
+/// the field, so two skirmishes of the same row are the same ground.
+///
+/// The seed still colours it: `graphics_pass`'s LFSR is
+/// `FUN_00404B2C`'s, which the original leaves running across battles.
+pub fn skirmish_field(kind: usize, row: usize, seed: u64) -> Battlefield {
+    let frame = row + if kind == 1 { 10 } else { 0 };
+    match SKIRMISH_SHEETS.get().and_then(|s| s.get(frame)) {
+        Some(raster) => build_field(raster, seed as u32),
+        None => field(seed),
+    }
+}
+
+/// The campaign's own random field, and the fallback when `batfiel2.pl8` is
+/// not installed.
 pub fn field(seed: u64) -> Battlefield {
     match SHEETS.get() {
         Some(sheets) if !sheets.is_empty() => build_field(sheets.pick(seed), seed as u32),
