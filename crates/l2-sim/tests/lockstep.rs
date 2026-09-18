@@ -578,8 +578,10 @@ impl Simulation for RunnerNetBattle {
             out.u8(f.target.0);
             out.u8(f.target.1);
             out.u8(f.facing);
+            // **A simulation read depends on it**: `simulation.rs:438`
+            // `anim == Motion::Dying` gates corpse clearing, `:518` gates
+            // clearing `occupant[cell]`. `phase` is NOT_HASHED below.
             out.u8(f.anim as u8);
-            out.u8(f.phase);
             out.len32(f.path.len());
             out.u8(f.barred);
             out.u8(f.hold);
@@ -863,6 +865,11 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
         ("Fighter", "sim", "the index of the figure this Fighter is, and both walks are by index"),
         ("Fighter", "troop", "fixed at deployment and never written again"),
         ("Fighter", "side", "fixed at deployment and never written again"),
+        // Every reader draws: `l2-view/src/figures.rs:129,235,257,282`,
+        // `scene/render.rs:147,162,221`. The blow is timed by
+        // `melee.rs:44` `recovery_counter`, as in `Melee_Tick` (`0x00494908`,
+        // `docs/battle.md:570`) — no simulation read of the counter.
+        ("Fighter", "phase", "animation counter; read only by the renderer"),
         ("Fighter", "facing_drawn", "drawn facing (+0x0D); presentation, read only by the renderer"),
         ("Fighter", "fidget", "Anim_StandA2's shuffle counter (+0x0B); presentation"),
         ("Fighter", "fidget_period", "seeded from index and x (+0x0C); presentation"),

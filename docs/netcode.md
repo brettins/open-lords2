@@ -550,7 +550,7 @@ mismatch is a guaranteed desync with a confusing symptom. The session handshake
 must exchange a hash over the resolved ruleset — `l2-mods` already tracks which
 mod and line set each value, so the material for that hash exists.
 
-**And the quirk set, which this rule did not anticipate because it did not
+**And the quirk set,
 exist.** `l2_kingdom::kingdom::Options::quirks` says which of the original's
 defects this game reproduces (`docs/bugs.md` §6, `decisions.md` C62). It changes
 what the simulation computes, so it is the same argument with a different noun:
@@ -702,6 +702,29 @@ snapshot uses — never the in-memory image. A memory image includes struct
 padding, `Vec` spare capacity and allocator-dependent layout, all of which differ
 legitimately between peers and would produce false divergence reports. False
 alarms are how a desync detector gets switched off.
+
+**A field is in the digest when a simulation read depends on it** — not when it
+is written by the simulation, and not when it merely looks like state. The test
+is one grep: find the readers, and ask whether any of them decides a turn.
+
+* `Fighter::anim` is **in**. `l2-sim/src/runner/simulation.rs:438` reads
+  `anim == Motion::Dying` to decide a corpse is gone, and `:518` reads
+  `anim != Motion::Dying` to clear `occupant[cell]` — a cell another man may
+  then walk into, so two peers that disagreed would disagree about the field.
+* `Fighter::phase` is **out**. Its every reader draws —
+  `l2-view/src/figures.rs:129,235,257,282` and `scene/render.rs:147,162,221` —
+  and the blow it looks like it should time is timed elsewhere:
+  `l2-sim/src/melee.rs:44` `if me.recovery_counter <= 0`, which is
+  `Melee_Tick` (`0x00494908`, `docs/battle.md` §6.1) reading `recoveryCounter`
+  at `+0x17B`, a function in which `animPhase` does not appear.
+* `Fighter::facing_drawn` is **out**: written at the tail of every `Anim_*`
+  handler and read at `l2-view/src/scene/render.rs:183`, never by a decision.
+* `Fighter::fidget` and `fidget_period` are **out**: `runner/anim.rs:45-52` is
+  their only reader, and it turns `facing_drawn`, which is itself out.
+
+The polarity is C39's — inclusion is the default and an exemption is a claim
+with its reason and its line attached, in `NOT_HASHED` in
+`crates/l2-sim/tests/lockstep.rs`.
 
 ### Which hash
 
