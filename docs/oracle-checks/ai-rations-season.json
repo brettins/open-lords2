@@ -1,0 +1,15 @@
+{
+  "reviewed": "e43b4982997a6495a431f2adfc3b20963c8bd109",
+  "date": "2026-09-17",
+  "behaviours": [
+    { "file": "crates/l2-kingdom/src/ai_farm/layout.rs", "line": 36,
+      "address": "0x004A4782", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-kingdom/src/ai_farm/policy.rs", "line": 149,
+      "address": "0x004A4782", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 89,
+      "address": "0x0044DF5F", "verdict": "match",
+      "note": "" }
+  ]
+}
