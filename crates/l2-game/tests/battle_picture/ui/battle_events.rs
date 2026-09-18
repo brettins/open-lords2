@@ -146,18 +146,24 @@ fn the_loader_restarts_the_ai_program_and_cannot_bring_a_withdrawal_back() {
     let (mut g, _m) = skirmish();
     g.kingdom.realms[2].strength = 40;
     g.kingdom.realms[2].ai_step = l2_kingdom::AI_STEP_DONE;
-    g.battle.as_mut().expect("a live battle").runner.withdraw(l2_sim::SIDE_B);
+    // The county's ladder says 2 and the file will say 0: `FUN_00477C89`
+    // recomputes over block 125 (`00470000.c:3197-3208`).
+    g.kingdom.counties[1].castle_type = 3;
+    g.kingdom.counties[1].castle_degraded = 0;
+    let b = g.battle.as_mut().expect("a live battle");
+    b.runner.withdraw(l2_sim::SIDE_B);
+    b.county = 1;
+    b.castle_level = Some(0);
+    b.paused = false;
     let tables = g.kingdom.tables;
 
     // The blocks carry both: `g_realms` is block 3 and our `withdrawn` is in
     // the battle tag, so what follows is the loader and not the codec.
     let coded = l2_game::save::decode(&l2_game::save::encode(&g), tables).expect("our own bytes");
     assert_eq!(coded.kingdom.realms[2].ai_step, l2_kingdom::AI_STEP_DONE);
-    assert_eq!(
-        coded.battle.expect("a live battle").runner.withdrawal(),
-        Some(l2_sim::SIDE_B),
-        "the codec is meant to be a codec"
-    );
+    let coded = coded.battle.expect("a live battle");
+    assert_eq!(coded.runner.withdrawal(), Some(l2_sim::SIDE_B), "the codec is meant to be a codec");
+    assert_eq!((coded.castle_level, coded.paused), (Some(0), false));
 
     l2_game::saves::write("resumed", &g).expect("the test's own directory");
     let back = l2_game::saves::read("resumed", tables).expect("our own bytes");
@@ -165,11 +171,18 @@ fn the_loader_restarts_the_ai_program_and_cannot_bring_a_withdrawal_back() {
         back.kingdom.realms[2].ai_step, 1,
         "a realm parked at AI_STEP_DONE must restart its program on a load"
     );
+    let back = back.battle.expect("a live battle");
     assert_eq!(
-        back.battle.expect("a live battle").runner.withdrawal(),
+        back.runner.withdrawal(),
         None,
         "a withdrawal survived a load, and the original has nowhere to keep one"
     );
+    assert_eq!(
+        (back.castle_level, back.runner.siege.castle_level),
+        (Some(2), 2),
+        "the level must be recomputed from the county, not read out of block 125"
+    );
+    assert!(back.paused, "`DAT_0053F238 = 0xFFFFFFFF`: a load lands paused");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

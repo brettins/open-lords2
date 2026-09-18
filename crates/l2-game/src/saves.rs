@@ -164,7 +164,7 @@ pub fn read_path(path: &Path, tables: Tables) -> Result<Game, Error> {
     let name = path.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
     let mut game = save::decode(&bytes, tables).map_err(|detail| Error::Load { name, detail })?;
     // `Save_Read` (`0x004ADFE6`) closes the file and calls `FUN_004976A1` —
-    // `004a0000.c:5949-5952`. The blocks are the codec; this is the loader.
+    // `004a0000.c:5952-5956`. The blocks are the codec; this is the loader.
     save::resume(&mut game);
     Ok(game)
 }

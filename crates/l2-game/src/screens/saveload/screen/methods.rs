@@ -125,7 +125,7 @@ impl SaveLoadScreen {
 
     /// Where a load lands, **read from the loader** and no longer inferred from
     /// the block table: `FUN_004976A1` (`0x004976A1`), which `Save_Read` calls
-    /// last (`004a0000.c:5952`), sets `g_screenId = 0` (`00490000.c:3098`) and
+    /// last (`004a0000.c:5956`), sets `g_screenId = 0` (`00490000.c:3098`) and
     /// then `if (g_battlePhase == 2) FUN_00477C89()`, whose only caller that is
     /// and which sets `g_screenId = 0x29` (`00470000.c:3194`). `g_battlePhase`
     /// (`0x0057C8FC`) is block **14** and is only ever 0 or 2 — seventeen
