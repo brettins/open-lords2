@@ -12,6 +12,11 @@ use crate::*;
 #[path = "tests_sidestep.rs"]
 mod tests_sidestep;
 
+/// The swap, its refusals and the wait, tested where they are written.
+#[cfg(test)]
+#[path = "tests_swap_arm.rs"]
+mod tests_swap_arm;
+
 impl BattleRunner {
     /// **`FUN_004904EC` (`0x004904EC`) — a blocked man side-steps.** He
     /// re-derives the direction to his target and tries it and its rotations,
@@ -185,6 +190,96 @@ impl BattleRunner {
         if self.fighters[i].path.is_empty() {
             self.fighters[i].delay = PARK;
         }
+    }
+
+    /// **`BattleMan_Step`'s friendly arm** (`0x0048F1DD`,
+    /// `00480000.c:6441-6463`) — `local_10 == 0` and not a siege engine:
+    ///
+    /// ```c
+    /// if (other.state != 2 && cur.unit == other.unit) {           /* :6442-6443 */
+    ///     cur.onRoute = 0;                                        /* :6444 */
+    ///     iVar2 = BattleMen_SwapPlaces();                         /* :6445 */
+    ///     if (iVar2 == 2) { other.state = 1; other.delayState = 3;
+    ///         other.delay = ((byte)other & 1) + 1;
+    ///         other.barred = 0; cur.barred = 0;      return 0; }  /* :6446-6454 */
+    ///     if (iVar2 == 0) { cur.delayState = cur.state; cur.state = 1;
+    ///         cur.delay = ((byte)other & 1) + 1;     return 0; }  /* :6456-6460 */
+    /// }
+    /// local_10 = 3;                                               /* :6463 */
+    /// ```
+    ///
+    /// The **wait** is what makes the refusals mean anything: a man whose swap
+    /// his own unit refuses stands a frame or two in formation and asks for no
+    /// route.
+    pub(crate) fn friendly_step(&mut self, i: usize, other: usize) {
+        if self.is_alive(other) && self.unit_of(i) == self.unit_of(other) {
+            // `cur.onRoute = 0`, `00480000.c:6444`, ahead of the call.
+            self.fighters[i].path.clear();
+            match self.swap_verdict(i, other) {
+                2 => return self.swap_places(i, other),
+                0 => {
+                    // `cur.state = 1` (`00480000.c:6458`) is [`Fighter::delay`]
+                    // here, and `BattleMan_StateDelay` (`0x00482F91`) opens on
+                    // `Anim_Stand` — the write `step_one` makes on every later
+                    // tick of the wait, made on this one too.
+                    self.fighters[i].anim = Motion::Idle;
+                    self.fighters[i].delay = (other & 1) as u8 + 1;
+                    return;
+                }
+                _ => {}
+            }
+        }
+        // `local_10 = 3`, `00480000.c:6463`: the side-step, then the search.
+        self.request_path(i)
+    }
+
+    /// **`BattleMen_SwapPlaces` (`0x0049005F`) as its answer**: 2 exchange, 0
+    /// stand and wait, 1 fall through to the side-step. The refusals in the
+    /// original's order.
+    fn swap_verdict(&self, i: usize, other: usize) -> u8 {
+        // `00490000.c:21-31`: an **AI-owned** blocker is swapped with only
+        // inside a siege, and there not by the garrison (`cur.side == 4`) and
+        // not by a melee man (`cur.weaponClass == 0`). **[V]**, decompiled.
+        if !self.sim.figures[self.fighters[other].sim].owner_is_human
+            && (!self.siege.is_siege
+                || self.fighters[i].side == SIDE_B
+                || WEAPON_CLASS[self.fighters[i].troop.index()] == 0)
+        {
+            return 1;
+        }
+        // `00490000.c:32-34`: `cur.troopType == other.troopType &&
+        // other.troopType < 7 && cur.troopType < 7`, each failure answering 0.
+        let (cur, oth) = (self.fighters[i].troop, self.fighters[other].troop);
+        if cur != oth || cur.index() >= 7 || oth.index() >= 7 {
+            return 0;
+        }
+        let state = self.sim.figures[self.fighters[other].sim].state;
+        // `00490000.c:35-42`: **states 2, 3 and 8 answer 0.** 2 is the corpse;
+        // 3 is `BattleMan_StateWalk` and `progress.free` is our reading of a
+        // man half-way into a cell (`[D]` on the reading, **[V]** on the
+        // refusal); 8 is `BattleMan_StateChase` (`0x00483E55`, `docs/battle.md`
+        // §14.2).
+        if state == State::Dead || !self.fighters[other].progress.free || state == State::Chasing {
+            return 0;
+        }
+        // `00490000.c:44-51`: **states 4, 9 and 6 answer 1** — stepped around,
+        // never pulled off the cell. 4 is `BattleMan_StateMelee`, 9
+        // `BattleMan_StateFillMoat`; 6 is `BattleMan_StateAttackWall`
+        // (`0x00483A88`), which no fighter of ours holds as a state. `[D]` on
+        // that one missing row.
+        if matches!(state, State::Melee | State::FillingMoat) {
+            return 1;
+        }
+        // `00490000.c:53-56`: `if (cur.tgX == other.tgX && cur.tgY ==
+        // other.tgY) { FUN_004928a3(); return 0; }` — two men with one
+        // destination are never swapped, and a marching unit is all one
+        // target. Ours had this test the other way round: 294 drawn jumps of
+        // 32 px in `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`, and the
+        // jitter `no_man_alternates_between_two_cells` names. **[V]**.
+        if self.fighters[i].target == self.fighters[other].target {
+            return 0;
+        }
+        2
     }
 }
 

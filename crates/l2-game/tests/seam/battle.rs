@@ -72,6 +72,13 @@ fn the_battle_runs_from_the_campaign_and_lands_on_the_saved_aftermath() {
     assert_eq!(report.attacker_men, (178, 0));
 }
 
+/// **The same position, taken to the field.** The save's verdict is the
+/// *autocalc*'s — `FUN_0043B622`, which the player reached by declining — and
+/// it weighs troop types where a fought battle counts men, so it is no
+/// yardstick for a fought one: Q2, settled 2026-09-17, and the floor this test
+/// held on the militia went with it. What is left is the seam itself — every
+/// seed runs to a [`Resolution::Fought`] and comes back with the numbers it
+/// went in with.
 #[test]
 fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
     let before_save: Save = l2_testkit::fixture!("battle-before.sav");
@@ -103,62 +110,47 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
         (k, defender, levied, after_levy, report)
     };
 
-    // **The verdict is a coin the position weights, not a fixed draw.** 178 men
-    // against 182 ends with the winner on 9-30 men; one seed flipped when the
-    // side-step landed (BattleMan_Step 0x0048F1DD, FUN_004904EC). So the save's
-    // verdict is held over eight seeds: the militia holds most of them, and the
-    // detailed assertions read the first fight it held.
     const SEEDS: u64 = 8;
-    // [D] floor 3 of 8 since 2026-09-17 (Q1b): unit firing 0x78 set as 00480000.c:1478-1479 does,
-    // so UnitOrder_FieldMissile's firing == 0 arm (:4335-4339) holds AI archers; the save held.
-    // Row firemissile-third-thing hunts the difference; the verdict held is the autocalc's
-    // (FUN_0043B622, the player declined the field), no fought battle's [I]; Q2 asks for one.
-    const FLOOR: u64 = 3;
     let fights: Vec<_> = (0..SEEDS)
         .map(|i| fight(l2_sim::runner::DEFAULT_SEED.wrapping_add(i.wrapping_mul(0x9E37_79B9))))
         .collect();
     let held = fights.iter().filter(|(_, _, _, _, r)| !r.verdict.attacker_won).count() as u64;
     eprintln!("the militia held {held} of {SEEDS} fights");
-    assert!(
-        held >= FLOOR,
-        "the militia held the field in the save; fought, it held {held} of {SEEDS}: {:?}",
-        fights.iter().map(|(_, _, _, _, r)| (r.attacker_men, r.defender_men)).collect::<Vec<_>>()
-    );
-    let (k, defender, levied, after_levy, report) =
-        fights.into_iter().find(|(_, _, _, _, r)| !r.verdict.attacker_won).unwrap();
 
-    let Resolution::Fought { ticks, cause } = report.resolution else {
-        panic!("taking the field must fight it to a conclusion: {:?}", report.resolution)
-    };
-    assert!(ticks > 0 && ticks < engagement::MAX_TICKS, "{ticks} ticks");
-    assert_eq!(cause, l2_sim::End::Annihilation, "the only way a field battle ends by itself");
+    for (k, defender, levied, after_levy, report) in &fights {
+        let (levied, after_levy) = (*levied, *after_levy);
+        let Resolution::Fought { ticks, cause } = report.resolution else {
+            panic!("taking the field must fight it to a conclusion: {:?}", report.resolution)
+        };
+        assert!(ticks > 0 && ticks < engagement::MAX_TICKS, "{ticks} ticks");
+        assert_eq!(cause, l2_sim::End::Annihilation, "the only way a field battle ends by itself");
 
-    assert_eq!(report.attacker_men.0, 178);
-    assert_eq!(report.defender_men.0, levied);
-    assert!(report.attacker_men.1 <= 178 && report.defender_men.1 <= levied);
+        assert_eq!(report.attacker_men.0, 178);
+        assert_eq!(report.defender_men.0, levied);
+        assert!(report.attacker_men.1 <= 178 && report.defender_men.1 <= levied);
+        let (won, lost) = match report.verdict.attacker_won {
+            true => (report.attacker_men, report.defender_men),
+            false => (report.defender_men, report.attacker_men),
+        };
+        assert_eq!(lost.1, 0, "annihilation leaves the loser none");
+        assert!(
+            won.1 > 0 && won.1 * 4 < won.0,
+            "an even fight all but destroys the winner too: {won:?}"
+        );
+        assert_eq!(report.verdict.winner() != *defender, report.verdict.attacker_won);
 
-    //. This is the assertion the missile gap made
-    assert!(
-        !report.verdict.attacker_won,
-        "the militia held the field in the save; fought, {:?} v {:?}",
-        report.attacker_men,
-        report.defender_men
-    );
-    assert_eq!(report.verdict.winner(), defender);
-    assert!(
-        report.defender_men.1 * 4 < levied,
-        "an even fight all but destroys the winner too: {} of {levied}",
-        report.defender_men.1
-    );
-
-    assert!(k.campaign.units.get(report.verdict.loser()).is_none());
-    assert_eq!(k.counties[COUNTY as usize].owner, 0, "the county is still neutral");
-    assert_eq!(k.counties[COUNTY as usize].population, after_levy + report.defenders_returned);
-    eprintln!(
-        "fought: {ticks} ticks, attacker {:?}, defender {:?}, {} held the field",
-        report.attacker_men,
-        report.defender_men,
-        if report.verdict.attacker_won { "the player" } else { "the militia" }
-    );
+        assert!(k.campaign.units.get(report.verdict.loser()).is_none(), "the loser is gone");
+        assert_eq!(
+            k.counties[COUNTY as usize].population,
+            after_levy + report.defenders_returned,
+            "the militia that lived walks back into county 3"
+        );
+        eprintln!(
+            "fought: {ticks} ticks, attacker {:?}, defender {:?}, {} held the field",
+            report.attacker_men,
+            report.defender_men,
+            if report.verdict.attacker_won { "the player" } else { "the militia" }
+        );
+    }
 }
 

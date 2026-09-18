@@ -40,7 +40,7 @@ fn human(r: &mut BattleRunner, i: usize) {
 /// **A comrade filling the moat is stepped around, not swapped with.**
 /// `00490000.c:46-48`: `other.state == 9` answers 1.
 ///
-/// **The ablation.** Drop the `busy` arm of [`BattleRunner::swap_answer`] and
+/// **The ablation.** Drop the `busy` arm of [`BattleRunner::swap_verdict`] and
 /// the moat-filler is pulled off his cell into the walker's.
 #[test]
 fn a_comrade_filling_the_moat_is_not_swapped_off_his_cell() {
