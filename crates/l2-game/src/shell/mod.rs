@@ -37,6 +37,8 @@ pub const SHEETS: &[&str] = &[
     "Skirmish.pl8",
     "Skircust.pl8",
     "Misc_sel.pl8",
+    // g_miscCtySheet on setup pages 11-13: FUN_00498DCB (00490000.c:3999).
+    "Misc_ske.PL8",
     "Merchant.pl8",
     "Mercgrid.pl8",
     "Icontrad.pl8",
@@ -141,8 +143,37 @@ pub const PALETTES: &[&str] = &[
     "T32_stn1.256",
 ];
 
+/// `s_battles_eng_004D4CD0`, the one file `FUN_0042AA90` opens.
+pub const BATTLES_FILE: &str = "BATTLES.ENG";
+
+/// The three `Troops_Load` chooses between, `s_troops_eng_004D4CE8` and its
+/// two neighbours.
+pub const TROOPS_FILES: &[&str] = &["TROOPS.ENG", "TROOPS2.ENG", "TROOPS3.ENG"];
+
+/// `Files_Enumerate`'s table is a hundred names of `0x41` bytes at
+/// `0x004E8790` and the loop `break`s at 99 (`004a0000.c:6552`).
+pub const SKIRMISH_FILE_MAX: usize = 100;
+
 pub struct ShellAssets {
     pub eng: Option<Eng>,
+    /// `BATTLES.ENG`, as `FUN_0042AA90` (`0x0042AA90`) leaves it in
+    /// `DAT_0051FD50`. Empty when the file is absent, which is what that
+    /// function's `len == 0` arm produces.
+    pub battles: l2_formats::Battles,
+    /// `g_troopsTable` for each of the three files `Troops_Load`
+    /// (`0x0042AC0C`) can open — the pick is
+    /// [`l2_formats::troops::file_for`], so all three are parsed once here
+    /// and the swap arm chooses between them.
+    troops: BTreeMap<String, l2_formats::Troops>,
+    /// `DAT_004E8790`, what `Files_Enumerate` (`0x004AECF0`) finds for the
+    /// `.skr` picker: lower-cased by `FUN_00401246`, extension kept, and
+    /// **at most a hundred** — the loop breaks at 99 and reports nothing.
+    pub skirmish_files: Vec<String>,
+    /// Those files' bytes. The original re-reads `DAT_0053F5FC` from the
+    /// working directory on every pick (`FUN_0042D4AA`, `Skr_ReadMap`); we
+    /// have no handle on the `Vfs` after loading, so the files are kept. A
+    /// shipped install has one, `USER.SKR`, 133,748 bytes.
+    skirmish_skr: BTreeMap<String, Vec<u8>>,
     pub body: Option<Font>,
     pub heading: Option<Font>,
     pub small: Option<Font>,

@@ -8,13 +8,36 @@ impl SetupScreen {
         &self.skirmish
     }
 
-    /// Stand in for `Troops_Load` (`0x0042AC0C`): the parse of `TROOPS2.ENG`
-    /// is not built, so the table is handed in.
-    pub fn set_troops(&mut self, t: crate::screens::setup::skirmish::TroopsTable) {
-        self.troops = t;
+    /// For a test that wants a page state without a click path to it —
+    /// every arm on the page goes through [`SetupScreen::handle`].
+    pub fn skirmish_mut(&mut self) -> &mut crate::screens::setup::skirmish::Skirmish {
+        &mut self.skirmish
     }
 
-    /// The names page 13 lists — `DAT_004E8790`, which a directory scan fills.
+    pub fn troops(&self) -> &crate::screens::setup::skirmish::TroopsTable {
+        &self.troops
+    }
+
+    /// A table in place of the one `Troops_Load` (`0x0042AC0C`) reads, so a
+    /// test can name the counts it asserts on. Pinning `troops_file` is what
+    /// stops [`SetupScreen::update`]'s page-entry load replacing it.
+    pub fn set_troops(&mut self, t: crate::screens::setup::skirmish::TroopsTable) {
+        self.troops = t;
+        self.troops_file = Some("(supplied)");
+    }
+
+    /// Which of `TROOPS.ENG` / `TROOPS2.ENG` / `TROOPS3.ENG` the table came
+    /// from — `l2_formats::troops::file_for`'s answer at the last load.
+    pub fn troops_file(&self) -> Option<&'static str> {
+        self.troops_file
+    }
+
+    pub fn banner_frame(&self) -> usize {
+        self.banner
+    }
+
+    /// The names page 13 lists — `DAT_004E8790`, which `Files_Enumerate`
+    /// fills and [`crate::shell::ShellAssets::skirmish_files`] holds.
     pub fn set_skirmish_files(&mut self, files: Vec<String>) {
         self.skirmish_files = files;
     }
@@ -112,8 +135,12 @@ impl SetupScreen {
                     level,
                 ),
             },
+            // Category 3 is `Battlefield_BuildFromSkr` (`0x0047B8B2`), which
+            // `l2_sim::terrain::build` is; categories 0 and 1 are
+            // `Battlefield_BuildRandom`'s skirmish branch, `batfiel2.pl8`
+            // frame `DAT_0056D590` (+10 for category 1).
             _ => BattleRunner::deploy_muster(
-                crate::batfield::field(seed),
+                self.skirmish_field(ctx, seed),
                 seed,
                 att,
                 def,

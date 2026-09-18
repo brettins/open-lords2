@@ -62,40 +62,27 @@ pub struct RawTroopTable {
     pub counts: Box<[[[[i64; COLUMNS]; SIDES]; GROUPS]; ROWS]>,
 }
 
+/// `l2_formats::troops::parse_raw` is `Troops_Load`'s own token scan; this is
+/// the widening to `i64` the rule generator wants.
 pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
-    let start = bytes.iter().position(|&b| b == b'*').ok_or(SeedError::NoMarker)?;
-    let mut tokens: Vec<i64> = Vec::with_capacity(TOKEN_COUNT);
-    let mut i = start;
-    while i < bytes.len() {
-        if bytes[i].is_ascii_digit() {
-            let from = i;
-            while i < bytes.len() && bytes[i].is_ascii_digit() {
-                i += 1;
-            }
-            let text = std::str::from_utf8(&bytes[from..i]).unwrap_or("");
-            match text.parse::<i64>() {
-                Ok(v) => tokens.push(v),
-                Err(_) => return Err(SeedError::BadToken(text.to_string())),
-            }
-        } else {
-            i += 1;
+    let raw = l2_formats::troops::parse_raw(bytes).map_err(|e| match e {
+        l2_formats::Error::TroopsNoMarker => SeedError::NoMarker,
+        l2_formats::Error::TroopsTokenCount { found, expected } => {
+            SeedError::TokenCount { found, expected }
         }
-    }
-    if tokens.len() != TOKEN_COUNT {
-        return Err(SeedError::TokenCount { found: tokens.len(), expected: TOKEN_COUNT });
-    }
-
+        l2_formats::Error::TroopsBadToken(t) => SeedError::BadToken(t),
+        other => SeedError::BadToken(other.to_string()),
+    })?;
     let mut table = RawTroopTable {
         advantage: [0; ROWS],
         counts: Box::new([[[[0i64; COLUMNS]; SIDES]; GROUPS]; ROWS]),
     };
-    let mut t = tokens.into_iter();
     for row in 0..ROWS {
-        table.advantage[row] = t.next().unwrap().clamp(0, 10);
+        table.advantage[row] = raw.advantage[row] as i64;
         for g in 0..GROUPS {
             for s in 0..SIDES {
                 for c in 0..COLUMNS {
-                    table.counts[row][g][s][c] = t.next().unwrap();
+                    table.counts[row][g][s][c] = raw.counts[row][g][s][c] as i64;
                 }
             }
         }
@@ -104,13 +91,7 @@ pub fn parse_troops_eng(bytes: &[u8]) -> Result<RawTroopTable, SeedError> {
 }
 
 pub fn battle_names(bytes: &[u8]) -> Vec<String> {
-    let fields: Vec<String> = bytes
-        .split(|&b| b < 0x20)
-        .filter(|f| !f.is_empty())
-        .map(|f| String::from_utf8_lossy(f).trim().to_string())
-        .filter(|f| !f.is_empty())
-        .collect();
-    fields.chunks(3).filter(|c| c.len() == 3).map(|c| c[0].clone()).collect()
+    l2_formats::Battles::parse(bytes).names()
 }
 
 pub fn slug(name: &str) -> String {

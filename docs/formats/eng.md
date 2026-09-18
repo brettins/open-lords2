@@ -295,10 +295,22 @@ is recorded.
 
 ### 3.3 Which file is used
 
-**[V]** `FUN_0042AC0C` picks one of the three at load time from two globals:
-one flag selects `troops.eng`, otherwise a comparison between two values selects
-`troops2.eng` or `troops3.eng`. **[I]** given the file contents, that is
-open-field battle vs. siege vs. castle assault, but the globals were not traced.
+**[V]** `FUN_0042AC0C` picks one of the three at load time from two globals, and
+they are now traced (`00420000.c:4349-4369`):
+
+```c
+if (g_multiplayer == 0) {
+  if (DAT_0053EF5C == g_localPlayer) load("troops2.eng"); else load("troops3.eng");
+} else load("troops.eng");
+```
+
+`DAT_0053EF5C` is the skirmish page's **attacker**, which `FUN_0042B919` starts
+at realm 1 and `FUN_0043DD83` moves between `g_localPlayer` and `DAT_0056D5CC`.
+So it is not open field vs. siege — an earlier revision's **[I]** guess, now
+withdrawn — it is *which side the local player is on*: `troops2.eng` when he
+attacks, `troops3.eng` when he defends, and `troops.eng` in multiplayer, where
+neither player is "the" local one. `FUN_0043DD83` calls `Troops_Load` again for
+exactly this reason (`00430000.c:8126`). `l2_formats::troops::file_for`.
 
 All three files are the same size (22,764 bytes) and differ from each other in
 325–1,363 bytes.
@@ -743,7 +755,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 126 | 2 | `FREE` | Capture letter, `0x0D`: a capture that does not pass the peak — *"The county is yours. May you rule it wisely."* | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
 | 127 | 2 | `FREE` | **Secession**: "Deeming itself too far from the heart of your empire…". | `Territory_SecedeMinorBlocks` [D] |
 | 128 | 2 | `Your lands divide.` | "Your lands divide." — the kingdom-level companion to 127. | `Territory_SecedeMinorBlocks` [D] |
-| 129 | 2 | `FREE` | Refusal: a county too far from the heart of your lands — posted to a local taker when the county borders none of his, and the county is then made independent. Category 0. **Not built**: the rule is not, so neither is the letter. | `County_ChangeOwner` [V] |
+| 129 | 2 | `FREE` | Refusal: a county too far from the heart of your lands — posted to a local taker when the county borders none of his, and the county is then made independent. Category 0. **Not built**: |
 | 130 | 2 | `FREE` | Neutral county's greeting, category 2, to the army's owner: happiness below 10 — *"The people are wretched"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
 | 131 | 2 | `FREE` | Greeting: happiness below 30, or an army at least as large as the county's population — a welcome. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
 | 132 | 2 | `FREE` | Greeting: an army 50…99 % of the population. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
@@ -946,8 +958,9 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
   shipped English file's only bytes above `0x7F` are nine `0xB7`s, one at the head of
   each of 295/2…295/10, and `0xB7` has no glyph. `shell::Eng` returns each byte as the
   `char` of the same number; it used to return `None` for all nine strings.
-* **Which of `troops.eng` / `troops2.eng` / `troops3.eng` applies when.** The two
-  selecting globals were not traced.
+* ~~**Which of `troops.eng` / `troops2.eng` / `troops3.eng` applies when.** The two
+  selecting globals were not traced.~~ **Closed by §3.3** — `g_multiplayer` and
+  `DAT_0053EF5C == g_localPlayer`, which is whether the local player attacks.
 * ~~**`L2.eng` groups have no names.** A reimplementation has to hard-code the ids
   it needs; nothing in the file says what a group is for.~~ **Closed by §5** — all 317
   are mapped, 250 of them to the code that reaches them.

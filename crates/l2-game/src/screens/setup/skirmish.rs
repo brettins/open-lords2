@@ -114,6 +114,12 @@ pub struct TroopsTable {
 }
 
 impl TroopsTable {
+    /// `Troops_Load` (`0x0042AC0C`) as [`l2_formats::Troops`] leaves it — the
+    /// same `[row][side][difficulty][slot]` the exe stores.
+    pub fn from_file(t: &l2_formats::Troops) -> TroopsTable {
+        TroopsTable { rows: t.rows.to_vec() }
+    }
+
     pub fn counts(&self, kind: usize, row: usize, side: usize, diff: u8) -> [i16; 11] {
         let i = ROW_BASE.get(kind).copied().unwrap_or(0) + row;
         match self.rows.get(i) {
@@ -220,11 +226,10 @@ impl Skirmish {
     /// `DAT_0053EF5C` between `g_localPlayer` and `DAT_0056D5CC`
     /// (`00430000.c:8120-8126`).
     ///
-    /// **[D]** the original then calls `Troops_Load` (`0x0042AC0C`), because
-    /// which side the local player is on picks the *file*: `TROOPS2.ENG`
-    /// attacking, `TROOPS3.ENG` defending. The parse is not built and the
-    /// table is handed in, so ours cannot reload; the sides swap and the
-    /// counts stay whichever file the caller supplied.
+    /// The caller must then reload the table: `00430000.c:8126` calls
+    /// `Troops_Load` (`0x0042AC0C`), because which side the local player is on
+    /// picks the *file* — `TROOPS2.ENG` attacking, `TROOPS3.ENG` defending.
+    /// `SetupScreen::load_troops` is that call.
     pub fn swap_sides(&mut self) {
         self.local_attacks = !self.local_attacks;
     }

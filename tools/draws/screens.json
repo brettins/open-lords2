@@ -2842,7 +2842,7 @@
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 12 — the same arm as page 11, character for character"
     ],
-    "original": 14,
+    "original": 73,
     "ours": 1,
     "original_objects": 35,
     "ours_objects": 3,
@@ -2888,7 +2888,13 @@
       "FUN_0042051c",
       "FUN_0041ff75",
       "FUN_00420147",
-      "FUN_00420d40"
+      "FUN_00420d40",
+      "FUN_00421005",
+      "FUN_004207c3",
+      "FUN_00421231",
+      "FUN_004209c1",
+      "FUN_0042130f",
+      "FUN_00420de4"
     ]
   },
   {

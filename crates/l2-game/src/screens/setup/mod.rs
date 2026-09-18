@@ -312,6 +312,19 @@ const HUMAN_PLAYERS: usize = 1;
 const BOX_SHEET: &str = "Panels2.pl8";
 pub(super) const ICON_SHEET: &str = "Misc_sel.pl8";
 
+/// **`g_miscCtySheet` is not `Misc_sel.pl8` on pages 11 … 13.**
+///
+/// `Skirmish_Setup` (`0x0042B7F7`, `00420000.c:4565`) calls `FUN_00498DCB`
+/// (`0x00498DCB`, `00490000.c:3998-3999`), which sets `DAT_0053F050 = 2` and
+/// `g_miscCtySheet = misc_ske.PL8`; *Back* (`FUN_0043D649`,
+/// `00430000.c:7806`) calls `FUN_00499034` (`00490000.c:4061-4068`) to put
+/// `misc_sel.PL8` back. The row and category arms reload it too
+/// (`00430000.c:7952`, `:7985`, `:8101`).
+///
+/// **[V]** and self-verifying: `Misc_sel.pl8` has **17** frames and the
+/// banner asks for `0x21 … 0x2C`; `Misc_ske.PL8` has 45.
+pub(super) const BATTLE_SHEET: &str = "Misc_ske.PL8";
+
 #[cfg(test)]
 mod tests {
     use super::*;

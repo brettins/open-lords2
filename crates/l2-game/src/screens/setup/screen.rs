@@ -76,6 +76,17 @@ pub struct SetupScreen {
     pub(crate) skirmish: skirmish::Skirmish,
     /// `g_troopsTable`, as `Troops_Load` (`0x0042AC0C`) would have filled it.
     pub(crate) troops: skirmish::TroopsTable,
+    /// Which of the three files the table above came from, so the reload on
+    /// the side swap (`00430000.c:8126`) can be seen to have happened.
+    pub(crate) troops_file: Option<&'static str>,
+    /// `DAT_004D31E8` and `_DAT_004D31EC` — `FUN_00420D40`'s twelve-frame
+    /// counter and the `timeGetTime()` it last advanced on.
+    pub(crate) banner: usize,
+    pub(crate) banner_ms: u32,
+    /// The twenty `ScenarioText` records of the chosen `.skr`, which
+    /// `FUN_0042AB82` (`0x0042AB82`) indexes instead of `BATTLES.ENG` when the
+    /// category is 3: `DAT_00521CA0 + row * 0xB7`, `+0x0D` and `+0x2A`.
+    pub(crate) skr_text: Vec<l2_formats::ScenarioText>,
     /// The `.skr` files page 13 lists — `DAT_004E8790`, 0x41 bytes a name,
     /// counted by `DAT_004EB25C`. Nothing scans a directory for them yet.
     pub(crate) skirmish_files: Vec<String>,

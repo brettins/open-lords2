@@ -417,8 +417,8 @@
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
-   "line": 7,
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_custom.rs",
+   "line": 11,
    "address": "0x00420D40",
    "verdict": "match",
    "note": ""
