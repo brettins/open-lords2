@@ -115,6 +115,12 @@
       "text": "Tutorials come back on every launch.",
       "row": "tutorial-flag-persists",
       "outcome": "In flight: how the original remembers it (L2.INI) comes first."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "The AI raises three armies and they just sit; in the original the knight takes a county in the first year.",
+      "row": "ai-armies-idle",
+      "outcome": "Filed with your autosaves; next free seat."
     }
   ]
 }
