@@ -120,13 +120,13 @@
       "date": "2026-09-18",
       "text": "The AI raises three armies and they just sit; in the original the knight takes a county in the first year.",
       "row": "ai-armies-idle",
-      "outcome": "Filed with your autosaves; next free seat."
+      "outcome": "Found: a new game gave each lord a castle in the books but not on the map, so the AI's levies marched to the town and stood there for ever. Also: the original does not attack in its first year either; the Knight launches in 1271. Fix delivered; oracle check and merge next session. Your current game keeps the flaw; a fresh game is right."
     },
     {
       "date": "2026-09-18",
       "text": "The Knight never replied to a message.",
       "row": "ai-lord-no-reply",
-      "outcome": "Filed; goes with the idle armies to the next free seat."
+      "outcome": "Found: the Knight wrote his reply and we threw it away before it reached your letters. Fix delivered with the idle-armies one."
     },
     {
       "date": "2026-09-18",
