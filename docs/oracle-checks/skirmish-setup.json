@@ -1,0 +1,553 @@
+{
+ "reviewed": "808f1598a6fbb9578fdd27f92c29b587aeb407c2",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/battlefield/mod.rs",
+   "line": 326,
+   "address": "0x0057A0F0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/battlefield/mod.rs",
+   "line": 327,
+   "address": "0x0042B7F7",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/battlefield/mod.rs",
+   "line": 327,
+   "address": "0x0043D649",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 42,
+   "address": "0x0043D929",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 44,
+   "address": "0x0043D9CD",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 46,
+   "address": "0x0043DC1D",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 48,
+   "address": "0x0043DD83",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 50,
+   "address": "0x0043DAF3",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 52,
+   "address": "0x0043DDF4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/helpers.rs",
+   "line": 54,
+   "address": "0x00434174",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/screen.rs",
+   "line": 77,
+   "address": "0x0042AC0C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/screen.rs",
+   "line": 79,
+   "address": "0x004E8790",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/screen.rs",
+   "line": 80,
+   "address": "0x004EB25C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 2,
+   "address": "0x0042B7F7",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 2,
+   "address": "0x0056D5CC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 4,
+   "address": "0x0057A0F0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 10,
+   "address": "0x0043D929",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 11,
+   "address": "0x0043D9CD",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 12,
+   "address": "0x0043DC1D",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 12,
+   "address": "0x0053E91C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 13,
+   "address": "0x0043DD83",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 14,
+   "address": "0x0043DAF3",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 15,
+   "address": "0x0043DA9E",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 15,
+   "address": "0x0056899C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 16,
+   "address": "0x0043DDF4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 18,
+   "address": "0x00434174",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 22,
+   "address": "0x004D49B8",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 23,
+   "address": "0x0053F0D4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 30,
+   "address": "0x004D4B98",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 59,
+   "address": "0x00421005",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 74,
+   "address": "0x0042BF46",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 81,
+   "address": "0x0052F218",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 85,
+   "address": "0x0051FBBC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 85,
+   "address": "0x0051FAD0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 103,
+   "address": "0x00516AC0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 106,
+   "address": "0x0042AC0C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 108,
+   "address": "0x0042D4AA",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 134,
+   "address": "0x0053F64C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 136,
+   "address": "0x0053E9A8",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 138,
+   "address": "0x0056D590",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 142,
+   "address": "0x0053EF5C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 145,
+   "address": "0x00553DA4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 145,
+   "address": "0x00553DD0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 151,
+   "address": "0x0053F5FC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 156,
+   "address": "0x0042B919",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 235,
+   "address": "0x0043DBAC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 310,
+   "address": "0x00553EFC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 310,
+   "address": "0x00553F34",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/skirmish.rs",
+   "line": 310,
+   "address": "0x0042BA40",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 167,
+   "address": "0x00434174",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 187,
+   "address": "0x004DCF68",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 189,
+   "address": "0x0043D649",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 190,
+   "address": "0x0043DA9E",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 190,
+   "address": "0x0043D5B7",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 325,
+   "address": "0x0042BF46",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 461,
+   "address": "0x0057A0F0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 468,
+   "address": "0x0042130F",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 468,
+   "address": "0x00420DE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 5,
+   "address": "0x00420630",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 7,
+   "address": "0x00420D40",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 9,
+   "address": "0x00421231",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 15,
+   "address": "0x00421005",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 48,
+   "address": "0x004207C3",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 68,
+   "address": "0x004209C1",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 80,
+   "address": "0x0053EF5C",
+   "verdict": "departure",
+   "note": "labelled [D] in the cited block"
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 90,
+   "address": "0x0043DAF3",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 95,
+   "address": "0x0051FBBC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+   "line": 96,
+   "address": "0x0051FAD0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 11,
+   "address": "0x0042AC0C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 17,
+   "address": "0x004E8790",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 45,
+   "address": "0x0043D5B7",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 46,
+   "address": "0x0043F304",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 46,
+   "address": "0x0042BA40",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 46,
+   "address": "0x0042C5AD",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 48,
+   "address": "0x004778A0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 53,
+   "address": "0x0042B7F7",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 54,
+   "address": "0x0056D5CC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+   "line": 56,
+   "address": "0x0057A0F0",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

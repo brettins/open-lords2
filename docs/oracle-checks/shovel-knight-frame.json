@@ -1,0 +1,55 @@
+{
+  "reviewed": "5432074afbef638a749ab38c7ca112e3a6add064",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/runner/anim.rs",
+      "line": 57,
+      "address": "0x004872AE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/anim.rs",
+      "line": 91,
+      "address": "0x00486D83",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/anim.rs",
+      "line": 129,
+      "address": "0x00486249",
+      "verdict": "departure",
+      "note": "Anim_StrikeA2's knight arm (00480000.c:2540) is the third writer of +0x11; 2571-2573 is |dirc| * 6 and we write that, but the arm first rotates dirc itself over DAT_004D9C30 (2542-2563) and we do not — that table is l2_view's KNIGHT_FRAMES. Labelled [D] at the line."
+    },
+    {
+      "file": "crates/l2-sim/src/runner/anim.rs",
+      "line": 164,
+      "address": "0x00487908",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/mod.rs",
+      "line": 115,
+      "address": "0x00487908",
+      "verdict": "match",
+      "note": "Was a mismatch on 8df0dc17: the doc named two writers of +0x11. Three now, Anim_StrikeA2 (2571-2573) added."
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation.rs",
+      "line": 280,
+      "address": "0x0046E4C8",
+      "verdict": "departure",
+      "note": "Was a wrong uncited claim on 8df0dc17 that BattleMan_Create zeroes the record. It does not: 00460000.c:8262-8296 takes the first slot with owner == 0 and writes twelve fields, +0x11 not among them, so a recycled slot keeps the old horse frame. We seed 0; labelled [D] with the reason the difference cannot be observed."
+    },
+    {
+      "file": "crates/l2-view/src/scene/render.rs",
+      "line": 146,
+      "address": "0x00487908",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

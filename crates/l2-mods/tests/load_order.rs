@@ -1,4 +1,3 @@
-//! Mod metadata, discovery and load order.
 
 mod common;
 
@@ -78,7 +77,6 @@ fn version_requirements_behave() {
     assert!(!VersionReq::Exactly(v("1.2.0").unwrap()).matches(v("1.2.1").unwrap()));
     assert!(VersionReq::Compatible(v("1.2").unwrap()).matches(v("1.9").unwrap()));
     assert!(!VersionReq::Compatible(v("1.2").unwrap()).matches(v("2.0").unwrap()));
-    // Below 1.0 the minor is the breaking component, as Cargo treats it.
     assert!(VersionReq::Compatible(v("0.4.1").unwrap()).matches(v("0.4.9").unwrap()));
     assert!(!VersionReq::Compatible(v("0.4.1").unwrap()).matches(v("0.5.0").unwrap()));
 }
@@ -109,7 +107,6 @@ fn a_dependency_is_moved_before_its_dependent() {
         meta("[mod]\nid = \"core\"\nversion = \"1.0\"\n"),
         meta("[mod]\nid = \"addon\"\nrequires = [\"core\"]\n"),
     ];
-    // User asked for addon first; the constraint overrules that one edge.
     let order = resolve_load_order(&mods, &["addon".into(), "core".into()]).unwrap();
     assert_eq!(ids(&order), vec!["core", "addon"]);
 }
@@ -122,7 +119,6 @@ fn after_orders_without_requiring() {
     ];
     let order = resolve_load_order(&mods, &["patch".into(), "ui".into()]).unwrap();
     assert_eq!(ids(&order), vec!["ui", "patch"]);
-    // 'absent' is not enabled, and that is not an error the way requires is.
     let order = resolve_load_order(&mods, &["patch".into()]).unwrap();
     assert_eq!(ids(&order), vec!["patch"]);
 }

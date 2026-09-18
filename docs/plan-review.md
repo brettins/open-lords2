@@ -11,7 +11,7 @@ re-run the commands instead, and write a new review if the answers have changed.
 
 ## Verdict
 
-**The central claim is half true, and the half that is false is load-bearing.** Five
+**The central claim is half true, Five
 crates do work, 727 tests pass, and nothing is joined up — that part reproduces. But *"the
 gap is integration, not knowledge"* is false for three of the slice's five items: starting
 a scenario, moving an army, and fighting a campaign battle each require subsystems that are
@@ -20,10 +20,10 @@ mechanical for the same reason.
 
 **The plan should change, not be replaced.** A vertical slice is still the right first
 move; the slice as scoped is not the one to build. Three specific changes: put persistence
-**first** rather than last (the shipped `lastturn.sav` is already a readable dump of a
+**first** (the shipped `lastturn.sav` is already a readable dump of a
 complete campaign, which unblocks slice item 1 for almost nothing), move the battle driver
 out of `l2-view` before `l2-game` exists, and re-scope item 4 so campaign unit movement is
-its own workstream rather than a hidden prerequisite.
+its own workstream.
 
 ---
 
@@ -38,7 +38,7 @@ walking the slice list against the repo, three of the five steps cross code nobo
 
 * Step 1, *start on the campaign map of a shipped scenario*, needs new-game county
   initialisation. `Kingdom::start_new_game` sets the clock and nothing else
-  (`crates/l2-kingdom/src/kingdom.rs:247`). The original's `Game_NewGame` (`0x00497CED`)
+  (`crates/l2-kingdom/src/kingdom/mod.rs:247`). The original's `Game_NewGame` (`0x00497CED`)
   calls twenty functions and all but four are still `FUN_`.
 * Step 4, *move an army into a neighbouring county*, needs the campaign unit layer. No
   crate has one. `Unit_EnterOccupiedTile` — the function that decides that two units
@@ -62,7 +62,7 @@ below.**
 
 ## Specific holes
 
-### 1. The shipped save is a complete campaign, and the plan calls reading it a stretch goal
+### 1. The shipped save is a complete campaign
 
 `docs/plan.md` §C: *"Reading the original's `lastturn.sav` is a stretch goal — the container
 arithmetic is already proven exactly."* The container arithmetic is the least of what is
@@ -99,7 +99,7 @@ needs; the import half of it is the first.**
 
 This is the sharpest finding, and it is C12 again in a different subsystem.
 
-`crates/l2-kingdom/tests/reproduction.rs` is headed *"**The reproduction from the shipped
+`crates/l2-kingdom/tests/reproduction/main.rs` is headed *"**The reproduction from the shipped
 save.**"* Its model is *"fourteen counties, four owned by the human realm and ten
 unowned"* (`OWNED: usize = 4`, owners assigned to ids 1..4), and it asserts happiness 72 for
 ids 1–4 and 77 for ids 5–14.
@@ -131,8 +131,8 @@ conclusion of that errata note survives (only the negative part of `5 - rate` re
 which is 0 either way) but the premise it is argued from does not.
 
 Fix: make the test read the file when an install is present, field by field over all
-seventeen records — `crates/l2-view/tests/install.rs` already has the skip-if-no-install
-pattern to copy. This is method §2 step 4, *a property of the data rather than of our code*,
+seventeen records — `crates/l2-view/tests/install/main.rs` already has the skip-if-no-install
+pattern to copy. This is method §2 step 4, *a property of the data*,
 applied to the one crate that does not yet have one.
 
 ### 3. Workstream B's second half is not mechanical, and 14/17 of it is for excluded content
@@ -181,16 +181,16 @@ across 234 reference sites**. But the important number is the split:
 in Tables: 40    not in Tables: 21
 ```
 
-Twenty-one of the constants the simulation actually reads are **not fields of `Tables` at
+Twenty-one of the constants the simulation reads are **not fields of `Tables` at
 all** — `AI_TAX_LADDERS`, `AI_TAX_LADDER_NEUTRAL`, `AI_FIELD_LADDER`, `AI_GOLD_GRANT_SMALL`,
 `ALE_HAPPINESS_MAX`, `ALE_HAPPINESS_STEP_PCT`, `ARMY_HAPPINESS_COST`, `INDUSTRY_ORDER`,
 `EFFICIENCY_MAX`, `EFFICIENCY_WITHOUT_ADVANCED_FARMING`, `RESOURCE_LIMIT_UNLIMITED` and
-others. `crates/l2-mods/src/kingdom.rs` has no ruleset keys for them either.
+others. `crates/l2-mods/src/kingdom/mod.rs` has no ruleset keys for them either.
 
-So the stated goal — *"a modded `kingdom.toml` … actually take effect"* — is not reached by
+So the stated goal — *"a modded `kingdom.toml` … take effect"* — is not reached by
 threading `&Tables` through. It also needs `Tables` widened, `l2-mods`'s reader widened in
 lockstep, and the round-trip and digest tests extended. Still worth doing and still mostly
-mechanical, but it is a three-crate change, not a one-crate one, and the plan should say
+mechanical, but it is a three-crate change, not a one-crate one
 which of the 21 are in scope. Deciding "these 21 stay hard-coded for now" is a fine answer;
 discovering them halfway through is not.
 
@@ -209,7 +209,7 @@ $ cargo tree -p l2-view --prefix none | sort -u | wc -l
 124 transitive crates. `l2-sim`, `l2-kingdom`, `l2-net`, `l2-mods` and `l2-formats` have
 zero, and each carries a long Cargo.toml comment explaining that this is a *correctness*
 property, not a preference, because a lockstep value stream may not be owned by somebody
-else. Putting the thing that actually simulates a battle behind wgpu contradicts that
+else. Putting the thing that simulates a battle behind wgpu contradicts that
 directly.
 
 The plan says workstream A is *"the one piece with no prior art in the repo"* and *"the
@@ -230,11 +230,11 @@ crates/l2-net/tests/replay.rs:210:    impl Simulation for Counter
 
 Plus a `NetBattle` wrapper in `crates/l2-sim/tests/lockstep.rs`, which is real — it runs
 `l2_sim::Battle` over a socket and checks bit-identity. But `Kingdom` does not implement
-`Simulation`, and neither does `BattleRunner` — the thing that actually moves figures. So
+`Simulation`, and neither does `BattleRunner` — the thing that moves figures. So
 *"the netcode syncs"* is true of a toy and of the melee-only `Battle`; it has never
 synchronised the simulation a player would watch.
 
-Good news attached: `Canonical` (`crates/l2-net/src/canonical.rs`) is already a
+Good news attached: `Canonical` (`crates/l2-net/src/canonical/mod.rs`) is already a
 section-tagged deterministic encoder with `recording()` and `hashing()` modes, and
 `state_snapshot` already exists because lockstep needs a whole-world snapshot for late join.
 **Workstream C does not need a new save encoder.** Implementing `Simulation for Kingdom` is
@@ -243,7 +243,7 @@ is cheaper than the plan thinks and should not wait behind A.
 
 ### 7. The campaign map screen has no test, and uses its own projection
 
-`crates/l2-view/tests/install.rs` has 7 tests: frame layout, knight sheets, walk offsets,
+`crates/l2-view/tests/install/main.rs` has 7 tests: frame layout, knight sheets, walk offsets,
 battlefield tile coverage, no-holes render, animation, figure visibility. **None touches the
 campaign map.** `compose_map` (`crates/l2-view/src/main.rs:283`) is only ever checked by
 looking at it.
@@ -296,14 +296,14 @@ functions referencing g_counties (0x0053f9..), g_units (0x0052f0..) or g_tiles (
 **418 unnamed functions touch the county array, the campaign unit array or the runtime tile
 array.** They cluster in `0x00405000`–`0x00413000` (the map view and the panels) and
 `0x004a0000` (164 unnamed — the AI turn handlers). That is the UI and the campaign layer:
-precisely what workstream A is about to reimplement.
+what workstream A is about to reimplement.
 
 This does **not** mean the plan's conclusion is wrong. Not naming them is still probably
-right, because we are writing our own interface rather than cloning the original's, and
-`docs/method.md` §7 argues that well. But the *reason given* is false, and the plan's fourth
+right, because we are writing our own interface, and
+`docs/method.md` §7 argues that well. But the *reason given* is false
 risk — "could be wrong in a way that bites during integration" — is now measured and comes
-out badly rather than unknown. Rewrite the risk as what it actually is: **we are choosing to
-invent the UI rather than reproduce it, and pixel-comparison against the original is off the
+out badly. Rewrite the risk as what it is: **we are choosing to
+invent the UI, and pixel-comparison against the original is off the
 table for every screen we invent.**
 
 ### 9. Slice item 4 hides an entire subsystem
@@ -311,17 +311,17 @@ table for every screen we invent.**
 Walking "move an army into a neighbouring county, fight the battle, get the result back":
 
 * **County adjacency** — exists. `County::neighbours` / `add_neighbour`
-  (`crates/l2-kingdom/src/county.rs:217`), and the save carries real neighbour counts.
+  (`crates/l2-kingdom/src/county/mod.rs:217`), and the save carries real neighbour counts.
 * **The turn seam** — exists and is the right shape. `Phase::ArmyMovement = 2` is documented
   as *"Army movement, including battle resolution"*, and `PhaseWait::Units(UnitKind)` is
   answered by the caller because *"phases 2, 3, 5 and 6 move units, which are not this
-  crate's"* (`crates/l2-kingdom/src/kingdom.rs:291`). Genuinely good design; credit where
+crate's"* (`crates/l2-kingdom/src/kingdom/mod.rs:291`). Good design; credit where
   due.
 * **The army itself** — does not exist anywhere. `County` carries `army: i32`,
   `friendly_troops: i32`, `enemy_troops: i32` and nothing else; no type has troop
   composition. In the original the composition looks like seven `i16` at unit `+0x16C`,
   written from the realm table at `0x0053F6A0` by `FUN_004a9a9a`. *That offset reading is
-  mine, from the decompiler, and it is a lead rather than a verified fact* —
+mine, from the decompiler, and it is a lead* —
   `docs/symbols.md` labels `+0x16C..` as "cargo", and the shipped save has **no armies at
   turn 1** (only the six merchants), so it cannot be cross-checked against the file.
 * **Campaign movement** — does not exist. AI step 11 (`0x004A5667`) *"walk every army towards
@@ -351,7 +351,7 @@ it, and to make the first pass the version that does not need a map unit at all 
 
 ## Alternatives, costed
 
-Ordered by what I would actually do. Costs use `docs/method.md`'s table.
+Ordered by what I would do. Costs use `docs/method.md`'s table.
 
 **A0 — Import `lastturn.sav` into `Kingdom`. Do this first.**
 *Cost:* well under one subagent; the block table, the reader tool and the field map all
@@ -362,7 +362,7 @@ single highest-value change to the plan.
 
 **A1 — Turn `reproduction.rs` into a file-driven differential test.**
 *Cost:* hours, on top of A0. *Buys:* the fix for hole 2, and the kingdom layer's first
-oracle that is a property of the data rather than of our documentation — every field of
+oracle that is a property of the data — every field of
 every county record checked against the bytes.
 *Extension, and it needs the user:* `Save_RotateAndWrite` (`0x0049A453`) rotates
 `safeturn.sav ← old_turn.sav ← lastturn.sav` at every turn boundary, so **one played turn
@@ -420,7 +420,7 @@ Spend no more thought here.
   simulations cannot read a file or fail to load. The reasoning in
   `crates/l2-mods/Cargo.toml` is correct and the code honours it.
 * **The zero-dependency policy on the deterministic crates**, and the specific reasons given
-  for vendoring PCG32 and XXH64 rather than depending on them. Right call, well argued,
+for vendoring PCG32 and XXH64. Right call, well argued,
   correctly implemented — which is exactly why hole 5 matters.
 * **`l2-kingdom`'s errata list** (`src/lib.rs`, thirteen numbered items). Unusually honest:
   it names where `docs/kingdom.md` is wrong, where the original is arguably buggy, and what
@@ -434,7 +434,7 @@ Spend no more thought here.
   `0x004DA050`, back-to-front by `x+y`. It just has no test and its own projection.
 * **`Canonical` as the save encoder.** Section-tagged, deterministic, already used by the
   checksum, the snapshot and the replay. C should build on it and needs nothing new.
-* **Holding A for review while B starts.** Correct instinct, and the plan is right that A is
+* **Holding A for review while B starts.** Correct instinct
   the contested piece. The review's answer is that B is contested too.
 
 ---

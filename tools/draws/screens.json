@@ -121,9 +121,7 @@
     "invented": [],
     "notes": "Two painters and eleven layouts: UnitPanel_Draw (0x0041B19D) for a unit, FUN_0041BEFE for a tile. Settled here: L2.eng 31/21 \"Morale\" is drawn by nothing — seven literal group-31 draws, none of them index 21, and the one variable index is pinned to {0,2,5} by a four-arm kind ladder — so docs/armies.md's [V] on unit +0x166 is demoted. UnitPanel_Draw also assigns local_14 five times (0x23..0x27) and reads it nowhere; what those five values index is unestablished and deliberately not guessed. docs/draws.md §12.",
     "original": 174,
-    "literals_ours": [
-      "TILE HALF: THE GROUP 30 LADDER IS NOT ALL DRAWN YET — ours, and honest: a diagnostic saying which of the eleven layouts is unbuilt, not a caption standing in for an L2.eng string. Only found once the caption scanner learned to read a rustfmt-split call."
-    ],
+    "literals_ours": [],
     "reachable": true
   },
   {
@@ -405,34 +403,24 @@
       "Screen_DrawWidgets 0x0F arm: if (g_jobPanelJob == 8) FUN_00413526() — the forge fire, 1 draw call"
     ],
     "original": 114,
-    "ours": 5,
-    "real": 4,
-    "placeholder": 3,
+    "ours": 28,
+    "real": 28,
+    "placeholder": 0,
     "widget_records": 0,
     "missing": [
-      "Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69) — the job's picture from iconvill.pl8, which l2-view does not load. Frames 0, 2, 3, 5, 6, 7, 8, 9 and 0x10 for jobs 1..9",
-      "Panel_JobGrain (0x00413590), 27 draw calls — the store, the fertility band, the weather and event effects, and either what will be sown or what is growing",
-      "Panel_JobCattle (0x00413B30), 29 — the herd, the crowding band, calf births and cow deaths expected",
-      "Panel_JobReclamation (0x004140F3), 6 — fields being reclaimed and seasons to the next",
-      "Castle_DrawStatusBlock via FUN_00414220, 13",
-      "Panel_JobIndustry (0x00412E6B), 12 — efficiency, output and consumption for jobs 5, 6 and 7",
-      "Panel_JobBlacksmith (0x00413155), 21 — a full-screen page over smithy.pl8 and hearth.pl8 with a 480 x 96 footer",
-      "FUN_00413526, 1 — the forge fire, hearth.pl8 frames 0..10 at (88, 157), advanced on g_pulse80"
+      "Gfx_MarkAllDirty, 1 — Panel_JobBlacksmith's last statement. Our canvas is repainted whole, so there is no dirty box to raise and no counterpart to write"
     ],
     "invented": [
-      "text::draw \"THIS JOB'S OWN REPORT\" / \"NOT SIMULATED\" where the body painter's lines go",
-      "text::draw \"THE SMITHY IS A FULL PAGE\", on job 8 only"
+      "Pen::outline x 6 over the six weapon hotspots, drawn only when Smithy.pl8 is missing — the page without its picture is a page of invisible controls"
     ],
-    "literals_ours": [
-      "THIS JOB'S OWN REPORT — an honest diagnostic of ours labelling the 87 draw calls of body painter that are not built",
-      "NOT SIMULATED — an honest diagnostic of ours; the body painters read thirteen county fields docs/kingdom.md §1.3 does not have",
-      "THE SMITHY IS A FULL PAGE — an honest diagnostic of ours; job 8 is a different page in the original and we draw the small window for it"
-    ],
+    "literals_ours": [],
     "excluded": "Panel_JobDetail does NOT call FUN_004050C0 — it is the one screen in this group that does not repaint the map beneath, so there is nothing excluded on that count. Widget_Draw has no 0x0F arm.",
     "eng": {
       "groups": [
         74,
-        8
+        8,
+        75,
+        76
       ],
       "indices": [
         1,
@@ -450,12 +438,20 @@
       ],
       "verified_against_words": true
     },
-    "sheets": [],
+    "sheets": [
+      "Iconvill.pl8",
+      "Smithy.pl8",
+      "Hearth.pl8"
+    ],
     "constants_added": [
       "JOB_GROUP = 74, COUNT_NOUN_GROUP = 8, WORKER_NOUN_0 = 32, WORKER_NOUN_STRIDE = 2",
       "ICON_BOX (was ICON_RECESS), ICON_BOX_INK = 0x3F",
       "BLACKSMITH = 7, BLACKSMITH_OK = (0x1C0, 0x1C0, 24, 24)",
-      "COUNT_RIGHT = 0x3F, COUNT_SHORT = 0xF9, COUNT_WASTED = 0xFC"
+      "COUNT_RIGHT = 0x3F, COUNT_SHORT = 0xF9, COUNT_WASTED = 0xFC",
+      "ICON_SHEET = Iconvill.pl8, ICON_AT = (0x41, 0x69), JOB_ICON = DAT_004D2974 with job 9's 0x10 override",
+      "WEAPON_HOTSPOTS = DAT_004DCA10 x 6, HOTSPOT_ORIGIN = (0, 0x18)",
+      "SMITHY_GROUP = 75, HEARTH_LIFT = DAT_004D29E0, WEAPON_NOUN = DAT_004D29C8",
+      "FORGE_FRAMES = 11, FORGE_AT = (0x58, 0x9D), FLOOR_BAND, COST_WELL"
     ],
     "notes": "**This is nine panels sharing one painter and the number that says so is 5 against 113.** Per frame the original makes 5 (4 that run) plus whichever body painter the job selects: job 3 is 11 draws, job 2 is 34. The 113 is the union over all nine and is the wrong denominator for any one of them; `original` here is 113 + the Screen_DrawWidgets fire. **Job 8 is the blacksmith** (L2.eng 74/8) and it takes the other branch of every `if`: no Ui_DrawBox at (48, 96), no icon box, no group-74 title, no worker count — instead Screen_DrawMenuBar(), fire.wav, and a full-screen page. **The forge fire is self-verifying**: FUN_00413526 cycles frames 0..10 of whatever is in the scratch buffer, which at that moment is hearth.pl8, and Hearth.pl8 has exactly 17 frames — eleven 69 x 52 fire frames at 0..10 and six hearth pictures at 11..16, which is exactly the `weapon + 0xB` Panel_JobBlacksmith draws. The sheet's own frame table checks both halves. **The two Ui_OkButton call sites are the two arms of one if**, not two buttons, so the \"only the last call is clickable\" quirk in Ui_OkButton's symbol comment does not bite here; we now put the corner at (448, 448) for the blacksmith. Also corrected: FUN_00403CF4 is four line calls in colour 0x3F, an outline with no fill, not the recess this module drew; and the title and the worker noun now come from L2.eng rather than from JOB_NAMES and a table of ours.",
     "unexercised": "Only jobs with peasants on them are reachable from the sidebar, and the shipped fixture has three farm rows and no industry. Jobs 4 through 8 have never been opened against real data, so neither the Wasted colour (0xFC) nor the blacksmith branch has been exercised.",
@@ -1677,21 +1673,16 @@
     "name": "The standings",
     "painter": "Screen_GreatestNoble",
     "addr": "0x0041593B",
-    "module": null,
+    "module": "nobles.rs",
     "reachable": true,
     "also_drawn_by": [],
     "original": 11,
     "original_reachable": 5,
-    "ours": 0,
-    "real": 0,
-    "placeholder": 0,
     "widget_records": {
       "original": 0,
       "ours": 0
     },
-    "missing": [
-      "the whole screen - it is not built; court.rs's own button says so on itself"
-    ],
+    "missing": [],
     "invented": [],
     "literals_ours": [],
     "excluded": "the three Blit_* inside Sprite_WGenSprite; the grtnoble.256 palette (768 bytes, no pixels); and the flags.pl8 read, which goes into scratch as a sheet rather than into the back buffer. FUN_00408FCB(\"grtnoble.pl8\", 0x1E0) IS counted as one draw.",
@@ -1712,18 +1703,18 @@
       {
         "sheet": "Grtnoble.pl8",
         "frames": [
-          "the ground"
+          "the ground - one 640 x 480 frame, read straight into the display buffer"
         ]
       },
       {
         "sheet": "Flags.pl8",
         "frames": [
-          "shieldIndex - 1, and frame 5 for the leader"
+          "shieldIndex - 1, the five 51 x 92 banners; and frame 5, the 23 x 60 marker under the SELECTED TAB"
         ]
       }
     ],
-    "notes": "SEVEN DRAW CALLS FOR A STANDINGS TABLE IS SUSPICIOUSLY FEW AND THE REASON IS THE DENOMINATOR, NOT A HELPER. Screen_DrawWidgets HAS NO 0x20 ARM (checked) and neither does anything else - the whole screen is in this one painter, called with firstFrame from Screen_Draw, and it reloads its background every frame. The rows the audit was looking for are FOUR FUN_00403A8F LINE DRAWS PER REALM inside the loop - x = base+0x17..0x1A, from (100 - pct)*2 + 0x89 down to 0x158, colours 0x10/0x12/0x14/0x12 - a four-pixel bar per realm. FUN_00403A8F IS NOT ONE OF THE 26 PRIMITIVES, so a bar chart of up to twenty lines counts as zero. The percentages come from FUN_00415BDC: it scores every realm on the current category with FUN_00415E42, then writes PctOf(score, leader) into DAT_00522C60[realm], clamped 0..100 - a percent-of-leader bar chart, and FUN_00415E42's seven scoring rules are undocumented anywhere. Group 35 verified against the words: 'Most counties,' ... 'Greatest noble,', 'undecided.'. Index 7 is drawn when DAT_00522C78 or DAT_00522C94 says the category is tied.",
-    "unexercised": "not built. And C26 bites hard here: every fixture is turn one with one county each, so every category is a five-way tie and index 7 'undecided.' is the only string the screen would ever show.",
+    "notes": "SEVEN DRAW CALLS FOR A STANDINGS TABLE IS SUSPICIOUSLY FEW AND THE REASON IS THE DENOMINATOR, NOT A HELPER. Screen_DrawWidgets HAS NO 0x20 ARM (checked) and neither does anything else - the whole screen is in this one painter, called with firstFrame from Screen_Draw, and it reloads its background every frame. The rows the audit was looking for are FOUR FUN_00403A8F LINE DRAWS PER REALM inside the loop - x = base+0x17..0x1A, from (100 - pct)*2 + 0x89 down to 0x158, colours 0x10/0x12/0x14/0x12 - a four-pixel bar per realm. FUN_00403A8F IS NOT ONE OF THE 26 PRIMITIVES, so a bar chart of up to twenty lines counts as zero. The percentages come from FUN_00415BDC: it scores every realm on the current category with FUN_00415E42, then writes PctOf(score, leader) into DAT_00522C60[realm], clamped 0..100 - a percent-of-leader bar chart, and FUN_00415E42's seven scoring rules are undocumented anywhere. Group 35 verified against the words: 'Most counties,' ... 'Greatest noble,', 'undecided.'. Index 7 is drawn when DAT_00522C78 or DAT_00522C94 says the category is tied. BUILT, and this record's own sheet line was wrong: flags.pl8 frame 5 is indexed by g_nobleTabX[DAT_0055CE7C], the CATEGORY's x, not by the leader - it is the marker under the tab you are looking at, and it is 23 x 60 where the banners are 51 x 92. C194. FUN_00415E42's seven scoring rules are now written down: counties +0x29, castles +0x4C AS A BYTE, troops +0x54, crowns +0x118, happiness +0x0C, people +0x10, and the overall standing 6 - rank, which is a FLAT 2 for every realm while g_year < 0x4F6 so that the greatest noble is 'undecided.' until 1270. OURS COUNTS 6 AGAINST 11 AND NOTHING IS MISSING: the four FUN_00403A8F pole lines are one fill_rect loop here and fill_rect is not one of the counted primitives on either side, so the same four pixels-of-pole count 4 there and 0 here; and the name and 'undecided.' are two call sites in the original's if/else and two in ours, which is the only pair that lines up. That is C141's style term, not a gap.",
+    "unexercised": "C26 still bites: every fixture is turn one with one county each, so every category is a five-way tie and index 7 'undecided.' is the only line the page would show from a fixture. The tests build realms by hand instead, which is what makes the leader, the tie-at-the-top and the 1270 gate testable at all.",
     "roots": [
       "Screen_GreatestNoble"
     ]
@@ -2337,7 +2328,8 @@
     ],
     "missing": [],
     "invented": [
-      "the build stamp (crate::build_id), drawn in the game's own Fntl2_9.pl8 — its plain face, not one of the two blackletter ones — at the bottom of the page. Deliberate and documented at the site: a player spent an evening reporting already-fixed defects against a binary four merges old. It is the only page-1 mark that is not the original's.",
+      "the build stamp (crate::build_id), drawn in the game's own Fntl2_9.pl8 — its plain face, not one of the two blackletter ones — at the bottom left of the page. Deliberate and documented at the site: a player spent an evening reporting already-fixed defects against a binary four merges old.",
+      "ours/title-mst-clock — the time of day in MST (fixed UTC-7, no daylight shift), HH:MM, in the page's own body face at 0x3F, flat, bottom RIGHT, opposite the build stamp and below the window (which ends at y 250). OURS, and a deliberate divergence: FUN_0041EA14 is 143 bytes — one FUN_00409346 box, two Ui_DrawCentred calls, FUN_0041EAA3 — and draws no clock; the binary's only calendar clock anywhere is Log_Timestamp (0x004B049B), time/localtime/asctime into g_logTimestamp, whose two readers are both in Log_Write's file path. Do not \"fix\" it toward the binary and do not count it as a reproduction. Asked for by a player: \"can the build have time in MST in the title screen\". The reading is handed in on Assets::wall_clock by main.rs and nothing below the shell reads a clock (docs/netcode.md D-5); crate::wallclock carries the argument, crates/l2-game/tests/setup.rs asserts it. Invisible to this file's counts: it is a path call to a module of ours, which the scanner does not see, exactly as the build stamp is.",
       "the missing-fonts banner, drawn only when Fntl2_9/14/22 did not load and never otherwise. See literals_ours."
     ],
     "excluded": "the three Blit_* inside Sprite_GenFrame, which are the implementation of one window border; Gfx_MarkSpriteDirty and Gfx_MarkAllDirty, which move no pixels.",

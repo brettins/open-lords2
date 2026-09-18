@@ -1,0 +1,145 @@
+#![allow(unused_imports)]
+use super::*;
+use super::helpers::*;
+use super::reproduction::*;
+use super::population_and_labour::*;
+use super::simulation::*;
+use l2_formats::save::Save;
+use l2_kingdom::county::County;
+use l2_kingdom::phase::SEASON_PIPELINE;
+use l2_kingdom::tables::{health_band, Season, Tables, Weather};
+use l2_scenario::{Scenario, STARTING_HEALTH_METER};
+
+/// * **The save does record what the season started with.** `Grain_SeasonTick`
+///   (`0x0044C8AE`) opens `+0x228 = grain; grain -= eaten;` and
+///   `Herd_SeasonTick` (`0x0044D60D`) opens `+0x254 = herd; herd -= eaten;`. In
+///   this file `+0x254` is **95** in every county and `+0x228` is 0 in every
+///   owned one: the county went into the ration pass with 95 head, whose cheese
+///   alone feeds 475 people, and needed no grain at all. The eight sacks were an
+///   inversion of a pass that debits the store and saw the post-season herd;
+///   `Ration_Apply` (`0x0044DF5F`) does neither (`docs/decisions.md` C149).
+///
+/// * **And from the rewound stores ours no longer starves**, because
+///   `Ai_ManageFarmsAll` (`0x0049A990`) now runs at the head of the new game's
+///   `Season_Advance`. That county's lord farms arable (`Ai_FarmStyleArable`,
+///   `0x004A4052`), which with under 101 head calls `Ai_SetRations(county, 0)`
+///   (`0x004A4782`): an upward sweep over the split that keeps the first strict
+///   improvement. `Ration_Apply` (`0x0044DF5F`) clears Normal on the total the
+///   moment the slaughter it asks for covers `local_2c - Food_FromDairy`, which
+///   is split 88 — so the sweep stops there, not at 100.
+///
+/// *Ablation*: skip `Pass::AiManageFarms` and this goes red with the old
+/// numbers back — `(0, 2, −2)`, 59/2, 68, 66, 414.
+#[test]
+fn realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_stores() {
+    let s = england!();
+    let file = s.kingdom(SEED);
+    let mut k = s.starting_kingdom(SEED);
+    k.start_new_game();
+
+    let hungry = hungry_county(&s);
+    let ours = &k.counties[hungry];
+    let theirs = &file.counties[hungry];
+
+    assert_eq!(
+        (theirs.grain, theirs.herd, theirs.ration_split),
+        (0, 74, 0),
+        "the file's county {hungry}"
+    );
+    assert_eq!(theirs.shown_ration, 1, "the file says it was fed at Normal");
+
+    assert_eq!(
+        (ours.ration_split, ours.ration_achieved, ours.shown_ration),
+        (88, 2, 1),
+        "the sweep stops at the first split whose slaughter covers the gap"
+    );
+    assert_eq!((ours.health_meter, ours.health_band), (theirs.health_meter, theirs.health_band));
+    assert_eq!((ours.health_meter, ours.health_band), (67, 3));
+    assert_eq!(ours.happiness, theirs.happiness);
+    assert_eq!(ours.deaths, theirs.deaths);
+    assert_eq!(ours.population, theirs.population);
+    assert_eq!((ours.d_hap_ration, theirs.d_hap_ration), (-2, -2), "the closing preview");
+    assert_eq!((ours.herd_eaten, theirs.herd_eaten), (0, 0), "the head slaughtered");
+
+    assert_eq!(ours.pop_last, theirs.pop_last);
+    assert_eq!(ours.shown_tax, theirs.shown_tax);
+    assert_eq!(ours.tax_collected, theirs.tax_collected);
+}
+
+/// > **Kept as arithmetic, retracted as a finding.** The assertions below are
+/// > true of [`solve_opening`]: under a ration pass that debits the store and
+/// > sees the herd the season ended on, these openings are the only ones that
+/// > fit. Neither premise is the original's. `Ration_Apply` (`0x0044DF5F`) has
+/// > no store subtraction (`docs/decisions.md` C149), and the herd it saw is in
+/// > the file at county `+0x254` — **95** in every county, not 73 or 74 —
+/// > because `Herd_SeasonTick` (`0x0044D60D`) copies the herd there before it
+/// > debits what was eaten. Uniqueness inside a wrong model is not evidence for
+/// > the model. [`every_county_reproduces_from_the_stores_the_season_found`]
+/// > reproduces the map from the stores the file records, with no inversion.
+#[test]
+fn the_food_the_season_ate_is_recoverable_and_unique() {
+    let s = england!();
+    let file = s.kingdom(SEED);
+    let t = &Tables::DEFAULT;
+
+    for id in s.county_ids() {
+        let stored = &file.counties[id];
+        let level = (stored.shown_ration + 8) / 3;
+        assert_eq!(t.ration_happiness(level), stored.shown_ration, "county {id}");
+
+        let opening = solve_opening(stored, t);
+        if stored.owner == 0 {
+            assert_eq!(opening, (73, 100), "unowned county {id}");
+        }
+    }
+
+    let hungry = hungry_county(&s);
+    assert_eq!(
+        solve_opening(&file.counties[hungry], t),
+        (74, 8),
+        "county {hungry} opened on eight sacks and ate all of them"
+    );
+    for id in s.county_ids().filter(|&id| id != hungry) {
+        let stored = &file.counties[id];
+        if stored.owner == 0 {
+            continue;
+        }
+        assert_eq!(
+            solve_opening(stored, t),
+            (stored.herd, stored.grain),
+            "owned county {id} lives on its dairy and spends nothing"
+        );
+    }
+}
+
+#[test]
+fn the_ration_preview_reproduces_every_stored_food_field() {
+    let s = england!();
+    let file = s.kingdom(SEED);
+    let t = &Tables::DEFAULT;
+
+    // `Ration_Apply`'s `if (season == 4)` gate, from the file's own clock —
+    // `Sowing::from_index(self.season, ..)` as every caller in
+    // `crates/l2-kingdom/src/kingdom` builds it.
+    let sowing = l2_kingdom::ration::Sowing::from_index(file.season, file.options.advanced_farming);
+
+    let mut levels = std::collections::BTreeSet::new();
+    for id in s.county_ids() {
+        let stored = &file.counties[id];
+        let mut c = stored.clone();
+        l2_kingdom::ration::preview(t, &mut c, false, sowing);
+        assert_eq!(c.ration_achieved, stored.ration_achieved, "county {id}");
+        assert_eq!(c.herd_eaten, stored.herd_eaten, "county {id}");
+        assert_eq!(c.grain_eaten, stored.grain_eaten, "county {id}");
+        assert_eq!(c.d_hap_ration, stored.d_hap_ration, "county {id}");
+        assert_eq!(c.herd, stored.herd, "county {id}: a preview spends nothing");
+        assert_eq!(c.grain, stored.grain, "county {id}");
+        levels.insert(c.ration_achieved);
+    }
+    assert_eq!(
+        levels,
+        [2, 3].into_iter().collect::<std::collections::BTreeSet<i32>>(),
+        "two levels, not one case fourteen times"
+    );
+}
+

@@ -1,21 +1,19 @@
-//! Movement across the battlefield grid.
-//!
-//! Reimplemented from `docs/battle.md` §7. A figure crosses one cell in nine
-//! sub-steps, and each sub-step costs `moveDelay + 1` ticks, so a cell costs
-//! `9 * (moveDelay + 1)` — from 9 ticks for a knight to 54 for a siege engine.
-//!
-//! All integer, all in a fixed order. A figure's progress depends only on its
-//! own counters, so two machines stepping the same figures reach the same
-//! positions.
 
 use crate::figure::Figure;
 use crate::troop::Troop;
 
-/// Sub-steps needed to cross one cell. The original counts up by 2 and commits
-/// at 17, which is nine increments.
-pub const SUBSTEPS_PER_CELL: u32 = 9;
+/// Sub-steps a crossing takes. `BattleMan_Step` (`0x0048F1DD`) sets
+/// `walking = 1` at the commit and adds 2 a sub-step until it reaches 17:
+///
+/// **Corrected, against the binary.** This was 9 and `docs/battle.md` §7 read
+/// `walking += 2; if (walking < 17) return; commit`, counting 2, 4 … 18 from
+/// zero. The counter never starts at zero — `if (local_10 == 1) { dirc = dir;
+/// walking = 1; FUN_00491b1f(man); }` — so the ninth increment does not exist
+/// and a cell costs `8 * (moveDelay + 1)`, not `9 * (…)`. Every relative
+/// speed the manual states is a ratio and is unchanged,
+/// error survived. `docs/decisions.md` C200.
+pub const SUBSTEPS_PER_CELL: u32 = 8;
 
-/// Ticks per sub-step is `move_delay + 1`.
 pub fn move_delay(troop: Troop) -> u32 {
     match troop {
         Troop::Knights => 0,
@@ -23,7 +21,6 @@ pub fn move_delay(troop: Troop) -> u32 {
         Troop::Peasants | Troop::Crossbowmen | Troop::Archers => 2,
         Troop::Swordsmen => 3,
         Troop::Pikemen => 4,
-        // Every siege engine moves at the same crawl.
         Troop::Catapults | Troop::SiegeTowers | Troop::BatteringRams | Troop::Oil => 5,
     }
 }
@@ -32,46 +29,93 @@ pub fn ticks_per_cell(troop: Troop) -> u32 {
     SUBSTEPS_PER_CELL * (move_delay(troop) + 1)
 }
 
-/// What `Cell_TryEnter` reports. Kept as distinct cases rather than a boolean
-/// because they lead to different behaviour: a friendly blocker of the same
-/// troop type causes a swap, an enemy stops movement and starts a melee.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CellEntry {
     Free,
-    /// A friendly figure, or a cell flagged closed.
     BlockedFriendly,
     Impassable,
-    /// Passable only by one side — a gate.
     SideGated,
     EnemyPresent,
 }
 
-/// The whole terrain-height movement rule: a step is allowed when the two cells
-/// differ by at most one level, unless the destination is exactly level 5.
-///
-/// Skirmish maps carry no elevation at all, so this is inert there — but
-/// campaign battles do, and getting it wrong would let figures walk up cliffs.
 pub fn can_step_elevation(from: i32, to: i32) -> bool {
     (to - from).abs() <= 1 || to == 5
 }
 
-/// Per-figure movement progress. Separate from `Figure` so a figure that is
-/// standing still carries no movement state at all.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+/// **The side-step's reach** — `FUN_004904EC` (`0x004904EC`) opens with
+/// `if (man.field_0x169 < 2)`, and `field_0x169` is the Chebyshev distance to
+/// the target `BattleMan_Step` (`0x0048F1DD`) wrote a few lines above. `[V]`,
+/// `docs/battle.md` §8.3a.
+pub const SIDE_STEP_RANGE: i32 = 2;
+
+/// **`FUN_004904EC` (`0x004904EC`) — the directions a blocked man tries**, in
+/// its order:
+pub fn side_step_order(dir: u8) -> [u8; 10] {
+    let mut out = [0u8; 10];
+    for k in 0..5u8 {
+        out[k as usize * 2] = (dir + k) & 7;
+        out[k as usize * 2 + 1] = (dir + 8 - k) & 7;
+    }
+    out
+}
+
+pub const DETOUR_CAP_FIELD: u16 = 20;
+pub const DETOUR_CAP_SIEGE: u16 = 150;
+pub const DETOUR_STRAIGHT_MULTIPLE: i32 = 5;
+
+/// **`Path_DetourTooLong` (`0x00472227`) — the give-up rule.** A route over
+/// the cap *and* over five times the straight line is abandoned;
+/// `BattleMan_Step` (`0x0048F1DD`) then writes `tgX, tgY = mapX, mapY`.
+///
+/// The routine returns 0 for `ownerIsHuman == 0`, and again for side 0 in a
+/// siege — the garrison. `[V]` on both guards, from the branch.
+pub fn detour_too_long(
+    owner_is_human: bool,
+    is_siege: bool,
+    side: crate::Side,
+    cost: u16,
+    straight: i32,
+) -> bool {
+    if !owner_is_human || (is_siege && side == crate::SIDE_A) {
+        return false;
+    }
+    let cap = if is_siege { DETOUR_CAP_SIEGE } else { DETOUR_CAP_FIELD };
+    if cost < 1 || cost > 0x3E5 {
+        return false;
+    }
+    cost > cap && straight * DETOUR_STRAIGHT_MULTIPLE < cost as i32
+}
+
+/// Per-figure movement progress — figure `+0x32` `walking`, `+0x33` the move
+/// tick, and bit 0 of `+0x34` `stepFlags`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Progress {
-    /// Ticks accumulated toward the next sub-step.
+    /// Ticks accumulated toward the next sub-step — figure `+0x33`.
     pub tick_counter: u32,
-    /// Sub-step progress across the current cell, counted in twos to 17.
+    /// Sub-cell progress — figure `+0x32`, the debug panel's **`walking`**.
     pub substep: u32,
+    /// `stepFlags` bit 0, figure `+0x34` — *"ready to leave this cell"*.
+    ///
+    /// `BattleMan_Create` (`0x0046E4C8`) writes `stepFlags = 1`, so a new
+    /// figure decides on its first tick.
+    pub free: bool,
+}
+
+impl Default for Progress {
+    fn default() -> Self {
+        Progress { tick_counter: 0, substep: 0, free: true }
+    }
 }
 
 impl Progress {
-    /// Advance one tick. Returns true when the figure commits to the next cell,
-    /// resetting progress.
-    pub fn step(&mut self, troop: Troop) -> bool {
-        let delay = move_delay(troop);
+    pub fn tick(&mut self, troop: Troop) -> bool {
+        if self.free {
+            self.substep = 0;
+            self.tick_counter = 0;
+            return true;
+        }
         self.tick_counter += 1;
-        if self.tick_counter <= delay {
+        if self.tick_counter <= move_delay(troop) {
             return false;
         }
         self.tick_counter = 0;
@@ -79,16 +123,21 @@ impl Progress {
         if self.substep < 17 {
             return false;
         }
+        self.free = true;
         self.substep = 0;
         true
     }
+
+    /// The commit — `stepFlags &= ~1; dirc = dir; walking = 1;
+    /// FUN_00491b1f(man)`. The caller does the move; this is the counter's
+    /// half, and after it the figure's cell is the one it is crossing to.
+    pub fn begin_crossing(&mut self) {
+        self.free = false;
+        self.substep = 1;
+        self.tick_counter = 0;
+    }
 }
 
-/// Exchange two figures' positions and state.
-///
-/// When a figure is blocked by a friendly of the same troop type heading for
-/// the same cell, the original swaps the two records rather than moving either.
-/// It is a genuine state exchange — including hits and men — not a move.
 pub fn swap_places(figs: &mut [Figure], a: usize, b: usize) {
     if a != b {
         figs.swap(a, b);
@@ -101,27 +150,23 @@ mod tests {
     use crate::troop::ALL_TROOPS;
 
     #[test]
-    fn a_cell_costs_nine_substeps_of_delay_plus_one() {
+    fn a_cell_costs_eight_substeps_of_delay_plus_one() {
         for t in ALL_TROOPS {
-            assert_eq!(ticks_per_cell(t), 9 * (move_delay(t) + 1));
+            assert_eq!(ticks_per_cell(t), 8 * (move_delay(t) + 1));
         }
-        assert_eq!(ticks_per_cell(Troop::Knights), 9);
-        assert_eq!(ticks_per_cell(Troop::Macemen), 18);
-        assert_eq!(ticks_per_cell(Troop::Pikemen), 45);
-        assert_eq!(ticks_per_cell(Troop::Catapults), 54);
+        assert_eq!(ticks_per_cell(Troop::Knights), 8);
+        assert_eq!(ticks_per_cell(Troop::Macemen), 16);
+        assert_eq!(ticks_per_cell(Troop::Pikemen), 40);
+        assert_eq!(ticks_per_cell(Troop::Catapults), 48);
     }
 
-    /// The manual states two speed facts. Both hold exactly, and the knight to
-    /// pikeman ratio is precisely 1:5.
     #[test]
     fn speeds_match_what_the_manual_says() {
-        // "macemen are second only to knights in speed"
         let mut order: Vec<(Troop, u32)> = ALL_TROOPS.iter().map(|&t| (t, ticks_per_cell(t))).collect();
         order.sort_by_key(|&(t, ticks)| (ticks, t));
         assert_eq!(order[0].0, Troop::Knights, "knights fastest");
         assert_eq!(order[1].0, Troop::Macemen, "macemen second");
 
-        // "pikemen move very slowly" - slowest of anything that fights in melee.
         let slowest_fighter = ALL_TROOPS
             .iter()
             .filter(|t| !t.is_siege())
@@ -134,26 +179,54 @@ mod tests {
     }
 
     #[test]
-    fn a_knight_crosses_a_cell_in_exactly_nine_ticks() {
+    fn a_knight_crosses_a_cell_in_exactly_eight_ticks_and_decides_on_none_of_them() {
         let mut p = Progress::default();
-        for t in 1..9 {
-            assert!(!p.step(Troop::Knights), "should not commit at tick {t}");
+        assert!(p.tick(Troop::Knights), "a standing figure is free to decide");
+        p.begin_crossing();
+        let mut seen = vec![p.substep];
+        for t in 1..8 {
+            assert!(!p.tick(Troop::Knights), "tick {t} of a crossing must not decide");
+            seen.push(p.substep);
         }
-        assert!(p.step(Troop::Knights), "commits on the ninth tick");
-        assert_eq!(p, Progress::default(), "progress resets on commit");
+        assert_eq!(seen, vec![1, 3, 5, 7, 9, 11, 13, 15]);
+        assert!(p.tick(Troop::Knights), "the eighth tick lands him");
+        assert_eq!(p, Progress::default(), "landing leaves him free, on the cell");
     }
 
     #[test]
     fn slower_troops_take_proportionally_longer() {
         for t in ALL_TROOPS {
             let mut p = Progress::default();
+            p.begin_crossing();
             let mut ticks = 0;
-            while !p.step(t) {
+            while !p.tick(t) {
                 ticks += 1;
                 assert!(ticks < 1000, "{t:?} never crossed a cell");
             }
             assert_eq!(ticks + 1, ticks_per_cell(t), "{t:?}");
         }
+    }
+
+    /// `FUN_004904EC`'s loop written out: the straight direction twice, then
+    /// ±1, ±2, ±3, ±4, clockwise first.
+    #[test]
+    fn the_side_step_tries_both_rotations_from_the_direction_it_wanted() {
+        assert_eq!(side_step_order(0), [0, 0, 1, 7, 2, 6, 3, 5, 4, 4]);
+        assert_eq!(side_step_order(6), [6, 6, 7, 5, 0, 4, 1, 3, 2, 2]);
+    }
+
+    #[test]
+    fn only_a_human_owner_gives_up_and_only_over_both_caps() {
+        assert!(detour_too_long(true, false, crate::SIDE_B, 21, 4));
+        assert!(!detour_too_long(false, false, crate::SIDE_B, 21, 4), "the AI never gives up");
+        assert!(!detour_too_long(true, false, crate::SIDE_B, 20, 4), "the cap is exclusive");
+        assert!(!detour_too_long(true, false, crate::SIDE_B, 100, 30), "5 * 30 covers it");
+        assert!(detour_too_long(true, true, crate::SIDE_B, 151, 4));
+        assert!(!detour_too_long(true, true, crate::SIDE_B, 150, 4));
+        assert!(!detour_too_long(true, true, crate::SIDE_A, 151, 4), "side 0 in a siege");
+        assert!(!detour_too_long(true, false, crate::SIDE_B, 998, 1));
+        assert!(!detour_too_long(true, false, crate::SIDE_B, 999, 1));
+        assert!(!detour_too_long(true, false, crate::SIDE_B, 0, 1));
     }
 
     #[test]
@@ -163,7 +236,6 @@ mod tests {
         assert!(can_step_elevation(3, 2));
         assert!(!can_step_elevation(2, 4), "two levels is a cliff");
         assert!(!can_step_elevation(4, 2));
-        // The one documented exception: level 5 is always enterable.
         assert!(can_step_elevation(0, 5));
         assert!(can_step_elevation(2, 5));
     }

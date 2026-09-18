@@ -1,12 +1,9 @@
-//! `L2.eng` — the game's strings, read rather than transcribed.
+//! `L2.eng` — the game's strings, read.
 //!
 //! Until now every screen in this workspace carried its own copy of the labels
 //! it drew (`screens/county.rs`: *"Nothing here reads `L2.eng`; the workspace
 //! has no decoder for it"*). That is the one thing a shell screen must not do,
 //! because the whole value of a shell is that its text is the original's text.
-//! So here is the decoder, in forty lines.
-//!
-//! # The format
 //!
 //! **[V]** Eight bytes of header, then a table of one 32-bit slot per group,
 //! of which only the **low 24 bits** are used — a file offset. The table's own
@@ -19,22 +16,29 @@
 //! slots, group 101 is exactly the sixty map names `g_scenarioIndex` indexes,
 //! and group 21's six ration levels are the six `l2-kingdom` already knows.
 //!
-//! # Index 0 is a label
-//!
 //! `Eng_DrawString(group, index, …)` (`0x00402D37`) skips `index` NUL
 //! terminators and then skips any byte below `0x20`, so a group may be laid out
 //! with control bytes between its entries and the indices still come out dense.
-//! [`Eng::get`] does the same.
 //!
 //! By convention index 0 of a group is a descriptive heading and 1..N are its
 //! entries — group 87 is *"Ration"*, *"Wanted:"*, *"Achieved:"*, … — but it is
 //! only a convention and several groups (11, 103) are flat lists.
 
-/// The strings, owning their bytes.
 pub struct Eng {
     bytes: Vec<u8>,
-    /// One file offset per slot, straight out of the table.
     offsets: Vec<usize>,
+    /// `Ui_DrawText` (`0x00402637`) indexes `g_glyphWidths` with the byte, and
+    /// so does [`super::font::Font`] with `c as u32`. Whether the file's high
+    /// bytes *mean* Latin-1 or code page 437 is not decided here.
+    ///
+    /// **`get` used to run `from_utf8` on the bytes and return `None` when it
+    /// failed**, under a comment saying the file is Latin-1 and that
+    /// `from_utf8` would reject its accented bytes. So it did: the shipped
+    /// English file has nine such strings — `L2.eng` 295/2 … 295/10, the
+    /// bullets of *"What should I do each turn?"*, each opening with `0xB7` —
+    /// and all nine read as missing, and `group(295)` stopped at two.
+    decoded: String,
+    starts: Vec<u32>,
 }
 
 impl Eng {
@@ -55,17 +59,21 @@ impl Eng {
             return Err(format!("L2.eng: {slots} slots do not fit in {} bytes", bytes.len()));
         }
         let offsets = (0..slots).map(at).collect();
-        Ok(Eng { bytes, offsets })
+        let mut decoded = String::with_capacity(bytes.len());
+        let mut starts = Vec::with_capacity(bytes.len() + 1);
+        for &b in &bytes {
+            starts.push(decoded.len() as u32);
+            decoded.push(char::from(b));
+        }
+        starts.push(decoded.len() as u32);
+        Ok(Eng { bytes, offsets, decoded, starts })
     }
 
-    /// How many slots the table has. Groups `1 ..= count() - 1` are addressable.
     pub fn count(&self) -> usize {
         self.offsets.len()
     }
 
-    /// One group's bytes, or `None` for a group the table does not cover or
-    /// whose run is empty — several slots in the shipped file are.
-    fn group_bytes(&self, group: usize) -> Option<&[u8]> {
+    fn group_bytes(&self, group: usize) -> Option<(usize, &[u8])> {
         let start = *self.offsets.get(group)?;
         let end = match self.offsets.get(group + 1) {
             Some(&e) => e,
@@ -74,17 +82,11 @@ impl Eng {
         if start >= end || end > self.bytes.len() {
             return None;
         }
-        Some(&self.bytes[start..end])
+        Some((start, &self.bytes[start..end]))
     }
 
-    /// String `index` of `group`, exactly as `Eng_DrawString` walks to it:
-    /// skip `index` NUL terminators, then skip any byte below `0x20`.
-    ///
-    /// Returns `None` rather than an empty string for an index past the end, so
-    /// a caller can tell "the group is shorter than I thought" from "the game
-    /// really does draw nothing here".
     pub fn get(&self, group: usize, index: usize) -> Option<&str> {
-        let run = self.group_bytes(group)?;
+        let (start, run) = self.group_bytes(group)?;
         let mut p = 0usize;
         for _ in 0..index {
             while p < run.len() && run[p] != 0 {
@@ -99,10 +101,9 @@ impl Eng {
             return None;
         }
         let end = run[p..].iter().position(|&b| b == 0).map_or(run.len(), |n| p + n);
-        // Latin-1 in the file; the shipped strings are ASCII apart from a few
-        // accented names, and `from_utf8` would reject those. Bytes below 0x80
-        // are the same in both, so this only ever matters for those.
-        std::str::from_utf8(&run[p..end]).ok()
+        let from = self.starts[start + p] as usize;
+        let to = self.starts[start + end] as usize;
+        Some(&self.decoded[from..to])
     }
 
     /// The same, but "" for anything missing. What a painter wants: a screen
@@ -111,7 +112,6 @@ impl Eng {
         self.get(group, index).unwrap_or("")
     }
 
-    /// Every string of a group, in order, stopping at the first gap.
     pub fn group(&self, group: usize) -> Vec<&str> {
         let mut out = Vec::new();
         let mut i = 0;
@@ -130,7 +130,6 @@ impl Eng {
 mod tests {
     use super::*;
 
-    /// Build a file in the shipped layout: header, slot table, then the runs.
     fn synth(groups: &[&[&str]]) -> Vec<u8> {
         let slots = groups.len();
         let table = 8 + slots * 4;
@@ -195,6 +194,21 @@ mod tests {
     fn a_short_file_is_refused_rather_than_indexed() {
         assert!(Eng::parse(vec![0u8; 4]).is_err());
         assert!(Eng::parse(vec![0u8; 32]).is_err(), "group 1 at offset 0 is not a table end");
+    }
+
+    #[test]
+    fn a_byte_above_0x7f_is_the_char_of_the_same_number_and_not_a_missing_string() {
+        // Hand-built, because `synth` writes UTF-8: group 1 is "\xB7 Adjust.",
+        // "a\x86" and "b" — the first shaped like L2.eng 295/2.
+        let mut bytes = synth(&[&[], &["X Adjust.", "aX", "b"]]);
+        let run = bytes.len() - "X Adjust.\0aX\0b\0".len();
+        bytes[run] = 0xB7;
+        bytes[run + "X Adjust.\0a".len()] = 0x86;
+        let e = Eng::parse(bytes).unwrap();
+        assert_eq!(e.get(1, 0), Some("\u{B7} Adjust."));
+        assert_eq!(e.get(1, 1), Some("a\u{86}"));
+        assert_eq!(e.get(1, 2), Some("b"), "the index after a high byte is not shifted");
+        assert_eq!(e.group(1).len(), 3);
     }
 
     #[test]

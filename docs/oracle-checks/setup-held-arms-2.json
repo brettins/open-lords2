@@ -1,0 +1,18 @@
+{
+  "reviewed": "eeb4d0189fbd4e91061c6974db7fcd5e974661c8",
+  "date": "2026-09-14",
+  "behaviours": [
+    { "file": "crates/l2-game/src/press/press.rs", "line": 196, "address": "0x004B29BE", "verdict": "mismatch",
+      "note": "down is set only by a press that lands on a Held/Repeat/Delayed record; g_mouseLeftDown rises on any WM_LBUTTONDOWN (004b0000.c:2115), so a press begun off the table and dragged onto a kind-2 record pulses in the original and not here." },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 242, "address": "0x0040E3EE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 257, "address": "0x0040DA1E", "verdict": "match",
+      "note": "ramp restart matches; the original's +0x0E survives 3 frames of the +0x0D countdown (00400000.c:7486-7489) before it zeroes, ours zeroes at the leave." },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 262, "address": "0x0040E3EE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 299, "address": "0x0040E3EE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 307, "address": "0x0040E3EE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 271, "address": "0x004B29BE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/press/press.rs", "line": 151, "address": "0x0040E3EE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/setup/ui/held.rs", "line": 33, "address": "0x0040E3EE", "verdict": "mismatch",
+      "note": "Press::event answers DoubleClick with Some(i) for a kind-2 record, press_event drops it and SetupScreen::handle has no DoubleClick arm, so the second press of a double click acts nowhere; Hotspot_Test fires on g_mouseLeftDoubleClick at 00400000.c:7880-7889." }
+  ]
+}

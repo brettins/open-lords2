@@ -25,7 +25,7 @@ Scripts live in `tools/pl8fail/`. They are throwaway analysis tools, not a decod
 
 ## 1. Summary
 
-There is no new pixel encoding and no trailing metadata block. Two things were wrong:
+Two things were wrong:
 
 1. **The decoder dispatched raw-vs-isometric on header byte 0x00. It must dispatch on
    the frame record's shape byte (0x0C) only.** Fifteen files are isometric tile sets
@@ -36,7 +36,7 @@ There is no new pixel encoding and no trailing metadata block. Two things were w
 
 2. **Frame-record byte 0x0D is live on shape-0 frames too.** It is the number of rows
    the artwork extends *above* the `width × height` rectangle. In four files those rows
-   are actually stored, RLE-encoded, immediately after the rectangle. That accounts for
+   are stored, RLE-encoded, immediately after the rectangle. That accounts for
    **4 more files** (70 frames).
 
 The remaining file, `Font_c2.pl8`, is a one-off: header byte 0x00 says `1` (RLE) but
@@ -118,9 +118,9 @@ Castle1a f3 (58x30, shape 1)          Base2a f0 (10x6, shape 1)
 **Verified from the binary:** `Pl8_DrawFrame` (`0x0040A21A`) indexes straight to
 `buf + frame*0x10 + 8`. It never reads `buf[0]` or `buf[1]`. Nothing in the draw path
 can see the header family byte, so an inconsistent value there is harmless to the game
-and only ever misled us.
+and misled us.
 
-*Inferred:* byte 0x00 most likely records which subsystem exported the file rather than
+*Inferred:* byte 0x00 most likely records which subsystem exported the file
 a codec. It is still a reliable predictor of RLE (see §5), but it does not distinguish
 raw from isometric.
 
@@ -138,7 +138,7 @@ discarded.
 
 The old "undershoot by 6 / 10 / 61 / 190" figures were just the largest such block in
 each file. `k` is `2 × rows` when every overhang row is empty (a blank row costs the
-two bytes `00 <width>`), which is why the font residuals looked like small multiples.
+two bytes `00 <width>`), the font residuals looked like small multiples.
 
 The rows are real artwork, and they are contiguous with the rectangle:
 
@@ -168,8 +168,9 @@ two scales.
 
 **Verified from the binary — direction and meaning.** `FUN_00402A14`, the glyph
 blitter (it indexes `DAT_004D71F0`, the 224-entry `char − 0x20 → glyph slot` table,
-and is called nine times per character by the string drawer `FUN_00402637` for the
-drop shadow), loads the record exactly like `Pl8_DrawFrame` and then does:
+and is called from nine places in the string drawer `FUN_00402637` — once, twice or
+three times per character, flat, drop-shadowed or embossed; *"nine times per character"*
+was a misreading of that and is corrected in `docs/formats/pl8.md` *The five faces*), loads the record exactly like `Pl8_DrawFrame` and then does:
 
 ```
 DAT_00591528 = DAT_00591528 + DAT_005BB478;   // destY += record[0x0D]
@@ -181,7 +182,7 @@ the top of the frame, first-stored row topmost. The frame's true canvas is
 `width × (height + rows)`, the same shape as the isometric case.
 
 Two corrections to `docs/symbols.md` fall out of this (the file is owned by someone
-else, so they are recorded here rather than applied):
+else, so they are recorded here):
 
 - `DAT_005BB478` is **not** "frame record byte 0x0D". It is the blitter's *row
   counter*. `FUN_0040477B` (`Clip_Vertical`) unconditionally overwrites it with
@@ -216,12 +217,12 @@ Only six files in the corpus have a shape-0 frame with `rec[0x0D] != 0`:
 
 70 stored, 94 not, no in-between. *Inferred:* header byte 0x00 == 0 is the
 discriminator. The sample is thin — the two "no" files are the same font asset
-exported twice (identical frame tables, see §5) — so a decoder that would rather not
+exported twice (identical frame tables, see §5) — so a decoder that
 lean on it can detect the block structurally: try consuming `rows` RLE rows and accept
 only if it lands on the next `dataOffset`. That detection is unambiguous over both
 corpora (0 misfits, 0 false positives across 21,344 + 14,648 frames).
 
-Note `Fnt_8.pl8` (header 0, zoom 1) has `rows == 0` on all 150 frames, so it is not a
+Note `Fnt_8.pl8` (header 0, zoom 1) has `rows == 0` on all 150 frames, so it is a
 counterexample either way.
 
 ---
@@ -249,10 +250,10 @@ So the header byte is simply wrong on this file, and — per §3 — nothing in 
 reads it, so it never mattered.
 
 `Font_c2.pl8` is also the only family-1 file in the corpus whose header byte 0x01 is
-not 0. The other 138 are all zoom 0 and all genuinely RLE (9,603 frames). The model in
+not 0. The other 138 are all zoom 0 and RLE (9,603 frames). The model in
 §2 uses `header[0x00] == 1 && header[0x01] == 0` as the RLE test, which fits both
 corpora exactly, but **that rests on a single file** and should be read as "family 1
-means RLE, with one known bad file" rather than as a discovered second discriminator.
+means RLE, with one known bad file"
 
 Supporting but weak: `font_c2.pl8` does not appear as a string in `Lords2.exe` or
 `mapl2.exe`. Nor do `font3c2.pl8`, `t16_bat1.pl8` or `t32_bat.pl8`. The five fonts the
@@ -284,7 +285,7 @@ Owned by someone else; recorded, not applied.
 - Header fields 0x04, 0x06, 0x07. 0x06 is non-zero in exactly one file of 291
   (`T16_bat1`, value 1) — one of the unreferenced ones.
 - Whether anything paints the stored font overhang rows (§4).
-- Where family-1 RLE is actually decoded. The nine `Pl8_DrawFrame`-shaped entry points
+- Where family-1 RLE is decoded. The nine `Pl8_DrawFrame`-shaped entry points
   I examined between `0x0040A127` and `0x0040AE12` all call rectangle blitters; I did
   not locate an RLE blitter and did not look hard.
 - `Title.pl8` palette pairing, and the type-4 apex ambiguity — both unrelated, see

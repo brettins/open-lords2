@@ -1,0 +1,21 @@
+{
+  "reviewed": "c223ede96313538d83860b18fe1c68ea913b9772",
+  "date": "2026-09-14",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 573,
+      "address": "0x004BA26E", "verdict": "match",
+      "note": "004b0000.c:7042-7044 the 0x10 arm is one statement, Map_HoverUnitTarget(); Map_PickTile(0) refreshes g_hoverTileOffset earlier in the same frame (004b0000.c:6740), as our draw reads self.pointer before update_hover_path" },
+    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 562,
+      "address": "0x004A8E0B", "verdict": "match",
+      "note": "hover runs in the draw pass once a frame; the motion-event call at line 117 is idempotent under the hovered-tile guard" },
+    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 564,
+      "address": "0x004A91BA", "verdict": "match",
+      "note": "004a0000.c:3726 Path_MarkPreviewTiles() above the 3727 guard; our trail is drawn from sel.path by draw_path_preview every frame, marking each frame either way" },
+    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 571,
+      "address": "0x0043723A", "verdict": "match",
+      "note": "DAT_005691e0 has exactly two references in the corpus, 004a0000.c:3727 and 3728; no caller resets it" },
+    { "file": "crates/l2-game/src/screens/map/units.rs", "line": 137,
+      "address": "0x004A8E0B", "verdict": "match",
+      "note": "descent under if (DAT_005691e0 != g_hoverTileOffset) at 004a0000.c:3727 - Move_ExtractPath and the six g_hover* classifications - matches the sel.hovered == tile early return" }
+  ]
+}

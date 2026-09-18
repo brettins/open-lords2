@@ -37,6 +37,11 @@ l2-mods = { path = "../l2-mods" }
 # disagree about how an integer is spelled. It brings in no dependencies of its
 # own - `l2-net` has none, deliberately (docs/netcode.md D-3).
 l2-net = { path = "../l2-net" }
+# The films. Ours, MIT and dependency-free (`crates/l2-smk`); here and not in
+# `l2-view` because a film is a clock and a sound track as well as pictures,
+# and `l2-view` draws a decoded frame from a plain `&[u8]` without knowing
+# where it came from.
+l2-smk = { path = "../l2-smk" }
 l2-scenario = { path = "../l2-scenario" }
 l2-sim = { path = "../l2-sim" }
 l2-view = { path = "../l2-view" }

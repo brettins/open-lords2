@@ -25,7 +25,7 @@ reading its input arms, and produced more.** Concretely, on the seven:
 | `0x09` The court | `Court_Draw` | 26 | ~20 min | four lines drawn in the **wrong font** by our table; one realm field nobody had |
 | `0x0B` Diplomacy | `Diplo_DrawScreen` + card | 31 | ~30 min | a **60-row thermometer** nobody knew was there; four menu layouts |
 | `0x18` Send supplies | two functions | 20 | ~25 min | the numbers are drawn **outside the painter**; a complete cut **sheep row** |
-| `0x2E` Ratings | `Screen_BattleMasterRatings` | 46 | ~30 min | the shape was wrong: **7 × 3 twice**, not 7 rows; and the **scoring rule**, undocumented anywhere |
+| `0x2E` Ratings | `Screen_BattleMasterRatings` | 46 | ~30 min | the shape was wrong: **7 × 3 twice**, not 7 rows; and the **scoring rule**
 | `0x04` Map info | two painters, eleven layouts | ~90 | ~60 min | three false claims in our own table; **`L2.eng` 31/21 is dead text and a `[V]` rested on it** |
 | pasture cattle | `Sprite_TopIt` farm arm | 12 | ~40 min | **the cows**, and that the picture is a rule |
 
@@ -72,7 +72,7 @@ the same place and appear nowhere in either painter.
 **Two — drawing behind a variable count.** `g_diploWidgets` has six records and
 `Widget_Draw` is passed `g_diploWidgetCount`, which the *painter's prologue* sets to 0, 3, 4
 or 6. `g_sendSuppliesWidgets` has **eight** records and every caller passes 6 — so two
-buttons exist, are never drawn, and are only findable by reading the table rather than the
+buttons exist, are never drawn, and are only findable by reading the table
 call. That is the blacksmith hotspot exactly.
 
 **Three — drawing inside a ladder whose arms are unreachable.** `Sprite_TopIt`'s farm arm
@@ -89,25 +89,24 @@ painters reports a comfortable number.
 > honest by leaving it alone.** The pilot guessed *"perhaps fifteen screens at roughly half
 > an hour each"*. The audit covered **45 more**, in six parallel readings of about half an
 > hour of wall time each — so the *per-screen* estimate held and the *count* was three times
-> low, because the pilot was counting `docs/screens-county.md` §1's rows and the setup page
+> low
 > alone turned out to be thirteen screens. Read §7 for the method and §11b for the result.
 
 ## 4. What it would cost across all of them
 
-There are 29 screens in `docs/screens-county.md` §1. Seven are done here, and the campaign
-map, the village, the county panels, the battlefield and the setup pages carry their layouts
+There are 29 screens in `docs/screens-county.md` §1. Seven are done here
+map
 in module headers already — so the honest remaining figure is **perhaps fifteen screens at
 roughly half an hour each, plus the campaign map, which is worth a day on its own** because
 its sidebar is redrawn by six different functions.
 
-Two costs beyond that, and they are the real ones:
+Two costs beyond that:
 
 * **The `L2.eng` and sheet-frame checks are cheap and worth doing first.** *Every group and
   index this engine draws exists in the player's own `L2.eng`* is a check that runs today —
-  `crates/l2-game/tests/shell.rs` does it for these seven — and it is the one that would
+  `crates/l2-game/tests/shell/main.rs` does it for these seven — and it is the one that would
   have caught the armoury's group 16. Likewise *every frame index we pass exists in the sheet
   we pass it to*. Neither needs an inventory file; both need only the constants to be named
-  rather than inline, which is already the house style.
 * **A `// draw:` marker set-equality check, the way `// arm:` works, is the expensive half
   and I do not recommend starting there.** Markers on input arms work because an arm is a
   handler — one place, one function. A draw is a *line*, there are ~230 of them across seven
@@ -124,7 +123,6 @@ zero times because writing it *is* how the screen got built.
 So the mechanical check I would add is the cheap half of §4 plus **one number**: per screen,
 *draw calls in the listing* against *draw calls in our painter*, both counted by the same
 script, printed by the census and never typed. `tools/figures/figures.js` already does
-exactly this for other counts and the precedent there — *"a number that cannot drift beats a
 number that is checked"* — applies unchanged. A screen whose ratio falls is a screen somebody
 simplified.
 
@@ -143,21 +141,21 @@ are wrong in ways that look plausible.
   the most drawing by far, and it was not enumerated here. Any cost estimate that does not
   include it is an estimate of the easy part.
   **Done: `docs/draws-map.md`**, in this file's §5 shape — a listing beside the code with the
-  number derived by `tools/draws/mapdraws.js` rather than typed. **139 draw calls, 121 live,
+number derived by `tools/draws/mapdraws.js`. **139 draw calls, 121 live,
   59 reproduced**, against 20 of 25 input arms on the same two screen ids: *we answer four
   gestures in five and draw one picture in two.* The day it cost was the day estimated.
 * **Whether the `L2.eng` check would have caught the armoury's group 16 in practice.** It
   would have caught the *index* being absent. Group 16 index 6 exists — it is a mercenary
   nationality — so the check passes and the screen is still filed under the wrong group. The
-  thing that caught that was a person reading the strings. **A check on existence is not a
+thing that caught that was a person reading the strings.
   check on meaning**, and I have no proposal for the second.
 
 ---
 
 # The audit proper
 
-*Everything above is the pilot, left exactly as it was written so that its estimate can be
-checked against what the audit actually cost. Everything below is the audit that followed
+*Everything above is the pilot
+checked against what the audit cost. Everything below is the audit that followed
 it, over the remaining screens. The campaign map is a separate job with its own tool
 (`tools/draws/mapdraws.js`) and is **not** counted here.*
 
@@ -171,18 +169,18 @@ calls in ours, both counted by the same script, printed and never typed.**
 
 A *leaf* is a function that puts a picture, a glyph run or a rectangle on the frame buffer
 and takes its subject as an argument. A call to another *painter* is a recursion and is
-followed rather than counted. A call inside a loop counts **once**; a call inside a branch
-nothing can reach counts **once** and the record says so, because a reachability claim is a
+followed. A call inside a loop counts **once**; a call inside a branch
+nothing can reach counts **once** and the record says so
 separate finding from a drawing one.
 
-Three things are excluded, and the exclusion is by construction rather than by a hand-kept
+Three things are excluded
 list:
 
 * **The campaign map's own drawing.** Every county panel is an inset over the map and its
   painter's *first call* repaints the map beneath it. Following that counts the map's
   drawing once per panel: it turned `Panel_Tax`'s nine real calls into thirty-four. So
   anything reachable from `Screen_DrawCampaign`, `Screen_DrawMenuBar`, `Screen_DrawEndTurn`
-  or `Widget_Draw` is the map's, and the walk stops there.
+  or `Widget_Draw` is the map's
 * **`Widget_Draw` itself**, which is shared. But **each widget record is one thing on the
   screen**, so the record counts them separately in `widgets` — and `g_sendSuppliesWidgets`
   is why: eight records, every caller passes six, two buttons that exist and are never
@@ -194,7 +192,7 @@ list:
 **Say what your denominator excludes, every time.** An audit keyed on painters reports a
 comfortable number, and this one would too if the exclusions were silent.
 
-### `Ui_DrawNumberRight` centres, and `Ui_OkButton` is not a tick
+### `Ui_DrawNumberRight` centres
 
 Two primitives were misdescribed everywhere, and both were settled by reading them for this:
 
@@ -215,12 +213,12 @@ Two primitives were misdescribed everywhere, and both were settled by reading th
 
 **A screen can reproduce every draw call the original makes and still be entirely
 placeholder, and nothing was counting that.** This is the finding the audit did not go
-looking for, and it is worth more than the count.
+looking for
 
 Our draws are one of two kinds:
 
 * **real** — the draw goes through the game's own assets. Every `shell::Pen` method draws
-  with `Fntl2_14.pl8` / `Fntl2_22.pl8` through `crates/l2-game/src/shell/font.rs`, and
+  with `Fntl2_14.pl8` / `Fntl2_22.pl8` through `crates/l2-game/src/shell/font/mod.rs`, and
   every `draw_*` on the chrome or the village art blits a frame out of a `.pl8` the player
   owns.
 * **placeholder** — `l2_view::text` is our own hand-authored **5 × 7 bitmap font**, and
@@ -231,10 +229,10 @@ which is ours on purpose and says so, and on an honest diagnostic like
 *"NO ARM_GRID.PL8 - RACKS ARE RECTANGLES"*. The split is the lead; the record's
 `literals_ours` is where a deliberate one is defended.
 
-**And the sharpest form of it, which is fully mechanical: an English caption written in our
+**And the sharpest form of it
 source where the original fetches an `L2.eng` string.** That is an invention in the
 strictest sense — words on a screen the original never puts there — and it splits three
-ways once you read the list rather than counting it:
+ways once you read the list:
 
 1. **Honest diagnostics of ours.** *"NO MINIMAP"*, *"NOT SIMULATED"*, *"NOT DRAWN"*,
    *"NO COUNTY SELECTED"*. These say the engine is incomplete, which is true. They stay,
@@ -242,16 +240,16 @@ ways once you read the list rather than counting it:
 2. **A word where the original draws no word at all.** *"OK"*, *"X"*, *"YES"*, *"NO"*,
    *"CLOSE"*, *"MAX"*, *"ALL"*, *"AUTO"*, *"SPLIT"*, *"DISBAND"*, *"CANCEL"*. In the
    original every one of these is a `Widget_Draw` frame out of `System.pl8` — the tick at
-   29, the cross at 31, plus at 68, minus at 66. Drawing the letters is not a wrong string;
+29, the cross at 31, plus at 68, minus at 66.
    it is text in a place that has none.
 3. **Game text we wrote.** *"SELECT A CASTLE TO BUILD"*, *"BOOSTS TAX REVENUES BY %"*,
-   *"1 SEASON TO BUILD."*, *"SIEGE PREPARATIONS."*, *"TOTAL MEN"*. These are the real
-   defect, and the fix is always available, because the group, the index and the coordinate
+*"1 SEASON TO BUILD."*, *"SIEGE PREPARATIONS."*, *"TOTAL MEN"*.
+   defect
    are all literal in the painter.
 
 **The one that says the most is `screens/menu.rs`'s `"LORDS OF THE REALM II"`.** The game's
 own title is `L2.eng` group 11 index 0 and it reads **"Lords of the Realm 2"** — a fact
-`crates/l2-game/tests/shell.rs` has asserted for weeks. We had the string, we had a test on
+`crates/l2-game/tests/shell/main.rs` has asserted for weeks. We had the string, we had a test on
 it, and we drew a different spelling of it in a font of ours anyway.
 
 ### Why this happened, which is more useful than the count
@@ -259,22 +257,22 @@ it, and we drew a different spelling of it in a font of ours anyway.
 `crates/l2-view/src/text.rs`'s header said, until this audit:
 
 > *"the original's glyphs live in `Font_c2.pl8` … that file is an open question … so the
-> interface draws its own letters **until the real font is decoded**."*
+> interface draws its own letters **until the font is decoded**."
 
-**The real font had been decoded.** `shell/font.rs` reads `Fntl2_14.pl8` through the
-128-byte character-to-frame table that `Glyph_Draw` (`0x00402A14`) indexes, and the mapping
-is self-checking on descenders. `Font_c2.pl8` was never the file the game draws from —
+**The font had been decoded.** `shell/font.rs` reads `Fntl2_14.pl8` through the
+128-byte character-to-frame table that `Glyph_Draw` (`0x00402A14`) indexes
+is self-checking on descenders.
 `docs/audit.md` records that `font_c2` does not appear among `Lords2.exe`'s strings at all
-and that it shares 103 of its 108 frame records with `Fntl2_9.pl8`, and the RLE puzzle the
+and that it shares 103 of its 108 frame records with `Fntl2_9.pl8`
 header cited as the open question is marked **resolved**.
 
 So the sentence outlived its condition, and every screen written in that window reached for
-the 5 × 7 font because a header told it to. That is the general lesson, and it is worth
+the 5 × 7 font because a header told it to.
 more than this instance:
 
 > **A document that promises "until X" keeps promising it long after X.** Nothing goes red
 > when the condition it names is met, because the condition is in prose. A counted number
-> would have moved on the day the real font landed.
+> would have moved on the day the font landed.
 
 ## 9. Reachability, which a draw audit needs for the reason the arms audit did
 
@@ -287,13 +285,13 @@ in **both** directions:
 * **In the original** — a painter no `mov byte ptr [g_screenId], imm8` can select is
   drawing nobody sees. The 212-site scan that settled `0x28` settles these too.
 * **In ours** — `screens/menu.rs` is a two-item main menu of ours, drawn entirely in the
-  5 × 7 font, that **the shipped binary cannot reach**: `crates/l2-game/src/main.rs` boots
-  to `ScreenId::Setup(SetupPage::Title)`, the real front end, which `setup.rs` reproduces
+  5 × 7 font, that **the shipped binary cannot reach**: `crates/l2-game/src/mod.rs` boots
+to `ScreenId::Setup(SetupPage::Title)`, the front end, which `setup.rs` reproduces
   with 41 real draws. `menu.rs` is kept alive only by `tests/machine.rs`. It is an
   invention *and* dead, and it inflates the placeholder count with marks no player will
   ever see.
 
-So every record carries `reachable`, and **`dead` is a distinguishable status rather than
+So every record carries `reachable`, and **`dead` is a distinguishable status
 an absence** — the same requirement `docs/arms.json` was given, for the same reason.
 
 ## 10. The shape, and it is one shape for both audits
@@ -327,14 +325,14 @@ and say why.
 ### The one amendment the schema needed, and why
 
 **`original_objects` / `ours_objects`, on the front end only.** The call-site rule breaks
-on the thirteen setup pages and it breaks for a reason worth stating rather than papering
+on the thirteen setup pages and it breaks for a reason worth stating
 over: **the original unrolls where we loop.** `FUN_0041EAA3` writes four recesses out
 longhand; our `draw_item` is one helper called four times. By the call-site rule page 1 is
 *original 11 / ours 5*, which reads as catastrophic and means nothing.
 
 So those records carry **both** numbers: `original` and `ours` by the call-site rule, and
 `original_objects` / `ours_objects` with loops unrolled to their real bounds. The second
-pair is what the front end's percentages quote, and the record says which.
+pair is what the front end's percentages quote
 
 This is the amendment, taken once and stated here so that a second one has to argue with
 it. It is **not** extended to the other screens, deliberately: an unrolled count is a
@@ -350,7 +348,7 @@ verdict for a caption somebody deleted fails. The point is not that the list is 
 is that it cannot grow while nobody is looking, which is exactly what happened while
 `text.rs`'s header said the font was undecoded.
 
-`original` is **stored** rather than always recomputed, and that is deliberate. The
+`original` is **stored**, and that is deliberate. The
 decompiled corpus is gitignored and lives only in the checkout that built it, so CI cannot
 count it — and the number that matters most is the one CI must be able to check. So it is
 written by `--write`, and there are then two places it cannot drift, maintained by
@@ -359,7 +357,7 @@ different work:
 * `tools/figures/figures.js` keeps every quoted figure equal to `screens.json`, in CI,
   with no corpus at all;
 * `screendraws.js --check` recomputes it *from the corpus* and fails on a mismatch for
-  anybody who has one — and **skips loudly rather than passing** when the corpus is absent,
+anybody who has one — and **skips loudly** when the corpus is absent,
   which is the distinction `l2_testkit` draws between *absent* and *wrong game*.
 
 Nobody in this project writes the corpus and `figures.js` never reads it, so this is not
@@ -369,7 +367,7 @@ same reason"* — which is the pattern that lies.
 **`ours`, by contrast, is *not* the number the table prints, and that is deliberate.** The
 field holds the auditor's own count, made by hand while reading the screen;
 `screendraws.js` ignores it and recounts our side from the source on every run. Two
-enumerations from different directions, and the disagreement is the point. On the first
+enumerations from different directions
 pass they agreed exactly on 7 screens of 24 and were within ±2 on fifteen more — and it was
 a *systematic* disagreement, five screens all short by one, that turned up **two bugs in
 the counting tool**: a scan that read call sites out of the decompiler's own doc comments
@@ -379,10 +377,10 @@ direction that flatters. Neither was findable from inside the tool.
 
 **All three clauses of `--check` were ablated and all three go red**: a stored count edited
 by hand; a record whose `roots` is empty (an unenumerated screen counts 0 and reads as a
-finished one, so that is made unrepresentable rather than checkable); and a `module` a
+finished one, so that is made unrepresentable); and a `module` a
 rename took away.
 
-## 11. Still no `// draw:` markers, and the pilot was right about that
+## 11. Still no `// draw:` markers
 
 The pilot recommended against set-equality markers on draw calls — ~230 lines against 26
 arms, most carrying no decision — and nothing found since changes that. What replaced them
@@ -390,16 +388,16 @@ is cheaper and fires on ordinary work:
 
 1. **`screendraws.js --check`**: the stored count against the binary.
 2. **`figures.js --check`**: the quoted count against the stored one.
-3. **The `L2.eng` check** in `crates/l2-game/tests/shell.rs`: every `(group, index)` a
+3. **The `L2.eng` check** in `crates/l2-game/tests/shell/main.rs`: every `(group, index)` a
    screen's named constants declare exists in the player's own `L2.eng`.
 4. **The font split**, printed with the count and never typed.
 
-**And the limit on check 3, stated where it lives and repeated here because it is the one
-that flatters.** *A check on existence is not a check on meaning.* The armoury was filed
+**And the limit on check 3
+that flatters.** The armoury was filed
 under group 16 and **group 16 index 6 exists** — it is a mercenary nationality — so the
 check passes on a screen still filed under the wrong group. What caught that was a person
 reading the strings, and there is still no proposal for the second. Every group in this
-audit was therefore verified against the *words* rather than against the indices resolving,
+audit was therefore verified against the *words*,
 and a group that could not be so verified says so at the constant.
 
 ## 11a. A **fourth** place drawing hides, and no dispatch table mentions it
@@ -420,10 +418,10 @@ nothing at all — and the drop-down is the thing the player is looking at.
 The general form, and it is the reason this is a section:
 
 > **The dispatch tables are a map of where drawing is *organised*, not of where it
-> happens.** Anything the frame loop calls directly is off that map, and the only way to
+> happens.** Anything the frame loop calls directly is off that map
 > find it is to read the frame loop.
 
-Two more of its callees are worth the same suspicion and are recorded rather than
+Two more of its callees are worth the same suspicion and are recorded
 enumerated: `FUN_00420316` (a multiplayer chat banner) and `FUN_0042476B` (a network-wait
 glyph). Both belong to the campaign map's audit.
 
@@ -448,7 +446,7 @@ At the end of the first pass: **51 screens; 1,012 draw calls in the original; 50
 Of our 500 marks, **421 go through the game's own artwork** and 79 are our 5 × 7 debug font
 and our own rectangles, with **19 English captions written in our source** where the
 original fetches an `L2.eng` string. **56** things the original draws are enumerated as
-missing and **37** are things we draw that it does not — the figure nobody had, and the half
+missing and **37** are things we draw that it does not — the figure nobody had
 of 1:1 that an omission audit cannot see.
 
 The screens that are worst, in order:
@@ -469,11 +467,11 @@ shape: one screen id with a ladder of layouts behind it, of which we draw one or
 Two of the seven are **cheap and disproportionate**: `0x1E` is two draw calls and it is the
 game's only yes/no dialog — fifteen questions route through it — and `0x21` is eight.
 
-## 12. `L2.eng` 31/21 *"Morale"* — the pilot was right, and the `[V]` has to go
+## 12. `L2.eng` 31/21 *"Morale"* — the pilot was right
 
 The pilot found that `docs/armies.md` rests a **`[V]`** on unit `+0x166` on group 31 index
 21 being an army-panel label, and that group 31 has two consumers and neither uses index 21.
-That is now settled twice over, and the second way is the one that matters, because the
+That is now settled twice over
 first would have missed a variable index.
 
 **One — no literal.** Every literal group-31 index in the whole corpus:
@@ -494,7 +492,7 @@ kind == 3 -> local_20 = 0;   kind == 2 -> local_20 = 5;
 kind == 4 -> local_20 = 2;   kind == 1 -> local_20 = 6;
 ```
 
-and the call is guarded by `else if (local_20 != 6)`, so the indices that reach `L2.eng`
+and the call is guarded by `else if (local_20 != 6)`
 are **{0, 2, 5}** and nothing else. The wrapped-paragraph draw beside it,
 `FUN_0040328E(0x1F, local_1c, …)`, is pinned the same way to **{12, 13, 14, 15, 16}**.
 
@@ -512,7 +510,7 @@ exactly the shape of the two indices beside them that *are* used, going nowhere.
 **unestablished, and this document declines to guess** — `docs/agents.md` records
 `docs/bugs.md` B65 as the good case, where an agent found a number that matched and a story
 available for free and refused to build on it. This is the same shape: a plausible story is
-available and there is no evidence for it.
+available.
 
 What is *verified* is the absence: the local is dead. Recorded so that the next reader of
 `UnitPanel_Draw` does not spend the hour again.
