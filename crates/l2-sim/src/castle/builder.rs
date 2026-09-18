@@ -151,9 +151,7 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
 }
 
 /// **The besieger's ram-escort coin** — `Battlefield_BuildCastle`
-/// (`0x0047C4BA`), 00470000.c:5265-5272, the last draw of the run the frame
-/// loop at :5137 begins, so it is the `escapes + 1`-th value of the same LFSR
-/// [`build`] steps once per escape cell.
+/// (`0x0047C4BA`), 00470000.c:5265-5272.
 ///
 /// ```c
 /// if (g_units[g_battleArmyA].troops[9] == 0) { local_18 = 0; } else { local_18 = 0x80; }
@@ -163,6 +161,12 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
 /// DAT_004eeb6c = (uint)(g_rand7A < local_18 + sVar2 * -0x14 + sVar3 * -10);
 /// ```
 ///
+/// `draw` is `g_rand7A`. `Rand_Advance` (`0x00404A46`) steps `g_randStateA/B`
+/// and writes `g_rand7A = g_randStateA & 0x7f` (00400000.c:2421) — the **A
+/// stream**, which `Battle_Frame` and the kingdom AI share, *not* the
+/// `FUN_00404B2C` / `DAT_00591564` generator [`build`] steps per escape cell.
+/// Our stand-in for it is [`crate::Ai::rng`]; `docs/netcode.md` D-3a.
+///
 /// `0x0047CE58: 39 05 7c fd 58 00` `cmp [g_rand7A], eax` then `0f 8d` **`jge`**
 /// — the compare is **signed**, so with no ram the threshold is
 /// `-20 * towers - 10 * catapults <= 0` and `g_rand7A` is 0..127: **no ram, no
@@ -171,18 +175,10 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
 /// Basket slot 9 is the battering ram, 8 the siege tower, 7 the catapult —
 /// `docs/armies.md` engine table. `g_battleArmyA` is the aggressor
 /// (`Battle_BeginArmyFight`: `g_battleArmyA = mover`). **[V]**
-///
-/// The seed is [`build`]'s, which the original's was never traced to, so the
-/// *value* of the coin is **[I]** where its arithmetic is **[V]**.
-pub fn orientation(sheet: &CastleSheet, rams: u32, towers: u32, catapults: u32) -> u8 {
-    let mut rng = Lfsr::new(0x5EED);
-    for &b in &sheet.frames {
-        if (ESCAPE_KEEP_FRAME..=ESCAPE_GROUND).contains(&b) {
-            rng.next();
-        }
-    }
+pub fn orientation(draw: u32, rams: u32, towers: u32, catapults: u32) -> u8 {
     let threshold = i32::from(rams > 0) * 0x80 - 20 * towers as i32 - 10 * catapults as i32;
-    u8::from(i32::from(rng.next()) < threshold)
+    let rand7a = (draw & 0x7F) as i32;
+    u8::from(rand7a < threshold)
 }
 
 /// **The surface classifier** — `Battlefield_ClassifySurfaces` (`0x0047E230`), six flood

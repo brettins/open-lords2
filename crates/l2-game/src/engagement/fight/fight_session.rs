@@ -62,7 +62,7 @@ pub fn begin_fight(
             Some(sheet) => {
                 let field = l2_sim::castle::build(level, sheet);
                 let tables = l2_sim::castle::tables(sheet);
-                BattleRunner::deploy_siege_on_sheet(field, sheet, &tables, seed, a, d, level)
+                BattleRunner::deploy_siege_on_sheet(field, &tables, seed, a, d, level)
             }
             None => BattleRunner::deploy_siege(
                 l2_sim::siege::our_castle(level),

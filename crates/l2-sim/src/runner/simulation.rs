@@ -13,7 +13,7 @@ impl BattleRunner {
     }
 
     pub fn deploy_muster(field: Battlefield, seed: u64, army_a: Muster, army_b: Muster) -> Self {
-        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None, None, None)
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None, None)
     }
 
     pub fn deploy_siege(
@@ -23,12 +23,11 @@ impl BattleRunner {
         army_b: Muster,
         castle_level: u8,
     ) -> Self {
-        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level), None, None)
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level), None)
     }
 
     pub fn deploy_siege_on_sheet(
         field: Battlefield,
-        sheet: &crate::CastleSheet,
         tables: &crate::CastleTables,
         seed: u64,
         army_a: Muster,
@@ -42,7 +41,6 @@ impl BattleRunner {
             army_b,
             Some(castle_level),
             Some(tables),
-            Some(sheet),
         )
     }
 
@@ -53,7 +51,6 @@ impl BattleRunner {
         army_b: Muster,
         castle_level: Option<u8>,
         tables: Option<&crate::CastleTables>,
-        sheet: Option<&crate::CastleSheet>,
     ) -> Self {
         let total = army_a.men() + army_b.men();
         let class = MEN_PER_FIGURE_TABLE[size_class(total)];
@@ -71,15 +68,24 @@ impl BattleRunner {
             };
             runner.ai.approach_score = crate::siege::approach_score_at_build(&runner.field);
             runner.ai.ramparts_breached = runner.siege.ramparts_breached as i32;
-            // `Battlefield_BuildCastle`:5265-5272, on `g_units[g_battleArmyA]`
-            // — army A, the aggressor, is `army_a` here. Our stand-in castle
-            // has no frame layer to replay the LFSR over, so it keeps 0.
-            if let Some(s) = sheet {
+            // `Battlefield_BuildCastle` (`0x0047C4BA`):5265-5272, on
+            // `g_units[g_battleArmyA]` — army A, the aggressor, is `army_a`.
+            // One `Rand_Advance` (`0x00404A46`) on the A stream, taken here
+            // because `Battle_Start` (`0x004778A0`) builds the castle before
+            // `Battle_UpdateStrengthAdvantage`, [`Ai::rng`]'s other consumer.
+            // `Ai::rng` is a Pcg32 stand-in for that stream, so the count of
+            // advances is **[V]** and the value **[D]** — `docs/netcode.md`
+            // D-3a. **[D]**: neither the draw nor the flag happens on the
+            // stand-in castle, where `our_castle_ai_field` invents
+            // `castle_ref` — the cell the flag's readers aim at — so a 1 there
+            // would send the storming party at a fabricated point.
+            if tables.is_some() {
                 let basket = |t: Troop| {
                     army_a.troops.iter().filter(|(k, _)| *k == t).map(|(_, n)| *n).sum::<u32>()
                 };
+                let draw = runner.ai.rng.next_u32();
                 runner.ai_field.orientation = crate::castle::orientation(
-                    s,
+                    draw,
                     basket(Troop::BatteringRams),
                     basket(Troop::SiegeTowers),
                     basket(Troop::Catapults),

@@ -79,7 +79,6 @@ fn oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle() {
         let sheet = s.get(level).unwrap();
         let mut r = BattleRunner::deploy_siege_on_sheet(
             castle::build(level, sheet),
-            sheet,
             &castle::tables(sheet),
             0x0C_A571_E0u64.wrapping_mul(level as u64 + 1),
             Muster { troops: &attacker, owner: 1, human: false },
@@ -130,28 +129,29 @@ fn only_a_dry_castle_opens_the_approach_a_siege_tower_needs() {
     assert_eq!(wet, 3, "three of the five castles ship a ditch");
 }
 
-/// **No ram, no coin.** `Battlefield_BuildCastle`:5265-5272 gates the whole
-/// threshold on `troops[9]`: `0x80 * (rams != 0) - 20 * towers - 10 * catapults`,
-/// and `0x0047CE58`'s `jge` makes the compare signed, so without a ram the
-/// threshold is at most 0 and `g_rand7A` (0..127) is never below it.
+/// **No ram, no coin.** `Battlefield_BuildCastle` (`0x0047C4BA`):5265-5272
+/// gates the whole threshold on `troops[9]`:
+/// `0x80 * (rams != 0) - 20 * towers - 10 * catapults`, and `0x0047CE58`'s
+/// `jge` makes the compare signed, so without a ram the threshold is at most 0
+/// and `g_rand7A` — `g_randStateA & 0x7f`, 00400000.c:2421 — is never below it.
 ///
 /// **Ablation.** Drop the `rams > 0` term — leave `0x80` in unconditionally —
-/// and the first assert flips: the same draw, the same sheet, the answer 1.
-/// The two calls differ in that term alone.
+/// and the first loop flips to 1 on every draw. The calls differ in that term
+/// alone, so the assertions hold for any stand-in of the A stream.
 #[test]
 fn the_castle_orientation_coin_is_the_besiegers_ram() {
-    let s = sheets!();
-    for level in 0..=4u8 {
-        let sheet = s.get(level).unwrap();
-        assert_eq!(castle::orientation(sheet, 0, 4, 4), 0, "level {level}: no ram, no coin");
-        assert_eq!(castle::orientation(sheet, 0, 0, 0), 0, "level {level}: nothing at all");
+    for draw in 0..=0x7Fu32 {
+        assert_eq!(castle::orientation(draw, 0, 4, 4), 0, "{draw}: no ram, no coin");
+        assert_eq!(castle::orientation(draw, 0, 0, 0), 0, "{draw}: nothing at all");
         // 0x80 beats every value of `g_randStateA & 0x7f`.
-        assert_eq!(castle::orientation(sheet, 1, 0, 0), 1, "level {level}: a ram alone");
-        assert_eq!(castle::orientation(sheet, 2, 0, 0), 1, "level {level}: the count is a flag");
+        assert_eq!(castle::orientation(draw, 1, 0, 0), 1, "{draw}: a ram alone");
+        assert_eq!(castle::orientation(draw, 2, 0, 0), 1, "{draw}: the count is a flag");
         // `-20 * towers` and `-10 * catapults` can only take it back down.
-        assert_eq!(castle::orientation(sheet, 1, 7, 0), 0, "level {level}: 128 - 140");
-        assert_eq!(castle::orientation(sheet, 1, 0, 13), 0, "level {level}: 128 - 130");
+        assert_eq!(castle::orientation(draw, 1, 7, 0), 0, "{draw}: 128 - 140");
+        assert_eq!(castle::orientation(draw, 1, 0, 13), 0, "{draw}: 128 - 130");
     }
+    // Only the low seven bits are read.
+    assert_eq!(castle::orientation(0xFFFF_FF80, 1, 0, 12), 1, "128 - 120 over a 0 draw");
 }
 
 /// The flag reaches the AI field a besieger with a ram deploys against, and
@@ -167,7 +167,6 @@ fn a_ram_sets_the_orientation_the_approach_handler_reads() {
         let sheet = s.get(level).unwrap();
         let r = BattleRunner::deploy_siege_on_sheet(
             castle::build(level, sheet),
-            sheet,
             &castle::tables(sheet),
             0x0C_A571_E0u64,
             Muster { troops: &attacker, owner: 1, human: false },

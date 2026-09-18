@@ -98,7 +98,6 @@ impl SetupScreen {
             Some(level) => match crate::castle::sheet(level) {
                 Some(sheet) => BattleRunner::deploy_siege_on_sheet(
                     l2_sim::castle::build(level, sheet),
-                    sheet,
                     &l2_sim::castle::tables(sheet),
                     seed,
                     att,
