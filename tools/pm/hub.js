@@ -37,7 +37,7 @@ const qOpen = open.map((q) => `
     ${q.ask ? `<p class="ask">${esc(q.ask)}</p>` : ''}
   </div></section>`).join('\n');
 const qDone = answered.map((q) => `<tr><td>${q.q}</td><td>${esc(q.title)}</td><td>${esc(q.answer || '')}</td><td>${esc(q.outcome || '')}</td></tr>`).join('\n');
-const reports = (qs.reports || []).map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.text)}</td><td>${esc(r.row)}</td></tr>`).join('\n');
+const reports = (qs.reports || []).map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.text)}</td><td>${esc(r.outcome || '')}</td></tr>`).join('\n');
 
 const html = `<title>Lords2 Hub</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400&display=swap">
