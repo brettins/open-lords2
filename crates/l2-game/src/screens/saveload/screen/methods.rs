@@ -82,7 +82,9 @@ impl SaveLoadScreen {
     }
 
     /// **`DAT_005CD41C = 100`**, which is the whole of the thumb up's handler
-    /// and of Enter's: arm the latch, and let [`WORK_FRAMES`] run.
+    /// and of Enter's: arm the latch, and let [`WORK_FRAMES`] run — which at
+    /// the original's unthrottled loop rate is 1.3 ms, so [`WORK_TICKS`] of
+    /// ours.
     ///
     /// the handler's: the tick that takes the latch up plays `S040_02.wav` on
     /// `g_screenId == '6'` — the save box — and `S040_01.wav` on anything else,
@@ -90,7 +92,7 @@ impl SaveLoadScreen {
     ///
     // sfx: FUN_004ad9f0#1,FUN_004ad9f0#2
     pub(super) fn begin(&mut self, ctx: &mut Ctx) {
-        self.working = WORK_FRAMES;
+        self.working = WORK_TICKS;
         self.status = Status::Working;
         let line = match self.mode {
             Mode::Save => crate::audio::names::speech::SAVE_GAME,

@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 use super::*;
 use super::load_tests::*;
+use super::tip_tests::*;
 use super::*;
 use super::roundtrip::*;
 use super::isolation::*;
@@ -22,12 +23,12 @@ use l2_kingdom::{Kingdom, Options};
 /// `DAT_0057D3C4 = 0x96` and writes when that runs out. Ours answered a raw
 /// click and wrote on the spot.
 ///
-/// **Ablations, run:** make `SaveLoadScreen::begin` arm a one-frame wait and
-/// *"written on frame 1, before SaveLoad_Tick's 150"* goes red; delete
-/// `self.click()` from `Press::press` and the first click count reads 0.
+/// **Ablations, run:** make `SaveLoadScreen::begin` write on the spot and
+/// *"nothing is written on the press"* goes red; delete `self.click()` from
+/// `Press::press` and the first click count reads 0.
 #[test]
-fn the_save_thumb_clicks_on_the_press_and_writes_a_hundred_and_fifty_frames_later() {
-    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+fn the_save_thumb_clicks_on_the_press_and_writes_on_the_tick_after() {
+    use l2_game::screens::saveload::{CONFIRM, WORK_TICKS};
 
     let own = Saves::new("latch");
     let (mut game, assets) = bare();
@@ -43,14 +44,14 @@ fn the_save_thumb_clicks_on_the_press_and_writes_a_hundred_and_fifty_frames_late
     assert_eq!(m.clicks(), 1, "Widget_Test kind 4 plays Sound_RestartSlot(1) on the press");
     assert!(own.files().is_empty(), "nothing is written on the press");
     assert_eq!(m.depth(), 1, "and the box is still up");
-    for t in 1..WORK_FRAMES {
+    for t in 1..WORK_TICKS {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
         m.update(&mut ctx);
-        assert!(own.files().is_empty(), "written on frame {t}, before SaveLoad_Tick's {WORK_FRAMES}");
+        assert!(own.files().is_empty(), "written on tick {t}, before the count's {WORK_TICKS}");
     }
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     m.update(&mut ctx);
-    assert_eq!(own.files(), vec![file("latch")], "written on frame {WORK_FRAMES}");
+    assert_eq!(own.files(), vec![file("latch")], "written on tick {WORK_TICKS}");
     assert!(m.should_quit() || m.depth() == 0, "and the box closed");
     assert_eq!(m.clicks(), 1, "the save itself is silent");
 }
@@ -209,52 +210,6 @@ fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the box is gone");
 }
 
-/// `main.rs` turns nothing off, so `g_optTipScreens` is set and
-/// `Tip_Update` (`0x00476AA7`) runs every frame. Its last rung, the invasion
-/// tip, is the **one arm with no `g_screenId` test**, so it fires over the save
-/// box as readily as over the map; `Tip_Show` (`0x00476DA9`) then saves
-/// `g_screenId` and writes `0x27`.
-///
-/// In the original that pauses the count and nothing more: `SaveLoad_Tick`
-/// (`0x004AD9F0`) is called from `Screen_HandleInput`'s `g_screenId == '5' ||
-/// '6'` arm, so `0x27` stops it, and `FUN_00476E21` puts `0x36` back when the
-/// tip is dismissed and the count goes on. Ours seated the host **on top of the
-/// box** and never took it off, so `DAT_0057D3C4` never reached zero and the
-/// box sat on *"Saving game. Please wait."* for ever.
-#[test]
-fn a_tip_over_the_save_box_pauses_the_count_and_the_save_still_lands() {
-    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
-
-    let own = Saves::new("tip-over-save");
-    let (mut game, assets) = bare();
-    game.prefs.tip_screens = true;
-    let mut m = Machine::new(ScreenId::SaveLoad(Mode::Save));
-    let mut events: Vec<Event> = "TIPPED".chars().map(Event::Text).collect();
-    events.push(click_widget(CONFIRM));
-    events.push(release_widget(CONFIRM));
-    drive(&mut m, &mut game, &assets, &events);
-
-    for _ in 0..(WORK_FRAMES / 2) {
-        let mut ctx = Ctx { game: &mut game, assets: &assets };
-        m.update(&mut ctx);
-    }
-    let player = game.player;
-    let crossing = l2_kingdom::units_tick::Incursion { unit: 0, owner: player, county: 1 };
-    game.tips.note_incursions(&[crossing], player);
-    for _ in 0..4 {
-        let mut ctx = Ctx { game: &mut game, assets: &assets };
-        m.update(&mut ctx);
-    }
-    assert!(own.files().is_empty(), "the tip pauses SaveLoad_Tick, as 0x27 does");
-
-    drive(&mut m, &mut game, &assets, &[Event::Click { x: 320, y: 240 }]);
-    for _ in 0..=WORK_FRAMES {
-        let mut ctx = Ctx { game: &mut game, assets: &assets };
-        m.update(&mut ctx);
-    }
-    assert_eq!(own.files(), vec![file("tipped")], "{:?}", m.ids());
-}
-
 /// **`g_redrawRequest = 2`** — the statement after `SaveLoad_Tick`'s
 /// (`0x004AD9F0`) three `g_screenId` arms: the frame the count reaches zero is
 /// painted whatever the outcome. Ours returned `Transition::Stay` on every
@@ -266,7 +221,7 @@ fn a_tip_over_the_save_box_pauses_the_count_and_the_save_still_lands() {
 /// and *"the refusal is painted"* goes red.
 #[test]
 fn a_refused_save_paints_its_refusal_and_the_next_one_writes_and_closes() {
-    use l2_game::screens::saveload::{CONFIRM, WORK_FRAMES};
+    use l2_game::screens::saveload::{CONFIRM, WORK_TICKS};
 
     let own = Saves::new("refused-then-written");
     let plug = own.path.with_extension("plug");
@@ -281,7 +236,7 @@ fn a_refused_save_paints_its_refusal_and_the_next_one_writes_and_closes() {
     {
         let _nowhere = saves::scoped_dir(plug.join("saves"));
         drive(&mut m, &mut game, &assets, &typed);
-        for _ in 1..WORK_FRAMES {
+        for _ in 1..WORK_TICKS {
             let mut ctx = Ctx { game: &mut game, assets: &assets };
             m.update(&mut ctx);
         }

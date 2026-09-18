@@ -65,9 +65,9 @@ fn saving_mid_battle_writes_it_and_loading_lands_back_on_the_field() {
     };
 
     // **`SaveLoad_Tick`'s latch**: Enter arms it and the file is written
-    // `WORK_FRAMES` frames later. The name comes out lowercase —
+    // `WORK_TICKS` ticks later. The name comes out lowercase —
     // `Edit_TypeChar`'s `0x004011B0`, `if ('A' <= ch && ch <= 'Z') ch += 0x20`.
-    let frames = l2_game::screens::saveload::WORK_FRAMES as u32 + 4;
+    let frames = l2_game::screens::saveload::WORK_TICKS as u32 + 4;
     let typed = |m: &mut Machine, g: &mut Game| {
         for c in "MIDFIGHT".chars() {
             send(m, g, &assets, Event::Text(c));
@@ -92,7 +92,7 @@ fn saving_mid_battle_writes_it_and_loading_lands_back_on_the_field() {
         "the save was refused or written elsewhere"
     );
     assert_eq!(m.top_id(), Some(ScreenId::Battlefield), "the box did not close on success");
-    // The file is written on `SaveLoad_Tick`'s `WORK_FRAMES`th frame and the
+    // The file is written on `SaveLoad_Tick`'s `WORK_TICKS`th tick and the
     // battle winds on underneath the box, so this is the frame the file holds
     // plus the few the closing box ran.
     let wrote_at = live(&g).runner.tick;
@@ -118,7 +118,7 @@ fn saving_mid_battle_writes_it_and_loading_lands_back_on_the_field() {
         Some(ScreenId::Battlefield),
         "a load of a mid-battle save must land on the battlefield"
     );
-    // The loader lands `WORK_FRAMES` into the run and the battlefield winds the
+    // The loader lands `WORK_TICKS` into the run and the battlefield winds the
     // battle for the few frames after it, so the tick is the written one plus
     // those - and nowhere near where the run had got to.
     let back = live(&g).runner.tick;

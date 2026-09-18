@@ -2,6 +2,8 @@
 
 mod save_tests;
 pub use save_tests::*;
+mod tip_tests;
+pub use tip_tests::*;
 mod load_tests;
 pub use load_tests::*;
 
@@ -32,11 +34,11 @@ pub(super) fn drive(m: &mut Machine, game: &mut Game, assets: &Assets, events: &
     }
 }
 
-fn click_widget(w: (i32, i32, usize, i32)) -> Event {
+pub(crate) fn click_widget(w: (i32, i32, usize, i32)) -> Event {
     Event::Click { x: w.0 + w.3 / 2, y: w.1 + w.3 / 2 }
 }
 
-fn release_widget(w: (i32, i32, usize, i32)) -> Event {
+pub(crate) fn release_widget(w: (i32, i32, usize, i32)) -> Event {
     Event::Release { x: w.0 + w.3 / 2, y: w.1 + w.3 / 2 }
 }
 
