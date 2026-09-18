@@ -591,7 +591,11 @@ impl SetupScreen {
             &settings,
             HUMAN_PLAYERS,
             self.shield(),
-            crate::scenario::SEED,
+            // `Game_NewGame` re-deals the start table every game
+            // (`PlayerStart_Shuffle`, `0x00497E65`); one fixed seed handed the
+            // human the same county forever — on slot 17 the eastern one, the
+            // deal's one-in-four arm. `crate::scenario::new_game_seed`.
+            crate::scenario::new_game_seed(ctx.assets.wall_clock),
             tables,
         ) {
             Ok(game) => {
