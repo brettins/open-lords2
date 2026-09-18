@@ -79,6 +79,7 @@ fn oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle() {
         let sheet = s.get(level).unwrap();
         let mut r = BattleRunner::deploy_siege_on_sheet(
             castle::build(level, sheet),
+            sheet,
             &castle::tables(sheet),
             0x0C_A571_E0u64.wrapping_mul(level as u64 + 1),
             Muster { troops: &attacker, owner: 1, human: false },
@@ -129,3 +130,50 @@ fn only_a_dry_castle_opens_the_approach_a_siege_tower_needs() {
     assert_eq!(wet, 3, "three of the five castles ship a ditch");
 }
 
+/// **No ram, no coin.** `Battlefield_BuildCastle`:5265-5272 gates the whole
+/// threshold on `troops[9]`: `0x80 * (rams != 0) - 20 * towers - 10 * catapults`,
+/// and `0x0047CE58`'s `jge` makes the compare signed, so without a ram the
+/// threshold is at most 0 and `g_rand7A` (0..127) is never below it.
+///
+/// **Ablation.** Drop the `rams > 0` term — leave `0x80` in unconditionally —
+/// and the first assert flips: the same draw, the same sheet, the answer 1.
+/// The two calls differ in that term alone.
+#[test]
+fn the_castle_orientation_coin_is_the_besiegers_ram() {
+    let s = sheets!();
+    for level in 0..=4u8 {
+        let sheet = s.get(level).unwrap();
+        assert_eq!(castle::orientation(sheet, 0, 4, 4), 0, "level {level}: no ram, no coin");
+        assert_eq!(castle::orientation(sheet, 0, 0, 0), 0, "level {level}: nothing at all");
+        // 0x80 beats every value of `g_randStateA & 0x7f`.
+        assert_eq!(castle::orientation(sheet, 1, 0, 0), 1, "level {level}: a ram alone");
+        assert_eq!(castle::orientation(sheet, 2, 0, 0), 1, "level {level}: the count is a flag");
+        // `-20 * towers` and `-10 * catapults` can only take it back down.
+        assert_eq!(castle::orientation(sheet, 1, 7, 0), 0, "level {level}: 128 - 140");
+        assert_eq!(castle::orientation(sheet, 1, 0, 13), 0, "level {level}: 128 - 130");
+    }
+}
+
+/// The flag reaches the AI field a besieger with a ram deploys against, and
+/// `Order_ToCastleApproach` (`0x0048BCFB`) reads it — so a siege that carries
+/// one packs behind [`l2_sim::AiField::castle_ref`] instead of fanning across
+/// the four approach lanes.
+#[test]
+fn a_ram_sets_the_orientation_the_approach_handler_reads() {
+    let s = sheets!();
+    let attacker = [(Troop::Peasants, 200u32), (Troop::BatteringRams, 1)];
+    let defender = [(Troop::Archers, 200u32)];
+    for level in 0..=4u8 {
+        let sheet = s.get(level).unwrap();
+        let r = BattleRunner::deploy_siege_on_sheet(
+            castle::build(level, sheet),
+            sheet,
+            &castle::tables(sheet),
+            0x0C_A571_E0u64,
+            Muster { troops: &attacker, owner: 1, human: false },
+            Muster { troops: &defender, owner: 2, human: false },
+            level,
+        );
+        assert_eq!(r.ai_field.orientation, 1, "level {level}");
+    }
+}

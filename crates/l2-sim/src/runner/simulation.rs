@@ -13,7 +13,7 @@ impl BattleRunner {
     }
 
     pub fn deploy_muster(field: Battlefield, seed: u64, army_a: Muster, army_b: Muster) -> Self {
-        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None, None)
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, None, None, None)
     }
 
     pub fn deploy_siege(
@@ -23,11 +23,12 @@ impl BattleRunner {
         army_b: Muster,
         castle_level: u8,
     ) -> Self {
-        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level), None)
+        BattleRunner::deploy_muster_on(field, seed, army_a, army_b, Some(castle_level), None, None)
     }
 
     pub fn deploy_siege_on_sheet(
         field: Battlefield,
+        sheet: &crate::CastleSheet,
         tables: &crate::CastleTables,
         seed: u64,
         army_a: Muster,
@@ -41,6 +42,7 @@ impl BattleRunner {
             army_b,
             Some(castle_level),
             Some(tables),
+            Some(sheet),
         )
     }
 
@@ -51,6 +53,7 @@ impl BattleRunner {
         army_b: Muster,
         castle_level: Option<u8>,
         tables: Option<&crate::CastleTables>,
+        sheet: Option<&crate::CastleSheet>,
     ) -> Self {
         let total = army_a.men() + army_b.men();
         let class = MEN_PER_FIGURE_TABLE[size_class(total)];
@@ -68,6 +71,20 @@ impl BattleRunner {
             };
             runner.ai.approach_score = crate::siege::approach_score_at_build(&runner.field);
             runner.ai.ramparts_breached = runner.siege.ramparts_breached as i32;
+            // `Battlefield_BuildCastle`:5265-5272, on `g_units[g_battleArmyA]`
+            // — army A, the aggressor, is `army_a` here. Our stand-in castle
+            // has no frame layer to replay the LFSR over, so it keeps 0.
+            if let Some(s) = sheet {
+                let basket = |t: Troop| {
+                    army_a.troops.iter().filter(|(k, _)| *k == t).map(|(_, n)| *n).sum::<u32>()
+                };
+                runner.ai_field.orientation = crate::castle::orientation(
+                    s,
+                    basket(Troop::BatteringRams),
+                    basket(Troop::SiegeTowers),
+                    basket(Troop::Catapults),
+                );
+            }
         }
         runner.raise_men(&army_a, mpf_a, SIDE_B);
         runner.raise_men(&army_b, mpf_b, SIDE_A);
@@ -564,12 +581,19 @@ impl BattleRunner {
     fn recount_siege(&mut self) {
         let mut on_wall = 0;
         let mut engines = 0;
+        // `Battle_CountMenByType` (`0x00481B9A`), 00480000.c:739 and :790 —
+        // `if (troopType == 9) bVar1 = true;` … `if (!bVar1) DAT_004eeb6c = 0;`.
+        // The orientation outlives the coin only while a ram does.
+        let mut rams = 0;
         for f in self.fighters.iter() {
             if !self.sim.figures[f.sim].is_alive() {
                 continue;
             }
             if f.troop.index() >= 7 && f.troop.index() <= 9 {
                 engines += 1;
+            }
+            if f.troop == Troop::BatteringRams {
+                rams += 1;
             }
             if f.side == SIDE_B
                 && self.field.cells[f.y as usize * DIM + f.x as usize].surface
@@ -581,6 +605,9 @@ impl BattleRunner {
         self.ai.attackers_on_wall = on_wall;
         self.ai.siege_engine_count = engines;
         self.ai.ramparts_breached = self.siege.ramparts_breached as i32;
+        if rams == 0 {
+            self.ai_field.orientation = 0;
+        }
     }
 
 
