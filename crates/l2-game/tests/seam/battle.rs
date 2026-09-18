@@ -111,7 +111,8 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
     const SEEDS: u64 = 8;
     // [D] floor 3 of 8 since 2026-09-17 (Q1b): unit firing 0x78 set as 00480000.c:1478-1479 does,
     // so UnitOrder_FieldMissile's firing == 0 arm (:4335-4339) holds AI archers; the save held.
-    // Row firemissile-third-thing hunts the difference.
+    // Row firemissile-third-thing hunts the difference; the verdict held is the autocalc's
+    // (FUN_0043B622, the player declined the field), no fought battle's [I]; Q2 asks for one.
     const FLOOR: u64 = 3;
     let fights: Vec<_> = (0..SEEDS)
         .map(|i| fight(l2_sim::runner::DEFAULT_SEED.wrapping_add(i.wrapping_mul(0x9E37_79B9))))
