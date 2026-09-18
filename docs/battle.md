@@ -154,7 +154,7 @@ reaches zero the figure enters the dead state and is removed.
 | `+0x17B` | i8 | — | [D] | melee recovery counter; the attacker decrements it, and a blow lands when it reaches 0. |
 | `+0x17E` | u8 | opponent | [D] | the other figure in a melee duel. |
 | `+0x180` | i16 | — | [D] | reload / swing timer. |
-| `+0x182` | u8 | — | [D] | set to 120 on firing, counts down; the figure-level twin of unit `+0x0F`. |
+| `+0x182` | u8 | **firing** | [V] | 0x78 beside each of the three unit-level writes — `BattleMan_FireMissile` `00480000.c:1478`, `BattleMan_StateEngineFire` `:1837`, `BattleMan_StateCloseToAttack` `:2053` — and counted down by `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`), which is its only other reference. The figure-level twin of unit `+0x0F`, and unlike that one it has no reader. `Figure::firing`. |
 | `+0x183` | u8 | engaged | [V] | set by state 17 while it walks to close the range and cleared as it looses; set by `Missile_Step` on the shooter when a blocked shot is given up or a shot runs out of range. Read by state 17 to hold an AI unit's reform, and by `BattleMan_StateEngineFire`. §14.2a. |
 | `+0x184` | i8 | exchange | [D] | ticks left holding the attacker role in a duel. |
 | `+0x185` | u8 | role | [D] | 1 = attacker this exchange, 2 = defender. |

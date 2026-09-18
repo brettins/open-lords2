@@ -193,7 +193,14 @@ fn fight(
         if runner.conclusion().is_some() {
             break;
         }
-        point_again_for_the_absent_player(kingdom, &mut runner, attacker, defender);
+        // **One order runs out.** A shooting unit pins its own destination to
+        // the shooter cell (`BattleMan_StateCloseToAttack`, `0x00484BF9`,
+        // `00480000.c:2055-2056`) and no order handler ever runs for a human
+        // unit, so the stand-in points again. [`RECHARGE_EVERY`] carries the
+        // interval and the handlers it is read from.
+        if runner.tick % RECHARGE_EVERY == 0 {
+            point_again_for_the_absent_player(kingdom, &mut runner, attacker, defender);
+        }
     }
     let damage = runner.castle_damage();
     let (verdict, resolution) = conclude_fight(kingdom, attacker, defender, runner);

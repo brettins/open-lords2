@@ -12429,3 +12429,20 @@ Faces and pointers: the peasants' letter (03a0f25c) blits Faces.pl8 frame 0x11 u
 Imported: the three build records at unit `+0x182 + e*6` (three `i16`: ordered, percent, work done) as `l2_formats::save::SiegeEngine`, and `+0x19C` `siegeSeasonsLeft`, which `l2-formats` already read and the importer dropped. `docs/armies.md` §4; the ladder is asserted against the four fixtures in `crates/l2-kingdom/tests/siege/main.rs`.
 
 `crates/l2-game/tests/differential.rs`: 914 → 927 of 932 agree, 271 → 278 of the 279 fields the original's End Turn moved. Both siege pairs' `realm.strength`, `realm.score` and `realm.wages` rows went and none arrived; siege 12->13 is clean but for the unsimulated `global.ai_lords`. Ablated by measurement in both directions on one tree.
+
+**CNEW-moat-slot — C81 said a unit at the ditch walks to "a dry slot beside it". It walks onto the moat.**
+
+`Formation_FindNearbySlot` (`0x0048A38E`, `00480000.c:4077-4081`) opens on
+`if (surface == 2) { g_formationOriginX = targX; g_formationOriginY = targY; return 1; }` —
+a short-circuit ahead of the catapult arm at `:4082` and ahead of the ring search, and the
+one arm C81 never read. `Formation_RectIsClear` (`0x00489F9D`, `:3974`) does reject the
+rectangle for `surface == 2`, which is the half C81 has right; what follows is not a search
+for dry ground but the target cell handed straight back. `Formation_AssignSearchedSlots`
+(`0x00489798`, `:3758`) calls it once per figure and the claim list at `:4118-4121` is only
+written on the loop path, so **every figure of the unit is sent to the same moat cell**, and
+`BattleMan_Step`'s state-9 arm latches the cell it is already standing at rather than one it
+was stopped by.
+
+C81's three findings stand — the flag is `DAT_00553FE4` off the *unit's* destination, the
+handler's tail retargets, the reform gate exists. Only its account of where the figures walk
+is corrected, in `crates/l2-sim/src/runner/orders.rs`.

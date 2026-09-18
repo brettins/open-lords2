@@ -59,6 +59,18 @@ pub const MAX_TICKS: u32 = 12_000;
 
 const CHECK_EVERY: u32 = 100;
 
+/// How often the headless stand-in points the absent player's units again.
+/// There is no `BattleUnit_Think`; the interval lives in each named handler —
+/// `UnitOrder_FieldMissile` (`0x0048A9D2`, `00480000.c:4289-4290`) counts
+/// `think` and acts on `199 < think`, as do its field siblings
+/// `UnitOrder_FieldFoot` (`0x0048ACD2`) and `UnitOrder_FieldMelee`
+/// (`0x0048B02B`). The siege-defender group is twice as quick —
+/// `UnitOrder_SiegeDefFoot` (`0x0048E39C`, `:5898-5899`) and
+/// `UnitOrder_SiegeDefMelee` (`0x0048E4CC`) act on `99 < think`. 200 is the
+/// field number, so the stand-in is no more talkative than the side the AI
+/// drives on the same field. Ours, like the charge itself: C186.
+const RECHARGE_EVERY: u32 = 200;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BattleReport {
     pub settlement: Settlement,
