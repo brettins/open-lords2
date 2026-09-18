@@ -32,6 +32,7 @@ fn pair(a_troop: Troop, b_troop: Troop, gap: u8) -> BattleRunner {
             facing_drawn: 2,
             fidget: 0,
             fidget_period: 0xB4,
+            horse_frame: 0,
             path: Vec::new(),
             barred: 0,
             hold: 0,

@@ -277,6 +277,13 @@ impl BattleRunner {
                         facing_drawn: facing,
                         fidget: 0,
                         fidget_period: (((sim as u32 * 9 + x as u32 * 16) & 0x3F) + 0xB4) as u8,
+                        // `[D]`: `BattleMan_Create` (`0x0046E4C8`,
+                        // `00460000.c:8262-8296`) takes the first slot with
+                        // `owner == 0` and writes twelve fields, `+0x11` not
+                        // among them, so a recycled slot keeps the old horse
+                        // frame. Harmless — the first walk, stand or strike
+                        // tick overwrites it before any state-9 read.
+                        horse_frame: 0,
                         path: Vec::new(),
                         barred: 0,
                         hold: 0,

@@ -859,6 +859,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
         ("Fighter", "facing_drawn", "drawn facing (+0x0D); presentation, read only by the renderer"),
         ("Fighter", "fidget", "Anim_StandA2's shuffle counter (+0x0B); presentation"),
         ("Fighter", "fidget_period", "seeded from index and x (+0x0C); presentation"),
+        ("Fighter", "horse_frame", "knight's horse frame (+0x11); presentation, read only by the renderer"),
     ];
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));

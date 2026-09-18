@@ -69,13 +69,7 @@ fn a_man_shovelling_earth_into_the_moat_is_alive_and_not_a_corpse() {
 /// holds both.
 #[test]
 fn a_shovelling_knight_holds_his_phase_and_his_drawn_facing() {
-    let mut r = BattleRunner::deploy_armies(
-        blank_field(),
-        0x5EED,
-        Army { troops: &[(Troop::Knights, 6)], owner: 1, human: false },
-        Army { troops: &[(Troop::Peasants, 6)], owner: 2, human: true },
-    );
-    let i = r.fighters.iter().position(|f| f.troop == Troop::Knights).unwrap();
+    let (mut r, i) = knight();
     r.fighters[i].phase = 7;
     r.fighters[i].facing = 3;
     r.fighters[i].facing_drawn = 5;
@@ -84,5 +78,41 @@ fn a_shovelling_knight_holds_his_phase_and_his_drawn_facing() {
         assert_eq!(r.fighters[i].anim, Motion::Shovelling);
         assert_eq!(r.fighters[i].phase, 7, "the knight's phase was stepped");
         assert_eq!(r.fighters[i].facing_drawn, 5, "the knight's drawn facing moved");
+    }
+}
+
+fn knight() -> (BattleRunner, usize) {
+    let r = BattleRunner::deploy_armies(
+        blank_field(),
+        0x5EED,
+        Army { troops: &[(Troop::Knights, 6)], owner: 1, human: false },
+        Army { troops: &[(Troop::Peasants, 6)], owner: 2, human: true },
+    );
+    let i = r.fighters.iter().position(|f| f.troop == Troop::Knights).unwrap();
+    (r, i)
+}
+
+/// **The horse is held too.** `Anim_DyingA2` returns at `00480000.c:3004-3006`
+/// before `horseFrame` (`+0x11`) is written, and state 9's latched arm
+/// (`00480000.c:1697-1725`) calls no other handler — so the byte
+/// `Anim_WalkA2`'s knight arm left (`2766`, `|dirc| * 6 + animPhase >> 2`) is
+/// what the painter draws for as long as he digs.
+///
+/// **Ablation**: drop `f.horse_frame = (f.facing % 8) * 6 + (f.phase >> 2)`
+/// from [`BattleRunner::march`] and the held byte is 0, so
+/// `render.rs`'s `Anim::Shovelling => f.horse_frame` puts a standing horse
+/// under a digging rider — the defect this row names.
+#[test]
+fn a_shovelling_knight_holds_his_horse_mid_stride() {
+    let (mut r, i) = knight();
+    r.fighters[i].facing = 3;
+    r.fighters[i].phase = 0x0E;
+    r.march(i, true);
+    let held = r.fighters[i].horse_frame;
+    assert_eq!(held, 3 * 6 + (0x0F >> 2), "the walk arm did not write `+0x11`");
+    assert_ne!(held % 6, 0, "a horse already at pose 0 would prove nothing");
+    for _ in 0..200 {
+        r.shovel(i);
+        assert_eq!(r.fighters[i].horse_frame, held, "the shovel moved the horse");
     }
 }
