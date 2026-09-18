@@ -158,6 +158,7 @@ fn the_dead_triggers_are_the_ones_on_the_bug_list() {
         ("slider arrows", "D39"),
         ("Battle_PauseButton#1", "**D38**"),
         ("FUN_004b39e8#1", "**D40**"),
+        ("FUN_0047fe0b#1", "**DNEW-midbattle**"),
     ] {
         assert!(text.contains(entry), "{id} is dead here and {entry} is gone from docs/bugs.md");
     }

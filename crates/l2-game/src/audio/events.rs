@@ -70,18 +70,19 @@ pub enum Request {
     File(&'static str),
 }
 
-/// Three of the twenty-five sites are not here, and each is `blocked` in
-/// `docs/audio.json` on a mechanic this engine does not model: state 17's own
-/// loose (`BattleMan_StateCloseToAttack` ×2) and a realm eliminated
-/// mid-battle (`FUN_0047FE0B`). Fire, boiling oil, a tower docking and the
-/// rampart too high to shoot down were the other six, and `l2_sim::fire` is
-/// where they went.
+/// One of the twenty-five sites is not here: a realm eliminated mid-battle
+/// (`FUN_0047FE0B`), `dead` in `docs/audio.json` because its one caller is
+/// reached only from the network session and from a function nothing
+/// references. State 17's own loose (`BattleMan_StateCloseToAttack` ×2) is
+/// built below; fire, boiling oil, a tower docking and the rampart too high to
+/// shoot down went to `l2_sim::fire`.
 pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     use l2_sim::{Troop, WeaponClass, ALL_TROOPS, SIDE_A, SIDE_B};
     let struck = |t: Troop| now.melee_casualties(t) != was.melee_casualties(t);
     let hit = |w: WeaponClass| now.missile_hits(w) != was.missile_hits(w);
     let felled = |w: WeaponClass| now.missile_casualties(w) != was.missile_casualties(w);
     let loosed = |w: WeaponClass| now.loosed(w) != was.loosed(w);
+    let closed = |w: WeaponClass| now.closing_loosed(w) != was.closing_loosed(w);
     let mut out = Vec::new();
     let mut ask = |moved: bool, request: Request| {
         if moved {
@@ -153,6 +154,14 @@ pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
     ask(loosed(WeaponClass::Bow), Request::Slot(7));
     // sfx: BattleMan_StateEngineFire#1
     ask(loosed(WeaponClass::Catapult), Request::Slot(0xe));
+
+    // **`BattleMan_StateCloseToAttack` (`0x00484BF9`), state 17's own loose.**
+    // A second call site with the same two slots — `class == 2 ? 9 : class ==
+    // 1 ? 7`, read back out of the missile record after its launch steps. `[V]`
+    // sfx: BattleMan_StateCloseToAttack#1
+    ask(closed(WeaponClass::Crossbow), Request::Slot(9));
+    // sfx: BattleMan_StateCloseToAttack#2
+    ask(closed(WeaponClass::Bow), Request::Slot(7));
 
     // **`Wall_Smash` (`FUN_0049694F`)**, whose first statement is
     // `Sound_PlayFile("bathit2.wav", 0, 0)`. `[V]`

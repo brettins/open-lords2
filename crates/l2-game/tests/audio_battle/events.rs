@@ -50,6 +50,47 @@ fn a_bow_and_a_crossbow_are_heard_as_themselves() {
 }
 
 
+/// **State 17 is heard.** A human's archer sent onto the AI's peasant closes,
+/// looses its own arrow, and the ladder asks for `bowmen1.wav` on that tick —
+/// from `closing_loosed`, while `BattleMan_FireMissile`'s count never moves.
+///
+/// Ablation: delete `ask(closed(WeaponClass::Bow), Request::Slot(7))` and the
+/// first assertion goes red on the tick the arrow leaves.
+#[test]
+fn an_archer_sent_onto_an_enemy_is_heard_loosing_its_own_arrow() {
+    use l2_sim::WeaponClass;
+    let mut live = battle(&[(Troop::Archers, 1)], &[(Troop::Peasants, 1)]);
+    let fighters = &live.runner.fighters;
+    let archer = fighters.iter().position(|f| f.troop == Troop::Archers).expect("an archer");
+    let peasant = fighters.iter().position(|f| f.troop == Troop::Peasants).expect("a peasant");
+    let at = (fighters[peasant].x, fighters[peasant].y);
+    let unit = live.runner.unit_of(archer);
+    live.runner.order_unit(unit, at.0, at.1);
+
+    let mut heard = false;
+    for _ in 0..2_000 {
+        let was = live.runner.sim.cues;
+        live.tick();
+        let now = live.runner.sim.cues;
+        if now.closing_loosed(WeaponClass::Bow) != was.closing_loosed(WeaponClass::Bow) {
+            let asked = audio::battle_requests(&was, &now);
+            assert!(asked.contains(&Request::Slot(7)), "state 17 loosed, nothing asked: {asked:?}");
+            assert_eq!(file_of(Request::Slot(7)), "bowmen1.wav");
+            heard = true;
+            break;
+        }
+        if live.conclusion.is_some() {
+            break;
+        }
+    }
+    assert!(heard, "the archer never loosed from state 17");
+    assert_eq!(
+        live.runner.sim.cues.loosed(WeaponClass::Bow),
+        0,
+        "and BattleMan_FireMissile never did"
+    );
+}
+
 #[test]
 fn the_battlefield_is_eighty_three_more_files() {
     let Some(dir) = l2_testkit::install_dir() else {

@@ -152,6 +152,7 @@ impl BattleRunner {
             }
         }
         self.pour_on_order(unit, x as i16, y as i16);
+        self.clear_straff(unit);
         self.reform_unit(unit);
     }
 
@@ -480,6 +481,9 @@ impl BattleRunner {
         for u in ordered {
             let (tx, ty) = (self.units.get(u).target_x, self.units.get(u).target_y);
             self.pour_on_order(u, tx, ty);
+            // The AI's action routines reach the figures through
+            // `BattleUnit_Order`, which clears `movStraff` before it reforms.
+            self.clear_straff(u);
             self.reform_unit(u);
         }
         for u in reform {

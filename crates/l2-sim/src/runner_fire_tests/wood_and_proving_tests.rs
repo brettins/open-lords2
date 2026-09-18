@@ -196,7 +196,8 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
         plain.step();
     }
     assert!(!plain.wood_fire, "no targetCell, no fire arrow");
-    assert!(plain.sim.cues.loosed(WeaponClass::Bow) > 0, "though the archer shot");
+    // State 17's own loose, not `BattleMan_FireMissile`'s.
+    assert!(plain.sim.cues.closing_loosed(WeaponClass::Bow) > 0, "though the archer shot");
 }
 
 /// **A shot a launch step removed is silent.** `BattleMan_FireMissile`

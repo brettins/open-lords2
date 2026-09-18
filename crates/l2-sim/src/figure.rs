@@ -13,6 +13,10 @@ pub enum State {
     Melee,
     Dead,
     Chasing,
+    /// The original's **state 17**, `BattleMan_StateCloseToAttack`
+    /// (`0x00484BF9`) — `crate::runner`'s `close_to_attack_tick`. Two writers:
+    /// `Formation_SendFigure` (`0x00489B8D`) and `Order_ShootAtUnit`
+    /// (`0x0048C974`). `[V]`
     Shooting,
     FillingMoat,
 }
@@ -97,6 +101,16 @@ pub struct Figure {
     /// Figure record `+0x180` — **the reload counter**, which
     /// `BattleMan_FireMissile` counts up once a tick.
     pub reload_counter: u16,
+    /// Figure record `+0x183`, **`engaged`**. State 17
+    /// (`BattleMan_StateCloseToAttack`) sets it while it closes and clears it
+    /// on the tick it looses; `Missile_Step` (`0x00492C8B`) sets it on the
+    /// *shooter* on both give-up arms. `[V]` on every write named.
+    pub engaged: bool,
+    /// The debug panel's **`mov straff`** (`00420000.c:1521`). Set by state 17
+    /// as it looses, cleared for a whole unit by `BattleUnit_Order`
+    /// (`0x00479E90`) and by nothing else `[V]`: a closing archer that has shot
+    /// holds its ground until it is ordered again.
+    pub straffed: bool,
     pub full_men: u16,
     /// Figure record `+0x09`, and the debug panel's own label **`selected`**:
     ///
@@ -144,6 +158,8 @@ impl Figure {
             stats,
             hits_per_casualty: table.hits_per_casualty(troop),
             reload_counter: 0,
+            engaged: false,
+            straffed: false,
             full_men: men,
             selected: 0,
         }

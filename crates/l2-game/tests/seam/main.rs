@@ -8,6 +8,8 @@ mod conquest_part;
 pub use conquest_part::*;
 mod battle;
 pub use battle::*;
+mod no_orders;
+pub use no_orders::*;
 mod realm;
 pub use realm::*;
 

@@ -29,6 +29,10 @@ mod conclusion;
 pub use conclusion::*;
 mod simulation;
 pub use simulation::*;
+mod closing;
+pub use closing::*;
+#[cfg(test)]
+mod closing_tests;
 mod orders;
 pub use orders::*;
 mod stop_short;
