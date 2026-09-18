@@ -199,3 +199,17 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
     assert!(plain.sim.cues.loosed(WeaponClass::Bow) > 0, "though the archer shot");
 }
 
+/// `BattleMan_StateCloseToAttack` (`0x00484BF9`): `g_battleUnits[sVar1].firing
+/// = 0x78` on the same reset that looses, unit `+0x0F`. Ablate that line and
+/// `seen` stays 0, because nothing else in the battle writes the byte.
+#[test]
+fn a_volley_from_state_seventeen_raises_the_units_firing_byte() {
+    let (mut r, unit, _) = a_player_archer_and_a_man_in_the_wood();
+    r.order_full(unit, 40, 42, None, true, Formation::Keep);
+    let mut seen = 0u8;
+    for _ in 0..600 {
+        r.step();
+        seen = seen.max(r.units.get(unit).firing);
+    }
+    assert_eq!(seen, 0x78, "120 frames, raised the frame the arrow leaves");
+}

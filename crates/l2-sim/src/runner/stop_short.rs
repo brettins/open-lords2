@@ -89,9 +89,7 @@ impl BattleRunner {
                         && x < DIM as i32 - 1
                         && y > 0
                         && y < DIM as i32 - 1
-                        && !(surface == crate::siege::SURFACE_RAMPART_WALK
-                            && self.field.at(x as usize, y as usize).surface != surface)
-                        && self.slot_is_usable(unit, x, y, elevation)
+                        && self.slot_is_usable(unit, x, y, surface, elevation)
                     {
                         return true;
                     }

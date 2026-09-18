@@ -132,3 +132,33 @@ fn the_wall_walk_reaches_only_the_wall_walk() {
         "no surface 4 within 19 of {far:?}"
     );
 }
+
+/// `Formation_SlotIsUsable` (`0x0048A672`) first branch: `uVar2 == 0 && side ==
+/// 0 && g_battleIsSiege != 0 && surface[cell] < 4`. Ablate that `if` and the
+/// garrison line below turns green with the besieger's answer.
+#[test]
+fn the_garrison_is_refused_an_empty_cell_of_surface_under_four() {
+    let r = siege_battle(4, 0x5E1_6Fu64);
+    let taken: Vec<(u8, u8)> = r.fighters.iter().map(|f| (f.x, f.y)).collect();
+    let (x, y) = (0..DIM * DIM)
+        .map(|c| ((c % DIM) as i32, (c / DIM) as i32))
+        .find(|&(x, y)| {
+            (1..DIM as i32 - 1).contains(&x)
+                && (1..DIM as i32 - 1).contains(&y)
+                && r.field.at(x as usize, y as usize).surface == 1
+                && !r.field.at(x as usize, y as usize).impassable()
+                && !taken.contains(&(x as u8, y as u8))
+        })
+        .expect("a besieged field has empty open ground");
+    let elevation = r.field.at(x as usize, y as usize).elevation;
+    let side_of = |s| r.units.live().find(|&u| r.units.get(u).side == s).expect("a live unit");
+
+    assert!(
+        !r.slot_is_usable(side_of(l2_sim::SIDE_A), x, y, 1, elevation),
+        "the garrison is side 0 and the cell is surface 1"
+    );
+    assert!(
+        r.slot_is_usable(side_of(l2_sim::SIDE_B), x, y, 1, elevation),
+        "the besieger is side 4, so the branch does not fire"
+    );
+}
