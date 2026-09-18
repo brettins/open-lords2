@@ -181,6 +181,43 @@ pub fn orientation(draw: u32, rams: u32, towers: u32, catapults: u32) -> u8 {
     u8::from(rand7a < threshold)
 }
 
+/// **The muster corner** — `Battlefield_BuildCastle` (`0x0047C4BA`),
+/// 00470000.c:5254-5262, `DAT_004EEB64`.
+///
+/// ```c
+/// DAT_004eeb64 = 0;
+/// if (*(int *)(&DAT_0055cdf4 + g_battleApproachLane * 8) < 0x3d) {
+///   if (*(int *)(&DAT_0055cdf0 + g_battleApproachLane * 8) < 0x28) {
+///     DAT_004eeb64 = 1;
+///   }
+///   else {
+///     DAT_004eeb64 = 2;
+///   }
+/// }
+/// ```
+///
+/// `DAT_0055CDF0`/`F4` is the secondary staging table — four lanes of `(x, y)`
+/// eight bytes apart, [`crate::AiField::staging`], filled by `FUN_0047CEC1`
+/// (00470000.c:5407-5408) from the side-4 marker of kind `0x47` at
+/// `(g_foundTileX + 2, g_foundTileY + 2)`. So the layout is read off **this
+/// battle's own lane**: `y < 0x3d` means that lane stages in the castle's half
+/// of the 80-cell field rather than out on the attacker's edge, and then
+/// `x < 0x28` says which side of the centre line it sits on.
+///
+/// Its one reader is `Order_ToFieldCorner` (`0x0048BECD`) — 1 musters at
+/// `(6, 74)`, 2 at `(74, 74)`, and 0 skips the corner for
+/// `Order_ToCastleApproach`. **[V]**
+pub fn layout(staging: &[(i16, i16); 4], lane: usize) -> u8 {
+    let (x, y) = staging[lane & 3];
+    if y >= 0x3d {
+        0
+    } else if x < 0x28 {
+        1
+    } else {
+        2
+    }
+}
+
 /// **The surface classifier** — `Battlefield_ClassifySurfaces` (`0x0047E230`), six flood
 /// passes over the whole field, each looping until it changes nothing.
 ///

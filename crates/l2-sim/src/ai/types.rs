@@ -48,7 +48,10 @@ pub struct AiField {
     pub defence_posts: [usize; 20],
     /// `0x004EEB64`: 1 and 2 name the two fixed field corners `(6, 74)` and
     /// `(74, 74)`; anything else sends the unit to a castle approach point
-    /// instead. **[D]**
+    /// instead — `Order_ToFieldCorner` (`0x0048BECD`), its only reader.
+    /// Derived by [`crate::castle::layout`] from [`Self::staging`] and the
+    /// battle's lane, `Battlefield_BuildCastle` 00470000.c:5254-5262. **[V]**
+    /// on the tables path, **[I]** (1) on the stand-in's.
     pub layout: u8,
     /// `0x004EEB6C`. Drawn by [`crate::castle::orientation`] off [`Ai::rng`],
     /// our stand-in for the `Rand_Advance` A stream — one advance, `[D]` on the
