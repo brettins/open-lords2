@@ -462,37 +462,66 @@ const REAL_EXTRA = /\b[a-z_0-9]+\.(draw|draw_centred|draw_right|draw_system|draw
 const LITERAL = /\b(text::draw|text::draw_centred|text::draw_right|widget::button|widget::label)\s*\([^;]*?"([A-Za-z][^"]*)"/g;
 
 function ourKinds(moduleFile) {
-  const p = path.join(SCREENS_DIR, moduleFile);
-  if (!fs.existsSync(p)) return null;
+  const files = moduleFiles(moduleFile);
+  if (!files) return null;
   let real = 0, placeholder = 0;
   const literals = [];
-  fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
-    if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;
-    let m;
-    OURS_CALL.lastIndex = 0;
-    while ((m = OURS_CALL.exec(l))) if (!NOT_OURS.has(m[1]) && OURS.has(m[1])) real++;
-    REAL_EXTRA.lastIndex = 0; while (REAL_EXTRA.exec(l)) real++;
-    PLACEHOLDER.lastIndex = 0; while (PLACEHOLDER.exec(l)) placeholder++;
-    LITERAL.lastIndex = 0;
-    while ((m = LITERAL.exec(l))) literals.push({ line: i + 1, text: m[2] });
-  });
+  for (const { file, path: p } of files) {
+    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
+      if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;
+      let m;
+      OURS_CALL.lastIndex = 0;
+      while ((m = OURS_CALL.exec(l))) if (!NOT_OURS.has(m[1]) && OURS.has(m[1])) real++;
+      REAL_EXTRA.lastIndex = 0; while (REAL_EXTRA.exec(l)) real++;
+      PLACEHOLDER.lastIndex = 0; while (PLACEHOLDER.exec(l)) placeholder++;
+      LITERAL.lastIndex = 0;
+      while ((m = LITERAL.exec(l))) literals.push({ file, line: i + 1, text: m[2] });
+    });
+  }
   return { real, placeholder, literals };
 }
 
 const SCREENS_DIR = path.join(__dirname, '..', '..', 'crates', 'l2-game', 'src', 'screens');
+
+/**
+ * A record's `module` names one screen's source, and since the split that is a
+ * **directory** as often as a file: `county.rs` became `county/{mod,layout,…}.rs`
+ * and `county/draw/*.rs`. Resolving one name to every `.rs` under it is what
+ * keeps the record a claim about a screen rather than about a filename — the
+ * alternative, nineteen records renamed to `county/mod.rs`, would have counted
+ * one file of five. Returns `null` when nothing of that name exists, which is
+ * what `--check` reports.
+ */
+function moduleFiles(mod) {
+  const root = path.join(SCREENS_DIR, mod);
+  if (!fs.existsSync(root)) return null;
+  if (!fs.statSync(root).isDirectory()) return [{ file: mod, path: root }];
+  const out = [];
+  (function walk(d, rel) {
+    for (const e of fs.readdirSync(d, { withFileTypes: true }).sort((a, b) => a.name < b.name ? -1 : 1)) {
+      const p = path.join(d, e.name), r = rel ? `${rel}/${e.name}` : e.name;
+      if (e.isDirectory()) walk(p, r);
+      else if (e.name.endsWith('.rs')) out.push({ file: `${mod}/${r}`, path: p });
+    }
+  })(root, '');
+  return out;
+}
+
 const OURS_CALL = /\b[a-z_][a-z_0-9]*\.([a-z_][a-z_0-9]*)\s*\(/g;
 function ourSites(moduleFile) {
-  const p = path.join(SCREENS_DIR, moduleFile);
-  if (!fs.existsSync(p)) return null;
+  const files = moduleFiles(moduleFile);
+  if (!files) return null;
   const sites = [];
-  fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
-    if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;   // a comment, including `//!` docs
-    let m; OURS_CALL.lastIndex = 0;
-    while ((m = OURS_CALL.exec(l))) {
-      if (NOT_OURS.has(m[1])) continue;
-      if (OURS.has(m[1])) sites.push({ line: i + 1, name: m[1], text: l.trim() });
-    }
-  });
+  for (const { file, path: p } of files) {
+    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
+      if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;   // a comment, including `//!` docs
+      let m; OURS_CALL.lastIndex = 0;
+      while ((m = OURS_CALL.exec(l))) {
+        if (NOT_OURS.has(m[1])) continue;
+        if (OURS.has(m[1])) sites.push({ file, line: i + 1, name: m[1], text: l.trim() });
+      }
+    });
+  }
   return sites;
 }
 
@@ -550,7 +579,7 @@ function checkCounts() {
         `but ${rec.roots.join(' + ')} makes ${o} draw calls.\n` +
         `  run: node tools/draws/screendraws.js --write`);
     }
-    if (rec.module && !fs.existsSync(path.join(SCREENS_DIR, rec.module))) {
+    if (rec.module && !moduleFiles(rec.module)) {
       bad++;
       console.error(`screendraws: ${rec.screen} names module ${rec.module}, which does not exist`);
     }
@@ -592,7 +621,7 @@ function main() {
     }
     console.log(`=== ${rec.screen} ${rec.name} — ours (${rec.module || 'no module'})`);
     for (const s of (rec.module ? ourSites(rec.module) || [] : [])) {
-      console.log(`  ${rec.module}:${s.line}  ${s.name}  — ${OURS.get(s.name)}`);
+      console.log(`  ${s.file}:${s.line}  ${s.name}  — ${OURS.get(s.name)}`);
     }
     const k = rec.module ? ourKinds(rec.module) : null;
     if (k) {
@@ -670,10 +699,12 @@ function main() {
 
 /** Every screen module, whether or not the inventory has reached it yet. */
 function allModules() {
-  return fs.readdirSync(SCREENS_DIR).filter(f => f.endsWith('.rs') && f !== 'mod.rs');
+  return fs.readdirSync(SCREENS_DIR, { withFileTypes: true })
+    .filter(e => e.isDirectory() || (e.name.endsWith('.rs') && e.name !== 'mod.rs'))
+    .map(e => e.name);
 }
 module.exports = {
-  originalSites, ourSites, ourKinds, allModules, inventory, OURS, LEAF,
+  originalSites, ourSites, ourKinds, allModules, moduleFiles, inventory, OURS, LEAF,
   balanced, splitArgs, corpusLoaded: () => byName.size > 0,
 };
 

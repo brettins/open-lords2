@@ -47,7 +47,7 @@
       "Diplo_DrawScreen",
       "Diplo_DrawLordCard"
     ],
-    "module": "diplomacy.rs",
+    "module": "diplomacy",
     "widgets": {
       "table": "g_diploWidgets",
       "records": 6,
@@ -77,7 +77,7 @@
       "Screen_SendSupplies",
       "FUN_0041aea2"
     ],
-    "module": "supplies.rs",
+    "module": "supplies",
     "widgets": {
       "table": "g_sendSuppliesWidgets",
       "records": 8,
@@ -98,7 +98,7 @@
     "roots": [
       "Screen_BattleMasterRatings"
     ],
-    "module": "ratings.rs",
+    "module": "ratings",
     "missing": [],
     "invented": [],
     "notes": "7 x 3 twice, not 7 rows; the scoring rule is FUN_0042C64F and was undocumented anywhere.",
@@ -116,7 +116,7 @@
     "roots": [
       "FUN_0041b032"
     ],
-    "module": "info.rs",
+    "module": "info",
     "missing": [],
     "invented": [],
     "notes": "Two painters and eleven layouts: UnitPanel_Draw (0x0041B19D) for a unit, FUN_0041BEFE for a tile. Settled here: L2.eng 31/21 \"Morale\" is drawn by nothing — seven literal group-31 draws, none of them index 21, and the one variable index is pinned to {0,2,5} by a four-arm kind ladder — so docs/armies.md's [V] on unit +0x166 is demoted. UnitPanel_Draw also assigns local_14 five times (0x23..0x27) and reads it nowhere; what those five values index is unestablished and deliberately not guessed. docs/draws.md §12.",
@@ -129,7 +129,7 @@
     "name": "The population panel",
     "painter": "Panel_Population",
     "addr": "0x004110B1",
-    "module": "county.rs",
+    "module": "county",
     "reachable": true,
     "also_drawn_by": [],
     "original": 28,
@@ -194,7 +194,7 @@
     "name": "The happiness panel",
     "painter": "Panel_Happiness",
     "addr": "0x004116FB",
-    "module": "county.rs",
+    "module": "county",
     "reachable": true,
     "also_drawn_by": [],
     "original": 29,
@@ -258,7 +258,7 @@
     "name": "The tax panel",
     "painter": "Panel_Tax",
     "addr": "0x0041152F",
-    "module": "county.rs",
+    "module": "county",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x15 arm: Widget_Draw(0, 0, &g_taxWidgets, 2)"
@@ -313,7 +313,7 @@
     "name": "The ration panel",
     "painter": "Panel_Ration",
     "addr": "0x00411B72",
-    "module": "county.rs",
+    "module": "county",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x19 arm: Widget_Draw(0, 0, &g_rationWidgets, 2)",
@@ -397,7 +397,7 @@
     "name": "The job popup",
     "painter": "Panel_JobDetail",
     "addr": "0x00412B33",
-    "module": "job.rs",
+    "module": "job",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x0F arm: if (g_jobPanelJob == 8) FUN_00413526() — the forge fire, 1 draw call"
@@ -465,7 +465,7 @@
     "name": "The village",
     "painter": "Village_Draw",
     "addr": "0x00412143",
-    "module": "village.rs",
+    "module": "village",
     "owned_elsewhere": true,
     "reachable": true,
     "also_drawn_by": [
@@ -588,7 +588,7 @@
     ],
     "notes": "Fixed: the rack count under each portrait was drawn with l2_view::text (our 5 x 7 debug font) where the original draws Ui_DrawNumber(v, '@', ..., &g_fontBody, 0x3F); it now goes through Pen::number. The corner picture now goes through Pen::ok_button rather than a hand-rolled draw_system + recess.",
     "unexercised": "no fixture has a county with a mercenary offer, so the `band men are added to the rack count` arm of Armoury_DrawRacks has never been driven from real data; no fixture has a realm with a non-red shield_index, so five of the six item sheets are untested.",
-    "module": "armoury.rs",
+    "module": "armoury",
     "roots": [
       "Screen_Armoury",
       "Armoury_DrawTorches",
@@ -673,7 +673,7 @@
     ],
     "notes": "VERIFIED, and it changes what 'the painter' means here: Screen_Draw (0x0040F1A0) has NO arm for 0x0D. The screen is painted once by Armoury_ClickRack calling Armoury_LoadScreen on the way in, and from then on only Screen_DrawWidgets' 0x0D arm runs - which is why FUN_00418E2D is in that arm as well as in the painter. docs/screens-county.md was right. SECOND FINDING: Armoury_LoadScreen draws ONE Ui_OkButton, at (0x1E4, 0x58) - but Ui_OkButton (0x0040D1BC) stashes only the last call's position into DAT_0055CE78/DAT_0057C8A0, and Screen_Armoury has already stashed (612, 368). So on 0x0D the armoury's own corner picture is still on screen and is NOT clickable; only the rack panel's is. We reproduce that by accident of structure (RackScreen tests only RACK_OK) and it is now said out loud. The four buttons now draw the records' own frames through Pen::system_frame.",
     "unexercised": "the weapon animation (DAT_005AEA48) has no counterpart here at all, so nothing exercises the second Pl8_DrawFrame; no fixture reaches this screen with a realm short of peasants, so Levy_EquipAll's `stops at whichever runs out first` arm is untested from the UI.",
-    "module": "armoury.rs",
+    "module": "armoury",
     "roots": [
       "Armoury_LoadScreen",
       "Armoury_DrawRacks",
@@ -807,7 +807,7 @@
     ],
     "notes": "Five defects fixed, all cited from the painter. (1) Ui_DrawNumber(levyMen, '@', ..., 0x145, base + 0x44) is LEFT-ALIGNED at 0x145; we drew it right-aligned to 0x145 + 40, 40 pixels of drift on the number the player uses to size the levy. (2) The happiness figure is chained on to 69/11 or 69/13 with g_penAdvance, on THAT word's line at base + 0x30; we drew it at (0x188, base + 0x40), a line of its own. (3) Pl8_DrawFrame(&g_systemSheet, 0x53, pen + 0x188, base + 0x30) is drawn on BOTH happiness branches and we drew nothing - HAPPINESS_ICON; what the picture is has not been established and is named rather than described. (4) 69/15 'You have' + Ui_DrawCount(gold, 0) at (0x72, base + 0x92) was missing entirely, so the player was asked to buy without being told what he had. (5) The band's headline line - count, nationality and troop noun at base + 0x60 - is g_fontHeading; we drew the whole block in the body font, and used our own troop name where the painter fetches L2.eng group 8.",
     "unexercised": "C26: every shipped fixture is turn one with one county per realm, and NO fixture has a county with a non-zero mercenaryOffer. So the whole offer layout - base 0x80, rows 0x10, the inset well 0x60 tall, the three heading-font lines, the affordable/unaffordable split, DAT_00522F58 = 3, and the 16-pixel widget offset - has never been driven from a real save. It is exercised only from hand-built state, which is the shape crates/l2-game tests warn about.",
-    "module": "army.rs",
+    "module": "army",
     "roots": [
       "Screen_RaiseArmy"
     ]
@@ -910,7 +910,7 @@
     ],
     "notes": "This screen was the sharpest instance of the pilot's finding #1 in the group and the worst in the group by a distance: 4 of its 23 draw calls are in the named painter, 18 are in Screen_SplitArmyRows, and Screen_DrawWidgets calls that helper again every frame. It went from 3 real / 14 placeholder draws and 5 English captions of our own to 21 real / 2 and one caption, which is named as ours at the site. The row-7 band block also had two structural errors: the original draws ONE number, in whichever column holds the band, and puts the troop noun on a SECOND line indented to 0x58 - we drew two numbers on one line with our own words.",
     "unexercised": "no fixture has an army carrying a mercenary band, so row 7 - the 0x12 widget count, the second arrow pair at y 344, the 0x184 totals row, the two-line band block and L2.eng group 16 on this screen - is driven only from hand-built state. C26.",
-    "module": "divide.rs",
+    "module": "divide",
     "roots": [
       "Screen_ArmyDivision",
       "Screen_SplitArmyRows"
@@ -979,7 +979,7 @@
     ],
     "notes": "THE EXTREME CASE THE BRIEF PREDICTED, AND IT RESOLVES THE OTHER WAY. Screen_Merchant makes one call to a named pixel primitive and the grid is not 'somewhere else': merchant.pl8 IS the screen. Every ware, shelf and price frame is in one raw 640 x 480 raster that FUN_00408FCB reads directly into the display buffer, and mercgrid.pl8 is a parallel image of good ids that is never drawn. So the picture and the click map are the same artwork twice and there is no missing painter. DAT_004DD808 is two widget records - (256,452) frame 27 and (288,452) frame 25 - whose handler FUN_0043527B is an eleven-byte 'return;' and whose count is written 0 by Screen_Merchant and by nothing else in the binary (xref.js touches DAT_00569500 returns three functions and the other two only read it). Two buttons that were gutted rather than deleted: g_sendSuppliesWidgets' cut row in a second place, and a shorter story. C109. Also [V]: FUN_004B3EC0 writes into g_backBufferBits and FUN_004B3F0A reads out of it, with g_spriteWidth 0x20 counted in dwords (128 bytes) and stride 0x200 = 640 - 128, so the save/restore patch is exactly the plaque's own 128 x 64 box.",
     "unexercised": "the hover plaque with a merchant of morale other than 100 - Merchant_SpawnAll writes 100 into every merchant and nothing writes it again, so no fixture can produce a price that is not exactly double; and C26, no shipped fixture has a realm holding stock of a good the stall sells.",
-    "module": "merchant.rs",
+    "module": "merchant",
     "roots": [
       "Screen_Merchant",
       "Merchant_HoverPlaque"
@@ -1092,7 +1092,7 @@
     "notes": "Ui_DrawHappinessDelta on the TRADE screen turns out to be the ale preview and nothing else: the call is `if (good == 4 && g_alePreviewHappiness != 0)`, and it is four draws - an opening bracket, Ui_DrawDelta in mode 1 ('+N' in 0x3F, '-N' in 0xF9), Misc_cty.pl8 frame 0x17 (the happiness face) two pixels high, and a closing bracket a flat 0x14 further on. The field is g_alePreviewHappiness (0x0053E8C0), written by Ale_PreviewGain (0x00435673) from the PENDING crown total and capped at 5 - county.aleHappinessGiven, so the number beside 'Ale' is what the purchase would buy before it is made. It is the one county field on a screen otherwise entirely about the realm's purse. Two other things worth recording: 'Purchase?' is drawn in colour 0xF9 and 'Sale?' in 0xFC, the only place on this screen where colour carries meaning; and DAT_0058FE2C (the drop-capital colour) is on for the heading, the price line and the 'You have' line and off for the advice well.",
     "fields_verified": "The panel's numbers are DAT_0057C8C0 (sell price = g_merchantStall[good], never moves), DAT_0055CD70 (buy price = sell + max(1, Pct(sell, clicked merchant's morale)), 0 markup for ale), DAT_00554170 (signed quantity, + buys and - sells), DAT_0053E9E4 (the floor, which is MINUS what the seller holds - the 'and N ...' clause prints -DAT_0053E9E4), DAT_0057A0FC (the ceiling, gold / buyPrice), g_tradeCrowns and g_realms[g_localPlayer].gold. Ours reads the same ones through l2_kingdom::trade; the sign trap is real and we had it right.",
     "unexercised": "every state but qty == 0 on a good with no stock: C26 means no shipped fixture has a realm holding grain, iron, stone, wood or weapons at the moment a merchant is clicked, so the 'and N <icon>' clause, the price line, the tick and the cross and both questions have never been drawn against real artwork.",
-    "module": "merchant.rs",
+    "module": "merchant",
     "roots": [
       "Screen_TradeGoods",
       "Trade_DrawPanel"
@@ -1206,7 +1206,7 @@
     ],
     "notes": "THREE INDEPENDENTLY READ TABLES AGREE FIVE TIMES EACH, which is what says all three were decoded at the right base address. g_castleTypeWidgets' five hit rectangles tile x 17..618 as (17,95) (96,209) (210,290) (291,414) (415,618); DAT_004D2E28's five Cas_bits selection marks sit at x 24, 103, 231, 307, 462 - one inside each strip, in order; DAT_004D2E64's five 'you already have this' marks sit at x 52-10, 153-10, 253-10, 370-10, 538-10 - again one inside each strip, in order. Nothing in the binary relates the three. the_two_mark_tables_land_inside_the_five_strips asserts it. Also [V]: Screen_FrameInput's 0x1B arm takes Ui_OkButtonClicked() as a close to the map, so the corner picture is a THIRD way out beside the thumb-up and the thumb-down; we drew it and did not answer it, and now do.",
     "unexercised": "every castle type but 'none' and type 1. C26: every shipped fixture is turn one with no castle standing anywhere, so the `if (castleType != 0)` branches - the material subtraction that can go NEGATIVE, and the Cas_bits frame 0x0C standing mark - have no oracle. The motte-and-bailey no-picture case is [V] from the table and the file size, never from a running frame.",
-    "module": "castle.rs",
+    "module": "castle",
     "roots": [
       "Screen_CastleBuild",
       "Screen_CastleBuildPanel"
@@ -1217,7 +1217,7 @@
     "name": "Help options",
     "painter": "Screen_HelpOptions",
     "addr": "0x004154EA",
-    "module": "options.rs",
+    "module": "options",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x31 arm: Widget_Draw(0, 0, &g_helpOptWidgets, g_helpOptWidgetCount) x3"
@@ -1276,7 +1276,7 @@
     "name": "Advanced options",
     "painter": "Screen_AdvancedOptions",
     "addr": "0x00414F68",
-    "module": "options.rs",
+    "module": "options",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x39 arm: Widget_Draw(0, 0, &g_advancedOptWidgets, g_advancedOptWidgetCount) x4"
@@ -1331,7 +1331,7 @@
     "name": "Sounds",
     "painter": "Screen_SoundOptions",
     "addr": "0x0041515C",
-    "module": "options.rs",
+    "module": "options",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x42 arm: Widget_Draw(0, 0, &g_soundOptWidgets, g_soundOptWidgetCount) x3"
@@ -1385,7 +1385,7 @@
     "name": "Display options",
     "painter": "Screen_DisplayOptions",
     "addr": "0x004152EA",
-    "module": "options.rs",
+    "module": "options",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x43 arm: Widget_Draw(0, 0, &g_displayOptWidgets, g_displayOptWidgetCount) x2"
@@ -1552,7 +1552,7 @@
     "name": "Loading and saving a conquest",
     "painter": "Screen_SaveLoad",
     "addr": "0x00414819",
-    "module": "saveload.rs",
+    "module": "saveload",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x35/0x36 arm: SaveLoad_DrawStatus(); Widget_Draw(0x10, 0x90, &g_saveLoadWidgets, 4)",
@@ -1673,7 +1673,7 @@
     "name": "The standings",
     "painter": "Screen_GreatestNoble",
     "addr": "0x0041593B",
-    "module": "nobles.rs",
+    "module": "nobles",
     "reachable": true,
     "also_drawn_by": [],
     "original": 11,
@@ -1724,7 +1724,7 @@
     "name": "A menu-bar drop-down is open",
     "painter": "Menu_RestoreBackdrop",
     "addr": "0x0040C928",
-    "module": "menubar.rs",
+    "module": "menubar",
     "reachable": true,
     "also_drawn_by": [
       "FUN_0040C725 (0x0040C725) - THE DROP-DOWN'S REAL PAINTER, called from the application frame loop at 0x004B99C0, two lines after Screen_DrawMenuBar(), and guarded on g_screenId == 0x32 inside itself. NOT in Screen_Draw and NOT in Screen_DrawWidgets.",
@@ -1924,7 +1924,7 @@
     "name": "A Battle is to be fought — the take-the-field prompt",
     "painter": "Screen_BattlePrompt",
     "addr": "0x00422D22",
-    "module": "battle.rs",
+    "module": "battle",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x12 arm: Widget_Draw(0x20, 0x30, &DAT_004DDBB0, DAT_00554408) — the table holds EXACTLY 2 records (g_sliderWidgets begins 48 bytes on at 0x004DDBE0) and the count is written by Battle_ChooseSettlement (0x004A6A30) as 2 when g_battleChoiceOwner == 1 and 0 otherwise. The (0x20, 0x30) offset is the window's own origin, so the table's box-relative (300, 68) and (340, 68) land at (332, 116) and (372, 116). Decoded with widgets.js to 8 records to look for a hidden row: records 2 and 3 are g_sliderWidgets' arrows and 4..7 are g_advancedOptWidgets. Nothing is hidden behind the count.",
@@ -1995,7 +1995,7 @@
     "name": "The Battle is decided — the after-battle report",
     "painter": "Screen_BattleResult",
     "addr": "0x00422FF1",
-    "module": "battle.rs",
+    "module": "battle",
     "reachable": true,
     "also_drawn_by": [
       "NOTHING. Screen_DrawWidgets has no 0x13 arm — verified by reading every `g_screenId ==` test in it. So this screen has no widget table and no widget hit test: its OK corner is drawn by the painter's own Ui_OkButton(400, 400, 0) and tested by Screen_FrameInput's 0x13 arm through Ui_OkButtonClicked, and its other exit is a right-button release. For a screen the player must dismiss, that means the corner is the only mouse target on it and it is not a widget."
@@ -2059,7 +2059,7 @@
     "name": "Siege preparations",
     "painter": "Screen_SiegePrep",
     "addr": "0x00421F14",
-    "module": "siege.rs",
+    "module": "siege",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1D arm: Widget_Draw(0, 0, &g_siegePrepWidgets, 6). THE TABLE HOLDS EXACTLY SIX RECORDS — decoded to ten with widgets.js and records 6..9 are g_smackTestWidgets (0x004DDFA0), which docs/symbols.json describes independently as the Smacker test page's minus/plus at (208, 232), (240, 232) and yes/no at (288, 280), (324, 284). There is no cut sheep row here. The six are up/down pairs at x 38, tops at y 184, 252, 320 with the partner 26 pixels below, hotspot ids 0, 1, 2; System.pl8 frames 21 and 23 (Widget_Draw picks g_systemSheet because the size field is 0x18 and the cutover is `< 0x18`), and frame + 1 while the press timer at +0x0D runs."
@@ -2237,7 +2237,7 @@
     "name": "The compose dialogs — seven shapes on g_diploKind",
     "painter": "Screen_DiploDialog",
     "addr": "0x0041789B",
-    "module": "diplomacy.rs",
+    "module": "diplomacy",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1A arm, three ways on g_diploKind: kind == 0 -> Widget_Draw(0,0,&DAT_004DD9D0,4); kind < 5 -> FUN_00417BD3(kind-1) then Widget_Draw(0,0,&DAT_004DDA30,2); else Widget_Draw(0,0,&DAT_004DDA60,2).",
@@ -2310,7 +2310,7 @@
     "name": "The title menu — the first screen of the original",
     "painter": "FUN_0041EA14",
     "addr": "0x0041EA14",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 1: FUN_0041EAA3() — the four items again, every frame, which is how the highlight follows the pointer"
@@ -2362,7 +2362,7 @@
     "name": "Your options",
     "painter": "FUN_0041EC8A",
     "addr": "0x0041EC8A",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 2: FUN_0041ECE6()"
@@ -2405,7 +2405,7 @@
     "name": "Load a game — the save browser inside the front end",
     "painter": "FUN_0041EF42 -> FUN_004148E4(5)",
     "addr": "0x0041EF42",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 3: SaveLoad_DrawStatus(); Widget_Draw(0x60, 10, &g_saveLoadWidgets, 4). g_saveLoadWidgets (0x004DDD78) holds EXACTLY 4 records for that count — thumb up (304,64) f29, thumb down (352,64) f31, and the two list arrows (384,144) f35 delta -3 and (384,176) f37 delta +3, list id 1. Record 4 is where g_skirmishFileWidgets begins (0x004DDD78 + 4*24 = 0x004DDDD8), so nothing is hidden. The offset (0x60, 10) is the page's own window origin; screens 0x35/0x36 pass (0x10, 0x90) for the same table."
@@ -2453,7 +2453,7 @@
     "name": "Choose your title and your shield",
     "painter": "FUN_0041EF57",
     "addr": "0x0041EF57",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 4: FUN_0041F321(); FUN_0041F1DD(); FUN_0041F01F() — the name field, the shields and the two buttons, all repainted every frame"
@@ -2511,7 +2511,7 @@
     "name": "Original campaign, or the new one",
     "painter": "FUN_0041F592",
     "addr": "0x0041F592",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 5: FUN_0041F5E8()"
@@ -2551,7 +2551,7 @@
     "name": "Full game, or skirmish — and it is a question put to a HOST",
     "painter": "FUN_0041F3E9",
     "addr": "0x0041F3E9",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": false,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 6: FUN_0041F4A1(), itself guarded on g_netIsMaster != 0"
@@ -2594,7 +2594,7 @@
     "name": "The custom game, single player",
     "painter": "FUN_0041F6C7",
     "addr": "0x0041F6C7",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 7: ScenarioList_Draw(); FUN_0041F86D(999); FUN_0041FF75(0). All three are dirty-flag gated — DAT_0057C948, DAT_0055CE94 — and FUN_0041FF75 additionally on g_multiplayer != 0, so it draws NOTHING here."
@@ -2646,7 +2646,7 @@
     "name": "The custom game, multiplayer",
     "painter": "FUN_0041F77A",
     "addr": "0x0041F77A",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": false,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 8: ScenarioList_Draw(); FUN_0041F86D(999); FUN_0041FF75(0); FUN_00420147(0)"
@@ -2696,7 +2696,7 @@
     "name": "An open drop-down, over the page underneath",
     "painter": "FUN_0041FDD6",
     "addr": "0x0041FDD6",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "NOTHING. Page 9 has no Screen_DrawWidgets arm — and that is correct rather than suspicious: an open list is static, so there is nothing for the per-frame pass to repaint. It is reachable: the drop-down opener writes DAT_00553E5C = g_setupPage then g_setupPage = 9, and the closer writes g_setupPage = DAT_00553E5C back."
@@ -2734,7 +2734,7 @@
     "name": "No Lords of the Realm CD",
     "painter": "FUN_00420428",
     "addr": "0x00420428",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "NOTHING — page 10 has no Screen_DrawWidgets arm, and like page 9 that is right: the page is four static paragraphs. It is reachable from two arms of the page-1 handler (DAT_0058FE10 != 0, and DAT_005C9A74 outside 1..2)."
@@ -2776,7 +2776,7 @@
     "name": "Skirmish setup, multiplayer",
     "painter": "FUN_00420630",
     "addr": "0x00420630",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": false,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, pages 11 and 12 (identical arms): FUN_0041FF75(1); FUN_00420147(1); FUN_00420D40(); and, only when DAT_0056899C == 1, Widget_Draw(0, 0, &DAT_004DE000, DAT_0056D5C0)."
@@ -2837,7 +2837,7 @@
     "name": "Skirmish setup, single player",
     "painter": "FUN_0042051C",
     "addr": "0x0042051C",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 12 — the same arm as page 11, character for character"
@@ -2896,7 +2896,7 @@
     "name": "The skirmish file box, over page 12",
     "painter": "FUN_0042150B",
     "addr": "0x0042150B",
-    "module": "setup.rs",
+    "module": "setup",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1F arm, page 13: FUN_00414E06(DAT_004E65DC); Widget_Draw(0, 0, &g_skirmishFileWidgets, 2). g_skirmishFileWidgets (0x004DDDD8) holds EXACTLY the two records the count asks for — (480,256) f35 delta -1 and (480,288) f37 delta +1, list id 2, the same SaveLoad_Scroll the load box uses with a five-row window instead of fifteen. Record 2 at 0x004DDE08 is a different table (frame 33 buttons at x = 224, handlers 0x00434C34 onward — the options screens). Nothing hidden."
