@@ -5,6 +5,8 @@ mod bridge_and_tower_tests;
 pub use bridge_and_tower_tests::*;
 mod wood_and_proving_tests;
 pub use wood_and_proving_tests::*;
+mod ground_fire_tests;
+pub use ground_fire_tests::*;
 
 use super::*;
 use crate::cue::Cues;
