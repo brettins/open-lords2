@@ -77,7 +77,7 @@ impl Settings {
                 // `+0x29`/`+0x2A` are **not**: its tail loop writes 1 into
                 // both for every realm 1 … 5 (`00490000.c:5800-5801`), and
                 // `Game_SetupRealmsAndCounties` skips the realm entirely
-                // (`:5491`), so zeroing them here was ours alone.
+                // (`:5561-5566`), so zeroing them here was ours alone.
                 realm.strength = 0;
                 realm.in_play = false;
                 realm.lord = 0;

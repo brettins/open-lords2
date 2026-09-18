@@ -1,0 +1,41 @@
+{
+  "reviewed": "bc4ca1c4473262a3f0b2cc6dfa96da53ce21d4a6",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-scenario/src/newgame/scenario.rs",
+      "line": 70,
+      "address": "0x0049CAAA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-scenario/src/newgame/scenario.rs",
+      "line": 71,
+      "address": "0x0049D1E0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 84,
+      "address": "0x0049CAAA",
+      "verdict": "match",
+      "note": "supporting cite 00490000.c:5491 is PlayerStart_Compact; the skip is Game_SetupRealmsAndCounties :5561-5566"
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 81,
+      "address": "0x0049CAAA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 86,
+      "address": "0x00499DC3",
+      "verdict": "match",
+      "note": "[I] stale g_startingGoldChosen; 0 in a fresh process, 0 in a fresh Game"
+    }
+  ]
+}
