@@ -5,7 +5,7 @@
 `docs/arms.json` counts **which** gestures a screen answers. This document is the other
 half: **what kind** each one is. The two are independent, and until this was written we
 had the first and none of the second — so an arm could be marked `reproduced`, be
-genuinely present, and feel wrong to a player in every case.
+present, and feel wrong to a player in every case.
 
 A player reported three things in one breath and they are one thing:
 
@@ -45,7 +45,7 @@ The whole interface is data: arrays of **24-byte records**, walked by two functi
   rectangle `{x0, y0, x1, y1}`, nothing drawn. The map sidebar, the battle HUD, the
   armoury racks and every setup page are these.
 
-**The kind numbers do not overlap between the two**, which is why the tester is part of
+**The kind numbers do not overlap between the two**, so the tester is part of
 the question: `Hotspot_Test`'s 3 is a release; `Widget_Test` has no 3 that fires at all.
 
 ## 2. The five kinds
@@ -68,7 +68,7 @@ and prints every handler; `--counts` prints just this table's numbers. It totals
 records with a handler and not one whose kind byte is outside the five**, which is the
 closure claim: there is no sixth kind in the tables. The script spot-checks two records
 against handlers named from call sites before it will print anything, because a wrong
-region bound decodes plausible rubbish rather than nothing.
+region bound decodes plausible rubbish.
 
 > **Kind 2 is 23 records over 7 handlers, and this document said *"one pair, a
 > setup-page scroll"*.** That was written from one call site and was wrong by a factor
@@ -76,7 +76,7 @@ region bound decodes plausible rubbish rather than nothing.
 > multiplayer setup pages, and §6's verdict on our side is unchanged — but it is the
 > exact shape `CLAUDE.md`'s note about `[V]` warns of: a true statement about one table,
 > promoted to a statement about a kind. The cure is the same one that found it, which is
-> to make the count come out of the exe rather than out of a sentence.
+> to make the count come out of the exe.
 
 ### Answering the player, item by item
 
@@ -96,7 +96,7 @@ if (kind == 4 || kind == 5) {
 }
 ```
 
-and then it marks the rectangle with **`Gfx_MarkWidgetUrgent`** rather than the ordinary
+and then it marks the rectangle with **`Gfx_MarkWidgetUrgent`**
 `Gfx_MarkSpriteDirty`, so the depressed picture appears on the same frame as the press
 instead of at the next general redraw. *"The gauntlet would go down slightly when
 clicked"* is `base + 1`, urgent.
@@ -105,7 +105,7 @@ clicked"* is `base + 1`, urgent.
 Every `+`/`−`, every `<`/`>`, every up/down arrow in the game is `Widget_Test` kind 4 —
 the armoury's equip/unequip, the supplies `+`/`−`, the army-division steppers, the
 diplomacy gift stepper, tax, rations, castle build, siege engines, the save/load scroll
-pair. One function, one ramp, one 30 ms clock. There is no second implementation anywhere.
+pair. One function, one ramp, one 30 ms clock.
 
 ## 3. The auto-repeat, exactly
 
@@ -149,10 +149,10 @@ branch fires without consulting the table). So the schedule is
 — gaps of 6, 5, 4, 3, 3, 3, 2, 2, 3, 1, 1, … In milliseconds: the press fires at once,
 the **first repeat 240 ms later**, and it is running flat out — 33 a second — from
 **1.44 s**. There is a wobble at 36 → 39 that breaks the monotonic ramp. It is in the
-game and it is reproduced rather than smoothed; a formula fitted to this table would be
+game and it is reproduced; a formula fitted to this table would be
 a guess where a copy is a fact.
 
-`crates/l2-game/src/press.rs` is this, and
+`crates/l2-game/src/press/mod.rs` is this, and
 `crates/l2-game/tests/press.rs` pins the 48 bytes against the player's own executable —
 because every other test of the ramp is computed *from* the constant and would agree with
 any table whatever (`docs/agents.md`, *ablating a constant while computing your probe from
@@ -185,6 +185,17 @@ So: press → the picture goes down at once → **twenty frames** → the action
 delay, with the button visibly held down through it, is what the player read as *"the game
 waited on mouse-up"*.
 
+**The countdown is one per record, not one per table.** `+0x0D` is a byte of each record,
+and the loop above walks the whole table on every call and does not return after a call.
+So two gauntlets pressed a few frames apart are both drawn down and **both act**, each
+twenty frames after its own press; and pressing a record whose countdown is already running
+just writes `0x14` again, so a button pressed twice within twenty frames acts once, twenty
+frames after the second press. `crates/l2-game/src/press/mod.rs` held a single timer and a
+single pending widget until this was read: the second press overwrote the first, and a
+spinner pressed while a thumb was waiting cancelled the thumb. It keeps a timer per record
+now, and `Press::tick` returns every handler owed on a tick, in the order `Widget_Test`
+calls them.
+
 **Which controls are kind 5**, decoded from the tables: `g_confirmWidgets`
 (`0x004DD310`) — **the yes/no box's two gauntlets**, `Ui_OpenConfirm`'s *"Exit the
 game?"*, *"Autocalc battle?"*, *"Disband army?"*, *"Combine armies?"* — the
@@ -195,18 +206,30 @@ option checkbox** on the four options pages.
 **Twenty *frames*, not milliseconds.** The frame loop is uncapped — `App_IdleFrame` calls
 `App_Draw` whenever no window message is waiting — so the wall-clock duration depended on
 the machine. Ours uses twenty 16 ms ticks, 320 ms, and that is a departure recorded
-rather than hidden: nothing below the renderer may read a clock (`docs/netcode.md`).
+nothing below the renderer may read a clock (`docs/netcode.md`).
 
 ## 5. The gestures that are not a kind byte
 
 * **Drag** — `g_mouseLeftDown && g_mouseInputChanged`. `Ration_SliderClick` is the
-  example and it **returns 0 on the release**: a drag is not a click with extra steps.
+example and it **returns 0 on the release**.
+* **Hover** — the tool tip, `FUN_00476E95`. Not a record and not a kind: a frame
+  function that waits for `g_mouseInputChanged` to stay clear for **more than 999 ms of
+  `timeGetTime`** (63 of our 16 ms ticks), then asks one of two pointer ladders for an
+  `L2.eng` group 220 index. A button change counts as a mouse change, so a click takes a tip
+  away as a move does. `crates/l2-game/src/tooltip/mod.rs`.
 * **Double click** — `g_mouseLeftDoubleClick`, a *different flag* set from
-  `WM_LBUTTONDBLCLK`. Windows sends it **instead of** the second press.
+  `WM_LBUTTONDBLCLK`. Windows sends it **instead of** the second press. **And it does not
+  hold the button down**: `App_WndProc` (`0x004B29BE`) answers `0x203` with
+  `DAT_004EADA1 |= 1` and nothing else, and only `0x201` sets the down bit, so
+  `g_mouseLeftDown` stays clear for as long as the second press is held. A double click on
+  a kind-4 spinner steps once and **does not auto-repeat**, and the `WM_LBUTTONUP` that
+  ends it changes no bit and so raises no `g_mouseLeftReleased` either. `[V]` Ours still
+  delivers an `Event::Release` for that second up; every release-gated control has already
+  answered the first click's release by then, so nothing we have found acts on it twice.
 * **The settled click** — release, then **300 ms with no second press**:
   `g_mouseClickPending` is set on the release, `g_mouseClickSettled` on the timeout, and
   `g_mouseClickX/Y` hold the *release* position. It has **exactly one reader** in the
-  binary, `Village_ClickJob` (`0x0043A123`), which is why a click on a village cluster
+binary, `Village_ClickJob` (`0x0043A123`), so a click on a village cluster
   opens the job popup only after a beat. The village arm arms it with
   `g_mouseClickArm = 1` at the end of its ladder.
 * **The click sound.** `Sound_RestartSlot(1)` — `click3.wav` — is played by
@@ -223,12 +246,24 @@ rather than hidden: nothing below the renderer may read a clock (`docs/netcode.m
   and carried to the audio layer by `Screen::take_clicks` → `Machine::clicks` →
   `Director::hear_the_click`. `tests/click.rs` asserts the silent cases.
 
-  **And the double click, which the click's own guard names**: of the eight screens that
-  own a `Press`, **only the battlefield and the county panel answer
-  `Event::DoubleClick`** — the county panel since `tests/click.rs` caught it. The other
-  six (battle prompt, diplomacy, divide, info, message, supplies) drop it, so a fast
-  second press on their spinners steps once where the original steps twice. Counted
-  here rather than fixed there.
+  **And the double click, which the click's own guard names.** This paragraph counted six
+  screens that dropped `Event::DoubleClick`. **Five did; the battle prompt never had**,
+  because `BattlePromptScreen::handle` hands every event to `Press::event`. What the
+  original does on each, read from the arm and every guard in it (`[V]`), and what ours
+  does now:
+
+  | screen | answers a double click | does not |
+  |---|---|---|
+  | `0x12` battle prompt | both thumbs (kind 4) | — the arm reads no mouse flag at all |
+  | `0x0B` diplomacy | the verb buttons (kind 5: restart twenty frames) | the lord cards, `FUN_004369BD`, `g_mouseLeftPressed`; the corner, a release |
+  | `0x1A` compose | send and cancel (kind 5), the gift stepper (kind 4) | the county picker `FUN_0043B4CB`, `g_mouseLeftPressed`; the corner |
+  | `0x11` divide | all eighteen widgets (kinds 4 and 5) | the corner; the minimap epilogue, `g_mouseLeftPressed \|\| g_mouseRightPressed` |
+  | `0x04` information | the garrison widget (kind 4) | the corner and the brush (releases); the unit buttons (hotspot kind 1); the minimap |
+  | message scroll | a prompt's two thumbs (kind 4), returning 1 | the 48 × 48 corner, `g_mouseLeftPressed`; anything else passes down |
+  | `0x18` supplies | the spinners (kind 4) and thumbs (kind 5) | the two icons (hotspot kind 1); the minimap pick `FUN_0043B412` |
+
+  Each is asserted through the screen stack: `tests/military.rs`, `tests/gestures.rs`,
+  `tests/diplomacy.rs`.
 
 ## 6. What we reproduce, by kind
 
@@ -240,17 +275,32 @@ arms and still feel wrong in every one of them.
 |---|---|---|
 | `left-press` (hotspot 1) | 121 records, 38 handlers | reproduced — `Event::Click` is the down edge, and `Kind::Press` is it |
 | `left-release` (hotspot 3, `Ui_OkButtonClicked`) | 26 `Ui_OkButtonClicked` call sites plus 7 kind-3 records | reproduced — `Event::Release`, and `Kind::Release` in the shared table |
-| `left-press-repeat` (widget 4) | 139 records, 53 handlers | **built and wired on seven screens**: county tax and rations, supplies, army division, the battle prompt, the message scroll's five prompts, the diplomacy gift stepper, the info panel's garrison widget |
-| `left-press-delayed` (widget 5) | 42 records, 29 handlers | **built and wired on five**: the yes/no box, army division, supplies, diplomacy's six verb buttons and its send/cancel, and the **twelve rows of the four options panels** — which acted on the click and had no `docs/arms.json` record until the tip-screens branch noticed |
+| `left-press-repeat` (widget 4) | 139 records, 53 handlers | **built and wired on nine screens**: county tax and rations, supplies, army division, the battle prompt, the message scroll's five prompts, the diplomacy gift stepper, the info panel's garrison widget, **the save/load box's four widgets and the trade panel's six** — the last two answered raw clicks, with no click and no pressed picture, and the trade arrows did not repeat |
+| `left-press-delayed` (widget 5) | 42 records, 29 handlers | **built and wired on seven**: the yes/no box, army division, supplies, diplomacy's six verb buttons and its send/cancel, the **twelve rows of the four options panels**, **the castle-build yes/no** and **the raise-army screen's Continue, tick and cross** — the last two acted on the click |
 | `left-press-held` (hotspot 2) | 23 records, 7 handlers | **built and reaches nothing.** All seven handlers are skirmish and multiplayer setup pages this engine does not have; `Kind::Held` exists so the day one arrives it is a declaration and not a rewrite |
-| the pressed frame (`base + 1`) | every kind-4 and kind-5 widget | **drawn on eight screens** — `Press::pressed` is `+0x0D`, and the painter adds one |
+| the pressed frame (`base + 1`) | every kind-4 and kind-5 widget | **drawn on thirteen screens** — `Press::is_pressed(i)` is record `i`'s `+0x0D`, and the painter adds one |
+| the repaint while held | the handler paints (`Tax_IncreaseCounty` ends `Panel_Tax()`; the gift stepper and `SaveLoad_Scroll` set `g_redrawRequest = 2`), or `Battle_Frame`'s every-frame `Screen_DrawWidgets` does (`Screen_SplitArmyRows`, `FUN_0041AEA2`, `Trade_DrawPanel`) | **reproduced** — `Press::take_redraw`, handed up through `Screen::take_redraw` by every screen that owns a `Press`. Ours stepped the number on every pulse and showed it at the release |
+
+**Which yes/no boxes, enumerated.** Every record in the exe drawn with the mailed hands,
+frames 29 and 31 — `node tools/oracle/kinds.js | grep -E "f29|f31"` — and its kind: the
+yes/no box, the division confirm, supplies, diplomacy's send, the castle build and the
+raise-army hire are kind **5**; the battle prompt, the five message prompts, the save/load
+box and the trade panel are kind **4**. `g_smackTestWidgets`' pair (`FUN_00434F53`) is kind
+5 on a screen this engine does not have. **Four of those were not answered through `Press`
+at all** — save/load, castle build, raise army, trade — and a player met two of them.
+
+**The `// arm:` marker for these kinds is now the declaration itself.** A widget's kind is
+written `crate::arm!("<id>", Delayed)`, which *is* `Kind::Delayed` and is also the marker
+`tests/arms.rs` reads, with the gesture taken from the identifier; and a comment marker may
+not claim `left-press-repeat`, `left-press-delayed` or `left-press-held`. So the kind a
+widget is declared with and the word its marker claims cannot disagree.
 
 **What is built is the layer; what is not is the wiring, and the two are different
-claims.** `crates/l2-game/src/press.rs` carries `Kind`, `Widget` and `Press::event`, so a
+claims.** `crates/l2-game/src/press/mod.rs` carries `Kind`, `Widget` and `Press::event`, so a
 screen **declares** the kind of each rectangle and stops keeping press/release state of
 its own — that is the same shape as the original, where the kind is a byte in the record
 and the tester does the rest. What remains is that our screens name a small fraction of
-the original's 332 records. That is countable rather than remembered:
+the original's 332 records. That is countable:
 `node tools/oracle/kinds.js` is the original's side and `docs/arms.json` is ours.
 
 > **Say the boundary in the same sentence as the number.** Of the **five gesture kinds**,
@@ -265,7 +315,7 @@ the original's 332 records. That is countable rather than remembered:
 Three, in rising order of what they can catch:
 
 1. **The vocabulary is closed** (`crates/l2-game/tests/arms.rs`). A new kind costs a
-   decision rather than a keystroke. It also caught `button-0` … `button-5`: **fourteen
+decision. It also caught `button-0` … `button-5`: **fourteen
    records had been filing a *position in a table* in the field that holds a *kind*.**
 2. **The marker carries the gesture**, and the check is set equality on **(id, gesture)
    pairs**, not on ids. An arm answered with the wrong kind stops counting as reproduced.
@@ -296,7 +346,7 @@ the check now scans `what` and `note` for addresses that land **exactly on a rec
 inside the two regions** — not on a handler, which is the false-positive that made the
 first version of this useless — and cross-checks those too.
 
-Three things make it safe rather than clever, and they are worth copying:
+Three things make it safe, and they are worth copying:
 
 * **Record bases only.** A record whose prose mentions a *function* mentions it for a
   hundred reasons; a record whose prose names an address in `0x004DC4D0 … 0x004DE400` is

@@ -2,7 +2,7 @@
   "_note": [
     "Every place Lords2.exe asks for a sound, and what we do about each one.",
     "docs/audio-triggers.md is the prose; this is the counted form of it, and",
-    "crates/l2-game/tests/sfx.rs is what stops it rotting.",
+    "crates/l2-game/tests/sfx/main.rs is what stops it rotting.",
     "",
     "The `sites` array is GENERATED from the decompilation --- the id, addr,",
     "prim, class and arg columns all come out of `node tools/oracle/sounds.js",
@@ -39,10 +39,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_03_wav_004de8a0,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_03.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Battle_BeginFromCampaign#2",
@@ -50,10 +50,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_01_wav_004de8ac,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_01.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Battle_BeginFromCampaign#3",
@@ -61,10 +61,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_02_wav_004de8b8,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_02.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Battle_ChooseSettlement#1",
@@ -75,7 +75,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "ff_batl.wav",
-      "note": "Director::listen, on ScreenId::BattlePrompt arriving."
+      "note": "Director::listen, on ScreenId::BattlePrompt arriving. The player's report of 2026-09-14 - \"no drum roll when I try to attack a country\" - was covered only by a pushed-stack fixture; tests/audio_wiring marching_into_an_enemy_county_sounds_the_battle_fanfare now drives the march and the end of turn through the real Machine and Director and finds it sounding, and still sounding sixty frames on. What that leaves as the suspect is Sound_PlayFile's own drop: a message fanfare or voice still in the one buffer when the question opens swallows it, here as in the original."
     },
     {
       "id": "Battle_DragSelect#1",
@@ -84,7 +84,7 @@
       "class": "cry",
       "arg": "0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][0][take], 66 files",
       "note": "The box commit, guarded on something being held. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -95,7 +95,7 @@
       "class": "cry",
       "arg": "0",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][0][take], 66 files",
       "note": "The pick commit, unguarded. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -106,9 +106,9 @@
       "class": "cry",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
-      "note": "H or V, before our pause and no-unit guards - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
+      "note": "H or V, paused or not, and before our no-unit check - the original cries unconditionally. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
     {
       "id": "Battle_OrderSelection#1",
@@ -117,7 +117,7 @@
       "class": "cry",
       "arg": "3",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][3][take], 66 files",
       "note": "An order with g_battleHoverSurface == 2, the moat. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -128,7 +128,7 @@
       "class": "cry",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][1][take], 66 files",
       "note": "An order onto anything else. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -139,7 +139,7 @@
       "class": "cry",
       "arg": "2",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/battlefield.rs",
+      "ours": "crates/l2-game/src/battlefield/mod.rs",
       "sound": "g_troopSounds[troop][2][take], 66 files",
       "note": "An order with an enemy under the pointer. LiveBattle records Cry { troop: DAT_0055408C, class } and audio::Director plays it through TroopCries - Sound_PlayTroopCry’s round robin, no RNG - and Audio::play_file, which drops it while the one-shot buffer is busy."
     },
@@ -193,10 +193,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xb",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Fire. BattleMan_BurnTick plays FUN_004262cf(0xB), deadguy2.wav, when a side-0 figure standing on a burning cell (surface 10 or 17) loses its last man. l2-sim has no burning cells: the effects that write those surfaces, FUN_00485675 and FUN_00485861, are not built. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy2.wav",
+      "note": "Fire. BattleMan_BurnTick plays FUN_004262cf(0xB) when a side-0 figure standing on a burning cell (surface 10 or 0x11) loses its last man. l2_sim::fire::burn, run from BattleRunner::update_man at the head of each figure's frame; the occasion is l2_sim::cue's burn_deaths and the slot is chosen by audio::battle_requests. Surface 10 is written by FUN_00485675 (oil, a bridge) and 0x11 by FUN_004859E5 from FUN_00485861's 0x10 (a wood) - this note used to say both were written directly."
     },
     {
       "id": "BattleMan_BurnTick#2",
@@ -204,10 +204,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0xc",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Fire. The side-4 twin of #1: FUN_004262cf(0xC), deadguy3.wav. Not built for the same reason. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "deadguy3.wav",
+      "note": "Fire. The side-4 twin of #1: FUN_004262cf(0xC). l2_sim::fire::burn; the occasion is l2_sim::cue's burn_deaths and the slot is chosen by audio::battle_requests."
     },
     {
       "id": "BattleMan_FireMissile#1",
@@ -270,10 +270,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "The fail arm of castle1..5.smk. Scene::Film stops the bed while the film's screen is up -- held one tick when the film will not open -- and the next derivation starts it over."
     },
     {
       "id": "County_ChangeOwner#1",
@@ -350,7 +350,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "SETUP3.WAV is the SKIRMISH bed, not the credits and not the ending. [V] FUN_00433155 is the setup screen’s OK: with DAT_0055302c == 3 it sets g_setupPage 0xC single / 0xB multiplayer, plays setup3.wav looped and calls Skirmish_Setup. Nothing built here opens the skirmish pages."
     },
     {
       "id": "FUN_00435339#1",
@@ -358,10 +358,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_01_wav_004d5760,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
+      "sound": "s068_01.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_0043543d#1",
@@ -369,10 +369,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_02_wav_004d576c,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
+      "sound": "s068_02.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_00435541#1",
@@ -380,10 +380,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_02_wav_004d5778,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
+      "sound": "s068_02.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_004355db#1",
@@ -391,10 +391,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s068_01_wav_004d5784,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S068_01 / S068_02 from four handlers of a setup spinner, unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/merchant/mod.rs",
+      "sound": "s068_01.wav",
+      "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
       "id": "FUN_004376bb#1",
@@ -413,10 +413,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "4",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "moo_2.wav",
+      "note": "The field brush: pasture. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#2",
@@ -424,10 +424,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "7",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "wheat.wav",
+      "note": "The field brush: grain. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#3",
@@ -435,10 +435,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "fallow.wav",
+      "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#4",
@@ -446,10 +446,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "fallow.wav",
+      "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_00438b02#5",
@@ -457,10 +457,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "6",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A channel from a click to the audio layer. The field brush is handled in screens/info.rs and a screen cannot reach Audio by design (netcode D-3). Its effect - the painted tile’s field type - IS observable, so the cheapest honest wiring is for Director to remember the tile the information panel is about and notice its terrain change."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "fallow.wav",
+      "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
     },
     {
       "id": "FUN_0043a997#1",
@@ -468,10 +468,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "8",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Slot 8 when the blacksmith’s weapon type is set. screens/armoury.rs has the rack; the setter is not wired to a sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "stonecut.wav",
+      "note": "Slot 8 when the blacksmith's weapon type is set, gated on the county being the local player's -- the setter's sound, not the page's. Director::hear_the_smithy diffs County::weapon_type across the tick rather than taking a report, for hear_the_march's reason: a flag on Game would be in the save and in the lockstep digest, for a sound. The only other writer of weapon_type is AI_ChooseIndustry's rota, which never runs on a county the local player owns."
     },
     {
       "id": "FUN_00477c89#1",
@@ -501,10 +501,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "3",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Boiling oil. FUN_0047A814 is Melee_Tick’s troopType == 10 arm: it spawns a class-7 missile, kills the pot and plays FUN_004262cf(3), pouroil.wav. l2-sim’s melee::engage refuses every siege engine, oil included, so the pot never reaches it. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "pouroil.wav",
+      "note": "Boiling oil. FUN_0047A814 has two callers, and this note once named one: Melee_Tick's troopType == 10 arm, reached when an enemy steps at the pot (Melee_AdjacentEnemyDir does not skip engines, and the 999 arm locks the pot into state 4), and BattleUnit_Order's oil loop, when the pot's unit is ordered downhill from surface 6, 4 or 5. It spawns the class-7 stream, spends the pot and plays FUN_004262cf(3). BattleRunner::pour_oil and l2_sim::fire; the occasion is l2_sim::cue's oil_poured."
     },
     {
       "id": "FUN_0047fe0b#1",
@@ -523,10 +523,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_dest_ind_wav_004d9f28,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The bridge fire. Missile_Step calls FUN_0048551D whenever any missile enters a surface-7 cell: Sound_PlayFile(dest_ind.wav, 0, 0), then FUN_00485675 sets that cell and its neighbours burning. l2-sim models no fire and no ignition. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "The bridge fire. FUN_0048551D has two callers: Missile_Step, when a missile whose +0x3C is 0 enters a surface-7 cell, and Cell_TryEnter, when a side-4 figure tries one. Sound_PlayFile(dest_ind.wav, 0, 0), then FUN_00485675 on the cell and on every bridge cell beside a burning one for five rings - along the bridge, not round the cell as this note used to say. l2_sim::fire::bridge_fire; the occasion is l2_sim::cue's bridges_fired, through Audio::play_file, the one-shot buffer."
     },
     {
       "id": "FUN_00491492#1",
@@ -534,10 +534,10 @@
       "prim": "FUN_004262cf",
       "class": "bank",
       "arg": "0x11",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A siege tower docking. FUN_00491492 is troopType 8 finding an elevation-2 cell round its polar facing: it destroys the tower, lays a 3x3 ramp and plays FUN_004262cf(0x11), siegedoc.wav. l2-sim’s towers are stopped by a wall; docking is not built. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "siegedoc.wav",
+      "note": "A siege tower docking. FUN_00491492 runs when a troop-8 engine's step is refused, and docks against ground exactly two high two cells ahead of one of its four orthogonal facings, starting from its polar facing: it destroys the tower, lays a 3x3 ramp (FUN_004921E5), adds 3 to the breach score and 4 to the approach score and plays FUN_004262cf(0x11). l2_sim::siege::tower_dock_site and lay_tower_ramp, BattleRunner::dock_tower; the occasion is l2_sim::cue's towers_docked."
     },
     {
       "id": "FUN_0049694f#1",
@@ -581,7 +581,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "The skirmish bed again, on the DAT_0057A0F0 == 1 arm of the return to the front end — the arm that does not reload the map or reset g_setupPage. [V] the branch; [I] that DAT_0057A0F0 is the skirmish flag, from FUN_00433155 clearing it on the way to setup page 1. The credits and the ending are FILMS and carry their own track: no Music_Play site plays a bed for either."
     },
     {
       "id": "FUN_00497a34#2",
@@ -603,7 +603,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "S011_01.wav, the front end’s one-per-session welcome line."
+      "note": "S011_01.wav, the front end's one-per-session welcome line. BLOCKED on the page, not on the line: FUN_00497A34 is the RETURN to the front end, and the page it returns to has no ScreenId -- our front end is ScreenId::Setup(SetupPage) and nothing in this engine leaves a running game for it, which is why #1 and #3 on this same function are both unreached. Director::listen's stack diff is the mechanism and it needs an arrival it can see. Unblocks with the page; the line is then one play_file. (The ledger row calls this 'screen 0x20'; 0x20 is the standings page, FUN_004b3994#1, which is reproduced -- the number does not belong to this site.)"
     },
     {
       "id": "FUN_004a6c68#1",
@@ -611,10 +611,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_03_wav_004de87c,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_03.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "FUN_004a6c68#2",
@@ -622,10 +622,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_01_wav_004de888,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_01.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "FUN_004a6c68#3",
@@ -633,10 +633,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_02_wav_004de894,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_02.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "FUN_004ad9f0#1",
@@ -644,10 +644,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s040_02_wav_004df074,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S040_01 / S040_02, caller unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
+      "sound": "s040_02.wav",
+      "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },
     {
       "id": "FUN_004ad9f0#2",
@@ -655,10 +655,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s040_01_wav_004df080,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S040_01 / S040_02, caller unread."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
+      "sound": "s040_01.wav",
+      "note": "SaveLoad_Tick's two: g_screenId == 0x36 (the save box) speaks S040_02, anything else S040_01. Decided in SaveLoadScreen::begin and reported on Game::spoken, because a screen cannot reach Audio."
     },
     {
       "id": "FUN_004b36c0#1",
@@ -669,7 +669,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "note": "BLOCKED, and the blocker is the confirm box itself, not the sound. The caller is known: Ui_OpenConfirm (0x0040E6F2), whose last statement it is, playing S010_01..16 by L2.eng group 10 index. We have 1 of its 13 call sites, and the one we have is a field on BattlefieldScreen rather than a ScreenId -- so there is no confirm screen to hang the line on and twelve of the thirteen prompts cannot be reached at all. Unblocks when the confirm box is a screen in its own right; the Game::spoken channel then carries it in one line, as the castle chooser's does."
     },
     {
       "id": "FUN_004b3714#1",
@@ -677,10 +677,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S016_01_wav_004df8b8 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The mercenary offer. Sidebar_Button calls FUN_004B3714(offer - 1) when the county has one, playing S016_01.wav + n*0x10; County::mercenary_offer exists but the raise-army screen does not read it and the Director cannot see a number that is not on a screen it can name."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S016_01 ... S016_12, the mercenary offer by nationality",
+      "note": "Sidebar_Button hotspot 1's tail. The arrival of ScreenId::RaiseArmy is the trigger, gated on the armoury not having been up the tick before - Armoury_Button id 2 writes the same g_screenId and is silent."
     },
     {
       "id": "FUN_004b3768#1",
@@ -688,10 +688,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S020_01_wav_004e2058 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S020_01 ... S020_05, the county's health band",
+      "note": "Panel_OpenPopulation's middle statement; the twin of Panel_OpenRation's two arms."
     },
     {
       "id": "FUN_004b37bc#1",
@@ -699,10 +699,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "local_8,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S031_01 ... S031_04 and S071_02 ... S071_06, the picked unit or castle",
+      "note": "The last statement of both functions that open screen 0x04, which is the edge TileInfo_Draw#1..#4 already uses. NO MERCHANT ARM, and that is the original's and not a gap of ours: the ladder tests kind 1, 4 and 2 and returns for anything else, so kind 3 falls out of the bottom; only four S031_*.wav ship; and L2.eng group 31 holds FIVE unit descriptions where four have voices - 13..16 are these four in this order and index 12, 'Merchants allow a county to buy needed supplies and raise revenue by selling goods.', is the one with prose and no recording. Map_Click sends a left click on a merchant to screen 0x08 instead, so the panel never opens on one that way."
     },
     {
       "id": "FUN_004b3940#1",
@@ -710,10 +710,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S071_02_wav_004e2118 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/castle/mod.rs",
+      "sound": "S071_02.wav",
+      "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10, from CastleBuild_Select (0x00436B22)'s last statement. The selection is the screen's own field and gone by the next tick, so the screen reports the line on Game::spoken and Director::listen plays it -- the channel the other six screen-local Sound_PlayFile sites already use. Same five files as FUN_004b37bc#3, indexed by the button rather than by castleType - 1."
     },
     {
       "id": "FUN_004b3994#1",
@@ -721,10 +721,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S035_01_wav_004e2168 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S035_01..07.wav",
+      "note": "The standings page (screen 0x20, crates/l2-game/src/screens/nobles/mod.rs) saying which of its seven categories is being looked at - the spoken half of L2.eng group 35, file named after group and index. TWO CALLERS, both passing DAT_0055CE7C and both unconditional: FUN_004351C4, the court button, and FUN_0043524E, one of the seven tabs. So the edge is a counter both call sites bump (Game::nobles_spoken) and not a diff on the category, which would swallow a tab pressed twice. The category is on the Game and not on the screen for exactly the reason the S071 row below is still blocked. TWO ENTRIES PAST WHAT IS REACHABLE: there are seven categories, so S035_08.wav - the line for \"undecided.\" - ships and is played by nothing, and the guard admits nine where the table at 0x004E2168 holds eight, so index 8 would read S075_01.wav out of the next table. Neither is reachable from either caller."
     },
     {
       "id": "FUN_004b39e8#1",
@@ -732,10 +732,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "local_8,1,0",
-      "status": "blocked",
+      "status": "dead",
       "ours": null,
       "sound": null,
-      "note": "Sibling voice tables, each with a caller we have not built: g_msgVoiceS010, S020, S035 and S071 are reached from screens and prompts outside the message window. Each is one Sound_PlayFile behind one table index, so the work is finding the caller rather than the sound."
+      "note": "The degraded castle's three lines, S075_02/03/04. FUN_004B39E8 HAS NO CALLER: zero rel32 calls and zero jumps reach 0x004B39E8 anywhere in the image, and no dword in any section holds that address, so it cannot be reached by pointer either. Measured with Widget_Test (0x0040DA1E, 36 rel32 callers) as the control, the same evidence D39 rests on. docs/bugs.md D40."
     },
     {
       "id": "FUN_004b3acd#1",
@@ -757,7 +757,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "The letter’s lord sting, S246_02.wav + lord*0x10, 90 ticks in. It needs Msg_DrawWindow’s category 1 branch to carry WHICH lord, which our message record has (from) - but the tick is a second schedule inside the one voice_tick already implements and wiring it needs that function to return a list rather than one value."
+      "note": "BLOCKED on the schedule, not on the data. The letter's lord sting, S246_02.wav + lord * 0x10, 90 ticks into a category-1 window. Msg_DrawWindow's category-1 branch carries WHICH lord and our message record has it (Record::from); what it does not have is a second schedule inside the one voice tick -- voice_tick answers with at most one line per window and this one has to sound alongside the window's own ff_msg.wav. Unblocks when voice_tick returns a list rather than an Option."
     },
     {
       "id": "Game_NewGame#1",
@@ -864,10 +864,10 @@
       "prim": "Sound_PlaySlot",
       "class": "bank",
       "arg": "0x10",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "A catapult shot on a rampart four high. Missile_Step’s class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1, reproduced) when the cell’s elevation is 1..3, and plays Sound_PlaySlot(0x10), catmiss.wav, without counting when it is 4 or more. l2-sim’s strike_wall_with_shot counts every wall cell and has no elevation arm. The per-man event stream this was filed against now exists (l2_sim::cue); what is missing is the mechanic."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "catmiss.wav",
+      "note": "A catapult shot on a rampart four high. Missile_Step's class-3 arm counts the hit and plays FUN_004262cf(0xF) (#1) when the cell's elevation is 1..3, and plays Sound_PlaySlot(0x10) without counting when it is 4 or more. BattleRunner::strike_wall_with_shot's high arm; the occasion is l2_sim::cue's walls_missed. The gate in front of both arms is the original's surface 4 with frame > 2; ours is siege::shot_damages_wall, surface 4 or 8 above elevation 0, because our castle has no frames."
     },
     {
       "id": "Missile_Step#3",
@@ -1018,10 +1018,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "County_ChangeOwner s capture letters, and no longer blocked: l2_game::arrival::capture_record posts the category-0x0D letter County_ChangeOwner (0x004A72FE) raises with groups 0x75..0x7E, so a county taken on the map reaches the film. This is the fail arm s restart, served by the same Scene::Film arm of Audio::follow as #20 and Smk_OnFinished#2 -- the bed stops for the film and the next derivation starts it over from its first sample. tests/movies the_narrator_reads_a_capture_over_its_film_and_the_bed_starts_over_after_it marches an army onto an enemy town and listens."
     },
     {
       "id": "Msg_DrawWindow#16",
@@ -1029,10 +1029,10 @@
       "prim": "Msg_PlayVoice",
       "class": "voice",
       "arg": "DAT_004f0374,DAT_004f0354",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. The animated capture and ending branches save the group and variant, dismiss the message, play cap_cty*.smk and speak AFTERWARDS from DAT_004F0374/DAT_004F0354. The trigger is the film ending, not a tick."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "530 files by group and variant",
+      "note": "County_ChangeOwner s capture letters, as #15, and reachable for the same reason. Director::listen plays message_voice(record.group, record.variant) on the frame the film reaches the stack: Smk_Play returns as soon as Smk_Open has put the first frame up, so Msg_PlayVoice runs with the film s opening -- the narrator reads over it, whether or not the film opened. #21 is the same line in the ending branch and the same code serves both."
     },
     {
       "id": "Msg_DrawWindow#17",
@@ -1065,7 +1065,7 @@
       "status": "blocked",
       "ours": null,
       "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "note": "The fail arm of the animated ending's FAST-MEDIA branch -- the 502x314 well and the CD's smk_high films. g_fastMedia is set only when sierra.ini reports a CD faster than 4x on a CPU faster than 70 MHz (0x0040EE32); a hard-disk install has no sierra.ini and takes the slow branch, which is #20. The restart itself is the same Scene::Film arm as #20's; what is missing is the branch that would call it."
     },
     {
       "id": "Msg_DrawWindow#2",
@@ -1084,10 +1084,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "The fail arm of the animated ending's slow-media film, the layout this install takes. Scene::Film stops the bed and the next derivation starts it over."
     },
     {
       "id": "Msg_DrawWindow#21",
@@ -1095,10 +1095,10 @@
       "prim": "Msg_PlayVoice",
       "class": "voice",
       "arg": "DAT_004f0374,DAT_004f0354",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. The animated capture and ending branches save the group and variant, dismiss the message, play cap_cty*.smk and speak AFTERWARDS from DAT_004F0374/DAT_004F0354. The trigger is the film ending, not a tick."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "530 files by group and variant",
+      "note": "The animated ending, with #16's correction: the voice runs as the film opens, not after it."
     },
     {
       "id": "Msg_DrawWindow#22",
@@ -1304,10 +1304,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup_wav_004d42a4,0,1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The conquest interstitial’s bed: setup.wav looped below the eighth campaign map, setup2.wav unlooped above it. Needs Scene to name the interstitial, which today answers Campaign."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "setup.wav",
+      "note": "Scene::Conquest { ended: false } — the interstitial below the eighth campaign map, looped."
     },
     {
       "id": "Screen_DrawConquest#2",
@@ -1315,10 +1315,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup2_wav_004d4298,0,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The conquest interstitial’s bed: setup.wav looped below the eighth campaign map, setup2.wav unlooped above it. Needs Scene to name the interstitial, which today answers Campaign."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "setup2.wav",
+      "note": "Scene::Conquest { ended: true } — the finished campaign's interstitial, and the game's only unlooped bed (Mixer::set_music_once)."
     },
     {
       "id": "Screen_FrameInput#1",
@@ -1329,7 +1329,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "The same skirmish bed, restarted as you LEAVE the rank sheet. [V] Screen_FrameInput’s own ladder: screen 0x2E (the Battle Master ratings, ScreenId::Ratings) goes to 0x2F on a press, and on 0x2F a RIGHT press plays setup3.wav looped and calls FUN_0042B780. Blocked on the skirmish front end, not on the sheet."
     },
     {
       "id": "Screen_FrameInput#2",
@@ -1340,7 +1340,7 @@
       "status": "missing",
       "ours": null,
       "sound": null,
-      "note": "SETUP3.WAV - the credits and ending bed, on screens 0x2E and 0x2F. Ships, never asked for."
+      "note": "The LEFT press on screen 0x2F, the same statement pair as #1: setup3.wav looped, then FUN_0042B780. [V]"
     },
     {
       "id": "Setup_ChooseCampaign#1",
@@ -1370,10 +1370,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_03_wav_004de8c4,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_03.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Siege_LaunchAssault#2",
@@ -1381,10 +1381,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_01_wav_004de8d0,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_01.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Siege_LaunchAssault#3",
@@ -1392,10 +1392,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s080_02_wav_004de8dc,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "Three takes of S080 at each of three call sites. Which of the three a given call plays is unread, and playing the first every time would be a guess rather than a reproduction."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "s080_02.wav",
+      "note": "The take is g_battleChoiceOwner, which was the unread half: 1 -> S080_03, 2 -> S080_01, else S080_02, identically at all three sites. Fired on the battle prompt opening, beside ff_batl.wav - which drops it while the trumpet sounds, here as in the original."
     },
     {
       "id": "Smk_OnFinished#1",
@@ -1403,10 +1403,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup_wav_004d50e4,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "setup.wav",
+      "note": "Back on setup page 1 after lom.smk. Scene::Film stops setup.wav for the trailer and Scene::FrontEnd starts it again from the top."
     },
     {
       "id": "Smk_OnFinished#2",
@@ -1414,10 +1414,10 @@
       "prim": "Music_StartCampaign",
       "class": "music",
       "arg": "",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Smacker playback. Every one of these restarts a bed that Smk_Play stopped, on the arm that runs when the film ends or fails; we play no films, our bed never stops, and there is nothing to restart."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "the campaign bed, from its first sample",
+      "note": "A castle or capture or ending film ending with g_battlePhase 0. Over a battle Smk_OnFinished restarts nothing, and Audio::follow keeps the field silent until it is left."
     },
     {
       "id": "TileInfo_Draw#1",
@@ -1469,10 +1469,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A dwelling plot going content 0x10 -> 0x13; the Entry::Plot arm is the writer."
     },
     {
       "id": "Unit_CrossField#1",
@@ -1480,10 +1480,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A standing field going to content 0; movement::destroy_field is the writer."
     },
     {
       "id": "Unit_MoveInFacing#1",
@@ -1535,10 +1535,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. An iron site trampled to content 3; movement::trample is the writer."
     },
     {
       "id": "Unit_TrampleTile#2",
@@ -1546,10 +1546,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A stone site trampled to content 6."
     },
     {
       "id": "Unit_TrampleTile#3",
@@ -1557,10 +1557,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A weapons site trampled to content 9."
     },
     {
       "id": "Unit_TrampleTile#4",
@@ -1568,10 +1568,10 @@
       "prim": "Sound_RestartSlot",
       "class": "bank",
       "arg": "3",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "dest_ind.wav when an army wrecks something it marched over. The rules are in l2-kingdom; the destruction is a state change the Director could diff, in the same shape as hear_the_march."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "dest_ind.wav",
+      "note": "Director::hear_the_wreck. A wood site trampled to content 12."
     },
     {
       "id": "Widget_Test#1",
@@ -1580,7 +1580,7 @@
       "class": "bank",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/press.rs",
+      "ours": "crates/l2-game/src/press/mod.rs",
       "sound": "click3.wav",
       "note": "The kind-4 arm: Sound_RestartSlot(1) inside the hit test, guarded by g_mouseLeftPressed || g_mouseLeftDoubleClick - the INITIAL press, never the auto-repeat pulses. Press::press is that line; Screen::take_clicks and Machine::clicks carry it to Director::hear_the_click without letting a screen reach Audio (netcode D-3). tests/click.rs asserts the silent cases; tests/audio_wiring.rs that it reaches the mixer."
     },
@@ -1591,7 +1591,7 @@
       "class": "bank",
       "arg": "1",
       "status": "reproduced",
-      "ours": "crates/l2-game/src/press.rs",
+      "ours": "crates/l2-game/src/press/mod.rs",
       "sound": "click3.wav",
       "note": "The kind-5 arm: Sound_RestartSlot(1) on the press, and the handler runs twenty frames later out of the countdown loop, silently. Press::press_delayed is that line, reached both through Press::event and by hand from DiplomacyScreen. tests/click.rs asserts the delayed fire is silent."
     }

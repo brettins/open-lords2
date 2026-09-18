@@ -1,0 +1,14 @@
+{
+  "reviewed": "fd128dadcac4ea2de80f5375d20efbf10adc4162",
+  "date": "2026-09-17",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 140, "address": "0x0048A38E", "verdict": "match",
+      "note": "surface 4 + category 5 short-circuit to the target; the original's surface==2 arm ahead of it is still not built (pre-existing)" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 178, "address": "0x0048A672", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 198, "address": "0x0048A672", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/stop_short.rs", "line": 92, "address": "0x0048A7D9", "verdict": "match",
+      "note": "surface/elevation are the source cell's and the rampart test now runs inside the callee, after the occupant arms, as at :4164" },
+    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 566, "address": "0x00484BF9", "verdict": "match",
+      "note": "g_battleUnits[sVar1].firing = 0x78 at :2054; the man-level firing byte on the same line :2053 is not built" }
+  ]
+}

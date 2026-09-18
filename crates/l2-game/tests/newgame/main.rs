@@ -1,0 +1,76 @@
+
+
+use std::path::PathBuf;
+
+use l2_formats::maps::MapSet;
+use l2_game::game::Assets;
+use l2_game::input::Event;
+use l2_game::scenario;
+use l2_game::screen::{Ctx, Screen, ScreenId, Transition};
+use l2_game::screens::setup::{
+    SetupPage, SetupScreen, CUSTOM_BUTTONS, CUSTOM_BUTTON_Y, MAP_LIST_ROW, MAP_LIST_ROWS,
+    MAP_LIST_X, MAP_LIST_Y,
+};
+use l2_game::{turn, Game};
+use l2_kingdom::realm::MAX_REALMS;
+
+/// `L2.eng` group 101's first five names, which are the first five slots.
+const IRELAND: usize = 2;
+const SCOTLAND: usize = 1;
+const ENGLAND: usize = 0;
+
+fn install() -> Option<PathBuf> {
+    l2_testkit::install_dir()
+}
+
+macro_rules! assets {
+    () => {{
+        let Some(dir) = install() else {
+            l2_testkit::skip!("no game install, so no L2_maps.dat and no L2.eng");
+        };
+        let platform =
+            l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+        Assets::load(&platform.vfs).expect("assets load")
+    }};
+}
+
+mod start_game;
+pub use start_game::*;
+mod campaign;
+pub use campaign::*;
+mod heraldry;
+pub use heraldry::*;
+mod army_size;
+pub use army_size::*;
+mod quaintville;
+pub use quaintville::*;
+
+pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
+    let mut ctx = Ctx { game, assets };
+    screen.handle(Event::Click { x, y }, &mut ctx)
+}
+
+/// Click row `row` of the map list, at the coordinates `FUN_00433905`'s hit
+/// test uses.
+fn pick_map(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, row: usize) {
+    assert!(row < MAP_LIST_ROWS);
+    let y = MAP_LIST_Y + row as i32 * MAP_LIST_ROW + MAP_LIST_ROW / 2;
+    click(screen, game, assets, MAP_LIST_X + 20, y);
+}
+
+fn press_start(screen: &mut SetupScreen, game: &mut Game, assets: &Assets) -> Transition {
+    click(screen, game, assets, CUSTOM_BUTTONS[1].0 + 20, CUSTOM_BUTTON_Y)
+}
+
+fn open(assets: &Assets, game: &mut Game) -> SetupScreen {
+    let mut screen = SetupScreen::new(SetupPage::Custom);
+    let mut ctx = Ctx { game, assets };
+    screen.update(&mut ctx);
+    screen
+}
+
+fn counties_in(assets: &Assets, slot: usize) -> usize {
+    assets.slot(slot).expect("the slot").county_count()
+}
+
+

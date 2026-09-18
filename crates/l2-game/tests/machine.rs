@@ -1,33 +1,18 @@
-//! The screen state machine and the two screens that need no game files.
-//!
-//! Nothing here opens a window and nothing here needs a copy of the game:
-//! `Assets::placeholder` supplies a grey palette and a blank map, which is
-//! enough for every assertion about *structure* — where a button is, what a
-//! click does, which screen ends up on top. Assertions about shipped artwork
-//! live in `tests/screens.rs`, which skips without an install.
 
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
+use l2_game::screens::confirm::Ask;
 use l2_game::screens::county::Panel;
 use l2_game::screens::menu::MenuScreen;
 use l2_game::Game;
 use l2_view::Canvas;
 
-/// County 1 is the player's, county 2 is unowned, county 3 belongs to an AI.
-///
-/// **The opponent is not decoration.** These tests end turns, and a world with
-/// one realm in it is a world that has already been won: the ending chain sees
-/// no opponents left, `Score_RankRealms` crowns the survivor, and the very first
-/// `E` sends the map screen to the conquest interstitial instead of leaving the
-/// map on top. That is the original's behaviour too — it is the fixture that was
-/// unreal. `crates/l2-game/tests/ending.rs` is where a game is *meant* to end.
-fn world() -> (Game, Assets) {
+pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(5);
-    // **Tip screens: No.** A new game's tips hold the campaign map's input on
-    // screen `0x27`; that is `tests/tips.rs`'s subject, not this file's.
     g.prefs.tip_screens = false;
     g.kingdom.set_county_count(3);
+    l2_testkit::chain_neighbours!(g.kingdom);
     g.kingdom.realms[1].in_play = true;
     g.kingdom.realms[1].strength = 3;
     g.kingdom.realms[1].is_human = true;
@@ -49,21 +34,11 @@ fn send(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
     machine.handle(event, &mut ctx);
 }
 
-/// One fixed simulation tick, which is what `main.rs` calls sixty times a
-/// second and what a turn is now spread over.
 fn tick(machine: &mut Machine, game: &mut Game, assets: &Assets) {
     let mut ctx = Ctx { game, assets };
     machine.update(&mut ctx);
 }
 
-/// Drive ticks until the season has advanced **and the fade has finished**, and
-/// answer how many ticks the phase machine itself took.
-///
-/// **A turn takes frames.** Pressing End Turn only *starts* one — see
-/// `l2_game::turn::TurnRun` — so a test that wants the numbers after a turn has
-/// to run the frames the player would have watched. The season advances part
-/// way through: `l2_view::fade::PHASES` frames of screen fade follow it, and
-/// the map does not take input again until they are done.
 fn run_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) -> u32 {
     let before = game.kingdom.turn_count;
     let mut phase_ticks = None;
@@ -81,7 +56,7 @@ fn run_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) -> u32 {
     panic!("the turn never came round");
 }
 
-fn draw(machine: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
+pub(crate) fn draw(machine: &mut Machine, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();
     let ctx = Ctx { game, assets };
     machine.draw(&ctx, &mut canvas);
@@ -99,17 +74,25 @@ fn the_menu_starts_a_campaign_and_the_map_sits_on_top_of_it() {
     assert!(!m.should_quit());
 }
 
+/// **Escape on the map asks first.** `App_WndProc` (`0x004B29BE`) `VK_ESCAPE`
+/// is `Menu_Quit()` inside a game, which is `Ui_OpenConfirm(0, …)` — the box,
+/// not the exit. `tests/confirm_box.rs` drives its two answers; here it is the
+/// stack that matters. Escape on the *menu* is ours and quits.
 #[test]
-fn escape_from_the_map_returns_to_the_menu_and_escape_there_quits() {
+fn escape_from_the_map_asks_the_exit_box_and_escape_on_the_menu_quits() {
     let (mut game, assets) = world();
     let mut m = Machine::new(ScreenId::Menu);
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Escape));
-    assert_eq!(m.ids(), vec![ScreenId::Menu], "the map popped, the menu is back");
+    assert_eq!(
+        m.ids(),
+        vec![ScreenId::Menu, ScreenId::Campaign, ScreenId::Confirm(Ask::Quit)],
+        "the map is still under the question"
+    );
     assert!(!m.should_quit());
 
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Escape));
-    assert!(m.should_quit());
+    assert!(!m.should_quit(), "the box has no keyboard arm — the original's has none either");
 }
 
 #[test]
@@ -137,10 +120,6 @@ fn a_click_that_lands_on_no_menu_item_does_nothing_at_all() {
     assert!(!m.should_quit());
 }
 
-/// The structural claim `docs/plan.md` makes, tested where it can actually
-/// fail: a screen **returns** a transition rather than performing one. The
-/// screen below is driven with no machine in existence, so if it could push
-/// anything there would be nothing to push onto.
 #[test]
 fn a_screen_returns_its_transition_and_has_no_way_to_perform_one() {
     let (mut game, assets) = world();
@@ -157,9 +136,6 @@ fn a_screen_returns_its_transition_and_has_no_way_to_perform_one() {
     assert_eq!(t, Transition::Quit);
 }
 
-/// Input goes to the top screen only. Driven through a key that both screens
-/// under test would answer differently: `E` ends the turn on the map, and the
-/// county panel ignores it.
 #[test]
 fn only_the_top_screen_is_offered_input() {
     let (mut game, assets) = world();
@@ -175,9 +151,6 @@ fn only_the_top_screen_is_offered_input() {
     let after_map = game.kingdom.turn_count;
     assert!(after_map > before, "the map screen ends the turn on E");
 
-    // Now put the county panel on top and press the same key. Ticking after it
-    // is what makes this an assertion rather than a coincidence: if the map
-    // underneath had taken the key, the ticks would wind its turn on.
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
     assert_eq!(m.top_id(), Some(ScreenId::County(1, Panel::Tax)));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Char('E')));
@@ -201,7 +174,6 @@ fn the_county_panel_sets_the_tax_rate_of_the_players_county_and_not_of_another()
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Left));
     assert_eq!(game.kingdom.counties[1].tax_rate, 1);
 
-    // County 2 is unowned, so the same keys change nothing.
     let mut m = Machine::new(ScreenId::County(2, Panel::Tax));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     assert_eq!(game.kingdom.counties[2].tax_rate, 0);
@@ -217,7 +189,6 @@ fn the_county_panels_second_row_sets_the_ration_level() {
     assert_eq!(game.kingdom.counties[1].ration_wanted, 4);
     assert_eq!(game.kingdom.counties[1].tax_rate, 0, "the tax row must not have moved");
 
-    // And it stops at the top of the table rather than running past it.
     for _ in 0..5 {
         send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
     }
@@ -242,9 +213,6 @@ fn every_screen_paints_the_whole_canvas_rather_than_leaving_it_blank() {
     }
 }
 
-/// The window's title is the top screen's, and it follows the clock. Pinned
-/// here because the alternative is reading it off a real window, and a thing
-/// that needs a window to be checked is a thing that stops being checked.
 #[test]
 fn the_window_title_is_the_top_screens_and_follows_the_clock() {
     let (mut game, assets) = world();
@@ -264,9 +232,6 @@ fn the_window_title_is_the_top_screens_and_follows_the_clock() {
     assert_eq!(m.title(&ctx), "Lords of the Realm II - Winter 1268");
 }
 
-/// A repaint is asked for when something happened and not otherwise. This is
-/// what keeps a still menu from submitting a frame sixty times a second, which
-/// is the failure the battle viewer's `WaitUntil` pacing was added to stop.
 #[test]
 fn the_machine_reports_dirty_after_input_and_clean_after_a_quiet_tick() {
     let (mut game, assets) = world();

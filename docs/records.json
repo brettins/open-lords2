@@ -115,13 +115,13 @@
           "off": "0x02",
           "type": "u8",
           "name": "flags2",
-          "comment": "Further flags; bits 0x1C are cleared and rewritten per cell during the build. [D] - what they select is not established."
+          "comment": "Bits 0x1C SELECT THE TILE SHEET byte +3 indexes: 0 is slot 0 of the battle asset table and 4 is slot 1, and Battlefield_Draw32 (0x004BCBDC) has no other arm - so a siege's masonry comes from t32_stn1/t32_wod1 and its ground, moat and rubble from t32_stn2/t32_wod2. Cleared by every builder (flags2 &= 0xE3) and set to 4 by Battlefield_BuildCastle's 0xEE and 0xEF escapes, Wall_Collapse and the siege tower's dock. Bit 0x80 marks a structure's anchor cell; bits 1 and 2 are the panel's dirty bits. [V]"
         },
         {
           "off": "0x03",
           "type": "u8",
           "name": "frame",
-          "comment": "Graphic index. [D]"
+          "comment": "PL8 frame index into whichever sheet byte +2's bits 0x1C select. [V]"
         },
         {
           "off": "0x04",
@@ -1353,7 +1353,7 @@
           "off": "0x14",
           "type": "i32",
           "name": "nextSeason",
-          "comment": "What the campaign sidebar's industry row forecasts for next season, drawn by Ui_DrawDelta: FUN_0041062E wood, FUN_00410502 iron, FUN_004106C4 weapons, FUN_00410598 stone, each reading its own record's word. Written by Industry_LabourEstimate's tail (0x0044F318) as min(limit, Pct(workers / divisor, ramp)), zeroed before its first guard. [V] against the original's saves: at county +0x2A8 + c*0x18 every save on this machine stores the number record c's own workers produce, where the two readings differ (crates/l2-scenario/tests/import.rs)."
+          "comment": "What the campaign sidebar's industry row forecasts for next season, drawn by Ui_DrawDelta: FUN_0041062E wood, FUN_00410502 iron, FUN_004106C4 weapons, FUN_00410598 stone, each reading its own record's word. Written by Industry_LabourEstimate's tail (0x0044F318) as min(limit, Pct(workers / divisor, ramp)), zeroed before its first guard. [V] against the original's saves: at county +0x2A8 + c*0x18 every save on this machine stores the number record c's own workers produce, where the two readings differ (crates/l2-scenario/tests/import/main.rs)."
         }
       ]
     },

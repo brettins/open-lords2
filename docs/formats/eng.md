@@ -12,7 +12,7 @@ localiser would want to replace:
 
 Only `L2.eng` exists in the DOS install (`F:\games\LORDS2\L2.ENG`); the other
 four shipped with the Windows release. `.eng` is also the extension the German
-and French builds would swap, which is why the container matters for a mod
+and French builds would swap, so the container matters for a mod
 system.
 
 Status legend as in [`maps.md`](maps.md): **[V]** verified against file bytes
@@ -41,14 +41,14 @@ offset(g) = base[8 + g*4] | (base[9 + g*4] << 8) | (base[10 + g*4] << 16);
 shipped files, so treating the table as `u32` works, but a 24-bit reading is
 what the engine does and files are far below the 16 MB ceiling anyway.
 
-**[V] There is no count field.** The table runs from offset 8 up to where the
+**[V]** The table runs from offset 8 up to where the
 first string starts, so
 
 ```
 N = (offset(1) - 8) / 4
 ```
 
-**[V] Slot 0 is always `0` and is not a group.** Group ids therefore run `1 … N-1`.
+**[V] Slot 0 is always `0`.** Group ids therefore run `1 … N-1`.
 
 | File | `offset(1)` | N (slots) | Valid group ids | Strings |
 |---|---:|---:|---|---:|
@@ -92,11 +92,11 @@ while (*p < 0x20) p++;                               /* skip NULs / padding */
 
 So a string is addressed by **(group id, index within group)** and the walk is
 purely sequential — the format has no per-string index. A reimplementation
-should build `group -> string[]` once at load, exactly as `eng.js` does.
+should build `group -> string[]` once at load, as `eng.js` does.
 
 Two consequences worth knowing:
 
-* An empty group does not fail; the pointer simply walks on into the next
+* An empty group does not fail; the pointer walks on into the next
   group's strings. **[V]** `mapl2.exe` asks for group 41 indices 27–29 for its
   default map name, title and description.
 
@@ -117,7 +117,7 @@ Two consequences worth knowing:
 
 **[V]** Comparing the DOS (1996) and Windows (1997) files over the 299 group ids
 they share: **286 groups are byte-identical, 13 differ**, and the Windows
-release simply appends 18 new groups (ids 300–317). Ids `1 … 299` mean the same
+release appends 18 new groups (ids 300–317). Ids `1 … 299` mean the same
 thing in both. A translation table keyed on `(group, index)` is therefore a
 reasonable design.
 
@@ -146,7 +146,7 @@ A few landmarks (Windows ids):
  index 40..59  Britain, Imperium, The World, Japan, ... Cubium, Snowflake      20 names
 ```
 
-That is **[V]** precisely the used/empty slot census `maps.md` derived
+That is **[V]** the used/empty slot census `maps.md` derived
 independently from the map data — slots 0–23 used, 24–39 empty, 40–59 used.
 Group 101 names slots `0 … 59`; the 20 empty tail slots 60–79 have no entry at
 all, so the list is 60 long, not 80. **[I]** Group 100's 1,200 county names are
@@ -291,7 +291,7 @@ equal `Normal × p / 100` for our `p`, and the ratios that are there run 1.20,
 group 0 alone — hand-authored per battle, with 116 % nowhere in them. So
 **116/108/100/92/84 rests on the decompilation alone**; the corpus corroborates
 that the rows are dead but cannot corroborate the numbers. That gap is real and
-is recorded rather than closed.
+is recorded.
 
 ### 3.3 Which file is used
 
@@ -347,7 +347,7 @@ none of the other files.
 group is a descriptive label**: the file is 317 summaries the game wrote about itself.
 This section maps every group to the mechanic it serves and the code that reaches it.
 
-### 5.1 Coverage, and what "unreferenced" actually costs
+### 5.1 Coverage, and what "unreferenced" costs
 
 The measurement, re-derived here by a scanner that does not use `anchor.js`
 (`docs/method.md` §4 — re-derive anything load-bearing by a route that does not use the
@@ -387,7 +387,7 @@ differences are all explicable:
   same measurement seen from the other side (317 − 182 = 135).
 
 A figure of **52** was quoted when this work was commissioned. It could not be
-reproduced from any query here and is recorded as unexplained rather than adopted.
+reproduced from any query here and is recorded as unexplained.
 
 **39 non-empty groups are reached by nothing**, and they fall into four kinds, which is
 the useful part:
@@ -472,7 +472,7 @@ the shipped build stopped catching it.
 1. Every peer broadcasts its own 10-byte record (`Net_WriteField(&g_syncDigest[me], 10)`).
 2. `Sync_BlockAgrees(block)` (`0x00440DD2`) first requires every live human realm to
    carry the *same non-zero frame tag* — otherwise it returns 2, "not everyone is here
-   yet", and the caller stalls rather than declaring a divergence. Then it compares byte
+yet", and the caller stalls. Then it compares byte
    `block` across those realms; any difference sets a per-block flag in a 10-entry array
    at `0x0053F090` — one flag per group-14 name — and returns 0.
 3. On 0, `Sync_Rollback` (`0x0043F5C5`) restores the last agreed snapshot. In battle it
@@ -527,7 +527,7 @@ disagree; none does. Categories 5–9 are therefore "tip window with 1–5 parag
 
 `FUN_00476A5D` clears exactly 20 bytes from `g_tipShown + 200`, which fixes
 the tip range as groups **200–219** inclusive. Its only callers are `App_WinMain` and
-`Opt_ToggleTipScreens`, so a tip is shown **once per run**, not once per game: neither
+`Opt_ToggleTipScreens`, so a tip is shown **once per run**; neither
 `Game_NewGame` nor a load clears it.
 
 **Three of the fourteen cannot be posted `[I]`.** 212, 214 and 215 are guarded on
@@ -574,14 +574,14 @@ and the terrain names bear on the open questions in [`skr.md`](skr.md).
 
 ### 5.6 Two conventions the file uses that a reader will otherwise misread
 
-* **`FREE` at index 0 does not mean "unused".** It means *this message has no heading of
+* **`FREE` at index 0** means *this message has no heading of
   its own*. `Msg_DrawWindow` draws the county name — `Ui_DrawCentred(100, scenario * 20 +
   county)` — as the heading whenever the message record carries a county byte, and the
   group's own index 0 is then never read. That is groups 114–134, 258, 273, 276 and 277.
   `FREE` *inside* a group (43 indices 7–9, 62 indices 3–4, 49 indices 5–6) does mean an
   unused slot.
 * **A group's index may run past its own end.** §1.3 — an empty or short group does not
-  fail the lookup, the cursor simply walks into the next group's strings. Group 93 relies
+fail the lookup, the cursor walks into the next group's strings. Group 93 relies
   on this; group 215 falls into it by accident.
 
 ### 5.7 What this closed, and what it did not
@@ -595,7 +595,7 @@ Closed:
   promoted to `symbols.json` as `Sync_Rollback`.
 * Group 14, group 41 and the tip-screen subsystem, none of which was in any document.
 
-Not closed, and deliberately flagged rather than committed:
+Not closed, and deliberately flagged:
 
 * The **superseded-panel** reading of groups 9, 43, 44, 57, 60, 62, 63, 64, 65 and 88 is
   internally coherent and touches almost nothing external — exactly the shape
@@ -649,7 +649,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 32 | 1 | `Battle Paused` | "Battle Paused" overlay. | `FUN_00423b4f` [V] |
 | 33 | 8 | `Send supplies` | The send-supplies screen. | `Screen_SendSupplies`, `FUN_0041aea2` [V] |
 | 34 | 2 | `Year` | Campaign-map header ("Year" / "Click on the county you wish to view."). | `Screen_DrawCampaign` [V] |
-| 35 | 8 | `Most counties,` | The seven "greatest noble" categories (most counties / castles / troops / crowns …). | `Screen_GreatestNoble` [V] |
+| 35 | 8 | `Most counties,` | The seven "greatest noble" categories (most counties / castles / troops / crowns / happiest people / most people / greatest noble), plus 7 *"undecided."*. **One consumer in the whole binary**, so this group *is* screen `0x20`'s vocabulary — and it is one line, not seven: the page draws `35/g_nobleCategory` at (328, 446) and then either the leading realm's name or 35/7. The **spoken** half is `S035_01.wav` … `S035_08.wav` through `Speech_PlayStandingsCategory` (`0x004B3994`), file named after group and index; `S035_08`, the line for *"undecided."*, is played by nothing. | `Screen_GreatestNoble`, `GreatestNoble_SelectCategory` [V] |
 | 36 | 19 | `Congratulations!!` | The Play Now!! conquest inter-map screen — `Readme.txt` calls it the eight-map campaign. | `Screen_DrawConquest` [V] |
 | 37 | 6 | `Battle Master ratings` | Battle Master ratings table headings. | `Screen_BattleMasterRatings`, `Screen_BattleMasterRank` [V] |
 | 38 | 12 | `Rank of Private` | The twelve Battle Master ranks (Private … ). | `Screen_BattleMasterRank` [V] |
@@ -660,7 +660,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 43 | 18 | `Lords II - Game Options` | An earlier new-game/skill screen ("Choose a Skill Level", "Run the LORDS II Tutorial"). Superseded by group 11. | [I] dead |
 | 44 | 5 | `Novice` | Novice/Easy/Normal/Hard/Expert. Superseded by group 103 (off/on/easy/normal/hard/impossible) and group 11 42–46. | [I] dead |
 | 45 | 4 | `Help Options` | Help-options panel (tip screens / tool tips / start game help). | `Screen_HelpOptions` [V] |
-| 46 | 2 | `GAME OVER` | "GAME OVER" — index 1 is literally `"Medieval banter goes here......."`. **A placeholder that was never written and is never drawn**; the shipped endgame text is groups 224/225 and 238/239. | [I] dead placeholder |
+| 46 | 2 | `GAME OVER` | "GAME OVER" — index 1 is `"Medieval banter goes here......."`. **A placeholder**; the shipped endgame text is groups 224/225 and 238/239. | [I] dead placeholder |
 | 47 | 10 | `Group Information` | A cut battle "Group Information" panel. Its unit classes — Heavy Infantry, Light Infantry, Slingers, Mixed Troops, Auxiliaries — are not Lords II troop types. | [I] dead — cut content |
 | 48 | 3 | `Exit the game?` | The exit/save confirm box. | `FUN_00414790` [V] |
 | 49 | 12 | `Congratulations!` | The tutorial shell (section-complete text, back/forward buttons, "Exit the Tutorial"). No code reaches it; the shipped tutorial is a scripted campaign, not this screen. | [I] dead |
@@ -689,7 +689,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 72 | 25 | `Diplomacy.` | The diplomacy screen and its four action layouts. | `Diplo_DrawScreen`, `Diplo_DrawGiftGold`, `Diplo_DrawLetter`, `Diplo_DrawCountyRequest` [V] |
 | 73 | 12 | `Population in` | The population panel (last season / births / deaths / migration). | `Panel_Population` [V] |
 | 74 | 10 | `Idle people.` | The nine labour jobs, index = job id — the job popup title. | `Panel_JobDetail`, `Panel_JobBlacksmith` [V] |
-| 75 | 3 | `Click on a weapon to change production.` | The armoury/blacksmith production panel ("Click on a weapon to change production", wood needed, iron needed). | `Panel_JobBlacksmith` [V] |
+| 75 | 3 | `Click on a weapon to change production.` | **The blacksmith's job page, and this group has exactly one consumer** — so it is that page's specification, not a naming lead (rule 6). Index 0 is the sentence that tells a player the smithy picture is a control; **1 and 2, *"wood needed."* and *"iron needed."*, are drawn by nothing at all** — the two cost figures pass `&DAT_004D3E9C` and `&DAT_004D3EA0`, both the empty string, and the iron and wood icons carry the meaning. | `Panel_JobBlacksmith` [V] |
 | 76 | 9 | `Working with an efficiency of` | Industry efficiency and output forecast lines. | `Panel_JobIndustry`, `Panel_JobBlacksmith` [V] |
 | 77 | 31 | `from` | Grain, herd and reclamation forecast vocabulary — the four grain stages and the calf/cow birth-and-death lines. | `Panel_JobGrain`, `Panel_JobCattle`, `Panel_JobReclamation`, `TileInfo_DrawGrain`, `TileInfo_DrawHerd`, `Msg_DrawWindow` [V] |
 | 78 | 0 | — | Empty. | [I] empty |
@@ -728,27 +728,27 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 111 | 2 | `No drawbridge!` | Refusal: no drawbridge to lower. | `Msg_Enqueue` <- `FUN_0043bbe7` [D] |
 | 112 | 2 | `No right of rule!!` | Refusal: no right of rule in this county. | `Msg_Enqueue` <- `FUN_00436a88`, `Sidebar_Button`, `Map_Click` [D] |
 | 113 | 2 | `No people to arm!` | Refusal: no people allocated to arm. Reachable by no path found. | [I] dead |
-| 114 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 115 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 116 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 117 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 118 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 119 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 120 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 121 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 122 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 123 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 124 | 2 | `FREE` | The final-conquest congratulation of the same series. No call site passes 124; `FUN_004a72fe` stops at 123 and 125. | [I] dead |
-| 125 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
-| 126 | 2 | `FREE` | Conquest narration, one rung per counties-held tally; index 0 is `FREE` because the heading is the county name (group 100). | `Msg_Enqueue` <- `FUN_004a72fe` [D] |
+| 114 | 2 | `FREE` | Capture notice to an onlooker: one lord took another's county. Category 0, from the taker, `+0x13` = the loser; heading is the county (group 100). | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 115 | 2 | `FREE` | Capture notice to the loser: *"Our county is lost!"* Category 0, from the taker. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 116 | 2 | `FREE` | Capture notice to an onlooker: a neutral county was taken. Category 0, from the taker. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 117 | 2 | `FREE` | Capture letter to the taker, category `0x0D`: past his peak (realm `+0x2A`) with a peak below 2 — *"Bravo!!"* | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 118 | 2 | `FREE` | Capture letter, `0x0D`: past a peak below 3 — *"a solid base"*. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 119 | 2 | `FREE` | Capture letter, `0x0D`: past a peak of 3+, share of map **before** the capture below 26 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 120 | 2 | `FREE` | Capture letter, `0x0D`: share below 41 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 121 | 2 | `FREE` | Capture letter, `0x0D`: share below 61 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 122 | 2 | `FREE` | Capture letter, `0x0D`: share below 81 %. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 123 | 2 | `FREE` | Capture letter, `0x0D`: the taker now holds `g_countyCount − 1` — *"One more county and the crown is yours!"* Tested before the peak. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 124 | 2 | `FREE` | The final-conquest congratulation of the same series. No call site passes 124; `County_ChangeOwner` stops at 123 and 125. | [V] dead |
+| 125 | 2 | `FREE` | Capture letter, `0x0D`: share 81 % and above. | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
+| 126 | 2 | `FREE` | Capture letter, `0x0D`: a capture that does not pass the peak — *"The county is yours. May you rule it wisely."* | `County_ChangeOwner` [V] — `crates/l2-game/src/arrival.rs` |
 | 127 | 2 | `FREE` | **Secession**: "Deeming itself too far from the heart of your empire…". | `Territory_SecedeMinorBlocks` [D] |
 | 128 | 2 | `Your lands divide.` | "Your lands divide." — the kingdom-level companion to 127. | `Territory_SecedeMinorBlocks` [D] |
-| 129 | 2 | `FREE` | Refusal: a county too far from the heart of your lands. | `FUN_004a72fe` [D] |
-| 130 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 131 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 132 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 133 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
-| 134 | 2 | `FREE` | County greeting/warning as an army enters, one per standing band. | `County_GreetArmy` [D] |
+| 129 | 2 | `FREE` | Refusal: a county too far from the heart of your lands — posted to a local taker when the county borders none of his, and the county is then made independent. Category 0. **Not built**: the rule is not, so neither is the letter. | `County_ChangeOwner` [V] |
+| 130 | 2 | `FREE` | Neutral county's greeting, category 2, to the army's owner: happiness below 10 — *"The people are wretched"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 131 | 2 | `FREE` | Greeting: happiness below 30, or an army at least as large as the county's population — a welcome. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 132 | 2 | `FREE` | Greeting: an army 50…99 % of the population. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 133 | 2 | `FREE` | Greeting: 20…49 % — *"unacceptable"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
+| 134 | 2 | `FREE` | Greeting: under 20 % — *"an outrage"*. | `County_GreetArmy` [V] — `crates/l2-kingdom/src/arrival.rs` |
 | 135 | 2 | `Rats!!` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 136 | 2 | `Mad Cows !!` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 137 | 2 | `Wolves.` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
@@ -757,8 +757,8 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 140 | 2 | `Bad cattle stock` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 141 | 2 | `Cow bonanza!!` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
 | 142 | 2 | `Wedding fever.` | Random county event, dealt from the `g_eventTable` deck (`docs/kingdom.md`). | `Event_RollAll` deck [D] |
-| 143 | 2 | `Drought.` | Weather event: drought. | `Weather_UpdateAll` [D] |
-| 144 | 2 | `Flooding.` | Weather event: flooding. | `Weather_UpdateAll` [D] |
+| 143 | 2 | `Drought.` | Weather event: drought. | `Weather_UpdateAll` `Msg_Enqueue(0x8F)` [V] |
+| 144 | 2 | `Flooding.` | Weather event: flooding. | `Weather_UpdateAll` `Msg_Enqueue(0x90)` [V] |
 | 145 | 2 | `Cannot disband army` | Refusal: army must disband in its county of origin. | `Panel_DisbandButton` [D] |
 | 146 | 2 | `Uncertain times.` | Unrest level 0 warning. | `Unrest_UpdateAll` [D] |
 | 147 | 2 | `Cannot alter castle.` | Refusal: castle already of the proposed type. | `Msg_Enqueue` <- `FUN_00436b59` [D] |
@@ -784,7 +784,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 167 | 2 | `Cannot combine armies.` | Refusal: those mercenaries will not fight together. | `Msg_Enqueue` <- `MoveOrder_ConfirmGarrison`, `Army_Combine` [D] |
 | 168 | 2 | `Cannot raise army.` | Refusal: army of zero men. | `Msg_Enqueue` <- `FUN_00435b4d` [D] |
 | 169 | 2 | `Cannot build weapon` | "You cannot build this weapon type in the Lords 2 demo." | [I] dead — demo-only |
-| 170 | 17 | `Invasion of` | Invasion declaration, 16 takes (4 lords × 4). | `Unit_EnterCounty` [D] |
+| 170 | 17 | `Invasion of` | Invasion declaration, 16 takes (4 lords × 4): category 1, from the invader to the county's owner, when an army crosses into an owned county that is its destination; variant `lord × 4 + rotation − 4`, and posting it advances the invader's realm `+0x159`. | `Unit_EnterCounty` [V] — `crates/l2-kingdom/src/arrival.rs` |
 | 171 | 17 | `Reply to gift.` | Reply to a generous gift (+10 standing). | `Diplo_ReplyGift` local [D] |
 | 172 | 17 | `Reply to gift.` | Reply to an adequate gift (+5). | `Diplo_ReplyGift` local [D] |
 | 173 | 17 | `Reply to gift.` | Reply to a mean gift (-8). | `Diplo_ReplyGift` local [D] |
@@ -834,7 +834,7 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 | 217 | 6 | `Castle Building:` | Tip screen (§5.3) — Castle building, screen 0x1B. | `Tip_Show` [D] |
 | 218 | 4 | `Advanced Game Options:` | Tip screen (§5.3) — Advanced game options, screen 0x39. | `Tip_Show` [D] |
 | 219 | 2 | `Already in alliance.` | Refusal: that player is already in an alliance. | `Diplo_SendClicked` [D] |
-| 220 | 35 | `Null tool tip` | The 35 tool tips, index = hotspot id; drawn by the tooltip layer when `g_optToolTips` is on. | `FUN_00476e95` [V] |
+| 220 | 35 | `Null tool tip` | The 35 tool tips. The index is the id a pointer ladder answers — `FUN_00477320` over the campaign sidebar (26 ids: 1–22, 31–34) or `FUN_004777AA` over the battlefield (8 ids: 23–30), chosen by `DAT_004D6FB8[g_screenId]` — **not** a widget record's hotspot id; drawn by the tooltip layer when `g_optToolTips` is on. Ours: `crate::tooltip`. | `FUN_00476e95` [V] |
 | 221 | 2 | `INTERNAL ERROR` | "INTERNAL ERROR — Unable to build an army." | `Msg_Enqueue` <- `FUN_00435b4d` [D] |
 | 222 | 2 | `Demo  Version` | "This function is not available in the Lords2 Demonstration version." | [I] dead — demo-only |
 | 223 | 2 | `No modem play` | "This version of the game does not yet support linked modem play." | [I] dead |
@@ -939,7 +939,13 @@ id, named in §5.4. **[I]** inferred from the strings; no code path reaches it.
 
 * **String character set.** Treated as Latin-1 here. The German and French
   builds ship their own `.eng`; none is available to check, so whether the
-  engine is codepage-aware is unknown.
+  engine is codepage-aware is unknown. **What is known** **[V]**: the engine draws
+  the byte, not a decoded character — `Ui_DrawText` indexes `g_glyphWidths` with
+  `c - 0x20` — and that table's non-zero entries above `0x7F` sit exactly where code
+  page 437 puts *Ç ü é … Ü* and *á í ó ú ñ Ñ ª º* (**[I]** which is meant). The
+  shipped English file's only bytes above `0x7F` are nine `0xB7`s, one at the head of
+  each of 295/2…295/10, and `0xB7` has no glyph. `shell::Eng` returns each byte as the
+  `char` of the same number; it used to return `None` for all nine strings.
 * **Which of `troops.eng` / `troops2.eng` / `troops3.eng` applies when.** The two
   selecting globals were not traced.
 * ~~**`L2.eng` groups have no names.** A reimplementation has to hard-code the ids

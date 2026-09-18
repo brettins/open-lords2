@@ -10,7 +10,7 @@ cargo test -p l2-mods
 LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-mods -- --nocapture
 ```
 
-The install-dependent tests skip when `LORDS2_DIR` is unset, exactly as
+The install-dependent tests skip when `LORDS2_DIR` is unset.
 `l2-formats`' corpus test does. No game data lives in this repository and none
 is written by the tests.
 
@@ -22,7 +22,7 @@ OpenXcom's modding power did not come from a mod API bolted on late. It came
 from being data-driven from the first commit: rules live in files, assets load
 through an indirection, and *the base game is itself the first mod*. Nothing in
 its engine can tell whether a value came from the original game or from
-someone's rebalance, because there is no other path for a value to arrive by.
+someone's rebalance.
 
 That property is nearly free to build and brutally expensive to retrofit. Every
 constant written directly into simulation code is a place a mod cannot reach,
@@ -60,8 +60,8 @@ Three pieces, and one asymmetry between them that is the whole design.
 
 **Assets shadow. Rules accumulate.**
 
-A sprite has no partial form. There is no meaningful way to "override half of
-`Base1a.pl8`", so a mod that provides one replaces it, and the layers below
+A sprite has no partial form.
+`Base1a.pl8`",
 become invisible for that name. A rule table *does* have a partial form —
 changing one troop's armour is a complete, meaningful statement — so every
 layer's rule documents are read and merged, and the last writer of each
@@ -180,7 +180,7 @@ accessor for nothing. A document containing one gets
 bad.toml:1:5: dates and times are not part of the rule syntax
 ```
 
-rather than a wrong parse, or a confusing "expected end of line" two characters
+two characters
 later.
 
 Within a single document, setting a key twice or opening a table twice is an
@@ -211,9 +211,9 @@ author must hold in their head to predict what two mods will do together.
 1. **Table into table: recurse.** Keys only the newer document has are added.
    Keys both have are resolved one level deeper.
 2. **Anything else: replace.** Scalars replace scalars. **Arrays replace arrays
-   whole.** There is no element-wise array merge, because array elements have
-   no identity — with `[1, 2, 3]` there is no principled way to say which
-   element an override refers to. So a mod that changes one rung of a ladder
+whole.**
+   no identity — with `[1, 2, 3]`
+   element an override refers to.
    restates the ladder, and a mod that changes one strength band restates all
    four. Anything meant for partial override is a table keyed by name instead,
    and the rulesets are written that way wherever it makes sense. One
@@ -221,7 +221,7 @@ author must hold in their head to predict what two mods will do together.
    rule, so the twenty-row birth-rate ladder counts as a single overridable
    thing and not as forty.
 3. **`"$delete"` removes.** `"$delete" = ["knight"]` inside a table removes
-   those keys before the rest of that table merges — so a mod can delete a
+   those keys before the rest of that table merges —
    sub-table and then define a fresh one in the same document, replacing rather
    than merging. `$` is not a legal bare-key character, so the directive has to
    be written quoted and can never collide with a key that means something in
@@ -250,9 +250,9 @@ Ties break on the user's index, so the same list plus the same manifests gives
 the same order on every machine and every run. A bug report is worth nothing
 otherwise.
 
-Failures are checked in an order chosen so the message is about the real
+Failures are checked in an order chosen
 problem: conflicts and missing or mismatched dependencies first, then cycles. A
-cycle error names the loop (`a -> b -> c -> a`) rather than asserting one
+cycle error names the loop (`a -> b -> c -> a`).
 exists.
 
 The resolved layer stack, bottom first:
@@ -283,7 +283,7 @@ rules overridden:
   unit.archers.melee_attack : core:rules/units.toml:89:16 -> longbows:rules/longbows.toml:54:16
 ```
 
-A corpus test asserts that **every** line of that is an *override* rather than
+A corpus test asserts that **every** line of that is an *override*.
 an addition. A mod that misspelt a battle id would otherwise merge silently,
 creating a rule nothing reads; insisting the count matches the mod's leaf count
 catches it.
@@ -293,12 +293,12 @@ The other sections appear when something is wrong:
 ```
 assets provided by more than one layer:
   base1a.pl8: base -> longbows -> prettier (last wins)
-rules a mod added rather than overrode (check the spelling):
+rules a mod added (check the spelling):
   battle.three_brdiges.attacker.archers (set by typo, defined nowhere below)
 rules holding a decimal, which the simulation cannot use:
   battle.three_bridges.some_ratio at floaty:rules/f.toml:2:14
 mods worth a second look:
-  oops: 'longbows.toml' is a .toml outside rules/, so it is treated as a file to shadow rather than as rules
+oops: 'longbows.toml' is a .toml outside rules/, so it is treated as a file to shadow
 mod 'aaa' loaded but changes nothing: everything it sets is overridden
 ```
 
@@ -307,7 +307,7 @@ mod 'aaa' loaded but changes nothing: everything it sets is overridden
 ### 7.3 `effect_report()` — organised by mod
 
 This is the "my mod is not working" view, and it is the one to reach for first,
-because that is the question people actually ask. The same load as above:
+because that is the question people ask. The same load as above:
 
 ```
 1. core: 283 rule(s) and 0 file(s) in force
@@ -372,7 +372,7 @@ every rule path claimed, a **rules digest**, and warnings:
 - a rule holding a decimal.
 
 Every enabled mod is inspected during `build()`, and the warnings appear in
-`report()` under *mods worth a second look*, so a player who never runs an
+`report()` under *mods worth a second look*,
 inspection tool still finds out.
 
 The rules digest identifies the *rules*, not the installation: the same mod at
@@ -413,21 +413,21 @@ Eleven types: `peasants`, `crossbows`, `maces`, `swords`, `pikes`, `archers`,
 
 Three things about this table trip people up:
 
-- **There is no defence stat.** A figure's melee defence *is* its `recovery`:
-  the interval between blows it suffers is its own recovery counter, so a
+- A figure's melee defence *is* its `recovery`:
+  the interval between blows it suffers is its own recovery counter,
   slow-recovering figure is struck rarely. That is why pikemen, whose recovery
   is the longest of all, are what the manual calls good defenders.
 - **`armour` is missiles only.** Raising it does nothing whatever to a melee.
-- **The bands run best first**, and a rising row is refused rather than
-  accepted, because a weakened figure hitting harder is not a rebalance.
+- **The bands run best first**, and a rising row is refused
+  accepted.
 
 `recovery` and `hits_per_casualty` are refused at zero: the first is the
 interval a figure can be struck on and the second is a divisor, and both read
-as a hang rather than as a change.
+as a hang.
 
 **Not modifiable:** which types are siege engines. That decides whether the
-melee code path runs at all rather than how hard it hits, so it is structure
-rather than balance and stays in the engine.
+melee code path runs at all, so it is structure
+and stays in the engine.
 
 ### 8.2 `kingdom.*` — the economy
 
@@ -471,10 +471,10 @@ Two conventions run through it:
   names are for you; the indices are what the simulation uses. Renaming
   `winter` would be harmless; moving winter to slot 2 would not be, and this is
   the line between the two.
-- **Ladders are arrays of tables, tried in order, and the last row is the
+- **Ladders are arrays of tables, tried in order,
   catch-all.** Arrays replace whole (§6 rule 2), so changing one rung means
   restating the ladder. The `happiness_factor` catch-all's `below` is written
-  as `2147483647` and is never actually read.
+as `2147483647` and is never read.
 
 Several values are refused at zero because they are divisors in the original's
 arithmetic: `kingdom.ration.*.divisor`, the two grain labour divisors,
@@ -486,7 +486,7 @@ the simulation holds: a ladder has room for eight rungs and may declare 1 to 8,
 with the last repeated to fill. That is why only `tax_ladder_neutral` writes
 eight. It changes nothing about the walk — a fall-through takes the last row's
 rate either way — and it saves an author writing `below = 2147483647` three
-times. Nine rows is refused rather than truncated.
+times. Nine rows is refused.
 
 Three things worth knowing before you rebalance:
 
@@ -506,11 +506,11 @@ Three things worth knowing before you rebalance:
   reaping harder at the same time. `docs/kingdom.md` §7.1.
 - **Raising `yield_per_sack` does not raise the harvest proportionally**, and
   a mod that expects it to will be surprised. The yield is inside the sowing
-  labour test, so a fourfold yield makes each sack four times as hungry for
+  labour test,
   farmhands and the county sows less of it; the crop is then capped twice more
   by the growing and harvesting rates. Quadrupling the file's number roughly
   doubles what reaches the barn
-  (`crates/l2-mods/tests/simulation.rs`, `the_last_kingdom_mod_in_the_load_order_...`).
+  (`crates/l2-mods/tests/simulation/main.rs`, `the_last_kingdom_mod_in_the_load_order_...`).
 - **`kingdom.ai.gold_grant` rows 1–3 are all zeros and that is a gap, not a
   rule.** Only the endpoints are documented. Row 0 being zeros *is* a rule: the
   human's lord byte is 0, so the human gets nothing.
@@ -531,13 +531,13 @@ Three things worth knowing before you rebalance:
   weapon types, stepped through by AI turn step 12 with a ten-place cursor that
   visits slots `0,1,2,3,0,1,2,3,4,5` — so the **first four are made twice as
   often** as the last two. The cursor is a *realm* counter advanced inside a loop
-  over that realm's counties, so a realm of four counties makes four different
+  over that realm's counties,
   weapons at once.
 
 `kingdom.castle.type.*.workforce` is one number in the ruleset and a pair in
 the binary — the table at `0x004D89E8` holds two ints per castle level and both
 hold the same value in all five rows. A mod author should not have to reproduce
-an oddity of a 1996 memory layout, so the format holds one scalar and the
+an oddity of a 1996 memory layout,
 loader writes it into both columns. A test asserts the two columns are still
 identical, because the day someone works out what the second one means, this
 format stops being able to express it.
@@ -556,13 +556,11 @@ Generated from `TROOPS*.ENG` (§9). The ids are the same eleven as `unit.<id>`.
 Siege columns (`catapults`, `siege_towers`, `rams`, `oil`) are limited to
 `0..=9`, which is the original's own clamp. The original clamped silently
 because it was reading a text file it could not validate; we validate instead,
-so a mod that asks for 40 catapults gets
 
 ```
 silly:rules/silly.toml:2:13: rule 'battle.three_bridges.attacker.catapults': 40 is outside 0..=9
 ```
 
-rather than a silent 9 and an afternoon wondering why.
 
 `difficulty.<id>.scale_percent` is applied as `x * percent / 100` with
 truncating integer division, to the seven non-siege columns only. That is
@@ -661,7 +659,7 @@ the rule-generation half.
 
 ## 10. Design record
 
-### 10.1 Why the rule format is TOML rather than RON
+### 10.1 Why the rule format is TOML
 
 RON is Rust's data shape written down: tuples, enums with payloads, nested
 maps. That is a good fit for serialising a Rust type and a poor one for a human
@@ -677,15 +675,15 @@ armour = 4
 
 The TOML version also happens to *be* the override: a mod file containing
 exactly those two lines and nothing else is a complete, valid mod. In RON the
-same change requires restating the enclosing map structure, which is precisely
+same change requires restating the enclosing map structure, which is
 the "restate the whole table" problem composable mods exist to avoid. TOML's
-table headers make partial documents the natural thing to write rather than a
+table headers make partial documents the natural thing to write
 trick.
 
 Secondarily: a mod author has probably met TOML. It is what `Cargo.toml`,
 `pyproject.toml` and half the tools on their machine already use.
 
-### 10.2 Why there is no `serde` and no `toml` crate
+### 10.2 Why
 
 **Merging needs a generic value tree anyway.** You cannot merge two documents
 into `#[derive(Deserialize)]` structs — the second document does not contain
@@ -711,7 +709,7 @@ covering the syntax and every error message.
 have bugs a widely-used crate would not, and it will not track TOML spec
 revisions. If the ruleset ever needs to round-trip through other tooling, that
 changes the calculation. The mitigation is that the supported subset is small,
-documented, and tested against its own error messages rather than only its
+documented, and tested against its own error messages
 successes.
 
 ### 10.3 Why the core rules are compiled into the binary
@@ -748,8 +746,8 @@ A simulation that loads its own rules is a simulation that can fail to load,
 and two lockstep peers that fail differently desync. Keeping the loader out
 also keeps `l2-sim` dependency-free, which is its own standing requirement.
 
-The seam in `l2-sim` is worth stating precisely, because it is what makes
-"data-driven" mean something rather than being a type that merely exists.
+The seam in `l2-sim` is worth stating, because it is what makes
+"data-driven" mean something.
 `Battle::with_troops(table)` takes a `TroopTable`; `Battle::add` builds each
 figure through it; and **each figure copies its own row in at construction**.
 Melee and missile code reads `figure.stats`, never a constant. So whatever
@@ -774,7 +772,7 @@ exactly the kind of thing a modding document is tempted to blur.
 The kingdom half was, for a long time, loaded and validated and then ignored,
 and this section said so. It no longer is: `Kingdom` carries a `Tables` and
 every rule function in `l2-kingdom` takes `&Tables` and reads it. What a mod
-now genuinely reaches:
+now reaches:
 
 food and dairy; the whole ration ladder and its happiness slope; the health
 delta grid and the band ladder; the birth ladder and the happiness factor;
@@ -790,7 +788,7 @@ gold brackets.
 
 The five in bold were the last rules with no field in `Tables` at all, and this
 section used to list them as unreachable. They are reachable now, and each is
-proved by a test in `crates/l2-mods/tests/simulation.rs` that starts at a
+proved by a test in `crates/l2-mods/tests/simulation/main.rs` that starts at a
 `.toml` and ends at a different number out of the season pipeline — not at a
 field read back:
 
@@ -798,7 +796,7 @@ field read back:
 |---|---|
 | `happiness.ale_*` | 100 crowns buys +2 happiness stock and +20 modded, and the modded county ends the year with more people in it |
 | `happiness.army_cost` | a levy of 50 from 500 costs 5 happiness stock and 60 modded, and the modded county ends the year with fewer people |
-| `efficiency.max` | a ceiling of 30 stops the ramp at 30 rather than 100, and the realm fells 350 loads of timber instead of 1,000 |
+| `efficiency.max` | a ceiling of 30 stops the ramp at 30, and the realm fells 350 loads of timber |
 | `ai.tax_ladder.*` | a flat 40% ladder takes an AI's county of 50 happiness from paying nothing at all to filling a treasury |
 | `ai.personality.*.tax_ladder` | moving lord 1 to the greedy ladder is 15% where it was 3%, and five times the take |
 
@@ -808,7 +806,7 @@ tables because they always were ones:
 * `kingdom.tax.happiness_other` — the *"Other counties"* happiness term, 51
   rows, one per tax rate. `l2-kingdom` computed `min(5 − rate, 0)` for it and
   was wrong at 45 of the 51; the array's length is also where the tax panel's
-  up arrow stops, which is why `MAX_TAX_RATE` moved into `l2-kingdom` beside
+up arrow stops, so `MAX_TAX_RATE` moved into `l2-kingdom` beside
   it. `docs/kingdom.md` §4.1.
 * `kingdom.herd.*` — staffing at three labourers a head, the four crowding
   bands with their birth and death rates, the small-herd bonus, the no-pasture
@@ -818,7 +816,7 @@ tables because they always were ones:
 
 **And one more with sieges**: `kingdom.ai.personality.*.siege_doctrine`, personality record
 `+0xA0`, which `docs/diplomacy.md` §8.4 had among eleven fields *"never traced"*.
-`Siege_Prepare` is its only reader and it is genuinely live: 8 orders four siege towers, 9 a
+`Siege_Prepare` is its only reader and it is live: 8 orders four siege towers, 9 a
 battering ram, 7 three catapults plus a late ram, and anything else leaves the default two
 towers — cumulatively, so 7 and 9 keep the towers as well. A mod that sets every lord to 8
 gives every AI an 800-man-season siege with no artillery in it. `docs/armies.md` §4.0.1.
@@ -827,7 +825,7 @@ gives every AI an 800-man-season siege with no artillery in it. `docs/armies.md`
 balance — the nine job slots, the six ration levels, the eleven troop types,
 the 102 rows of `army_cost`, the eight rungs a tax ladder has room for, the
 four AI personality records — and a ruleset that changed one would be
-describing a different simulation rather than a different game.
+describing a different simulation.
 
 **The one rule that used to load and do nothing now does something.**
 `kingdom.ai.personality.*.farm_style` was carried for a year on the claim that
@@ -840,7 +838,7 @@ document is described as taking effect unless the simulation reads a different
 answer with it changed** — `docs/decisions.md` C12.
 
 `Tables::DEFAULT` is assembled *from* the constants in
-`crates/l2-kingdom/src/tables.rs`, which remain the source of truth and keep
+`crates/l2-kingdom/src/tables/mod.rs`, which remain the source of truth and keep
 their addresses and their evidence beside them, and a test checks the gathered
 value against the free functions over their whole domain — so the document and
 the constants cannot drift. `tools/oracle/kingdom.ps1` then checks 25 of those
@@ -860,12 +858,12 @@ simulation slot.
 
 `docs/netcode.md` makes deterministic lockstep the architecture. `l2-net`'s
 lobby hashes the resolved ruleset and refuses a peer whose hash differs, so
-this is load-bearing rather than theoretical: an order-dependent merge would
+this is load-bearing: an order-dependent merge would
 turn into a refused session, or worse, a session that starts and desyncs an
 hour later.
 
-Three things could break it, and there is a test for each in
-`crates/l2-mods/tests/determinism.rs`:
+Three things could break it,
+`crates/l2-mods/tests/determinism/main.rs`:
 
 - **Iteration in hash order.** The value tree is `BTreeMap` throughout, and a
   test reads the crate's own source and fails if a `HashMap` or `HashSet`
@@ -880,8 +878,8 @@ Three things could break it, and there is a test for each in
 ### The two digests
 
 Both are 64-bit checksums produced by `l2_net::Canonical` — the same encoder
-and the same seed the per-tick desync checksum uses, so there is one byte
-stream rather than two that could disagree with each other.
+and the same seed the per-tick desync checksum uses,
+stream.
 
 | | Covers | For |
 |---|---|---|
@@ -889,7 +887,7 @@ stream rather than two that could disagree with each other.
 | `Platform::session_digest()` | the merged rule values **plus the mod ids in load order** | `l2_net::Hello::ruleset_hash` — the handshake |
 
 Neither includes **origins**. A mod installed at a different path is the same
-*rules*, and a digest that said otherwise would refuse sessions that would have
+*rules*,
 run perfectly.
 
 They differ on the **mod list**, and the reason is the interesting part.
@@ -916,12 +914,12 @@ with a symptom that points nowhere.
 would cover it properly; hashing the mod list is the cheap proxy that catches
 "you have a mod I do not" and misses "we have the same mod list but your copy
 of one mod has a different `.skr` in it". Worth doing when mods are distributed
-rather than hand-copied — the same trigger as signing (§13).
+— the same trigger as signing (§13).
 
 A known-answer test pins the byte stream over a document that will never
 change. If that value ever moves, every previously recorded digest is wrong and
-a peer on an older build gets refused for no reason — which is why it is pinned
-rather than computed, the same argument `l2-net` makes for freezing its hash
+a peer on an older build gets refused for no reason — so it is pinned
+the same argument `l2-net` makes for freezing its hash
 and its PRNG.
 
 ---
@@ -933,7 +931,7 @@ one. Every question a scripting layer answers — which events fire, what a
 script may touch, how errors are contained, what the sandbox is — should be
 decided against a real simulation. Deciding now would be guessing, and a
 guessed API is worse than none because it has users. The data-driven half is
-the half that is expensive to retrofit; the scripting half genuinely is not.
+the half that is expensive to retrofit; the scripting half is not.
 
 **An archive format.** A `.l2mod` file buys one thing — a single file to send
 someone — and every operating system already ships a zip tool that does exactly
@@ -941,7 +939,7 @@ that to a directory. Against it: the platform has to read directories anyway,
 because that is what a mod under development is, so an archive would be a
 *second* loading path to keep working and in step, and a compression dependency
 is a thing `docs/decisions.md` D5a says to think twice about here. Revisit when
-mods are distributed rather than hand-copied — the same trigger as signing.
+mods are distributed — the same trigger as signing.
 
 **Rules for anything but units, the skirmish armies and the kingdom economy.**
 Terrain properties, building costs and sprite metadata get schemas when the

@@ -1,4 +1,3 @@
-//! Merge semantics — the part a mod author has to be able to predict.
 
 use l2_mods::Ruleset;
 
@@ -38,7 +37,6 @@ fn an_override_names_both_documents_and_both_lines() {
     assert_eq!(&*o.current.source, "modA:rules/a.toml");
     assert_eq!(o.current.line, 2);
     assert!(!o.type_changed);
-    // And the ruleset can be asked directly.
     assert_eq!(&*rs.origin("t.x").unwrap().source, "modA:rules/a.toml");
 }
 
@@ -80,8 +78,6 @@ fn delete_removes_a_key_and_records_where_it_went() {
 
 #[test]
 fn delete_then_redefine_in_the_same_document_works() {
-    // The directive is applied before the rest of the table merges, so a mod
-    // can replace a table wholesale instead of merging into it.
     let rs = rules(&[
         ("base:a.toml", "[troop.knight]\nattack = 40\ndefence = 30\n"),
         ("m:b.toml", "[troop]\n\"$delete\" = [\"knight\"]\n\n[troop.knight]\nattack = 1\n"),

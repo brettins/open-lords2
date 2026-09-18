@@ -3,7 +3,7 @@
 `docs/draws.md` is the pilot over seven screens. It ends by saying the campaign map *"was
 not enumerated here … any cost estimate that does not include it is an estimate of the easy
 part."* This is that enumeration, in the shape §5 of that document asks for: **the listing
-is the inventory, and the number beside it is derived by a script rather than typed.**
+6: is the inventory.
 
 ```bash
 node tools/draws/mapdraws.js           # the table below
@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 61 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 71 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,26 +23,28 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **50 %**. `docs/arms.json` holds **25** input arms for the same two screen ids
-(`0x00` and `0x10`) and marks **20** of them reproduced — **80 %**. So on the screen a player
-spends most of the game looking at:
+That is **59 %** — 54 % until C189 drew the far-zoom box's four words, 57 % until the
+besieger's camp mark.
+`docs/arms.json` holds **25** input arms for the same two screen ids (`0x00` and `0x10`) and
+marks **20** of them reproduced — **80 %**. So on the screen a player spends most of the game
+looking at:
 
-> **We answer four gestures in five and we draw one picture in two.**
+> **We answer four gestures in five and we draw three pictures in five.**
 
 That gap is the whole argument for this audit existing. It is not visible from the input
 side, it is not visible from any test, and it is the shape both of the player's reports —
 *"I see placeholder shit everywhere"* and *"why do the pastures not have cows in them?"* —
 were about. Neither of those is an arm.
 
-The misses are not evenly spread. Three areas hold 46 of the 60, and each is one of
+The misses are not evenly spread. Three areas hold 42 of the 50, and each is one of
 `docs/draws.md` §3's three hiding places:
 
 | area | live | ours | missing | which hiding place |
 |---|---:|---:|---:|---|
 | `Sprite_TopIt`'s tile overlays | 18 | 4 | **14** | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
-| drawn from `Battle_Frame`, not from a painter | 16 | 5 | **11** | outside the painter |
-| everything else | 56 | 42 | 14 | — |
+| drawn from `Battle_Frame`, not from a painter | 16 | 9 | **7** | outside the painter |
+| everything else | 56 | 48 | 8 | — |
 
 ---
 
@@ -63,9 +65,9 @@ Deliberately excluded, and each exclusion is a decision somebody could disagree 
   counts the *sites*, not the blits. A per-frame count would be ~800 and would say nothing
   about coverage.
 * **Screens that are drawn over the map but are their own screen.** `Msg_Pump`'s message
-  scroll, `Tip_Update`'s tip page, `Screen_DrawWidgets`' widget layer and the battle
+  68: scroll, `Tip_Update`'s tip page, `Screen_DrawWidgets`' widget layer and the battle
   overview. The drop-down menu **is** counted (`FUN_0040C725`), because it is drawn from
-  `Battle_Frame` on top of the live map rather than replacing it, and because the map's own
+`Battle_Frame` on top of the live map, and because the map's own
   module already owns the three titles under it.
 * **The palette.** `Palette_Set(Base01.256)` and `FUN_004B0CB4`'s sixteen-step fade change
   every pixel on the screen and are not a draw call in this sense.
@@ -79,7 +81,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 
 | function | addr | paints | status | draws | ours |
 |---|---|---|---|---:|---:|
-| `Screen_DrawCampaign` | `0x0040F5FD` | the full repaint | live | 8 | 4 |
+| `Screen_DrawCampaign` | `0x0040F5FD` | the full repaint | live | 8 | 8 |
 | `Map_DrawTile` | `0x004063C1` | the terrain diamond | live | 1 | 1 |
 | `Map_DrawTileApex` | `0x00406673` | its overhang | live | 1 | 1 |
 | `Map_DrawSurroundTile` | `0x0042A7F1` | an off-map tile | live | 1 | 1 |
@@ -87,7 +89,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0042A9AB` | `0x0042A9AB` | surround, right half | live | 1 | 1 |
 | `FUN_00405602` | `0x00405602` | a zoom-1 edge fill | live¹ | 1 | 0 |
 | **`Sprite_TopIt`** | `0x004071A0` | **six tile overlays** | live | **18** | **4** |
-| `FUN_00407F82` | `0x00407F82` | the besieger's banner and its count | live | 2 | 0 |
+| `FUN_00407F82` | `0x00407F82` | the besieger's banner and its count | live | 2 | 2 |
 | `Map_DrawPathMarker` | `0x004081A6` | a path ball | live | 2 | 1 |
 | `Map_DrawArmies` | `0x00408438` | a unit, and its banner | live | 3 | 1 |
 | `Screen_DrawMenuBar` | `0x00419C78` | the 640 × 24 bar | live | 8 | 4 |
@@ -108,7 +110,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 0 |
 | `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 2 |
 | `FUN_0041A844` | `0x0041A844` | the multiplayer heartbeat | live | 2 | 0 |
-| **`FUN_00476E95`** | `0x00476E95` | **the tooltip** | live | 4 | 0 |
+| **`FUN_00476E95`** | `0x00476E95` | **the tooltip** | live | 4 | 4 |
 | `FUN_00408C50` | `0x00408C50` | two per-tile debug numbers | debug | 2 | 0 |
 | `FUN_004248A3` | `0x004248A3` | a four-number debug box | debug | 5 | 0 |
 | `FUN_004247F5` | `0x004247F5` | `DUMB VIEW ON` | debug | 3 | 0 |
@@ -135,7 +137,7 @@ they are in the script's tree so that adding a draw to one of them would show up
 
 ## 3. `Sprite_TopIt` dispatches six things, not four, and its name is the game's own
 
-`docs/formats/maps-layers.md` §5.5a says the name *"reads as one blitter, and the function is
+140: `docs/formats/maps-layers.md` §5.5a says the name *"reads as one blitter.
 a four-way dispatcher … Something like `Map_DrawTileOverlay` would carry that. Flagged rather
 than renamed."*
 
@@ -171,7 +173,7 @@ if ((tile.flags & 0xF0) == 0)                          return;   /* nothing here
 Six arms, four of which have sub-arms, and **fourteen of the eighteen frame selections are
 not drawn by us.**
 
-### 3.0a Arm 2 was in the count and on the wrong tile, and the table above is why
+176: ### 3.0a Arm 2 was in the count and on the wrong tile.
 
 A player: *"I haven't seen any mercenary icons on the town square yet."* Arm 2 was one of
 the four we drew — it is `campaign::MERCENARY_MARKER_FRAME`, it has been in `draw_flags`
@@ -189,9 +191,9 @@ tile at the wrong offset**, and this table has both numbers in it:
   arm 1's offset, and landed ten pixels right and ten up. `Zoom::mercenary_at` is arm 2's.
 
 **A third source settles the quadrant without reading `part` at all**, and it is the one
-that makes the reading `[V]` rather than an inference from a format document:
+that makes the reading `[V]`:
 `County_FindTownTile` (`0x00467FD1`) sweeps in index order and sets **bank bit `0x80` on
-the 0th and the 2nd** town tile it meets. `FUN_00405EB5` is
+196: the 0th and the 2nd** town tile it meets. `FUN_00405EB5` is
 `if (tile.bank & 0x80) Sprite_TopIt(…)`, so bank `0x80` is the only gate on this pass
 running at all — the original never *visits* the tile we were painting on. That is also
 what the *"two of the town's four quadrants are silent"* row above means at the caller.
@@ -202,7 +204,7 @@ type says which you hold. `MapScreen::town_quadrant(ctx, county, part)` takes th
 *quadrant* and derives the tile, so the list index never appears in a caller.
 `docs/decisions.md` C150.
 
-### 3.1 Arm 5b is a rule, and the rule is the animation's *speed*
+207: ### 3.1 Arm 5b is a rule.
 
 An industry site that is *working* does not get an overlay. It steps its own terrain frame:
 
@@ -216,7 +218,7 @@ if (step) { tile.frame++; if (tile.frame > last) tile.frame = first; }
 ```
 
 **The busier the mine, the faster its wheel turns.** Four output bands, four pulse rates,
-and the picture is the only place the player is told. This is `docs/draws.md` §2.6's *"a rule
+221: and the picture is the only place the player is told. This is `docs/draws.md` §2.6's *"a rule
 was hiding inside a graphic"* a second time, on a different mechanic, found the same way.
 
 The four frame runs, read out of the four arms, and every one lands inside `Town1a.pl8`'s 61
@@ -232,7 +234,7 @@ frames — an independent check on `maps-layers.md` §2's *"0 stone, 20 wood, 30
 ### 3.2 Frames `0x28 … 0x37` are damage, not "industry shut-down"
 
 `docs/screens.md` §7 calls this block *"`FUN_004071A0`'s industry-shut-down marker"*. It is
-that **and** the marker over a razed dwelling, and the pair is what identifies it.
+237: that **and** the marker over a razed dwelling.
 
 * Arm 3 draws it when a `0x10` dwelling plot has `content == 0x13`.
   `County_UpdateDwellings` (`0x004684C6`) never *leaves* a live dwelling at `0x13` — every
@@ -250,7 +252,7 @@ block shared by both events.
 
 `DAT_0053E9A4` is stepped 0 … 15 by `FUN_00451F1A` on `g_pulse80`, from `Battle_Frame`, and
 wraps. It **never exceeds 15**, so the `if (0xF < counter) return` guard inside all five call
-sites is dead and the animation loops for ever. A burnt dwelling burns until the season
+255: sites is dead and the animation loops for ever. A burnt dwelling burns until the season
 raises it again.
 
 ---
@@ -259,7 +261,7 @@ raises it again.
 
 `docs/decisions.md` C77 records that the herd graphic has three bands (11, 21) where the
 crowding *meter* has four (11, 21, 31). The question asked of this audit was whether that is
-a live overflow. **It is not, and the fit is exact:**
+264: a live overflow.
 
 ```
 content   = 0x14 … 0x16          (Herd_UpdateCrowding, guarded: `if (2 < (byte)(content - 0x14)) return`)
@@ -269,7 +271,7 @@ max frame = 2 * 6 + 5 + 0x55 = 0x66
 ```
 
 `Flags1a.pl8` frames `0x55 … 0x66` are exactly eighteen frames. The ladder **saturates**
-rather than overflowing: a herd of 25 per field and a herd of 45 per field are the same
+a herd of 25 per field and a herd of 45 per field are the same
 picture. The mismatch is a loss of information in the graphic, not a fault.
 
 The dead half is equally safe: `0x10 … 0x12` maps to `0x67 … 0x78`, which exist (as 2 × 2
@@ -288,7 +290,7 @@ above:
   `shield * 8 - 8 + phase`, which for `shield == 0, phase == 0` is **−8**. The frame record
   read then fails the `dataOffset < 1` check, writes `"ERR:top_it no data"` and sets
   `g_quitRequest = 1`. `docs/screens.md` §5.1 says *"`shield` is a realm's `shieldIndex`,
-  clamped 1 … 5, so a zero shield flies nothing"* — that is true of the **town** and false of
+  293: clamped 1 … 5, so a zero shield flies nothing"* — that is true of the **town** and false of
   the **castle**. **C87.** No shipped save on this machine has a
   zero-shield garrison, so this is `[D]`, not an observed crash.
 
@@ -299,11 +301,15 @@ above:
 ### 5.1 The original has a generic tooltip layer, and it covers this sidebar
 
 `FUN_00476E95` runs every frame from `Battle_Frame`, gated on `g_optToolTips`. It saves the backdrop it will cover, waits **one second** of `timeGetTime` with the mouse still, resolves a
-hotspot id through a per-screen table `DAT_004D6FB8[g_screenId]`, and draws `L2.eng` group
+tip id through one of two pointer ladders chosen by a per-screen table `DAT_004D6FB8[g_screenId]`, and draws `L2.eng` group
 220 index *id* in a box beside the cursor, flipping side at x 321 and y 241.
 
+**Built**, `crates/l2-game/src/tooltip/mod.rs`: all four of its draws — both text passes, the
+308: `0x20` fill and the `0x3F` outline — on every screen the table names.
+
 `FUN_00477320` is the campaign map's resolver — **1,082 bytes**, and it partitions the whole
-sidebar. Twenty-four of group 220's thirty-five strings are reachable from it, and they are
+sidebar. **Twenty-six** of group 220's thirty-five strings are reachable from it (this said
+twenty-four, over a table that lists twenty-six), and they are
 a **self-written description of a screen we have been reverse-engineering by hand**:
 
 ```
@@ -331,7 +337,7 @@ Two documents are wrong about this and one is right. `docs/formats/eng.md` §5 h
 on"*, `FUN_00476E95`, `[V]`). `docs/screens.md` §7 says **"this engine has no generic tooltip
 mechanism"** in a paragraph about the original's merchant plaque, which reads as a claim
 about `Lords2.exe` and is false of it. And `map.rs`'s `minimap_mode_name` says *"the original
-labels them only with the button icons and the badge, and `L2.eng` has no strings for them"*
+340: labels them only with the button icons and the badge.
 — group 220 indices 2, 3 and 4 are exactly those labels. **C86.**
 
 ### 5.2 Fog of war gates six of the map's draw functions, and bank bit `0x20` is *explored*
@@ -340,20 +346,41 @@ labels them only with the button icons and the badge, and `L2.eng` has no string
 `0x1C`; bits `0x01`, `0x20`, `0x40`, `0x80` set at run time"* and says what three of them
 are. **`0x20` is `explored`:**
 
-* `FUN_0046E067(x, y, w, h)` sets it over a rectangle, called from `Army_Create`,
-  `Unit_Step` and `FUN_0046DFD5`; `FUN_00469370` sets it on a county's field tiles when the
-  county is the local player's.
-* `g_optExploration` is a real, toggleable advanced option — `Opt_ToggleExploration`
-  (`FUN_00447E0B` arm 3), reachable from `Screen_AdvancedOptions`, defaulted by
-  `Options_SetDefaults`, committed by `Setup_CommitOptions` and carried in the save.
-* Six draw functions test the pair: `Map_DrawTile` (draws **base bank frame 0** instead),
-  `Map_DrawTileApex` (draws **nothing**, so an unexplored tile is flat), `Map_RenderIso`,
-  `Map_RenderAlignedRow` and `Map_RenderOffsetRow` (the off-map surround becomes frame 0
-  too), `Map_DrawArmies` (a unit in the dark is not drawn) and `Sprite_TopIt`.
+> **Corrected and extended, and now built** (`docs/decisions.md` C172). The bullets
+> below said *"six draw functions"* and named seven, called the toggle *"`FUN_00447E0B` arm
+> 3"* — that is `NetAct_SetGameOptions`, the network action; the toggle is
+> `Opt_ToggleExploration` (`0x00434693`) — and gave `FUN_0046E067` a width and a height it
+> does not take. `l2_kingdom::explore` carries the full table of writers.
 
-`l2_kingdom::Options::exploration` is stored and honoured by nothing, which
-`docs/mechanics.md` already carries as a gap. What is new is that **the whole of its
-behaviour is drawing**, and it is five call sites plus one bit.
+* `FUN_0046E067(x, y, r)` (`0x0046E067`) sets it over the `(2r+1)²` square round a tile,
+  clipped to the map. `Unit_Step` (`0x00465D28`, at every tile centre, army and local player
+  only) and `Army_Create` (`0x004A9A9A`, local player only) pass **6**; `FUN_0046DFD5`
+  (`0x0046DFD5`) passes **1** for every tile of a county, and is called by
+  `County_ChangeOwner` (`0x004A72FE`, new owner the local player) and as the last statement
+  of `Game_SetupRealmsAndCounties` (`0x0049BD99`, the local player's start county).
+  `FUN_0046DF51` (`0x0046DF51`) **clears** it everywhere, from `Map_InitScenario`, and is
+  the only clearer. `FUN_00469370` re-sets it on a county's field tiles after a network
+  snapshot overwrote their bank bytes. **None of them tests the option.**
+* `g_optExploration` is a real, toggleable advanced option — `Opt_ToggleExploration`
+  (`0x00434693`), reachable from `Screen_AdvancedOptions`, defaulted by
+  `Options_SetDefaults`, committed by `Setup_CommitOptions`, applied to every peer by
+  `NetAct_SetGameOptions` (`0x00447E0B`) and carried in the save.
+* **Seven live painters** test the pair — `Map_DrawTile` (`0x004063C1`, draws **base bank
+  frame 0** instead), `Map_DrawTileApex` (`0x00406673`, draws **nothing**, so an unexplored
+  tile is flat), `Map_RenderIso` (`0x0040526E`), `Map_RenderAlignedRow` (`0x00405AE9`) and
+  `Map_RenderOffsetRow` (`0x00405C2F`) (the off-map surround is frame 0 whenever the option is
+  on, seen or not), `Map_DrawArmies` (`0x00408438`, a unit in the dark is not drawn) and
+  `Sprite_TopIt` (`0x004071A0`, no overlay at all) — **plus the dead `FUN_00406BBA`**, §5.9.
+  The only other reader is `Screen_AdvancedOptions`' Yes/No. No input arm, AI step or rule
+  375: reads the option or the bit, and the minimap does not.
+
+**What we draw now.** `campaign::draw` takes the fog (`Map_DrawTile`, `Map_DrawTileApex`
+378: and the surround arms); `draw_units`, `draw_flags` (banner, mercenary marker, garrison
+379: banner), `draw_herds` and the industry wheel each test `Game::hides_tile` on their own tile,
+and so does our owner marker, which stood in for the banner and is debug overlay only now
+(§7). The whole of its behaviour
+382: *is* drawing, as this section said — but it needed the plane first.
+four writers in the simulation.
 
 ### 5.3 Every army carries a banner, and every peasant mob carries a different one
 
@@ -371,10 +398,10 @@ transport (kind 4) get none.
 So **`Flags1a.pl8` frames `0x79 … 0x80` are the peasant mob's eight-phase banner** — the
 block immediately after the 2 × 2 stubs `maps-layers.md` §5.5a measured and left unnamed. And
 an army's owner is legible on the map without clicking it. `docs/screens.md` §5.2 describes
-the sprite, the anchor, the per-kind nudge and the walk tables and **says nothing about
+401: the sprite, the anchor, the per-kind nudge and the walk tables and **says nothing about
 either banner**; neither does §7's list of what we leave out. **C88.**
 
-### 5.4 The far-zoom box has words in it, and we have not been drawing them
+### 5.4 The far-zoom box has words in it — drawn since C189
 
 `docs/screens.md` §7 says of the far zoom's `Ui_DrawBox(0, 412, 30, 4)` that *"the box is the
 original's; the words in it are ours."* The words are the original's too — four draws, at
@@ -387,10 +414,20 @@ Ui_DrawYear(g_year, penAdvance + 0x60, 0x1A8, 1);
 Eng_DrawString(34, 1, 0x50, 0x1C6, body);   /* "Click on the county you wish to view." */
 ```
 
-So the far view reads **`England   Year 1268`** over **`Click on the county you wish to
+So the far view reads **`England   Year AD 1268`** over **`Click on the county you wish to
 view.`** — which is also the game telling us, in its own words, what the far zoom is *for*,
 and it agrees with `Map_Click` doing nothing at zoom 2 while `FUN_004350A1` zooms in on the
 clicked tile. **C89.**
+
+All four are drawn as of **C189**, in `MapScreen::draw`, out of the player's own
+423: `L2.eng`. Three details the listing above elides and the code needs: the first three run with
+424: `DAT_0058FE2C = 1` (drop capitals in colour 1, `Pen::drop_caps`) and the fourth with it clear;
+`g_penAdvance` is zeroed once before the name and **accumulates across both heading strings**,
+so each `+ 0x50` / `+ 0x60` is sixteen pixels past where the previous string ended; and
+`Ui_DrawYear` style 1 draws group 26's era *before* the digits and lifts an AD year by one
+pixel. — C173's note calling for *"the map's name, the season and
+the year"* was prose, not the listing. `tests/chrome_text.rs`
+`the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction`.
 
 ### 5.5 The sidebar's produce rows are eight painters behind two variable counts
 
@@ -405,9 +442,9 @@ row pitch:  left  0x3C if count < 3 else 0x2D
 ```
 
 `CountyStrip_Draw` then walks both, dispatching to one of eight painters. **Read only
-`CountyStrip_Draw` and the strip has eighteen draws; follow the two loops and it has
+445: `CountyStrip_Draw` and the strip has eighteen draws; follow the two loops and it has
 forty-nine.** The row *pitch* being a function of the count is the same shape as
-`g_diploWidgets`' variable count, and the same reason a hit test written from the painter is
+447: `g_diploWidgets`' variable count.
 wrong: `FUN_00477320` divides `(mouseY − 0x130)` by that pitch to find the row.
 
 We draw both lists — `county::draw_produce_rows` with the blue idle ring in it, and
@@ -424,8 +461,8 @@ they were one fix repeated, not three investigations. The four industry rows wer
 tail one function along (`Industry_LabourEstimate`, C136), and this section held them back as
 blocked on a layout question that turned out to have been a wrong base, below.
 
-**And the repetition is what let the middle one ship untested.** Cattle and reclamation each
-got a test the same evening; grain — the row the player actually reported — got none at
+464: **And the repetition is what let the middle one ship untested.** Cattle and reclamation each
+got a test the same evening; grain — the row the player reported — got none at
 either layer, and `land::grain_preview` had no caller in any test in the workspace. Two
 neighbours reading as covered is what covered reads like. It is now
 `the_grain_forecast_is_the_sowing_loss_the_player_reported` (the four seasonal arms) and
@@ -438,15 +475,15 @@ and which reading `CountyStrip_Draw` alone would give as one figure.
 `docs/decisions.md` C151.
 
 **All seven were also blank on a loaded game's first frame**, because nothing imported the
-words and the estimate round runs at a season's end. The four industry words are now imported
+478: words and the estimate round runs at a season's end. The four industry words are now imported
 (C153); the three farm words are not yet, and are measured zero on England turn
 one until the first season ends.
 
 **The four industry rows each read their own commodity's own record, and this paragraph said
-otherwise.** It said each row reads *"the record above the commodity its row is for, and the
+483: otherwise.** It said each row reads *"the record above the commodity its row is for.
 wood row's `0x2F0` is one whole record past the end of a four-record array"* — an off-by-one in
 the original or a wrong base in `docs/records.json`, unsettled. **It was the base, the row was
-stone's rather than wood's, and there is no off-by-one.** `docs/decisions.md` C153.
+stone's.** `docs/decisions.md` C153.
 
 The `Industry` array is based at county **`+0x294`**, not `+0x290`: stride `0x18`, four records
 closing exactly on `levySurcharge` at `+0x2F4`. `+0x290` is the standalone `weaponType` byte,
@@ -463,12 +500,12 @@ row's field looked like the head of the *next* record. With it right:
 The operands are Ghidra's, under its `+0x290` base; the county column is the address.
 `Industry_LabourEstimate` (`0x0044F318`) writes the same word —
 `*(int *)(county * 0x300 + 0x53fc58 + industry * 0x18)` — with the commodity index, so the
-painter side and the producer side agree with no residue. Three readings make it **[V]** rather
+503: painter side and the producer side agree with no residue. Three readings make it **[V]** rather
 than arithmetic: every raw county address the decompilation uses with a `*0x18` stride lies in
 `+0x294 … +0x2AB`, which is **exactly one stride**; `+0x294` ends the array on the next named
-field where `+0x290` leaves a four-byte hole that is precisely the stone row's word; and every
+field where `+0x290` leaves a four-byte hole that is the stone row's word; and every
 fixture save on this machine stores, at `+0x2A8 + c*0x18`, the forecast its own record `c`'s
-workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import.rs`).
+workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import/main.rs`).
 
 ### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
 
@@ -496,8 +533,8 @@ if (g_mapRedraw != 0 || 6 < DAT_005C9288) Map_DrawSurroundTile(...);
 
 Stored `0x06` is grass and `0x16` is water (`maps-layers.md` §4.1), so **land surround is
 painted once per full repaint and sea is painted every frame** — because the sea has a
-cycling variant and the grass does not. `Map_RenderIso`'s own first and last rows have no
-such test. Ours repaints everything; the difference is invisible and the reason is worth
+536: cycling variant and the grass does not. `Map_RenderIso`'s own first and last rows have no
+537: such test. Ours repaints everything; the difference is invisible.
 knowing before anybody optimises.
 
 ### 5.8 The menu bar refuses to redraw unless the treasury moved
@@ -510,10 +547,10 @@ if (<screen is one of the map-like ids> && (g_realms[local].gold != DAT_004E59C4
 
 so the bar — banners, titles, year, season and gold — is repainted only when the local
 realm's gold changes or a flag is set. It is why the year can be a frame late after a season
-turn. And the banner loop's test is `strength != 0 && aiStep < 999`, so a **defeated** realm
+550: turn. And the banner loop's test is `strength != 0 && aiStep < 999`, so a **defeated** realm
 loses its banner mid-game — and so does every realm that has **finished its turn**, which is
 the half of that test §5.11 is about. `Turn_End` raises `DAT_0056D6A0` for exactly that
-reason: it is the flag in the guard above, and the button sets it so the shield goes.
+553: reason: it is the flag in the guard above.
 
 ### 5.9 A whole tile pass is dead
 
@@ -528,7 +565,7 @@ honours `g_optExploration`, so it post-dates the fog. `[I]` a scrapped
 ### 5.10 The instrument got ahead of the player, once, by about four hours
 
 **This is the first time on this project that a check has predicted a player-visible defect
-instead of explaining one afterwards**, and it is worth stating plainly because the whole
+568: instead of explaining one afterwards**.
 argument for building this inventory was that nothing we had could see a wrong picture.
 
 §5.5 counted the `Ui_DrawDelta` calls as missing on 9 September — seven of them, though it then said eight. Later the same day,
@@ -537,9 +574,9 @@ mid-session and without having seen any of this:
 > *"Sidebar doesn't show grain being planted as a negative number."*
 
 That is `FUN_0041023A`'s fourth draw call, row 4 of the grain row's five, sitting in this
-document's missing column. Three things had to be told apart to say so rather than guess it.
+577: document's missing column. Three things had to be told apart to say so.
 
-**One — the row does draw a signed number, and the minus is not a separate mark.**
+**One — the row does draw a signed number.**
 `Ui_DrawDelta` (`0x00402E0C`):
 
 ```c
@@ -552,24 +589,24 @@ else                Ui_DrawNumber( value, '+', suffix, x + g_penAdvance, y, font
 ```
 
 The sign is a **lead character**: `Ui_DrawNumber` writes it over `g_numberBuffer[0]`, the
-slot `Ui_NumberToBuffer(value, 1, 0)` deliberately leaves free for one, and the digits and
-the sign go out in a single `Ui_DrawText`. So there is no minus glyph to have omitted, and
+592: slot `Ui_NumberToBuffer(value, 1, 0)` deliberately leaves free for one.
+593: the sign go out in a single `Ui_DrawText`. So there is no minus glyph to have omitted,
 the `Pen` absolute-versus-advance hazard is ruled out on the same read: `Ui_DrawDelta` saves
 `g_penAdvance`, zeroes it, lets the prefix advance it, places the number at
 `x + g_penAdvance`, and **adds the saved value back** on the way out. Correct advance
-semantics, and the only place on this screen that does that dance.
+597: semantics, and the only place on this screen that does that dance.
 
-Two things beyond the sign are worth having: a positive delta gets an explicit **`'+'`**, and
+599: Two things beyond the sign are worth having: a positive delta gets an explicit **`'+'`**, and
 zero gets **`'@'`**, a blank glyph that holds the column. And all eight rows pass `mode = 0`,
-so **a zero delta draws nothing whatever** — which is why the absence has read as a quiet
-row rather than as an obvious hole.
+so **a zero delta draws nothing whatever** — so the absence has read as a quiet
+row.
 
 **Two — but the value never arrives, so the sign question never comes up.** The grain row
 reads county `+0x22C`. Its only writer is the **tail** of `Grain_LabourEstimate`
 (`0x0044D374`), after the search loop:
 
 ```c
-staff = county.labour[0].workers;                        /* the real staffing, not the search */
+609: staff = county.labour[0].workers; /* the real staffing */
 county.field_0x230 = Grain_Sow(county, staff, county.grain);          /* what sowing will cost */
 if (season == 4)                county.crop[2]      = Grain_Harvest(county, staff, county.crop[1]);
 if (season == 2 || season == 3) county.field_0x2FC   = Grain_Grow   (county, staff, county.crop[1]);
@@ -584,20 +621,20 @@ player's sentence with the arithmetic under it. `l2_kingdom::land::grain_labour_
 reproduces the loop faithfully, returns `GrainEstimate { wanted, useful }` and **stops** —
 all four of those writes are missing from this workspace, and `County` has no field to hold
 any of them. Nor can the number be recovered from the estimate: the loop calls
-`Grain_Sow(county, workers, grain − grainEaten)` and the tail calls
+624: `Grain_Sow(county, workers, grain − grainEaten)` and the tail calls
 `Grain_Sow(county, staff, grain)`, a different third argument.
 
 `crate::field`'s module docs already worked out *why* the estimate round runs twice — *"for …
 the panel forecasts, which the estimates fill from whatever the allocator last decided."*
-**These are those forecasts.** The reason for the doubled round was understood and the four
+629: **These are those forecasts.** The reason for the doubled round was understood and the four
 values it exists to produce were never carried, which is `docs/decisions.md` C30's shape from
 the drawing side once more: *a field is only tested if something a test reads was written by
 something the game runs.* **C123.**
 
-**Three — and the tooltip layer says which row it belongs on.** §5.1's group 220 is the check
+634: **Three — and the tooltip layer says which row it belongs on.** §5.1's group 220 is the check
 on whether the right value is in the right row, and it also corrects this document: index 15
 is *"Cattle, **and change next season**"* and 16 is *"Wheat, **and change next season**"*. So
-the delta is a **forecast for the coming season**, not a change since the last one — and the
+637: the delta is a **forecast for the coming season**, not a change since the last one — and the
 code agrees, `County_RefreshEstimates(county, g_seasonNext)`. §5.5 and `county.rs` both said
 "since last season" and both are corrected.
 
@@ -608,7 +645,7 @@ code agrees, `County_RefreshEstimates(county, g_seasonNext)`. §5.5 and `county.
 also found; recorded here because it lands on this screen. The grain row's *store* is
 `Ui_DrawNumberRight(grain, ' ', …, 0x1E0, y, 0x3C, …)` — **centred in 60 pixels from x 480**
 — and `county::draw_produce_rows` right-anchors it through `body_right`. A second, separate
-defect on the same row, and the one that would have been mistaken for this one.
+648: defect on the same row.
 
 ### 5.11 The End Turn label is a conditional draw, and its flag drives two more
 
@@ -625,19 +662,19 @@ if (g_realms[g_localPlayer].aiStep < 999)
     Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16);
 ```
 
-**The strip is opaque artwork, so blitting it is the erase, and the label is simply not put
+665: **The strip is opaque artwork, so blitting it is the erase.
 back.** One draw call, conditionally made — which is the one in §2's listing, and ours made it
 unconditionally.
 
-**The flag is `aiStep`, and it is a per-realm turn program counter rather than a boolean.**
+**The flag is `aiStep`, and it is a per-realm turn program counter.**
 `Turn_BeginPlayersTurn` sets every living realm's to 0 and a dead realm's to 999, counting the
 rest into `g_realmsActive`; `AI_RunTurnStep` walks it up and parks it at 999 when that realm is
 finished; **`Turn_End` (`0x0043AC23`) — this button's own handler — sets the local player's to
-999 the instant it is clicked.** So `999` means *"this realm's turn is over"*, and the label's
-absence is exactly the interval between the click and the next turn beginning. The player's
+673: 999 the instant it is clicked.** So `999` means *"this realm's turn is over"*.
+674: absence is exactly the interval between the click and the next turn beginning. The player's
 sentence, verbatim.
 
-**And the answer to *what else keys off it* is the reason this is not one small item.** Three
+677: **And the answer to *what else keys off it* is the reason this is not one small item.** Three
 draws share the flag, and together they are the original's entire "the turn is being processed"
 feedback:
 
@@ -650,25 +687,25 @@ feedback:
 **This row used to read `g_optTimeLimit > 0 and aiStep == 999`, and so did `docs/decisions.md`
 C140's.** That is one half of an `||` promoted to the whole guard, and it is exactly backwards
 for a countdown: it would draw the timer only once the person has ended his turn.
-`DAT_0055403C` is what `Turn_End` writes and the next turn's restart clears, so it is 0 for the
-whole of his own turn and the timer is up while he plays — and it *stays* up, frozen, after he
+690: `DAT_0055403C` is what `Turn_End` writes and the next turn's restart clears, so it is 0 for the
+691: whole of his own turn and the timer is up while he plays — and it *stays* up, frozen, after he
 presses End Turn, because then the other half holds. The timer is a per-turn limit on the
 person's own turn, in single player too when the custom game's *Time limit* is set;
 `docs/decisions.md` C158.
 
 The middle row is worth more than the label: **a realm's banner vanishes from the menu bar as
-that realm finishes its turn, and the bar refills as the new turn begins** — a live five-realm
+697: that realm finishes its turn.
 progress indicator across the top of the screen. A player remembered it before anybody had
 read it: *"the shield icons at the top meant that players hadn't ended their turn."*
 
 **Correction: this paragraph used to end *"reproducing it needs a per-realm turn counter this
-workspace does not keep, so it is reported rather than built."*** The workspace has kept one
+workspace does not keep, so it is reported."*** The workspace has kept one
 the whole time — `l2_kingdom::Realm::ai_step`, written by `ai::begin_turn` and `ai::run_step`
 and read by `drive_ai` on every tick of phase 4. The sentence reported a gap in the *model*
 where the gap was in the *painter*, and it was the reason nobody built a twelve-character
 clause.
 
-**And the port is not the literal clause.** Our player sits on the map *between* turns with
+708: **And the port is not the literal clause.** Our player sits on the map *between* turns with
 the phase machine at phase 1, where every counter is already at or past 999; the original's
 sits *inside* phase 4 with his parked at 1. So `aiStep < 999` read literally draws no shields
 at all while the person is playing. `turn::realm_turn_ended` maps the person's counter to
@@ -677,18 +714,18 @@ own `ai_step`, inside a turn only. `docs/decisions.md` C152.
 
 **One thing about this draw is worth recording beyond the map.** It could not have been
 reproduced two days ago: the turn only recently began to be *paced over frames*, so until then
-there was no interval to be inside, and the absence of a busy indicator was unobservable. A
+717: there was no interval to be inside.
 player noticed it within hours of the pacing becoming real. **Some draws are gated on the
-simulation being slow enough to see** — and the inventory cannot tell you which, because a
+719: simulation being slow enough to see** — and the inventory cannot tell you which, because a
 conditional draw looks the same whether or not its condition ever holds for a visible length of
 time.
 
-### 5.12 Every number in the game reserves a sign column, and we were dropping it
+723: ### 5.12 Every number in the game reserves a sign column, and we were dropping it
 
-> *"Happiness # and population # in the sidebar are slightly left of where they should be —
+725: > *"Happiness # and population # in the sidebar are slightly left of where they should be —
 > not sure if we've compared that to the draw in the original or what makes it off."*
 
-**Four pixels left, both of them, and the tax rate too.** The cause is one character:
+728: **Four pixels left, both of them.
 
 ```c
 Ui_NumberToBuffer(value, 1, 0);            /* digits from index 1 */
@@ -698,24 +735,24 @@ Ui_DrawText(&g_numberBuffer, x, y, font, colour);
 ```
 
 `Ui_NumberToBuffer`'s `start = 1` **leaves index 0 free for a sign**, and every call site
-fills it. The strip's three pass `' '`, so the string drawn at `x` is `" 435 "` and the digits
+738: fills it. The strip's three pass `' '`, so the string drawn at `x` is `" 435 "` and the digits
 begin one `SPACE_ADVANCE` — four pixels — right of `x`. We drew the bare digits at the same
 `x`.
 
-**It is not the anchoring, and the report contained the test.** Right-anchoring where the
+742: **It is not the anchoring.
 original centres would displace the two-digit happiness *further* than the three-digit
 population. A lead is one character whatever the value is, so **this displaces both by exactly
 the same four pixels** — which is what the tests now assert, and what ablating the lead
 reverses. These two are `Ui_DrawNumber` anyway, which has no anchoring argument;
 `Ui_DrawNumberRight` is the one that centres (§5.10) and it is a different call.
 
-**The column is deliberate, and the binary says so 62 times.** Over the 190 `Ui_DrawNumber`
+749: **The column is deliberate.
 call sites (this said 191, which counted the function's own definition line; `docs/decisions.md` C163) the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each.
 Never `'\0'` — which the function treats as *terminate immediately*, because index 0 is the NUL
 the buffer was cleared to. `'@'` is a glyph with no picture and no advance beyond the space, so
 those 62 sites are asking for **an invisible sign column that still holds its place**, which is
 only meaningful if the column is there to be aligned on. `SPACE_ADVANCE`'s own doc comment in
-`crate::shell::font` had already worked that out one level down; the strip's call sites simply
+`crate::shell::font` had already worked that out one level down; the strip's call sites
 did not use it.
 
 **Scope.** 350 call sites across the four number routines — `Ui_DrawNumber` 190 (not 191, C163),
@@ -724,7 +761,7 @@ are the campaign sidebar's five; the rest of the tree is a sweep somebody should
 `strip_number` / `body_number_centred` as the shape. **C127.**
 
 *`Ui_DrawCount` was written 81 here and is 80*: 80 `CALL 0x0041AB67` in the shipped exe, 80 call
-lines in the decompilation. **Its share of the sweep is done**, as one change rather than 80:
+lines in the decompilation. **Its share of the sweep is done**, as one change:
 `Ui_DrawCount` has no lead argument — it always passes `'@'` and an empty suffix — so `Pen::count`
 stopped taking one, and all 22 of our reproductions draw the original's string. The menu bar's
 treasury moved from x 500 to 504. `Ui_DrawNumber`'s share is still open, and its **suffixes** are
@@ -736,20 +773,20 @@ C155.
 ## 5a. The listing counts *whether* a draw happens, not *where it lands* — and that is now measured
 
 The player's aside is the more important half of his report: *"not sure if we've compared that
-to the draw in the original."* **We had not.** Population, happiness and the tax rate are all
+776: to the draw in the original."* **We had not.** Population, happiness and the tax rate are all
 inside §2's `CountyStrip_Draw` row, which reads **18 of 18 reproduced** — and three of the
 eighteen were four pixels wrong the whole time.
 
 So the honest statement about this document's headline:
 
-> **`ours` means *we make a corresponding draw*. It does not mean *at the original's
+782: > **`ours` means *we make a corresponding draw*. It does not mean *at the original's
 > coordinates, in the original's composition, with the original's frame*.**
 
 That is exactly the gap `docs/arms.json` has between *the arm exists* and *the arm is the right
 kind of gesture*, and it wants the same treatment: **a third verdict.** `reproduced` for a draw
 we make, `placed` for one whose coordinates and string composition have been read back against
 the call site's own literals, `absent` for the rest. Until that pass runs, **59 of 121 is an
-upper bound on fidelity and a fair count of coverage**, and the two should not be quoted as the
+789: upper bound on fidelity and a fair count of coverage**.
 same number.
 
 **The one measured sample, because a proposal with no measurement is a mood.** The eighteen
@@ -761,7 +798,7 @@ that nothing except a person reading was ever going to find it: all three passed
 the tree, and two of those tests *asserted the wrong coordinate* while quoting the right call
 site.
 
-**Three things make a displaced draw invisible**, and they are worth stating because each
+801: **Three things make a displaced draw invisible**.
 defeats a different check:
 
 * **The call site's `x` is not the picture's `x`.** A test can quote `0x1FC`, assert `0x1FC`,
@@ -769,7 +806,7 @@ defeats a different check:
 * **A screenshot diff cannot be run**, because we have no reference render; the original is a
   DirectDraw fullscreen app whose `PrintWindow` capture is black (`maps-layers.md` §7).
 * **Four pixels is under the threshold of noticing** for everyone except somebody who has
-  played the game for years. That is the same reason the pasture cattle and the wheat needed a
+  809: played the game for years. That is the same reason the pasture cattle and the wheat needed a
   person: **the failures this project has left are the ones that look plausible.**
 
 ### 5.13 The cattle row was right and stale, and a name in our own records file sent the search wrong
@@ -777,9 +814,9 @@ defeats a different check:
 > *"I right now have −11 cattle. If I move it so the people are eating cattle, it still says
 > −11 cattle in the sidebar."*
 
-Four causes fitted. The binary picked one, and the elimination is worth more than the fix.
+817: Four causes fitted. The binary picked one.
 
-**The figure includes slaughter, and the game's own labels prove it.** `Panel_JobCattle`
+819: **The figure includes slaughter.
 (`0x00413B30`) draws three lines from `L2.eng` group 77: index 7 *"Change due to farming"* from
 `births − deaths` **computed inline and never stored**, index 27 *"Change due to eating"* from
 `−herdEaten`, and index 28 *"Overall change"* from county `+0x258`. **The sidebar draws
@@ -789,12 +826,12 @@ Four causes fitted. The binary picked one, and the elimination is worth more tha
 28. Renamed `herdOverallChange` (303 record fields before, 303 after). That wrong name is what
 made *"the delta excludes slaughter"* the leading hypothesis — **a wrong name in a data file is
 repeated by everyone downstream and interrogated by nobody**, because a name does not look like
-a claim. Third time in two days a document acted as an input to reasoning rather than a record
-of it, after the dead variant and the "right-aligned" comment.
+a claim. Third time in two days a document acted as an input to reasoning
+830: of it, after the dead variant and the "right-aligned" comment.
 
-**The real cause: the tail again.** `Herd_LabourEstimate` is a search loop plus a tail, and the
+832: **The real cause: the tail again.** `Herd_LabourEstimate` is a search loop plus a tail, and the
 original calls it from **both** `Herd_SeasonTick`'s last line and `County_RefreshEstimates`. We
-had the loop in `refresh_estimates` and the tail in `herd_season_tick` alone, so the forecast
+834: had the loop in `refresh_estimates` and the tail in `herd_season_tick` alone, so the forecast
 moved once a season and no control could move it. Identical to §5.10's grain split, in the same
 file, on the same day — and a third quiet instance sits beside them: `Kingdom::refresh_estimates`
 omits `Herd_UpdateCrowding` from the middle of the doubled round that `field.rs`'s module docs
@@ -824,40 +861,76 @@ That leaves these arms enumerated but not observed, and I have not inferred past
 * **the wrecked-industry animation** (arm 5c) — needs `Unit_TrampleTile` *and* three seasons
   of `disabledSeasons`;
 * ~~**the working-industry animation rates** (arm 5b) — needs four different output bands in
-  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry.rs`.
+  one county over time;~~ **Exercised.** `crates/l2-game/tests/industry/main.rs`.
 
-  **And the premise of this bullet was wrong, which is worth more than the bullet.** It was
+  866: **And the premise of this bullet was wrong.** It was
   written as *"every fixture is turn one, so only the idle appearance can be seen"*, from
   `map.rs`'s own test asserting `terrain == 1` on an iron tile. That is true of iron.
   **England turn one has all five owned counties' forests switched on** — their site tiles
   hold terrain **11**, which is `INDUSTRY_IDLE[wood] + 1`, the value
-  `Industry_UpdateSiteTile` writes for *enabled* and the one arm 5b animates. So the working
-  appearance was on the shipped fixture the whole time, and the bottom and top **bands** are
+  871: `Industry_UpdateSiteTile` writes for *enabled* and the one arm 5b animates. So the working
+  872: appearance was on the shipped fixture the whole time.
   reachable from it without staging: `total − totalSnapshot` is 0 before a season and 173
   after one. Only the two middle bands need a number written by hand. A true statement about
   one commodity, read as a statement about the map — `docs/agents.md`, *name the branch*;
-* **the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
-  campaign map, which the battle triple does not carry;
+* ~~**the besieger's banner and its count** (`FUN_00407F82`) — needs a live siege on the
+  campaign map, which the battle triple does not carry;~~ **Exercised, by staging one.**
+  `crates/l2-game/tests/screens_map/main.rs`
+  `a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left` writes the two fields
+  the game keeps — `+0x19A` on the *garrison* and `+0x19C` on the besieger — and asserts
+  881: frame `0x82` and the centred count pixel for pixel. **No fixture is needed and none would
+  have helped**: the bullet read as *wait for a save with a siege in it*, and what the arm
+wants is two bytes, which is the same shape as the mercenary marker's one;
+* **the far zoom's dead besieger call** — `Sprite_TopIt` calls `FUN_00407F82(…, 2, -0x28)`
+  885: at `g_mapZoom == 2` and the callee's whole body is inside `if (g_mapZoom == 0)`, so it
+  draws nothing. Not observable because there is nothing to observe; `docs/bugs.md`;
 * **a garrison whose shield differs from the county's** — the case §4's missing guard is
   about;
 * **the multiplayer four** (chat, heartbeat, wait glyph, turn timer) — need a second peer;
 * **fog of war** — needs `g_optExploration` set at new-game time;
-* **the far-zoom caption** — reachable, and the only one of these that is cheap.
+891: * **the far-zoom caption** — reachable.
 
 ---
 
 ## 7. What we draw that the original does not
 
-About **29** sites, hand-counted from the `OURS`-marked code in `screens/map.rs`,
+About **29** sites, hand-counted from the `OURS`-marked code in `screens/map/mod.rs`,
 `screens/county.rs` and `screens/menubar.rs`, excluding the eight fallbacks that appear only
 when the artwork is missing:
 
 the county outline; the county marker squares (2); the field markers (2); the far-zoom status
-line; `TURN n`; `COUNTIES n/m`; the clock and the treasury in our own font (2); the
+902: line; `TURN n`; `COUNTIES n/m`; the clock and the treasury in our own font (2); the
 `INDUSTRY / NOT DRAWN` box (3); the sidebar status line; the sidebar focus frame and its name
 (2); the unit banner panel and its two lines (3); the field brush popup (5); the county
 panel's focus outline; the drop-down's recess and its status line (2); `NO MINIMAP`;
 `NO COUNTY SELECTED`.
+
+> **Since this list was written.** The field brush popup's five are **gone** — the left click
+> on a field opens screen `0x04`, `Map_Click`'s own destination, and `FUN_0041C996` draws
+> the brush there. And every remaining site above that a complete install reaches — the
+> marker and field squares, the far-zoom status line, `TURN n`, `COUNTIES n/m`, the sidebar
+> status line, focus frame and name, the unit banner, `NO COUNTY SELECTED`, and on the
+913: > unit layer the garrison marker and the selection ring — is **drawn only
+> with the debug overlay on** (Ctrl+D, `Prefs::debug_overlay`, `docs/arms.json`
+> `ours/debug-overlay-toggle`). Two players reported them as *"debug squares still on the
+> town square"* and *"debug outlines and text for the 4 icons at the bottom right"*.
+> `crates/l2-game/tests/screens_info/main.rs` `the_debug_overlay_is_off_by_default_and_ctrl_d_draws_it`
+> asserts each absence at a pixel the overlay really draws. The sites are still counted,
+> because the audit counts source call sites and they are still in the source.
+>
+> **The besieger dot is gone from the source, and that is the one worth reading.** It was a
+> debug-gated invention over the *army*, under a comment saying `FUN_00407F82` stays a
+> missing draw. It was not that the original drew the same thing somewhere else and we had
+> missed the offset: the original draws it over the **castle**, which is a different tile, a
+925: > different pass and a different function.
+> had gone and read. Gating an invention is not the same as finding the original's, and a
+> gate makes the miss harder to see — this dot survived C173's sweep *because* it had been
+> gated, with the missing draw named two lines above it.
+>
+930: > **The 29 above does not move.** The enumerated list
+931: > is exactly 29 items and the three unit-layer marks — the garrison marker, the selection
+932: > ring and the dot — are named only in this note, so the hand count never held them. A list
+> and a total that were written at different times.
 
 Every one is marked in the source. Eleven of them exist because a thing the original draws is
 not drawn yet, so the number should fall as §2's right-hand column rises — which makes it the
@@ -874,7 +947,7 @@ Both are already marked in the code as ours; what was missing was the original's
   `g_mapTileHalfStep` from the x when it is the offset row's first cell.
   `campaign::draw_path_marker` centres the 15 × 15 ball on the tile instead, which is
   **(+2, +2)** off at the near zoom and **(+22, +10)** off at the far one, where the tile is
-  10 × 6 and the original's fixed `+0x14` puts the ball two tiles to the right. The
+  950: 10 × 6 and the original's fixed `+0x14` puts the ball two tiles to the right. The
   original's own placement looks wrong at zoom 2 and is what it does.
 * **The menu bar's bevel.** `Ui_DrawBevelRect(0, 0, 0x280, 0x18)` outlines the whole bar,
   top and right in palette `0x1F` and bottom and left in `0x10`.
@@ -885,19 +958,19 @@ Both are already marked in the code as ours; what was missing was the original's
 ## 9. What this says about the method
 
 `docs/draws.md` §1 measured the pilot at *"about as long as reading its input arms, and it
-produced more."* The campaign map cost about a day, as estimated, and the ratio held: **139
+961: produced more."* The campaign map cost about a day, as estimated.
 draw calls against `docs/arms.json`'s 25 input arms for the same screen group**, and nine
 findings, of which
-**five are things we draw or claim wrongly** rather than things we fail to draw — the same
+**five are things we draw or claim wrongly** — the same
 direction the pilot's §2 reported.
 
-Two things the pilot could not settle, that this screen can:
+967: Two things the pilot could not settle, that this screen can:
 
 * **The unit of enumeration has to be the frame *selection*, not the call.** On this screen
-  most drawing goes through blitters that take their subject in two globals, so a
+  970: most drawing goes through blitters that take their subject in two globals, so a
   painter-keyed or call-keyed count reports **0** for the terrain and **1** for
   `Sprite_TopIt`. Counting `DAT_005C9288 = …` is what turns that 1 into the 18 that matters.
   Any per-screen script that follows this one has to know that.
-* **The ratio is not a gate here either, and for a new reason.** 10 of 139 are debug-gated
+974: * **The ratio is not a gate here either, and for a new reason.** 10 of 139 are debug-gated
   and 8 are dead; a ratio computed without classifying them would read 44 % where the honest
-  figure is 50 %, and the classification is a judgement no script can make.
+  976: figure is 50 %.

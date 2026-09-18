@@ -51,8 +51,8 @@ and it has **two** zoom levels, not three:
 **dead code**: `DAT_0057cb18` is written in exactly three places, and never with 1 (§2.2).
 
 **Neither zoom shows the whole map.** The lattice is 65 columns wide; near shows 8 of them
-and far shows 40. Far additionally *cannot scroll at all* — the origin is pinned — so a
-quarter of the lattice's columns are simply unreachable at that zoom.
+and far shows 40. Far additionally *cannot scroll at all* — the origin is pinned —
+quarter of the lattice's columns are unreachable at that zoom.
 
 ---
 
@@ -118,7 +118,7 @@ A `w × h` diamond body is `h²/2` bytes: 30²/2 = **450** per half, 900 for bot
 **196 = 0xc4**; 6²/2 = 18, **36 = 0x24**. All three match, which pins the tile sizes from
 the instruction stream alone.
 
-### 1.3 `Map_RenderIso` walks a window, and the arithmetic closes  **[V]**
+### 1.3 `Map_RenderIso` walks a window, and the arithmetic closes **[V]**
 
 `Map_RenderIso` (`0x0040526E`) draws `g_mapViewRows + 1` lattice rows, alternating between
 *aligned* rows (drawn at `x = g_mapViewX + c·pitch`) and *offset* rows (shifted left by
@@ -177,7 +177,7 @@ Modes 3 and 4 between them drop tile-x `w/2 − 1` and `w/2` — two columns, bo
 So **an ordinary blit clipped to `x ∈ [viewX, 478)`, `y ∈ [24, bottom)` produces the same
 pixels as the original's five blitters**, and 478 is not a guess: `FUN_004081A6` calls
 `Clip_Horizontal(g_mapViewX, 0x1DE)` and 0x1DE is 478. This is what `l2-view` implements,
-and `campaign::tests` asserts the derivation rather than assuming it.
+and `campaign::tests` asserts the derivation.
 
 ### 1.5 The scroll origin, and what moves it  **[D]**
 
@@ -205,7 +205,7 @@ for "no edge". Each direction moves the origin by `g_mapScrollStep`:
 | row | −2s | −2s | 0 | +2s | +2s | +2s | 0 | −2s |
 | col | 0 | +s | +s | +s | 0 | −s | −s | −s |
 
-Row moves in twos, which keeps the origin's parity — and the origin is **always even**
+Row moves in twos, which keeps the origin's parity —
 (every setter uses an even literal, `row & 0xFFFE`, or ±2). That matters: the traversal
 alternates aligned/offset rows starting from the origin, and `maps-layers.md` §4 says
 odd lattice rows are the half-shifted ones.
@@ -218,10 +218,10 @@ odd lattice rows are the half-shifted ones.
 **[V] The default is 60, which is 50 ms, which is 20 tiles a second.** Written by the
 options-defaults routine at `0x004AE310` — unnamed in `symbols.json`, and also the writer of
 `g_optGameSpeed = 90` (`0x0053F230`) and the settings magic `0x7EC` at `0x0053F204` that
-gates a re-default. The persisted settings block is `0x0053F1E0`, 0x468 bytes, and the two
+gates a re-default. The persisted settings block is `0x0053F1E0`, 0x468 bytes,
 speed options sit at `+0x50` and `+0x54`. `Menu_ScrollSpeed` (`0x00434CEE`) opens the slider
 as `min 0, max 100, step 10, format 1` — eleven settings shown as 0 … 10 — and it forms the
-pointer as `0x53F1E0 + 0x54` rather than pushing the address, which is why a byte scan for
+pointer as `0x53F1E0 + 0x54`,
 readers of `0x0053F234` misses the menu. There are exactly two other references in `.text`:
 the default above, and the `sub` inside the throttle.
 
@@ -232,9 +232,9 @@ screens `0x00`, `0x04`, `0x10`, `0x28` and `0x29`, not the campaign map alone.
 
 **The gate is on the movement, not on the detection.** `Map_EdgeScroll` is called
 unconditionally every frame from `Screen_FrameInput` — deliberately outside the main loop's
-`ticksDue` gate, which is why the map scrolls smoothly while the simulation ticks at game
+`ticksDue` gate, so the map scrolls smoothly while the simulation ticks at game
 speed. `Map_ScrollStep` applies the move, calls the throttle, and **undoes it** by restoring
-four saved globals if the interval has not elapsed. The remainder is discarded rather than
+four saved globals if the interval has not elapsed. The remainder is discarded
 carried (`g_lastScrollTick = now`), so at high speeds the rate degenerates to one tile per
 frame. `crates/l2-game`'s map ignored all of this and scrolled one tile per fixed tick — 62.5
 a second against 20 — which a player reported; `docs/decisions.md` C59.
@@ -262,6 +262,15 @@ row = 1 + y + x          col = (64 - y + x) / 2          value = (64*y + x) * 8
 
 **Our engine implements rotation 0 only, and says so at the call site.** The other three
 are a straightforward transposition of the same loop and are not done.
+
+**Neither does the shipped original.** **[V]** `FUN_00429F12`'s only caller is
+`FUN_0042A01B`; `FUN_0042A01B` has none, in any of the 2,452 decompiled functions, and
+neither address appears in a widget table. `g_mapRotation` (`0x00522F7C`) has exactly one
+other writer, `Map_LoadPlanes` (`0x00467770`), which zeroes it on every map load, so its
+four readers — `Map_BuildLattice`, `Map_DrawArmies` (`0x00408438`), `FUN_0046AD6B` and
+`Anim_DrawBowA2` (`0x0048804A`) — always take the rotation-0 branch. The vocabulary is
+absent too: `Lords2.exe` holds no `rotat*` string and `L2.eng`'s one is *"crop rotation"*.
+The two steppers are unreachable code. Rotation 0 only is a **match**, not a gap.
 
 ---
 
@@ -294,7 +303,7 @@ The resource table is 20-byte `{char name[16]; u32 size;}` records at **`0x004DA
 | 7 | `flags1a.pl8` | `0x0055CE5C` | the two flags (`FUN_004071A0`) **and** the path balls (`FUN_004081A6`) — §5.1 |
 
 Rows 0–4 are exactly the five banks `Map_DrawTile` selects on `plane1 & 0x1c`, in order —
-an independent confirmation of `maps-layers.md` §1.1 from the loader rather than from the
+an independent confirmation of `maps-layers.md` §1.1 from the loader
 frame counts. `misc_cty.pl8` is loaded alongside into `0x005530C8` (§4).
 
 **The season is a whole-bank swap, not a per-frame variation, and it is `g_season`
@@ -313,7 +322,7 @@ Two consequences worth writing down.
   reload runs inside the dark window. That was an unsupported `[I]`; a person reporting the
   swap independently is a second source for it.
 * **The overrides plane survives a season, and it has now been measured.** C41's
-  `campaign::Overrides` stores `(bank byte, frame)` and the reload changes neither, so the
+  `campaign::Overrides` stores `(bank byte, frame)` and the reload changes neither,
   town's 47 … 58 mean the same thing in every season *provided* the four seasonal files of a
   bank share a frame table. This paragraph used to end *"that is the one thing here nobody
   has measured"*. **They do share one.** Over all five near-zoom banks and 1,398 frame
@@ -323,7 +332,7 @@ Two consequences worth writing down.
   `maps-layers.md` §1.1a has the numbers and
   `l2-view/tests/install.rs::the_four_seasons_of_a_bank_are_the_same_frame_table` asserts
   them. So the season is a lookup table, and towns do not revert to quarries in spring —
-  `l2-game/tests/screens.rs::a_towns_overridden_graphic_survives_every_season` checks that
+  `l2-game/tests/screens_map.rs::a_towns_overridden_graphic_survives_every_season` checks that
   at the pixel in all four.
 
 **One correction to the paragraph above, and it matters to anyone implementing this.** The
@@ -331,17 +340,17 @@ sentence *"the suffix **is** the season, four sets per zoom, entries 0–31 and 
 right for entries 0–31 and **wrong for 32–63**. The zoom-2 half of the table names
 `base2a`/`mtns2a`/`roads2a`/`town2a`/`castle2a` in **all four** of its season blocks: the far
 view is not seasonal, and `Base2b.pl8` and its eleven siblings ship and are never loaded,
-exactly as `Flags1b/c/d.pl8` do. Worse for a naive fix, the dead files are not
+The dead files are not
 interchangeable with the live one — `Town2a.pl8` has 61 frames and `Town2b/c/d.pl8` have 94 —
 so deriving the far zoom's filenames from the season letter draws a different sheet for three
 seasons in four. `maps-layers.md` §1.1b.
 
 **Ours draws the season.** `l2_view::campaign::Zoom::banks` is a 4 × 5 table per zoom,
-transcribed from `g_resourceTable` rather than generated from the suffix, and `MapAssets`
+transcribed from `g_resourceTable`, and `MapAssets`
 interns it by filename — twenty-five names, twenty distinct files. `campaign::draw` takes
 `g_season` and `MapScreen`'s repaint key carries it.
 `a_real_turn_turns_the_season_and_the_map_is_repainted_from_other_files` ends a real turn and
-requires the picture to change, rather than assigning to `season` and reading the lookup back.
+requires the picture to change.
 
 ### 2.2 Zoom 1 is unreachable  **[V]**
 
@@ -411,7 +420,7 @@ Two things fall out and both check:
   `g_season`, and the low 2 bits pick which of four slots inside a `MAPnn.PL8`.
 * the install ships `Map01…Map06` and `MAP11…MAP15` — **11 files × 4 slots = 44**, exactly
   the used-slot count, with the missing `map07…map10` covering slots 24…39, exactly the
-  empty ones. **[V]**, and a genuinely independent corroboration of the §6 census.
+empty ones. **[V]**, and an independent corroboration of the §6 census.
 
 ### 3.2 Where it sits, and what it does  **[D]**
 
@@ -434,7 +443,7 @@ branches of `Minimap_DrawOverlay` test `owner == g_localPlayer` and skip the pix
 otherwise, leaving the raster's own shade.
 
 **Two adjacent tables, not one.** `0x004D28F8` and `0x004D2900` are eight bytes apart and
-it is worth writing the bytes out, because the two have different strides:
+the two have different strides:
 
 ```text
 004d28f8  0f 15 f3 09 f1 05 | 05 05      the rating ramp, then two bytes nothing indexes
@@ -474,8 +483,8 @@ literal `0x0053F9B3` in the disassembly mistaken for an offset; `g_counties` is 
 
 **Two of the three have no middle, and 6 is off the end of the ramp — so those counties
 are not coloured at all.** In the shipped game the food overlay is therefore a single red
-mark on the counties that went short and nothing anywhere else, and the labour overlay
-paints only the ramp's two ends. That is not a gap in the reading: `FUN_00451BBA` has a
+mark on the counties that went short and nothing anywhere else,
+paints only the ramp's two ends. `FUN_00451BBA` has a
 *second* food branch, spreading `rationAchieved` over bands 1…5, behind `DAT_00553E60` —
 a flag zeroed by the bulk global reset at `0x00497500` and toggled only inside the command
 dispatcher at `0x004B29BE`, i.e. a debug switch. With it clear the ramp's middle four
@@ -484,7 +493,7 @@ colours are unreachable in food mode.
 Corroborated from the user's own saved games: over every save on this machine, `+0x02` is
 only ever 0 or 6, `+0x03` only ever 0, 5 or 6, and `+0x01` is `happiness / 20` in every
 save where the bands have been computed at all — `l2-formats/tests/save.rs`. (A game whose
-overlay was never opened has all three zero, which the England turn-one fixture is.)
+overlay has all three zero, which the England turn-one fixture is.)
 
 **The four buttons are not radio buttons.** `Minimap_ModeButton` (`0x0043AB76`) reads a
 hotspot id from `DAT_0059154C` and is a two-state machine:
@@ -492,7 +501,7 @@ hotspot id from `DAT_0059154C` and is a two-state machine:
 * **in mode 0** — buttons 1…3 select their mode; button 4 toggles the map zoom;
 * **in any other mode** — button 4 turns the overlay *off*; buttons 1…3 do nothing.
 
-So there is no switching straight from food to happiness. The artwork agrees again: frame
+The artwork agrees again: frame
 `0x5C`, drawn in mode 0, has four buttons on it, and frame `0x5B`, drawn in every other
 mode, has the colour bar and **one** button.
 
@@ -602,7 +611,7 @@ Frame 59 carries `L2.eng` group 4, **"End turn"**, centred in 162 px at (478, 46
 
 `FUN_0040F5FD` ends with `FUN_004B0AB5(0x5691F0)`, and `0x005691F0` is preload entry 0:
 **`Base01.256`**. `FUN_004B0AB5` widens 6-bit VGA to 8-bit by multiplying by 4 and then
-**forces entry 0 to black**. (Our `Palette` scales by 255/63 instead of 4; the difference is
+**forces entry 0 to black**.
 at most 3/255 per channel and is not corrected here.)
 
 ---
@@ -624,7 +633,7 @@ cursor `DAT_00591524` / `DAT_00591528`.
 
 **Rows two and three were both wrong until a player asked where his flags were, and both
 are `docs/decisions.md` C49 and C50.** `FUN_004081A6` is not the county flag: it is the gold
-ball on an ordered path, its `0x40` is the **bank** byte's transient path mark rather than
+ball on an ordered path, its `0x40` is the **bank** byte's transient path mark
 plane 0's county town, and `docs/armies.md` §2.3 has had it right under the name
 `Map_DrawPathMarker` the whole time. §1.3's third bullet quotes this function for its clip
 rectangle — the numbers are right and the attribution is not.
@@ -648,13 +657,13 @@ frame = shield * 8 - 8 + phase;      /* == (shield - 1) * 8 + phase */
 `Flags1a.pl8`'s frames `0x00 … 0x27` are forty 32 × 24 pictures laid out five rows by eight
 columns: **five shields × eight wave phases**, and `shield = 5, phase = 7` lands on frame 39
 exactly, with frame 40 beginning an unrelated block. **The colour is in the frame index**;
-there is no palette remap. The castle's shield is the **garrison's**, not the county's, so a
+The castle's shield is the **garrison's**, not the county's,
 captured castle holding somebody else's garrison flies their colours.
 
 **Correction: only the *town* arm guards a zero shield, and this section said both did.**
 The town arm returns on `county.field_0x7 == '\0'` before it computes anything. The castle
 arm tests `garrisonUnit == 0` and then computes `shield * 8 - 8 + phase` with **no clamp at
-all** — there is no `1 … 5` clamp anywhere in `FUN_004071A0`; the clamp this paragraph was
+all** —; the clamp this paragraph was
 remembering is `FUN_004171EE`'s, on the menu bar's banners. A garrison whose `shield` is 0
 therefore asks for frame `−8 + phase`, the frame-record read fails the `dataOffset < 1`
 check, and the function writes `"ERR:top_it no data"` and sets `g_quitRequest = 1`. **[D]** —
@@ -694,7 +703,7 @@ with `g_unitWalkFrames` (`0x004D6A78`) = `0, 1, 2, 1`, `g_merchantWalkFrames` (`
 `Sprite1a.pl8`'s 168 frames decompose exactly: `0 … 47` are the 40 × 32 merchant, 8 facings ×
 6 phases; `48 … 71` are a 3 × 4 dead block; `72 … 95`, `96 … 119` and `120 … 143` are the
 three 53 × 44 army banks; `144 … 167` is the mob's. `Sprite1b.pl8` is 48 frames and nothing
-else — the transport bank, which is why sheet B needs no base.
+else — the transport bank, so sheet B needs no base.
 
 The anchor is `tileOrigin + (g_mapTileHalfStep, g_mapHalfPitch)`, and **both of those are 30
 at the near zoom and 6 at the far one** — `Map_SetZoom` writes them from one literal — so on
@@ -724,10 +733,36 @@ The 8 × 16 tables at `0x004D8108` … `0x004D8388` are six `i8` arrays indexed
 `[direction][+0x149]`: index 0 is zero and index 1 is the full previous-tile delta, ramping
 back to zero at 15. They **drag the sprite backwards toward the tile it stepped out of**
 while a step plays out, which is the walk animation; the unit's own `x`/`y` are already at
-the destination.
+the destination. **Built** — `campaign::walk_offset`, and five more things about it, each
+**[V]** against the bytes or **[D]** as marked (`docs/decisions.md` C184):
+
+* **Only the odd indices are drawn while walking.** `Unit_StepOnce` (`0x0046634D`) writes
+  `+0x149 = 1` at the commit and adds 2 per admitted tick; on reaching 16 the same tick
+  commits the next tile. A crossing is eight positions, 1, 3 … 15, and a stopped unit is at
+  0. Linear, in whole pixels. **[D]**
+* **The whole step is short.** Index 1 is `(−28, +14)` against a pitch of `(30, 15)` and
+  `−56` against 60 near; `−5` and `−11` against 6 and 12 far. The figure hops two pixels
+  (four straight, one far) at every commit. **[V]**, the bytes and the projection.
+* **The frame is one tick behind the position.** `Army_Tick`, `PeasantMob_Tick`,
+  `Merchant_Tick` and `Transport_Tick` write `+0x07` from facing and `+0x1B` *before*
+  `Unit_Step`; `Map_DrawArmies` reads `+0x149` and `+0x09` live. So a turning unit is drawn
+  at its new heading's offset facing the old way for one tick. `+0x1B` advances once per
+  admission — every tick on a road, one in four off it — and is `+0x149 / 2` in every
+  reachable state. **[D]**
+* **Every kind walks the same tables**: armies and mobs through `g_unitWalkFrames`
+  (`0, 1, 2, 1` twice), merchants and transports through `g_merchantWalkFrames`
+  (`0 … 5, 0, 1` — eight entries, restarting at every tile). Only the nudge differs.
+* **The fog test is on the tile walked into.** `Unit_MoveInFacing` relinks the unit at the
+  commit,
+  is drawn over the dark for its whole crossing. A person's own army never walks into the
+  dark: `Unit_Step` lit the square round the tile it is leaving first.
+
+Not reproduced: `Map_DrawArmies(mode)` — the lattice walk passes `mode 1` for the first cell
+of a half-offset row, which lands that one column's figures two pixels left of every other
+column's. Ours places every cell by `cell_to_screen`.
 
 County **borders are in the tile data**, not an overlay: `maps-layers.md` §2.1 — plane-0
-bit `0x02` switches the tile to the `roads` bank's boundary frames. There is no separate
+bit `0x02` switches the tile to the `roads` bank's boundary frames.
 outline pass, and the yellow "selected county" outline our engine draws is ours.
 
 The **walk table's** direction is `unitFacing − mapRotation` mod 8 (`FUN_00408438`), which
@@ -760,8 +795,8 @@ construction for "which tile can the player see here", and *not* the same algori
 
 **Three things about that pick that were not written down, and one of them is a defect.**
 
-* **`Map_PickTile` never looks at a pixel.** It is pure geometry, so a tile whose artwork
-  *overhangs* — and the mine, the forest and the town all do — has most of its building
+* **`Map_PickTile` never looks at a pixel.** It is pure geometry,
+  *overhangs* —
   standing on its neighbours as far as a click is concerned. `Town1a.pl8` frame 30 is
   58 × 47 on a 58 × 30 tile: **1,314 pixels painted, 857 of them on the tile.** Our engine
   deliberately departs here, testing the frame's opacity mask when the diamond misses;
@@ -776,12 +811,12 @@ construction for "which tile can the player see here", and *not* the same algori
   `if (g_mapZoom != 2)`.
 
 **And the unit is picked from the tile, not from the figure.** `g_pickedTileUnit =
-g_tiles[t].unit` — one byte on the tile record — so a click anywhere on a unit's diamond is
+g_tiles[t].unit` — one byte on the tile record —
 that unit and a click on the part of its sprite that overhangs its neighbours is not.
 `docs/decisions.md` C58: ours asked the unit's drawn marker instead, which is nine pixels
 across, and a 40 × 32 merchant was therefore mostly unclickable.
 
-**There is no county-selection arm.** `Map_Click` writes `g_selectedCounty` only inside the
+`Map_Click` writes `g_selectedCounty` only inside the
 merchant, town and industry-site branches, always beside a `Map_CentreOnTile`, and a click on
 ordinary ground falls off the end of the function having done nothing. Selecting a county by
 clicking the map, and our second click opening its panel, are **both ours** — and because
@@ -789,7 +824,7 @@ they are, every hit-test shortfall on this screen turns into a visibly wrong scr
 than into nothing happening. That is the amplifier under both C57 and C58.
 
 **What is then done with the tile is `Map_Click` (`0x0043CE1A`)**, 1,263 bytes, and it is
-where most of this interface is actually reached from. `Map_ResolvePick` (`0x0046D5FE`)
+where most of this interface is reached from. `Map_ResolvePick` (`0x0046D5FE`)
 hands it the picked county, that county's owner, `g_pickedTileFlags` — the attribute plane
 at `0x00522F91` — and `g_pickedTileGraphic`, which is just `g_tiles[tile]`. Then:
 
@@ -806,7 +841,7 @@ at `0x00522F91` — and `g_pickedTileGraphic`, which is just `g_tiles[tile]`. Th
 and not all of them.** `[V]` from the decompilation: `Msg_Enqueue(0, g_localPlayer, 0x70, 0,
 0, 0, 0, 0)` appears in `Map_Click` exactly twice — the `else` of the `kind == 3` merchant
 guard, and the `else` of the flag-`0x80` settlement guard. The town (`0x40`) and farmland
-(`0x20`) arms carry their owner test *inside* the flag branch rather than beside it, so
+(`0x20`) arms carry their owner test *inside* the flag branch, so
 clicking a foreign county's town or fields produces **nothing at all** — no message, no
 refusal, no sound. `docs/arms.json` `0x0043CE1A/foreign-county-refusal`.
 
@@ -819,13 +854,13 @@ is a left **press**.
 
 `g_screenId = 2` appears **exactly once in the binary** and it is in that table's fourth
 row — and the branch centres the map on the town and repaints one map frame *before*
-opening the village, because the village is drawn over the map rather than instead of it.
+opening the village, because the village is drawn over the map.
 `docs/screens-county.md` §6.4.4 and `docs/decisions.md` C22.
 
 **Those three bits are tested in that order, and the order settles what two of them
 are.** `0x40` opens the village, so `0x40` is the **county town** — `docs/decisions.md`
 C25 argued that from `L2.eng`'s wording and this is the same answer from behaviour.
-`0x80` covers the industry sites *and* the castle, which is why its ladder ends at
+`0x80` covers the industry sites *and* the castle, so its ladder ends at
 "21 and up: castle building". All three arms are gated on the county being the local
 player's; a click on somebody else's county falls to the last row.
 
@@ -848,8 +883,8 @@ a field, `0x004DC530` two (begin reclaiming `0x19`, abandon `0`) for waste; all 
 
 ## 7. What our engine does, and what it does not
 
-Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs` and
-`crates/l2-game/src/screens/map.rs`:
+Implemented, in `crates/l2-view/src/campaign/mod.rs`, `crates/l2-view/src/chrome/mod.rs` and
+`crates/l2-game/src/screens/map/mod.rs`:
 
 * both real zooms and their tile art, the real pitches, the scrolling window, `Map_ClampScroll`'s
   bounds, `Map_ScrollStep`'s eight directions and one-tile step, `Map_ToggleZoom`'s
@@ -859,33 +894,44 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   `270 + 16i`, the framed-box kit, the `Misc_cty.pl8` right column, the far zoom's
   `Ui_DrawBox(0, 412, 30, 4)` strip, the End Turn rectangle;
 
-  **— but not the menu bar's bevel, and not the words inside the far-zoom strip.**
-  `Screen_DrawMenuBar` ends its background with `Ui_DrawBevelRect(0, 0, 0x280, 0x18)`, which
-  `Chrome::draw_menu_bar_background` does not draw. And `Screen_DrawCampaign` puts four
-  things in the far-zoom box, all at literal coordinates: `Eng_DrawString(101,
-  g_scenarioIndex, 0x40, 0x1A8)` — the map's name; `Eng_DrawString(34, 0, …, 0x1A8)` —
-  *"Year"*; `Ui_DrawYear(g_year, …, 0x1A8, 1)`; and `Eng_DrawString(34, 1, 0x50, 0x1C6)` —
-  ***"Click on the county you wish to view."*** So the far view reads *England · Year 1268*
-  over that instruction — the game saying in its own words what the far zoom is for, which
-  agrees with `Map_Click` doing nothing at zoom 2. Ours draws its own status line there.
-  `docs/draws-map.md` §5.4, **C89**;
+  **— but not the menu bar's bevel.** `Screen_DrawMenuBar` ends its background with
+  `Ui_DrawBevelRect(0, 0, 0x280, 0x18)`, which `Chrome::draw_menu_bar_background` does not
+  draw;
+* **the four things `Screen_DrawCampaign` puts in the far-zoom box**, all at literal
+  coordinates and all now drawn from the player's own `L2.eng`: `Eng_DrawString(101,
+  g_scenarioIndex, 0x40, 0x1A8)` — the map's name; `Eng_DrawString(34, 0, g_penAdvance + 0x50,
+  0x1A8)` — *"Year"*; `Ui_DrawYear(g_year, g_penAdvance + 0x60, 0x1A8, 1)`; and
+  `Eng_DrawString(34, 1, 0x50, 0x1C6)` — ***"Click on the county you wish to view."*** The
+  first three run with `DAT_0058FE2C` set, in `&g_fontHeading`; the last in `&g_fontBody`
+  with it clear. So the far view reads *England · AD 1268* over that instruction — the game
+  saying in its own words what the far zoom is for, which agrees with `Map_Click` doing
+  nothing at zoom 2. **, whatever C173's note and an earlier
+  version of this bullet said: the painter makes three heading draws and a season is not one
+  of them. Ours draws its status line under them, debug overlay only.
+  `docs/draws-map.md` §5.4, **C89**, **C189**;
 * the `MAPnn.PL8` minimap, its click rectangle, and its owner tint through the realm ramp
   read out of `Lords2.exe` at `0x004D2900`;
 * **all four minimap modes** (§3.3) — the labour, food and happiness overlays through the
   rating ramp at `0x004D28F8`, `FUN_00451BBA`'s three bands including the two that answer
   "colour nothing", the mode strip and mode badge, and `Minimap_ModeButton`'s two-state
   button behaviour;
-* the clip-rectangle derivation of §1.4, asserted rather than assumed —
+* the clip-rectangle derivation of §1.4, asserted —
   `campaign::tests::the_clip_rectangle_swallows_exactly_the_columns_the_half_blitters_drop`
   goes red if the clip is moved to 480;
 * **the unit sprites and the two flags**, from `Sprite1a/1b.pl8` and `Flags1a.pl8`, with the
-  original's frame arithmetic, its anchor and its 16 ms wave counter (§5.1, §5.2);
+  original's frame arithmetic, its anchor and its 16 ms wave counter (§5.1, §5.2) — **and
+  the walk**: the 8 × 16 tables by `+0x149`, the frame one tick behind the position, at both
+  zooms (§5.2). This line used to be in the list below as *"we keep no step counter"*, a
+  correction after C134 gave the unit one;
+* **the path balls' own placement and the gold ball of action** — `Map_DrawPathMarker`'s
+  `(+0x14, +6)` from the tile origin, and frame `0x4E` on a town, a dwelling plot, an
+  industry site or a standing castle whatever it costs (`docs/armies.md` §2.3);
 * **`Map_Click`'s merchant arm**, guarded on the *county's* owner as the original guards it,
   centring on that county's town and opening screen `0x08` — **which trades now**, carrying
   the clicked unit with it because `DAT_00553C64` is what the price is computed from. See
-  `crates/l2-game/src/screens/merchant.rs`; the stall's hit test is `mercgrid.pl8` read as
+  `crates/l2-game/src/screens/merchant/mod.rs`; the stall's hit test is `mercgrid.pl8` read as
   an 80 × 60 map of good ids, and the mouseover is the price plaque of
-  `Merchant_HoverPlaque` rather than any generic tooltip — **ours has no generic tooltip
+  `Merchant_HoverPlaque` — **ours has no generic tooltip
   mechanism**, and `0x00553ECC`, the only candidate on file, turned out to be a
   click guard on move-order mode (`docs/decisions.md` C54's neighbours in `symbols.md`).
 
@@ -894,20 +940,25 @@ Implemented, in `crates/l2-view/src/campaign.rs`, `crates/l2-view/src/chrome.rs`
   gated on the `g_optToolTips` option, waits one second of `timeGetTime` with the pointer
   still, resolves a hotspot id through the per-screen table `DAT_004D6FB8[g_screenId]`, and
   draws `L2.eng` group 220 index *id* in a box beside the cursor. `docs/formats/eng.md` §5
-  has had it right all along — *"the 35 tool tips, index = hotspot id"*, `[V]`. **Twenty-four
-  of the thirty-five are the campaign sidebar**, resolved by `FUN_00477320` (1,082 bytes),
-  and they name the five sidebar buttons and every produce row in order — an independent
-  confirmation of `map.rs`'s `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists.
-  `docs/draws-map.md` §5.1, **C86**;
+  has had it right all along — *"the 35 tool tips"*, `[V]`. **Twenty-six of the thirty-five
+  are the campaign sidebar** (this paragraph said twenty-four; the ladder answers 1–22 and
+  31–34), resolved by `FUN_00477320` (1,082 bytes), and they name the five sidebar buttons
+  and every produce row in order — an independent confirmation of `map.rs`'s
+  `SIDEBAR_BUTTONS` and of `FUN_0040FEC1`'s two lists. The id is that ladder's answer for the
+  pointer, not a widget record's hotspot id. `docs/draws-map.md` §5.1, **C86**.
+
+  **Now built**: `crates/l2-game/src/tooltip/mod.rs`, on the thirty-six screens
+  `DAT_004D6FB8` names — thirty-five on the sidebar's ladder and the battlefield on its own
+  — after a rest of more than 999 ms of `timeGetTime`, which is 63 of our ticks;
 * the map opening on the player's own town, which is `Game_SetupRealmsAndCounties`'s tail
   call `FUN_00432746(g_playerStartTable[g_localPlayer * 2])` and not `Map_InitMode`
   (`docs/decisions.md` C48);
 * **two of `Map_Click`'s three plane-0 arms**: a click on one of your own settlement tiles
   toggles that industry, and a click on one of your own fields opens the brush. Both are
-  gated exactly as the original gates them, and both reach the rules
+gated and both reach the rules
   (`Kingdom::toggle_industry`, `Kingdom::paint_field`) that the original reaches.
 
-Five oracle tests in `crates/l2-view/tests/install.rs` read the shipped files and the user's
+Five oracle tests in `crates/l2-view/tests/install/main.rs` read the shipped files and the user's
 own binary back: all 830 tile frames against the pitch, the 48-byte realm ramp byte for
 byte, the 44-slot minimap census, the right column's heights, and `Panels.pl8`'s kit
 boundaries. `cargo test -p l2-game --test screens shoot -- --ignored` renders the screen
@@ -916,7 +967,8 @@ into the gitignored `out/` so it can be looked at.
 **Left as ours, and labelled as such in the code:**
 
 * the map **rotation** — only rotation 0 is built, and `Map_BuildLattice`'s other three are
-  not;
+  not. **Not a divergence:** §1.6 — the original's two steppers have no caller and
+  `g_mapRotation` is only ever zeroed, so the shipped game is rotation 0 as well;
 * the load-time **randomisation of background tile variants** (`maps-layers.md` §4.1) — we
   draw the stored index, so the off-map surround repeats where the original varies it over
   16 grass and 8 water frames;
@@ -928,15 +980,16 @@ into the gitignored `out/` so it can be looked at.
 * one measured pixel difference: **4,600 of 436,176 diamond body pixels** across the ten
   tile banks hold palette index 0, which the original writes as black and we skip, because
   `DecodedFrame::opaque` cannot tell those from the transparent corners;
-* the county **outline** and the county **marker squares** — invented, no original
-  equivalent. The flags themselves *are* placed now (§5.1): the town's owner-coloured
-  banner, the mercenary-offer marker beside it, and the castle's garrison banner;
-* the **field markers** and the words on the brush's buttons. The original does not mark
-  fields: it repaints the tile artwork itself, `FUN_0046D7F4` choosing a graphics bank and
-  frame from the same terrain value it writes. We do not, because that ladder's bank byte
-  (`|1`, `&0xE3`, `|8` or `|0`, `&0x7F`, `|0x80` for pasture) is only half understood and a
-  painted tile would claim to be what the game looked like. A marker only claims we know
-  what the field is. C21;
+* the county **outline** (removed) and the county **marker squares** — invented,
+  original equivalent, and **drawn only with the debug overlay on** (Ctrl+D,
+  `Prefs::debug_overlay`): a player reported them as *"debug squares still on the town
+  square"*. The flags themselves *are* placed (§5.1): the town's owner-coloured banner, the
+  mercenary-offer marker beside it, and the castle's garrison banner;
+* the **field markers** — debug overlay only, for the same report. The original does not
+  mark fields, and the tile artwork *is* repainted now (`MapScreen::field_graphics`, from
+  `Terrain_Set`), so the squares were saying twice what the tile already said. The brush
+  **popup** they were targets for is removed: a left click on your field opens screen
+  `0x04`, as `Map_Click`'s farmland arm does, and the brush is drawn there;
 * **tile picking**: the original inverts the projection and answers for any tile
   (`Map_PickTile`). We hit-test the diamonds of the tiles that can mean something — the
   selected county's fields and settlements — which is right where it answers and silent
@@ -944,12 +997,13 @@ into the gitignored `out/` so it can be looked at.
 * **settlement state** on the map — `FUN_004071A0`'s industry-shut-down marker
   (`Flags1a.pl8` frames `0x28 … 0x37`, cycled on its own 16-step counter) and the field
   overlay block at `0x55 … 0x66`;
-* the **walk interpolation** — `Map_DrawArmies` looks the sprite's sub-tile offset up in the
-  8 × 16 tables at `0x004D8108` … `0x004D8388` by unit `+0x149`, and we keep no step counter,
-  so every unit is drawn at rest (§5.2);
-* the **besieger's banner** (`Flags1a.pl8` frame `0x82` with the seasons left under it,
-  `FUN_00407F82`) and the **selection flood fill** the original paints for an army under
-  orders. Ours are a dot and a ring;
+* the **selection flood fill** the original paints for an army under orders. Ours is a ring.
+  ~~The **besieger's banner** (`Flags1a.pl8` frame `0x82` with the seasons left under it,
+  `FUN_00407F82`).~~ **Built.** It is over the *castle*, in `draw_flags`, not over the army
+  where our dot was — `Sprite_TopIt`'s castle arm reads `units[county.garrisonUnit].besiegedBy`
+  and calls `FUN_00407F82(units[besieger].siegeSeasonsLeft, 8, -0x38)`. At the far zoom it
+  calls it with `(2, -0x28)` and the callee returns without drawing,
+  and is in `docs/bugs.md`;
 * the File / Options / Help menus, their drop-downs, and everything the right column puts
   *inside* frames 55 / 66 / 56 / 58 — our own numbers go on a dark backing over frame 56,
   which is the one plain part of the column, so they read as an overlay;
@@ -958,7 +1012,7 @@ into the gitignored `out/` so it can be looked at.
 
 ## 8. What this corrected elsewhere
 
-* **`maps-layers.md` §6's "three zooms" is wrong** — there are two, and the third case of
+* **`maps-layers.md` §6's "three zooms" is wrong** — there are two,
   `Map_SetZoom` is unreachable (§2.2). That section now points here.
 * **Its open 58-versus-60 discrepancy is closed** (§1.2): 58 is the artwork and 60 is the
   pitch, and `pitch = frameWidth + 2` at every zoom.
@@ -968,7 +1022,7 @@ into the gitignored `out/` so it can be looked at.
   Renamed `Minimap_Load`.
 * **This document's own `+0x0B1` … `+0x0B3` were wrong** (§3.3): the minimap's three rating
   bytes are county `+0x01`, `+0x02` and `+0x03`. The old numbers are `0x0053F9B1`… read as
-  offsets rather than as addresses into `g_counties` at `0x0053F9B0`.
+offsets.
 * **`Minimap_ModeButton`'s comment in `symbols.md` said "pressing the active one again
   returns to mode 0".** It is *button 4* that returns to mode 0; pressing the active mode's
   own button does nothing.
@@ -981,7 +1035,7 @@ into the gitignored `out/` so it can be looked at.
 
 **A player asked about this and nothing in the tree had an answer.** *"There's also an
 alternative mouse icon in the town square, it's like a question mark of some sort"*, and
-then, unprompted, *"only when you're not selecting"*. Both halves are exactly right, and the
+then, unprompted, *"only when you're not selecting"*. Both halves are exactly right,
 second half is the more interesting one: it names the axis the game switches on.
 
 ### 9.1 The twelve `Cursor*.cur` files are not read by anything  **[V]**
@@ -992,14 +1046,14 @@ two. They are installed because `INSTALL.HST`, the installer's own manifest, lis
 are read by nothing.
 
 * `Lords2.exe` imports **`LoadCursorA`, `SetCursor` and `GetCursorPos` from `USER32.dll`, and
-  nothing else cursor-shaped**. There is no `LoadCursorFromFile`, no `LoadImageA`, no
+  nothing else cursor-shaped**., no `LoadImageA`, no
   `SetClassLongA`.
 * The binary contains **no `.cur` filename and no `Cursor%d`-style format string** — the only
   matches for "cursor" anywhere in it are the three import names above.
 * `mapl2.exe` names them nowhere either.
 
 So the shipped `.cur` files are **source art left in the install directory**. What the game
-actually draws lives in the executable's own resource directory.
+draws lives in the executable's own resource directory.
 
 ### 9.2 What the game loads: seven cursors out of its own `.rsrc`  **[V]**
 
@@ -1009,7 +1063,7 @@ Every one is **32 × 32, 1 bpp**, black and white with an AND mask, drawn in the
 corner of the bitmap.
 
 `App_InitWindow` (`0x004B2258`) registers `WinLords2Class` with **`hCursor = NULL`** — which
-is what makes the pointer the application's problem rather than the window class's — and then
+is what makes the pointer the application's problem — and then
 loads eight `HCURSOR`s from those seven resources:
 
 | resource | global | picture | hotspot |
@@ -1087,7 +1141,7 @@ else
     Cursor_Set(g_cursorByScreen[g_screenId]);  /* a table lookup */
 ```
 
-### 9.5 The table, and the question mark  **[V]**
+### 9.5 The table, and the question mark **[V]**
 
 `g_cursorByScreen` (`0x004E3098`) is **64 dwords, one per `g_screenId`**. Read out of the
 image, **five** rows are non-zero and every other screen in the game gets 0, the plain arrow:
@@ -1112,7 +1166,7 @@ choosing where an army marches. The human figure on `0x06` is the peasants in yo
 
 **Screens `0x07` and `0x0E` are dead rows.** A scan of every `mov byte ptr [g_screenId], imm`
 in `.text` finds **50 distinct values** written and neither 7 nor 0x0E among them; 0x10 is
-written exactly once, inside `Map_BeginMoveSelection`. **[I]** rather than **[V]**, because
+written exactly once, inside `Map_BeginMoveSelection`. **[I]**, because
 the scan covers only the immediate-store form — but that form accounts for all 50 ids,
 including every one `docs/screens-county.md` §1 lists.
 
@@ -1125,7 +1179,7 @@ Three separate mechanisms could have owned a question-mark pointer, and none of 
 * the **tip screens** (`L2.eng` groups 200–219, one per screen, once per *run*, gated on
   `g_optTipScreens`) run through `Tip_Update`, whose 20-frame delay is re-armed after each
   dismissal, and `Tip_Show`, which switches `g_screenId` to `0x27`. `0x27`'s row is **0** as
-  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip.rs`;
+  well, and the tip driver never touches a cursor. Built: `crates/l2-game/src/tip/mod.rs`;
 * **`Ui_OpenConfirm`, the message scroll and the drop-down menus** likewise leave the row at 0.
 
 The question mark is a **static property of the village screen**, evaluated fresh every frame
@@ -1170,7 +1224,7 @@ soldiers will attack."* That is the `g_battleHoverEnemy` branch, in the game's o
 which is what lifts the mapping above a story assembled from a decompiler listing. The word
 *red* does not describe these resources, which are 1-bit black and white with no colour at
 all; either it is a DOS-build recollection or *red* is loose for *changes*. **[I]**, and
-flagged rather than resolved.
+flagged.
 
 **`Battle_UpdateHover` runs after the cursor is chosen** — `Battle_Frame` calls it at
 `0x004BA1DB`, well past the ladder at `0x004B9F49` — so the battle pointer is **one frame
@@ -1180,15 +1234,32 @@ next frame's head.
 
 ### 9.8 What our engine does  **[V]**
 
-**Nothing.** `crates/l2-view` draws the OS cursor everywhere, and no code in the workspace
-reads a `.cur` file, a cursor resource or `g_cursorByScreen`. That is a gap, and
-`docs/mechanics.md` now carries it as one.
+**The choice, not the pictures.** `l2_game::cursor::by_screen` is `g_cursorByScreen`
+(`0x004E3098`) and `Machine::pointer` is `Battle_Frame`'s two-way choice (`0x004B99C0`) —
+the battlefield ids run `LiveBattle::cursor`, which was already §9.7's ladder, and every
+other screen is the table. `VillageScreen::mode_screen_id` answers `0x02` / `0x05` / `0x06`
+so the village's three ids are askable; `main.rs`'s `apply_pointer` is the only `set_cursor`
+call in the workspace, once per redraw on a change. `crates/l2-game/tests/cursor.rs`.
 
-The cost of closing it is small, and worth writing down because it is smaller than it looks —
-but it is *not* "parse the twelve files". Two of the three glyph cursors the game actually
-draws exist only inside `Lords2.exe`. A faithful implementation reads the user's own binary,
-the way `crates/l2-view` already reads the realm ramp at `0x004D2900` (§7): walk `.rsrc` to
-`RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111 and 113, decode seven 32 × 32 1-bpp AND/XOR
-pairs, and hang them off a copy of `g_cursorByScreen` plus the §9.7 ladder. There is no new
-file format to learn: `.cur`, `.ico` and `RT_CURSOR` are the same three structures, and an
+**Which screens change the pointer, built or not:**
+
+| `g_screenId` | screen | kind | ours |
+|---:|---|---:|---|
+| `0x02` | the village, idle | 2, question mark | built |
+| `0x05` | the village, rubber band | 0, arrow — the row is zero | built |
+| `0x06` | the village, carrying a selection | 12, peasant | built |
+| `0x10` | campaign map, army movement | 14, scythe | built — `MapScreen::move_order` |
+| `0x28`, `0x29` | the battlefield | 0/4/5/6 by the §9.7 ladder | built |
+| `0x2A` | the battlefield, drag | 0, arrow — the ladder's first rung | built |
+| `0x07`, `0x0E` | — | 13, 2 | dead rows; nothing writes either id |
+| every other id | — | 0, arrow | built, by falling through the table |
+
+**The pictures are still the system's.** The seven `RT_GROUP_CURSOR` resources live only
+inside `Lords2.exe` and nothing in the workspace reads them; the shell maps a kind onto the
+nearest system cursor (`Help` for the question mark, which is the same picture resource 110
+holds; `Crosshair`, `Pointer`, `Grabbing`, `Move` for the rest) and that mapping is **ours**.
+Closing it is not "parse the twelve files": a faithful implementation reads the user's own
+binary, the way `crates/l2-view` already reads the realm ramp at `0x004D2900` (§7) — walk
+`.rsrc` to `RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111 and 113 and decode seven 32 × 32
+1-bpp AND/XOR pairs. `.cur`, `.ico` and `RT_CURSOR` are the same three structures, and an
 `RT_CURSOR` is a `.cur` with the 22-byte directory replaced by a 4-byte hotspot.

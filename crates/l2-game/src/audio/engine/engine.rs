@@ -1,0 +1,405 @@
+#![allow(unused_imports)]
+use super::*;
+use super::device::*;
+use super::*;
+use super::director::*;
+use super::events::*;
+use std::collections::BTreeMap;
+use std::path::PathBuf;
+use std::sync::{Arc, Mutex};
+use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
+use mixer::Mixer;
+use track::{BattleCycle, BattleKind, Music};
+use wav::Sound;
+
+impl Audio {
+    pub fn silent() -> Audio {
+        Audio {
+            mixer: Arc::new(Mutex::new(Mixer::new(44_100))),
+            stream: None,
+            files: BTreeMap::new(),
+            films: BTreeMap::new(),
+            cache: BTreeMap::new(),
+            battle: BattleCycle::default(),
+            scene: None,
+            options: Options::default(),
+            decodes: false,
+            heard: std::collections::BTreeSet::new(),
+            one_shot: None,
+            in_battle: false,
+        }
+    }
+
+    pub fn open(vfs: &l2_mods::vfs::Vfs) -> Audio {
+        let mut audio = Audio::index(vfs);
+        match start_device(Arc::clone(&audio.mixer)) {
+            Ok(stream) => {
+                audio.stream = Some(stream);
+                audio.decodes = true;
+            }
+            Err(e) => eprintln!("sound: no output device ({e}); running silent"),
+        }
+        if audio.files.is_empty() {
+            eprintln!("sound: no .wav files in the install; running silent");
+        }
+        audio
+    }
+
+    pub fn headless(vfs: &l2_mods::vfs::Vfs) -> Audio {
+        let mut audio = Audio::index(vfs);
+        audio.decodes = true;
+        audio
+    }
+
+    fn index(vfs: &l2_mods::vfs::Vfs) -> Audio {
+        let mut audio = Audio::silent();
+        for name in vfs.entries_with_extension("wav") {
+            if let Some(path) = vfs.resolve(name) {
+                audio.files.insert(name.to_ascii_lowercase(), path.to_path_buf());
+            }
+        }
+        for name in vfs.entries_with_extension("smk") {
+            if let Some(path) = vfs.resolve(name) {
+                audio.films.insert(name.to_ascii_lowercase(), path.to_path_buf());
+            }
+        }
+        audio
+    }
+
+    pub fn mix(&mut self, out: &mut [f32]) {
+        match self.mixer.lock() {
+            Ok(mut m) => m.fill(out),
+            Err(_) => out.iter_mut().for_each(|s| *s = 0.0),
+        }
+    }
+
+    pub fn is_live(&self) -> bool {
+        self.stream.is_some()
+    }
+
+    pub fn file_count(&self) -> usize {
+        self.files.len()
+    }
+
+    pub fn heard(&self) -> Vec<&str> {
+        self.heard.iter().map(String::as_str).collect()
+    }
+
+    pub fn options(&self) -> Options {
+        self.options
+    }
+
+    /// **Is this one-shot still sounding?** — the `GetStatus` bit test
+    /// `Sound_OneShotBusy` (`0x00427C9B`) makes, asked by name because ours are
+    /// many buffers for each sound.
+    pub fn is_playing(&self, name: &str) -> bool {
+        self.mixer.lock().is_ok_and(|m| m.is_sounding(&name.to_ascii_lowercase()))
+    }
+
+    /// **`Sound_OneShotBusy` (`0x00427C9B`)** — is the narrator still talking?
+    ///
+    /// **Asked of the handle, not of the file's name.** `Sound_OneShotBusy` is
+    /// `GetStatus(DAT_00522AEC) == 1` — one buffer, one answer — and a name
+    /// answers for any voice: a slot firing the same file
+    /// (`Sound_RestartSlot`, [`Audio::play_effect`]) would answer *busy* for a
+    /// clip the buffer no longer holds. `DAT_00522AEC` is its own buffer and
+    /// the slot bank never touches it, so it is [`mixer::Mixer`]'s own voice
+    /// too — see [`mixer::Mixer::play_one_shot`].
+    pub fn one_shot_busy(&self) -> bool {
+        self.one_shot.is_some_and(|h| self.mixer.lock().is_ok_and(|m| m.is_playing_handle(h)))
+    }
+
+    /// **`Opt_ToggleMusic` (`0x004349A4`)**, `[V]`, both arms of the Music row:
+    ///
+    /// **The off arm empties the one-shot buffer on both phases** — the row
+    /// labelled *Music* cuts whoever is speaking. **The on arm reaches
+    /// `Music_StartBattle` (`0x00477B2F`) when it is thrown during a battle**,
+    /// whose own second statement is that same `Sound_StopOneShot`, and the
+    /// battlefield is already up so [`Audio::follow`]'s arrival edge is not
+    /// it.
+    pub fn set_options(&mut self, options: Options) {
+        let was_music = self.options.music;
+        self.options = options;
+        if let Ok(mut m) = self.mixer.lock() {
+            m.music_on = options.music;
+            m.effects_on = options.effects;
+            if !options.music {
+                m.stop_music();
+            }
+        }
+        if !options.music {
+            // `Opt_ToggleMusic` (`0x004349A4`, `00430000.c:1856`) stops the one-shot only
+            // on its own flip to off; a Speech or Effects row changing with music already
+            // off flips nothing here.
+            if was_music {
+                self.stop_one_shot();
+            }
+            self.scene = None;
+        } else if !was_music && self.in_battle {
+            self.stop_one_shot();
+        }
+    }
+
+    /// The campaign ladder is re-evaluated every call, so taking a county that
+    /// crosses a threshold changes the bed at the moment it happens — which is
+    /// what the original does too, since `FUN_00499ACA` is called on every
+    /// return to the campaign map.
+    pub fn follow(&mut self, scene: Scene) {
+        // **`Music_StartBattle` (`0x00477B2F`), its first two statements:**
+        //
+        // `[V]`. The bed below is the `Music_Stop` and the `Music_Play` after
+        // it; **this is the other one**, and without it the field's own
+        // first sound is dropped by whatever the campaign screen was still
+        // saying — `ff_batl.wav` at the battle question most of all, since
+        // both go through the one buffer. Ahead of the music switch because
+        // the original's stop is not conditional on `g_optMusic`.
+        //
+        // **`Music_StartBattle` has four callers** and this edge is three of
+        // them: `Battle_Start` (`0x004778A0`), `FUN_00477C89` (the
+        // battle-resume path taken by `FUN_004976A1` after a load, which also
+        // calls the pair itself) and `FUN_004976A1`'s own else-arm — all three
+        // bring the battlefield up, so the arrival is the event. The fourth is
+        // `Opt_ToggleMusic` (`0x004349A4`) with the field **already** up, which
+        // no arrival can see: [`Audio::set_options`] has it.
+        let battle_now = match scene {
+            Scene::Battle(_) => true,
+            Scene::Film { over_battle } => over_battle,
+            _ => false,
+        };
+        if battle_now && !self.in_battle {
+            self.stop_one_shot();
+        }
+        self.in_battle = battle_now;
+        if !self.options.music {
+            return;
+        }
+        let want = match scene {
+            // `App_WinMain` (`0x0040E9AB`) plays it as the process opens and
+            // `FUN_00497A34` plays it again, looped, every time the front end
+            // comes back. One bed, two call sites, and this is both.
+            //
+            // sfx: App_WinMain#1,FUN_00497a34#2
+            Scene::FrontEnd => Some(Music::Setup),
+            Scene::Campaign { county_count, share_of_map_pct } => {
+                Some(track::campaign(county_count, share_of_map_pct))
+            }
+            // `Screen_DrawConquest` (`0x0041E1DD`)'s first statement after its
+            // early return, both arms of it.
+            //
+            // sfx: Screen_DrawConquest#1,Screen_DrawConquest#2
+            Scene::Conquest { ended } => Some(match ended {
+                false => Music::Setup,
+                true => Music::Setup2,
+            }),
+            Scene::Battle(kind) => {
+                match self.scene {
+                    Some(Scene::Battle(k)) if k == kind => {
+                        self.music_name().and_then(current_battle_track)
+                    }
+                    Some(Scene::Film { over_battle: true }) => return,
+                    _ => Some(self.battle.next(kind)),
+                }
+            }
+            // **`Msg_DrawWindow#15`** is the capture film's fail arm and is
+            // claimed here now: `l2_game::arrival::capture_record` posts the
+            // category-`0x0D` letter `County_ChangeOwner` (`0x004A72FE`) raises
+            // with groups `0x75`…`0x7E`, and a county taken on the map reaches
+            // this arm — `tests/movies` *the_narrator_reads_a_capture…*.
+            //
+            // sfx: Smk_OnFinished#1,Smk_OnFinished#2,CastleBuild_Confirm#1,Msg_DrawWindow#15,Msg_DrawWindow#20
+            Scene::Film { .. } => None,
+        };
+        self.scene = Some(scene);
+        match want {
+            Some(m) => self.play_music(m),
+            None => self.stop_music(),
+        }
+    }
+
+    pub fn music_name(&self) -> Option<String> {
+        self.mixer.lock().ok()?.music_name().map(str::to_owned)
+    }
+
+    pub fn play_music(&mut self, music: Music) {
+        let name = music.file();
+        if self.music_name().as_deref() == Some(name) {
+            return;
+        }
+        let Some(sound) = self.load(name) else {
+            self.stop_music();
+            return;
+        };
+        if let Ok(mut m) = self.mixer.lock() {
+            match music.loops() {
+                true => m.set_music(name.to_string(), sound),
+                false => m.set_music_once(name.to_string(), sound),
+            }
+        }
+    }
+
+    pub fn stop_music(&mut self) {
+        if let Ok(mut m) = self.mixer.lock() {
+            m.stop_music();
+        }
+    }
+
+    /// Fire a one-shot by file name, restarting it if it is already sounding —
+    /// `Sound_RestartSlot` (`0x00426216`), the verb a click uses.
+    pub fn play_effect(&mut self, name: &str) {
+        if !self.options.effects {
+            return;
+        }
+        let Some(sound) = self.load(name) else { return };
+        if let Ok(mut m) = self.mixer.lock() {
+            m.play_effect(name.to_ascii_lowercase(), sound);
+        }
+    }
+
+    /// Fire a one-shot **unless it is already playing** — `Sound_PlaySlot`
+    /// (`0x00426120`).
+    pub fn play_effect_if_idle(&mut self, name: &str) {
+        if !self.options.effects {
+            return;
+        }
+        let key = name.to_ascii_lowercase();
+        if let Ok(m) = self.mixer.lock() {
+            if m.is_playing(&key) {
+                return;
+            }
+        }
+        let Some(sound) = self.load(name) else { return };
+        if let Ok(mut m) = self.mixer.lock() {
+            m.play_effect_if_idle(key, sound);
+        }
+    }
+
+    pub fn play_film(&mut self, name: &str) {
+        match self.decode_film(name) {
+            Some(sound) => {
+                if let Ok(mut m) = self.mixer.lock() {
+                    m.set_film(name.to_ascii_lowercase(), Arc::new(sound));
+                }
+            }
+            None => self.stop_film(),
+        }
+    }
+
+    pub fn stop_film(&mut self) {
+        if let Ok(mut m) = self.mixer.lock() {
+            m.stop_film();
+        }
+    }
+
+    pub fn film_name(&self) -> Option<String> {
+        self.mixer.lock().ok()?.film_name().map(str::to_owned)
+    }
+
+    fn decode_film(&mut self, name: &str) -> Option<Sound> {
+        if !self.decodes {
+            return None;
+        }
+        let key = name.to_ascii_lowercase();
+        let bytes = std::fs::read(self.films.get(&key)?).ok()?;
+        let smk = l2_smk::Smk::parse(bytes).ok()?;
+        let track = smk.header().track(0)?;
+        let pcm = smk.audio(0).ok()?;
+        self.heard.insert(key);
+        Some(Sound {
+            channels: track.channels(),
+            rate: track.rate,
+            samples: pcm.iter().map(|&b| ((b as i16) - 128) << 8).collect(),
+        })
+    }
+
+    /// **`Sound_StopOneShot` (`0x00427D19`)** — stop and release the one-shot
+    /// buffer, whatever it holds. `[V]`: `Stop`, `Release`, and `DAT_00522AEC`
+    /// zeroed, so `Sound_OneShotBusy` answers 0 until something is put there
+    /// again.
+    pub fn stop_one_shot(&mut self) {
+        if let Some(handle) = self.one_shot.take() {
+            if let Ok(mut m) = self.mixer.lock() {
+                m.stop_handle(handle);
+            }
+        }
+    }
+
+    /// **`Sound_PlayFile` (`0x00427990`), drop included** — every file the
+    /// original plays by name, with the flag it passes.
+    ///
+    /// `[V]`. There is **one** one-shot buffer.
+    pub fn play_file(&mut self, name: &str, speech: bool) -> bool {
+        if self.one_shot_busy() {
+            return false;
+        }
+        self.stop_one_shot();
+        let on = if speech { self.options.speech } else { self.options.effects };
+        if !on {
+            return false;
+        }
+        let Some(sound) = self.load(name) else { return false };
+        let key = name.to_ascii_lowercase();
+        if let Ok(mut m) = self.mixer.lock() {
+            self.one_shot = Some(m.play_one_shot(key, sound));
+        }
+        true
+    }
+
+    /// **`Sound_StopOneShot(); Sound_PlayFile(name, …)`** — the sites that
+    /// *cut in* over whatever the buffer holds. `[V]`,
+    /// and there are exactly two functions' worth among what we play:
+    ///
+    /// * **`Msg_PlayVoice` (`0x004B35C1`)**, in all three of its bands — which
+    ///   is why *"a lord cuts off the previous lord"*, and why a message's
+    ///   narration talks over its own fanfare if the trumpet is still going;
+    /// * **setup page 4's handlers**, `FUN_00432CC8` twice and
+    ///   `Setup_ChooseCampaign` (`0x00433461`), each `S011_02.wav`.
+    pub fn stop_and_play_file(&mut self, name: &str, speech: bool) -> bool {
+        self.stop_one_shot();
+        self.play_file(name, speech)
+    }
+
+    fn load(&mut self, name: &str) -> Option<Arc<Sound>> {
+        if !self.decodes {
+            return None;
+        }
+        let key = name.to_ascii_lowercase();
+        if let Some(hit) = self.cache.get(&key) {
+            return hit.clone();
+        }
+        let sound = self.decode(&key).map(Arc::new);
+        if sound.is_some() {
+            self.heard.insert(key.clone());
+        }
+        let is_music = names::MUSIC_SCROLL.contains(&key.as_str())
+            || names::MUSIC_BATTLE.contains(&key.as_str())
+            || key == names::MUSIC_SETUP;
+        if !is_music {
+            self.cache.insert(key, sound.clone());
+        }
+        sound
+    }
+
+    fn decode(&self, key: &str) -> Option<Sound> {
+        let path = self.files.get(key)?;
+        match std::fs::metadata(path) {
+            Ok(md) if md.len() as usize > wav::MAX_BYTES => {
+                eprintln!("sound: {key} is {} bytes; not playing it", md.len());
+                return None;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("sound: {key}: {e}");
+                return None;
+            }
+        }
+        let bytes = std::fs::read(path).ok()?;
+        match wav::decode(&bytes) {
+            Ok(s) => Some(s),
+            Err(e) => {
+                eprintln!("sound: {key}: {e}");
+                None
+            }
+        }
+    }
+}
+

@@ -18,7 +18,7 @@ disassembly; **[I]** = inferred, plausible but not proven.
 
 ## 1. Container
 
-**[V] The file is a flat array of fixed-size map slots. There is no header, no
+**[V] The file is a flat array of fixed-size map slots.
 table of contents, and no delimiters.**
 
 ```
@@ -234,7 +234,7 @@ read(name, dst1, 0x4000, dirEntry[(slot & 3) * 5 + 1]);
 **Corrected: neither of those reads is a tile set, and the low two bits are not
 the season.** They are the two **128 × 128 minimap rasters** for one map slot — a
 county id per pixel, and a shading mask — and each `MAPnn.PL8` carries **four map
-slots**, which is what `slot & 3` picks. See `docs/screens.md` §3.1. Three things
+slots**
 settle it: the frames are 128 × 128 and hold county ids 0…14 and shades
 {0, 10…13, 63}; `Gfx_LoadCountyMode` takes the season from `g_season`, a separate
 global; and 11 shipped `MAPnn.PL8` files × 4 slots = **44**, exactly the used-slot
@@ -416,7 +416,7 @@ from `ghidra_scripts/`), `FindMapConsts.java`, `XrefData.java`, `ScanRange.java`
 ## 6. Open questions
 
 * Plane 0 bits `0x01`, `0x02`, `0x10` — unidentified. Bit `0x02` co-occurs with
-  `0x08/0x10/0x20/0x80`, so it is probably a modifier rather than an object class.
+  `0x08/0x10/0x20/0x80`, so it is probably a modifier.
 * The six 16-entry county lists built from plane 4 on castle tiles.
 * What the plane-3 3-tile and 5-tile objects represent.
 * The exact run-time mapping from tile `(x,y)` to screen-lattice cell (best
