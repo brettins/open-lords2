@@ -104,7 +104,25 @@
     "notes": "7 x 3 twice, not 7 rows; the scoring rule is FUN_0042C64F and was undocumented anywhere.",
     "original": 21,
     "literals_ours": [
-      "NO SKIRMISH MODE: THESE ARE A BATTLE'S NUMBERS AND NOTHING FILLS THEM YET — ours, and honest: the Battle Master tables come from score.dat, which nothing in this tree reads. Not a caption standing in for an L2.eng string."
+      "SCORE.DAT IS NOT READ OR WRITTEN: THIS BOOK LASTS ONE RUN — ours, under the debug overlay: the Battle Master tables are FUN_0042D179 defaults and FUN_0042D216/FUN_0042D2DC are not built. Not a caption standing in for an L2.eng string."
+    ],
+    "reachable": true
+  },
+  {
+    "screen": "0x2F",
+    "name": "The skirmish masters",
+    "painter": "Screen_BattleMasterRank",
+    "addr": "0x00421D09",
+    "roots": [
+      "Screen_BattleMasterRank"
+    ],
+    "module": "ratings",
+    "missing": [],
+    "invented": [],
+    "notes": "Two Ui_DrawRectOutline boxes, L2.eng 37/5 and a group 38 rank heading, ten rows of DAT_0051FBC0/DAT_0051FD00 and five of DAT_0051FD28. FUN_00403CF4 is a rectangle OUTLINE and is not in the audit list of pixel primitives, so the mechanical count is two short.",
+    "original": 7,
+    "literals_ours": [
+      "SCORE.DAT IS NOT READ OR WRITTEN: THIS BOOK LASTS ONE RUN — ours, under the debug overlay."
     ],
     "reachable": true
   },

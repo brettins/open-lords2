@@ -156,6 +156,7 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::Tip => Some(0x27),
         S::Battlefield => Some(game.battle.as_ref().map_or(0x29, |b| b.screen_id())),
         S::Ratings => Some(0x2E),
+        S::Rank => Some(0x2F),
         S::MenuBar(_) => Some(0x32),
         S::SaveLoad(mode) => Some(mode.screen_id()),
         S::Options(page) => page.screen_id(),

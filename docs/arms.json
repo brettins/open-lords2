@@ -1155,6 +1155,18 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/rank-any-press",
+      "status": "reproduced",
+      "group": "panels",
+      "screen": "0x2F",
+      "gesture": "left-press",
+      "addr": "0x0042FF10",
+      "what": "THE SKIRMISH MASTERS SHEET, EITHER BUTTON, PRESSED, ANYWHERE (00420000.c:7510-7518): Music_Play(\"setup3.wav\", 0, 1) then FUN_0042B780, which is g_screenId = 0x1F, g_setupPage = g_multiplayer ? 0xB : 0xC, Skirmish_Setup, DAT_005533E0[g_localPlayer] = 1, Net_SendCommand(0x55,0), FUN_0042C5FE and Skirmish_FillArmies. So 0x2F goes BACK to the skirmish setup page, not to the map, and the two mouse arms differ only in which of two identical \"setup3.wav\" string constants they name (0x004D5650 and 0x004D565C).",
+      "note": "The Music_Play half is NOT reproduced: our bed is chosen by audio::director::scene from the screen stack and has no restart edge. docs/audio.json 0x0042FF10 #1328 and #1339 stay blocked on that, not on the sheet.",
+      "ours": "crates/l2-game/src/screens/ratings/rank.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/ratings-any-press",
       "status": "reproduced",
       "group": "panels",
@@ -1162,7 +1174,7 @@
       "gesture": "left-press",
       "addr": "0x0042FF10",
       "what": "EITHER button, PRESSED, ANYWHERE -> g_screenId = 0x2F. Three unusual things in three lines: the Ui_OkButton drawn at (516, 390) is never tested and is decorative; it fires on press rather than release, unlike essentially every other arm in the function; and it goes FORWARD to the rank screen rather than back, so 0x2E has no back door at all. The chain is 0x2E -> 0x2F -> 0x1F.",
-      "note": "One record for both buttons: the two lines are byte-identical and a player cannot tell the outcomes apart. 0x2F is not built, so ours pops - which is where 0x2F eventually returns to.",
+      "note": "One record for both buttons: the two lines are byte-identical and a player cannot tell the outcomes apart. 0x2F IS now built (screens/ratings/rank.rs), so ours replaces rather than pops -- the chain 0x2E -> 0x2F -> page 12 is whole.",
       "ours": "crates/l2-game/src/screens/ratings/mod.rs",
       "evidence": "V"
     },
@@ -1442,6 +1454,18 @@
       "what": "The two list arrows of g_saveLoadWidgets (0x004DDDA8 and 0x004DDDC0, records 2 and 3): SaveLoad_Scroll with hotspot id -3 and +3 and list 1, then g_redrawRequest = 2. Kind 4, so holding one scrolls on the repeat ramp.",
       "note": "One record for two widgets because they are one handler told apart by the hotspot id. The clamp is ours and is recorded in the screen's module docs.",
       "ours": "crates/l2-game/src/screens/saveload/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00434346/skirmish-file-scroll",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-repeat",
+      "addr": "0x00434346",
+      "what": "PAGE 13'S TWO SCROLL ARROWS -- SaveLoad_Scroll under LIST 2, reached by Screen_HandleInput's g_setupPage == 0xD arm, Widget_Test(0, 0, &g_skirmishFileWidgets, 2) (004b0000.c:7466). The table is 0x004DDDD8: (480, 256) frame 35 hotspot -1 and (480, 288) frame 37 hotspot +1, both kind 4, arg 2. The body is g_fileListTop += hotspot, floored at 0, then walked back ONE row when it passes DAT_004EB25C - 5, and put back to 0 outright when the list is shorter than TEN names.",
+      "note": "FOUND, not invented: the record read as nonsense until the two table layouts were told apart. Widget_Test (0x0040DA1E) uses table[3], the short at +0x06, for BOTH axes -- \"the hit box is a square of side record +0x06\" -- so these are 24 by 24 boxes, where a Hotspot_Test table holds (x2, y2) in the same two shorts. The clamp's 5 and 10 disagree with the box's TEN drawn rows (FUN_00414E06) and ten hit rows (FUN_00434174): top can reach count - 5 and show five blank lines. Kept, it is what the function writes.",
+      "ours": "crates/l2-game/src/screens/setup/ui/skirmish_file.rs",
       "evidence": "V"
     },
     {
@@ -2733,6 +2757,18 @@
       "evidence": "D"
     },
     {
+      "id": "0x0043D6A7/skirmish-custom-count",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-repeat",
+      "addr": "0x0043D6A7",
+      "what": "THE CUSTOM MUSTERS FOUR COUNT BUTTONS, one set per troop row -- the widget table DAT_004DE000, tested only while DAT_0056899C == 1 by Widget_Test(0, 0, &DAT_004DE000, DAT_0056D5C0) (004b0000.c:7473). DAT_0056D5C0 is 0x1C for a field battle and 0x2C for a castle (00420000.c:4602, 00430000.c:8179/:8182): seven or eleven rows times four buttons at x 95 (FUN_0043D6A7, one more), 111 (FUN_0043D78B, one fewer), 134 (FUN_0043D882, as many as fit) and 150 (FUN_0043D8B9, none at all), y = 106 + 30*row, each a 16 by 16 kind-4 square whose hotspot IS the row. The two whole-column handlers are while loops over the other two (00430000.c:7998-8003, :8017-8019).",
+      "note": "BUYING IS CAPPED BY FUN_0042C4E2 (0x0042C4E2, 00420000.c:4821-4837): a siege engine (slot > 6) needs category 2, costs nothing over nine, and is offered to ONE side only -- the attacker may buy slot 10 and nothing else, the defender any engine BUT slot 10; every slot then needs g_troopStrengthWeight[slot] <= DAT_00521C90, and FUN_0042C476 makes that DAT_0051FBBC minus the record, so the allowance is the table row own strength respent. Selling has no guard but 0 < count. The edit lives in the army record, so the six arms that call Skirmish_FillArmies (00430000.c:8059, :8092, :8141, :8207, :8231 and FUN_0043DBAC) put the table row back; Cust./Norm. (FUN_0043DA9E) does NOT. FUN_0042C2ED, the reset that also zeroes the allowance, is reached by FUN_0043D903, whose own widget record has not been found.",
+      "ours": "crates/l2-game/src/screens/setup/ui/skirmish_counts.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0043D929/skirmish-pick-row",
       "status": "reproduced",
       "group": "front-end",
@@ -2781,6 +2817,18 @@
       "evidence": "D"
     },
     {
+      "id": "0x0043DBAC/skirmish-custom-difficulty",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x0043DBAC",
+      "what": "ONE REALM'S DIFFICULTY, CYCLED 0..4 -- realm +0x24 stepped on and wrapped past 4 (00430000.c:8153-8158), then Skirmish_FillArmies. Records 11 and 12 of the CUSTOM page hotspot table, at (280,150)-(404,176) and (280,373)-(404,399), hotspot 1 and 2.",
+      "note": "FOUND BY READING THE TABLE SWITCH: page 12 answers TWO hotspot tables and DAT_0056899C picks (004b0000.c:7471-7487). The custom table has no handicap seesaw at all -- FUN_0043DAF3 is records 18 and 19 of the NORMAL table only -- so this arm, previously filed as the multiplayer page 11 arm, is also the single-player custom page's, and it is the only way to reach difficulty columns 0 and 4, which the seesaw clamps out. The swap-sides box also moves, from two large boxes to one at (267,423)-(299,455).",
+      "ours": "crates/l2-game/src/screens/setup/ui/skirmish_table.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0043DC1D/skirmish-category",
       "status": "reproduced",
       "group": "front-end",
@@ -2812,7 +2860,7 @@
       "gesture": "left-press-held",
       "addr": "0x0043DDF4",
       "what": "THE .skr NAME FIELD, which opens page 13 -- FUN_0043DDF4, and only on 0 < DAT_005653E8 (00430000.c:8140), the count of .skr files the directory scan found. With none, the field is not a button.",
-      "note": "Files_Enumerate (0x004AECF0) is built, so the field IS a button on a shipped install (one file, USER.SKR) and FUN_00414E06 draws its ten rows. Page 13 arrows still unwired: their widget record is not in any table read so far, so SetupScreen::scroll_skirmish_files is public and unreached. THE HELD HALF IS ANSWERED: crates/l2-game/src/screens/setup/ui/held.rs routes this page's five kind-2 records through press::Press, which is the down edge and then one call every 320 ms while the button stays down on the record -- HELD_PULSE_MS, a flat pulse and not the kind-4 ramp. crates/l2-game/src/screens/setup/helpers.rs held_kind is the arm! declaration, one per record.",
+      "note": "Files_Enumerate (0x004AECF0) is built, so the field IS a button on a shipped install (one file, USER.SKR) and FUN_00414E06 draws its ten rows. Page 13 arrows ARE wired now -- see the arm 0x00434346/skirmish-file-scroll, whose record was found in a second table. THE HELD HALF IS ANSWERED: crates/l2-game/src/screens/setup/ui/held.rs routes this page's five kind-2 records through press::Press, which is the down edge and then one call every 320 ms while the button stays down on the record -- HELD_PULSE_MS, a flat pulse and not the kind-4 ramp. crates/l2-game/src/screens/setup/helpers.rs held_kind is the arm! declaration, one per record.",
       "ours": "crates/l2-game/src/screens/setup/ui/held.rs",
       "evidence": "D"
     },

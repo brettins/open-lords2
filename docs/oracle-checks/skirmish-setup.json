@@ -354,8 +354,8 @@
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 187,
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_table.rs",
+   "line": 19,
    "address": "0x004DCF68",
    "verdict": "match",
    "note": ""
@@ -375,8 +375,8 @@
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 190,
+   "file": "crates/l2-game/src/screens/setup/ui/skirmish_table.rs",
+   "line": 37,
    "address": "0x0043D5B7",
    "verdict": "match",
    "note": ""

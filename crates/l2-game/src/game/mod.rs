@@ -692,6 +692,14 @@ pub struct Game {
     /// not-encoded: presentation, and one tick of it. What a screen asked the
     /// narrator for cannot change a number in the world.
     pub spoken: (u32, &'static str),
+    /// **The Battle Master's book** — `DAT_0051FBC0`, `DAT_0051FD00`,
+    /// `DAT_0051FD28`, `DAT_0053E9E0`, `DAT_00568988`, `DAT_00568214` and the
+    /// last skirmish's two scores. Screens `0x2E` and `0x2F` read it and
+    /// `FUN_0042CC4A` writes it.
+    ///
+    /// not-encoded: the original keeps it in `score.dat` (`FUN_0042D216`,
+    /// `FUN_0042D2DC`) and not in the save, and no rule reads it.
+    pub battle_master: crate::screens::ratings::BattleMaster,
 }
 
 #[cfg(test)]

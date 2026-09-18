@@ -51,12 +51,16 @@ pub(super) enum SkirmishArm {
     Handicap(usize),
     /// `FUN_0043DDF4` — the `.skr` field, which opens page 13.
     OpenFiles,
-    /// `FUN_00434174`, the n'th of page 13's ten visible rows. Page 13's own
-    /// scroll arrows are `SaveLoad_Scroll` (`0x00434346`) under list 2, and
-    /// their widget record is not one we have read — see
-    /// [`SetupScreen::scroll_skirmish_files`], which nothing on the page
-    /// reaches yet.
+    /// `FUN_00434174`, the n'th of page 13's ten visible rows.
     File(usize),
+    /// `SaveLoad_Scroll` (`0x00434346`) under list 2 — page 13's two arrows,
+    /// `g_skirmishFileWidgets` (`0x004DDDD8`), hotspot −1 and +1.
+    FileScroll(i32),
+    /// One of the four columns of the custom muster table at `0x004DE000`:
+    /// `FUN_0043D6A7`, `FUN_0043D78B`, `FUN_0043D882`, `FUN_0043D8B9`.
+    Count(usize, usize),
+    /// `FUN_0043DBAC`, the custom page's own difficulty arm: one realm, 0…4.
+    Cycle(usize),
 }
 
 /// The kind byte at `+0x0F` of each record of the widget table at
@@ -72,6 +76,12 @@ pub(super) fn held_kind(arm: SkirmishArm) -> Option<crate::press::Kind> {
         SkirmishArm::Sides => crate::arm!("0x0043DD83/skirmish-swap-sides", Held),
         SkirmishArm::OpenFiles => crate::arm!("0x0043DDF4/skirmish-open-files", Held),
         // `FUN_0043D929` and `FUN_00434174` are kind 1.
+        // `g_skirmishFileWidgets`' two records are `Widget_Test` kind **4** —
+        // the ramp off `DAT_004D2748`, not page 12's flat kind-2 pulse.
+        SkirmishArm::FileScroll(_) => crate::arm!("0x00434346/skirmish-file-scroll", Repeat),
+        // All 28 or 44 records of `DAT_004DE000` hold kind 4.
+        SkirmishArm::Count(..) => crate::arm!("0x0043D6A7/skirmish-custom-count", Repeat),
+        SkirmishArm::Cycle(_) => crate::arm!("0x0043DBAC/skirmish-custom-difficulty", Held),
         SkirmishArm::Row(_) | SkirmishArm::File(_) => return None,
     })
 }

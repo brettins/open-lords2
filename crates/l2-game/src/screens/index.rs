@@ -53,6 +53,7 @@ impl IndexScreen {
         push("0x20 THE STANDINGS".into(), Some(ScreenId::Nobles));
         push("0x25 ABOUT".into(), Some(ScreenId::About));
         push("0x2E BATTLE MASTER RATINGS".into(), Some(ScreenId::Ratings));
+        push("0x2F THE SKIRMISH MASTERS".into(), Some(ScreenId::Rank));
 
         push(String::new(), None);
         push("-- 0x1F GAME SETUP, 13 PAGES --".into(), None);

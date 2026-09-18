@@ -156,6 +156,11 @@ pub struct Skirmish {
     pub custom: bool,
     /// `DAT_0053F5FC`, the chosen `.skr` file. Page 13 writes it.
     pub file: Option<String>,
+    /// `g_units[DAT_00553EFC]` `+0x16C` once a +/- arm has moved it off the
+    /// table row: `FUN_0043D6C3` (`00430000.c:7946`) and `FUN_0043D7A7`
+    /// (`:7975`) write the record in place. The six arms that call
+    /// `Skirmish_FillArmies` put the row back and this goes to `None` with it.
+    pub edited: Option<[i16; 11]>,
 }
 
 impl Default for Skirmish {
@@ -175,6 +180,7 @@ impl Default for Skirmish {
             difficulty: [2, 2],
             custom: false,
             file: None,
+            edited: None,
         }
     }
 }
@@ -190,6 +196,7 @@ impl Skirmish {
         }
         self.slot = slot;
         self.row = slot + self.top;
+        self.edited = None;
         true
     }
 
@@ -200,6 +207,7 @@ impl Skirmish {
     /// the lit row and the row that will be fought disagree until the next
     /// click. Kept, because it is what the game does.
     pub fn scroll(&mut self, delta: i32) {
+        self.edited = None;
         let last = self.rows.saturating_sub(ROWS_SHOWN) as i32;
         let top = self.top as i32 + delta;
         if top > last {
@@ -215,6 +223,7 @@ impl Skirmish {
     /// **One of the four categories** — `FUN_0043DC1D`, where the hotspot id
     /// *is* the category. Hotspot 3 with no `.skr` loaded falls back to 0.
     pub fn choose_kind(&mut self, kind: usize) {
+        self.edited = None;
         self.kind = if kind == 3 && self.file.is_none() { 0 } else { kind };
         self.rows = rows_in(self.kind);
         self.top = 0;
@@ -231,6 +240,7 @@ impl Skirmish {
     /// picks the *file* — `TROOPS2.ENG` attacking, `TROOPS3.ENG` defending.
     /// `SetupScreen::load_troops` is that call.
     pub fn swap_sides(&mut self) {
+        self.edited = None;
         self.local_attacks = !self.local_attacks;
     }
 
@@ -245,6 +255,7 @@ impl Skirmish {
             2 => (1, -1),
             _ => return,
         };
+        self.edited = None;
         self.difficulty[0] = (self.difficulty[0] as i32 + a).clamp(1, 3) as u8;
         self.difficulty[1] = (self.difficulty[1] as i32 + b).clamp(1, 3) as u8;
     }
@@ -316,7 +327,9 @@ impl Skirmish {
     /// `(2, 1)` when the local player is the attacker and `(1, 2)` when he is
     /// not — [`Skirmish::slots`].
     pub fn fill_armies(&self, table: &TroopsTable) -> (SkirmishArmy, SkirmishArmy) {
-        let mine = table.counts(self.kind, self.row, self.side_of(true), self.difficulty[0]);
+        let row = table.counts(self.kind, self.row, self.side_of(true), self.difficulty[0]);
+        // The record the +/- arms write, when they have written it.
+        let mine = self.edited.unwrap_or(row);
         let theirs = table.counts(self.kind, self.row, self.side_of(false), self.difficulty[1]);
         (SkirmishArmy::from_counts(mine), SkirmishArmy::from_counts(theirs))
     }
