@@ -114,7 +114,7 @@
       "date": "2026-09-18",
       "text": "Tutorials come back on every launch.",
       "row": "tutorial-flag-persists",
-      "outcome": "In flight: how the original remembers it (L2.INI) comes first."
+      "outcome": "The original remembers it in lords2.inf, written on exit and read at launch. Ours now does the same in its own preferences file; under oracle check."
     },
     {
       "date": "2026-09-18",
