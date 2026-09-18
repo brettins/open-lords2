@@ -145,6 +145,12 @@
       "text": "Exit-game screen text placement is off.",
       "row": "exit-game-text-placement",
       "outcome": "Filed with the army report."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "Esc does not say \"Exit the game, my lord?\"",
+      "row": "exit-confirm-voice-line",
+      "outcome": "Filed with the exit screen."
     }
   ]
 }
