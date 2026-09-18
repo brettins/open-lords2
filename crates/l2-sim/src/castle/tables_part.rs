@@ -126,7 +126,7 @@ pub fn ai_field(field: &Battlefield, level: u8, t: &CastleTables, lane: usize) -
     f.staging = t.approach[3];
     f.wall_slot = [t.wall_slot[0], t.wall_slot[1], t.wall_slot[2]];
     f.castle_index = 13;
-    // `Battlefield_BuildCastle` 00470000.c:5254-5262, off the staging row this
+    // `Battlefield_BuildCastle` `0x0047C4BA` 00470000.c:5254-5262, off the staging row this
     // battle's lane stages on — [`super::layout`].
     f.layout = super::layout(&f.staging, lane);
     // `DAT_00542CD4`, the flag two handlers jump their orders to 100 on:
