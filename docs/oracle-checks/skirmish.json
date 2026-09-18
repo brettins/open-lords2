@@ -1,0 +1,195 @@
+{
+  "reviewed": "93399d66",
+  "date": "2026-09-18",
+  "behaviours": [
+    {
+      "file": "crates/l2-formats/src/battles.rs",
+      "line": 50,
+      "address": "0x0042AA90",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/battles.rs",
+      "line": 75,
+      "address": "0x0042AB15",
+      "verdict": "departure",
+      "note": "entry past the end answers \"\"; the original walks off DAT_0051FD50. Prose reason, no [D] mark"
+    },
+    {
+      "file": "crates/l2-formats/src/battles.rs",
+      "line": 79,
+      "address": "0x00421005",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 58,
+      "address": "0x0042AC0C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 67,
+      "address": "0x0042AC0C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 76,
+      "address": "0x0042AC0C",
+      "verdict": "departure",
+      "note": "a short or markerless file is refused; the original parses what it finds and leaves the rest zero. No [D] mark"
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 124,
+      "address": "0x0042AC0C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 131,
+      "address": "0x0042AC0C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 140,
+      "address": "0x0042AC0C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-formats/src/troops.rs",
+      "line": 155,
+      "address": "0x0042AC0C",
+      "verdict": "departure",
+      "note": "out-of-range row/side/diff clamped; the original reads past the array. No [D] mark"
+    },
+    {
+      "file": "crates/l2-game/src/batfield.rs",
+      "line": 54,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/page.rs",
+      "line": 90,
+      "address": "0x0041E61D",
+      "verdict": "match",
+      "note": "behaviour right; the cited line 00410000.c:4674-4679 is another function, real 5119-5126"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/constants.rs",
+      "line": 177,
+      "address": "0x00414E06",
+      "verdict": "match",
+      "note": "ten rows right; cited line 00410000.c:4835 is wrong, real 1806"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/input.rs",
+      "line": 400,
+      "address": "0x00414E06",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+      "line": 23,
+      "address": "0x00421005",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+      "line": 87,
+      "address": "0x00421231",
+      "verdict": "match",
+      "note": "x/y/width right; cited line 00420000.c:4685-4702 is another function, real 422-447"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs",
+      "line": 137,
+      "address": "0x004209C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_custom.rs",
+      "line": 13,
+      "address": "0x00420D40",
+      "verdict": "match",
+      "note": "banner frames taken from Misc_sel.pl8; the original draws g_miscCtySheet, which symbols.md:1575 records as Misc_cty.pl8 | fixed e24a1e56"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_custom.rs",
+      "line": 43,
+      "address": "0x0042130F",
+      "verdict": "match",
+      "note": "draws the army strength; the original draws DAT_00521C90, the unspent remainder FUN_0042C476 computes, which is 0 on entry | fixed e24a1e56"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_custom.rs",
+      "line": 53,
+      "address": "0x0042130F",
+      "verdict": "match",
+      "note": "cited line 00420000.c:5341-5369 is wrong, real 448-499"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_custom.rs",
+      "line": 67,
+      "address": "0x00420DE4",
+      "verdict": "match",
+      "note": "realm 2's name at (0x113,0x14D) is not drawn, and neither shield; cited line 00420000.c:4786-4811 is wrong, real 330-367 | fixed e24a1e56"
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_load.rs",
+      "line": 16,
+      "address": "0x0043DD83",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_load.rs",
+      "line": 38,
+      "address": "0x0042D4AA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_load.rs",
+      "line": 66,
+      "address": "0x0042AB82",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_load.rs",
+      "line": 87,
+      "address": "0x0042B9C4",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_load.rs",
+      "line": 107,
+      "address": "0x00420D40",
+      "verdict": "departure",
+      "note": "frame tick for timeGetTime(); 100 ms strict and the twelve-frame wrap are right. Cited line 00420000.c:4753-4766 is wrong, real 296-325"
+    },
+    {
+      "file": "crates/l2-game/src/shell/assets.rs",
+      "line": 181,
+      "address": "0x004AECF0",
+      "verdict": "departure",
+      "note": "[D] the order, labelled with its reason"
+    }
+  ]
+}

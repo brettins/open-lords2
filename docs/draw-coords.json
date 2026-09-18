@@ -1,14 +1,36 @@
 {
   "generated_by": "node tools/draws/drawcoords.js --write",
   "totals": {
-    "compared": 122,
-    "exact": 122,
-    "original_points": 480,
-    "original_blind": 520,
-    "our_points": 152,
+    "compared": 118,
+    "exact": 117,
+    "original_points": 453,
+    "original_blind": 497,
+    "our_points": 153,
     "our_blind": 408,
-    "original_only": 358,
-    "ours_only": 30
+    "original_only": 335,
+    "ours_only": 35
   },
-  "near_misses": []
+  "near_misses": [
+    {
+      "module": "merchant",
+      "kind": "point",
+      "d": 22,
+      "original": {
+        "name": "Ui_DrawNumber",
+        "from": "Trade_DrawPanel",
+        "x": 96,
+        "y": 224,
+        "w": null
+      },
+      "ours": {
+        "name": "body_wrapped",
+        "file": "merchant/trade_part/trade_screen.rs",
+        "line": 372,
+        "x": 96,
+        "y": 246,
+        "w": 448
+      },
+      "reason": null
+    }
+  ]
 }
