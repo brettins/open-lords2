@@ -110,6 +110,14 @@ pub struct BattleUnit {
     /// `+0x2B` withdrawals taken. `UnitOrder_FieldFoot` allows one,
     /// `UnitOrder_FieldMelee` two.
     pub withdrawals: u8,
+    /// `+0x2D` **the shots are not landing.** `Missile_Step` (`0x00492C8B`)
+    /// writes 200 when a shot is stopped by terrain (`00490000.c:1247`,
+    /// `:1253`), 1 when it runs out of range (`:1264`) and 0 when it hits a man
+    /// (`:1353`). Its one reader is `BattleUnits_RebuildFromFigures`
+    /// (`0x00488DFE`, `:3529-3532`), which counts it down and, while it is set,
+    /// **forces [`Self::firing`] to 0** — so a unit whose shots are blocked
+    /// steps away from its attacker even though it is still shooting. `[V]`
+    pub shots_wasted: u8,
 }
 
 impl BattleUnit {
@@ -141,6 +149,7 @@ impl BattleUnit {
         target_cell: 0,
         halted: false,
         withdrawals: 0,
+        shots_wasted: 0,
     };
 
     pub fn is_live(&self) -> bool {
@@ -216,6 +225,12 @@ impl Units {
             }
             u.firing = u.firing.saturating_sub(1);
             u.order_lock = u.order_lock.saturating_sub(1);
+            // `:3529-3532`, and in this order: the decrement above runs first,
+            // then `+0x2D` overrides it with 0 for as long as it is set.
+            if u.shots_wasted != 0 {
+                u.shots_wasted -= 1;
+                u.firing = 0;
+            }
             u.in_melee = false;
         }
 

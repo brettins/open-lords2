@@ -199,3 +199,49 @@ fn an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns() 
     assert!(plain.sim.cues.loosed(WeaponClass::Bow) > 0, "though the archer shot");
 }
 
+/// **A shot a launch step removed is silent.** `BattleMan_FireMissile`
+/// (`0x00483337`, `00480000.c:1523-1527`) reads the record's class `+0x09`
+/// *after* the eight steps at `:1516-1518`, and `FUN_0046EB78` (`0x0046EB78`)
+/// zeroed the record when `Missile_Step` freed the arrow.
+///
+/// Ablation: move `loose`'s `self.sim.cues.loose(class)` back above the
+/// `LAUNCH_STEPS` loop and this goes red on the frame the wood lights.
+#[test]
+fn an_arrow_that_lights_the_cell_it_is_loosed_from_is_never_heard() {
+    let (mut r, archer) = a_wood_with_men_in_it(4);
+    let at = (r.fighters[archer].x, r.fighters[archer].y);
+    r.field.cells[cell(at.0, at.1)].surface = SURFACE_WOODLAND;
+    for _ in 0..400 {
+        r.step();
+        if r.wood_fire {
+            break;
+        }
+    }
+    assert!(r.wood_fire, "the first arrow lit the cell the archer stands on");
+    assert_eq!(r.sim.cues.loosed(WeaponClass::Bow), 0, "and nothing was heard to leave");
+}
+
+/// **A unit that looses is marked firing** — `BattleMan_FireMissile`
+/// (`0x00483337`, `00480000.c:1479`) `g_battleUnits[sVar2].firing = 0x78`, read
+/// by `UnitOrder_FieldMissile` (`0x0048A9D2`, `:4336`) and
+/// `UnitOrder_SiegeDefMissile` (`0x0048E097`, `:5813`).
+///
+/// Ablation: drop `loose`'s write of `crate::unit::FIRING`.
+#[test]
+fn a_unit_that_looses_is_marked_firing() {
+    let (mut r, archer) = a_wood_with_men_in_it(3);
+    let unit = r.sim.figures[r.fighters[archer].sim].unit as usize;
+    assert_eq!(r.units.get(unit).firing, 0, "nothing loosed yet");
+    let mut marked = None;
+    for _ in 0..400 {
+        let was = r.sim.cues.loosed(WeaponClass::Bow);
+        r.step();
+        if r.sim.cues.loosed(WeaponClass::Bow) > was {
+            marked = Some(r.units.get(unit).firing);
+            break;
+        }
+    }
+    let firing = marked.expect("the archer loosed");
+    assert!(firing >= crate::unit::FIRING - 1, "0x78, less one rebuild's decrement: {firing}");
+}
+
