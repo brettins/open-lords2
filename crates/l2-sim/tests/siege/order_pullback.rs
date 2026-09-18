@@ -165,7 +165,7 @@ fn the_garrison_is_refused_an_empty_cell_of_surface_under_four() {
 
 /// `Formation_FindNearbySlot` (`0x0048A38E`, `00480000.c:4077-4081`): a
 /// destination of surface 2 is handed straight back, ahead of the catapult arm
-/// at `:4082` and ahead of the ring search. Correction `CNEW-moat-slot`, against
+/// at `:4082` and ahead of the ring search. Correction `C236`, against
 /// C81's "a dry slot beside it".
 ///
 /// Ablation: delete the `dest.surface == SURFACE_WATER` return in

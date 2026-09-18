@@ -515,7 +515,7 @@
       "status": "dead",
       "ours": null,
       "sound": null,
-      "note": "Dead in single player. FUN_0047FE0B’s only caller is Realm_Eliminate (0x0049CF20), when g_battlePhase == 2: it zeroes every figure of that realm and plays FUN_004262cf(0xD), deadguy4.wav. Realm_Eliminate has exactly three call sites in the image: 0x0043E726 in Net_OnSessionEvent, reached only from Net_PumpReceive, whose whole body is inside if (g_multiplayer != 0); 0x0049B331 in Mp_DropDepartedPlayers, whose body is inside the same test; and 0x0049CF09 in FUN_0049CEBE, which has zero rel32 calls, zero jumps and zero absolute references. g_multiplayer’s one writer of 1 is Net_JoinGame, after Net_ConnectWizard succeeds. A network game does reach it, when a peer leaves during a battle, and that is the session layer our netcode replaces. docs/bugs.md DNEW-midbattle."
+      "note": "Dead in single player. FUN_0047FE0B’s only caller is Realm_Eliminate (0x0049CF20), when g_battlePhase == 2: it zeroes every figure of that realm and plays FUN_004262cf(0xD), deadguy4.wav. Realm_Eliminate has exactly three call sites in the image: 0x0043E726 in Net_OnSessionEvent, reached only from Net_PumpReceive, whose whole body is inside if (g_multiplayer != 0); 0x0049B331 in Mp_DropDepartedPlayers, whose body is inside the same test; and 0x0049CF09 in FUN_0049CEBE, which has zero rel32 calls, zero jumps and zero absolute references. g_multiplayer’s one writer of 1 is Net_JoinGame, after Net_ConnectWizard succeeds. A network game does reach it, when a peer leaves during a battle, and that is the session layer our netcode replaces. docs/bugs.md D42."
     },
     {
       "id": "FUN_0048551d#1",
