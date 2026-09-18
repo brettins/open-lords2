@@ -123,10 +123,14 @@ impl SaveLoadScreen {
         }
     }
 
-    /// Where a load lands. `Save_Write`'s blocks 1, 7, 8 and 9 carry the battle
-    /// and block **14** (`0x0057C8FC`) carries `g_battlePhase`, which
-    /// `Battle_Start` sets to 2, so a save made on the battlefield comes back
-    /// onto it. `g_screenId` (`0x004EAC50`) is in no block.
+    /// Where a load lands, **read from the loader** and no longer inferred from
+    /// the block table: `FUN_004976A1` (`0x004976A1`), which `Save_Read` calls
+    /// last (`004a0000.c:5952`), sets `g_screenId = 0` (`00490000.c:3098`) and
+    /// then `if (g_battlePhase == 2) FUN_00477C89()`, whose only caller that is
+    /// and which sets `g_screenId = 0x29` (`00470000.c:3194`). `g_battlePhase`
+    /// (`0x0057C8FC`) is block **14** and is only ever 0 or 2 — seventeen
+    /// writes, `grep "g_battlePhase = "` — while `g_screenId` (`0x004EAC50`) is
+    /// in no block. `[V]`
     fn landing(&self, ctx: &Ctx) -> Transition {
         if ctx.game.battle.is_some() {
             Transition::Resume(ScreenId::Battlefield)

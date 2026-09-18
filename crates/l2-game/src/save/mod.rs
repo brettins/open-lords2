@@ -159,6 +159,34 @@ pub fn decode(bytes: &[u8], tables: Tables) -> Result<Game, LoadError> {
     Ok(game)
 }
 
+/// **`FUN_004976A1` (`0x004976A1`)** — what `Save_Read` (`0x004ADFE6`) runs once
+/// the blocks are read, `004a0000.c:5952`, and the answer to where a load lands:
+/// `g_screenId = 0` (`00490000.c:3098`), then `if (g_battlePhase == 2)
+/// FUN_00477C89()`, whose **only caller** this is and which sets
+/// `g_screenId = 0x29` (`00470000.c:3194`). `g_screenId` (`0x004EAC50`) is in no
+/// block — `node tools/kingdom/savedump.js layout`, 225 blocks — so the pair of
+/// `g_battlePhase` (block 14) tests is the whole rule. `[V]`
+///
+/// The rest of `FUN_004976A1` that we can answer is below. Not carried: the
+/// multiplayer turn clock `DAT_005440C8 += 10` (`00490000.c:3081`, block 174)
+/// and its anchor `_DAT_00568D9C`, which we do not model; the map and pathing
+/// rebuilds (`Map_BuildLattice` … `Path_BuildStepCost`), which
+/// [`l2_sim::BattleRunner::decode`] already does from the decoded field.
+pub fn resume(game: &mut Game) {
+    // `for (r = 1; r < 6; r++) if (g_realms[r].strength != 0) g_realms[r].aiStep = 1;`
+    // — `00490000.c:3077-3080`. A realm parked at `AI_STEP_DONE` restarts its
+    // program, and the step-0 prologue is skipped for every realm.
+    for realm in game.kingdom.realms.iter_mut().skip(1) {
+        if realm.strength != 0 {
+            realm.ai_step = 1;
+        }
+    }
+    // `g_battleWithdrawal = 0` — `FUN_00477C89`, `00470000.c:3220`.
+    if let Some(battle) = game.battle.as_mut() {
+        battle.runner.clear_withdrawal();
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

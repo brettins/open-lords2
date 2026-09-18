@@ -127,6 +127,52 @@ fn saving_mid_battle_writes_it_and_loading_lands_back_on_the_field() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
+/// **What the loader does that the blocks cannot.** `Save_Read` (`0x004ADFE6`)
+/// closes the file and calls `FUN_004976A1` (`004a0000.c:5952`), which restarts
+/// every live realm's turn program — `aiStep = 1` where `strength != 0`,
+/// `00490000.c:3077-3080` — and, through `FUN_00477C89`, clears the withdrawal
+/// (`00470000.c:3220`). Neither `g_battleWithdrawal` (`0x0056D5C8`) nor the side
+/// that left (`0x005656F8`) is in `g_saveBlocks` (`0x004DE960`), so the original
+/// cannot bring one back even by accident. Ablation: drop the `save::resume`
+/// line from `saves::read_path` and both halves come back out of the file.
+#[test]
+fn the_loader_restarts_the_ai_program_and_cannot_bring_a_withdrawal_back() {
+    let dir = std::path::PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+        .join(format!("saves-resume-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).expect("a directory of the test's own");
+    let _scope = l2_game::saves::scoped_dir(&dir);
+
+    let (mut g, _m) = skirmish();
+    g.kingdom.realms[2].strength = 40;
+    g.kingdom.realms[2].ai_step = l2_kingdom::AI_STEP_DONE;
+    g.battle.as_mut().expect("a live battle").runner.withdraw(l2_sim::SIDE_B);
+    let tables = g.kingdom.tables;
+
+    // The blocks carry both: `g_realms` is block 3 and our `withdrawn` is in
+    // the battle tag, so what follows is the loader and not the codec.
+    let coded = l2_game::save::decode(&l2_game::save::encode(&g), tables).expect("our own bytes");
+    assert_eq!(coded.kingdom.realms[2].ai_step, l2_kingdom::AI_STEP_DONE);
+    assert_eq!(
+        coded.battle.expect("a live battle").runner.withdrawal(),
+        Some(l2_sim::SIDE_B),
+        "the codec is meant to be a codec"
+    );
+
+    l2_game::saves::write("resumed", &g).expect("the test's own directory");
+    let back = l2_game::saves::read("resumed", tables).expect("our own bytes");
+    assert_eq!(
+        back.kingdom.realms[2].ai_step, 1,
+        "a realm parked at AI_STEP_DONE must restart its program on a load"
+    );
+    assert_eq!(
+        back.battle.expect("a live battle").runner.withdrawal(),
+        None,
+        "a withdrawal survived a load, and the original has nowhere to keep one"
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
 /// **A body is cleared away, and a spent pot of oil with it** — the corpse
 /// state's own count, figure record `+0x173`.
 ///
