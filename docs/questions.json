@@ -50,7 +50,7 @@
       "state": "answered",
       "title": "Saving a game never finishes",
       "answer": "type a name, click Save: the wait text appears, the dialog stays until thumbs-down, and Load lists no such game",
-      "outcome": "In flight as a fix: the save is never written."
+      "outcome": "Merged: a refused save now repaints, as the original does. Saving mid-battle is its own row; Q9 asks which screen you were on."
     },
     {
       "q": "Q7",
@@ -66,7 +66,7 @@
       "state": "answered",
       "title": "Relaunch the stopped screen-position audit",
       "answer": "a",
-      "outcome": "Queued for the next free seat from its handoff."
+      "outcome": "Relaunched from its handoff."
     },
     {
       "q": "Q9",
