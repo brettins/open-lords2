@@ -107,6 +107,25 @@ fn a_battle_saved_and_reloaded_runs_the_same_hundred_ticks() {
     let mut back = save::decode(&bytes, Tables::DEFAULT).expect("our own bytes");
     assert_eq!(digest(&back), digest(&kept), "the battle did not survive the round trip");
 
+    // **The drawn pose, field by field, because no digest covers it.**
+    // `Fighter::phase` and the four beside it are NOT_HASHED in
+    // `crates/l2-sim/tests/lockstep.rs` — presentation, `docs/netcode.md` §6 —
+    // and `l2_view::figures` reads `phase` for the walk frame
+    // (`figures.rs:129`, `(f.phase + 23) % 24`). A load that re-derived them
+    // would snap every marching man's cycle, and no lockstep check would say so.
+    let drawn = |g: &Game| {
+        g.battle
+            .as_deref()
+            .expect("a battle")
+            .runner
+            .fighters
+            .iter()
+            .map(|f| (f.phase, f.facing_drawn, f.fidget, f.fidget_period, f.horse_frame))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(drawn(&back), drawn(&kept), "the drawn pose did not survive the round trip");
+    assert!(drawn(&kept).iter().any(|d| d.0 != 0), "no figure had an animation counter to lose");
+
     for n in 1..=100u32 {
         step(&mut kept, 1);
         step(&mut back, 1);
