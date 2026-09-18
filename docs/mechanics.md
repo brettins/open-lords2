@@ -721,7 +721,7 @@ sites *"a limit of the design"*: a sword swing is an event inside a
   enemy closes to its range less two cells and looses its own arrows — is built and
   722: sounds, and fire, boiling oil, a tower docking and the high-rampart catapult miss sound
   from `l2_sim::fire`. The one left, a realm eliminated mid-battle, **cannot happen in a
-  single-player game** (`docs/bugs.md` `DNEW-midbattle`).
+  single-player game** (`docs/bugs.md` `D42`).
 
 **The pointer click is fired**, and it was two sites. `click3.wav`
   is `Sound_RestartSlot(1)` inside `Widget_Test` (`0x0040DA1E`), at its kind-4 and kind-5
