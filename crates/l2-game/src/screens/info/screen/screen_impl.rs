@@ -161,8 +161,9 @@ impl Screen for InfoScreen {
         {
             let l = self.layout(ctx);
             for (i, &bx) in BUTTON_X.iter().enumerate() {
-                if !Rect::new(bx, l.y(BUTTON_DY - l.row * 16), BUTTON_DIM, BUTTON_DIM).contains(x, y)
-                {
+                // `Hotspot_Test(0, DAT_00553D2C << 4, &DAT_004DC560, 3)` — the
+                // row offsets the hit boxes too, so `l.y` is the whole of it.
+                if !Rect::new(bx, l.y(BUTTON_DY), BUTTON_DIM, BUTTON_DIM).contains(x, y) {
                     continue;
                 }
                 return match (i, garrisoned) {
@@ -387,7 +388,17 @@ impl Screen for InfoScreen {
                         pen.body_wrapped(canvas, BODY_X, l.y(0x86), 0x140, &s, colour);
                     }
                 }
+                if u.kind == UnitKind::Merchant {
+                    // `Eng_DrawString(5, unit.nameIndex, 0x68, R * 0x10 + 0xA4,
+                    // &g_fontBody, 0x3F)` — the merchant's own name, and group
+                    // 5's only consumer here.
+                    pen.eng(canvas, MERCHANT_NAME_GROUP, u.name_index as usize, 0x68, l.y(0xA4), font::TEXT);
+                }
                 if u.kind == UnitKind::Transport {
+                    // `Pl8_DrawFrame(g_miscCtySheet, realm.shieldIndex + 0x55,
+                    // 0x198, R * 0x10 + 0x60)` — whose supplies these are.
+                    let shield = k.realms.get(u.owner as usize).map_or(0, |r| r.shield_index);
+                    pen.misc_frame(canvas, shield as usize + 0x55, 0x198, l.y(0x60));
                     // `troops[0]` is grain and `troops[2]` cattle — group 8
                     // nouns `0x44` and `0x46`, and the two `Misc_cty` icons.
                     pen.misc_frame(canvas, 0x21, 0x38, l.y(0xA0));
@@ -396,6 +407,10 @@ impl Screen for InfoScreen {
                     pen.count(canvas, 0x12E, l.y(0xA4), u.troops[2], 0x46, font::TEXT);
                 }
                 if u.kind == UnitKind::Army && u.owner == ctx.game.player {
+                    // `Ui_DrawInsetRect(0x18, (R + 8) * 0x10 + 0x18, 0x1A0,
+                    // (0xE - R) * 0x10)` — the recess the troop grid sits in,
+                    // drawn before the lines on it.
+                    pen.inset(canvas, Rect::new(0x18, (l.row + 8) * 16 + 0x18, 0x1A0, (0xE - l.row) * 16));
                     let w = pen.eng(canvas, UNIT_GROUP, FORMED, HEADING_X, l.y(0xA0), font::TEXT);
                     // `Ui_DrawYear(yearFormed, g_penAdvance + 0x28, …, 0)` —
                     // **style 0, which appends `L2.eng` 26/1 "AD"**. We drew the
@@ -415,17 +430,24 @@ impl Screen for InfoScreen {
                         let w = pen.number_in(face, canvas, 0xF8, l.y(0x170), left, '@', "", font::TEXT);
                         pen.eng(canvas, UNIT_GROUP, MOVES_LEFT, w, l.y(0x170), font::TEXT);
                     }
+                    // `Sprite_WGenSprite(0x28, DAT_004DC560, DAT_004DC562 +
+                    // DAT_00553D2C * 0x10)` — the widget record's `(48, 352)`
+                    // **plus the row**, which the `- l.row * 16` here cancelled.
                     let first = if u.garrison_county == 0 { icon::MOVE } else { icon::SORTIE };
                     for (i, &frame) in [first, icon::DISBAND, icon::SPLIT].iter().enumerate() {
                         if let Some(f) = a.sheet(ICON_SHEET).and_then(|s| s.frame(frame)) {
-                            canvas.blit(&f, BUTTON_X[i], l.y(BUTTON_DY - l.row * 16));
+                            canvas.blit(&f, BUTTON_X[i], l.y(BUTTON_DY));
                         }
                     }
+                    // `FUN_004224E7(unit, 0, 0x38, R * 0x10 + 0xBE, &g_fontBody, 2)`,
+                    // whose mode-2 loop is `for (c = 0; c < 6; c += 2)` at
+                    // `c * 0xD + y` — **the step is two troops, so a row of the
+                    // pair is `0x1A` apart, not `0xD`.** Ours halved it and the
+                    // seven rows piled into four.
                     for t in 0..7usize {
-                        let row = (t / 2) as i32 * 13;
+                        let row = (t / 2) as i32 * 0x1A;
                         let (cx, nx) = if t % 2 == 0 { (0x38, 0x58) } else { (0xF8, 0x118) };
                         pen.misc_frame(canvas, 0x2F + t, cx, l.y(0xBE + row));
-                        // `FUN_004224E7(unit, 0, 0x38, …, &g_fontBody, 2)` →
                         // `Ui_DrawCount(troops[t], t * 2 + 0x34, …, body)`.
                         pen.count(
                             canvas,
@@ -436,6 +458,9 @@ impl Screen for InfoScreen {
                             font::TEXT,
                         );
                     }
+                    // The loop's last statement, after `c` has left it at 6:
+                    // `Ui_DrawCount(menTotal, 0x48, x + 0xE0, 6 * 0xD + y + 4)`.
+                    pen.count(canvas, 0x118, l.y(0xC2 + 3 * 0x1A), u.men, 0x48, font::TEXT);
                     // ```c
                     // if (unit.mercMen == 0) {
                     //   Eng_DrawString(0x10, 0, 0x38, R * 0x10 + 0x130, &g_fontHeading, 0x3f);

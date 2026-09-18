@@ -128,3 +128,42 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     assert!(!audio.is_playing("click3.wav"), "letting go of the arrow clicked");
 }
 
+/// **The quit box reads its own prompt aloud** — `Ui_OpenConfirm`
+/// (`0x0040E6F2`) ends `FUN_004B36C0(prompt)`,
+/// `Sound_PlayFile(g_msgVoiceS010 + prompt * 0x10, 1, 0)`, and
+/// `g_msgVoiceS010` (`0x004DF7B8`) index 0 is `S010_01.wav`.
+///
+/// **Ablated** by deleting the `ctx.game.spoken` assignment in
+/// `ConfirmScreen::update`: nothing is heard and the last assertion goes red.
+#[test]
+fn escape_speaks_the_exit_prompt() {
+    use l2_game::screens::confirm::Ask;
+    let Some(dir) = l2_testkit::install_dir() else {
+        l2_testkit::skip!("no game install, so no S010 lines");
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::placeholder();
+    let mut audio = Audio::headless(&platform.vfs);
+    let mut director = audio::Director::new();
+    let mut game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    machine.push(ScreenId::Campaign);
+
+    let want = l2_game::audio::names::speech::CONFIRM_PROMPT[0].to_ascii_lowercase();
+    director.listen(&mut audio, &machine, &game);
+    assert!(!audio.heard().contains(&want.as_str()), "the map speaks nothing on its own");
+
+    send(&mut machine, &mut game, &assets, Event::KeyDown(Key::Escape));
+    assert_eq!(machine.top_id(), Some(ScreenId::Confirm(Ask::Quit)), "Escape opens the box");
+    {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+    }
+    director.listen(&mut audio, &machine, &game);
+    assert!(
+        audio.heard().contains(&want.as_str()),
+        "the box opened silent; heard {:?}",
+        audio.heard()
+    );
+}
+
