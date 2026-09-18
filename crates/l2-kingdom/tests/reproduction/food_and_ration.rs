@@ -24,9 +24,9 @@ use l2_scenario::{Scenario, STARTING_HEALTH_METER};
 ///   `Season_Advance`. That county's lord farms arable (`Ai_FarmStyleArable`,
 ///   `0x004A4052`), which with under 101 head calls `Ai_SetRations(county, 0)`
 ///   (`0x004A4782`): an upward sweep over the split that keeps the first strict
-///   improvement. With no grain and 74 head, split 0 feeds Half and split 100
-///   feeds Normal on slaughter, so the sweep settles on 100. The original's
-///   sweep saw 95 head, found split 0 already Normal on cheese, and kept it.
+///   improvement. `Ration_Apply` (`0x0044DF5F`) clears Normal on the total the
+///   moment the slaughter it asks for covers `local_2c - Food_FromDairy`, which
+///   is split 88 — so the sweep stops there, not at 100.
 ///
 /// *Ablation*: skip `Pass::AiManageFarms` and this goes red with the old
 /// numbers back — `(0, 2, −2)`, 59/2, 68, 66, 414.
@@ -50,16 +50,16 @@ fn realm_fives_county_is_fed_on_slaughter_by_its_lords_sweep_from_the_rewound_st
 
     assert_eq!(
         (ours.ration_split, ours.ration_achieved, ours.shown_ration),
-        (100, 3, 1),
-        "ours is fed at Normal by slaughter"
+        (88, 2, 1),
+        "the sweep stops at the first split whose slaughter covers the gap"
     );
     assert_eq!((ours.health_meter, ours.health_band), (theirs.health_meter, theirs.health_band));
     assert_eq!((ours.health_meter, ours.health_band), (67, 3));
     assert_eq!(ours.happiness, theirs.happiness);
     assert_eq!(ours.deaths, theirs.deaths);
     assert_eq!(ours.population, theirs.population);
-    assert_eq!((ours.d_hap_ration, theirs.d_hap_ration), (1, -2), "the closing preview");
-    assert_eq!((ours.herd_eaten, theirs.herd_eaten), (12, 0), "the head slaughtered");
+    assert_eq!((ours.d_hap_ration, theirs.d_hap_ration), (-2, -2), "the closing preview");
+    assert_eq!((ours.herd_eaten, theirs.herd_eaten), (0, 0), "the head slaughtered");
 
     assert_eq!(ours.pop_last, theirs.pop_last);
     assert_eq!(ours.shown_tax, theirs.shown_tax);
@@ -118,11 +118,16 @@ fn the_ration_preview_reproduces_every_stored_food_field() {
     let file = s.kingdom(SEED);
     let t = &Tables::DEFAULT;
 
+    // `Ration_Apply`'s `if (season == 4)` gate, from the file's own clock —
+    // `Sowing::from_index(self.season, ..)` as every caller in
+    // `crates/l2-kingdom/src/kingdom` builds it.
+    let sowing = l2_kingdom::ration::Sowing::from_index(file.season, file.options.advanced_farming);
+
     let mut levels = std::collections::BTreeSet::new();
     for id in s.county_ids() {
         let stored = &file.counties[id];
         let mut c = stored.clone();
-        l2_kingdom::ration::preview(t, &mut c, false, l2_kingdom::ration::Sowing::NONE);
+        l2_kingdom::ration::preview(t, &mut c, false, sowing);
         assert_eq!(c.ration_achieved, stored.ration_achieved, "county {id}");
         assert_eq!(c.herd_eaten, stored.herd_eaten, "county {id}");
         assert_eq!(c.grain_eaten, stored.grain_eaten, "county {id}");

@@ -66,12 +66,6 @@ pub struct Plan {
     pub sacks: i32,
 }
 
-impl Plan {
-    pub fn fits(&self, herd: i32, grain: i32) -> bool {
-        self.heads <= herd && self.sacks <= grain
-    }
-}
-
 /// **`[V]`**, and unusually well corroborated: a strategy guide states *"each
 /// portion of cheese being enough to feed 5 people"*, and a player measuring a
 /// save reported 80 cows feeding 400 people.
@@ -112,25 +106,45 @@ fn clamp_level(level: i32) -> i32 {
 
 pub fn plan(t: &Tables, people: i32, level: i32, herd: i32, split: i32) -> Plan {
     let level = clamp_level(level);
-    let requirement = requirement(t, people, level);
+    split_plan(t, level, requirement(t, people, level), herd, split)
+}
+
+/// The tail both of `Ration_Apply` (`0x0044DF5F`)'s two passes share:
+/// `local_2c = local_2c - Food_FromDairy(county); if (local_2c < 1) local_2c = 0;`
+/// then `iVar3 = Pct(local_2c, sVar1)`, `Food_HeadsForPeople(county, iVar3)`
+/// and `Food_SacksForPeople(county, local_2c - iVar3)`.
+fn split_plan(t: &Tables, level: i32, want: i32, herd: i32, split: i32) -> Plan {
     let dairy = food_from_dairy(t, herd);
-    let remainder = (requirement - dairy).max(0);
+    let remainder = (want - dairy).max(0);
     let from_livestock = pct(remainder, split.clamp(0, 100));
-    let from_grain = remainder - from_livestock;
     Plan {
         level,
-        requirement,
-        dairy: dairy.min(requirement),
+        requirement: want,
+        dairy: dairy.min(want),
         heads: heads_for_people(t, from_livestock),
-        sacks: sacks_for_people(t, from_grain),
+        sacks: sacks_for_people(t, remainder - from_livestock),
     }
+}
+
+/// `local_2c = DAT_004d673c[l] * DivCeil(iVar6, g_rationTable[l]);
+/// if (g_optArmiesEat == 1) local_2c = local_2c + iVar2;` — `iVar6` is
+/// `population` alone and `iVar2` is `+0x198 + +0x19C`, so the garrisons are
+/// added **after** the level has scaled the population, not through the
+/// divisor. `Ration_Apply` (`0x0044DF5F`).
+fn demand(t: &Tables, county: &County, level: i32, armies_eat: bool) -> i32 {
+    let mut want = requirement(t, county.population, level);
+    if armies_eat {
+        want += county.friendly_troops + county.enemy_troops;
+    }
+    want
 }
 
 /// **`[I]` on the enemy half.** `docs/kingdom.md` §1.3 lists `+0x198` and `+0x19C`
 /// together as *"friendly / enemy troops … added to the food requirement when
 /// Armies Eat is on"* and does not say whether both are added. Both are added
 /// here; an occupying army foraging the county it stands in is the reading that
-/// makes the field pair worth storing.
+/// makes the field pair worth storing. `Ration_Apply` (`0x0044DF5F`) adds the
+/// pair as [`demand`]'s `iVar2`; this sum is `FUN_004A4782`'s ladder input.
 pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
     if armies_eat {
         county.population + county.friendly_troops + county.enemy_troops
@@ -147,33 +161,79 @@ pub fn people_to_feed(county: &County, armies_eat: bool) -> i32 {
 /// reading that pattern-matches on "the food function" is `docs/decisions.md`
 /// C3 waiting to happen.
 pub fn food_available(t: &Tables, county: &County) -> i32 {
+    available(t, county.herd, county.herd_available, county.grain_available)
+}
+
+fn available(t: &Tables, herd: i32, herd_available: i32, grain_available: i32) -> i32 {
     let mut food = 0i64;
-    if county.herd > 0 {
-        food += county.herd as i64 * t.food.dairy_per_head as i64;
+    if herd > 0 {
+        food += herd as i64 * t.food.dairy_per_head as i64;
     }
-    if county.herd_available > 0 {
-        food += county.herd_available as i64 * t.food.food_per_head as i64;
+    if herd_available > 0 {
+        food += herd_available as i64 * t.food.food_per_head as i64;
     }
-    if county.grain_available > 0 {
-        food += county.grain_available as i64 * t.food.food_per_sack as i64;
+    if grain_available > 0 {
+        food += grain_available as i64 * t.food.food_per_sack as i64;
     }
     food.clamp(i32::MIN as i64, i32::MAX as i64) as i32
 }
 
 pub fn choose(t: &Tables, county: &County, armies_eat: bool) -> Plan {
-    choose_within(t, county, armies_eat, county.grain)
+    choose_within(t, county, armies_eat, 0)
 }
 
-fn choose_within(t: &Tables, county: &County, armies_eat: bool, grain: i32) -> Plan {
-    let people = people_to_feed(county, armies_eat);
-    let mut level = clamp_level(county.ration_wanted);
-    loop {
-        let p = plan(t, people, level, county.herd, county.ration_split);
-        if level == 0 || p.fits(county.herd, grain) {
-            return p;
+/// `Ration_Apply` (`0x0044DF5F`) — **two** descents, not one.
+///
+/// The first tests the requirement against `Food_Available` (`0x0044E7B4`)'s
+/// *total* — `iVar3 = Food_Available(county); ... if (local_2c <= iVar3) break;`
+/// — so a larder that is large enough in sum passes the level even when
+/// `rationSplit` aims the demand at the empty side. The split bites in the
+/// second: `if (local_2c <= iVar5 + iVar4 + iVar3) break;` where those three are
+/// the dairy plus the `herdEaten`/`grainEaten` the first pass could actually
+/// fetch, each already capped at `herdAvailable`/`grainAvailable`.
+fn choose_within(t: &Tables, county: &County, armies_eat: bool, seed: i32) -> Plan {
+    // `herdAvailable = herd; grainAvailable = grain - local_24;` before the
+    // `Food_Available(county)` call reads them.
+    let herd_available = county.herd;
+    let grain_available = county.grain - seed;
+    let total = available(t, county.herd, herd_available, grain_available);
+    let split = county.ration_split;
+
+    // `rationAchieved = rationWanted + 1;` and the loop's leading
+    // `if (0 < rationAchieved) rationAchieved--` — six iterations, so the
+    // first test is at `rationWanted`.
+    let mut level = county.ration_wanted + 1;
+    for _ in 0..RATION_LEVEL_COUNT {
+        if level > 0 {
+            level -= 1;
         }
-        level -= 1;
+        if demand(t, county, level, armies_eat) <= total {
+            break;
+        }
     }
+    // `if (6 < rationAchieved) rationAchieved = 6; if (rationAchieved < 0)
+    // rationAchieved = 0;` — 6 would index `g_rationTable` one row past its
+    // end, and the loop's first decrement makes it unreachable from any
+    // `rationWanted` the game writes.
+    level = clamp_level(level);
+
+    // `herdEaten = min(iVar4, herdAvailable); grainEaten = min(iVar3, grainAvailable);`
+    let first = split_plan(t, level, demand(t, county, level, armies_eat), county.herd, split);
+    let got = (food_from_dairy(t, county.herd) as i64
+        + first.heads.min(herd_available) as i64 * t.food.food_per_head as i64
+        + first.sacks.min(grain_available) as i64 * t.food.food_per_sack as i64)
+        .clamp(i32::MIN as i64, i32::MAX as i64) as i32;
+
+    for _ in 0..RATION_LEVEL_COUNT {
+        if demand(t, county, level, armies_eat) <= got {
+            break;
+        }
+        if level > 0 {
+            level -= 1;
+        }
+    }
+    level = clamp_level(level);
+    split_plan(t, level, demand(t, county, level, armies_eat), county.herd, split)
 }
 
 /// `Ration_Apply` (`0x0044DF5F`) proper — everything the original's function
@@ -201,7 +261,7 @@ fn record(t: &Tables, county: &mut County, p: Plan, seed: i32) {
 /// unowned county stores `herdEaten` 13 against a shadow of 0.
 pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
     let seed = seed_reserved(t, county, sowing);
-    let p = choose_within(t, county, armies_eat, county.grain - seed);
+    let p = choose_within(t, county, armies_eat, seed);
     record(t, county, p, seed);
     county.grain_eaten_shadow = county.grain_eaten;
     county.herd_eaten_shadow = county.herd_eaten;
@@ -210,7 +270,7 @@ pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) 
 
 pub fn preview(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
     let seed = seed_reserved(t, county, sowing);
-    let p = choose_within(t, county, armies_eat, county.grain - seed);
+    let p = choose_within(t, county, armies_eat, seed);
     record(t, county, p, seed);
     p
 }
@@ -254,17 +314,17 @@ mod tests {
 
     #[test]
     fn starting_one_level_above_wanted_would_contradict_the_save() {
-        let people = 456;
-        let herd = 67;
-        let double = plan(T, people, 4, herd, 100);
-        assert!(double.fits(herd, 0), "Double is affordable for this county");
-        assert_eq!(double.heads, 58, "and would slaughter 58 head, not 13");
-
         let mut c = County::new();
-        c.population = people;
-        c.herd = herd;
+        c.population = 456;
+        c.herd = 67;
+        c.herd_available = 67;
         c.ration_wanted = 3;
         c.ration_split = 100;
+
+        // `Food_Available` (`0x0044E7B4`): 67*5 + 67*10 = 1005.
+        assert_eq!(food_available(T, &c), 1005);
+        assert!(requirement(T, 456, 4) <= 1005, "Double clears the total");
+        assert_eq!(plan(T, 456, 4, 67, 100).heads, 58, "and would slaughter 58 head, not 13");
         assert_eq!(choose(T, &c, false).level, 3, "so the loop must begin at wanted");
     }
 
@@ -368,6 +428,36 @@ mod tests {
             whole.ration_achieved > sowing.ration_achieved,
             "the reservation costs the county a ration level"
         );
+    }
+
+    /// **The fit is on the total, and the shortfall is measured in food.**
+    /// `Ration_Apply` (`0x0044DF5F`) tests `local_2c <= iVar3` against
+    /// `Food_Available` (`0x0044E7B4`), then `local_2c <= iVar5 + iVar4 +
+    /// iVar3` against the dairy plus what `herdEaten`/`grainEaten` fetched.
+    /// Here the split asks for two sacks a county without grain cannot give,
+    /// and the rounding-up of `Food_HeadsForPeople` covers the gap exactly:
+    /// 200 from cheese + 3 head x 10 = 230, the whole requirement.
+    ///
+    /// *Ablation*: replace the `demand(..) <= total` test with the two-sided
+    /// `heads <= herd && sacks <= grain` and this county is fed Half, `-2`.
+    #[test]
+    fn a_missing_sack_does_not_cost_a_level_when_the_total_still_covers_it() {
+        let mut c = County::new();
+        c.population = 230;
+        c.herd = 40;
+        c.grain = 0;
+        c.ration_split = 70;
+        c.ration_wanted = 3;
+
+        let p = choose(T, &c, false);
+        assert_eq!(p.level, 3, "Normal");
+        assert_eq!((p.heads, p.sacks), (3, 2), "and it asks for two sacks it has not got");
+
+        apply(T, &mut c, false, Sowing::NONE);
+        assert_eq!(c.herd_eaten, 3);
+        assert_eq!(c.grain_eaten, 0, "capped at grainAvailable");
+        assert_eq!(c.ration_achieved, 3);
+        assert_eq!(c.d_hap_ration, 1, "Normal, not Half");
     }
 
     #[test]

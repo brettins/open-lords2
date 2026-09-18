@@ -89,8 +89,18 @@ fn with_foraging_off_nothing_starves_at_all() {
     assert_eq!(k.campaign.units.get(id).unwrap().men, 900);
 }
 
+/// **The garrison is added after the level has scaled the population, not
+/// through it.** `Ration_Apply` (`0x0044DF5F`):
+/// `local_2c = DivCeil(iVar6, g_rationTable[l]); local_2c = DAT_004d673c[l] *
+/// local_2c; if (g_optArmiesEat == 1) local_2c = local_2c + iVar2;` — `iVar6`
+/// is `population` on its own and `iVar2` is `+0x19C + +0x198`. So 300 men
+/// cost the same `DivCeil(300, 6)` sacks whatever the county is eating.
+///
+/// *Ablation*: put the troops through `requirement` — the pre-2026-09-17
+/// `requirement(t, people_to_feed(county, armies_eat), level)` — and Triple
+/// charges 150 sacks for the same 300 men.
 #[test]
-fn an_armys_food_cost_scales_with_the_countys_ration_level() {
+fn an_armys_food_cost_is_flat_across_the_countys_ration_level() {
     let eaten = |level: i32, troops: i32| {
         let mut k = kingdom();
         k.options.armies_eat = true;
@@ -111,13 +121,12 @@ fn an_armys_food_cost_scales_with_the_countys_ration_level() {
 
     let normal_cost = normal_with - normal_alone;
     let triple_cost = triple_with - triple_alone;
-    assert!(normal_cost > 0, "the troops eat something");
+    assert_eq!(normal_cost, 50, "DivCeil(300, g_foodPerSack) sacks for the 300 men");
     assert_eq!(
-        triple_cost,
-        normal_cost * 3,
-        "three hundred men cost three times as much at Triple rations \
-         ({normal_cost} -> {triple_cost}), which a flat subtraction could not do"
+        triple_cost, normal_cost,
+        "the same men cost the same at Triple ({normal_cost} -> {triple_cost})"
     );
+    assert!(triple_alone > normal_alone, "only the townsfolk's share scales");
 }
 
 #[test]
