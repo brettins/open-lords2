@@ -42,6 +42,25 @@ const _: () = assert!(l2_formats::save::PLAYER_NAME_LEN == crate::text::PLAYER_N
 /// that does not draw a random number will.
 pub const SEED: u64 = 0x0001_0D52;
 
+/// **The seed *Start* deals a new game from**, and one fixed value is wrong.
+/// `PlayerStart_Shuffle` (`0x00497E65`) runs off the live LFSR state, which at
+/// `Game_NewGame` depends on every draw since process start, so the original
+/// re-rolls the realm→county deal every game; `NetCmd_WriteStartGame`
+/// (`0x00441905`) is the multiplayer half — its reader seeds `g_randStateA/B`
+/// off the wire, so the seed still arrives as a parameter (`docs/netcode.md`
+/// D-3a).
+///
+/// [`Assets::wall_clock`] is `None` everywhere but `main`'s own sampler, so
+/// tests and the title-page world keep [`SEED`].
+///
+/// [`Assets::wall_clock`]: crate::game::Assets::wall_clock
+pub fn new_game_seed(wall_clock: Option<i64>) -> u64 {
+    match wall_clock {
+        Some(t) => SEED ^ t as u64,
+        None => SEED,
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
     Missing { name: String, detail: String },
