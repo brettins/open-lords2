@@ -82,11 +82,13 @@
     {
       "q": "Q10",
       "row": "save-from-map-refused",
-      "state": "open",
+      "state": "answered",
       "title": "Save once more from the campaign map on a current build",
       "inplay": "Your save from the map wrote no file, and nothing we tried reproduced it. Two things changed since: a refused save now paints its reason instead of sitting on the wait text, and saving is no longer refused on the battlefield.",
       "todo": "Build from current main, play to the campaign map, File then Save, type a name, click Save. Note exactly what the box shows next: the name in the Load list, or a message, and its words.",
-      "ask": "Reply: Q10 saved, or Q10 with the message shown"
+      "ask": "Reply: Q10 saved, or Q10 with the message shown",
+      "answer": "saved, about three seconds",
+      "outcome": "The refusal did not recur. The three-second wait is filed and in flight; the original saves near instantly."
     }
   ],
   "reports": [
@@ -101,6 +103,18 @@
       "text": "Saving a game never finishes and no file appears.",
       "row": "save-game-hangs",
       "outcome": "Fixed and merged twice over: a refused save repaints, and saving mid-battle now works as in the original (C237). Q9 asks which screen you were on, to confirm the cause."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "Saving takes about three seconds; should be near instant.",
+      "row": "save-takes-seconds",
+      "outcome": "In flight."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "Tutorials come back on every launch.",
+      "row": "tutorial-flag-persists",
+      "outcome": "In flight: how the original remembers it (L2.INI) comes first."
     }
   ]
 }
