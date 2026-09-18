@@ -138,19 +138,19 @@
       "date": "2026-09-18",
       "text": "Army report screen text placement is off.",
       "row": "army-report-text-placement",
-      "outcome": "Filed; paired against the original's coordinates next."
+      "outcome": "Found four defects against the original's panel painter: the troop rows were piled two into one, the men total was missing, the three buttons sat a row too high, and an inset, the merchant name and the transport shield were absent. Fixed; oracle check and merge next session."
     },
     {
       "date": "2026-09-18",
       "text": "Exit-game screen text placement is off.",
       "row": "exit-game-text-placement",
-      "outcome": "Filed with the army report."
+      "outcome": "The box and buttons were exact; the prompt was upper-cased by ours and ran past the box. Fixed, same branch."
     },
     {
       "date": "2026-09-18",
       "text": "Esc does not say \"Exit the game, my lord?\"",
       "row": "exit-confirm-voice-line",
-      "outcome": "Filed with the exit screen."
+      "outcome": "The original speaks one of sixteen recorded lines when a confirm opens; ours now does on Esc. Same branch."
     }
   ]
 }
