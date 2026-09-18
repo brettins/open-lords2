@@ -60,6 +60,10 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
                 assert_eq!(ours_work, file_work, "{at}: engine {e} work");
             }
             assert_eq!(ours.siege_seasons_left, f.siege_seasons_left, "{at}: +0x19C");
+            // `+0x1A` and `+0x19B`. Defaulted to 0, `run_mission`'s fallback
+            // arm rewrote a garrison's 5 to `Mission::SEEK_ENEMY`.
+            assert_eq!(ours.mission, f.mission, "{at}: +0x1A mission");
+            assert_eq!(ours.mission_county, f.mission_county, "{at}: +0x19B");
             assert_eq!(ours.needs_destination, f.needs_destination, "{at}: idle");
             assert_eq!(ours.dest_county, f.dest_county, "{at}: dest county");
             assert_eq!(ours.path.len(), f.path_len as usize, "{at}: path length");
