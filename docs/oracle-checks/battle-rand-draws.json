@@ -1,0 +1,27 @@
+{
+  "reviewed": "ee48034c",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/ai/types.rs",
+      "line": 243,
+      "address": "0x004778A0",
+      "verdict": "match",
+      "note": "one FUN_00404B2C step (0x1f rounds, bit4 vs bit0, 0x40000000 feedback, & 0x7f) matches terrain::Lfsr::next"
+    },
+    {
+      "file": "crates/l2-sim/src/ai/types.rs",
+      "line": 257,
+      "address": "0x004778A0",
+      "verdict": "match",
+      "note": "approach_lane = r & 3, rally_group = r & 1 from the same draw, as 00470000.c:3061-3062"
+    },
+    {
+      "file": "crates/l2-sim/src/ai/types.rs",
+      "line": 243,
+      "address": "0x004778A0",
+      "verdict": "match",
+      "note": "00470000.c:3059 guards the draw with if (g_multiplayer == 0); the else arm increments lane and group and wraps at 3 and 1. Ai::new draws unconditionally and Ai.multiplayer is only set after construction. | fixed c89e64cb: Ai::new_for_battle carries both arms"
+    }
+  ]
+}
