@@ -1,0 +1,14 @@
+{ "reviewed": "850a3eb31d38d212c8f469740ad57bc2c9ad7641",
+  "date": "2026-09-18",
+  "behaviours": [
+    { "file": "crates/l2-game/src/prefs.rs", "line": 4, "address": "0x0040ECC4", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 17, "address": "0x004AE15F", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 49, "address": "0x004AE2BD", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 61, "address": "0x0053F1E0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 72, "address": "0x004AE310", "verdict": "departure", "note": "[D] DebugOverlay is ours; no field in the 0x468 block." },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 108, "address": "0x004AE2BD", "verdict": "departure", "note": "[D] speed clamped on read; Options_Validate clamps neither speed." },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 144, "address": "0x004AE1B8", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 153, "address": "0x004AE15F", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/main.rs", "line": 461, "address": "0x0040EBFE", "verdict": "match", "note": "" }
+  ]
+}

@@ -114,7 +114,7 @@
       "date": "2026-09-18",
       "text": "Tutorials come back on every launch.",
       "row": "tutorial-flag-persists",
-      "outcome": "The original remembers it in lords2.inf, written on exit and read at launch. Ours now does the same in its own preferences file; under oracle check."
+      "outcome": "Merged: the toggle is remembered across launches, as the original keeps it in its options file."
     },
     {
       "date": "2026-09-18",
@@ -127,6 +127,24 @@
       "text": "The Knight never replied to a message.",
       "row": "ai-lord-no-reply",
       "outcome": "Filed; goes with the idle armies to the next free seat."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "\"No mercenaries in the army\" shown for an army with mercenaries.",
+      "row": "no-mercenaries-line-wrong",
+      "outcome": "Filed."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "Army report screen text placement is off.",
+      "row": "army-report-text-placement",
+      "outcome": "Filed; paired against the original's coordinates next."
+    },
+    {
+      "date": "2026-09-18",
+      "text": "Exit-game screen text placement is off.",
+      "row": "exit-game-text-placement",
+      "outcome": "Filed with the army report."
     }
   ]
 }

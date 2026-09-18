@@ -398,7 +398,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         tables,
     )?;
     // `App_WinMain`'s `Options_Load()` (`00400000.c:8221`), after `L2.eng` and
-    // before `App_InitWindow`. `l2_game::prefs`.
+    // before `App_InitWindow`: `Options_Load` `0x004AE1B8`. `l2_game::prefs`.
     let mut game = game;
     game.prefs = l2_game::prefs::load();
     println!(

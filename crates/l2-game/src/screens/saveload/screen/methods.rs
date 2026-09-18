@@ -168,8 +168,10 @@ impl SaveLoadScreen {
                     Ok(game) => {
                         let tips = ctx.game.tips;
                         // A preference is the machine's, never the world's
-                        // (`crate::game::Prefs`); the original's loader reads
-                        // the save over the world and not over g_options.
+                        // (`crate::game::Prefs`); `Save_Read` `0x004ADFE6` reads its
+                        // blocks over the world, and `g_optTipScreens`' only writers are
+                        // `Options_SetDefaults` (004a0000.c:6090) and `Opt_ToggleTipScreens`
+                        // `0x00434787` (00430000.c:1716), neither in a load.
                         let prefs = ctx.game.prefs;
                         *ctx.game = game;
                         ctx.game.tips = tips;

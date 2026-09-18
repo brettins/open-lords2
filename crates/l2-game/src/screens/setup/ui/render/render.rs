@@ -615,7 +615,8 @@ impl SetupScreen {
                 // the last game stays seen. `crate::tip`.
                 let tips = ctx.game.tips;
                 // g_options is a global `Game_NewGame` does not touch:
-                // `g_optTipScreens` has two writers in the image, neither of
+                // `g_optTipScreens` has two writers in the image (`Options_SetDefaults`
+                // 004a0000.c:6090, `Opt_ToggleTipScreens` `0x00434787` 00430000.c:1716), neither of
                 // them here (`crate::prefs`).
                 let prefs = ctx.game.prefs;
                 *ctx.game = game;
