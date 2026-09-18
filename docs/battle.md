@@ -774,9 +774,21 @@ Traced and absent, as far as this investigation went:
   `BattleMan_BurnTick`, the eleven per-troop tick handlers, the melee and missile state
   handlers, `BattleMan_Step`, `Cell_TryEnter`, `Path_Search` or `Path_Extract` touches
   `FUN_00404B2C` / `DAT_005C9A84`, the counter the battlefield builder uses for its
-  terrain variants. Damage is deterministic given positions and timings. **[D]** — over
-  the functions traced, which is most but not all of the simulation; the untraced unit
-  order handlers (§11) were not checked.
+  terrain variants. Damage is deterministic given positions and timings. **[V]** — the
+  [D] this was is now exhaustive: grepping the whole 2,452-function corpus for every
+  PRNG symbol (`Rand_Advance`, `FUN_00404B2C`, `FUN_00404B99`, `g_randStateA/B`,
+  `DAT_00591564`, `g_rand7A`, `g_rand7B`, `DAT_005AEA58`, `DAT_005AEA5C`,
+  `DAT_005C9A84`, `_DAT_0058FD6C`, `_DAT_0058FD70`) names **eight** draw sites in
+  battle code and no more: `Battle_Start` (`0x004778A0`, 00470000.c:3060 — approach
+  lane and rally group), `Battlefield_BuildRandom` (`0x0047AAA3`:4674),
+  `Battlefield_BuildFromSkr` (`0x0047B8B2`:4929), `FUN_0047E1DC`:5864 and
+  `Battlefield_BuildCastle` (`0x0047C4BA`:5137) — all four terrain frame bytes —
+  `Battlefield_BuildCastle`:5271 (`DAT_004EEB6C`, the orientation coin), and
+  `Battle_UpdateStrengthAdvantage` (`0x0047FC01`:6596, the AI's ±jitter) with
+  `Battle_Frame` (`0x004B99C0`, 004b0000.c:6930) stepping the generator once a frame.
+  **No `BattleMan_*`, `BattleUnit_*`, `Missile_*`, `Formation_*`, `UnitOrder_*`,
+  `Anim_*`, `Melee_*` or `Path_*` function names any of them.** A fight varies run to
+  run through the AI's orders, not through its hit rolls.
 * **No morale.** `L2.eng` group 47 — the battle "Group Information" panel — does contain
   the string `Morale`, alongside `Heavy Infantry / Light Infantry / Slingers / Mixed Troops
   / Auxiliaries / Men`. **The unit field it displays was not found**: no literal `47` is
