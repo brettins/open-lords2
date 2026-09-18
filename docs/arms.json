@@ -3653,13 +3653,12 @@
     {
       "id": "ours/save-refuses-mid-battle",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "battlefield",
       "screen": "0x36",
       "gesture": "left-press",
-      "what": "File > Save from the battlefield opens the save box, and the box then refuses, through Status::Failed -- whose first line is the game's own sentence, Eng_DrawString(40, ERROR_INDEX).",
-      "why": "The original does NOT refuse. Menu_SaveGame (0x00433F49) is reachable from 0x29 and does not test g_battlePhase, and its .sav is a memory dump, so the battle goes into it; Screen_FrameInput even exempts 0x35 and 0x36 from the multiplayer force-close while g_battlePhase != 0, which is the save box being deliberately kept alive in a battle. Ours is a versioned format that does not encode LiveBattle and crate::save::decode puts battle: None back, so the file would quietly lose the fight a player was in the middle of. A refusal he can read beats a save that is wrong, and it is counted here rather than left as a comment admitting a choice.",
-      "ours": "crates/l2-game/src/screens/saveload/mod.rs"
+      "what": "File > Save from the battlefield opened the save box and the box then refused, through Status::Failed.",
+      "why": "Removed 2026-09-17. The original does NOT refuse, and ours no longer does: Save_Write (0x004ADE93) writes g_battlefield (0x005440E0), g_battleMen (0x00554480), the missiles (0x0057A100) and g_battleUnits (0x00566520) as blocks 1, 7, 8 and 9 of its table at 0x004DE960, and those four are all-zero in battle-before.sav and set in noorders-start.sav. crate::save::battle carries the same state and a load lands back on the battlefield."
     },
     {
       "id": "ours/saveload-key-escape",

@@ -7,6 +7,8 @@ mod ui;
 pub use ui::*;
 mod autosave;
 pub use autosave::*;
+mod battle;
+pub use battle::*;
 
 use std::path::PathBuf;
 

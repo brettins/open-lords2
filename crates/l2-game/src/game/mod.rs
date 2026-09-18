@@ -522,14 +522,12 @@ pub struct Game {
     /// world, and a half-fought battle is not something anyone may drop — the
     /// campaign is in a state no rule describes until it is settled.
     ///
-    /// **It is not saved.** `l2_game::save` writes the campaign, and the
-    /// original cannot save inside a battle either: `Menu_SaveGame` is on the
-    /// File menu, whose three titles the battle screen does draw, and
-    /// `Screen_HandleInput` has no arm for `0x29`. Whether the original refuses
-    /// or misbehaves there was not established.
-    ///
-    /// not-encoded: session state,
-    /// argument — the original cannot save inside a battle either.
+    /// **It is saved.** `Save_Write` (`0x004ADE93`) writes `g_battlefield`
+    /// (`0x005440E0`), `g_battleMen` (`0x00554480`), the missiles
+    /// (`0x0057A100`) and `g_battleUnits` (`0x00566520`) as blocks 1, 7, 8 and 9
+    /// of its table, and those four are all-zero in `battle-before.sav`, saved
+    /// on the map, and set in `noorders-start.sav`, saved with the battle screen
+    /// open. **[V]** — `crate::save::battle`.
     pub battle: Option<Box<crate::battlefield::LiveBattle>>,
     /// **`Map_BeginMoveSelection`, asked for by something that is not the map.**
     ///

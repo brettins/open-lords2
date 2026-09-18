@@ -229,6 +229,8 @@ pub struct Ai {
     pub(super) inner_slot_cursor: usize,
     pub(super) defence_post_owner: [u16; 20],
 
+    /// not-encoded: a trace of the last handler to run, read by
+    /// `crate::ai::tests` and by nothing the simulation branches on.
     pub last_action: Vec<Action>,
 }
 

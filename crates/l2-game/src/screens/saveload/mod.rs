@@ -144,10 +144,6 @@ impl Mode {
 pub const GROUP: usize = 40;
 pub const ERROR_INDEX: usize = 4;
 
-/// The detail under group 40 index 4 when a save is asked for mid-battle. It
-/// says the battle is not saved, because that is the thing a player loses.
-pub const BATTLE_REFUSAL: &str = "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE.";
-
 pub const BOX_X: i32 = 0x10;
 pub const BOX_Y: i32 = 0x90;
 pub const BOX_COLS: i32 = 0x1C;
