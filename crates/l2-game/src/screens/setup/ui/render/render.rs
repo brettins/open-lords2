@@ -614,8 +614,13 @@ impl SetupScreen {
                 // `Game_NewGame` does not call `FUN_00476A5D`: a tip seen in
                 // the last game stays seen. `crate::tip`.
                 let tips = ctx.game.tips;
+                // g_options is a global `Game_NewGame` does not touch:
+                // `g_optTipScreens` has two writers in the image, neither of
+                // them here (`crate::prefs`).
+                let prefs = ctx.game.prefs;
                 *ctx.game = game;
                 ctx.game.tips = tips;
+                ctx.game.prefs = prefs;
                 self.failure = None;
             }
             Err(e) => {

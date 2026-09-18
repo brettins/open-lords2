@@ -167,8 +167,13 @@ impl SaveLoadScreen {
                 match saves::read_path(&self.entries[i].path, tables) {
                     Ok(game) => {
                         let tips = ctx.game.tips;
+                        // A preference is the machine's, never the world's
+                        // (`crate::game::Prefs`); the original's loader reads
+                        // the save over the world and not over g_options.
+                        let prefs = ctx.game.prefs;
                         *ctx.game = game;
                         ctx.game.tips = tips;
+                        ctx.game.prefs = prefs;
                         self.landing(ctx)
                     }
                     Err(e) => {

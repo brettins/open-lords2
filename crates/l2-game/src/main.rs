@@ -397,6 +397,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         scenario::SEED,
         tables,
     )?;
+    // `App_WinMain`'s `Options_Load()` (`00400000.c:8221`), after `L2.eng` and
+    // before `App_InitWindow`. `l2_game::prefs`.
+    let mut game = game;
+    game.prefs = l2_game::prefs::load();
     println!(
         "{} counties, {} owned by realm {}, {} {} - a NEW world; the front end starts the real one",
         game.kingdom.county_count,
@@ -452,5 +456,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let event_loop = EventLoop::new()?;
     event_loop.set_control_flow(ControlFlow::Wait);
     event_loop.run_app(&mut app)?;
+    // `FUN_0049767D`'s `Options_Save()` (`00490000.c:3084`), reached only from
+    // `0x0040EBFE` after the message loop ends.
+    if let Err(e) = l2_game::prefs::save(&app.game.prefs) {
+        eprintln!("preferences: {e}");
+    }
     Ok(())
 }
