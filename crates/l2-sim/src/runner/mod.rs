@@ -103,15 +103,15 @@ pub struct Fighter {
     /// **The horse frame a knight is drawn on** — figure `+0x11`, the second
     /// byte the painter reads (`docs/battle.md` §13.8; `+0x10` is the body).
     ///
-    /// `Anim_WalkA2`'s knight arm (`00480000.c:2766`) writes
-    /// `|dirc| * 6 + animPhase >> 2`, read *after* the step at `2756`;
-    /// `Anim_StandA2`'s (`00480000.c:2904`) writes `|dirc| * 6`, no phase term.
+    /// Three writers, all knight arms. `Anim_WalkA2` (`00480000.c:2766`)
+    /// writes `|dirc| * 6 + animPhase >> 2`, read *after* the step at `2756`;
+    /// `Anim_StandA2` (`2904`) and `Anim_StrikeA2` (`2571-2573`) write
+    /// `|dirc| * 6`, no phase term.
     ///
-    /// `Anim_DyingA2` (`0x00487908`) returns for `troopType` 6 at
-    /// `00480000.c:3004-3006` without writing it, and state 9's latched arm
-    /// (`00480000.c:1697-1725`) calls that handler and nothing else — so a
-    /// shovelling knight's horse is **held** mid-stride on the byte the last
-    /// walk or stand tick left. **[V]**
+    /// `Anim_DyingA2` (`0x00487908`) is not among them: it returns for
+    /// `troopType` 6 at `00480000.c:3004-3006` without writing the byte, so a
+    /// shovelling knight's horse is **held** on whatever the last of those
+    /// three left. **[V]**
     pub horse_frame: u8,
     pub path: Vec<Pos>,
     /// Consecutive pathfinding failures. At four the figure stops trying —

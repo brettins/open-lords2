@@ -139,8 +139,8 @@ pub fn draw_figures(
                 // **A shovelling knight's horse is held.** `Anim_DyingA2`
                 // (`0x00487908`) returns for `troopType` 6 at
                 // `00480000.c:3004-3006` before writing `horseFrame` (`+0x11`),
-                // so the painter draws the byte the last walk or stand tick
-                // left — `Fighter::horse_frame`, not a fresh pose. Ours
+                // so the painter draws the byte the last walk, stand or strike
+                // tick left — `Fighter::horse_frame`, not a fresh pose. Ours
                 // recomputed it and stood the horse up mid-dig.
                 let pose = match f.anim {
                     Anim::Shovelling => f.horse_frame as usize,

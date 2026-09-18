@@ -120,6 +120,14 @@ impl BattleRunner {
         if f.troop.index() >= 7 {
             return self.siege_pose(i);
         }
+        // `00480000.c:2571-2573`, inside the `troopType == 6` arm at `2540`:
+        // the third writer of the horse `+0x11`, `|dirc| * 6` with no phase
+        // term. `[D]`: the arm first rotates `dirc` itself over `DAT_004D9C30`
+        // (`2542-2563`), and that table is `l2_view`'s `KNIGHT_FRAMES`, so we
+        // write the unrotated `dirc`.
+        if f.troop.index() == 6 {
+            f.horse_frame = (f.facing % 8) * 6;
+        }
         f.facing_drawn = facing % 8;
         if swinging {
             // `animPhase += 1; if (0x27 < animPhase) animPhase = 0` (`00480000.c:2510`):
