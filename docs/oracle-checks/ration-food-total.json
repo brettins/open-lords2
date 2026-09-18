@@ -1,0 +1,26 @@
+{
+  "reviewed": "e2d0f87573ead1383a1d8cda2aae9585d27e7ca2",
+  "date": "2026-09-17",
+  "behaviours": [
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 116, "address": "0x0044DF5F", "verdict": "match",
+      "note": "split tail: want - Food_FromDairy, <1 -> 0, Pct(split), heads then sacks on the remainder" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 134, "address": "0x0044DF5F", "verdict": "match",
+      "note": "iVar6 is population alone; iVar2 (+0x198 + +0x19C) is added after DAT_004d673c scaling" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 167, "address": "0x0044E7B4", "verdict": "match",
+      "note": "three >0 guards, herd*dairy + herdAvailable*perHead + grainAvailable*perSack" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 198, "address": "0x0044DF5F", "verdict": "match",
+      "note": "grainAvailable = grain - Grain_Sow seed, herdAvailable = herd, both set before Food_Available" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 199, "address": "0x0044DF5F", "verdict": "match",
+      "note": "first descent tests the requirement against Food_Available's total, read once before the loop" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 205, "address": "0x0044DF5F", "verdict": "match",
+      "note": "rationAchieved = rationWanted + 1, six iterations, leading decrement then break test" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 218, "address": "0x0044DF5F", "verdict": "departure",
+      "note": "original clamps rationAchieved to [0,6]; clamp_level caps at 5. Unreachable for rationWanted <= 5, reasoned in the comment but not marked [D]" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 221, "address": "0x0044DF5F", "verdict": "match",
+      "note": "first-pass heads/sacks capped at herdAvailable/grainAvailable, then dairy + herdEaten*perHead + grainEaten*perSack" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 227, "address": "0x0044DF5F", "verdict": "match",
+      "note": "second descent tests iVar5+iVar4+iVar3 first and decrements after, six iterations" },
+    { "file": "crates/l2-kingdom/src/ration.rs", "line": 242, "address": "0x0044DF5F", "verdict": "match",
+      "note": "final requirement re-split and herdEaten/grainEaten re-capped after the second descent" }
+  ]
+}

@@ -100,6 +100,8 @@ pub fn requirement(t: &Tables, people: i32, level: i32) -> i32 {
     div_ceil(people, divisor) * multiplier
 }
 
+// [D] ceiling 5: Ration_Apply 00440000.c:7942 clamps rationAchieved to 6, one row past
+// g_rationTable; unreachable from any rationWanted <= 5 (oracle check 2026-09-17).
 fn clamp_level(level: i32) -> i32 {
     level.clamp(0, RATION_LEVEL_COUNT as i32 - 1)
 }
