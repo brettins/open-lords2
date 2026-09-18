@@ -111,6 +111,14 @@ fn settle(kingdom: &mut Kingdom, county: usize) {
     let t = kingdom.tables;
     let armies_eat = kingdom.options.armies_eat;
     let season_next = kingdom.season_next;
+    // `Merchant_Trade`'s tail is `Ration_Apply(county,g_season)` twice
+    // (`00420000.c:3163`, `3166`), interleaved with
+    // `County_RefreshEstimates(county,g_seasonNext)` — the two globals differ
+    // and each line takes one. `Transport_Deliver` (`00420000.c:3543`, `3546`)
+    // repeats the tail verbatim. `Ai_BuyGood` (`0x004A4B12`) has no tail of its
+    // own: it ends at `Merchant_Trade(0,qty,good,…)`, so every AI stall call
+    // site inherits `g_season` here, unlike `Ai_SetRations`
+    // (`004a0000.c:1794/1805/1816`), which passes `g_seasonNext`. `[V]`
     let sowing = crate::ration::Sowing::from_index(kingdom.season, kingdom.options.advanced_farming);
     let Kingdom { counties, campaign, .. } = kingdom;
     settle_county(&t, &mut counties[county], &mut campaign.map, armies_eat, season_next, sowing);
