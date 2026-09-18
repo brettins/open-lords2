@@ -83,7 +83,7 @@ pub use l2_kingdom::county::MAX_RATION_SPLIT;
 /// `l2_kingdom::save`. **A debug overlay toggle belongs here too**, not on
 /// `Options::quirks` and not on `Tables`: it is not a rule variation at all.
 ///
-/// # The original keeps these in a file, and we do not yet
+/// # The original keeps these in a file, and so do we
 ///
 /// `Options_Save` (`0x004AE15F`) writes the whole `g_options` block —
 /// **0x468 bytes, and the shipped `lords2.inf` is
@@ -93,11 +93,14 @@ pub use l2_kingdom::county::MAX_RATION_SPLIT;
 /// (`0x0053F204`) against **0x7EC** *after* the read, defaulting the whole block
 /// when it does not match. `[V]` on all of it.
 ///
-/// **We do not write a preferences file yet, and that is a gap
-/// decision.** Saying so here is the point: a reader who finds no persistence
-/// should meet the fact. What a file would
-/// need is settled — `docs/environment.md` already says where our own files go —
-/// and it is not this branch's job.
+/// [`crate::prefs`] is ours: the same two moments, a text file beside our
+/// saves, one key per field named after the global. **`L2.INI` is not that
+/// file** — `Ini_ReadConfig` (`0x0040ECC4`) reads `WindowsDir=` out of it and
+/// nothing else, and nothing in the image writes it.
+///
+/// A new game and a load carry this block forward rather than defaulting it,
+/// because `g_optTipScreens` has two writers in the image and neither is
+/// `Game_NewGame` or the loader.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Prefs {
     /// `g_optMusic` (`0x0053F218`). Default 1 — `FUN_004AF35E` sets all three

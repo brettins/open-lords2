@@ -959,7 +959,12 @@ and that decision is better made when something is displaying strings.
 
 **Enable/disable persistence.** The load order comes in as a list from the
 caller. Where that list is stored, and the UI for reordering it, belong to
-whatever ends up owning user settings.
+whatever ends up owning user settings — which is now
+`crates/l2-game/src/prefs.rs`: `prefs.ini` beside our saves
+(`%APPDATA%\open-lords2\saves`, `docs/environment.md`), one key per `g_options`
+field, read at launch and written after the event loop, the two moments
+`Options_Load` (`0x004AE1B8`) and `Options_Save` (`0x004AE15F`) run. It holds
+preferences only; a mod list is not there yet.
 
 **Signing and distribution checksums.** The rules digest exists for lockstep,
 not for trust. Signing is premature while mods are hand-copied.
