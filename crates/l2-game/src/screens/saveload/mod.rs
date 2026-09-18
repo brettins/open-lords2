@@ -206,6 +206,23 @@ pub(super) fn widget_rect(w: (i32, i32, usize, i32)) -> Rect {
 /// game. Please wait."* `[V]`
 pub const WORK_FRAMES: u8 = 0x96;
 
+/// **`WORK_FRAMES` is not `WORK_FRAMES` of ours.** `SaveLoad_Tick` is called
+/// from `Screen_HandleInput`'s `'5'`/`'6'` arm (`004b0000.c:7527`), which
+/// `Screen_FrameInput` runs once per `Battle_Frame` (`00420000.c:6788`,
+/// `004b0000.c:6869`) — and `App_WinMain`'s pump is unthrottled
+/// (`00400000.c:8256-8262`, `crate::clock`). Only the *present* is capped at
+/// 50 ms, inside `Gfx_Present`. So the count is loop iterations, not paced
+/// frames: the install's own `status.txt` ends *"Av frame rate = 223733"*,
+/// which `App_LogExit` (`0x004B2636`) writes as `g_frameRateSum /
+/// g_frameRateSeconds + 1` and `Frame_Tick` (`0x004B27BF`) counts twice a loop
+/// — once from `Gfx_Present`, once from `Battle_Frame` — so ~111,866 loops a
+/// second and **0x96 of them is 1.3 ms**. `[V]`
+///
+/// Our loop is [`crate::TICK_MS`]-paced, so 0x96 ticks was 2.4 s of *"Saving
+/// game. Please wait."* against the original's millisecond. One tick, 16 ms,
+/// is the smallest wait we have and still paints the status line once.
+pub const WORK_TICKS: u8 = 1;
+
 /// omission: group 40's status strings are *"Loading game. Please wait."*,
 /// *"Saving game. Please wait."* and *"File error. Operation canceled."* — two
 /// progress messages and a failure.

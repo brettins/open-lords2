@@ -5,6 +5,8 @@ mod isolation;
 pub use isolation::*;
 mod ui;
 pub use ui::*;
+mod speed;
+pub use speed::*;
 mod autosave;
 pub use autosave::*;
 mod battle;
