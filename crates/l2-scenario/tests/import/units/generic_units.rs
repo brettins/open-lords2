@@ -56,7 +56,8 @@ fn every_unit_in_every_save_is_imported_slot_for_slot() {
             for e in 0..3 {
                 assert_eq!(ours.engines[e].ordered, f.engines[e].ordered, "{at}: engine {e}");
                 assert_eq!(ours.engines[e].percent, f.engines[e].percent, "{at}: engine {e} %");
-                assert_eq!(ours.engines[e].work_done, f.engines[e].work_done, "{at}: engine {e} work");
+                let (ours_work, file_work) = (ours.engines[e].work_done, f.engines[e].work_done);
+                assert_eq!(ours_work, file_work, "{at}: engine {e} work");
             }
             assert_eq!(ours.siege_seasons_left, f.siege_seasons_left, "{at}: +0x19C");
             assert_eq!(ours.needs_destination, f.needs_destination, "{at}: idle");
