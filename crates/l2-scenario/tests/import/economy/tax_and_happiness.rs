@@ -56,8 +56,10 @@ fn pct(v: i32, p: i32) -> i32 {
 const CASTLE_TAX_BASE: [i32; 6] = [320, 480, 560, 640, 720, 800];
 
 /// The one moment on this machine where `+0xC0` is **not** the current
-/// population's answer, named with its reason.
-const PREVIEW_NOT_YET_REFRESHED: &[&str] = &["battle-during.sav", "incombat.sav"];
+/// population's answer, named with its reason. fought-start.sav [V]: county 4
+/// holds 439 people and preview 42 in fought-lastturn, 391 and 42 at battle
+/// start (48 levied, preview unrefreshed), 391 and 37 in fought-end.
+const PREVIEW_NOT_YET_REFRESHED: &[&str] = &["battle-during.sav", "incombat.sav", "fought-start.sav"];
 
 /// **`+0x0F` is `5 - taxRate` in every owned county of every save**, which is
 /// `Tax_RecomputePreview` (`0x0044B80B`)'s second statement and is what says
