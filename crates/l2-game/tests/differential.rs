@@ -519,29 +519,39 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 /// and 100 × 20 = 2,000 crowns. `realm.weapons.1` left the baseline and
 /// `realm.gold` on realm 2 went **+2,005 → +5**, which is the standing
 /// `realm.wages` (−5) divergence and nothing else; `realm.score` went +47 → −3.
+///
+/// **Moved up by the siege build records, from the numbers the test printed**:
+/// `AGREE_TOTAL` 914 → 927 and `MOVED_AGREE_TOTAL` 271 → 278. Both siege pairs'
+/// `realm.strength`, `realm.score` and `realm.wages` rows went, and realm 2's
+/// `realm.gold` with them; siege 12->13 is now clean but for the unsimulated
+/// `global.ai_lords`. The whole residual was one defaulted import:
+/// `l2_scenario`'s `read_unit` wrote `engines: Default::default()` and
+/// `siege_seasons_left: 0`, so `Siege_BuildTick` (`0x004A8507`) — which skips
+/// any record with `ordered == 0` — saw nothing remaining and reported ready on
+/// the first tick. Phase 2 launched the assault three seasons early and realm
+/// 1's 43 men died against a 149-man garrison the original leaves standing.
+/// Ablation: put the two defaults back and these thirteen rows return — run,
+/// on this tree. `docs/decisions.md` C235.
+///
+/// **What is left on siege 13->14 is `realm.gold` realm 1, +500**, and it is
+/// not the siege: it is the player's own half of the step, an armoury or castle
+/// spend this pair cannot replay. `[I]`.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
     ("battle 3->4", "global.ai_lords", 1),
     ("battle 4->5", "global.ai_lords", 1),
     ("siege 12->13", "global.ai_lords", 1),
-    ("siege 12->13", "realm.gold", 2),
-    ("siege 12->13", "realm.score", 2),
-    ("siege 12->13", "realm.strength", 1),
-    ("siege 12->13", "realm.wages", 2),
     ("siege 13->14", "global.ai_lords", 1),
-    ("siege 13->14", "realm.gold", 2),
-    ("siege 13->14", "realm.score", 2),
-    ("siege 13->14", "realm.strength", 1),
-    ("siege 13->14", "realm.wages", 2),
+    ("siege 13->14", "realm.gold", 1),
 ];
 
 const COMPARED_TOTAL: usize = 932;
 
-const AGREE_TOTAL: usize = 914;
+const AGREE_TOTAL: usize = 927;
 
 const MOVED_TOTAL: usize = 279;
 
-const MOVED_AGREE_TOTAL: usize = 271;
+const MOVED_AGREE_TOTAL: usize = 278;
 
 
 #[test]
