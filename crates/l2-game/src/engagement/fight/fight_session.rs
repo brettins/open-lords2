@@ -112,9 +112,35 @@ pub(super) fn charge_for_the_absent_player(
 ) {
     let human = |id: usize| kingdom.campaign.units.get(id).is_some_and(|u| u.owner_is_human);
     for (side, id) in [(SIDE_B, attacker), (SIDE_A, defender)] {
-        if human(id) {
-            let enemy = runner.home(l2_sim::runner::other_side(side));
-            runner.order_side(side, enemy.0, enemy.1);
+        if !human(id) {
+            continue;
+        }
+        let home = runner.home(l2_sim::runner::other_side(side));
+        // **At the nearest enemy unit, not at the enemy's corner.** A charge
+        // issued once at the corner stops being a charge the moment a unit
+        // shoots: `BattleMan_StateCloseToAttack` (`0x00484BF9`,
+        // `00480000.c:2055-2056`) pins the unit's destination to the shooter's
+        // own cell, and the 500-frame reform then re-forms it where it stands.
+        // The AI rewrites its own units' destinations every think; nothing
+        // rewrites a human's, so the stand-in has to.
+        let mine: Vec<usize> =
+            runner.units.live().filter(|&u| runner.units.get(u).side == side).collect();
+        for u in mine {
+            let (mx, my) = (runner.units.get(u).x, runner.units.get(u).y);
+            let at = runner
+                .units
+                .live()
+                .filter(|&e| runner.units.get(e).side != side)
+                .min_by_key(|&e| {
+                    let t = runner.units.get(e);
+                    (t.x - mx).abs() as i32 + (t.y - my).abs() as i32
+                })
+                .map(|e| {
+                    let t = runner.units.get(e);
+                    (t.x.clamp(0, 79) as u8, t.y.clamp(0, 79) as u8)
+                })
+                .unwrap_or(home);
+            runner.order_unit(u, at.0, at.1);
         }
     }
 }

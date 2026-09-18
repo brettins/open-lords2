@@ -193,6 +193,16 @@ fn fight(
         if runner.conclusion().is_some() {
             break;
         }
+        // **The stand-in has to keep charging.** One order at frame 0 no longer
+        // lasts the battle: `BattleMan_StateCloseToAttack` (`0x00484BF9`,
+        // `00480000.c:2055-2056`) pins a shooting unit's destination to the
+        // shooter's own cell, and nothing re-orders a human unit — the AI
+        // handlers pass over `humanControlled`. Without this, eight headless
+        // fights that all ended before tick 4,000 ran past 10,000 and one
+        // stalled. C186's invention, re-issued on C186's terms.
+        if runner.tick % RECHARGE_EVERY == 0 {
+            charge_for_the_absent_player(kingdom, &mut runner, attacker, defender);
+        }
     }
     let damage = runner.castle_damage();
     let (verdict, resolution) = conclude_fight(kingdom, attacker, defender, runner);

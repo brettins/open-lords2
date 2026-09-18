@@ -59,6 +59,11 @@ pub const MAX_TICKS: u32 = 12_000;
 
 const CHECK_EVERY: u32 = 100;
 
+/// How often the headless stand-in re-issues the absent player's charge — one
+/// AI think interval (`BattleUnit_Think`, 200 frames), so it is no more
+/// talkative than the side the AI drives. Ours, like the charge itself: C186.
+const RECHARGE_EVERY: u32 = 200;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BattleReport {
     pub settlement: Settlement,

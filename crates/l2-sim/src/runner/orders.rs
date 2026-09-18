@@ -126,17 +126,28 @@ impl BattleRunner {
         }
     }
 
-    /// `Formation_FindNearbySlot` (`0x0048A38E`), reduced to the field case:
-    fn find_nearby_slot(
+    /// `Formation_FindNearbySlot` (`0x0048A38E`): two short-circuits, then the
+    /// expanding-ring search.
+    pub fn find_nearby_slot(
         &self,
         unit: usize,
         target: (i16, i16),
         claimed: &[(i32, i32)],
     ) -> Option<(i32, i32)> {
         let dest = self.field.at(target.0 as usize, target.1 as usize);
+        // `if (surface == 2) { origin = target; return 1; }` — `00480000.c:4077`,
+        // the **first** short-circuit, ahead of the catapult arm at `:4082`.
+        // Every figure of a unit ordered onto the moat is sent to the moat cell
+        // itself, and `Formation_AssignSearchedSlots` (`0x00489798`, `:3758`)
+        // never reaches the claim list on this path, so they share the one cell.
+        // Corrects C81's "a dry slot beside it" — `docs/decisions.md`
+        // correction CNEW-moat-slot.
+        if dest.surface == crate::siege::SURFACE_WATER {
+            return Some((target.0 as i32, target.1 as i32));
+        }
         // `if (surface == 4 && g_battleUnits[unit].category == 5) { origin =
-        // target; return 1; }` — the short-circuit that stands ahead of the
-        // loop, so the rampart-walk branch below never refuses a catapult.
+        // target; return 1; }` — `:4082`, the second, so the rampart-walk
+        // branch below never refuses a catapult.
         if dest.surface == crate::siege::SURFACE_RAMPART_WALK && self.units.get(unit).category == 5 {
             return Some((target.0 as i32, target.1 as i32));
         }
@@ -147,6 +158,13 @@ impl BattleRunner {
             let y1 = (target.1 as i32 + radius + 1).min(DIM as i32);
             for y in y0..y1 {
                 for x in x0..x1 {
+                    // `0 < local_40 && local_40 < 0x4f && 0 < local_10 &&
+                    // local_10 < 0x4f` — `:4112-4113`, ahead of the
+                    // `Formation_SlotIsUsable` call in the same `if`: the search
+                    // never answers with a cell on the map's border ring.
+                    if !(1..0x4f).contains(&x) || !(1..0x4f).contains(&y) {
+                        continue;
+                    }
                     if claimed.contains(&(x, y)) {
                         continue;
                     }
@@ -220,10 +238,14 @@ impl BattleRunner {
     /// > `State::FillingMoat` had no writer at all. The original instead caches
     /// > the flag in `Formation_RectIsClear` off the *unit's* destination and
     /// > then rejects the rectangle for the same reason,
-    /// > the ditch has every one of its figures enter state 9 while walking to a
-    /// > **dry** slot beside it; `BattleMan_Step`'s state-9 arm then latches
-    /// > whatever impassable cell stops it. `docs/decisions.md`
-    /// > `C81`. `[V]` — two functions and one global.
+    /// > the ditch has every one of its figures enter state 9;
+    /// > `BattleMan_Step`'s state-9 arm then latches whatever impassable cell
+    /// > stops it. `docs/decisions.md` `C81`. `[V]` — two functions and one
+    /// > global.
+    ///
+    /// C81's "a dry slot beside it" is wrong: `Formation_FindNearbySlot`
+    /// (`0x0048A38E`, `00480000.c:4077`) hands the moat cell itself back to
+    /// every figure. Correction `CNEW-moat-slot`.
     fn send_figure(&mut self, unit: usize, fighter: usize, x: i32, y: i32, dest_is_water: bool) {
         let sim = self.fighters[fighter].sim;
         let gate = self.units.get(unit).reform_gate;
@@ -506,66 +528,7 @@ impl BattleRunner {
                     self.fighters[i].target = (tx, ty);
                 }
             }
-            State::Shooting => {
-                let alive = self.sim.figures[sim]
-                    .target
-                    .is_some_and(|t| self.sim.figures[t].is_alive());
-                // **`&& targetCell == 0` is the rest of the original's test**,
-                // and it is what makes the player's fire arrow survive
-                // `Order_StopShortOfTarget`. `BattleMan_StateCloseToAttack`
-                // (`0x00484BF9`) opens on
-                // `other.owner == 0 && unit.targetCell == 0`, and that arm is
-                // the one that *leaves* state 17 — by writing **state 5**,
-                // which answers [`Self::fire_tick`]'s open question about what
-                // puts a figure into the firing state.
-                //
-                // fire-arrow cell holds its bowmen in 17 with no live target,
-                // and they acquire one there. `[V]`.
-                let cell = {
-                    let u = self.sim.figures[sim].unit as usize;
-                    if (1..=MAX_UNITS).contains(&u) { self.units.get(u).target_cell } else { 0 }
-                };
-                if !alive {
-                    if cell == 0 {
-                        self.sim.figures[sim].state = State::Idle;
-                        self.sim.figures[sim].target = None;
-                        return;
-                    }
-                    let Some(shot) = WeaponClass::for_troop(self.fighters[i].troop) else {
-                        return;
-                    };
-                    match self.missile_target(i, shot.stats().range as i32) {
-                        Some(t) => self.sim.figures[sim].target = Some(t),
-                        None => return,
-                    }
-                }
-                // **`BattleMan_StateCloseToAttack` (`0x00484BF9`) looses.** Its
-                // cadence is `BattleMan_FireMissile`'s own pair — swingTimer
-                // `+0xE0` against reloadInterval `+0xCB`, `interval < timer`
-                // shoots and resets — with no ten-tick acquisition, because the
-                // target was chosen when the state was entered. It sets unit
-                // `+0x0F` at 2053-54, which [`Self::loose`] does for both
-                // sites; the destination write at 2055-56 is not built.
-                let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) else {
-                    return;
-                };
-                let counter = {
-                    let f = &mut self.sim.figures[sim];
-                    f.reload_counter = f.reload_counter.saturating_add(1);
-                    f.reload_counter
-                };
-                if counter <= class.stats().reload {
-                    return;
-                }
-                self.sim.figures[sim].reload_counter = 0;
-                let Some(t) = self.sim.figures[sim].target else {
-                    return;
-                };
-                let Some(t) = self.fighters.iter().position(|f| f.sim == t) else {
-                    return;
-                };
-                self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
-            }
+            State::Shooting => self.close_to_attack(i),
             _ => {}
         }
     }
@@ -622,7 +585,7 @@ impl BattleRunner {
         self.loose(i, class, (self.fighters[t].x, self.fighters[t].y));
     }
 
-    fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
+    pub(super) fn loose(&mut self, shooter: usize, class: WeaponClass, at: (u8, u8)) {
         let sim = self.fighters[shooter].sim;
         // `BattleMan_FireMissile` (`0x00483337`, `00480000.c:1478-1479`)
         // `g_battleMen[cur].firing = 0x78; g_battleUnits[sVar2].firing = 0x78;`
@@ -634,8 +597,10 @@ impl BattleRunner {
         // and slot 0 is the original's unused record, which ours is too — the
         // bound is only what keeps an out-of-range `+0x178` from panicking.
         //
-        // `[D]` figure `+0x182` omitted: its one reader in the binary is its
-        // own decrement, `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`).
+        // `g_battleMen[cur].firing = 0x78` stands beside each of the three
+        // unit-level writes — `:1478`, `:1837`, `:2053`. Stepped down by
+        // `Battle_UpdateAllMen` (`0x004822ED`, `:896-897`), its only reader.
+        self.sim.figures[sim].firing = crate::unit::FIRING;
         {
             let u = self.sim.figures[sim].unit as usize;
             if u <= MAX_UNITS {
@@ -707,7 +672,7 @@ impl BattleRunner {
     }
 
     /// `Missile_FindTarget` (`0x004956CC`) as the firing path uses it.
-    fn missile_target(&self, i: usize, range: i32) -> Option<usize> {
+    pub(super) fn missile_target(&self, i: usize, range: i32) -> Option<usize> {
         let me = self.fighters[i].sim;
         let mine = self.sim.figures[me].owner;
         let (sx, sy) = (self.fighters[i].x as i32, self.fighters[i].y as i32);

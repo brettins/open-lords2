@@ -29,6 +29,8 @@ mod conclusion;
 pub use conclusion::*;
 mod simulation;
 pub use simulation::*;
+mod close_to_attack;
+pub use close_to_attack::*;
 mod orders;
 pub use orders::*;
 mod stop_short;
