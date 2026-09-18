@@ -1,5 +1,3 @@
-//! A throwaway directory, so the filesystem tests need no dependency and no
-//! game install.
 
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
@@ -24,7 +22,6 @@ impl TempDir {
         &self.path
     }
 
-    /// Write a file, creating parent directories. `rel` uses forward slashes.
     pub fn write(&self, rel: &str, contents: &str) -> PathBuf {
         let full = self.path.join(rel.replace('/', std::path::MAIN_SEPARATOR_STR));
         if let Some(parent) = full.parent() {

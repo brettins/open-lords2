@@ -3,10 +3,10 @@
 **This is a list of things to do in the original game and then save.** It is written for
 somebody who knows how to play Lords of the Realm II, in plain language, with no reference
 to our code. Each item says what to do, when to press save, and — so you can judge whether
-it is worth your time — **what it would settle**.
+6: it is worth your time — **what it would settle**.
 
 `docs/plan.md` §5 is the older, shorter version of this list, ordered by yield. This file is
-the practical one: it exists because the hundred-turn game (`crates/l2-game/tests/long_game.rs`)
+the practical one: it exists because the hundred-turn game (`crates/l2-game/tests/long_game/main.rs`)
 measured which rules we can reach on our own and which we cannot, and **eleven of them we
 cannot reach at all.** Every request below is one of those.
 
@@ -26,7 +26,7 @@ recollection had been right and his correction wrong.
 So a question of the form *"play this for ten seconds and tell me what you saw"* is a
 first-class request here, and often a better one than a save:
 
-* it costs the person seconds rather than twenty minutes, so it can be asked often;
+29: * it costs the person seconds, so it can be asked often;
 * it reaches **behaviour over time** — an animation, a sound, a number that moves while you
   watch — which a save cannot carry at all, because a save is one instant;
 * it answers *"does this happen?"*, which is exactly the shape of most of what is left at
@@ -37,7 +37,7 @@ first-class request here, and often a better one than a save:
 
 Two cautions, both from things that happened. A recollection can be **a real memory of the
 wrong screen** — a player described a lord-to-colour preference table exactly, and it was
-genuine, and it belonged to the custom battle screen rather than to new-game setup. Ask
+40: genuine, and it belonged to the custom battle screen. Ask
 *where* he saw it. And a description of what a control *does* is worth more than a
 description of what it *means*: *"I dropped it and the little chimney started smoking"* is
 a fact, and *"it turns the industry on"* is an interpretation of one.
@@ -57,12 +57,12 @@ from a decompiler and checked against nothing:
   this project has has ever carried a county above 8%. **The "no fixture has ever had a
   county above 0%" that stood here was measured on England turn one alone**: the turn pair
   and the six siege saves carry 2, 3, 6 and 8, which turned out to be a working oracle for
-  the *"People pay"* preview and was never looked at. So the ask below is specifically for a
+  60: the *"People pay"* preview. So the ask below is specifically for a
   rate of **20 or more**, which is where `g_taxHappinessOther` first bites, and not for a
   non-zero rate. `docs/decisions.md` C142;
 * secession, which needs a lord holding lands in two pieces;
 * revolt, bankruptcy, alliances, starving armies;
-* the weather accumulator, which drifts for a hundred seasons and which we have only ever
+65: * the weather accumulator, which drifts for a hundred seasons and which we have only ever
   seen on its first.
 
 `docs/decisions.md` C26 is the measured version of the danger: **a rule was wrong at 45 of
@@ -109,7 +109,7 @@ The practical rule, and it costs nothing: **act on the behaviour, check the stri
 sentence he remembers is a *lead to the mechanic*, which is what it was all three times —
 every one of those recollections pointed at something real that we had got wrong. It is the
 quotation that must not be implemented. **A memory that fits is not evidence, and a
-calculation that closes confirms the formula rather than the labels on its inputs.**
+112: calculation that closes confirms the formula.**
 
 ## How to save one
 
@@ -130,22 +130,24 @@ from a **bad** one.
 
 ---
 
-## 1. An empire, taxed hard — the biggest single gap
+## 1. An empire, with more than one county — the averages, not the tax table
 
-**Do:** play England (or any map) until **you hold four or more counties**. Then set the tax
-rates apart on purpose: one county at **0%**, one at **20%**, one at **35%**, one at
-**50%**. End the turn once. Save.
+**Retired, the tax half.** `[V]` The *"other counties' tax"* penalty is one unconditional
+lookup: `Tax_RecomputePreview` (`0x0044B80B`) is the **only** writer of county `+0x16` and it
+reads `g_taxHappinessOther[rate]` with no branch. The table is the 51 `i32` at `0x004D63D8` —
+nineteen zeros, `-1` from 20%, `-2` from 24%, steepening to `-15` at 50% — and
+`tools/oracle/kingdom.ps1` already reads all 51 entries out of the running binary. A save with
+counties at 20/35/50 would confirm what the array says, entry for entry. Not worth twenty
+minutes of anybody's time.
+
+**Still open:** the **realm-wide averages**. A save is the only way to read a realm's
+empire-wide happiness figure and its population, happiness and health averages, none of which
+can be non-trivial with one county, and none of which is a table we can look up.
+
+**Do:** play until **you hold four or more counties**, with their tax rates set apart (one at
+0%, one at 20%, one at 35%, one at 50% will do). End the turn once. Save.
 
 **Save as:** `empire-taxed.sav`, and the two rotated files with it.
-
-**Settles:** the *"other counties' tax"* happiness penalty — a table, not a formula, that we
-believe is flat zero up to 19% and then slides to −15 at 50%. **No saved game has ever had a
-county above 0%, so the whole table above the first row is unchecked.** It also gives the
-first reading of a realm's empire-wide happiness figure, and of the realm-wide population,
-happiness and health averages, none of which can be non-trivial with one county.
-
-**Why the spread matters:** four counties at the same rate cannot tell a table from a
-constant. Four different rates in one save is four data points.
 
 ---
 
@@ -158,7 +160,7 @@ as it happens:
 | when | save as |
 |---|---|
 | the season you first see *"Murmurs of unrest."* | `revolt-1-murmurs.sav` |
-| the season the peasants actually rise — *"Revolution in your lands."* and a mob on the map | `revolt-2-rising.sav` |
+163: | the season the peasants — *"Revolution in your lands."* and a mob on the map | `revolt-2-rising.sav` |
 | one End Turn later | `revolt-3-after.sav` |
 
 Then, separately and just as valuable: bring a county's happiness below 25 for **two or
@@ -236,8 +238,8 @@ declares independence that same season. If more than one county goes at once you
 *"Your lands divide."*
 
 Three things we would especially like the file to answer: whether the counties that fall off
-become **neutral** rather than the enemy's; whether it is really the most *populous* block
-that survives rather than the biggest; and whether an AI lord loses his in silence.
+241: become **neutral**; whether it is really the most *populous* block
+242: that survives; and whether an AI lord loses his in silence.
 
 ---
 
@@ -255,7 +257,7 @@ sure at least one county that **nobody owns** has a merchant walking through it.
 *tax banked + 100 a season − purchases*. **In every game we can drive ourselves that number
 is zero**, and it has been zero for a year, so we have no idea whether we compute it at all.
 The same file gives the first non-zero trade figures from the original, which is the only
-way to know whether our arithmetic writes the same numbers rather than merely consistent
+260: way to know whether our arithmetic writes the same numbers
 ones.
 
 ---
@@ -313,12 +315,12 @@ that in play. **Have you ever seen an AI lord's county with no wheat in it?**
 
 **Save as:** `endgame-won.sav` or `endgame-lost.sav`.
 
-**Settles:** what the original actually does at the end. We can drive our own engine to a
+318: **Settles:** what the original does at the end. We can drive our own engine to a
 win and to a loss, and we have found something odd doing it: after the last human realm is
 eliminated our engine reports the game **lost** for one turn and then reports it **won**,
 every turn thereafter, for ever. We think that is faithful — there is a second, sloppier
 victory path in the original that crowns whoever is left standing — but *"we think the
-original is also wrong here"* is not something to build on without a file.
+323: original is also wrong here"* is not something to build on without a file.
 
 ---
 
@@ -327,7 +329,7 @@ original is also wrong here"* is not something to build on without a file.
 **Is there a castle designer in your copy of the game?** The wall-drawing designer people
 remember — laying out towers and gatehouses yourself — is **not in the executable we have
 decompiled**. What is there is a picture-and-stats browser over five fixed castle types.
-Our best guess is that the designer belongs to the *Siege Pack* edition rather than to
+332: Our best guess is that the designer belongs to the *Siege Pack* edition
 retail, and that guess is unverified.
 
 **One sentence from you settles it and saves a large phase of work.** Same for: have you
@@ -339,7 +341,7 @@ divide."*?
 We now play these and **we do not know what any of them says.** Each is a `.wav` played by
 name from one function, so the *occasion* is `[V]` from the decompilation and the *words* are
 `[I]` from the occasion. Open the game, do the thing in the middle column, and write down
-what the narrator actually says.
+344: what the narrator says.
 
 | file | do this | what we think it says |
 |---|---|---|
@@ -354,3 +356,18 @@ what the narrator actually says.
 `docs/decisions.md` C133 searched all 317 `L2.eng` groups for *"all your people are fed by
 dairy"*, correctly found nothing, and concluded the readout did not exist. It exists, and it
 is spoken. If the clip says something else entirely, that is a finding too — and a cheap one.
+
+## 12. The turn timer — **retired, answered by reading**
+
+**`[V]`** The **only** per-turn reset of the countdown is `Turn_Tick`'s (`0x0049A010`) third
+clause, `DAT_005440C8 = g_optTimeLimit; _DAT_00568D9C = timeGetTime();`. It runs **after** the
+count, and it is gated on `aiStep != 999` — which `Turn_End` (`0x0043AC23`) has just set, and
+which `Turn_BeginPlayersTurn` (`0x0049B6D3`) clears when the turn comes round. So a turn ended
+early carries its own running time into the next one, the next one's first frame can compute a
+negative count and call `Turn_End` on a counter that was just cleared, and the restart clause
+below it then sees 999 and does nothing.
+
+That is the whole of the question this section used to ask a person with a stopwatch: the
+order of the three clauses settles it, and the same order is now `TurnClock::tick`'s. What a
+stopwatch would still add is only **how often it bites on real hardware**, which is a matter of
+how long a turn takes to run, not of what the code does. `docs/bugs.md` B99.

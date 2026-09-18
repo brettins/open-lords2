@@ -1,0 +1,217 @@
+{
+ "reviewed": "7b46e2e7fe6c97686a18eff62644c5c3693913e7",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 27,
+   "address": "0x004872AE",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 28,
+   "address": "0x00486D83",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 29,
+   "address": "0x00486249",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 30,
+   "address": "0x0048804A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 31,
+   "address": "0x00487CE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 32,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 1,
+   "address": "0x004822ED",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 8,
+   "address": "0x0048314E",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 8,
+   "address": "0x00486D83",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 9,
+   "address": "0x00483E55",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 10,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 10,
+   "address": "0x00486249",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 11,
+   "address": "0x00483A88",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 12,
+   "address": "0x004832EA",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 12,
+   "address": "0x004872AE",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 12,
+   "address": "0x0048804A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 13,
+   "address": "0x004830E9",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 13,
+   "address": "0x00487CE4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/anim.rs",
+   "line": 14,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/combat.rs",
+   "line": 436,
+   "address": "0x00483A88",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/mod.rs",
+   "line": 94,
+   "address": "0x004872AE",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders.rs",
+   "line": 309,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 2,
+   "address": "0x00486D83",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 3,
+   "address": "0x00486249",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 3,
+   "address": "0x004872AE",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 4,
+   "address": "0x0048804A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 4,
+   "address": "0x00487908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 179,
+   "address": "0x004D9A00",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 180,
+   "address": "0x004D9A28",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-view/src/figures.rs",
+   "line": 180,
+   "address": "0x004D9A50",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

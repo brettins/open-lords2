@@ -1,0 +1,14 @@
+{
+ "reviewed": "d06454008ccc4f78028410ea13d504cf7538ea5d",
+ "date": "2026-09-14",
+ "source": "seeded from the conversation, not the report",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/battlefield/logic/methods.rs",
+   "line": 408,
+   "address": "0x0043BF07",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

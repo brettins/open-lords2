@@ -77,6 +77,15 @@ jobs:
       - name: Correction numbers are unique, resolve, and were not dragged
         run: node tools/decisions/corrections.js --check
 
+      # The work ledger. `docs/plan.md`'s in-flight lists read as current long
+      # after they were not, so live work is rows in docs/work.json and this
+      # checks them. A runner is a fresh clone with no agent branches, so the
+      # git half (a merged row still in flight, a missing branch, an unmerged
+      # branch with no row) prints SKIP and says why; the schema half runs.
+      # The git half is for the lead's machine, where the branches are.
+      - name: Work ledger is well-formed
+        run: node tools/pm/work.js --check
+
   # Everything except `l2-game` is dependency-free on purpose: deterministic
   # lockstep means no floats where ordering matters, a seeded PRNG frozen
   # in-tree, and no iteration whose order depends on hashing (docs/netcode.md).

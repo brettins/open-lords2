@@ -1,0 +1,24 @@
+[package]
+name = "l2-smk"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+description = "An MIT Smacker (SMK2) decoder for Lords of the Realm II's 45 films"
+
+# **No dependencies, and its own crate for two reasons.**
+#
+# `docs/formats/smk.md` recommended a leaf crate behind our own small interface
+# when the only candidate decoders were LGPL: the boundary would then be one
+# directory. This decoder is ours and MIT, written from the published format
+# description (never from libsmacker, FFmpeg or ScummVM - CLAUDE.md rule 3),
+# so the licence argument is gone; the isolation argument is not. `l2-formats`
+# belongs to the lead session (`docs/agents.md`), and a film decoder is the one
+# format whose output is TIME - frames, a clock and a PCM track - which nothing
+# else in that crate carries. Folding it in later is a move, not a rewrite.
+#
+# Nothing below `l2-game` depends on it. `l2-view` draws a film frame from a
+# plain `&[u8]` and never learns this crate exists.
+[dependencies]
+
+[dev-dependencies]
+l2-testkit = { path = "../l2-testkit" }

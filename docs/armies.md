@@ -58,7 +58,7 @@ own field labels**, drawn by `UnitPanel_Draw` (`0x0041B19D`) right next to the o
 ```
 
 That is this layer's equivalent of the battle debug overlay, and it is what makes the supply
-fields **[V]** rather than **[D]**.
+fields **[V]**, not **[D]**.
 
 ---
 
@@ -71,7 +71,7 @@ the third, which used to be on the untraced list.
 **The whole array is now imported.** `crates/l2-scenario` reads all 151 slots out of a save
 into `l2_kingdom::Campaign::units`, slot for slot, and `crates/l2-formats` exposes the record
 field by field. Every offset in the tables below is therefore checkable against bytes the game
-wrote, over every save the machine can reach, rather than only against the one somebody looked
+wrote, over every save the machine can reach, not only against the one somebody looked
 at — and `+0x0C` is checked on every one of them, because `(y * 64 + x) * 8` is redundant with
 `+0x0A`/`+0x0B` and only the right base and stride make it agree.
 
@@ -93,7 +93,7 @@ at — and `+0x0C` is checked on every one of them, because `(y * 64 + x) * 8` i
 | `+0x12` `+0x13` | i8 | pixel sub-position | [D] | `x<<4`, `y<<4` at spawn. |
 | `+0x14` `+0x15` | i8 | stepTargetX/Y | [D] | the tile currently being walked to. |
 | `+0x16` `+0x17` | i8 | destX/destY | [D] | the end of the ordered path. |
-| `+0x1B` | u8 | walkPhase | [D] | indexes `g_unitWalkFrames` (`0x004D6A78`) = `0,1,2,1,…`. |
+| `+0x1B` | u8 | walkPhase | [D] | indexes `g_unitWalkFrames` (`0x004D6A78`) = `0,1,2,1,…`. +1 per admitted tick, 0 at the tile edge, so it is `+0x149 / 2` in every reachable state — see `docs/screens.md` §5.2. |
 | `+0x1C` | u8 | **pathLen** | [V] | steps remaining; the stepper counts it down to 0. |
 | `+0x1D … +0x148` | u8×300 | **path** | [V] | 150 `(x, y)` pairs, walked from `pathLen−1` downwards. |
 
@@ -105,7 +105,7 @@ offset anything in the binary references. The 150 is the loop bound in `Path_Cop
 
 | Off | Type | Name | Ev | Meaning |
 |---|---|---|---|---|
-| `+0x149` | i8 | stepAccum | [D] | 0 … 15 sub-tile accumulator; +2 a frame, +4 with animation off. At 16 the unit lands on the next tile. |
+| `+0x149` | i8 | stepAccum | [D] | 0 … 15 sub-tile accumulator; +2 an admitted tick in single player, **+4 in a network game** (`g_multiplayer`). The commit writes 1; at 16 it goes to 0 and the edge latch `+0x14B` bit 0 is set, and the same tick commits the next tile. It indexes `Map_DrawArmies`' walk tables — `docs/screens.md` §5.2. |
 | `+0x14A` | i8 | animTick | [D] | frame delay: 3 off-road, 0 on a road, so units visibly move faster on roads too. |
 | `+0x14B` | u8 | flags | [D] | bit 0 = "on a tile centre, ready for the next step". |
 | `+0x14C` | u8 | **moveState** | [V] | 0 idle, **2 = moving**. |
@@ -139,7 +139,7 @@ offset anything in the binary references. The 150 is the loop bound in `Path_Cop
 
 **[V] `+0x16C` is one eleven-entry array, not two.** `Battle_RaiseSide` walks `g_raiseOrder`'s
 eleven troop types and reads `+0x16C + t*2` for every one of them, so `+0x16C … +0x181` is
-`i16 troops[11]`; the campaign only ever writes the first seven, and `Army_PrepareForBattle`
+`i16 troops[11]`; the campaign writes the first seven, and `Army_PrepareForBattle`
 (`0x004AA6CA`) fills 7 … 10 from the siege records just before the battle starts. `+0x182` —
 the next thing anything references — is exactly where that array ends.
 
@@ -149,7 +149,7 @@ the next thing anything references — is exactly where that array ends.
 |---|---|---|---|---|
 | `+0x198` | u8 | **garrisonCounty** | [V] | non-zero = this army is inside that county's castle. County `+0x1BC` (i32) holds the unit index back. |
 | `+0x199` | u8 | **besiegingCounty** | [V] | non-zero = camped outside that county's castle, building engines. |
-| `+0x19A` | u8 | besiegedBy | [D] | on a *garrison*, the unit index of its besieger. |
+| `+0x19A` | u8 | **besiegedBy** | [V] | on a *garrison*, the unit index of its besieger. Upgraded from `[D]`: `Sprite_TopIt` (`0x004071A0`) reads `g_units[county.garrisonUnit].besiegedBy` and **indexes `g_units` with the result** to fetch `+0x19C` for `FUN_00407F82`, so it is a unit index and it is read off the garrison. |
 | `+0x19B` | u8 | — | [D] | copied from realm `+0xE8`; not traced. |
 | `+0x19C` | u8 | **siegeSeasonsLeft** | [V] | drawn with `L2.eng` group 8/66 *"Season(s)"* on the siege-preparation screen. §4. |
 
@@ -211,7 +211,7 @@ from every save the fixture set holds. So the aliased offsets are `+0x14F`, `+0x
   > mercenaries walk **before** the armies get their moves back. It matters because the
   > order the season's passes run in is the specification (`docs/kingdom.md` §3.4) and two
   > lockstep peers have to agree on it; `crates/l2-kingdom`'s `SEASON_PIPELINE` now carries
-  > both, flagged as phase-7 work rather than `Season_Advance`'s.
+> both, flagged as phase-7 work.
   >
   > `Move_BuildCostMap` is **not** once a season either. It has four callers, and one of
   > them is `Unit_OrderMove` — so the cost map is rebuilt on *every move order*, which is
@@ -232,7 +232,7 @@ accepts types up to 5, so a type-5 unit would call address 0. Nothing spawns one
 > ```
 >
 > — and it never reads `g_turnPhase`. Every unit with `moving == 2` steps on **every tick of
-> the turn**, in any phase. A player order does not wait for phase 4; it is simply that
+> the turn**, in any phase. A player order does not wait for phase 4; it is that
 > phase 4 is where the player is given the chance to give one. **[V]**, one call site in the
 > whole corpus.
 >
@@ -243,7 +243,7 @@ accepts types up to 5, so a type-5 unit would call address 0. Nothing spawns one
 >   The phase wait predicates are not read-only queries — `FUN_004A4F5B(type)` and
 >   `FUN_004A4E3D(type, owner)` promote every 1 to a 2 *and* report the phase still busy.
 >   One call both starts a phase's units and waits on them. The phase-start functions write
->   1; `Unit_OrderMove` writes 2 directly, which is why a player's army moves at once.
+>   1; `Unit_OrderMove` writes 2 directly, so a player's army moves at once.
 > * **A tick enters at most one tile.** `Unit_Step` (`0x00465D28`) loops only on the
 >   sub-tile animation return code and returns as soon as a tile is committed. An army's 15
 >   points is therefore five open-ground tiles or fifteen road tiles a season, taken one a
@@ -287,7 +287,7 @@ Four things fall out, and three of them change something:
 * **The "below 30 men an army is destroyed" rule is not an army rule.** `PeasantMob_Tick`
   opens with `if (men < 30) destroy`, and `men < 0x1E` appears **exactly once** in the whole
   2,452-function corpus. `Army_Tick` has no such test, and `L2.eng` 148 — which §0 cited for
-  both halves of that row — only ever says *"impractical to create an army of less than 50
+both halves of that row — says *"impractical to create an army of less than 50
   men"*. §0 is corrected.
 * **The merchant sprite is a six-frame cycle**, `g_merchantWalkFrames` (`0x004D6AB8`) =
   `{0,1,2,3,4,5}`, against the army's three-frame ping-pong. `((facing+1) & 7) × 6 + phase`
@@ -316,7 +316,7 @@ The *stepper* never reads that map. `Unit_Step` (`0x00465D28`) charges `+0x153` 
 return code of `Unit_TryEnterTile` (`0x00466C3C`), which classifies the same plane-0 bits
 independently:
 
-| tile | `Unit_TryEnterTile` returns | actually charged | cost map says |
+| tile | `Unit_TryEnterTile` returns | charged | cost map says |
 |---|---|---|---|
 | road (`0x01`) | 3, sets `onRoad` | **+1** | **1** |
 | open ground | 1 | **+3** | **3** |
@@ -334,11 +334,11 @@ independently:
 >    onto a county's **town** is how a county is taken.
 >
 >    *(Renamed after `decisions.md` C25: bit `0x40` is the county town, bit `0x80` is the
->    castle. This row said "castle" throughout and the words have been changed, not the
+> castle. This row said "castle" throughout and the words have been changed,
 >    behaviour. The game says it plainly — `L2.eng` group 30 index `0x1B`, "Your troops may
 >    capture a castleless county by attacking its county town.")*
 > 2. **The dwelling-plot row is not free.** `Unit_BurnDwelling` (`0x00468AE2`) charges
->    `+0x153 += 7`, exactly like trampling. It fires only when the unit is not a merchant or
+> `+0x153 += 7`, like trampling. It fires when the unit is not a merchant or
 >    transport, the county's owner differs from the unit's, **and** the terrain byte is
 >    `0x10`.
 > 3. **The settlement `+7` is conditional twice over.** It is charged *inside* each of
@@ -359,7 +359,7 @@ field's 6 is assembled in the stepper from two separate `+3`s that land on a sin
 `6` in the cost map. The player's account — every army has the same budget, terrain changes
 the cost, size does not affect speed — holds on all three counts.
 
-Note that impassability lives *only* in the cost map, i.e. in the pathfinder. The stepper
+Impassability lives *only* in the cost map, i.e. in the pathfinder. The stepper
 would walk into the sea if a path led there.
 
 ### 2.3 Ordering a move, and the gold-ball preview
@@ -381,10 +381,10 @@ if (Move_ExtractPath(0, destX, destY)) {   /* 0x004701AC */
 
 > **Corrected: every write is inside the `if`.** An earlier revision of this block put the
 > destination and `moveState = 2` after it as unconditional statements. A failed extraction
-> leaves the unit exactly as it was — no destination, not moving, its previous path intact.
+> leaves the unit as it was — no destination, not moving, its previous path intact.
 >
 > That is *not* the same as "an unreachable destination does nothing": `Move_ExtractPath`
-> returns **success with a zero-length path** when the destination was never reached, so
+> returns **success with a zero-length path** when the destination was not reached, so
 > that order is accepted, `moveState` becomes 2, and the army stands still. Only a dead end
 > in the descent returns 0. [D]
 
@@ -410,12 +410,12 @@ Three further facts about the extractor, none of them previously recorded:
 **`Move_ExtractPath` has no length cap and `Unit_OrderMove` does not check one.** The AI
 tests `g_pathLen < 0x96` before copying; the player's path does not, so a path over 150 steps
 writes past `g_pathBuf`'s 300-byte slot and stores a length the unit's array cannot hold.
-That is a buffer overrun rather than a rule and `crates/l2-kingdom` clamps it. [D]
+That is a buffer overrun, not a rule, and `crates/l2-kingdom` clamps it. [D]
 
-#### `Move_FloodFill` — read, and it is not a breadth-first search
+#### `Move_FloodFill` — read
 
 §8 listed this function as *"not read"* and its behaviour as **[I]**. It has been read
-(`00460000.c`, `0x0046F700`), and the inference was wrong in the detail that matters.
+(`00460000.c`, `0x0046F700`).
 
 **It is SPFA — a FIFO-queue Bellman–Ford with full relaxation.**
 
@@ -441,19 +441,19 @@ wrong. All **[D]**.
   is never paid for.
 * **A cell is re-relaxed and re-queued when a cheaper route arrives later.** This is not an
   optimisation: a FIFO queue over weights of 1, 3, 6 and 100 does not produce distances in
-  sorted order, so without the relaxation branch the field would simply be wrong and the
+  sorted order, so without the relaxation branch the field would be wrong and the
   greedy descent in §2.3 would be unsound. It is also the sharpest contrast with the
   *battlefield* pathfinder, where the first cost written to a cell stands forever
   (`docs/decisions.md` C12).
-* **Cost 0 is impassable and there is no separate blocked mask.** An impassable cell keeps
+* **Cost 0 is impassable.** An impassable cell keeps
   `dist == 0`, which is indistinguishable from unreached — deliberately, since neither can
   be walked to.
 * **A road tile expands orthogonally only.** `if (cost[cur] != 1)` gates the four diagonals,
   reading the *raw* cost so it holds in both modes. §2.3 records the extractor's half of
   this rule; this is the fill's half, and it is why a tile diagonally off the end of a road
-  costs 13 rather than 11. Off a road a diagonal costs **exactly** what an orthogonal step
+  costs 13, not 11. Off a road a diagonal costs **exactly** what an orthogonal step
   costs — no √2, no scaling — so armies prefer diagonals everywhere they are allowed.
-* **There is no goal test and no budget.** The fill always covers the whole reachable
+* The fill covers the whole reachable
   component, however near the destination is.
 
 The queue is a **circular buffer of 1,024 `int` entries that wraps**, so a fill that
@@ -470,7 +470,7 @@ steps or more; `Unit_OrderMove` — every human-ordered move — always passes 0
 road-hug and the player's do not**, which is a visible behavioural difference nothing had
 recorded.
 
-**There is no bounds checking anywhere in the fill or the extractor.** It is flat index
+**It is flat index
 arithmetic on 4,096 cells, so stepping east from `x = 63` wraps into the next row, and
 expanding a tile in row 0 writes *before* the array — into, among other things, the fill's
 own queue head cursor. It survives only because every shipped map has an impassable sea
@@ -488,6 +488,24 @@ if (unit.moveAllowance - unit.movesUsed < n) n = 0;             /* out of range 
 frame = (tile is castle/settlement/plot) ? 0x4E : 0x38 + n;     /* g_flagsSheet */
 ```
 
+> **Corrected, and a player found the difference.** *"Castle/settlement/plot"* is looser
+> than the function,
+> enter and is therefore always past the budget, drew the grey ball: *"it's just a grey ball
+> like I can't get there when I attack a town."* `Map_DrawPathMarker` (`0x004081A6`),
+> verbatim:
+>
+> ```c
+> local_14 = flags & 0x50;                                   /* the town, or a dwelling plot */
+> if ((flags & 0x80) != 0 && content != 0x14) local_14 = 1;  /* a site or a castle, not a bare plot */
+> frame = local_14 == 0 ? 0x38 + n : 0x4E;
+> g_drawX += 0x14;  g_drawY += 6;                            /* no centring, no zoom test */
+> ```
+>
+> The plane-0 bits and the terrain byte, **tested before the cost** and nothing else: your
+> own town is gold, a town out of reach is gold, and an enemy army on open ground is coloured
+> by its cost. The hovered tile is the ball's tile unsnapped — `FUN_00472986` is `tile / 8`,
+> `% 64`, `/ 64`. **[D]**, and `docs/decisions.md` C184.
+
 so the frame index **is** the accumulated cost, and everything past the remaining budget
 collapses to frame `0x38`. That is the player's *"gold balls along the steps, greyed where
 out of range"*: one sprite bank, `0x38 … 0x4D`, indexed by cost. **[V]** on the mechanism.
@@ -499,8 +517,8 @@ recoloured, which is what "indexed by cost" predicts and which a set of *differe
 would have refuted. Of those, **`0x38` alone has no colour in it**: all 177 of its opaque
 pixels are true greys, and the coloured-pixel count then climbs from 13 at `0x39` to 39 at
 `0x4D`. `0x4E`, the castle/settlement marker the ladder above names, is the opposite extreme —
-177 coloured pixels and not one grey — which is it being a different picture rather than
-another ball. Asserted against the user's own file in `crates/l2-view/tests/install.rs`.
+177 coloured pixels and not one grey — which is it being a different picture
+another ball. Asserted against the user's own file in `crates/l2-view/tests/install/main.rs`.
 
 So **the cost selects the colour**: not the realm, not the shield, not the unit's kind. A
 player described these unprompted as *"colored dot images for the army walking dots"*, which
@@ -508,7 +526,7 @@ is the third independent source on the same object. `docs/decisions.md` C59.
 
 The hover handler `Map_HoverUnitTarget` (`0x004A8E0B`) runs the same pathfind against the
 tile under the cursor and, when `allowance − used < distance`, **zeroes every interaction
-target it had collected** — an out-of-range click does nothing at all rather than walking as
+target it had collected** — an out-of-range click does nothing at all instead of walking as
 far as it can. [D]
 
 ### 2.4 The sprite, and the three size classes
@@ -552,9 +570,20 @@ way it reads**: the bigger your army relative to the county, the politer the pea
 only a small force gets the outrage.
 
 **An owned county** whose owner is not the army's sends message `0xAA` = group 170,
-*"Invasion of"* — sixteen variants indexed by `lord * 4 + realm[+0x159]`, a counter cycling
+*"Invasion of"* — sixteen variants indexed by `lord * 4 + realm[+0x159] - 4`, a counter cycling
 0 … 3 so a lord does not repeat himself. It fires only when the county is the army's declared
-destination (`+0x151`), so marching *through* does not trigger it. [D]
+destination (`+0x151`), so marching *through* does not trigger it. **[V]**, and four things
+the paragraph did not say: the letter is **category 1**, a lord's letter; it is **from the
+invader to the county's owner**, so a player sees a lord's invasion of him and never his own of a
+lord; the greeting above is **category 2**, to the army's owner; and **posting the invasion
+letter advances the invader's `+0x159`** — for every invasion, whoever is watching — so it is
+simulation state and not display. Nothing else is posted on a crossing: no test for a siege, an
+army in the county or a castle. No option or single-player test guards either letter; the only
+filter is `Msg_Enqueue`'s own.
+
+Both are built: `crates/l2-kingdom/src/arrival.rs` decides them at the crossing and
+`crates/l2-game/src/arrival.rs` puts them on the local player's ring. A player on build
+`73DF34969` had reported *"county did not give me a message when I moved an army into it."*
 
 Both paths then call `Army_RecountCountyTroops` (§3.2).
 
@@ -615,7 +644,7 @@ was not traced.
 >
 > **3 and 1 are the ordinary Road and Open codes**, not a refusal: `Unit_StepOnce` returns
 > early only above 4, so all three of these *enter the tile* and keep going. So a merchant
-> is not merely un-attackable — it is not an obstacle either, in either direction, and two
+> is un-attackable — it is not an obstacle, in either direction, and two
 > units legitimately share a tile. And because occupancy is tested first in
 > `Unit_TryEnterTile`, the step is charged as plain ground whatever else the tile carries:
 > **a unit standing on a castle tile hides it**, and a merchant crossing a standing field
@@ -651,7 +680,7 @@ and destroys the absorbed unit.
 > — **both arms select the maximum.** Merging a fresh army into a spent one leaves the
 > result spent, so a reinforcement can never buy back movement. That is the opposite
 > tactical rule from the one the document gave, and it was found by reading the branch
-> rather than the summary of it. `docs/decisions.md` C13, again. [D]
+> `docs/decisions.md` C13, again. [D]
 
 ---
 
@@ -669,7 +698,7 @@ England turn-one save. It gates exactly four things:
 4. `Army_Starve` (`0x004ACE5E`) does anything at all — with the option off it only clears
    every army's starvation counter.
 
-`Army_RecountCountyTroops` runs regardless; its results are simply not read.
+`Army_RecountCountyTroops` runs regardless; its results are not read.
 
 ### 3.2 Counting the troops in a county
 
@@ -690,7 +719,7 @@ and the garrison path — whenever the distribution changes. [D]
 Realm `+0x81` as an alliance flag is **[I]**: it is read here as "an ally's troops eat as
 friendlies", and the diplomacy layer was not traced.
 
-### 3.3 Is foraging a straight subtraction? — **No, and the difference matters**
+### 3.3 Is foraging a straight subtraction? — **No**
 
 The player's claim was *"it takes from the county's food budget as a straight minus"*. The
 effect is close and the mechanism is not, and there are **two separate mechanisms**.
@@ -794,7 +823,7 @@ index** at byte `+3`:
 | 20 | `+0x295` | `+0x298` | 10 | **0** (wood) |
 
 `County_PlaceBlacksmith` (`0x0046902A`) then puts record **2** (weapons) on the plain tile
-nearest a farm field — the blacksmith is derived, not authored, which is why every county has
+nearest a farm field — the blacksmith is derived, not authored, so every county has
 one.
 
 **[V] The placer and the trampler agree three for three.** Terrain 1 → the ruin ladder that
@@ -803,7 +832,7 @@ writes record 1; terrain 4 → record 3; terrain 10 → record 0; and the fourth
 data path pick the same four records from the same four terrain groups.
 
 So the player is right on both counts: **a county's resources come from the map**, derived at
-load from plane 1's bank plus plane 2's descriptor index rather than stored in the county
+load from plane 1's bank plus plane 2's descriptor index, not stored in the county
 record; and **an army can make them inactive**, for three seasons, by marching over the site.
 `crates/l2-scenario` importing `has_resource` from the save is correct for a save, and there
 is now a rule for building it from a map.
@@ -821,7 +850,7 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 
 > ### 4.0.0 How a siege is laid at all, and why it nearly could not be  **[V]**
 >
-> Everything below begins at `Army_BeginSiege`, and this document never said what calls it.
+> Everything below begins at `Army_BeginSiege`.
 > The answer is `Unit_Step`'s **code-6** branch, which is **two handlers on two disjoint
 > terrain ranges**:
 >
@@ -834,7 +863,7 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 > which is what lets an army walk across a plot with no castle on it. Above `0x14` the tile
 > is a standing castle (§ *the content ladder*, `docs/formats/maps-layers.md`) and
 > `Unit_ReachCastleBuilding` (`0x004686A0`) splits on ownership: yours → `Army_Garrison`,
-> theirs → `Army_BeginSiege`. **There is no other route into either.**
+> theirs → `Army_BeginSiege`.
 >
 > **And a garrison is not standing on its castle tile.** `Unit_LinkToTile` (`0x0046EDDF`)
 > opens `if (kind != 1 || garrisonCounty == 0)` and does nothing otherwise, and
@@ -845,14 +874,14 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 > why the original draws a flag over the castle and not the unit.
 >
 > Both facts were missing from our engine at once, and together they meant **a siege could
-> only ever be laid by a test that laid it itself**. `crates/l2-game/tests/castles.rs` drives
+> be laid by a test that laid it itself**. `crates/l2-game/tests/castles/main.rs` drives
 > the whole route from the map now.
 
 > ### There is a siege in the fixtures now, and it closes every number below.
 >
 > This section was written entirely from the decompiler because no saved game held a castle
 > under siege. `E:\dev\lords2-fixtures` now holds **five snapshots of one**, and
-> `crates/l2-kingdom/tests/siege.rs` asserts this section against them.
+> `crates/l2-kingdom/tests/siege/main.rs` asserts this section against them.
 >
 > The position: county 4 has a **palisade** (`castleType` 1) garrisoned by an AI army of
 > **149**, and a human army of **43** is camped beside it building **one catapult**. Four
@@ -868,7 +897,7 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 > **Twelve stored numbers and every one of them comes out**: the work climbs by exactly the
 > army's 43 men a season, the percentage is `work × 100 / 200` truncated, and the countdown
 > is `ceil(remaining / 43)` at every step. So `g_siegeEngineWork[0]` is **200**, the
-> catapult is record **0**, and the whole build model is **[V]** against data rather than
+> catapult is record **0**, and the whole build model is **[V]** against data
 > against a listing. The player's own account agrees from the other end: he saw *"5
 > seasons"* when he placed the order, and `ceil(200 / 43) = 5`.
 >
@@ -983,7 +1012,7 @@ set. Two consequences follow and both are worth having:
 
 The cost of each doctrine, with the cumulative rule applied: the Knight 800 man-seasons, the
 Baron 800, the Countess and the Bishop **1,000** — or 1,400 against a big castle late in the
-year, when the ram is added. `crates/l2-kingdom/src/tables.rs` carries the four as
+year, when the ram is added. `crates/l2-kingdom/src/tables/mod.rs` carries the four as
 `AI_PERSONALITY_SIEGE_DOCTRINE` and the core ruleset exposes them as
 `kingdom.ai.personality.N.siege_doctrine`.
 
@@ -1002,7 +1031,7 @@ a plain switch on `kingdom.md` §7.5's castle type. [V]
 ### 4a. The assault, and the rule that makes engines worth building
 
 `Siege_LaunchAssault` (`0x004A8AAB`) is what `Siege_TickPhase` yields to when an army's
-engines come in. It works out **which castle is actually being fought**, which is not simply
+engines come in. It works out **which castle is being fought**
 `castleType`:
 
 ```c
@@ -1019,7 +1048,7 @@ and the offset closes: `0x52F232 − 0x52F0B0 = 0x182`, stride 6, three of them 
 
 `L2.eng` **281** is *"Cannot siege castle" / "Your captains advise that you must build some
 siege engines to besiege this castle."* — which is the gate in the game's own words, and is
-why this is **[V]** rather than a plausible reading of a comparison. So the first two castle
+why this is **[V]**, not a plausible reading of a comparison. So the first two castle
 levels can be stormed bare-handed and everything above a Norman keep cannot; and a besieger
 that orders no engines at all against a big castle does not stall, it **gives up** — the
 refusal calls `Siege_Break`.
@@ -1048,11 +1077,11 @@ next begins, with all the alignment padding zero:
 
 **[V]** — three `i32` arrays of exactly 48 bytes and three `u8` arrays of exactly 12 bytes plus
 alignment, laid end to end with no gaps and all twelve pad bytes zero. That is this table's
-end-offset invariant, and it is why the reading is a finding rather than a guess.
+end-offset invariant, and it is why the reading is a finding, not a guess.
 
 The nationality is `L2.eng` group 16 (*"No mercenaries in the army."*, then Scottish, Irish,
 Moorish, Welsh, Danish, Swedish, Flemish, Norman, Saxon, Burgundian, Spanish, Angevin) and the
-noun is group 8 at `type*2 + 52`, exactly as the panel draws them:
+noun is group 8 at `type*2 + 52`, as the panel draws them:
 
 | # | nationality | men | troop | price | listed wage | start county | period |
 |---:|---|---:|---|---:|---:|---:|---:|
@@ -1076,18 +1105,18 @@ macemen ≈ 12.5, knights ≈ 54.
 > **Against the player's prediction.** *"Angevin knights you get like 50 knights"* — the
 > Angevin band is **100** knights; the **50**-knight band is the **Spanish** one. *"Saxon
 > macemen are like 150 or 200 or 250"* — Saxon is exactly **150**, and the other maceman band
-> (Burgundian) is **250**; there is no 200 maceman band. So the shape of the memory is right
+> (Burgundian) is **250**. So the shape of the memory is right
 > (knights come in 50 and 100, macemen in 150 and 250), one of the two nationality pairings is
-> exactly right, and the other names the wrong half of a pair.
+> exactly right,
 >
 > **This is a finding, not a fit.** The numbers were read out of the file before they were
-> compared to the recollection, and the table is pinned by the layout invariant above rather
+> compared to the recollection,
 > than by resemblance to it. Had the roster been recovered by looking for 50s and 150s it
 > would be C3 again.
 
 `g_mercWage` is **price / 10** for every band. It is copied into band `+0x10` and **never read
 anywhere**. The raise-army screen prints `men / 2` as the seasonal wage instead, and
-`Wages_ForUnit` charges nothing extra for mercenaries at all — they are simply part of
+`Wages_ForUnit` charges nothing extra for mercenaries at all — they are part of
 `+0x168`, so they cost `men/4` like everyone else. Three different numbers for the same thing,
 of which only one is charged. [D]
 
@@ -1149,7 +1178,18 @@ for each county:
 Each band **walks one county a season** and stops to offer itself every `period` seasons —
 Saxon every season, Norman and Danish every other, Swedish and Angevin every seventh. County
 `+0x1AD` is a cache and holds only one offer; if two bands land on the same county the
-lower-numbered one wins. [D]
+lower-numbered one wins. **[V]** — `siege-old_turn.sav` stands bands 2 and 3 in county 1
+and the cache holds 2.
+
+**The table is imported now, and it checks itself.** `crates/l2-scenario` reads
+`g_mercBands` and `g_mercBandsInPlay` (`0x00554030`) out of a save: the block is
+exactly 260 bytes, `13 × 0x14`; the six constant fields equal §5.1's roster in all 72
+bands of the 18 saves on this machine; `+0x1AD` is `Mercenary_OfferInCounty` over the
+table in every county; and one season of `Mercenary_AdvanceAll` over each of the four
+one-turn pairs on disk lands on the next save's table exactly. `england-turn1.sav` is
+`Mercenary_Init(14)`'s table untouched, which is also what says `Game_NewGame` does not
+walk the bands in its opening season. The hirer word, `+0x00`, is zero in every band
+of every save. `docs/decisions.md` C164.
 
 ### 5.3 Hiring
 
@@ -1245,10 +1285,10 @@ county, so raising two armies from one county in quick succession costs far more
 > **Where it decays is now traced.** `Happiness_UpdateAll` (`0x0044BAEA`) runs
 > `if (county[+0x2F4] != 0) county[+0x2F4] -= 5;` over counties 1…`g_countyCount` at the top
 > of its own pass, so the 15 is **gone after three seasons**. The same function is what
-> zeroes `+0x15` (`shownArmy`) each season, which is why §6.3's write to it is a
+> zeroes `+0x15` (`shownArmy`) each season, so §6.3's write to it is a
 > single-season display value. [D]
 
-The player's account is what the code does: **you recruit men, full stop.** There is no
+The player's account is what the code does: **you recruit men, full stop.**
 per-troop-type recruitment price anywhere on this path.
 
 ### 6.2 Equipping
@@ -1256,7 +1296,7 @@ per-troop-type recruitment price anywhere on this path.
 > **The screen this section describes is now read end to end**, and its shape was not what
 > §6 assumed. Raising an army is **three** `g_screenId` values, not one, and the button that
 > raises it is on the second of them. `docs/decisions.md` C61; §6.2a below is the walk, and
-> `crates/l2-game/src/screens/armoury.rs` carries the layout tables address by address.
+> `crates/l2-game/src/screens/armoury/mod.rs` carries the layout tables address by address.
 
 `Levy_Init` (`0x004AAA80`) builds a per-realm scratch buffer, `g_levyBasket` (`0x0053F6A0`,
 stride `0x80`, **8 slots of `0x10` bytes**):
@@ -1271,7 +1311,7 @@ with `slot[t].+0x00` = chosen, `+0x04` = available, `+0x08` = remaining; slots 1
 seeded from realm `+0x140 + (t−1)*4`, the weapon stockpiles. The `+`/`−` buttons — which are
 on screen `0x0D`, one weapon's rack, not on the armoury itself; see §6.2a —
 move one man at a time between slot 0 and slot `t`, and **never touch slot 7**,
-which is why the levy total is what `Army_Create` writes into `+0x168`. The same buffer is
+so the levy total is what `Army_Create` writes into `+0x168`. The same buffer is
 reused, with different field meanings, by the army-split screen (`L2.eng` group 17 *"Army
 Division. / Split the army?"*), where row 7 is the mercenary band.
 
@@ -1282,7 +1322,7 @@ Division. / Split the army?"*), where row 7 is the mercenary band.
 > seeding plus three UI resets. The seeding is identical, so nothing in the *rules* changes;
 > what changes is that a mod hook attached to one of them would apply to only half the
 > armies in the game. Both read the realm index out of **`county[+0x05]`, the county's
-> owner**, rather than taking a realm argument — which is how a neutral county's militia
+> owner** — which is how a neutral county's militia
 > ends up seeded from realm 0. [V]
 >
 > There is a **fourth field at `+0x0C`** that neither seeding function clears: a "chosen
@@ -1308,7 +1348,7 @@ while (pass < 50 && changed) {
 ```
 
 A weapon type that runs out is **skipped on every later pass** and the round-robin continues
-with the others, so an army is armed from whatever the armoury still has rather than stopping
+with the others, so an army is armed from whatever the armoury still has instead of stopping
 at the first empty rack. There is a **50-pass ceiling** — six types × ten men × fifty passes
 is 3,000, twice `ARMY_MAX_MEN`, so it never bites in play — and the floor is `men < 10`, so
 **up to nine men are always left as peasants**. [V]
@@ -1380,7 +1420,7 @@ anything:
 
 Two things follow that a reader of §6.2 alone would get wrong.
 
-* **There is no auto-equip a player can reach.** `Levy_AutoEquip`'s ten-at-a-time round-robin
+* `Levy_AutoEquip`'s ten-at-a-time round-robin
   is the AI's, no widget or hotspot in the game calls it, and the address this document's
   neighbours carried for it (`0x004AAD5F`) is inside `Battle_AutoResolve`. The nearest thing
   a player has is *EquipAll* on one rack at a time.
@@ -1427,7 +1467,7 @@ appears on the happiness panel's army row. [V]
 > 1. **`morale` is the county's happiness *before* the levy cost is deducted.** It is the
 >    fifth write after the spawn; the debit is nearly last. A county at 80 that pays 30 for
 >    its army still gives it morale 80. The listing above had them the other way round.
-> 2. **The happiness debit is clamped**, and the panel is debited what was actually taken:
+> 2. **The happiness debit is clamped**, and the panel is debited what was taken:
 >
 >    ```c
 >    if ((char)county.happiness < happinessCost) { county[+0x15] -= county.happiness;
@@ -1443,13 +1483,13 @@ appears on the happiness panel's army row. [V]
 >    `Army_Create` returns 0 because the county has no free road tile *and* no free open
 >    tile to stand the army on. Only the first two are bypassed by a mercenary hire.
 > 4. **`Army_Create` sets neither `moveAllowance` nor `movesUsed`.** `Unit_Spawn` memsets
->    the whole `0x1A4`-byte record, so a fresh army carries an allowance of **0** until
+> the whole `0x1A4`-byte record, so a fresh army carries an allowance of **0** until
 >    `Army_Tick` writes 15 on the next frame.
 >
-> Two omissions rather than errors: the `realm == 0` branch writes `u.owner = 6` and
+> Two omissions: the `realm == 0` branch writes `u.owner = 6` and
 > `u.shield = 0` — which is where §1.1's *"6 marks an ownerless unit"* comes from, and it is
 > how a **neutral county's militia** is created; and `Levy_DebitPopulation` (`0x004A9F18`),
-> which is where the `+0x24` / `+0x38` debit actually lives, indexes the basket by
+> which is where the `+0x24` / `+0x38` debit lives, indexes the basket by
 > `county[+0x05]` while `Army_Create` itself uses its `realm` argument. They agree in play.
 
 `Army_PickName` (`0x004A9F72`) picks the least-used of **24 name slots** at realm `+0x2D` and
@@ -1487,7 +1527,7 @@ mail was bought once, at the blacksmith.
 
 ### 6.5 Splitting an army, and disbanding one
 
-The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide.rs` is the
+The other two ends of §6.3, both now read end to end. `crates/l2-kingdom/src/divide/mod.rs` is the
 implementation and carries the pseudocode; this is what the two functions establish.
 
 **The shipped `Readme.txt` is a first-class source here and in three places it is the better
@@ -1515,21 +1555,21 @@ not the total**; the two totals are separate globals, `DAT_00554468` and `DAT_00
 resummed over all eight slots after every button. That is why `menTotal` comes out right for an
 army whose whole strength is its band.
 
-**The `homeCounty` row is worth a second look and is not a lost-men bug.** A split army's
+**The `homeCounty` row is worth a second look.** A split army's
 county of origin is 0, county 0's owner is never the unit's owner, so `Panel_DisbandButton`
 falls through to its second clause every time. The visible effect is that **a daughter army
-always disbands where it stands** rather than to the county her parent was raised in.
-Reproduced rather than tidied.
+always disbands where it stands**, not to the county her parent was raised in.
+Reproduced, not tidied.
 
 ---
 
 ## 7. How a battle result returns
 
 `docs/mechanics.md` listed this as ❓. **The whole path is now implemented** — the campaign
-half in `crates/l2-kingdom/src/battle.rs`, the hand-off to the simulation in
-`crates/l2-game/src/engagement.rs` — and it is checked end to end against the battle fixture
-triple in `crates/l2-game/tests/seam.rs`. This section is rewritten from the four functions
-that make it up rather than from `Battle_ReturnToCampaign` alone, because
+half in `crates/l2-kingdom/src/battle/mod.rs`, the hand-off to the simulation in
+`crates/l2-game/src/engagement/mod.rs` — and it is checked end to end against the battle fixture
+triple in `crates/l2-game/tests/seam/main.rs`. This section is rewritten from the four functions
+that make it up, not from `Battle_ReturnToCampaign` alone, because
 `Battle_ReturnToCampaign` is only the third of them.
 
 ```
@@ -1543,7 +1583,7 @@ Defence_Disband          0x004ABA5A   §7.5  the levy walks home
 
 > ### ⚠ `g_battleLoser` (`0x0057C924`) holds the **winner**. The name is inverted.
 >
-> This is the single most dangerous error in this document, because everything below was
+> This is the single most dangerous error in this document,
 > written on the name and the name is wrong. **Four** independent sites agree against it,
 > two of them found since this warning was written:
 >
@@ -1580,14 +1620,14 @@ else                                              /* prompt screen 0x12, ask    
 ```
 
 **A battle between two AI realms never reaches a screen and never reaches the battle
-simulation at all**, which is why the autocalc and everything downstream of it lives in
-`l2-kingdom` rather than beside `l2-sim`: an AI war has to be fightable with no battle
+simulation at all**, so the autocalc and everything downstream of it lives in
+`l2-kingdom`, not beside `l2-sim`: an AI war has to be fightable with no battle
 layer present. `g_optFightHumansOnly` is the advanced option *"Fight humans only?"* and is
 **stored inverted** — the byte is 0 when the option displays *Yes*.
 
-There is no distance-from-the-view test, no army-size cut-off and no separate "quick
+and no separate "quick
 battle" toggle on this path. The mid-battle *"Autocalc battle?"* button (`0x0043BD67`,
-`L2.eng` group 10 index 9) is a fourth entry rather than a fourth outcome: it re-runs
+`L2.eng` group 10 index 9) is a fourth entry, not a fourth outcome: it re-runs
 `Battle_AutoResolve` on the counts as they stand, which the battle layer has not yet
 written back. `[V]`
 
@@ -1612,7 +1652,7 @@ written back. `[V]`
 > callback, splits on `g_multiplayer`: the single-player arm calls `FUN_0043BE65`, and the
 > multiplayer arm calls **`Battle_WriteBackCasualties()` first** and then goes out over the
 > wire. So the same button means two different things depending on whether anyone else is
-> playing — reproduced as `docs/bugs.md` B76 rather than tidied, and the
+> playing — reproduced as `docs/bugs.md` B76,
 > single-player arm is the one `crates/l2-game`'s `finish_battle` takes.
 >
 > This is *not* a hole in the campaign–battle seam, and it reads like one. A battle fought
@@ -1684,7 +1724,7 @@ There is **no morale break, no rout threshold and no clock.** And the two counte
 two numbers `Ui_DrawNumberRight` puts on the battle HUD, so the numbers that decide a
 battle are the numbers the player is looking at. `[V]`
 
-(That primitive **centres** its number in `width` rather than right-aligning it, whatever
+(That primitive **centres** its number in `width` instead of right-aligning it,
 its name says — it and `Ui_DrawCentred` share the same tail, `FUN_004025D7`, which is
 `x + max(0, (width - textWidth) / 2)`. Nothing above depends on the alignment; it is noted
 here because this paragraph is one of the four places the wrong name was quoted.
@@ -1740,10 +1780,10 @@ if (A.ownerIsHuman == 0)                     movesUsed[B] += 7;
 left with one move; a winning human keeps everything but the 8. And when B wins, an AI pays
 7 and **a human pays nothing at all**. `[V]`
 
-**There is no `County_ChangeOwner` anywhere in the B-wins branch.** That is not an omission
+**That is not an omission
 in the reading — `g_battleArmyB` is the *defender* at all three call sites, so a defender
 that wins keeps a county it already had, or leaves a neutral county neutral. It is the half
-of this section that was inverted, and `crates/l2-game/tests/seam.rs` asserts it against
+of this section that was inverted, and `crates/l2-game/tests/seam/main.rs` asserts it against
 `battle-after.sav`, where the player lost and county 3 is still owner 0.
 
 Also, and easy to miss: `Army_AttackCounty` has *already* charged the attacker 8 moves
@@ -1760,7 +1800,7 @@ The rest:
 * the loser is destroyed;
 * **`Realm_RecountStrength` (`0x0049B42B`) runs on the loser's realm**, after the destroy.
   It is one of only four sites at which a realm can be eliminated, and the only one that
-  fires the moment a realm's last army dies rather than waiting for its own turn's step 0;
+  fires the moment a realm's last army dies instead of waiting for its own turn's step 0;
 * diplomacy takes a **−20** hit against the winner — but the guard is `loser.owner != 0`,
   which an **ownerless militia's 6 passes**, so the original then indexes a five-realm table
   with 6. `crates/l2-kingdom` refuses instead of reproducing that write.
@@ -1804,20 +1844,20 @@ Four consequences, and the first was wrong in this document, in `symbols.md` and
 * **The mercenary band does not lose a man**, unlike the autocalc, which scales it with
   everything else. A retreating army of hirelings retreats intact.
 * **The army stops where it stands.** The path is thrown away and `moving` cleared, so a
-  retreat cancels the order that walked into the battle rather than resuming it.
+  retreat cancels the order that walked into the battle instead of resuming it.
 
 > **And the Retreat button does not reach any of it.** `FUN_0043BA29`'s confirm — either
 > confirm, *"Retreat from field?"* or *"Surrender castle?"* — lands on `FUN_0043BE65`, which
 > is `Battle_AutoResolve` followed by `Battle_ReturnToCampaign(1)`; and `Battle_AutoResolve`
 > **clears `g_battleWithdrawal` as its first statement**. A player who presses Retreat has
 > auto-resolved the battle from the counts his army walked onto the field with, and if the
-> ladder says he lost, his army is *destroyed* rather than withdrawn. The only route into
+> ladder says he lost, his army is *destroyed*. The only route into
 > this section is `UnitOrder_SiegeAttKnight` giving up on an AI's behalf. `[V]`
 
 > ### ⚠ The ≥ 50-men rule is **not** an autocalc rule, and this document said it was.
 >
 > §7 used to read *"the loser is destroyed — **except** under autocalc, where an army left
-> with ≥ 50 men merely has its siege lifted"*. `docs/symbols.md` carried the same sentence.
+> with ≥ 50 men has its siege lifted"*. `docs/symbols.md` carried the same sentence.
 > Both are wrong. The gate is `g_battleWithdrawal` (`0x0056D5C8`), and
 > **`Battle_AutoResolve`'s first statement clears it**. The flag is raised in exactly one
 > place — `UnitOrder_SiegeAttKnight`, when an all-knight AI besieger faces an unbreached
@@ -1871,7 +1911,7 @@ if (unit.defenceMark < 2) {
 ```
 
 **Every survivor, not a fraction**, and into the population *and* the panel's *"Army"* line,
-exactly as the levy debited both. Mark 2 — an army that already existed and was pressed
+as the levy debited both. Mark 2 — an army that already existed and was pressed
 into defending — is not disbanded at all; it only loses the mark.
 
 Running it after the return is what makes it correct in both directions: a defence that
@@ -1947,10 +1987,10 @@ It is one condition, not a subsystem.
 **`+0x167` is the county-defence marker**, which §1.5 lists among the offsets *"not traced"*.
 It is written here — 1 for a defence raised on the spot, 2 for an existing army pressed into
 the role — and read by `Battle_ReturnToCampaign`, whose A-wins branch captures the county when
-`B[+0x167] != 0`, and by `Defence_Disband` (§7.5), which sends a **1** home and merely clears a
+`B[+0x167] != 0`, and by `Defence_Disband` (§7.5), which sends a **1** home and clears a
 **2**. `battle-during.sav` slot 6 carries a 1, so this is `[V]` on the data side as well.
 
-**The `if (defender) defender[+0x167] = (raised ? 1 : 2)` above is a simplification, and the
+**The `if (defender) defender[+0x167] = (raised ? 1: 2)` above is a simplification,
 real thing is asymmetric.** The `2` is written on the **AI** branch only. A human's county
 defended by an army that was already standing at its town is **never marked at all**, so
 `Defence_Disband` never touches it — which reaches the same end as the 2 would by writing
@@ -2029,18 +2069,37 @@ size tie-break and the edge guard — is in the unit tests beside the function.
 ### 8.3 `County_ChangeOwner` (`FUN_004A72FE`)
 
 ```c
+Realm_UpdateTotals(new);                              /* recount, and share = PctOf(count, g_countyCount) */
+if (realm[new].countyCount == 0 || County_BordersRealm(new, county)) {
 realm[new].countyCount++;
-...one of nine messages, 0x72..0x7E, by how many counties the taker now holds...
+...one of thirteen letters -- see below...
 county.owner = new;
 penalty = realm[new].isHuman ? (difficulty * 20 + 10) : 30;
 if (county.happiness < penalty) { county[+0x17] -= happiness; happiness = 0; }
 else                            { happiness -= penalty; county[+0x17] -= penalty; }
 county[+0x07] = realm[new].shield;
-realm[new].peakCounties = max(peakCounties, countyCount);
+realm[new].peakCounties = max(peakCounties, countyCount);   /* +0x2A */
+} else {
+if (new == g_localPlayer) Msg(129, "too far from the heart of your lands");
+County_MakeIndependent(county);
+}
 ```
 
+**The letters, `[V]`.** "Nine messages by how many counties the taker holds" was wrong in both
+numbers. The taker, when he is the local player, gets one of **nine** in category `0x0D` —
+123 if the count is `g_countyCount − 1`; otherwise, past his peak (`+0x2A`), 117 at a peak
+below 2, 118 below 3, then 119/120/121/122/125 by the **pre-capture** share of the map below
+26/41/61/81 %; and 126 when the capture does not pass his peak — from realm 0, with the loser
+in `+0x13`. **Anybody else** gets a category-0 notice from the taker: 115 if he was the loser, 116
+if the county was neutral, 114 otherwise. Group 124 is never posted. An **ungovernable** county —
+not bordering the taker's lands, taken by a realm that already holds one — is not taken at all: its
+taker is sent 129 and it is made independent. That branch is **not built**:
+`crates/l2-kingdom/src/conquest/mod.rs` still hands the county over, and so posts no letter for it.
+The rest are built (`crates/l2-game/src/arrival.rs`), including the second letter a
+defence-marked garrison's defeat posts through `Battle_ReturnToCampaign`'s second call.
+
 Two things worth naming. **The conquest penalty is drawn on the *"From events"* line**
-(`+0x17`, `L2.eng` group 85 index 9) rather than on the army row, so a newly taken county
+(`+0x17`, `L2.eng` group 85 index 9), not on the army row, so a newly taken county
 shows its resentment where a plague would. And **an AI conqueror always costs 30 while a
 human's cost tracks the difficulty** — 10 at Easy, 30 at Normal, 50 at Hard — so the setting
 decides whether conquest is cheaper for the player than for the AI, and at Normal they are
@@ -2082,7 +2141,7 @@ more than the unit has left:
 | castle (`0x80`, terrain > `0x14`) | county ≠ unit's | `g_hoverSiegeCounty` | 8 *Besiege castle?* | `MoveOrder_ConfirmSiege` |
 
 The last two rows are **the two arms of one owner test**, and it is the same test
-`Unit_ReachCastleBuilding` (`0x004686A0`) makes when an army actually gets there — yours →
+`Unit_ReachCastleBuilding` (`0x004686A0`) makes when an army gets there — yours →
 `Army_Garrison`, theirs → `Army_BeginSiege`. Two unrelated functions, one for the intention
 and one for the act, splitting on `0x80 && terrain > 0x14` identically. That is what promotes
 §2.2's third correction from **[D]** to **[V]**.
@@ -2141,13 +2200,13 @@ Three callers, and together they are the whole rule:
 1. **`Unit_OrderMove`, on every successful type-1 order.** Giving a besieging army anywhere
    to go lifts its siege. `Panel_MoveButton` asks `10/13 "Lift the siege?"` first — but the
    confirmation is only a warning; `Map_BeginMoveSelection`, its yes-callback, does not touch
-   `+0x199`. The break happens later, when the order actually takes. **If the path extraction
+   `+0x199`. The break happens later, when the order takes. **If the path extraction
    fails, the siege survives.**
 2. **`Siege_LaunchAssault`**, when the castle is too strong to assault without engines (§4a).
 3. **The siege screen's own "Lift siege" button** (`L2.eng` 83/6), directly.
 
 From the map you never see the prompt: `Map_Click` runs `Siege_ValidateLink` first and opens
-the **siege preparation screen** rather than a move order if the link is still good.
+the **siege preparation screen**, not a move order if the link is still good.
 
 **`Army_Disband` (`0x00438681`)** releases any mercenary band, returns `troops[1…6]` to the
 realm's `weapons[0…5]` — troop type `t` → weapon slot `t−1`, the same off-by-one `Levy_Init`
@@ -2172,7 +2231,7 @@ threshold band.
 ## 8c. Every campaign action already has a wire format
 
 *Properly `netcode.md`'s subject; recorded here because it was found by reading the
-campaign-map callbacks, and because it is what a lockstep move order actually is.*
+campaign-map callbacks, and because it is what a lockstep move order is.*
 
 Every one of §8.5's callbacks ends in the same shape:
 
@@ -2218,14 +2277,14 @@ Sends are once for eleven listed opcodes and **three times**, with flag bits `0x
 `0x80`, for everything else — a redundancy scheme, not a retry. The sequence counter wraps
 `1 … 39` over forty `0x104`-byte slots.
 
-**Why this matters to `crates/l2-kingdom` rather than to a network layer:** the opcode set is
+**Why this matters to `crates/l2-kingdom`, not to a network layer:** the opcode set is
 the original's own answer to *"what is an action?"*, and the payload is its answer to *"what
 does an action need to be replayed?"* — 97 of them, enumerated, with lengths. Neither
 question had a source before.
 
 ## 8b. There is an oracle for an army now
 
-§9's largest disclaimer said *"there is no oracle for an army, and there cannot be one from
+§9's largest disclaimer said *""
 the shipped save"* — `lastturn.sav` holds six units and all six are merchants. That was true
 of `lastturn.sav` and is no longer true of the fixture set. **The battle triple
 (`battle-before/during/after.sav`) contains real armies**, and every army-only offset it
@@ -2279,7 +2338,7 @@ check is cheap and the fixture is the right place to end the argument.)
    county 3's population goes **728 → 582**, which is `728 − 182 + 36`. So thirty-six of the
    defenders lived and went home. `Defence_Disband` (`0x004ABA5A`) is the function that puts
    them there: mark 1 → men back into `population` and `popArmy`, unit destroyed; mark 2 → the
-   mark is simply cleared and the army stays. **[V]**
+   mark is cleared and the army stays. **[V]**
 5. **`+0x1A` is the garrison feedback code.** §1.5 guessed from the code that it takes 2 and 5
    on the garrison path. Slot 4, the garrison, carries **5** — the success value — and stands
    at exactly county 2's `+0x74`/`+0x75`. **[V]**
@@ -2300,7 +2359,7 @@ The fixture makes a distinction the document had blurred:
 
 The top-left/bottom-right relation holds on **all four occupied counties** of the fixture —
 (14,37)/(15,38), (30,49)/(31,50), (36,15)/(37,16), (48,41)/(49,42). That is what makes
-`County_FindDefendingArmy`'s `−2 … +1` window read as *the town plus its ring* rather than as
+`County_FindDefendingArmy`'s `−2 … +1` window read as *the town plus its ring*, not as
 an off-by-one (§8.2a).
 
 And county 3, whose `castleType` is **0**, has terrain **`0x14`** on its `+0x74`/`+0x75` tile —
@@ -2320,7 +2379,7 @@ outside it. Anything reproducing `Army_Create` must not assume the field starts 
 `battle-before` both have facing 1 and `spriteFrame` **78**, and `0x48 + 3 × ((1+1) & 7) + 0`
 is 78. Slot 5 in `battle-during` has facing 2, `walkPhase` 0 and `spriteFrame` **82**, where
 the formula gives 81. The difference is exactly one, and `1` is a value `g_unitWalkFrames`
-(`{0, 1, 2, 1}`, `i32`, not bytes) actually contains — `Army_Tick` writes `+0x07` and *then*
+(`{0, 1, 2, 1}`, `i32`, not bytes) contains — `Army_Tick` writes `+0x07` and *then*
 calls `Unit_Step`, which advances `+0x1B`, so the saved sprite is one phase behind the saved
 phase. That is a fit, not a finding, and it is **[I]** in `hypotheses.json` (H3).
 
@@ -2328,7 +2387,7 @@ phase. That is a fit, not a finding, and it is **[I]** in `hypotheses.json` (H3)
 
 §8b read the three battle saves by hand. The array is now **imported field by field, over
 every save the machine can reach** (`crates/l2-scenario`, and the invariants in
-`crates/l2-formats/tests/save.rs`), and five things came out of it that were not here.
+`crates/l2-formats/tests/save/main.rs`), and five things came out of it that were not here.
 
 1. **`+0x167` on a merchant is the county it was spawned in.** §1.5 had the offset on the
    untraced list; `plane4.md` §5 guessed that transports use it as a destination and that
@@ -2346,8 +2405,8 @@ every save the machine can reach** (`crates/l2-scenario`, and the invariants in
    different map in a different save at turn one — the position is written before anything has
    been ticked. **[V]**, and it is the reason an importer must take the field from the file.
 4. **The merchants occupy slots 1 … n, contiguously, in every save the fixture set holds.**
-   `Merchant_AdvanceAll` indexes the route table by *slot minus one* rather than by the route
-   number the unit stores, so this is not a curiosity: it is the invariant that coupling rests
+   `Merchant_AdvanceAll` indexes the route table by *slot minus one*, not by the route
+number the unit stores, so it is the invariant that coupling rests
    on, and `the_merchants_are_the_first_slots_and_there_are_as_many_as_the_counter_says`
    checks it against `g_merchantCount` as well.
 5. **`+0x0C` agrees with `x`/`y` on every occupied slot of every save.** The offset is
@@ -2365,7 +2424,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 
 * **Whether an army can destroy its own realm's fields.** §2.6 shows one path where it cannot.
   A negative result from a single `if`; battles fought on farmland were not looked at.
-* ~~**`Move_FloodFill` was not read.**~~ **Closed** — it is read, in §2.3, and the guess it
+* ~~**`Move_FloodFill` was not read.**~~ **Closed** — it is read, in §2.3,
   was a cost-weighted breadth-first search was wrong: it is SPFA, with full relaxation.
 * ~~**The "lift siege" handler.**~~ **Closed** — `Siege_Break` (`0x0043B917`), three callers,
   §8.6. It clears `+0x199` and `+0x19A` and leaves the engine records alone.
@@ -2381,7 +2440,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
   (§8b.2), which was the right byte read too narrowly; then properly, as **the AI's mission
   byte** — §10. ~~**`+0x19B`**~~ **Closed** — the ally-help target county, §10. The rest of
   §1.5's untraced offsets stand.
-* ~~**`FUN_0046D42C`**, the existing-defender search §8.1 calls.~~ **Closed, and the guess
+* ~~**`FUN_0046D42C`**, the existing-defender search §8.1 calls.~~ **Closed,
   was wrong in both halves** — it is `County_FindDefendingArmy`, a 4×4 scan around the county
   town returning the *largest* army, not a slot-order scan of the whole county. §8.2a.
 * **`+0x12`/`+0x13` are truncated `u8`, not `i8`** as §1.2 types them —
@@ -2391,7 +2450,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 * **`L2.eng` 31/26** *"Foraging in your county."* has no reachable caller in the panel.
 * **The fourth write in each `Unit_TrampleTile` branch**, `industryRecord + 0x18`, which is the
   *next* record's first field. That is what the code does and it is not explained.
-* ~~**There is no oracle for an army, and there cannot be one from the shipped save.**~~
+* ~~~~
   **Closed by the fixture set, not by the shipped save** — see §8b, which uses the battle
   triple to turn five of this document's `[D]` readings into `[V]`. The paragraph below is
   kept because its *argument* is still correct and still worth reading: with no second
@@ -2409,7 +2468,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
   source, a plausible reading of decompiler output has nothing to fail against, which is
   `docs/decisions.md` C3's exact shape — and three of the corrections in this revision
   (`Army_Combine`'s maximum, `g_battleLoser`'s inversion, the post-battle human/AI test)
-  were errors of that kind that had survived precisely because nothing could contradict them.
+  were errors of that kind that had survived because nothing could contradict them.
 * **Nothing here was observed in a running game.** Every claim comes from the binary, its
   static tables and `L2.eng`. The falsifiable predictions worth checking in play: *moves left*
   starts at 15 and a road step costs 1 while open ground costs 3; the army sprite changes at
@@ -2428,7 +2487,7 @@ way is not an obstacle to a merchant, nor a merchant an obstacle to anything els
 ## 10. The AI's army orders — unit `+0x1A`, the **mission** byte
 
 Everything below is `[D]` from `Lords2.exe`'s decompilation unless marked otherwise, and is
-implemented in `crates/l2-kingdom/src/ai_army.rs`, which carries the same table with its
+implemented in `crates/l2-kingdom/src/ai_army/mod.rs`, which carries the same table with its
 addresses.
 
 §1.5 closed `+0x1A` as *"a UI feedback code taking 2 and 5 on the garrison path"* and §9
@@ -2521,7 +2580,7 @@ fitted in the 10 %.
 as *"the move ends; `Unit_TrampleTile` charges 7, conditionally"*, with no mention that the
 tile might be a castle. §9's target table has the rule — *your county → `Army_Garrison`* — and
 nothing joined the two. In our engine that meant **an army ordered onto its own castle stopped
-on the tile and stood there for ever**, which nobody could see because no order in the game
+on the tile and stood there for ever**,
 produced one until the AI's garrison pass did. Recorded because it is the same shape as the
 garrison relation C59 found: a rule written down in one section and absent from the section
 that would have made somebody implement it.

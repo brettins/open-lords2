@@ -37,7 +37,7 @@ where exactly six files differ and five of them are saves. Nine tests treated on
 particular `lastturn.sav` as a fixed fixture, called it "the shipped save", and
 went red the first time somebody played for ten minutes.
 
-So a fixture is a **file name plus a fingerprint**, and lives outside every
+So a fixture is a **file name plus a fingerprint**
 install:
 
 | fixture | file | what it is |
@@ -91,11 +91,11 @@ workspace names a save directory.
   also where the original keeps `lastturn.sav`, whose fixture identity this
   document has already watched a program destroy once.
 * **Not inside the repository.** `.gitignore` refuses `*.sav` and `*.l2sav`, and
-  `crates/l2-testkit/tests/census.rs` fails if either appears in the tree. A
+  `crates/l2-testkit/tests/census/main.rs` fails if either appears in the tree. A
   save that lands beside the source is a save somebody commits.
 * **Not beside the executable.** That works for a portable build and fails for
   an installed one: `%PROGRAMFILES%` is not writable by the user who runs the
-  game, and the failure arrives at the worst moment, when somebody presses save.
+  game
 
 **The extension is `.l2sav`, not `.sav`.** The original's `.sav` is an
 unversioned memory dump we read as an *oracle* (`l2_formats::save`, whose schema
@@ -114,15 +114,15 @@ save the original could open is not on any plan yet; what exists is a save
 export PATH="$HOME/.cargo/bin:$PATH"
 
 # What CI runs: no install, no fixtures. The install-gated tests skip and say
-# so; crates/l2-testkit/tests/census.rs names every one of them and prints how
+# so; crates/l2-testkit/tests/census/main.rs names every one of them and prints how
 # many the current environment satisfies.
 cargo test --workspace
 
-# Everything, including the corpus and the fixture-gated suites.
+# Everything
 LORDS2_DIR="F:\games\Lords of the Realm II" \
 LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test --workspace
 
-# What this run actually asserted, and what it silently did not.
+# What this run asserted
 cargo test -p l2-testkit --test census -- --nocapture
 ```
 
@@ -130,8 +130,84 @@ cargo test -p l2-testkit --test census -- --nocapture
 whole point of the census: `cargo test --workspace` prints the same
 `passed; 0 failed` line either way while asserting wildly different amounts, so
 the number of gated tests is written down in
-`crates/l2-testkit/tests/census.rs` and a new gate fails the build until it is
+`crates/l2-testkit/tests/census/main.rs` and a new gate fails the build until it is
 added there.
+
+### Building while the game is open
+
+**Launch the game with `tools\run\play.cmd`, not with `target\debug\l2-game.exe`.**
+Windows will not let a build replace a running executable
+build output turns every build in the workspace red — `cargo test --workspace` included,
+because it builds the same binary. It is cargo's last step that fails, not the linker:
+
+```
+error: failed to remove file `…\target\debug\l2-game.exe`
+  Access is denied. (os error 5)
+```
+
+```powershell
+tools\run\play.cmd "F:\games\Lords of the Realm II"              # debug build, then play
+tools\run\play.cmd -Release "F:\games\Lords of the Realm II"     # release build, then play
+tools\run\play.cmd -NoBuild "F:\games\Lords of the Realm II"     # play what is there, no build
+tools\run\play.cmd "F:\games\Lords of the Realm II" --no-sound   # any l2-game flag passes through
+```
+
+It makes two promises
+(`docs/decisions.md` C154):
+
+* **A build succeeds while the game is open.** It runs a *copy* — `l2-game-live.exe`, or
+  `l2-game-live-1.exe` and so on for a second instance — so the build output is never
+  locked. With a game held open by it, `cargo build -p l2-game` and
+  `cargo test -p l2-game` both went through.
+* **It always runs the newest build.** It builds first, and **a failed build launches
+  nothing**: it prints `build failed - not launching.` and exits with cargo's code, rather
+  than falling back to the last binary that compiled. `-NoBuild` is the only way to run
+  something older, and you have to ask for it.
+
+A copy still in use survives the sweep; the rest are deleted on the next launch. One
+PowerShell trap: a single-dash game flag that is a prefix of `-Release` or `-NoBuild` is
+taken by the launcher (`-n` becomes `-NoBuild`). None of `l2-game`'s own flags is.
+
+**Pointing a desktop shortcut at it.** Change two fields in the shortcut's Properties:
+
+| field | value |
+|---|---|
+| Target | `E:\dev\lords2\tools\run\play.cmd "F:\games\Lords of the Realm II"` |
+| Start in | `E:\dev\lords2` |
+
+A console window shows the build, then the game opens. `Start in` is not load-bearing —
+the script finds the repository from its own location
+`C:\Windows\Temp` did the same thing — but it costs nothing. Verified by building a
+`.lnk` outside the desktop and running exactly the Target, arguments and Start in it
+stored, with a game directory containing spaces; the game's own error named the whole
+path intact. **Not verified:** a double-click, because that opens a window.
+
+**A shortcut already aimed at `target\debug\l2-game.exe` is unaffected.** The binary is
+still built at that path, under that name, by the same command — which is the reason
+`build.rs` renames the *stale* file. It keeps working;
+it just locks the build output again, so builds collide with a game started from it as
+they always did.
+
+**The two fallbacks, for somebody who runs the exe directly.**
+
+* `crates/l2-game/build.rs` moves a locked `l2-game.exe` aside to
+  `l2-game.old-<ms>.exe` and lets the build through — **but only on a build that follows a
+  commit, checkout, rebase or `git add`**, because the script watches only git's `HEAD`
+  and `index`. An ordinary edit does not rerun it, and that build still fails. Measured,
+  on a clean fingerprint. Moved copies are deleted on a later rerun, once nothing is
+  running them.
+* `L2_ALWAYS_UNLOCK=1` makes that move happen before every build, **and every build then
+  recompiles `l2-game`: 2.6–3.2s against 0.17–0.21s for a no-op**, measured. That is
+  paid by every build in the workspace while the variable is set
+  opt-in.
+
+```bash
+L2_ALWAYS_UNLOCK=1 cargo build -p l2-game
+```
+
+**Measuring the default straight after using the switch measures the switch.** A
+switched build leaves cargo rerunning the script until one plain build re-emits a clean
+fingerprint.
 
 Ghidra headless. The `lords2` project is **already imported and analysed** — reuse it,
 don't re-import:
@@ -145,6 +221,21 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
 ```
 
 `DecompileFunc.java` takes any number of hex addresses as script arguments.
+
+## Keys of ours
+
+**Ctrl+D — the debug overlay, off by default.** It shows everything we draw that
+`Lords2.exe` does not: the squares on town squares and fields, the ring round a picked
+army, the outline and name over the sidebar icon under the pointer, `TURN n` and
+`COUNTIES n/m`, and every status line and *NOT SIMULATED* stub on every screen. Press it
+again to hide them. It works on every screen, is never saved, and changes nothing about
+the game — only which pixels are painted. Chosen because the original answers Ctrl+D with
+nothing (`docs/arms.json` `ours/debug-overlay-toggle`).
+
+It does **not** hide the title page's build stamp — quote that in a report — or a
+warning that a file of the install is missing, which a complete install never shows.
+
+**F5** snaps the window to a whole multiple of 640 × 480; that key is the original's.
 
 ## Gotchas
 
@@ -168,14 +259,14 @@ is occluded — plain screen capture grabs whatever is physically on top instead
 `tools/input.ps1` sends clicks in client-relative coordinates. `tools/probe.ps1` reads
 memory from a live process.
 
-Note: taking a screenshot by spawning a process can steal focus, and the game crashes if
+Note: taking a screenshot by spawning a process can steal focus
 it is deactivated during startup. Don't capture during the first few seconds of a launch.
 
 ### Synthetic input needs window focus (verified)
 
 `input.ps1 -Action key` uses `SendKeys`, which goes to whatever window is focused, so it
 needs the target in front. `SetForegroundWindow` also **fails silently** from a background
-process, so a script that assumes it worked will type into the wrong window.
+process
 
 `-Action postkey` posts `WM_KEYDOWN`/`WM_KEYUP` straight to the window handle with a
 correctly formed `lParam` (repeat count, scan code in bits 16-23, extended flag in bit 24 -
@@ -184,7 +275,7 @@ not work on our `winit` viewer**: minimising the window so it cannot be focused,
 posting keys, produced no key events at all, while the identical sequence worked the moment
 the window had focus.
 
-Measured, not assumed - and the measurement went the opposite way to the assumption twice
+Measured
 before it was checked properly. If a test needs the window unfocused, minimise it and read
 the title with `GetWindowTextW` on the handle; `Process.MainWindowTitle` returns empty for
 a minimised window and will look like a failure that isn't one.

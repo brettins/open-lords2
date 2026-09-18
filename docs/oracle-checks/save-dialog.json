@@ -1,0 +1,27 @@
+{
+  "reviewed": "1394751c5b71127032321b51a7ec70b2e21a4feb",
+  "date": "2026-09-17",
+  "behaviours": [
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/screen_impl.rs",
+      "line": 43,
+      "address": "0x004AD9F0",
+      "verdict": "match",
+      "note": "g_redrawRequest = 2 sits after the three g_screenId arms, inside the DAT_00591548 == 0 branch; ours has no latch state so that guard is vacuous"
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/screen_impl.rs",
+      "line": 55,
+      "address": "0x004AD9F0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/mod.rs",
+      "line": 30,
+      "address": "0x004AD9F0",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

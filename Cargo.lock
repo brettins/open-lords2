@@ -819,6 +819,7 @@ dependencies = [
  "l2-net",
  "l2-scenario",
  "l2-sim",
+ "l2-smk",
  "l2-testkit",
  "l2-view",
  "pixels",
@@ -865,6 +866,13 @@ version = "0.1.0"
 dependencies = [
  "l2-formats",
  "l2-net",
+ "l2-testkit",
+]
+
+[[package]]
+name = "l2-smk"
+version = "0.1.0"
+dependencies = [
  "l2-testkit",
 ]
 

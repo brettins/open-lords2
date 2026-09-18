@@ -1,27 +1,11 @@
-//! Lords of the Realm II — the game.
-//!
-//! ```text
-//! l2-game <game dir> [--mods <dir>]
-//! ```
-//!
-//! **This is the only file in the workspace that names `winit` or `pixels`.**
-//! Everything a screen does is done to a [`Canvas`] of palette indices and
-//! driven by `l2_game::input::Event`, so the whole interface can be exercised
-//! with no window at all — which is what `tests/` does.
-//!
-//! # Simulation time is not frame time
-//!
-//! `docs/plan.md` is explicit, and the battle viewer had to learn it the hard
-//! way: pacing with `WaitUntil` decides **when to draw**, never what a tick
-//! contains. Without a throttle the loop repaints as fast as the machine can
-//! manage — about ten thousand frames a second — which is more than the surface
-//! can present and makes wgpu reject the submission outright; the picture was a
-//! blank white window until it was throttled.
-//!
-//! So: the clock is consulted in exactly one place, [`TICK`], and it decides
-//! how often [`l2_game::Machine::update`] is called. `update` is not told how
-//! much time passed and cannot ask, which is what keeps the simulation
-//! reproducible (`docs/netcode.md`).
+//! The rule here was `next_tick = Instant::now() + TICK` read *after* the wait,
+//! which carried every overshoot forward and made a 16 ms tick 16.4 ms of wall
+//! clock — two percent slow, compounding, and audible the moment a film's sound
+//! track (played out by the device in real time) ran against a picture stepped
+//! by tick count. `docs/decisions.md` C193.
+
+mod app;
+pub use app::*;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -41,32 +25,14 @@ use winit::application::ApplicationHandler;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{Key as WinitKey, NamedKey};
-use winit::window::{Window, WindowId};
+use winit::window::{Cursor, CursorIcon, CustomCursor, Window, WindowId};
 
 const CANVAS_W: u32 = l2_view::canvas::WIDTH as u32;
 const CANVAS_H: u32 = l2_view::canvas::HEIGHT as u32;
 
-/// One fixed simulation tick. The only clock in the application.
-///
-/// The number itself is [`l2_game::TICK_MS`], because a screen reproducing an
-/// animation quoted in milliseconds has to convert to ticks and there must be
-/// one place that says how long a tick is.
-const TICK: Duration = Duration::from_millis(l2_game::TICK_MS as u64);
 
-/// How long after a left press a second one is a **double** click.
-///
-/// The original never measures this: Windows does, against the user's own
-/// `GetDoubleClickTime()`, and hands the game `WM_LBUTTONDBLCLK` instead of the
-/// second `WM_LBUTTONDOWN`. `winit` has no such event, so this file measures it
-/// — and it is this file's business alone, because it is a *clock*, and
-/// `docs/netcode.md` allows one only above [`l2_game::input`]. 500 ms is the
-/// Windows default that the original was therefore compiled against.
 const DOUBLE_CLICK: Duration = Duration::from_millis(500);
 
-/// And how far apart the two presses may be. Windows uses
-/// `SM_CXDOUBLECLK` / `SM_CYDOUBLECLK`, four *window* pixels by default; ours is
-/// in canvas pixels because that is the only coordinate a screen ever sees, and
-/// four of them is generous at any whole scale.
 const DOUBLE_CLICK_SLOP: i32 = 4;
 
 struct App {
@@ -76,69 +42,46 @@ struct App {
     canvas: Canvas,
     window: Option<Arc<Window>>,
     pixels: Option<Pixels<'static>>,
-    next_tick: Instant,
-    /// Where the pointer was last reported. A click carries no position of its
-    /// own in `winit`, and asking the window again would be a second source of
-    /// truth that could disagree with what the screen was last told.
+    started: Instant,
+    ticker: l2_game::clock::Ticker,
     last_cursor: (i32, i32),
-    /// **Sound, and it is deliberately only here.**
-    ///
-    /// `Audio` is not in [`Ctx`], so no screen can reach it, ask it anything,
-    /// or wait on it. Everything audible is *derived* from the world once a
-    /// tick by [`App::listen`], which means a sound cannot change what the
-    /// simulation does in either value or timing — the property
-    /// `docs/netcode.md`'s lockstep argument rests on, held by the type
-    /// system rather than by remembering.
     audio: Audio,
-    /// **What decides what is audible**, and the edge counters it needs to
-    /// notice that something has *become* true. It lives in the library so that
-    /// a test runs this code rather than a copy of it —
-    /// `crates/l2-game/tests/audio_wiring.rs`.
     director: l2_game::audio::Director,
     /// `DAT_004DF3A8` — whether Control is held. The window procedure keeps the
     /// same latch and its digit arm dispatches on it: with Control, store a
     /// battle control group; without, recall one.
     ctrl: bool,
-    /// When and where the left button last went down, for [`DOUBLE_CLICK`].
-    /// `None` once a double click has been reported, so three clicks are a
-    /// double and then a single rather than two doubles — which is what
-    /// Windows itself does.
     last_press: Option<(Instant, (i32, i32))>,
+    /// **`DAT_004EABC2`'s left bit**
+    /// derives from it. In the library so a test can drive it without a window;
+    /// see [`l2_game::input::LeftButton`].
+    left: l2_game::input::LeftButton,
+    pointer: l2_game::cursor::Pointer,
+    /// **The original's own pointer pictures**, read out of the player's
+    /// `Lords2.exe` the way `App_InitWindow` (`0x004B2258`) reads them —
+    /// `RT_GROUP_CURSOR` 102, 103, 104, 105, 110, 111, 113. Empty when the
+    /// executable is absent or unreadable, and then the system cursors below
+    /// stand in.
+    pictures: Vec<l2_formats::cursors::Picture>,
+    cursors: Vec<(u16, CustomCursor)>,
+    cursor_scale: u32,
 }
 
 impl App {
     fn present(&mut self) {
+        if self.machine.take_dirty() {
+            self.redraw();
+        }
         let Some(pixels) = self.pixels.as_mut() else { return };
-        // Which palette. Most screens run under the campaign's; the front end,
-        // the merchant, the armoury, castle building and the ratings each read
-        // a `.256` of their own, and a canvas of indices means nothing without
-        // knowing which one. The top screen names it.
-        let palette = self
-            .machine
-            .palette_name()
-            .and_then(|n| self.assets.shell.palette(n))
-            .unwrap_or(&self.assets.palette);
-        // **The end-of-turn fade, and it is the whole of the effect.**
-        // `FUN_004B0CB4` never touches the framebuffer — it rewrites the
-        // display palette and lets the unchanged plane of indices resolve
-        // darker. So this is the one line, and the screen decides *when* by
-        // answering `Screen::fade`. See `l2_view::fade`.
-        let faded = self.machine.fade().map(|phase| l2_view::fade::at(palette, phase));
-        self.canvas.to_rgba(faded.as_ref().unwrap_or(palette), pixels.frame_mut());
+        self.machine.present(&self.assets, &self.canvas, pixels.frame_mut());
         if let Err(e) = pixels.render() {
             eprintln!("render failed: {e}");
         }
     }
 
     fn redraw(&mut self) {
-        // **The one place the presentation quirks cross from the session into
-        // the assets.** `Ctx` hands a screen `&Assets`, so the quirks page
-        // cannot write them where the drawing code reads them; the authority
-        // is `Game::presentation_quirks` and this is its projection. Done here
-        // rather than in `deliver`, so that a change made by anything at all -
-        // a click, a key, a future command replay - is on screen the next
-        // frame without every writer having to remember.
         self.assets.quirks = self.game.presentation_quirks;
+        self.sample_wall_clock();
         let App { game, assets, machine, canvas, window, .. } = self;
         let ctx = Ctx { game, assets };
         machine.draw(&ctx, canvas);
@@ -146,27 +89,82 @@ impl App {
         if let Some(w) = window {
             w.set_title(&title);
         }
+        self.apply_pointer();
     }
 
-    /// Window coordinates to canvas pixels.
+    /// **`Cursor_Set` (`0x004B1CF3`)**, the binary's only caller of
+    /// `SetCursor`, driven from where its only caller `Battle_Frame`
+    /// (`0x004B99C0`) drives it: the frame. The choice is
+    /// [`l2_game::screen::Machine::pointer`] and is entirely in the library;
+    /// what is here is the one thing that cannot be, the window call.
     ///
-    /// The only floating-point arithmetic in the application, and it stops
-    /// here: what a screen receives is an integer pixel. A float that reached
-    /// the simulation would be a float that differed between machines.
-    ///
-    /// The arithmetic itself is [`l2_game::input::window::to_canvas`], which is
-    /// a pure function of the window's size and is tested there against the
-    /// window size the scrolling bug was reported from. It lives in the library
-    /// rather than here because **a transform that can only be checked by
-    /// opening a window is a transform that stops being checked**, and because
-    /// this is the one piece of arithmetic every click in the game passes
-    /// through.
-    ///
-    /// `pixels` has an inverse of its own, `window_pos_to_pixel`. We do not use
-    /// it: it answers `Err` for a position outside the picture, and *that
-    /// position is exactly the one that matters* — the cursor pushed into the
-    /// letterbox border, which the original would have read as the edge of the
-    /// screen.
+    /// **The pictures are the original's** — the seven `RT_GROUP_CURSOR`
+    /// resources `App_InitWindow` (`0x004B2258`) loads from the player's own
+    /// `Lords2.exe`, at [`App::cursor_scale`], which is the scale the canvas
+    /// itself is drawn at. A system cursor keeps the size the desktop gives it
+    /// however far the 640 × 480 picture is blown up, so against a 3× canvas
+    /// the pointer is a third of the size the original drew — the town
+    /// square's question mark, resource 110, being where a player noticed it.
+    fn apply_pointer(&mut self) {
+        let want = self.machine.pointer(&self.game);
+        if want == self.pointer {
+            return;
+        }
+        self.pointer = want;
+        let Some(w) = &self.window else { return };
+        use l2_game::cursor::Pointer;
+        if let Some((_, c)) = self.cursors.iter().find(|(id, _)| *id == want.resource()) {
+            w.set_cursor(Cursor::Custom(c.clone()));
+            return;
+        }
+        w.set_cursor(match want {
+            Pointer::Arrow | Pointer::ArrowAlt => CursorIcon::Default,
+            Pointer::Question => CursorIcon::Help,
+            Pointer::Cross | Pointer::CrossTarget => CursorIcon::Crosshair,
+            Pointer::Ring => CursorIcon::Pointer,
+            Pointer::Peasant => CursorIcon::Grabbing,
+            Pointer::Scythe => CursorIcon::Move,
+        });
+    }
+
+    fn build_cursors(&mut self, event_loop: &ActiveEventLoop) {
+        let Some(w) = &self.window else { return };
+        let size = w.inner_size();
+        let scale = window::scale(size.width.max(1), size.height.max(1));
+        if self.pictures.is_empty() || (scale == self.cursor_scale && !self.cursors.is_empty()) {
+            return;
+        }
+        self.cursor_scale = scale;
+        self.cursors = self
+            .pictures
+            .iter()
+            .filter_map(|p| {
+                let p = p.scaled(scale);
+                let src =
+                    CustomCursor::from_rgba(p.rgba, p.width, p.height, p.hot_x, p.hot_y).ok()?;
+                Some((p.id, event_loop.create_custom_cursor(src)))
+            })
+            .collect();
+        let want = self.pointer.resource();
+        if let (Some(w), Some((_, c))) =
+            (&self.window, self.cursors.iter().find(|(id, _)| *id == want))
+        {
+            w.set_cursor(Cursor::Custom(c.clone()));
+        }
+    }
+
+    /// `docs/netcode.md` D-5 — *no wall clock, no scheduler* — is why it cannot
+    /// live any lower: `l2-game` the library has no `SystemTime` anywhere
+    /// simulation path physically has nothing to read. The same discipline
+    /// [`l2_game::clock::Ticker`] holds for the monotonic clock
+    /// (`docs/decisions.md` C193), for the same reason.
+    fn sample_wall_clock(&mut self) {
+        self.assets.wall_clock = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_secs() as i64);
+    }
+
     fn to_canvas(&self, x: f64, y: f64) -> (i32, i32) {
         match self.window.as_ref() {
             Some(w) => {
@@ -177,20 +175,6 @@ impl App {
         }
     }
 
-    /// **F5 — resize the window to an exact multiple of 640 × 480.**
-    ///
-    /// The key is the original's, not ours: with `g_optFullScreen` clear the
-    /// game draws the caption *"(F5 key re-sizes window to 640x480)"*, so it
-    /// shipped a key that snaps the window back to a whole scale. Ours snaps to
-    /// the **largest whole scale that still fits the window the player has**,
-    /// which is 1× when the window is small and 2× or 3× on a modern display;
-    /// the original had only 1× to snap to. That widening is ours and this is
-    /// where it is written down.
-    ///
-    /// Integer scaling stays. A 1996 sprite game at a fractional scale gets
-    /// pixels of two different widths in the same row, which is visible on
-    /// every diagonal in the tile art; borders are the honest cost of not
-    /// doing that, and this key is how the player makes them go away.
     fn snap_to_whole_scale(&mut self) {
         let Some(w) = self.window.clone() else { return };
         let size = w.inner_size();
@@ -208,52 +192,26 @@ impl App {
         machine.handle(event, &mut ctx);
     }
 
-    /// One fixed simulation tick.
     fn tick(&mut self) {
+        self.sample_wall_clock();
         let App { game, assets, machine, .. } = self;
         let mut ctx = Ctx { game, assets };
         machine.update(&mut ctx);
+        self.autosave();
         self.listen();
     }
 
-    /// **Everything audible**, which is [`l2_game::audio::Director::listen`]
-    /// and nothing else.
-    ///
-    /// The body used to be here. Being in a binary meant no test could call it,
-    /// so the only test available was one that re-typed the same lines beside
-    /// its own assertions — a test that passes with this file deleted. See the
-    /// `Director` doc comment for the whole of that argument.
+    /// **`Save_RotateAndWrite` (`0x0049A453`)**, which is
+    /// [`l2_game::saves::run_pending`] and nothing else.
+    fn autosave(&mut self) {
+        if let Some(Err(e)) = l2_game::saves::run_pending(&mut self.machine, &self.game) {
+            eprintln!("autosave: {e}");
+        }
+    }
+
     fn listen(&mut self) {
         self.director.listen(&mut self.audio, &self.machine, &self.game);
     }
-}
-
-
-/// `ctrl` is the window procedure's `DAT_004DF3A8` — `0x004B29BE` latches
-/// `VK_CONTROL` on key-down and clears it on key-up, and its digit arm calls a
-/// different function depending on it. Only the digits carry the modifier,
-/// because only the digits are dispatched on it.
-fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
-    Some(match key {
-        WinitKey::Named(NamedKey::Escape) => Key::Escape,
-        WinitKey::Named(NamedKey::Enter) => Key::Enter,
-        WinitKey::Named(NamedKey::Space) => Key::Space,
-        WinitKey::Named(NamedKey::Backspace) => Key::Backspace,
-        WinitKey::Named(NamedKey::ArrowUp) => Key::Up,
-        WinitKey::Named(NamedKey::ArrowDown) => Key::Down,
-        WinitKey::Named(NamedKey::ArrowLeft) => Key::Left,
-        WinitKey::Named(NamedKey::ArrowRight) => Key::Right,
-        // The four the window procedure dispatches into the edit buffer and
-        // nothing else dispatches at all: `VK_HOME`, `VK_END`, `VK_INSERT`,
-        // `VK_DELETE`. See `l2_game::text`.
-        WinitKey::Named(NamedKey::Home) => Key::Home,
-        WinitKey::Named(NamedKey::End) => Key::End,
-        WinitKey::Named(NamedKey::Insert) => Key::Insert,
-        WinitKey::Named(NamedKey::Delete) => Key::Delete,
-        WinitKey::Character(s) if ctrl => Key::ctrl_letter(s.chars().next()?),
-        WinitKey::Character(s) => Key::letter(s.chars().next()?),
-        _ => return None,
-    })
 }
 
 impl ApplicationHandler for App {
@@ -271,24 +229,27 @@ impl ApplicationHandler for App {
         let pixels = Pixels::new(CANVAS_W, CANVAS_H, surface).expect("create pixels");
         self.window = Some(window);
         self.pixels = Some(pixels);
+        self.build_cursors(event_loop);
         self.redraw();
     }
 
-    /// The fixed tick. Nothing below this line learns how long it waited.
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         if self.machine.should_quit() {
             event_loop.exit();
             return;
         }
-        let now = Instant::now();
-        if now < self.next_tick {
-            event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
+        let owed = self.ticker.due(self.started.elapsed().as_nanos() as u64);
+        if let Some(next) = self.ticker.next_ns() {
+            let deadline = self.started + Duration::from_nanos(next);
+            event_loop.set_control_flow(ControlFlow::WaitUntil(deadline));
+        }
+        if owed == 0 {
             return;
         }
-        self.next_tick = now + TICK;
-        event_loop.set_control_flow(ControlFlow::WaitUntil(self.next_tick));
 
-        self.tick();
+        for _ in 0..owed {
+            self.tick();
+        }
 
         if self.machine.take_dirty() {
             self.redraw();
@@ -307,32 +268,20 @@ impl ApplicationHandler for App {
                         eprintln!("resize failed: {e}");
                     }
                 }
+                self.build_cursors(event_loop);
                 self.machine.mark_dirty();
             }
             WindowEvent::RedrawRequested => self.present(),
             WindowEvent::ModifiersChanged(mods) => {
-                // `WM_KEYDOWN` / `WM_KEYUP` on `VK_CONTROL` in the original.
                 self.ctrl = mods.state().control_key();
             }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
-                // F5 never reaches a screen: it is about the window, and the
-                // window is this file's business alone.
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
                     self.snap_to_whole_scale();
                 } else {
                     if let Some(key) = translate(&event.logical_key, self.ctrl) {
                         self.deliver(GameEvent::KeyDown(key));
                     }
-                    // **And `WM_CHAR` after `WM_KEYDOWN`, as Windows sends
-                    // them.** The original's window procedure handles the two
-                    // messages in separate arms: virtual keys drive the
-                    // hotkeys, characters drive `Edit_TypeChar`. `winit` gives
-                    // us the character in `text`, already shifted and already
-                    // through the layout, which is what `WM_CHAR` carries.
-                    //
-                    // Control-held keys produce no `WM_CHAR` worth having —
-                    // `Ctrl+A` is `0x01` — and the original's control arm is a
-                    // `WM_KEYDOWN` one, so they are suppressed here.
                     if !self.ctrl {
                         for c in event.text.iter().flat_map(|t| t.chars()) {
                             self.deliver(GameEvent::Text(c));
@@ -352,21 +301,20 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 let (x, y) = self.last_cursor;
-                // `WM_LBUTTONDBLCLK` *replaces* the second `WM_LBUTTONDOWN`, so
-                // this is one event or the other and never both.
                 let now = Instant::now();
                 let doubled = self.last_press.is_some_and(|(t, (px, py))| {
                     now.duration_since(t) <= DOUBLE_CLICK
                         && (x - px).abs() <= DOUBLE_CLICK_SLOP
                         && (y - py).abs() <= DOUBLE_CLICK_SLOP
                 });
-                if doubled {
+                let e = if doubled {
                     self.last_press = None;
-                    self.deliver(GameEvent::DoubleClick { x, y });
+                    self.left.double_clicked(x, y)
                 } else {
                     self.last_press = Some((now, (x, y)));
-                    self.deliver(GameEvent::Click { x, y });
-                }
+                    self.left.pressed(x, y)
+                };
+                self.deliver(e);
             }
             WindowEvent::MouseInput {
                 state: ElementState::Released,
@@ -374,10 +322,22 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 let (x, y) = self.last_cursor;
-                self.deliver(GameEvent::Release { x, y });
+                if let Some(e) = self.left.released(x, y) {
+                    self.deliver(e);
+                }
             }
-            // The original acts on the right button's **release** everywhere,
-            // never its press — see `input::Event::RightClick`.
+            // The right button's **down** edge — `g_mouseRightPressed`
+            // (`0x004EABE0`), read five times in the image and by exactly one
+            // arm we build: `Screen_FrameInput`'s minimap epilogue
+            // (`0x0042FF10`). See `input::Event::RightPress`.
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Right,
+                ..
+            } => {
+                let (x, y) = self.last_cursor;
+                self.deliver(GameEvent::RightPress { x, y });
+            }
             WindowEvent::MouseInput {
                 state: ElementState::Released,
                 button: MouseButton::Right,
@@ -392,17 +352,6 @@ impl ApplicationHandler for App {
             event_loop.exit();
         }
     }
-}
-
-fn usage() -> ! {
-    eprintln!("usage: l2-game <game dir> [--mods <dir>] [--no-sound]");
-    eprintln!();
-    eprintln!("  <game dir>   a Lords of the Realm II install: Lords2.exe, L2_maps.dat,");
-    eprintln!("               the fonts, the artwork and the tile sets. Never written to.");
-    eprintln!("  --no-sound   do not open an audio device. The game already runs");
-    eprintln!("               silent on a machine that has none; this is for a");
-    eprintln!("               machine that has one and would rather it stayed quiet.");
-    std::process::exit(2)
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -421,9 +370,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let Some(dir) = dir else { usage() };
 
-    // The overlay, which is also how the core ruleset is loaded. `docs/plan.md`
-    // revision 3 puts mods behind the game, with one exception: loading the
-    // ruleset at start-up is framework work, and this is it.
     let mut builder = Platform::builder().base(&dir);
     if let Some(m) = &mods {
         let found = l2_mods::discover(m)?;
@@ -437,25 +383,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let tables = platform.kingdom_tables()?;
 
     let assets = Assets::load(&platform.vfs)?;
-    // **A fresh world, not the install's autosave.**
-    //
-    // This used to be `scenario::load`, which reads `lastturn.sav` out of the
-    // game directory — the *original program's* rolling autosave. So what our
-    // engine started on was whatever the person last played in Lords of the
-    // Realm II, and for a while that made the campaign look correct: a player
-    // reported starting on the right map in the right season, and he was seeing
-    // his own saved game from another program. His `Autumn 1269` was the proof,
-    // because no fresh start can be in 1269 — `Game_NewGame`'s single
-    // `Season_Advance` lands in Winter 1268.
-    //
-    // **The feature was correct only because of what was in a file our code did
-    // not own.** `docs/environment.md` has warned about that file for weeks and
-    // nine *tests* were fixed by naming fixtures explicitly; the application was
-    // never looked at. When a class of bug is fixed across the tests, ask
-    // whether the product has the same bug.
-    //
     // The front end is up from the first frame and `Setup`'s own *Start* builds
-    // the real game, so this world is only what stands behind the title page
+    // the real game
     // until then. `docs/decisions.md` C117.
     let game = scenario::new_game(
         &assets,
@@ -477,11 +406,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         game.kingdom.year
     );
 
-    // Sound is opened through the same vfs every other asset comes through, so
-    // the install is found once and a mod layer can replace a `.wav` for free.
-    // `Audio::open` cannot fail: no device, no files, or a device that refuses
-    // a stream all end at the same silent object, and the game runs exactly as
-    // it did before sound existed.
     let audio = if sound { Audio::open(&platform.vfs) } else { Audio::silent() };
     println!(
         "sound: {} ({} wav files found)",
@@ -489,23 +413,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         audio.file_count()
     );
 
+    let mut machine = Machine::new(ScreenId::Setup(SetupPage::Title));
+    // **And over it, the intro** — `App_WinMain`'s `FUN_004B3571(0)`, which
+    // chains to the Impressions logo and the credits before the title page is
+    // seen. A missing film goes straight to the title page.
+    l2_game::movie::start_up(&mut machine);
+
     let mut app = App {
         game,
         assets,
         audio,
         director: l2_game::audio::Director::new(),
-        // The front end, as the original has it: `g_screenId` 0x1F, page 1.
-        // `screens::menu` is the two-item placeholder it replaces; it is still
-        // there, and `tests/machine.rs` still drives it, but the application
-        // no longer starts on it.
-        machine: Machine::new(ScreenId::Setup(SetupPage::Title)),
+        machine,
         canvas: Canvas::screen(),
         window: None,
         pixels: None,
-        next_tick: Instant::now(),
+        started: Instant::now(),
+        ticker: l2_game::clock::Ticker::new(),
         last_cursor: (0, 0),
         ctrl: false,
         last_press: None,
+        left: l2_game::input::LeftButton::new(),
+        pointer: l2_game::cursor::Pointer::Arrow,
+        // `App_InitWindow` (`0x004B2258`) loads the seven cursors from the
+        // executable's own resources. Ours are read through the same overlay
+        // every other asset comes through, and a missing or unreadable
+        // `Lords2.exe` simply leaves the system cursors in place.
+        pictures: platform
+            .vfs
+            .read(scenario::EXECUTABLE)
+            .ok()
+            .and_then(|b| l2_formats::cursors::read(&b).ok())
+            .unwrap_or_default(),
+        cursors: Vec::new(),
+        cursor_scale: 0,
     };
 
     let event_loop = EventLoop::new()?;

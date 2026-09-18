@@ -138,7 +138,7 @@ reproduction test where it belongs — next to the rules it is testing — witho
 gaining a dependency it must not have.
 
 **D10 — Our own save format writes through `l2-net`'s canonical encoder, not its own.**
-`crates/l2-kingdom/src/save.rs` is the format we write, as against the original's memory
+`crates/l2-kingdom/src/save/mod.rs` is the format we write, as against the original's memory
 dump that `l2-formats` reads. `docs/netcode.md` §5 and §6 already required a byte-exact
 encoding of simulation state — for the tick checksum, the late-join snapshot and the desync
 dump — so a second encoder here would mean a save whose bytes and a checksum whose bytes
@@ -214,7 +214,7 @@ Related: reading bytes 0x00–0x01 as one `u16` is wrong, since byte 1 varies
 independently of byte 0.
 
 **C7 — Treating the storage family byte as the encoding.** It is not. The per-frame
-`shape` byte at record offset 0x0C decides, which is why no single "mode 2 codec"
+`shape` byte at record offset 0x0C decides, a text record is 183
 ever fit: one isometric file holds raw rectangles and diamonds side by side.
 
 **C8 — "Search for prior art first" needs a second half: verify it.**
@@ -254,13 +254,13 @@ economic constant — tax, happiness, rations, births, deaths, yields, wages —
 non-obvious data file, `castles.dat`, is working state created zeroed at new-game, not
 rules.
 
-Two consequences. Modding the *original* means patching the binary, which is why an open
+Two consequences. Modding the *original* means patching the binary.
 engine is worth building at all. And our own engine has to carry these constants as its
 own ruleset data — which is exactly what `crates/l2-mods` is for, so they become editable
 for the first time.
 
 **C12 — "Terrain cost is charged by deferral, not by weighting."** Wrong, and it reached
-shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind.rs` repeated it in
+shipped code. `docs/battle.md` §8.3 said it, `crates/l2-sim/src/pathfind/mod.rs` repeated it in
 a module doc comment, and the implementation weighted nothing — it recorded plain hop count.
 The decompiled `Path_Search` does **both**: `cost[nb] = stepCost[nb] + (cost[cur] + 1)`, and
 separately re-queues an expensive cell until it has been popped `stepCost` extra times.
@@ -437,7 +437,7 @@ in branch structure rather than in data. **"Where is the table?" is the wrong fi
 when the answer may be "there isn't one".**
 
 **C20 — C12 had a second instance, in the test named after the save it never opened.**
-`crates/l2-kingdom/tests/reproduction.rs` was headed *"The reproduction from the shipped
+`crates/l2-kingdom/tests/reproduction/main.rs` was headed *"The reproduction from the shipped
 save"*, declared `const OWNED: usize = 4`, handed counties 1–4 to the human realm, and
 asserted numbers quoted out of `docs/kingdom.md` against rules built from the same
 document. It could not fail, and its scenario was invented: the file holds **five owned
@@ -586,7 +586,7 @@ because it stops anyone looking.
 **C23 — "The shipped save" was three words that hid a rolling autosave, and a test
 suite that passes identically whether or not it ran.**
 
-Nine tests in `crates/l2-formats/tests/save.rs` asserted one saved game's numbers against
+Nine tests in `crates/l2-formats/tests/save/main.rs` asserted one saved game's numbers against
 `lastturn.sav` *inside the game install*. That file is the **rolling autosave**: the game
 rewrites it every turn a human plays. Ten minutes of play replaced it and all nine went
 red at once, with bare assertion diffs that read like a broken reader.
@@ -639,7 +639,7 @@ tests had never run on any machine that did not export `LORDS2_DIR`; twelve of t
 the moment they were made to run, because they took the *assets* and the *position* from
 the same directory.
 
-`crates/l2-testkit/tests/census.rs` now reads the source, works out which gate each
+`crates/l2-testkit/tests/census/main.rs` now reads the source, works out which gate each
 `#[test]` sits behind, and asserts the count against a written-down inventory. Adding a
 gate fails the build until the inventory is updated. It also prints what the current
 environment satisfies, so a run that asserted an eighth of what it looks like it asserted
@@ -653,7 +653,7 @@ more than it looks: three of these defects are downstream of calling a file "shi
 **C24 — The oracle existed, printed to a console, and was wired to nothing.**
 
 `tools/oracle/*.ps1` has read the battle and economy tables straight out of `Lords2.exe`
-since C14. `crates/l2-view/tests/install.rs` has had `va_to_offset` — the four lines that
+since C14. `crates/l2-view/tests/install/main.rs` has had `va_to_offset` — the four lines that
 turn a documented virtual address into a file offset — since it was written. Neither had
 ever been applied to `l2-kingdom::tables` or `l2-sim`, the two crates carrying the most
 hand-transcribed numbers, and the test guarding `l2-sim`'s was named
@@ -1139,7 +1139,7 @@ involve a phase at all, because `Unit_OrderMove` sets the unit walking directly.
 This is a structural fact rather than a detail, and building the mover as a phase handler —
 which is what §3.1 invited, and what this work started out doing — would have produced a
 game where an army ordered during the player's turn stood still until the phase came round
-again. `crates/l2-kingdom/src/units_tick.rs` is the reading, `kingdom.md` §3.1 is corrected,
+again. `crates/l2-kingdom/src/units_tick/mod.rs` is the reading, `kingdom.md` §3.1 is corrected,
 and `PhaseWait::Sieges` replaces the unit wait on phase 2.
 
 **What made it findable.** The phase-2 row carried **[D]**, derived from "the unit type each
@@ -1154,7 +1154,7 @@ one hid two of the five farming styles and left the AI's field expansion doing n
 all.**
 
 C28's shape again, and this time the collapsed name reached the code rather than a document.
-`crates/l2-kingdom/src/ai.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
+`crates/l2-kingdom/src/ai/mod.rs` gave AI turn step 5 as *"`AI_ManageFields` (`0x0049DD01`)"*,
 dispatching into *"one of three labour allocators"* that *"were not traced"*. Every clause is
 wrong in a different way:
 
@@ -1332,7 +1332,7 @@ remembered.** Whenever a test enumerates what to check, the enumeration is the t
 will be wrong, and it will be wrong silently and in the safe-looking direction. C25, C29 and
 C30 are the same shape. Where a derive macro is unavailable — `l2-kingdom` is
 dependency-free on purpose — reading the source in a test is the available substitute, and
-`crates/l2-testkit/tests/census.rs` had already established it as the house style.
+`crates/l2-testkit/tests/census/main.rs` had already established it as the house style.
 
 **The same disease one file over, and two branches independently caught it.**
 `l2_kingdom::save::VERSION` collided in four consecutive merges: two branches bumped 5 → 6
@@ -1341,7 +1341,7 @@ then two at 8, then this branch's entry had to move 8 → 9 → 10. Nothing chec
 changelog above the constant was the only guard, and only if somebody read it. This work and
 C36's were both written to fix that, arrived at the same rule and even the same test name —
 `the_version_is_ahead_of_its_own_changelog`, requiring the `* N —` entries to be `1..=VERSION`
-with no gap and no repeat, exactly as `tools/decisions/corrections.js` does for these
+with no gap and no repeat, for these
 correction numbers.
 
 **Only one survived, deliberately.** C36's landed first and reads the changelog through
@@ -1426,7 +1426,7 @@ So the town is a **village whose size is its population**, redrawn as the county
 the frames the file holds are never on screen in the original at all.
 
 **What we do now, and what it costs.** `l2-view` gains a sparse
-[`campaign::Overrides`](../crates/l2-view/src/campaign.rs) plane — `None` everywhere means
+[`campaign::Overrides`](../crates/l2-view/src/campaign/mod.rs) plane — `None` everywhere means
 "draw the file" — and the map screen fills in the towns from the counties' populations.
 That is one of the rewrites `Counties_PlaceSites` performs; the others (the castle into
 bank `0x10`, the four resource sites) are not reproduced, and any of them may turn out to be
@@ -1490,7 +1490,7 @@ code confirms the reading, not the behaviour.
 
 **C43 — The campaign sidebar's five buttons were one button of ours, drawn over.**
 
-`crates/l2-game/src/screens/map.rs` said, of the 162 × 30 strip at (478, 430): *"the
+`crates/l2-game/src/screens/map/mod.rs` said, of the 162 × 30 strip at (478, 430): *"the
 original puts a status line here, not a button; we use it to open the county panel"*. The
 original puts **five buttons** there — `g_sidebarButtons` (`0x004DC680`), dispatched by
 `Sidebar_Button` (`0x0043AE30`) — and the artwork for all five is painted into `Misc_cty`
@@ -1633,7 +1633,7 @@ The picture is a measurement rather than an impression, which is what makes the 
 **[V]** rather than a second opinion: those two frames are the **4th and 5th darkest of the
 sheet's 84**, 15.3% and 11.5% of their area in near-black ink against a median frame's 1.2%,
 while the widgets that really are thin strokes sit at 0.2% and 0.0%. A tick cannot come 4th
-out of 84. The rank is asserted in `crates/l2-view/tests/install.rs` against the user's own
+out of 84. The rank is asserted in `crates/l2-view/tests/install/main.rs` against the user's own
 file, so the label cannot drift back.
 
 It is not a decoration either. `Ui_OkButtonClicked` (`0x0040E7E4`) hit-tests a 24 × 24 box
@@ -1686,7 +1686,7 @@ within three tiles of the county's centre, and never looks at the county at all.
 The player: *"I raised an army and nothing appeared on the map."* Two independent faults put
 it out of shot and this is the first of them.
 
-`crates/l2-kingdom/src/levy.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
+`crates/l2-kingdom/src/levy/mod.rs`'s `muster_tile` scanned all 4,096 tiles row-major for the
 first free road tile **whose county id matched**, and called that `County_FindFreeRoadTile`.
 The real one (`0x00428007`) is four lines:
 
@@ -1916,7 +1916,7 @@ That is C28's failure with an index instead of a name and C5's with a table inst
 format: a confident account built from real evidence about the adjacent thing. It is the
 seventh of the species logged, and the cheapest to have avoided.
 
-`crates/l2-game/src/audio/names.rs` now converts in exactly one place, `names::slot`, with
+`crates/l2-game/src/audio/names/mod.rs` now converts in exactly one place, `names::slot`, with
 both proofs as tests; `docs/mechanics.md` carries the corrected tables.
 
 **C52 — The blue outline is real, it is a *frame*, and it is on the county strip. The
@@ -1936,7 +1936,7 @@ frame it replaces. Ten of the eleven are **exactly four pixels wider and four ta
 that plain frame, which is what a two-pixel ring around an unchanged picture measures as,
 and **every non-transparent pixel of that two-pixel border is one of three palette entries,
 all of them blue**: `95` = `rgb(0,0,121)`, `65` = `rgb(157,202,234)`, `64` =
-`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install.rs` against the user's
+`rgb(194,230,255)`. That is asserted in `crates/l2-view/tests/install/main.rs` against the user's
 own file, so "blue outline" is now a measurement rather than a recollection. The eleventh —
 the castle, `0x40` → `0x4E` — is 23 × 26 against 32 × 34 and is a different, larger picture
 that also carries the ring; it is written down as the exception rather than smoothed over.
@@ -2098,7 +2098,7 @@ rule**: every impact test is gated on `ttl == 0`, and a hit sets `ttl = 2`.
 eleven counts a side: the fought battle used to be **won by the player with 56 men of 178**
 against a saved game in which he lost and both armies were destroyed. It is now lost by him,
 the militia holding the field with 8 men of 182 where the autocalc's ladder walks 36 home.
-`crates/l2-game/tests/seam.rs` asserts the verdict now, and the caveat is gone with the gap
+`crates/l2-game/tests/seam/main.rs` asserts the verdict now, and the caveat is gone with the gap
 it described.
 
 **Two things the brief and this tree had wrong, found on the way.** `Missile_Step` does not
@@ -2708,12 +2708,12 @@ enforcement of the ones that failed, so the proposal for what would check it is 
 **C62 — A person can pick Ireland and play Ireland. Building the second world constructor
 found five things about the first, and the fifth is the one worth keeping.**
 
-`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame.rs`. Pressing
+`Map_InitScenario` (`0x004676E0`) is written: `crates/l2-scenario/src/newgame/mod.rs`. Pressing
 *Start* on the custom page now runs `Game_NewGame`'s own three steps in its own order — the
 world, then the twelve options, then one immediate `Season_Advance` — so the slot the map
 list highlights is the world the campaign screen opens on, from an empty `Game` and with no
 save anywhere in the path. All 44 shipped maps start and take a turn
-(`crates/l2-game/tests/newgame.rs`). The line the setup page drew about itself,
+(`crates/l2-game/tests/newgame/main.rs`). The line the setup page drew about itself,
 *"NOT IMPLEMENTED: STARTING ON A MAP OTHER THAN THE SAVE'S"*, is gone.
 
 **The check is the two constructors held against each other.** England out of
@@ -2990,7 +2990,7 @@ clever. The alternative — making the fixture derived — cannot be done in Rus
 and a macro that generates the thing under test would be the same mistake one level down.
 
 **Built, and falsified before being believed.**
-`crates/l2-testkit/tests/encoding.rs` reads the source text: every `impl Encode`/`impl Decode`
+`crates/l2-testkit/tests/encoding/main.rs` reads the source text: every `impl Encode`/`impl Decode`
 pair, the struct's field list, and the assertion that each field is named in both halves. **220
 fields across 21 types.** Two experiments, both red, both with the field named in the message:
 dropping `out.bool(self.has_resource)` from the encoder — *the exact case the digest passes* —
@@ -3146,8 +3146,8 @@ this is the same argument with a number on it.
 handlers can therefore never fire.**
 
 Asked directly — *for every field these handlers read, what writes it in a real game?* — the
-answer for `crates/l2-kingdom/src/ai_army.rs` is that four fields have exactly one writer and
-that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm.rs`
+answer for `crates/l2-kingdom/src/ai_army/mod.rs` is that four fields have exactly one writer and
+that writer is `l2_kingdom::diplomacy`, which is not a module. `crates/l2-kingdom/src/realm/mod.rs`
 links to seven of its functions in doc comments and every link is dangling.
 
 | field | its only writer | what is unreachable without it |
@@ -3162,7 +3162,7 @@ dispatched, unit-tested and **can never fire in a played game**. That is C27 res
 AI's war, and it is written down here rather than left to be discovered because the suite is
 green either way.
 
-`crates/l2-game/tests/ai_war.rs` holds both halves as one test: nothing moves a standing off
+`crates/l2-game/tests/ai_war/main.rs` holds both halves as one test: nothing moves a standing off
 zero in forty turns, *and* the raid goes out the moment something does. The first assertion is
 designed to **go red when diplomacy lands**, which is the only way a gap like this announces
 that it has closed.
@@ -3215,7 +3215,7 @@ So there are two homes at very different prices — a behavioural quirk costs a 
 bump, a handshake field and a replay stamp; a presentation quirk costs one `bool` — and **the
 asymmetry is the hazard the split creates**. A rule variation filed on `Assets` because it is
 cheaper there would be invisible until a multiplayer desync.
-`crates/l2-testkit/tests/quirks_catalogue.rs` therefore asserts the home, both ways, and fails
+`crates/l2-testkit/tests/quirks_catalogue/main.rs` therefore asserts the home, both ways, and fails
 outright on a quirk implemented in both. That assertion is worth more than any of the switches
 it guards.
 
@@ -3263,7 +3263,11 @@ already empty and drives it to −1. Established by walking population 0…400 �
 `population == 0` going in. Both faces are switched by the same flag and both are asserted, and
 the survey is in the test rather than in a sentence here, because *"we could not make it go
 negative"* and *"it cannot go negative"* are different claims — the first draft of that test
-made the first claim, from a search too narrow, and was wrong.
+made the first claim, from a search too narrow, and was wrong. *(**Retracted in part by
+C170.** The survey was exhaustive and its answer was true — of our
+`update_one`, which compared the unscaled birth rate where `Population_UpdateAll` compares the
+scaled one. With the original's comparison a county of one at no happiness records −2 on the
+season it dies, so B16's own sentence was right. The test and the `Quirk` doc now assert that.)*
 
 **One thing the architecture would not allow, and what it cost.** A screen is handed
 `Ctx { game: &mut Game, assets: &Assets }`, and that asymmetry is load-bearing: it is what
@@ -3629,12 +3633,12 @@ between `0x00401984` and `0x0040210C` are the whole of it, over one 2,000-byte b
   which is the first use of that combination the schema was written for.
 
 The inventory is `docs/arms.json`, groups `text` and `front-end-keys`, 29 new records; the
-engine is `crates/l2-game/src/text.rs`.
+engine is `crates/l2-game/src/text/mod.rs`.
 
 **C75 — The field-coverage check matched prose, so the better a field was
 documented the less it checked.**
 
-`crates/l2-testkit/tests/encoding.rs` is the guard against `docs/decisions.md` C30's family —
+`crates/l2-testkit/tests/encoding/main.rs` is the guard against `docs/decisions.md` C30's family —
 *a field the encoder never writes*. Adding `Game::player_names` and then **deleting the loop
 that encodes it** left the check **green**. The comment above the deleted loop still said the
 words `player_names`, and `mentions()` matches text.
@@ -3671,7 +3675,7 @@ county panels and screens `0x04` … `0x13` — at **64 of 114** arms. This is t
 and the shape of what was found is the finding rather than the count.
 
 **A one-line "not reproduced" in a table hid twenty-one arms.**
-`crates/l2-game/src/screens/map.rs`'s header carried three rows reading *"**not
+`crates/l2-game/src/screens/map/mod.rs`'s header carried three rows reading *"**not
 reproduced:** the menu bar's three titles — `Menu_OpenDropdown`"*, *"…right release clears
 the minimap mode"* and *"…the sidebar's job rows"*. The first of those three lines is
 **sixteen menu items over three drop-downs plus four dispatch arms**, because
@@ -3743,7 +3747,7 @@ only control on any job popup* (`0x004BA9C8/blacksmith-weapon-choice`); and
 cannot be hit-tested until it has been painted. `docs/arms.json`'s `_note` now says this
 where the number is taken.
 
-**A stray NUL byte in `crates/l2-game/src/screens/map.rs`** — a `'\0'` pasted verbatim out
+**A stray NUL byte in `crates/l2-game/src/screens/map/mod.rs`** — a `'\0'` pasted verbatim out
 of the decompiler into a doc comment — made `grep` treat the file as binary and hide every
 `// arm:` marker in it from a plain search. `rustc` accepted it and so did the arms test,
 which reads the file with `read_to_string`; only the human-facing tool lied. Replaced with
@@ -3909,7 +3913,7 @@ independent sources say so:
   opening its own gate is indistinguishable, to the besieger's AI, from the besieger breaking
   it — which is what makes the Readme's sentence a rule rather than an interface quirk.
 
-`crates/l2-sim/src/siege.rs` already read `0x40` as the drawbridge and cited the Readme for
+`crates/l2-sim/src/siege/mod.rs` already read `0x40` as the drawbridge and cited the Readme for
 it; the hand-off and the code disagreed and nothing compared them. The lesson is not that a
 decompiler reading was wrong — it was right about every byte — but that **naming a verb from
 what a function writes, without asking what the game calls it, is a different act from
@@ -3951,7 +3955,7 @@ that watched one for sixty thousand frames found all three in an afternoon, plus
 **C82 — the third way a siege can end could not be reached, and the
 elevation was ours.**
 
-`crates/l2-sim/src/siege.rs`'s `our_castle` put the `FLAG_KEEP` cell at elevation 3 in a
+`crates/l2-sim/src/siege/mod.rs`'s `our_castle` put the `FLAG_KEEP` cell at elevation 3 in a
 bailey of elevation 1. `Formation_RectIsClear` rejects a rectangle whose slots are not *at*
 the destination's elevation and `Formation_SlotIsUsable` rejects a slot more than one below
 it, so an order onto that cell was an order no figure was ever given: the besiegers walked
@@ -4242,7 +4246,7 @@ said it was invented.**
 
 `docs/plan.md` §2.7 calls it *"the one constant in `l2-kingdom` with no evidence behind
 it"*, and the Open questions list below said the same. Both were stale:
-`crates/l2-kingdom/src/weather.rs` has carried the derivation since the day it was traced —
+`crates/l2-kingdom/src/weather/mod.rs` has carried the derivation since the day it was traced —
 `Rand_Advance` (`0x00404A46`) masks its LFSRs with `0x7F` and `Weather_UpdateAll` shifts by
 3, so the draw is 0…127 and the jitter 0…15 — and `docs/audit-method.md` re-derived it
 independently a second time and recorded that the decision log was stale. **The constant is
@@ -4295,7 +4299,7 @@ accurate about the rectangle it named, the name was wrong, and it passed. That i
 sharpest one yet, because unlike the build-stamp test it was written *specifically* to
 prevent this and still did not.
 
-The replacement names no rectangle. `crates/l2-game/tests/right_column.rs` and
+The replacement names no rectangle. `crates/l2-game/tests/right_column/main.rs` and
 `divide.rs`'s `no_two_hotspots_on_this_screen_overlap` enumerate every box the screen tests
 and compare them pairwise, and the geometry is asserted against the **player's own
 `Lords2.exe`** rather than against our reading of a painter. A check that has to name a
@@ -4486,7 +4490,7 @@ stale and a quantifier is not.
 
 **C99 — The castle's surface model was inverted, and a besieger could not win because of it.**
 
-`crates/l2-sim/src/siege.rs` carried `SURFACE_RAMPART = 5` and `SURFACE_BREACH = 4`, described as
+`crates/l2-sim/src/siege/mod.rs` carried `SURFACE_RAMPART = 5` and `SURFACE_BREACH = 4`, described as
 *"the rampart"* and *"what a breached rampart patch becomes, and what `Siege_FindCellSurface4`
 hunts for"*. An exhaustive search for **writers** of cell byte `+7` — 36 of them in the corpus —
 settles all of it, and the second half of that sentence is false.
@@ -4697,7 +4701,7 @@ bitmap font and `widget::panel`/`frame`/`button`'s rectangles. `castle.rs` also 
 English captions written in our source — *"SELECT A CASTLE TO BUILD"*, *"1 SEASON TO
 BUILD."*, *"BOOSTS TAX REVENUES BY %"* — where `Screen_CastleBuild` fetches `L2.eng` group
 71, and `menu.rs` draws the game's own title as *"LORDS OF THE REALM II"* when `L2.eng`
-group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell.rs`
+group 11 index 0 says *"Lords of the Realm 2"* — a string `crates/l2-game/tests/shell/main.rs`
 has asserted for weeks.
 
 **Nobody did anything wrong.** `crates/l2-view/src/text.rs`'s header said, in as many words:
@@ -4705,7 +4709,7 @@ has asserted for weeks.
 > *"the original's glyphs live in `Font_c2.pl8` … that file is an open question … so the
 > interface draws its own letters **until the real font is decoded**."*
 
-By then `crates/l2-game/src/shell/font.rs` had decoded it: `Fntl2_14.pl8` and
+By then `crates/l2-game/src/shell/font/mod.rs` had decoded it: `Fntl2_14.pl8` and
 `Fntl2_22.pl8`, through the 128-byte character-to-frame table at `0x004D71D0` that
 `Glyph_Draw` (`0x00402A14`) indexes, with a mapping that checks itself on descenders. And
 `Font_c2.pl8` was never the file the game draws from — `docs/audit.md` records that
@@ -4831,7 +4835,7 @@ thing to land mid-flight. It is the right next move and it is small.
 **C111 — `screens/menu.rs` is a whole screen of ours that the shipped binary cannot
 reach, and it was inflating the audit's placeholder count.**
 
-`crates/l2-game/src/main.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
+`crates/l2-game/src/mod.rs` boots to `ScreenId::Setup(SetupPage::Title)` — the *real* front
 end, which `setup.rs` reproduces with 41 draws through the game's own artwork and is the
 healthiest module in the whole draw audit. Nothing outside `crates/l2-game/tests/machine.rs`
 ever pushes `ScreenId::Menu`. So `menu.rs` — a two-item main menu of ours, drawn entirely in
@@ -5108,7 +5112,7 @@ broken the whole time.**
 A player: *"Rations slider moves but is inoperable, no information about feeding peasants is
 available."* Two sentences, one cause.
 
-`crates/l2-game/tests/screens.rs` has had
+`crates/l2-game/tests/screens_county/main.rs` has had
 `the_ration_split_slider_sets_the_field_the_original_sets` for weeks. It clicks the track,
 asserts `ration_split == 37`, steps the caps, and passes. It is about the right screen, the
 right gesture and the right field, and it is **useless**, because `Ration_SetSplit`
@@ -5445,6 +5449,13 @@ variant = band < 3 ? 0 : (band - 3) / 4 + 1;                  /* 0, 1, 2 or 3  *
 FUN_00469D21(county, band, variant, 2, 0xE);
 ```
 
+> **The first line of that block is wrong, and it is why the fix below did not reach the
+> player.** `Grain_SeasonTick` calls `FUN_0044CF6F` once in each of its three arms: `crop[1]`
+> in Spring, Summer and Autumn, `crop[2]` only in Winter, and all three divide by the byte at
+> `+0x206`, not `fieldsGrain`. Built as written, the wheat drew variant 0 until the harvest.
+> The block is left as it was so this entry still reads as what was believed;
+> `docs/decisions.md` C195 has the three calls.
+
 **And the two halves of this bug are not independent, which is the part worth keeping.** All
 four density bands fall in `2 … 0x12`, whose base is 88 — so the `content` byte carries *no*
 information about the crop's stage and the variant carries all of it. Our season pass also had
@@ -5624,7 +5635,7 @@ fires exactly once, and there is no memo to keep and nothing to reset when a win
 dismissed early.
 
 **Two artefacts said this was already recorded and neither was.**
-`crates/l2-game/src/screens/message.rs` lists the five constants and says they are
+`crates/l2-game/src/screens/message/mod.rs` lists the five constants and says they are
 *"recorded in `crate::message`"*. They had never been written there — a citation that does
 not resolve, which is a rule with no way in wearing a doc comment, and it survived because
 the sentence reads like a hand-off. And **which category takes which constant** was not
@@ -5664,8 +5675,8 @@ sign, and `Ui_DrawNumber` fills it from its `lead` argument before drawing the w
 `x`. So the string at `0x1FC` is `" 435 "` and the **digits** start at `0x1FC + 4`. We drew the
 bare digits at `0x1FC`.
 
-**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 191 call
-sites the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
+**The column is deliberate and the binary says so 62 times.** Across `Ui_DrawNumber`'s 190 call
+sites (191 as first written, which counted the definition line; C163) the lead is `' '` 115 times, **`'@'` 62 times**, and `'+'` and `'-'` once each; never
 `'\0'`, which the function treats as *terminate immediately*. `'@'` is a glyph with no picture —
 an invisible sign column that still holds its place — and asking for one 62 times is only
 meaningful if numbers are meant to align on it. `crate::shell::font::SPACE_ADVANCE`'s doc
@@ -6052,7 +6063,7 @@ asking **who supplies it**. Same asymmetry, other end.
   and the reader absent.
 
 And one measurement worth keeping, because it is the strongest evidence the walk is right and
-it is not one of the new tests: `crates/l2-scenario/tests/newgame.rs` builds England from
+it is not one of the new tests: `crates/l2-scenario/tests/newgame/main.rs` builds England from
 `L2_maps.dat` and from `england-turn1.sav` and now diffs the **shields and the lords** as well
 as the land. That is `Realms_AssignLords` checked against a game the original program set up,
 rather than against our own reading of the same two tables. It can only confirm the default
@@ -6107,7 +6118,7 @@ recorded. Its **visual** half — the yellow outline round the selected county �
 a player reported it four merges later: *"still a weird yellow outline around the county
 that is selected on the real map."*
 
-Nobody was careless. `screens/map.rs` carried the comment *"Ours: the selected county
+Nobody was careless. `screens/map/mod.rs` carried the comment *"Ours: the selected county
 outlined on the shape the player can see. The original has no such outline"*, accurately,
 directly above the draw call, and the module header listed it under *"ours, and it should
 look it."* This is the shape `docs/agents.md` records as *a correct explanation sitting
@@ -6352,7 +6363,7 @@ through `l2_formats::save::{County, Realm, DiploPair, Globals}`.
 **The pair it was briefed to use is not a pair.** `battle-before.sav`, `battle-during.sav`
 and `battle-after.sav` all read `g_turnCount = 5`, `g_season = 4`, `g_year = 1269`: they are
 one battle caught at three moments inside **one** turn, which is exactly what
-`crates/l2-game/tests/seam.rs` uses them for. `siege-lastturn` / `siege-sieging` /
+`crates/l2-game/tests/seam/main.rs` uses them for. `siege-lastturn` / `siege-sieging` /
 `siege-aftersie` are the same, all turn 14. A differential built on the filenames would have
 run a season into a kingdom and compared it against *the same turn*, and every number it
 produced would have been wrong in a direction nobody could have guessed from the output.
@@ -6503,7 +6514,7 @@ all** —
 | `Court_Draw` `0x00416925` | 1 | `i*0x38 + 0x54`, `0x10A`, `0x38` | `Pen::number_centred` — **placed** |
 | `Screen_BattleMasterRatings` `0x00421707` | 6 | `c*0x32 + 0xAD`, six rows, `0x3C` | `Pen::number_centred` — **placed** |
 | `FUN_00407F82` `0x00407F82` | 1 | under `Flags1a` frame `0x82`, width = **that frame's own width** | **no draw** — the besieger's `unit +0x19C`, siege seasons left, over a besieged castle; `map.rs` draws a dot and says so |
-| `FUN_0041A639` `0x0041A639` | 1 | `0x1A8`, `0x1BA`, `0x32` | **no draw** — the turn timer, `g_optTimeLimit > 0 && aiStep == 999`, already listed as absent in `docs/draws-map.md` §5.11 |
+| `FUN_0041A639` `0x0041A639` | 1 | `0x1A8`, `0x1BA`, `0x32` | **no draw** when this was counted — the turn timer. **Corrected by C158:** its guard is `0 < g_optTimeLimit` and `DAT_0055403C < 1 || aiStep == 999`, not `aiStep == 999`, and it is drawn now; `docs/draws-map.md` §5.11 |
 | `FUN_0042130F` `0x0042130F` | 2 | `0xA6` and `0x37`, `i*0x1E + 0x6C`, `0x14` | **no draw** — the skirmish army panel; group 11, and we have no skirmish mode |
 | `FUN_00423530` `0x00423530` | 2 | `0x1FA` and `0x24A`, `0x1A6`, `0x38` | **no draw** — `g_battleMenA` and `g_battleMenB` on the battle HUD, the two numbers `Battle_CheckOutcome` ends the battle on |
 
@@ -6514,7 +6525,7 @@ own. Two of the three wrappers are `Ui_DrawCentred` and `Ui_DrawNumberRight`. Th
 a box, `Ui_NumberToBuffer(v, 1, 1)` and the same tail. It has zero call sites.** The one
 live sibling, `FUN_00403015` (`0x00403015`), is a **byte-identical duplicate of
 `Ui_DrawNumber`** calling a duplicate `Ui_NumberToBuffer` (`FUN_00402447`), six call sites,
-no width. So the alignment question closes here: `Ui_DrawNumber` (191 sites), `Ui_DrawCount`
+no width. So the alignment question closes here: `Ui_DrawNumber` (190 sites; this said 191, counting the definition line, C163), `Ui_DrawCount`
 (81), `Ui_DrawDelta` (59), `Ui_DrawHappinessDelta` (2) and `FUN_00403015` (6) take **no
 anchoring argument at all**, and the only routine in the image that can be got wrong this
 way is the one C119 already named.
@@ -6757,7 +6768,7 @@ It now has the same treatment, in two halves that meet in the middle:
   from the decompilation by `sounds.js --rebuild`, and `status` / `ours` / `note` ours.
 * `node tools/oracle/sounds.js --check` — the file against the corpus, both directions, plus
   the four generated fields per row. Runs where the corpus does.
-* `crates/l2-game/tests/sfx.rs` — the file against the `// sfx:` markers, both directions.
+* `crates/l2-game/tests/sfx/main.rs` — the file against the `// sfx:` markers, both directions.
   Runs everywhere.
 
 **One deliberate difference from `arms.rs`, and it is not a relaxation.** A `// sfx:` marker
@@ -6871,7 +6882,7 @@ rejects it, nothing fails to read it, and it is visible only where somebody
 happens to look at that paragraph.
 
 **And the check that sounds like the one for this is not.**
-`crates/l2-testkit/tests/encoding.rs` asserts that every field of an encodable
+`crates/l2-testkit/tests/encoding/main.rs` asserts that every field of an encodable
 struct survives a round trip through `Canonical` — the *simulation's* bytes, not
 a document's. A reader who went looking for a text-encoding check would have
 found that name and stopped. **A test whose name reads like the check you want is
@@ -7108,8 +7119,8 @@ were two and one, and the mercenary was painted on the one tile of the town the
 original's overlay pass never visits.**
 
 A player: *"I haven't seen any mercenary icons on the town square yet."* The
-feature was **not missing.** `crates/l2-view/src/campaign.rs` had
-`MERCENARY_MARKER_FRAME = 0x81` and `screens/map.rs`'s `draw_flags` blitted it,
+feature was **not missing.** `crates/l2-view/src/campaign/mod.rs` had
+`MERCENARY_MARKER_FRAME = 0x81` and `screens/map/mod.rs`'s `draw_flags` blitted it,
 gated on `county.mercenary_offer`, with a comment that named the right quadrant:
 
 ```rust
@@ -7195,3 +7206,5203 @@ Two smaller corrections fell out of reading the arm:
   `Pen::eng`, which is the *body* font, at the same slot. Not fixed here — five
   call sites in a half this change does not touch — but recorded, because it is
   the kind of thing that reads as a font choice rather than as a divergence.
+
+---
+
+**C151 — three sidebar reports, all three already fixed, and the two that
+had no test between them.**
+
+Three player reports were sent together because they are one shape — a `Ui_DrawDelta` on a
+produce row, which is the signed forecast for the season about to begin:
+
+> *"Sidebar doesn't show grain being planted as a negative number."*
+> *"The figure is missing in the sidebar — it draws the serf reclaiming, but not the +1."*
+> *"I right now have −11 cattle. If I move it so the people are eating cattle, it still says
+> −11."*
+
+All three were the **tail** of an estimate pass whose search loop had been ported without it,
+and all three had been repaired — C123 (grain, `Grain_LabourEstimate` `0x0044D374`), C128
+(cattle, `Herd_LabourEstimate` `0x0044DD4D`) and C129 (reclamation, `Field_ReclaimEstimate`
+`0x0044C278`). Verified on `main`: painting four fields and reading the sidebar at the sowing
+turn draws `-20 ` in `0xF9` on the produce plate, and the herd forecast moves when the ration
+split moves.
+
+**So the finding is not the fix. It is what the fix left behind, and there are three things.**
+
+**One: the comments that said the work had not been done outlived the work by a day, in the
+function that does it.** `county::draw_produce_rows` carried, ten lines above a `match` that
+reads all three fields, *"Only the cattle row draws one … neither is computed anywhere in this
+workspace, so neither row can draw one yet."* Its doc comment carried *"this workspace never
+computes it"*, and `screens.rs`'s cattle test carried *"nothing in this workspace computes
+it"*. Every one was true when written and every one is an instruction to the next reader not
+to look. This is *a document that promises "until X" keeps promising it long after X* with the
+tense removed — no *"until"*, no *"for now"*, just a statement of fact that expired — and it is
+the third time on this project that prose survived the condition it described.
+
+> **A comment that says a thing is not done is a claim with an expiry date, and the commit
+> that does the thing is the only moment anybody will ever be in a position to strike it.**
+
+**Two: the report that started it was the one with no test.** Cattle got
+`the_cattle_forecast_follows_the_labour_it_depends_on`; reclamation got
+`the_reclamation_forecast_counts_fields_finished_not_work_done`; **grain got none at all**, at
+either layer. `land::grain_preview` had zero callers in any test in the workspace. Three
+repairs in one evening, described in the branch as *"one fix repeated, not three
+investigations"* — and the repetition is exactly what let the middle one ship untested, because
+the two neighbours reading as covered is what covered reads like. The new tests are
+`the_grain_forecast_is_the_sowing_loss_the_player_reported` (the four seasonal arms) and
+`the_grain_row_draws_its_sowing_loss_from_the_brush_to_the_pixel` (the road, brush to glyph).
+
+The second is worth the extra cost for a measurable reason: **its two ablations fail at
+different assertions.** Delete `strip_delta` and it fails at the glyph search; delete
+`grain_preview` and it fails one line earlier, at the simulation's own `shown < 0`. A test that
+set the field by hand — which is what the cattle test does, correctly, for a test about
+`Ui_DrawDelta` — cannot tell those two apart, and the defect being repaired was the second one.
+
+**Three: the cattle question was never only about the sidebar, and the second half is
+answered.** *"I had lots of milk maids with low herd crowding and we were only getting 1 cow,
+and if I added more milk maids they were idle."* Both halves are `Herd_LabourEstimate`'s search
+loop, which assigns the **fewest** workers that reach the best `births − deaths` — a strict `<`
+on the running best. `land::herd_labour_estimate` documented the closed form as *"about
+`6 * herd`"* and marked it `[I]`. Measured over every herd size 1 … 400 in all four seasons:
+
+* **six a head is a true bound** and now a `[V]` assertion, because that is where
+  `PctOf(labour, herd * 3)` hits its 200 % cap and births stop rising;
+* **it is a bad estimate of where the answer lands.** `births = herd * birthRate / 10000`
+  truncates, so on a small herd the integer stops moving long before 200 % and the first argmax
+  wins: a herd of five tops out at **15** milkmaids — three a head, not six — and a herd of one
+  at **1**. That is the player's county, and the blue idle ring is that ceiling being hit.
+
+And *"only getting 1 cow"* is the same truncation from the other end: the rate is applied to
+the **herd**, not to the pasture, so lowering crowding raises the percentage and not the count.
+
+**A quirk fell out of measuring it, and it is the original's.** The small-herd birth bonus is a
+step — `+10000` below 5 head, `+5000` below 10, `+2000` below 25 — and at every one of the three
+boundaries the step down is worth more than the animal that crosses it. Fully staffed at low
+crowding in spring: **4 cows → 7 calves, 5 → 4; 9 → 10, 10 → 6; 24 → 16, 25 → 10.** Reproduced
+and pinned (`docs/bugs.md` B98); a taper would be ours.
+
+**One repair that is not a comment.** `field::refresh_estimates` carried
+`// 's tail — the third of the evening` and `//  C129.` — two backticked spans had been eaten
+out of the comment before it was ever committed, leaving a sentence with no subject and a
+citation with no document. The citation lint could not see it, because a `C129` with nothing in
+front of it still resolves.
+
+---
+
+**C152 — The menu bar's shield row is a turn clock, and
+we drew half its guard.**
+
+A player: *"I think in the original game the shield icons at the top meant that
+players hadn't ended their turn."* He was right, and his recollections of *what the
+game did* remain unreversed.
+
+`Screen_DrawMenuBar` (`0x00419C78`) draws one `Misc_cty` banner per realm under a
+guard with **two** clauses:
+
+```c
+if ((g_realms[i].strength != 0) && (g_realms[i].aiStep < 999)) {
+    Pl8_DrawFrame(g_miscCtySheet, g_realms[i].shieldIndex + 0x55, slot * 0x10 + 0x10e, 4);
+    slot++;                          /* only when drawn: the row compacts left */
+}
+```
+
+`draw_menu_bar` in `crates/l2-game/src/screens/map/mod.rs` tests `Realm::in_play`, which
+*is* `strength != 0`, and nothing else. So no shield ever vanishes.
+
+**`aiStep == 999` is "this realm's turn is over"**, from four sites: `Turn_End`
+(`0x0043AC23`) writes it the instant the button is clicked; `Turn_BeginPlayersTurn`
+(`0x0049B6D3`) clears every realm to 0 at the top of phase 4; `Turn_AllRealmsDone`
+(`0x0049B762`) is phase 4's exit condition; and `FUN_004479E9` writes it for a
+**remote** seat. The detail that settles intent rather than inferring it: `Turn_End`
+also raises `DAT_0056D6A0`, and that flag is half of `Screen_DrawMenuBar`'s own
+repaint guard — **the only reason the button touches it is to make the shield go.**
+
+**What is worth carrying is that this gap was already written down, in the file, in
+the right place, and it did not cause the work to happen.** `map.rs` carried, twenty
+lines from the loop: *"Two other things read the same flag and we reproduce neither
+… `Screen_DrawMenuBar`'s banner loop is `strength != 0 && aiStep < 999`, so each
+realm's banner vanishes from the menu bar as that realm finishes its turn."* That is
+a third instance of `docs/agents.md`'s *a correct explanation sitting directly above
+the omission it describes* — and the first where the prose names the **guard clause**
+it then does not write. The two siblings are `Screen_DrawEndTurn`'s missing caption
+(which we do reproduce) and `FUN_0041A639`'s turn timer (which we do not).
+
+**And the fix is not the literal clause**, which is the part a careful reader gets
+wrong. Our turn model inverts the original's: its phase 4 *is* the interactive phase,
+with the human parked at `aiStep == 1` while the AI steps behind him; ours parks the
+player on the map with the machine at phase 1 and runs 1→7 inside one End Turn press,
+so between turns **every** realm's counter is already ≥ 999. A literal `ai_step < 999`
+draws no shields at all while the player is playing — the defect inverted. The exact
+mapping is the one `map.rs` already found for the End Turn caption:
+`turn::turn_in_flight` **is** the human's `aiStep >= 999`. `Realm::turn_done()` is the
+wrong instrument here for a different reason — it short-circuits on `is_human`.
+
+**What was built.** `l2_game::turn::realm_turn_ended` carries that mapping —
+between turns nobody has ended; inside one the person has, and each AI realm has
+when its own `ai_step` says so — and `draw_menu_bar` skips a realm on it. The slot
+now advances on every banner the loop *draws*, as `local_c` does, rather than on
+every frame that happened to load. The test that holds it
+(`screens.rs::the_menu_bar_shields_are_the_realms_still_to_move`) opens on the
+trap: every living realm's shield **must** be up during the person's own turn with
+every counter at or past 999, so the literal port goes red on its first assertion.
+Its expected pixels are built from `Screen_DrawMenuBar`'s own literals — frame
+`0x55 + shield`, `x = 0x10E + 0x10 * slot` — and never through the function under
+test. `FUN_0041A639`'s turn timer, the third reader of the flag, is
+C158.
+
+---
+
+**C153 — the `Industry` record base is county `+0x294`, and four
+bytes of Ghidra's guess invented an off-by-one that four places repeated.**
+
+`docs/draws-map.md` §5.5 says the four sidebar industry forecasts each read
+*"the record above the commodity its row is for"*, and that the wood row's
+`0x2F0` is *"one whole record past the end of a four-record array"* — either an
+off-by-one in the original or a wrong base in `docs/records.json`, unsettled, and
+named there as a prerequisite that is *"its own job"*. It is the second, the row
+in question is stone rather than wood, and there is no off-by-one anywhere.
+
+**The base is `+0x294`, stride `0x18`, four records closing exactly on `+0x2F4`.**
+`docs/records.json` says `+0x290` and is four bytes low. Its *absolute* offsets are
+all correct, because its field offsets are compensatingly `+4` — which is why the
+error never fired anywhere but here, where a fifth field exists that the short base
+cannot hold.
+
+Three readings settle it and none is a document's:
+
+* **The span.** Every raw county address in the decompilation used with a `*0x18`
+  stride is one of ten, `0x53fc44 … 0x53fc58`; against `g_counties = 0x0053F9B0`
+  those are county `+0x294 … +0x2A8`, and the last is four bytes wide. `0x2AC −
+  0x294 = 0x18` — **the observed field set spans exactly one stride, with no slack
+  at either end.** A base of `0x290` cannot hold `+0x2A8 + c*0x18` at all. This is
+  a self-verifying invariant in the instruction stream and needs no save to run.
+* **The array's end.** `levySurcharge` is at `+0x2F4`. Base `0x294` ends the array
+  exactly there; base `0x290` ends it at `0x2F0` and leaves a four-byte unnamed hole
+  which is **precisely the word the stone row reads**. The hole was the evidence for
+  the overrun, and the hole was the wrong base's own footprint.
+* **`records.json`'s own comment refutes itself.** It reads *"The 0x18 stride is
+  confirmed by the byte quad at `+0x04..+0x07` repeating at county `0x294`,
+  `0x2AC`, `0x2C4` and `0x2DC`."* Those four addresses **are the four record
+  bases.** The measurement was right and was written down against the wrong base.
+
+The two ends agree with no residue. **Painter side:** the four `Ui_DrawDelta`
+operands are county `0x2A8`, `0x2C0`, `0x2D8`, `0x2F0` — an exact arithmetic
+progression of `0x18`, one per commodity, each `record[c] + 0x14`, drawn by
+`FUN_0041062E` wood, `FUN_00410502` iron, `FUN_004106C4` weapons, `FUN_00410598`
+stone. **Producer side:** `Industry_LabourEstimate`'s tail writes
+`*(int *)(county * 0x300 + 0x53fc58 + industry * 0x18)` — the same expression — and
+`County_RefreshEstimates` passes the commodity index. So every row reads **its own
+commodity's own record**, and `Industry::next_season` is the record's last field at
+`+0x14` rather than, as C136 put it, *"the head word of record `c + 1`"*. C136's
+arithmetic was right; its sentence about the layout was not.
+
+**County `+0x290` is not in the array.** It is the standalone `weapon_type` byte —
+C136 established that from `&g_weaponCost + county[+0x290]*8` and `FUN_004106C4`'s
+frame — and Ghidra swallowed it into `industry[0]`. That one absorbed byte is the
+entire origin of the "record above" story, which then propagated into
+`docs/records.json`, `docs/draws-map.md` §5.5,
+`l2_kingdom::county::Industry::next_season`'s doc table and
+`l2_game::screens::county`'s header, none of which had looked at it again.
+
+This is `CLAUDE.md`'s `[V]`-is-a-claim warning arriving for the **third time this
+week in `docs/draws-map.md`** — after C135 (three painters named in the wrong order)
+and §5.13 (a row right and stale). C124's lesson was aimed at `docs/formats/`; the
+campaign-map audit has now earned the same warning, and the pattern is that a
+document assembled from decompiler output inherits the decompiler's struct guesses
+without ever saying that is what they are. **A Ghidra field name is not evidence.
+The instruction's operand is.**
+
+**A fourth reading is the original's own saves, and it is the one that runs.**
+`crates/l2-scenario/tests/import/main.rs` computes, for every county of every save on
+this machine, the number `Industry_LabourEstimate` writes from **record `c`'s**
+guards and workers, and requires county `+0x2A8 + c*0x18` to hold exactly it:
+**1,152 forecasts, 81 non-zero, and 343 where record `c + 1` would have given a
+different number** — siege-lastturn county 4 stores 74, which is 93 woodcutters at
+80%, not iron's 92 at 80% = 73. Stone is switched off in every save, so its word is
+only checked at zero; that is the corpus's limit, not the reading's. Putting the
+importer's base back to `0x290` turns it and two older tests red.
+
+**The rows were drawn from the right field and a loaded game drew none of
+them.** `ebf8dd5` draws all four from `c.industry[commodity.index()].next_season`,
+and because our `Industry` is a plain struct indexed by commodity, the bad base
+could not reach the value — *that* part of the hand-off's worry was unfounded. But
+nothing filled the field on load: the importer did not read the word, and the
+estimate round that writes it runs at the end of a season. Measured on England
+turn one before the fix: fourteen counties, fifty-six forecasts, **all zero**,
+which `Ui_DrawDelta` with `mode == 0` draws as nothing. This is C142's defect
+exactly — fixed at the producer, never at the load — and it is fixed the same way:
+`l2-scenario` now reads `+0x2A8 + c*0x18` into `Industry::next_season`, for C142's
+reason that the original restores a memory image and does not recompute on load.
+`a_loaded_game_draws_each_industry_rows_own_forecast_on_its_first_frame` asserts
+the file's own number in the wood row's own band, and four distinct numbers each in
+its own row. No save-format change: `next_season` is already carried.
+
+**Not fixed, and the same shape:** the three farm rows' forecasts —
+`herd_change_expected`, `grain_change_expected`, `reclaim_fields_finishing`, county
+`+0x258`, `+0x22C` and `+0x20C` — are also zero on England's first frame, measured
+in the same probe. Each needs its own invariant against the saves before it is
+imported, and none was written here.
+
+**And the Ghidra database still carries the old layout.** `ApplyRecords.java` has
+not been re-run, so `tools/oracle/decomp/` will go on printing `industry + 1` for
+wood's forecast until somebody does; the decompilation is where this error started
+and it is the one place the correction has not reached.
+
+---
+
+**C154 — Building while the game is open: the launcher had
+never launched the game, and the free fix protected only builds that follow a commit.**
+
+The player, twice: *"game is closed. You cant rebuild with it open?"* Then the
+requirement, once it was put plainly: *"we should be able to build new versions while
+I have it open, and that the desktop icon should always open the newest version."* Two
+promises, and both of them say *always*.
+
+**What Windows refuses is not the link [V].** rustc links into `deps/` without
+complaint. Cargo's last step removes `target\debug\l2-game.exe` to put the new one in
+its place, and a running image cannot be removed: *"error: failed to remove file
+`…\target\debug\l2-game.exe`"*, then *"Access is denied. (os error 5)"*, exit 101. It **can**
+be renamed, and a fresh exe then lands on the original path while the old process runs
+on from the renamed image. Every lock below is a hidden `PING.EXE` copied onto the path
+under test, which locks the file exactly as a running game does and opens no window.
+
+**Three mechanisms, measured, and they are not substitutes for one another:**
+
+| mechanism | which builds survive a running game | always the newest? | cost |
+|---|---|---|---|
+| **`tools/run/play.cmd`** — build, then run a *copy* | every one, because nothing it starts ever locks the build output | **yes**: it builds first, and a failed build launches nothing | one 19 MB copy per launch |
+| `build.rs` moves a locked exe aside (the default) | only a build that follows a commit, checkout, rebase or `git add` | — | nothing |
+| `L2_ALWAYS_UNLOCK=1` — that move before every link | every one, even with the exe run directly | — | **every** build recompiles `l2-game`: 2.6–3.2s against 0.17–0.21s for a no-op |
+
+**The middle row is the trap.** `build.rs` watches only the git directory's `HEAD` and
+`index`, and emitting any `rerun-if-changed` replaces cargo's default, so an ordinary
+edit relinks the binary without rerunning the script. Measured on a clean fingerprint:
+locked exe, one touched source file, plain `cargo build -p l2-game`, **exit 101**. The
+same lock with the switch: moved aside, exit 0, and the stand-in still running from the
+renamed file. So the default is a safety net rather than an answer, and the switch is
+a tax paid by every agent and every `cargo test --workspace` for good, to cover the
+minutes somebody has the game open. **The launcher is the primary mechanism** —
+`docs/environment.md`, *Building while the game is open*.
+
+**What was wrong in what had been written, every item of it stated confidently:**
+
+1. `build.rs` said *"This is cheap and it is not a rebuild … Measured, not assumed"*,
+   six lines below the paragraph that refuted it. It was deleted on `wip/build-unlock`,
+   whose commit message records how the first deletion had silently failed.
+2. *"5 to 7 seconds against 0.19"*, in two files. No repeated build reached 3.2s.
+   **7.03s does reproduce — as the first build after an edit to `build.rs`, which
+   recompiles the script too.** One early observation of a different event had been
+   quoted as the price of every build.
+3. *"every build sweeps every `l2-game.old-*.exe` … collected on the next build after
+   the player quits."* A sweep runs when the script runs, which is the middle row of
+   the table: not every build.
+4. **The launcher could not pass an argument.** `play.ps1` declared `[CmdletBinding()]`
+   and ended in `& $copy @args`, and an advanced script has no `$args`. Every argument
+   was a binding error before the build even started: *"A positional parameter cannot
+   be found that accepts argument 'F:\games\Lords of the Realm II'"*. `l2-game`
+   requires a game directory, so **the launcher had never launched the game** — and it
+   was one message from being handed to the player as a desktop-shortcut line.
+   `docs/plan.md` §3.1 already says it: *a development tool that is quietly broken is
+   worse than one that is absent.* This one would have failed at the exact moment it
+   was meant to prove itself.
+5. And one of this branch's own, caught before it landed: *"the link fails"*, written
+   into both files before the error had been read. The error names cargo's remove step.
+
+**A measurement trap worth keeping [V].** A build with `L2_ALWAYS_UNLOCK=1` leaves its
+non-existent `rerun-if-changed` path in the unit's stored output, and cargo goes on
+rerunning the script until a build *without* the switch re-emits a clean set. The first
+"default" measurement on this branch was taken straight after a switched build: it
+reran the script, moved the exe aside, succeeded — and was a measurement of the switch.
+**The fingerprint is whatever the last run of the script emitted.** Flush it with a
+plain build before measuring the default.
+
+**The whole loop, end to end, through `play.cmd` [V].** The game was only ever run
+with `--help` (usage, exit 2, no window), pointed at a directory that does not exist
+(which `Vfs::push_layer` rejects before any window), or replaced by the hidden stand-in.
+Hashes are SHA-256 prefixes, from the code as committed.
+
+| step | result |
+|---|---|
+| edit, then `play.cmd --help` | exit 2, *"playing l2-game-live.exe"*; the copy is the fresh build (`2DE219…`), not the one before it (`DB8C56…`) |
+| the same in a hidden real console, no redirection — how a shortcut runs it | exit 2 |
+| a game held open *by the launcher*: `play.cmd -NoBuild -t 127.0.0.1` over the stand-in | `l2-game-live.exe` locked; `target\debug\l2-game.exe` **not** locked |
+| while it runs: edit, `cargo build -p l2-game`, `cargo test -p l2-game --test press` | both exit 0, and no `l2-game.old-*` appeared — the rename played no part |
+| edit, `play.cmd --help` again, the first game still running | exit 2, *"playing l2-game-live-1.exe"*; that copy is the build the launcher just made (`89C434…`), not the previous output (`509F4B…`) |
+| a compile error, then `play.cmd --help` | exit 101, *"build failed - not launching."*; no copy made and every file's hash unchanged |
+| stop the first game, then `play.cmd --help` | the launcher exited with its game; the next launch swept both old copies and ran a fresh `l2-game-live.exe`, identical to the build output |
+| a `.lnk` holding the shortcut line, run exactly as stored, with a game directory that does not exist and has spaces in it | built, launched the copy, and the game's own error named the whole path intact — run from the repository and from `C:\Windows\Temp` alike, so *Start in* carries nothing |
+
+**Why the stale file is renamed rather than the new one versioned.** Linking
+`l2-game-<hash>.exe` would work, and it would break every shortcut already aimed at
+`target\debug\l2-game.exe`. Renaming the *stale* copy leaves that path — and every
+shortcut on it — exactly as it was.
+
+**No test for either sweep; a shape instead.** Each sweep was two literals that had to
+agree: the name `make_room_for_the_link` gives an exe it moves and the prefix its sweep
+deletes; the names `play.ps1` copies to and the filter its sweep removes. The way
+either goes wrong is those two drifting apart, and **that failure is silent on both
+sides** — `build.rs`'s warning counts files it *failed to delete*, and a drifted pattern
+fails to *match*, so the count stays at zero while the copies pile up. Each side now
+derives both from one constant, so the drift cannot be written (`docs/agents.md`,
+*Prefer a shape that cannot be wrong to a check that notices when it is*). The
+behaviour that is left was observed rather than tested: in `build.rs` a moved copy was
+collected on the first rerun after its process exited; in the launcher a copy still in
+use survived its sweep, the next launch took `-1`, and once the game had exited the
+launch after that swept both. **[I]:** a test would have had
+to fake a Windows image lock inside a build script under cargo, and could have caught
+only the drift the constant removes — reasoned, not tried.
+
+---
+
+**C155 — The blank sign column is four pixels wide in `Ui_DrawText` and zero pixels wide
+in the measure, and the tree documents the wrong function for both.** **[V]**
+
+`crates/l2-game/src/shell/font/mod.rs`'s `SPACE_ADVANCE` doc says *"`FUN_004014F0`
+special-cases `' '` before the table lookup and adds 4; `Glyph_Draw` adds nothing
+at all for a zero entry, which is what makes `'@'` an invisible sign column that
+still occupies its place in a column of numbers."* The conclusion is right and
+the mechanism is not, and the two halves of that sentence contradict each other.
+
+`Ui_DrawText` (`0x00402637`) **never calls `Glyph_Draw`** for a glyph-less
+character:
+
+```c
+local_c = local_c - 0x20;
+if ((&g_glyphWidths)[local_c] == '\0') { local_14 = 4; }   /* not Glyph_Draw */
+...
+g_drawX = g_drawX + local_14;  g_penAdvance = g_penAdvance + local_14;
+```
+
+So **every** zero entry — `' '`, `'@'`, `'` — advances four when drawn.
+`Glyph_Draw` (`0x00402A14`) does return 0 for a zero entry; it is simply not on
+the path. The **measure**, `FUN_004014F0` (`0x004014F0`), is the one that
+distinguishes them: it adds 4 for `0x20` alone and **nothing** for any other zero
+entry. A string containing `'@'` therefore draws four pixels wider than it
+measures, which matters only where the original centres.
+
+### `Ui_DrawCount` has no lead argument, and `Pen::count` had one
+
+**`Ui_DrawCount` (`0x0041AB67`) hard-codes `'@'` and an empty suffix** —
+`Ui_DrawNumber(value, '@', &DAT_004D41F4, x, y, font, colour)`, and `0x004D41F4`
+is a NUL read out of the shipped `Lords2.exe` at file offset `0xD23F4` (the run
+from `0x004D41F0` is `20 00 00 00 00 00 00 00`, so `Ui_DrawYear` style 3's suffix
+is one space and `Ui_DrawCount`'s is empty). **[V]**
+
+`Pen::count` took a `blank_lead: bool` and passed it to `Pen::number`, which maps
+`true` to *no lead* and `false` to a space, and hard-codes a trailing `" "` either
+way. Both answers were wrong, in opposite halves:
+
+| our flag | sites | what it drew | where it was wrong |
+|---|---:|---|---|
+| `true` | 11 | `"1000 "` — no lead, invented space | **the digits four pixels left**; the noun right by coincidence |
+| `false` | 6 | `" 1000 "` — lead, invented space | the digits right; **the noun four pixels right** |
+
+The eleven include **the campaign menu bar's treasury**, which drew its digits at
+`x = 500` where `Screen_DrawMenuBar` (`0x00419C78`) and `Ui_DrawCount` put them at
+504 — C127's defect, unfixed at the one number a player looks at every turn. The
+lost lead and the invented suffix cancel at the **noun**, which is why nothing
+looked wrong.
+
+**Fixed.** `Pen::count` no longer takes a lead: `shell::COUNT_LEAD` and
+`shell::COUNT_SUFFIX` carry `Ui_DrawCount`'s own, and `Pen::count_with_noun`
+takes a noun already chosen, for callers that keep an English fallback. All 17
+`Pen::count` sites, and five more that had built `Ui_DrawCount`'s two draws by
+hand, now go through it:
+
+* `army.rs`'s treasury (`0x00417A80` area) and `job.rs`'s worker count — digits
+  four left, as `true` was;
+* `siege.rs`'s *N Seasons* (`Screen_SiegePrep`, `00420000.c:674`) — noun four
+  right, as `false` was. The sentence's tail still lands at `0x50` plus the
+  count's width, because the original saves `g_penAdvance = 0x30` across the call;
+* `armoury.rs`'s troop count, `&g_fontHeading` — digits **and** noun four left,
+  built as `"{held} {noun}"`;
+* `battle.rs`'s two totals, `FUN_004224E7`'s `Ui_DrawCount(menTotal, 0x48, …)` —
+  **upper-cased** the group 8 noun, so *"Total men"* was a line of `Fntl2_14.pl8`
+  blackletter capitals, the illegibility a player reported of the title screen.
+
+And one `Ui_DrawNumber` beside them: `UnitPanel_Draw`'s moves left,
+`Ui_DrawNumber(left, '@', &DAT_004D4228, 0xF8, …)` with `DAT_004D4228` a NUL
+**[V]**, now `Pen::number_in` with its own lead and suffix.
+
+**The fallback font had to learn `'@'` first.** `crates/l2-view/src/text.rs` drew
+a real at-sign for it, so a `Pen` passing the original's lead would have printed
+`@1000 Crowns.` on an install with no `Fntl2_*.pl8`. It is now `BLANK` and still
+advances its cell.
+
+### The court was drawn in the wrong face
+
+`Court_Draw` (`0x00416925`) passes **`&g_fontHeading`** to all four store values —
+`Ui_DrawCount(gold, 0, 0xE0, 0x72, …)` and `Ui_DrawNumber(iron|stone|wood, ' ',
+" ", 0xE0, y, …)` — beside labels that are also heading. We drew the values in
+body, and the three materials with no lead. The suffixes are `&DAT_004D3F8C`,
+`…90`, `…94`, each one space **[V]**. `shell::Face` exists so that a count can say
+which face its call site names; `Pen::count_in(Face::Heading, …)` and
+`Pen::number_in` carry it.
+
+### Tests, each ablated
+
+* `chrome_text::the_treasury_s_digits_start_one_sign_column_right_of_ui_drawcount_s_x`
+  — the digits found **on row 6** in `Fntl2_14.pl8` at **504**, and *"Crowns."* at
+  `504 + width + 4` = **547**. Every expected number is a literal from the three
+  functions, not a constant of ours. Ablated: the old `"{value} "` string → digits
+  found at **500**; `COUNT_SUFFIX` → `" "` → noun found at **551**.
+* `chrome_text::the_court_s_stores_are_drawn_in_the_heading_face_at_court_draw_s_x`
+  — gold and iron found in `Fntl2_22.pl8` on rows `0x72` and `0x90` at `0xE4`.
+  Ablated: `Face::Body` → **not found**.
+* `l2_view::text::tests::the_at_sign_holds_a_column_and_paints_nothing` — `"@1"`
+  equals `"1"` drawn one cell right. Ablated: the bitmap restored → the first
+  cell paints.
+
+The row-pinned search is deliberate: a whole-canvas search returns the first
+match in raster order, and a short number is usually a digit inside some other
+number higher up.
+
+### Measured and not fixed
+
+**`Ui_DrawCount`: 80 call sites, not 81.** 80 `CALL 0x0041AB67` in the shipped exe
+and 80 call lines in the decompilation. `docs/draws-map.md` §5.12 said 81 and a
+brief quoted it. **Faces: 78 body, 2 heading** — 70 name `&g_fontBody` at the
+call, 8 are inside `FUN_004224E7` whose three callers all pass `&g_fontBody`, and
+the two heading ones are the court and the armoury above. Our 22 reproductions
+account for about 26 of the 80 original calls; the other ~54 — the county job
+and farm panels (`00410000.c:1092–1420`), the tile panel's rows (`4649–4982`), the
+message scrolls (`00470000.c:2087–2300`) — were **not traced** to a draw of ours
+in this pass. **[I]** that they share the defect wherever we draw them by hand.
+
+**`Ui_DrawNumber`'s suffixes, which C127 swept the leads of and not these.**
+Every suffix pointer resolved to its bytes in the exe:
+
+| lead | suffix | calls |
+|---|---|---:|
+| `' '` | `" "` | 76 |
+| `'@'` | `""` | **37** |
+| `'@'` | `" "` | 20 |
+| `' '` | `" %"` / `"%"` | 6 / 5 |
+| `'@'` | `"%"` | 5 |
+| `' '` | `"- "` | 5 |
+| `'('` | `")"` | 3 |
+| computed | computed | 4 |
+| `' '` | debug captions — `" h1"`, `" Dchk"`, `" divergances"`, … | 29 |
+
+190 parsed, against **211** `CALL 0x00402F64` in the exe — 21 the corpus parse did
+not reach, unexplained. Faces: 117 `&g_fontBody`, **44 `&g_font8`**, 13
+`&g_fontHeading`, 3 `&g_fontSmall`, 2 `&g_font10`, 11 passed through. **`g_font8`
+is a fourth face at 44 sites and this workspace loads three**; which file it is,
+and which screens, is not established.
+
+**Our `Pen::number` is unchanged: 25 sites, 19 `true` and 6 `false`,** still
+dropping `'@'` and still inventing `" "`. By the census, `'@'` is the lead at 62 of
+190 and the empty string is the suffix at 38. Each needs its call site read,
+because a caller that chains a sentence off the return moves when either changes.
+`Pen::number_in` is the shape.
+
+* **`Font::width` charges 4 for `'@'` where `FUN_004014F0` charges 0.** Only
+  visible under centring; no centred draw of ours passes `'@'` — by search, not by
+  test.
+* **`UnitPanel_Draw`'s year formed is `Ui_DrawYear(…, style 0)`**, which appends
+  `L2.eng` group 26's *"AD"*; `info.rs` draws the bare number. Rule 6.
+* **`battle.rs`'s roster rows still upper-case their troop nouns** — the same
+  blackletter capitals the totals had.
+
+**The reports that started this were stale.** *"Still placeholder font in the top
+right for gold and summer"*, the illegible build stamp and the illegible title
+were all fixed by `c06b13b`; all four render correctly at `5338fe7` and were
+looked at. `build_id.rs` exists to make that checkable from a screenshot — read
+the stamp off the report before writing the brief.
+
+**Superseded by C157, below:** *"Our `Pen::number` is unchanged"* was true when written.
+The method is now deleted, and each of its 25 sites has been read against its original.
+
+---
+
+**C156 — The click is two sites, not four.**
+
+**Written in two sittings with a restart between**, and the second sitting
+compiled, wired and tested what the first could only record. The evidence below
+was `[V]` from the start; the click it was written for now sounds, and
+`tests/click.rs` asserts when it does not.
+
+`docs/audio-triggers.md` closes with a correction it is proud of:
+
+> *"The pointer click is not one call site behind one hit-tester. It is four,
+> behind three … whoever builds the shared widget layer has **three** functions
+> to reconcile, not one."*
+
+**It is two, behind one.** `FUN_0040D6AD` and `FUN_0040D7B8` — the other two
+sites — are the decrement and increment arrows of a **slider widget that the
+shipped game never instantiates**. Their only caller is `FUN_0040D3F5`, the
+slider's hit-tester, whose sibling `FUN_0040D271` is its painter
+(`g_systemSheet` frames `0x4A`, `0x4B`, `0x4C` — two arrows and a thumb).
+**Nothing in `Lords2.exe` calls either.** `[V]`, from the player's own
+executable:
+
+| scan over the image | `FUN_0040D3F5` | `FUN_0040D271` | control: `Widget_Test` |
+|---|---:|---:|---:|
+| `E8` rel32 CALL, all of `.text` | 0 | 0 | **36** |
+| `E9`/`EB`/`0F 8x` jumps, all of `.text` | 0 | 0 | — |
+| absolute dword, whole image | 0 | 0 | 0 |
+
+**The control is the point.** `Widget_Test` has 36 callers and scores zero on the
+absolute scan, because this binary calls with `E8` rel32 — so a bare
+absolute-address scan finding nothing is not evidence of anything. Run the
+control, every time.
+
+Two lessons, and the second is the one worth carrying:
+
+* **A correction is a claim and inherits every obligation a claim has.** This one
+  replaced a true sentence — *"one call site, because the whole game shares one
+  hit-tester"* — with a false one, and it was more confident than what it
+  replaced. `CLAUDE.md` rule 4 does not exempt the correction log.
+* **Counting call sites is not counting reachable call sites**, and
+  `docs/audio.json` had no way to say so, because its `dead` column was asserted
+  empty. That assertion is right to exist — a bucket that fills quietly stops
+  being a finding — and these are the first two entries it should cost a decision
+  to add.
+
+A detail worth keeping even though the widget is dead: inside `FUN_0040D3F5` the
+**two arrows click and the thumb drag does not** (`FUN_0040D5A0` is gated on
+`g_mouseLeftDown` and plays nothing), which is the same rule `docs/input.md` §5
+already records for drags.
+
+**And what the click actually is**, which `docs/input.md` §5 had right all along
+and `docs/audio-triggers.md` did not: `Sound_RestartSlot(1)` — `click3.wav`, slot
+1 of *both* banks — from `Widget_Test`'s **kind-4** and **kind-5** arms, both
+guarded by `g_mouseLeftPressed || g_mouseLeftDoubleClick`, **on the initial press
+only**. The auto-repeat's later pulses are silent, kind 2's toggle is silent, and
+`Hotspot_Test` and `Ui_OkButtonClicked` — the majority of the interface — are
+silent. `[V]`, `0x0040DA1E`. Getting that wrong is audible in a way the trigger
+count cannot see: a spinner that clicks thirty-three times a second is the same
+"one reproduced trigger" as one that clicks once.
+
+**The blocked 55, with the second column**, because it is the part that dies
+otherwise. Weights are distinct install `.wav` files each group can reach:
+battlefield 25 sites / ≤17 files (the 66 troop-cry files are filed `missing`, not
+blocked); Smacker 8 / ≈0 new; sibling voice tables 6 / ≈32; the field brush 5 / 3;
+**the hit-tester 4 / 1, of which 2 are dead**; the battle verdict 2 / 1; the two
+delegated painters 2 / 0 new; **the chained takes 1 / 27**; the mercenary offer
+1 / 12; the lord sting 1 / 4. The group to take next is the **chained takes** —
+one site, 27 files, the largest files-per-site ratio in the inventory, and both
+halves of what it needs already exist in shape (`Mixer::is_playing`, and a
+`Director` that already keeps per-tick memory).
+
+**That proposal was wrong about its blocker, and reading the call site showed
+why.** `FUN_004B3ACD` has one caller — `Msg_DrawWindow`'s categories
+`0x05`…`0x09` branch — and its cursor is reset in one place, `Tip_Show`. Those
+categories are the **tip screens**, and `Tip_Show` is the only function in the
+original that posts one. Our engine posts none. So the chain is not blocked on a
+cursor; it is blocked on a screen, and **it took a reproduced claim down with it**:
+`Msg_DrawWindow#24`, the same branch's first line, had been `reproduced` since the
+narrator landed, and thirteen tip clips were in the *"543 reachable"* because a
+name-driven loop resolved their names. Both are corrected — 51 of 143, 560 of 771.
+
+The lesson is the one `docs/audio-triggers.md` already carried about the ninth
+primitive, pointed the other way: **a count measured by resolving names measures
+the names.** The test that produced 543 drove `message_voice` over every group
+in the bands, which proves a file exists for each and says nothing about whether
+the game can post the message. Only the tip band has been checked; the rest of
+the 530 has not been re-audited against what actually posts.
+
+Two smaller corrections from the same reading: the chain was said to be *"why
+`S010_13.wav` exists"*, and that clip is `g_msgVoiceS010`'s; and the lord sting's
+table at `0x004E2470` holds four clips and a sentinel, not five lords.
+
+---
+
+**C157 — The original preloads five faces, and the fourth draws nothing a player sees.**
+
+**`g_font8` is `Fnt_8.pl8`, and every use of it in the binary is a developer
+read-out.** So no draw of ours was switched to it. **[V]**, from the bytes.
+
+* **The loader.** `Res_LoadStatic` (`0x00499859`) hands record `n` of
+  `g_preloadTable` (`0x004D9F48`, twenty-byte `{name[16]; size}`) to
+  `File_ReadChunk`. Record 3, at `0x004D9F84`, is `"fnt_8.pl8"` with a size of 5,200.
+  The arm that selects `&g_font8` for `n == 3` is `C7 45 FC B0 BF 5C 00`,
+  `mov [ebp-4], 0x005CBFB0`, at `0x004998ED`.
+  `tests/shell.rs::the_preload_table_names_every_face_and_record_3_is_g_font8`
+  asserts both.
+* **The uses.** `.text` holds 86 four-byte references to `0x005CBFB0`. One is
+  that loader line. The other 85 are all `push` operands, inside six functions:
+  `Net_DrawDebugOverlay` (`0x00423BA4`), `BattleDebug_Panel` (`0x00424992`),
+  `FUN_00425314`, `FUN_00425487`, `FUN_0042563C` and `FUN_00425799`. Their
+  captions are `" divergances"`, `" Dchk"`, `"FIGURE"`, `"GROUP"` and
+  `" p1 rank"`. The decompilation agrees: 85 lines in `00420000.c`, one in
+  `00490000.c`. `symbols.json`'s *"the battle overlay"* is half of it; the
+  network overlay is the other half.
+* **Loaded anyway.** `ShellAssets::eight` and `shell::Face::Eight` exist, and
+  `missing_fonts` names `Fnt_8.pl8`. The one-baseline test runs over it, and it
+  holds (all 150 frames have `0x0D == 0`, so the test's overhang-split half does
+  not apply).
+
+### The brief said four faces. The preload table has five.
+
+Records 3…7 are `fnt_8`, `fntl2_9`, `font_10`, `fntl2_14`, `fntl2_22`.
+**`Font_10.pl8` (`g_font10`, `0x005AEBA0`) is still not loaded**, and unlike
+`g_font8` a player sees it. Its nine `.text` references are
+`FUN_004100AF`, `FUN_0041023A`, `FUN_004103C5` (two), `FUN_00410502`,
+`FUN_00410598`, `FUN_0041062E`, `FUN_004106C4` and
+`CountyStrip_DrawCastleIcon`: the county strip's produce rows and castle cell.
+`screens::county::strip_delta` draws them in `Fntl2_9.pl8` and says so.
+
+It was not loaded here for a measured reason. Pointing `font::EIGHT` at
+`Font_10.pl8` made the baseline test panic: a lowercase letter drew nothing
+through `GLYPH_MAP`. The file is 3,342 bytes, and `pl8.md` counts 7 of its
+frames as declaring rows. **[I]** It is not an alphabet under the shared table,
+so loading it starts with reading `Glyph_Draw` against that file.
+
+`g_fontSmall`'s nine references include one outside the strip:
+`Screen_DrawEndTurn`'s `Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall,
+0x16)`. So `symbols.json`'s *"the county strip, and nothing else"* is wrong by
+one. It is not edited here, and `docs/screens-county.md` §4 now carries all three
+rows with their reference counts.
+
+### `Ui_DrawNumber`'s 21 unexplained call sites are unreachable code **[V]**
+
+There are 211 `CALL 0x00402F64` in the shipped exe and 190 parsed calls in the
+corpus. The 21 missing calls come in two groups.
+
+* **10 are in `Diplo_DrawLordCard`, past where Ghidra ends it.** Ghidra's body
+  stops at `0x004175F2`. The code at `0x004175ED…0x00417896` follows an
+  unconditional `jmp 0x00417896` at `0x004175E8`, which is the function's own
+  epilogue.
+  * Every call has lead `' '`, `&g_fontBody` and colour `0x20`.
+  * Suffixes: `"t"`, `"p"`, `"m"`, `"r"`, `"s"`, `"a"`, `"o"`, `" ranked"`,
+    `" strength"`, `" ally"`.
+* **11 are in `Screen_DrawMenuBar` (`0x00419C78`), in three blocks.** The
+  entry path skips all three: `jmp 0x00419D88` → `jmp 0x00419E22` →
+  `jmp 0x00419ED4`.
+  * Every call has lead `' '`, `&g_fontBody` and colour `0x3F`, at y 1 to `0x22`.
+  * Suffixes: `" b phys"`, `" free"`, `" b page"`, `" free"`, `" mb virt"`,
+    `" mb free"`, `" time"`, `" crc"`, `"end"`, `"test"`, `"max players"`.
+
+No `rel32`, `jcc32` or `rel8` branch anywhere in `.text` targets `0x004175ED`,
+`0x00419C86`, `0x00419D8D` or `0x00419E27`. No absolute copy of any of those
+four addresses exists anywhere in the file. So the corpus's 190 is the whole
+live population, and the decompiler was right to leave the 21 out.
+
+### `Pen::number`'s 25 sites, each read — and the method deleted **[V]**
+
+Every suffix pointer was resolved to its bytes in the image.
+
+| site | original | lead, suffix | what was wrong → what moved |
+|---|---|---|---|
+| `armoury.rs` rack count | `Armoury_DrawRacks` | `'@'`, `""` | no lead: digits +4 |
+| `army.rs` population, levy | `Screen_RaiseArmy` | `'@'`, `""` ×2 | digits +4 |
+| `army.rs` happiness | 〃 | `'@'`, `""` | digits +4; **face icon unchanged** |
+| `army.rs` price, wages | 〃 | `'@'`, `""` ×2 | digits +4; **both nouns unchanged** |
+| `army.rs` weapon total | 〃 | `'@'`, `""` | digits +4; **noun unchanged** |
+| `castle.rs` stone, wood | `Screen_CastleBuildPanel` | `'@'`, `""` ×2 | digits +4 |
+| `castle.rs` garrison | 〃 | `'@'`, `" "` | digits +4 **and** *"troops."* +4 |
+| `divide.rs` rows, band, parent total | `Screen_SplitArmyRows` | `'@'`, `""` ×5 | digits +4 |
+| `message.rs` room | `Msg_DrawWindow` | `'@'`, `" "` | digits +4 **and** noun +4 |
+| `message.rs` men | 〃 | `'@'`, `" "` | digits +4 |
+| `merchant.rs` stock | `Trade_DrawPanel` | `'@'`, `""` | digits +4; **icon unchanged** |
+| `merchant.rs` quantity | 〃 | `'@'`, `""` | digits +4 |
+| `army.rs` rack stock | `Screen_RaiseArmy` | `' '`, `" "` | already right |
+| `map.rs` year | `Ui_DrawYear` style 3 | `' '`, `" "` | already right |
+| `supplies.rs` ×2 | `FUN_0041AEA2` | `' '`, `" "` | already right |
+| `ratings.rs` score | `Screen_BattleMasterRatings` | `' '`, `" "` | **face**: heading, not body |
+| `info.rs` formed | `Ui_DrawYear` style **0** | `' '`, `" "` | **missing 26/1 *"AD"*** (rule 6) |
+
+**Counts: 21 fixed, 4 already right, and none of the 25 unexplained.** The
+fixes are 19 leads, 1 face and 1 era.
+
+**The pattern that hid it:** wherever the suffix is empty and text follows, the
+lost `'@'` and the invented `" "` cancel at the text. So the words sat right and
+only the digits were four pixels off. The two sites whose suffix really is
+`" "` moved their words too.
+
+`Pen::year` reproduces `Ui_DrawYear`'s four styles; all eight of its suffixes are
+one space. `Pen::number` is gone. A choice the original does not offer cannot be
+made correctly.
+
+**Found on the same screens while reading them, and fixed**, because they are
+the same defect built by hand:
+
+* `army.rs`'s band count was `"{men} "` in the heading face. It is `'@'`, `""`.
+* `siege.rs`'s engine percentage was `"{p}%"`, and its comment said no `Pen`
+  could carry the lead. It is `'@'`, `"%"`.
+* `divide.rs`'s daughter total was **two identical `text::draw_right` calls in
+  our 5 × 7 font**, in highlight ink. It is `'@'`, `""` in body.
+* `battle.rs`'s roster:
+  * The rows were `n.to_string()` with no lead. `FUN_004224E7` passes `' '`,
+    `" "`, so both columns move +4.
+  * The `"(was)"` column was drawn in `font::DISABLED`, where the original passes
+    `0x3F`.
+  * The nouns are no longer upper-cased.
+
+**`Font::width` charges `'@'` nothing** now, as `FUN_004014F0` does.
+
+The draw audit's `OURS` map loses `number` and gains `number_in`, `count_in`,
+`count_with_noun`, `text_in` and `year`. The old `number` key had also been
+counting `page.number()` in `setup.rs` and `index.rs`, which draw nothing.
+`draws-ours` goes 418 → 411.
+
+### Tests, each ablated
+
+| test | ablation | red with |
+|---|---|---|
+| `chrome_text::the_castle_s_garrison_and_its_noun_both_start_one_sign_column_right` | old `"{cap} "` | digits at 12, expected 16 |
+| 〃 | suffix `" "` → `""` | noun at 51, expected 55 |
+| `chrome_text::the_mercenary_price_line_moves_its_numbers_and_not_its_nouns` | old `"{price} "` | price at 112, expected 116 |
+| 〃 | suffix `""` → `" "` | *"crowns to hire."* at 164, expected 160 |
+| `chrome_text::the_unit_panel_says_the_year_an_army_was_formed_in_ad` | style 0 → 3 | *"AD"* not found |
+| `chrome_text::the_battle_master_score_is_in_the_heading_face` | `Face::Body` | not found in heading |
+| `shell::the_measure_charges_the_blank_sign_column_nothing_and_the_draw_charges_four` | `None => SPACE_ADVANCE` | 43, expected 39 |
+| `shell::the_preload_table_names_every_face_and_record_3_is_g_font8` | `EIGHT = "Font_10.pl8"` | record 3 is `fnt_8.pl8` |
+
+**Not tested on a canvas, and changed by reading alone:** `message.rs`,
+`divide.rs`, `merchant.rs`, `siege.rs`, `supplies.rs`, `armoury.rs` and
+`battle.rs`'s roster. The roster needs a pending battle report, and none of the
+fixture-gated suites builds one with fonts loaded.
+
+**Stale prose deliberately not edited:**
+
+* `docs/plan.md:135` still describes `Pen::number`.
+* `symbols.json`'s `g_font8` and `g_fontSmall` comments are incomplete, as above.
+
+---
+
+**C158 — The turn timer is a limit on the person's own turn, in single
+player too, and the guard two documents gave it was half of an `||`.**
+
+Found beside the shield row, which reads the same flag, and listed in C140 as one of
+`Ui_DrawNumberRight`'s undrawn sites. Nobody had reported it and nobody had asked what
+it was for.
+
+**What it is.** **[D]** unless marked. A time limit on the person's own turn. The
+setting is the custom game's *Time limit* drop-down, and the **single-player** page
+(`g_setupPage` 7, `FUN_0041F86D(999)`) draws it with the other eleven;
+`Setup_CommitOptions` turns the index into seconds through `g_timeLimitSeconds`;
+`Setup_DefaultOptions` picks *no limit* for one player and *4 mins* for a network game;
+`Campaign_LoadEntry` forces 0. So it is **not multiplayer-only and not a display** — a
+single-player custom game with a limit chosen has a countdown that ends turns — which is
+why this was built rather than routed to `docs/netcode.md`. Its network half (a
+2.5-second restart delay, a ten-second `Turn_End` resend) is not ported, and would be
+that document's to design.
+
+**What happens at zero.** `Turn_Tick`'s phase-4 arm (`0x0049A010`) recomputes
+`DAT_005440C8 = g_optTimeLimit − (timeGetTime() − _DAT_00568D9C) / 1000` and below zero
+writes −1 and calls `Turn_End` — the End Turn button's handler, which ends **the local
+player's** turn and nobody else's. A 30-second limit therefore ends the turn when **31**
+seconds have passed, and `0` is never drawn. `Turn_End` dismisses an open message; from
+the next frame `Screen_FrameInput` closes every screen whose arm carries the turn-ended
+guard. The count restarts on the first frame of the person's next turn, in the same arm.
+
+**Where it is drawn.** Not by a painter: `Battle_Frame` calls `FUN_0041A639` near the
+end of its tail. `Misc_cty` frame `0x60` at (404, 430), and
+`Ui_DrawNumberRight(DAT_005440C8, ' ', &DAT_004D41D0, 0x1A8, 0x1BA, 0x32, &g_fontBody,
+0x3F)`. `&DAT_004D41D0` is `" "` **[V]**, read from `.data`; the function centres
+(C119) and measures the whole buffer (C140), so it is `" 30 "` centred in fifty pixels.
+Which screens it is drawn over is `DAT_004D2E80[g_screenId] == 0`, seventy bytes read
+out of `.data` **[V]** with **one reader in the whole binary** — the timer's own
+vocabulary: the map and its insets yes, the pages no.
+
+**The guard was written down backwards.** C140's table row and `docs/draws-map.md` §5.11
+both gave it as `g_optTimeLimit > 0 && aiStep == 999`. The clause is
+`(DAT_0055403C < 1 || g_realms[g_localPlayer].aiStep == 999)`. `DAT_0055403C` is what
+`Turn_End` writes and the restart clears, so it is 0 through the person's own turn and
+the first half is what puts the timer up while he plays; the second half keeps the
+frozen number up after he ends it. A port of the documented guard draws a countdown only
+once there is nothing left to count. It is `docs/agents.md`'s *a true statement about one
+branch, promoted* — the branch this time being one operand of an `||`. §5.11 is
+corrected; C140's row is left for the integrator.
+
+**The trap is the one C152 found, and so is the mapping.** Our
+turn is the original's rotated, so nothing here reads `ai_step`. The person's
+`aiStep == 999` is `turn::players_turn_ended` — new, because `turn_in_flight` is also true
+for a battle raised on an ordinary frame, and `Turn_Tick` counts on under that prompt.
+
+**What was built.** `crate::turn_clock`: the countdown as a state machine over a `Frame`
+that reads nothing else, the screen table, and the two draws. `Machine::run_turn_clock`
+and `Machine::draw_turn_timer`, because the original's call sites are the frame loop;
+`MapScreen::update` carries the `Turn_End` out through the button's own `end_turn`,
+because only the map starts a turn here; the phase-2 pump clears the restart flag as
+`Turn_Tick` does before every assault. Session state on `Game` — not in the save, which
+is `Setup_StartGame`'s own behaviour on a load, and not in the digest. `docs/arms.json`
+`0x0049A010/turn-time-limit`; `docs/draws-map.md` 61 of 121.
+
+**A defect came with it, and it is reproduced.** The count runs *before* the restart in
+the same frame and the start is not moved while a turn runs, so ending a turn early and
+waiting on a slow one can end the next turn on its first frame. `docs/bugs.md`
+B99, **[I]** on reachability, and `docs/oracle-requests.md` §12
+is the thirty-second observation that settles it.
+
+**And a count in the inventory was high.** `docs/arms.json`'s
+`0x0042FF10/force-close-on-turn-end` said twenty-nine arms close; there are twenty-seven
+sites of the guard, twenty-six of which close. The timer makes that arm reachable in
+single player for the first time; the pop loop reproduces it for the interval between the
+clock's `Turn_End` and the map starting the turn, and the record stays `missing` for the
+turn itself.
+
+**Not reproduced**, each said in the module header: the count running on through the rest
+of phase 4 after the click, and the timer hiding during phases 1 … 3 — both artefacts of
+the rotation; the turn running behind a screen the guard does not close (ours waits for
+the map); `0x13` closed by the guard (ours would push it straight back);
+`FUN_004976A1`'s `+10` on an in-game load.
+
+**Tests.** Eight in the module, driven by `Frame` values alone; two through a whole
+`Machine` on the England fixture; one reading the table and the suffix out of
+`Lords2.exe`. Every expected literal is the decompilation's, not the module's. Seven
+ablations, each observed red: the guard as documented; the suffix emptied; the request
+deleted; the person's turn read off his `ai_step`; the pop loop deleted; `0x0B`'s byte
+zeroed; the restart moved above the count — which turns only the defect's own test red.
+
+---
+
+**C159 — the numbering tool skipped what it could not read, and its
+first run over `docs/bugs.md` found a duplicate on `main` that nothing had.**
+
+Merging six branches, the integrator closed three gaps in
+`tools/decisions/corrections.js` by judgement. Two branches had written their
+correction as a bare Markdown heading over its placeholder, which the tool did not
+recognise as an entry, and both were rewritten by hand. A branch had written a
+dead-code entry in `docs/bugs.md` with a `D` placeholder; the tool scanned for `C`
+and `B` placeholders only, so nothing reported it, and it became D39 by hand. And a
+branch's bug row, written as a placeholder, was invisible to `quirks_catalogue.rs`,
+whose parser accepted digits only: the branch was green, and two tests went red at
+merge the moment the row had a number. Assignment itself was `git grep -l | perl
+-pi`, while the tool's own failure message said it was *"one command per tag"*.
+**[V]**, all four, by reading the tool and the catalogue as they stood at `9cbd3af`.
+
+**The three are one mistake.** Each check matched the good shape and passed over
+everything else in silence, so a wrong shape was not a failure — it was an absence,
+and an absence passes. C146 vanished the same way (C147). And for a numbered log an
+invisible entry is worse than a missing one: the next free number is computed
+without it, so the next assignment collides with it.
+
+**What changed.** `docs/agents.md`, *The tool as it is*, describes the result; in
+short:
+
+* **Six series, each a *(log, letter)* pair** — D and C in `decisions.md`; B, N, S
+  and D in `bugs.md`. The D-series exists twice and the two are unrelated, so a `D`
+  placeholder takes its number from the log its entry is in. Every series is
+  duplicate-checked, and a placeholder of a letter neither log numbers is reported.
+* **A line shaped like an entry and not in its log's form is an error naming the
+  line**: a Markdown heading in `decisions.md`, the wrong heading level, a hyphen,
+  en-dash or colon for the em-dash, the em-dash double-encoded, a cell closed tight.
+  Prose that opens with a bold id — both logs have plenty — stays quiet.
+* **`--assign <TAG>`** takes the next free number in the tag's own series, replaces
+  it in the tree's bytes rather than its decoded text, and relocks. It refuses and
+  writes nothing when the tag is absent or undefined, when the tree holds a drag the
+  relock would accept, or when either log has a malformed entry line — so it never
+  numbers from a log it cannot fully read.
+* **`--check` reports placeholders last**, each with its defining line, its command
+  and the number it would take. The old order exited on a placeholder before the
+  lockfile rules ran, and before `--relock` could run at all, so a branch carrying
+  its own placeholder could neither verify nor regenerate its lock. **[V]**, from
+  the order of the old source.
+* **`quirks_catalogue.rs` accepts a placeholder as an entry**, so an unwired row
+  fails on its own branch, and `--assign` renames the `DISPOSITIONS` line in the
+  same pass as the document.
+
+**The duplicate.** Generalising rule 1 to every series failed on its first run:
+`docs/bugs.md` had two `B69`s — a §2.5 table row, *"whether you can order an attack
+depends on a figure index left over from another sweep"*, and the §2.10 heading on
+the siege repair bill. The catalogue read both and held one disposition for the
+pair, so it passed. **[V]** by `git log -S`: the heading arrived in `66d88a5`, the
+row about an hour later in `dd1918c`. The later arrival is now **B100** (B99 was taken by the turn timer's row by the time this merged), with its two
+citations, `battlefield.rs::update_hover` and the `Battle_UpdateHover` arm's note in
+`docs/arms.json`, and its own `DISPOSITIONS` row. The other nine `B69` citations
+name the repair bill and stay — eight by what they say, and `runner.rs`'s
+wall-collapse comment **[I]** by its subject, the wall-damage count that entry bills.
+`docs/agents.md` records the B-numbers as caught by the quirks catalogue; this one
+was not, because a join on ids cannot see two entries sharing one.
+
+**Ablated, every test**, by editing the tool or parser and running the file, and
+every ablation went red where its test says it will. Two results were not what the
+first draft of the tests' comments claimed, and the comments now say what happened:
+keying duplicates by id without the log fails all eleven tool tests rather than one,
+because every test tree carries D1 in both logs; and narrowing the placeholder scan
+to `C` and `B` still lists defined `D`, `N` and `S` entries, which come from the log
+parse, so only the stray-letter assertion and the dead-code assignment carry it. The
+one that matters most for the catalogue: with a placeholder row added to the real
+`docs/bugs.md` §2, the current parser fails, naming the probe's tag as a row
+*"DISPOSITIONS does not"* have, and the old digits-only parser passes.
+
+**What this does not do.** Citations are checked for C-numbers only; a `B69` that
+points at the wrong bug is still found by reading. The entry-shape check covers the
+two logs, so an entry written into some other document is caught only if it carries
+a placeholder. `--assign` numbers one tag per call. And the catalogue reads §2
+only, so a placeholder row in §3–§5 has no test to fail — there is no switch list
+for those sections to join.
+
+---
+
+**C160 — The tip screens are built — `crates/l2-game/src/tip/mod.rs` — and four things on file
+about them were wrong.** Each was a sentence a careful person would have built from.
+
+**One: the twenty frames are not "after a screen is first opened".** `docs/symbols.md`
+(`Tip_Update`) and `docs/formats/eng.md` §5.3 both said so. `DAT_004F0358` has exactly
+two writers, `FUN_00476A5D` and `FUN_00476E21`, so the delay is a **re-arm** — after
+start-up, after the toggle, and after every dismissal while `g_screenId` is `0x27` —
+and a screen opened with the counter at zero gets its tip on that frame. `[V]`
+`tests/tips.rs` counts the 21 ticks, typed.
+
+**Two: "once per game" is once per run.** `FUN_00476A5D`'s only callers are
+`App_WinMain` and `Opt_ToggleTipScreens`; `Game_NewGame` does not clear `g_tipShown`
+and neither does a load. So `Game::tips` is carried across the two places this engine
+replaces a whole `Game`. `[V]`
+
+**Three: a tip is not a window, it is a screen.** `Tip_Show` writes `g_screenId =
+0x27` and posts; the window follows only because `Msg_Pump` runs on `0x27`, and the
+screen underneath stops answering because `Screen_FrameInput` dispatches on the byte.
+`ScreenId::Tip` is that screen. The decompilation compares `g_screenId` with `0x27`
+only in `Msg_Pump`, `Tip_Show` and `FUN_00476E21` `[V]`, so it has no arm and no
+painter a comparison shows `[I]`.
+
+**Four: the OK button has no widget record.** The brief for this work said its
+gesture would come from one. `node tools/oracle/kinds.js` lists no record for
+`Msg_HandleInput` or `Ui_OkButton`, because the message scroll's corner is
+`Rect_Contains` round the last drawn `Ui_OkButton` on `g_mouseLeftPressed` — a
+**left press**, already `0x0047685D/message-ok-dismiss`. What was missing was the
+frame: `message::frame_of` has no row for categories `0x05`…`0x09`, so before this a
+tip window could not have been closed with the left button at all. Its corner is
+computed from the wrapped text — `message::paragraph_layout`, with
+`FUN_0040328E`'s own line breaking, `message::break_lines`.
+
+**The two arms the ladder could not see, resolved rather than approximated.**
+*Army movement* is `g_screenId 0x10`, written only by `Map_BeginMoveSelection`; ours
+is `MapScreen::move_order`, now askable as `Screen::mode_screen_id`. *Invasions* is
+`DAT_00553210`, set by `Unit_EnterCounty` — whose only caller is `Army_Tick` — when
+the county's owner is not the army's and the army's owner is `g_localPlayer`. The
+world half is reported by `l2-kingdom` as `units_tick::Incursion` at the crossing;
+the local-player half and the flag are `l2-game`'s. Nothing new is saved.
+
+**Three of fourteen tips cannot be posted, in the original either `[I]`.** 212, 214
+and 215 need `g_screenId == 0 && g_battlePhase == 2`; every `g_battlePhase = 2` write
+found sets `0x29` beside it, and `Msg_Pump` dismisses any message in phase 2. Built as
+written, and unreachable here too. Five shipped tip clips therefore stay silent.
+
+**And one defect of the game's**, reproduced: the invasion arm clears its flag before
+asking whether the tip was shown, so a crossing noticed on screen `0x27` loses the tip.
+`docs/bugs.md` B101.
+
+**Found and not this branch's to fix.** Every `Opt_Toggle*` row is a `Widget_Test`
+**kind 5** record in `kinds.js` (`0x004DDC10`…`0x004DDD18`, left-press-delayed), our
+options screen acts on the click, and none of the rows is in `docs/arms.json` — so
+the gesture is wrong and nothing counts it. And `0x00472E46/battle-phase-swallows-messages`
+is still `missing`.
+
+**What it cost the suite**, which is the finding about the suite rather than the
+tips: sixteen existing tests went red, in six files, because a new game now opens
+with three tips that hold the campaign map's input — faithfully — and every one of
+those tests ended a turn or ticked the map past frame 21. Each fixture now sets
+*Tip screens: No* explicitly and says why, rather than the phase mapping being bent
+to hide tips from a machine rooted on the campaign.
+
+Counts: arms, two frame arms `reproduced` (`0x00476AA7/tip-screen-ladder`,
+`0x00476E21/tip-restores-its-screen`); sound triggers **51 → 53 of 143**; files
+**560 → 595 of 771** — forty by name, thirty-five that can sound.
+
+---
+
+**C161 — "a stored field our importer drops" is now a red test,
+and the inventory that makes it one found 153 of 241 undecided.**
+
+C142 and C153 were one defect found twice by a player, with the
+farm-row forecasts measured as the third. Each field was stored by `Lords2.exe`,
+modelled by `l2_kingdom`, carried by our own save format, drawn by our painter —
+and never read out of a `.sav`. C142 named why the existing defence could not see
+them: **the exhaustive destructure guards `CountyState`, and a field never added
+to `CountyState` is not in the list it enumerates.** So the fix is not a fourth
+field. It is a denominator that belongs to the original.
+
+**The inventory.** `docs/stored-fields.json`, one row per field of the county and
+realm records: `imported`, `derived`, or `excluded` with a one-line `why`, and no
+fourth status. Its rows come from three places, and each is checked:
+
+* **The original's side** — `node tools/oracle/fields.js`, new, reads every
+  `g_counties[i].x`, `.field_0xNNN`, `i * 0x300 + 0x53fXXX` and absolute `DAT_`
+  access in the decompilation, and the same four shapes for `g_realms`, and lists
+  each offset with the functions that write and read it. **318 accessed offsets,
+  221 county and 97 realm**, plus three member names typed over the wrong array
+  that it reports and does not count. `--check` fails on an offset no row covers
+  and on a row no instruction touches.
+* **The layout** — every field `docs/records.json` names must have a row of that
+  name, width and array shape (146 fields once the nested arrays expand).
+* **The saves** — `crates/l2-scenario/tests/stored_fields/main.rs` holds every
+  `imported` and `derived` row to the file's own value after `Scenario::kingdom`,
+  in every county and realm of every save on the machine: **30,600 values over
+  18 saves, and all agree.** That is the check that cannot be typed into
+  agreement, and it is the one that would have caught all three instances.
+
+**Before and after, in rows.** At `d2344f3`: **76 imported, 10 derived, 2 excluded
+with a reason** (C142's county `+0x16` and realm `+0x28`, left open in prose), and
+**153 decided by nothing**. After: **167 imported, 10 derived, 64 excluded, 0
+undecided.** Two of the 153 were worse than dropped — the importer set
+`happinessAvg` and `happinessSum` to this season's happiness, which is right on turn
+one and wrong on every later turn (`siege-aftersie.sav` county 2 draws 95 where the
+original draws 54).
+
+**What a player could see, now carried.** The three farm rows' forecasts (county
+`+0x258`/`+0x268`/`+0x26C`, `+0x22C`/`+0x230`/`+0x2FC`, `+0x20C`/`+0x214`); the
+happiness panel's average, army, ale and other-counties terms; the population
+panel's *Army* line and emigrant destination; the ration panel's troop counts
+(`+0x198`, `+0x19C` — 178 and 360 on the battle saves, 0 on load); the weapon the
+blacksmith row draws (`+0x290`); the industry ramp (`+0x294` — **80 in every owned
+county of every save, and a loaded game ran its mines at `Industry::new()`'s 20 and
+15**); the levy surcharge; the castle build record and siege scars; the standing
+crop; and on the realm, the ally byte the diplomacy screen draws, the score
+screen's totals and the AI's standing orders.
+
+**Self-verifying invariants, all `[V]` across every save** and each asserted in
+`crates/l2-scenario/tests/import/main.rs`:
+
+* `+0x258 == +0x268 − +0x26C − herdEaten` — one relation pinning three offsets.
+* `+0x22C` is `Grain_LabourEstimate`'s tail. **Corpus limit, stated:** `+0x230`
+  and `crop[2]` are zero in every county of every save, so the sowing and harvest
+  arms are checked only at zero, and whether the tail's `season` is this season or
+  the next cannot be told here. Five counties carry a non-zero change.
+* `happinessAvg == (i8)(happinessSum / g_turnCount)`.
+* `+0x5B` is non-zero exactly where `+0x2C ≥ 6`.
+* `+0x21` is set only below happiness 30 — which identifies it as
+  `Unrest_UpdateAll`'s warning latch, the flag `County::unrest_warned` said had no
+  known offset.
+
+**And what a green run did not measure.** 58 of the 177 claimed rows are zero in
+every save — no castle under construction, no crop in the ground, no random event,
+no alliance anywhere in the corpus — so for those the value check compared an
+offset only with zero, and a wrong offset landing on another zero passes. The test
+prints them by name every run rather than letting *30,600 agree* imply more.
+
+**Excluded, and a player can see it: features, not imports.** Nine rows are drawn by
+a painter in the original and have no field in `l2_kingdom` to carry them into:
+`Panel_Ration`'s three requirement figures (`+0x16C`), `Panel_JobGrain`'s `+0x24C`
+and `+0x278`, `Panel_JobCattle`'s `+0x270` pair, `Panel_JobIndustry`'s four
+(`+0x280`), `Castle_BuildEstimate`'s `+0x1A6`, `Court_Draw`'s realm `+0x15C`, and
+`Army_PickName`'s counters at realm `+0x2D`. **`+0x1AD`, the mercenary offer, is
+excluded for a different reason and it is a finding:** it is a cache of
+`g_mercenaryBands`, which no importer reads at all, so carrying the byte alone would
+mark a band nobody can hire. A loaded game has no mercenary bands.
+
+**Three things the tool found about our own documents.** `docs/records.json` typed
+the three event swing bytes `u8`; `Event_RollAll` writes `0xD8` and `0xE2`, −40 and
+−30, and they are now `i8`. The decompiled corpus still prints the pre-C153
+`Industry` layout, so `fields.js` detects which layout a corpus was decompiled under
+(only the new one names `nextSeason`) — without that, the county's `weaponType` byte,
+read as `*(byte *)g_counties[x].industry`, resolved onto `efficiency` and +0x290 looked
+untouched. And the first `--check` reported all 320 offsets uncovered because the rows
+carry a `type` and the scanner read a `width` — the tool's own first bug, caught by its
+own implausible number.
+
+**Not moved into `l2-formats`.** The brief allowed it; the check does not need it,
+because it decodes raw offsets itself, so `l2_formats::save::{County, Realm}` are
+unchanged and the new reads sit in `l2-scenario` beside the ones C142 and C149 added.
+
+---
+
+**C162 — a save test failed one run in ninety, and the shared directory
+it raced over was also hiding a real defect and three assertions that could not fail.**
+
+`crates/l2-game/tests/save/main.rs`'s `the_save_screen_writes_a_file_and_the_load_screen_reads_it_back`
+failed at merge twice in one evening and passed every time it was run alone. It was recorded as a
+pre-existing flake in the merge of C151 and left there. This entry is what measuring it found.
+
+**The flake, measured.** It failed **23 times in 2,000 runs** of the unfixed test binary, with
+8 parallel workers — about 1.15 % — and always on *"the loaded game is the saved one"*. It was
+then forced deterministically before anything was fixed. Barriers held two real tests at the
+interleaving:
+1. `a_failed_write_cannot_destroy_the_save_it_was_replacing` writes its file;
+2. the load screen opens;
+3. the file is removed;
+4. the test takes its second listing.
+
+Under that interleaving it failed 5 of 5 unfixed and passed 5 of 5 fixed, and the fixed binary
+failed 0 of 2,000. **[V]**
+
+**Two causes, both fixed.**
+
+* **The test derived the row it clicked from a second `saves::list()`**, not from the list the
+  screen opened with. Anything written or removed between the two reads moved the click one row,
+  onto a different game. It now clicks a literal row, pinned by the files its own directory is
+  asserted to hold.
+* **Every file test shared one `LORDS2_SAVES` directory.** Two took a listing lock and four wrote
+  or deleted without it. `saves::scoped_dir()` now gives each test a directory of its own, ahead
+  of `LORDS2_SAVES`, and **the lock is deleted**. The result is a shape that cannot race, rather
+  than a lock that the next test must remember to take. Making the scope process-global again
+  turns the isolation test red on its own, and 8 of the file's 18 tests red.
+
+**The near miss.** Before this, **a test that forgot to set up its directory would have written
+straight into the player's real `%APPDATA%` saves.** `LORDS2_SAVES` now points underneath a
+regular file. A test with no directory of its own therefore fails on its first write, naming the
+path, whatever order the tests run in. Removing the directory from the screen test and running it
+alone does exactly that, and leaves `%APPDATA%` untouched.
+
+**What the shared directory was hiding.** Each item below was ablated red.
+
+* **A real defect.** The save screen drew its directory path uncut, so a path over 67 characters
+  overflowed the box, 398 pixels outside it. That takes a deep `LORDS2_SAVES`, or a profile user
+  name over 24 characters. The test that it paints inside its window had passed only because its
+  temp path was short. The line is now cut from the left.
+* **Three tests that could never fail**, each shown green with the behaviour it claimed deleted:
+  * **The overwrite test** looked for a `.part` file through `saves::list()`, which only shows
+    `.l2sav`, so it could never see `x.l2sav.part`. It stayed green with the rename swapped for a
+    copy.
+  * **The cancel test** typed with key-down events the name field ignores, and searched for
+    `"CANCELLED"`, which the field lower-cases. It stayed green with the cross wired to confirm.
+  * **The sort test's** three lower-case names were already in order as NTFS returns them. It
+    stayed green with the sort deleted; one capital letter now makes the two orders disagree.
+
+**Production does not race.** The load screen reads the directory once, and both its drawing and
+its click resolution use that one read. That is now pinned by a test: a save arriving after the
+screen opens does not move the clicked row. The test goes red when the click arm re-reads the
+directory.
+
+**That is C138's shape three times in one file:** an assertion that cannot fail looks exactly like
+one that passes. A flaky test was the only thing that made anybody read this file closely enough
+to find them. "It fails one run in ninety" was the visible symptom of a directory shared by tests
+that were not all testing what they said.
+
+---
+
+**C163 — `Font_10.pl8` is loaded, it has no letters, and the nine numbers a player reads every turn are in it.**
+
+C157 left `g_font10` unloaded because pointing a test at it made a lowercase
+letter draw nothing, and read that as **[I]** *"not an alphabet under the shared
+table"*. Half of that was right. **[V]** throughout, from the decompilation and
+the user's own files.
+
+### `Glyph_Draw` has one table and no gap handling of its own
+
+* `Glyph_Draw` (`0x00402A14`) reads `g_glyphWidths[c - 0x20] - 1` and the record
+  at `font + frame * 0x10 + 8` for **every** face. It has no per-face table and
+  no check against the file's frame count. Its only per-face branch is a
+  one-pixel raise for `&g_fontBody` on characters `0x81…0x8D`, `0x93…0x97` and
+  `0xA0…0xA4`, which `shell::font` does **not** reproduce.
+* A gap is a zero entry. `Ui_DrawText` (`0x00402637`) advances 4 and does not
+  call `Glyph_Draw` at all. Nothing substitutes a character or falls back to
+  another face.
+* The blit, `0x004B41B7`, is a mask in the caller's colour.
+* Every table entry lands inside all five shipped faces. The highest frame
+  asked for is 104, and the faces hold 150, 108, 108, 108 and 106.
+
+So `Font_10.pl8` is read exactly as the other four are: same base, same indices.
+
+### What the file holds
+
+108 frames, the same layout as `Fntl2_9.pl8` and `Fntl2_14.pl8`.
+
+* Frames 52…61 are the digits and 62…78 the punctuation strip. These are real
+  ten-row glyphs.
+* **All 52 letters and the 29-frame accented tail are 2 × 2 stubs.** Of the 81,
+  61 are wholly transparent and 20 carry one to four stray pixels (`'e'` is a
+  solid block).
+* A letter blits its stub and advances 3. *"Seasons"* paints four pixels and
+  moves the pen 21. That is the "renders nothing" of C157's panic.
+* **[I]** The atlas positions in the stubs' records match a full alphabet's, so
+  the letters were cropped out of a sheet that had them.
+
+**Every string the nine call sites build is a lead, digits and one space.** The
+leads are `' '`, `'@'`, `'+'` and `'-'`. The prefix and suffix pointers
+`0x004D3D40…0x004D3D84` are all `" "`, read out of the image. The original
+never asks this face for a letter. The words beside its numbers are
+`&g_fontSmall`.
+
+### All nine are drawn under `g_dropShadow`
+
+Each of the eight row painters sets `g_dropShadow = 1` on entry. By then
+`CountyStrip_Draw` has already cleared `DAT_005AEA40`. So `Ui_DrawText` takes
+its drop-shadow arm: `(x + 1, y + 1)` in `0x3F`, then the glyph.
+`font::DROP_SHADOW_COLOUR` had recorded that arm as unimplemented.
+`Font::draw_dropped` now draws it. The castle cell's two `&g_fontSmall` captions
+are inside the same flag and are dropped too.
+
+### What changed
+
+| draw | was | is |
+|---|---|---|
+| 7 × `Ui_DrawDelta` forecasts (`strip_delta`) — three farm rows, four industry rows | `Fntl2_9.pl8`, flat | `Font_10.pl8`, dropped |
+| reclamation figure, `FUN_004103C5` | `Fntl2_9.pl8`, flat | `Font_10.pl8`, dropped |
+| castle seasons, `CountyStrip_DrawCastleIcon` | `"{n} "`, **no lead**, `Fntl2_9.pl8`, flat | `' '`, `" "`: **digits +4**, `Font_10.pl8`, dropped |
+| castle *"Season(s)"* / *"Needed"* | `Fntl2_9.pl8`, flat | `Fntl2_9.pl8`, dropped; plural rule is `Ui_DrawUnitNoun`'s `value == 1` |
+
+`ten_text` carries a `debug_assert!` against letters, so a word routed to the
+numeral face panics in tests. That assertion has **not** been observed firing.
+`ShellAssets::ten` is new, and `missing_fonts` names all five faces.
+
+**The strip has seven `Ui_DrawDelta` calls, not eight.** The seven are
+`00410000.c` lines 22, 52, 78, 98, 114, 130 and 154: three farm rows and four
+industry rows. The castle painter has none, and 7 + 2 `Ui_DrawNumber` = the
+nine `&g_font10` references. `strip_delta`'s doc, `DELTA_POS`,
+`draw_produce_rows` and the cattle test said eight, and are corrected.
+`docs/draws-map.md` §5.5 (*"the eight `Ui_DrawDelta` calls"*, *"all eight rows
+pass `mode = 0`"*) is not edited here.
+
+### Tests, each ablated
+
+| test | ablation | red with |
+|---|---|---|
+| `shell::font_10_is_a_numeral_face_read_through_the_shared_table` | file → `font::SMALL` | `'a'` 8 rows, expected 2 |
+| 〃 | file → `font::EIGHT` | 150 frames, expected 108 |
+| `screens::the_castle_cell_puts_its_number_in_font_10_and_its_word_in_fntl2_9` | no `' '` lead | digits at (572, 320), expected (576, 320) |
+| 〃 | `small_dropped` → `shell.ten` | *"Seasons" is not on the castle cell* |
+| 〃, `screens::the_industry_forecast_is_a_dropped_font_10_number` | shadow blit deleted | both shadow claims |
+| the two above, plus `the_cattle_row…`, `the_grain_row…`, `the_reclamation_row…` and `a_loaded_game_draws_each_industry_rows_own_forecast…` | `ten_text` → `shell.small` | all six, at their `Font_10.pl8` search |
+
+**Not separately observed red:**
+
+* the castle word's ink count, which its glyph search implies;
+* the word's shadow claim, which sits behind the number's;
+* the *"Seasons"* ink bound in the shell test.
+
+### `Ui_DrawNumber` has 190 call sites, not 191
+
+`docs/plan.md` said 191. That was a text count: 191 lines of the decompilation
+match `Ui_DrawNumber(`, and one of them is the definition,
+`void __cdecl Ui_DrawNumber(`. The `====` header does not match. So there are
+190 calls, which agrees with C157's 190 live and 211 in the exe.
+
+`docs/plan.md` is corrected. The same 191 is still quoted in:
+
+* `docs/draws-map.md` §5a (twice, and in its 351 total);
+* C127 and C140 above;
+* `Ui_DrawNumberRight`'s `symbols.json` comment.
+
+Those are not edited here. §5a's lead breakdown, 115 + 62 + 1 + 1 = 179, does
+not sum to either figure, and that is not explained here.
+
+**Corrected at merge.** All four quotes above now say 190 and cite this entry: `docs/draws-map.md`
+§5a (where the four routines' total becomes 350), C127, C140 and `Ui_DrawNumberRight`'s
+`symbols.json` comment.
+
+---
+
+**C164 — no loaded game and no new game had a single mercenary
+band, and thirteen of C161' 64 exclusions are things a player can
+see.**
+
+C161 left county `+0x1AD` excluded as *"a cache of
+`g_mercenaryBands`, which no importer reads"*. Following it went further than an
+import gap: **`MercenaryBands::init` was called by nothing but tests**, so a new
+campaign had no bands either. `Game_NewGame` runs `Mercenary_Init` between
+`Merchant_SpawnAll` and `PlayerStart_Shuffle`; our new-game path had no line for
+it. On every game, loaded or new, the raise-army screen never offered a band and
+C150's marker on the town tile never had one to mark.
+
+**The table, `[V]` three ways, none of them resemblance to the roster.**
+`g_mercBands` (`0x00568DC0`) is saved as a block of exactly **260** bytes, 13 ×
+`0x14`: slot 0 and twelve bands. The six constant fields `Mercenary_Init` copies
+equal the roster in all **72 bands over 18 saves**, and every slot past
+`g_mercBandsInPlay` (`0x00554030`, also saved) is zero. And the walk checks
+itself on data the original wrote: county `+0x1AD` is `Mercenary_OfferInCounty`
+over the table in every county of every save — `siege-old_turn.sav` stands bands 2
+and 3 in county 1 and the byte is **2** — every offering band has just reloaded its
+countdown and stepped one past its county, and **one season of
+`Mercenary_AdvanceAll` over each of the four one-turn pairs lands on the next
+save's table exactly.** `england-turn1.sav` is `Mercenary_Init(14)` band for band.
+The hirer word is zero in every band of every save; its check is exercised only by
+a test that writes one.
+
+**A second defect behind the first.** `Kingdom::start_new_game` walks the whole
+pipeline, which carries the phase-7 walk; `Game_NewGame` is `Mercenary_Init(); …
+Season_Advance();` with no `Mercenary_AdvanceAll`. Harmless while no new game had
+bands, it would have had the Saxon band offering itself on turn one. It skips that
+pass now, and a test compares a map-built England after its opening season with
+the save. `Units_ResetMoves` and `Diplo_ReconcileAlliances` also run there and are
+not in `Game_NewGame` either `[D]`; both look like no-ops on a new game and were
+left alone.
+
+**The 64, classified against the decompilation rather than their reasons.**
+33 ignorable as stated. 13 ignorable with a wrong or incomplete reason, each
+rewritten — among them realm `+0x13C`, whose "armoury wall and levy" readers index
+`+0x13C + t*4` from `t = 1` and so read `+0x140` onward, a scanner artefact of
+`fields.js`; and `+0x18C`/`+0x190`, which are not copies of `+0x178`/`+0x17C` and
+differ from them in twelve and eighteen counties. **Five are rule inputs a loaded
+game loses, and each needs a mechanic we have not built:** `+0x15A`
+(`County_EnsurePasture` when cattle are bought), `+0x15B` (the field drought and
+flooding ruin), `+0x206` (`County_DestroyField`'s separate sown count), `+0x29C`
+(a trample does not reset the efficiency ramp's memory), realm `+0x2A` (the
+conquest letters). **Thirteen are player-visible.**
+
+**What moved.** Imported: `+0x1AD`; realm `+0x2D`, `Army_PickName`'s counters,
+modelled and encoded all along and never read, so a loaded game named its next
+army from a clean slate; and four new county fields at our `VERSION` 20 — what
+last season's weather and event did to the grain (`+0x24C`, `+0x278`) and the herd
+(`+0x270`, `+0x274`). Derived, each a function the code already had or now has:
+the ration panel's *Fed* row (`+0x16C`), the castle estimate (`+0x1A6`), the four
+industry figures (`+0x280`, `industry::panel_figures` — whose module docs said
+*"no draw call reads them"*, and `Panel_JobIndustry` draws all four) and the
+court's expected tax (realm `+0x15C`, now `Kingdom::tax_expected`). **242 rows:
+173 imported, 14 derived, 55 excluded.**
+
+**What a green run does not measure here.** Of the new claims, `+0x1A6`, `+0x24C`,
+`+0x270`, `+0x274` and `+0x278` are zero in every save — every county on this
+machine stands in *Cloudy* with no event live and no castle mid-build — so 63 of
+the 187 claimed rows are now compared only with zero, five of them these. The
+blacksmith pair of `+0x280` (sixteen and seven non-zero), realm `+0x15C` (23) and
+realm `+0x2D` are measured against real numbers.
+
+**Carried and still not drawn.** The grain, cattle and industry job popups' bodies
+are stubs; `Castle_DrawStatusBlock` has no painter; the eight county-event letters
+print no count. The figures are now there for those painters to read. County
+`+0x2F8`, the Plague and Wedding letters' figure, stays excluded for a stronger
+reason than a missing painter: `Population_UpdateAll` computes the event swing as
+`Pct(deaths or births, |p|) + 10`, capped at a fifth of the population, and
+`l2_kingdom::population` computes `Pct(population, p)` — a rule that differs from
+the original's `[D]`, and carrying the byte would print a number the rule did not
+apply.
+
+---
+
+**C165 — The options panels acted on the click on all twelve rows, and three of
+the rows change nothing.**
+
+The tip-screens branch found it while wiring `Opt_ToggleTipScreens`: every `Opt_Toggle*`
+record is `Widget_Test` **kind 5**, and our options screen toggled on the press. That is the
+yes/no gauntlets' defect (C148) on a screen C148 could not reach, because `options.rs` was
+one of the modules `docs/arms.json`'s own note named as carrying no marker — so `arms.rs`,
+which checks markers against records, had nothing to check.
+
+**Enumerated from both sides**, as the `army-division` group was: `Screen_HandleInput`'s four
+`Widget_Test` calls (twelve records, kind 5, frame 25) and `Screen_FrameInput`'s four arms (a
+right release and `Ui_OkButtonClicked` on each, and 0x39's sync latch). **Eighteen records**
+in a new group `options-panels`: twelve rows (eleven `reproduced`, *Start game help*
+`missing`), the OK corner and the right release (`reproduced`), the latch (`missing`), our
+Escape and our quirks page (`invention`, kept), and the orphaned kind-4 table at
+`0x004DDE08` (`dead`).
+
+**What reading the twelve handlers against their readers found**, which is the part a kind
+fix alone would have missed:
+
+| row | what was wrong |
+|---|---|
+| all twelve | acted on the press; now kind 5 through `press::Press`, pressed frame `25 + 1` |
+| the OK corner | closed on the press; `Ui_OkButtonClicked` is the release |
+| widget picture | drew `Ui_OkButton` mode 1 (frame `0x10`), which is no record's frame; the records say 25 |
+| Army foraging | flipped the flag and **re-ran nothing**; `Opt_ToggleArmyForaging` re-runs `Ration_Apply` and `County_RefreshEstimates` over every county |
+| Full screen | did nothing, not even close; on any non-8bpp desktop the original closes the panel and posts message `0x104`, *"Cannot change display."* |
+| Exploration, Animations, Tool tips | **flip a field nothing in this engine reads** — the fog, five animation readers in four functions, and the tooltip layer `FUN_00476E95` are all unbuilt |
+
+**And one documented claim was false**: `docs/symbols.json` and `docs/screens-county.md`
+§10.2 said the four advanced handlers *"show tip 0x32"* in a network game. It is
+`Net_SendCommand(0x32, 0)` — net opcode `0x32`, whose writer sends the row number. Corrected
+in `screens-county.md`; `symbols.json` is the lead's.
+
+**A limit of the check, measured by ablation**: declaring every row `Kind::Press` leaves
+`arms.rs` green. It compares the marker's word with the record's and the record's with the
+exe, and never reads the `Kind` the code declares — the marker is text. What went red was
+`tests/options.rs`. The exe-gated check also had to learn one thing: `Opt_ToggleSpeech` and
+`Opt_ToggleAnimations` are each kind 5 in their panel and kind 4 in the orphaned table, so
+their address alone is ambiguous; a record whose prose names one record base calling that
+handler is now judged by that record. Coverage 37 → 54 by handler, 12 → 31 by prose.
+
+---
+
+**C166 — battles were nearly silent because the simulation kept no record of a
+swing, a hit, a loose or a death, and "a limit of the design" did not follow from anything.**
+
+The battlefield's per-man sound sites had been filed `blocked` on *"per-man events"*, and
+`docs/audio-triggers.md` called that *"a limit of the design"*. **The gap was the event stream, not
+the sounds.** `l2-sim` resolved figure and unit state and recorded nothing a listener could hear,
+so there was nothing for a sound to answer. Nothing in the design required that; it was a record
+nobody had written.
+
+**The record.** `crates/l2-sim/src/cue.rs` holds monotone counts of the occasions the original's
+per-man code sounds on:
+* a man falling, by the striker's troop;
+* a figure's last man, by side;
+* a missile loosed, hitting, felling and killing, by weapon;
+* a wall shot, and a wall smashed.
+
+The battle writes these counters and **never reads them**, and they are **excluded from the
+lockstep checksum on purpose**.
+
+**Why counters are exact rather than an approximation.** Every battlefield sound site goes through
+`Sound_PlaySlot`, its thunk `FUN_004262cf`, or `Sound_PlayFile`. All three **drop a request while
+their buffer is still playing** `[V]`, and that drop is the original's only throttle. So *"did
+this happen since the last tick"* is all the original could ever make audible, and a count answers
+exactly that question. We add no throttle of our own.
+
+**22 of the 31 battlefield sites are now wired**, including all six troop-cry sites. The nine left
+are each blocked on a mechanic `l2-sim` lacks — fire, boiling oil, tower docking, state 17's
+loose, the high-rampart catapult miss, a realm eliminated mid-battle — and `docs/audio.json` names
+each one.
+
+**Troop cries use no random number at all.** `Sound_PlayTroopCry` is a round robin per
+(troop, order type) over `g_troopSounds` (`0x004DB0D0`), an 11 × 4 × 4 table transcribed and
+asserted against the executable. The index is stepped before it is read and never reset between
+battles, and the take is spent even when the cry is dropped by the busy buffer. With no RNG, there
+is nothing to keep away from the battle's own `Pcg32`.
+
+**Determinism, proven rather than argued** `[V]`:
+* A battle with a sound `Director` listening and one without are **identical every tick for 4,000
+  ticks**, and **byte-identical when saved**. That holds with silent audio and with real decoded
+  audio.
+* A battle whose cue record is **wiped every tick** equals the untouched one. Nothing reads the
+  record back into the simulation.
+
+Each of those tests was ablated and seen red.
+
+**Counts** (from `docs/audio.json` on the branch's base): sound triggers reproduced went from 51 to
+73 of 143, and reachable files from 560 to 639 of 771. `docs/bugs.md` D34 is corrected: nine
+unreachable cry names ship in neither install, not seven.
+
+**The lesson is C140's and C139's.** A blocker's stated reason was a claim, and nobody had checked
+it. *"A limit of the design"* read as a finding and stopped the work for as long as it stood. The
+design asked only for a record the simulation never reads, which is the cheapest kind of state
+lockstep has.
+
+**At merge, with the tip screens already on `main`:** 75 of 143 reproduced and 674 of 771 files
+reachable, from the merged `docs/audio.json` and the tests. Both branches had added a record of
+the one-shot buffer, `DAT_00522AEC`: the tips' `last_speech` for `Sound_OneShotBusy` and this
+branch's `one_shot` for `Sound_PlayFile`'s drop. The original has one buffer and both ask it,
+so they are one field, set by `play_speech` and `play_file` and read by both checks (since C176, `stop_and_play_file` in `play_speech`'s place). A troop
+cry now keeps the tips' chained takes waiting, as it would in the original.
+
+---
+
+**C167 — the tool tips are built, and the sentence that found them
+counted twenty-six as twenty-four and called a ladder's answer a hotspot id.**
+
+The Help Options panel's *"Tool tips"* row flipped `g_optToolTips` and nothing here
+read it. `FUN_00476E95` is now `crates/l2-game/src/tooltip/mod.rs`, and reading all seven
+of its functions — not the one C86 summarised — corrected two things on file and
+found three that were not.
+
+**Corrected.** C86, `docs/screens.md` §7 and `docs/draws-map.md` §5.1 said *"twenty-four
+of the thirty-five strings are the campaign sidebar"*. `FUN_00477320` returns 1…22 and
+31…34: **twenty-six**, and the listing printed directly under the sentence in
+`draws-map.md` has all twenty-six in it. And `docs/formats/eng.md` §5 said *"index =
+hotspot id"*, which reads as `g_uiHotspotId`, the widget record's `+0x10`. Neither
+resolver reads a widget record: the id is a pointer ladder's own answer, and the ladder
+reads live state — the minimap mode, whether the selected county is the player's, and
+`FUN_0040FEC1`'s two produce-row lists.
+
+**Not on file.** `[V]`, each asserted in `crates/l2-game/tests/tooltips/main.rs`:
+
+* **The lookup is a table of screens, not of controls.** `DAT_004D6FB8[g_screenId]`
+  gives the sidebar's ladder to **thirty-five** screen ids and the battlefield's
+  (`FUN_004777AA`, eight ids) to `0x29` alone. So the sidebar's tips go on showing over
+  the county panels, the village, the job popup, the options pages and an open menu, and
+  never over the merchant, the armoury, the other lords or a tip screen (`0x27`).
+* **The rest is wall clock, not frames**: `999 < timeGetTime() - stamp`, which is 63 of
+  our ticks. The briefs that asked for *"the frame count"* were reasonable — the tip
+  screens and the options both turned on twenty-frame countdowns — and this one is not
+  one.
+* **The frame that hides a tip writes no stamp.** A tip up for a second and nudged for
+  one frame is back on the next still frame; a nudge of a fresh tip waits a second from
+  the tip's own resolve, not from the nudge. `Opt_ToggleToolTips` and `Map_InitMode`
+  both zero the stamp, so turning the option on shows a tip with no rest at all.
+
+---
+
+**C168 — The AI farmed once a turn and shopped never, and the county that "began short of food" was fed on cheese.**
+
+C149 named three pieces of the AI's farming it did not port. All three are ported now, each
+read out of `Lords2.exe` at the moment of writing rather than out of the entry that named it.
+
+**1. `Ai_ManageFarmsAll` (`0x0049A990`) is `Season_Advance`'s first call.** `0x00448440`
+opens `Ai_ManageFarmsAll(); Rand_Advance();` and only then reads the clock, and the function
+is `Ai_ManageCountyFarms` (`0x0049DD01`) for every realm with `strength != 0 && isHuman == 0`.
+So an AI lord's counties are farmed **twice a turn** — his own step 5 in phase 4, and again
+ahead of tax, rations and industry, on the season that is ending. `Pass::AiManageFarms` at
+position 0 of `SEASON_PIPELINE`. `[V]`.
+
+**The class is four callers of `Ai_ManageCountyFarms`, not two, and one is not ported.**
+`FUN_0049DF48` is the same loop with its two tests swapped, and its only caller is the tail of
+`Battle_ReturnToCampaign` (`0x004AB383`): `FUN_004AD426(); Panels_RefreshAll(); FUN_0049DF48();`.
+`l2_kingdom::battle::return_to_campaign` carries none of that tail, so here an AI's farms are
+**not** re-managed after a battle. Open.
+
+**2. The stall's owned-county arm.** `Ai_BuyGood` (`0x004A4B12`) tests
+`price * qty <= g_realms[owner].gold` for an owned county, and `Merchant_Trade` (`0x004284CE`)
+then writes `gold -= bill; tradeSpentB += bill; tradeSpentA += bill`. `CountyStall` now carries
+the realms and does both, and AI step 5 and the season head pass it instead of `NoMarket`. `[V]`.
+**Not ported, and it is the nearest remaining gap:** each realm style opens with
+`Ai_TradeForCounty` (`0x0049E39B`) — the surplus sale and the weapon purchase — before its
+`Ai_BuyGood` lines.
+
+**3. Realm `+0xF4`/`+0xF8`, and what they are for: nothing a rule reads.** Writers:
+`Tax_CollectAll` (`0x0044B59B`) credits both with every owned county's take, beside the
+treasury; `Game_SetupRealmsAndCounties` (`0x0049BD99`) clears them. Readers, by two checks that
+share no step: the decompilation names `field_0xf4`/`field_0xf8` of `g_realms` in those two
+functions only; and a scan of `Lords2.exe` for the absolute addresses `0x0057BFF4` and
+`0x0057BFF8` finds four instructions — `0x0044B7BD`, `0x0044B7DE`, `0x0049C364`, `0x0049C37C` —
+all inside those two. The same scan finds the trade pair's `+0x10C` only in `Merchant_Trade` and
+the clear, and the score's `+0x50` fourteen times, so it sees readers where there are readers.
+It cannot see an access through a record pointer plus a small displacement. The only
+whole-record consumers are `Save_Write` and `Sync_CompareState`, so the pair is **stored,
+desync-checked and unread** — carried exactly as the trade pair is: `Realm::tax_ledger`,
+`l2_kingdom::save::VERSION` 20 (+48 bytes), imported from a `.sav`, and its
+`docs/stored-fields.json` row moved from `excluded` to `imported`.
+
+**The differential, before and after.** `AGREE_TOTAL` 900 → **906** of 932, `MOVED_AGREE_TOTAL`
+258 → **264** of 279. Six divergences went, all on realm 2 and none arrived: battle 3->4's
+`realm.wood` (+31), `realm.iron` (+5) and `realm.weapons.4` (−2), and siege 12->13's
+`realm.iron` (+35), `realm.wood` (+35) and `realm.weapons.1` (−6) — all outputs of
+`Industry_ProduceAll`, which reads the labour split and industry share the season-head pass
+resets. **Attributed by ablation**: emptying the `Pass::AiManageFarms` arm alone, with the stall
+arm and the ledger still in, restores exactly 900 and 258 and all six rows. So on these four
+pairs the stall and the ledger moved nothing. **Not moved:** realm 2's `realm.gold` (+5, and
++2,005 on siege 13->14), `realm.wages` and `realm.score`. On siege 13->14 the original's realm 2
+spends about 1,620 crowns and gains a hundred maces, which is the shape of `Ai_TradeForCounty`.
+`[I]`; not chased.
+
+**The trap, in the place the brief said to look.** Wiring the pass turned
+`realm_fives_county_diverges_because_the_save_does_not_record_what_it_ate` red. That test,
+`docs/kingdom.md` §4.3 and `reproduction.rs`'s own module documentation said realm 5's county
+must have opened on **eight sacks** the save did not record, and that this settled
+`Ration_Apply` debiting the store. **The save records it, and there were no sacks.**
+`Grain_SeasonTick` (`0x0044C8AE`) and `Herd_SeasonTick` (`0x0044D60D`) each open by copying the
+store into county `+0x228` / `+0x254` and only then take the season's food out;
+`Game_SetupRealmsAndCounties` writes the new-game stores into the same two fields. On the
+England fixture `+0x254` is **95** in every county: the county went into the ration pass with
+95 head and fed 417 people on cheese. Starting all fourteen counties from `+0x228`/`+0x254`
+reproduces twenty-five fields each, the ration split included, with no inversion anywhere — a
+test now. The eight sacks were the unique answer of a model that was ours twice over: a ration
+pass that debits the store (C149 read `Ration_Apply` and found no `-=`) and that saw the herd
+the season *ended* on. **Uniqueness inside a wrong model is not a measurement.**
+
+**What that new test does not show, measured:** it passes with the pass ablated too, so it is
+evidence about the rewind and none about the pass. What pins the pass on that fixture is the
+rewritten realm-5 test: from the rewound stores (no grain, 74 head) the lord's own
+`Ai_SetRations(county, 0)` (`0x004A4782` — an upward sweep that keeps the first strict
+improvement, read and matching our port) settles on split 100 and feeds Normal on slaughter, so
+happiness, health, deaths and population land on the file by a different road; ablate the pass
+and the old Half comes back. `l2_scenario::Scenario::starting_kingdom` still rewinds to the
+post-season stores, and says so at the function; switching it changes what a rewound position
+*is* and is left to the importer's owner.
+
+---
+
+**C169 — A plague took its percentage of the county; the original takes it of
+the season's deaths, adds ten, and prints the result.**
+
+Found by the stored-fields classification, not by a player: county `+0x2F8` was excluded
+because *our rule could not have produced it*, which is a rule difference wearing a data
+field's clothes. `Population_UpdateAll` (`0x00449EF3`), after the `+1` that goes to whichever
+of births and deaths the rates favour:
+
+```c
+county.+0x2F8 = 0;
+if ((char)eventPct < 0)      county.+0x2F8 = Pct(deaths, -eventPct) + 10;
+else if ((char)eventPct > 0) county.+0x2F8 = Pct(births,  eventPct) + 10;
+if (Pct(pop, 20) < county.+0x2F8) county.+0x2F8 = Pct(pop, 20);
+if (eventPct < 0) deaths += county.+0x2F8; else if (eventPct > 0) births += county.+0x2F8;
+```
+
+Ours was `clamp(Pct(population, pct), -Pct(population, 20), Pct(population, 20))`. **[V]**, and
+closed three ways:
+
+* **Every event through that code.** The corpus writes `+0x1FB` ten times: two clears
+  (`Event_RollAll`, `Event_ClearCountyModifiers`), four season-picked writes in `FUN_00448F6F`
+  — *Plague*, Winter −40, Spring −30, Summer −20, Autumn −30 — and four in `FUN_004491F0` —
+  *Wedding fever*, Winter +30, Spring +60, Summer +50, Autumn +40. `Population_UpdateAll` is
+  its only reader — `node tools/oracle/fields.js` agrees on the reader, and its table prints
+  only the first three writers. Those percentages match `EventKind::effect` already; only the
+  application was wrong. No other event moves people.
+* **Every reader of the result.** `+0x2F8` is touched by exactly two functions:
+  `Population_UpdateAll`, and `Msg_DrawWindow`, which draws it with
+  `Ui_DrawNumber(+0x2F8, '@', " ", …)` for event `0x8A` before `L2.eng` group 77 index 29,
+  *"extra deaths."*, and for `0x8E` before index 30, *"extra births."* The game's own label says
+  the figure is an addition to the season's deaths or births, which is what the formula makes
+  it. (`FUN_0045337B`'s `+0x2F8` is a sprite blitter's offset, not a county's.)
+* **The base is the adjusted figure** — deaths after the `+2` for Diseased and the `+1`, births
+  after their `+1` — because the swing is computed below those lines.
+
+**How big the difference was.** A Winter plague on 1,000 people in health band 2 at happiness
+50: ours killed **200** extra, the original **74** (`Pct(161, 40) + 10`). A Summer plague on a
+Perfect-health county, which was going to lose nobody: ours 200, the original **10**. The cap
+still bites on a small county — a Spring wedding on 100 people asks 46 and gets 20.
+
+**Where it came from, which is the part worth keeping.** `docs/kingdom.md` §5's `[V]`
+pseudocode carried the line as a comment — `/* random-event modifier, capped at 20 % of the
+population */` — and §8.1's handler table said *"pop % by season"*. Both are true sentences
+about the byte; both read as a percentage of the population; and the code built from them took
+one. The CLAUDE.md warning about `[V]` documents producing defects, a fourth time.
+
+**Not the original's bug in this reading.** The percentage-of-births reading is what group 142
+says (*"a jump in the number of children born"*), and a cap that only bites below a few hundred
+people is odd rather than broken. `docs/bugs.md` §4.2, **[I]** on "intended".
+
+**What the fixtures could and could not settle.** No save on this machine carries a live
+figure: `+0x2F8` is **zero in every county of all 18 saves**. They are not silent about
+events — county 3 holds Wedding fever's id `0x8E` in `siege-safeturn`, `siege-old_turn`,
+`siege-lastturn` and `siege-sieging` — but that id is **stale**: `Event_RollAll` clears the three
+swing bytes and `+0x1A8` every season and never `eventId` or `eventFired` (only a failed guard
+and `FUN_00448D7E`'s enqueue clear those), and the saved births reproduce with no swing in them.
+So the rule is pinned by hand-worked numbers, and the import by
+`crates/l2-scenario/tests/import/main.rs`'s `the_plague_letters_figure_survives_a_load`, which
+patches the figure into a real save's bytes — **ablated: deleting the importer's assignment
+turns it red and leaves `tests/stored_fields.rs` green**, because a row that is zero in every
+save is compared with zero.
+
+**Changed.** `l2_kingdom::population::update_one` is the code above, writing
+`County::event_population_swing`; `+0x2F8` is imported (`docs/stored-fields.json`, `excluded` →
+`imported`, renamed `eventPopulationSwing`); our save format carries it at `VERSION` 20.
+**`crates/l2-game/tests/differential.rs` did not move** — 932 compared, 900 agree, 279 moved,
+258 of those agree. No pair's original season ran a population event — `+0x2F8` is zero in all
+four after-saves — and **[I]** neither did ours: the old and new rules disagree on every county
+an event reaches, so an event in our run would have moved a births or deaths row.
+
+**Two leads, not fixed.** *Ours clears `event_fired` and `event_id` every season*
+(`l2_kingdom::event::roll_all`), and the original does not, so an unshown letter survives a
+season there and not here. *Our message screen draws no figure*: `screens/message.rs` sends
+category `0x0F` to `draw_notice`, and `Msg_DrawWindow`'s event arms draw a number under the body
+for eight of the twenty-four — `+0x278` for *Rats* and *Grain found*, `+0x274` for the four herd
+events, `+0x2F8` for these two — each followed by its group 77 words. A rule-6 gap.
+
+---
+
+**C170 — The season's extra person follows the birth rate after happiness has
+scaled it; we compared the rate before, and the differential's one-person gap was that.**
+
+Found while porting C169, eight lines above it in the same function.
+`Population_UpdateAll` (`0x00449EF3`):
+
+```c
+iVar2   = Table_Lookup(pop, &g_birthRateLadder, 20, 1);       /* base            */
+iVar3   = g_deathRateByHealth[band] + g_deathRateBySeason[season];
+local_c = Pct(iVar2, factor);                                 /* the SCALED rate */
+births  = Pct(pop, local_c);
+if (births == 0 && local_c != 0) births = 1;
+if (local_c < iVar3) deaths += 1; else births += 1;
+```
+
+`l2_kingdom::population::update_one` tested `base` in both places. `docs/kingdom.md` §5's
+`[V]` pseudocode wrote `birthRate` — a name it never defined, one line below `births = Pct(pop,
+Pct(base, factor))` — and `base` was the nearest thing called a birth rate. **[V]**: the
+decompiled body, and `crates/l2-game/tests/differential.rs`, which had been printing the
+consequence since it was written.
+
+**What it was, in the original's own saves.** *"The population arithmetic comes out within one or
+two of the original's — births 79 against 80, deaths 96 against 95"* was the differential's good
+news, and it was a rule. `siege-lastturn.sav` county 1: 799 people, factor 75, ladder rate 14, so
+the scaled rate is 10; Spring in band 2 is a death rate of 12. `10 < 12` puts the person in the
+deaths, **79 and 96, which is the file**; `14 ≥ 12` put it in the births, 80 and 95, which was
+ours. `siege-old_turn.sav` county 3 is the same at 11%. Both are now a unit test with the file's
+numbers typed in.
+
+**Moved, and ablated.** `differential.rs`: **agree 900 → 907, moved-and-agree 258 → 264** of 279;
+seven rows gone — `births`, `deaths` and `population` on both siege pairs and `pop_band` on
+12->13 — and none arrived. Putting `base < death` back restores all seven, and turns four tests
+red: the new unit test, both B16 tests and `realm_fives_county_diverges_…`.
+
+**It retracts part of C69, and the retraction is the reason to read this.** C69 found by an
+exhaustive survey that a county's death count cannot go negative on the season it dies, only on
+the season after, and the B16 test and `Quirk::ExtinctCountyRecordsNegativeDeaths`'s doc said
+the same. The survey was exhaustive and correct **about our function**. A county of one sits on
+the ladder's 100% rung, which beats every death rate, so our comparison always gave it the extra
+birth and it landed on zero. The original scales that 100% by happiness first — 25% at no
+happiness, below a Diseased Winter's 43% — so the extra person dies and the county records −2.
+`docs/bugs.md` B16's plain sentence had been right all along. **A survey over our own
+implementation is a statement about our implementation**, and it overturned a correct catalogue
+entry — the same shape as C61 overturning C58, with a test to make it look settled. C69's
+paragraph carries a pointer; `crates/l2-kingdom/tests/quirks/main.rs` now asserts the survey turned
+round (a living county does go negative, and the fixed path never does).
+
+**Also changed.** `realm_fives_county_diverges_…` in `tests/reproduction.rs` pinned our divergent
+chain at 66 deaths and 414 people; it is 67 and 412 now, and its *"births match either way"* line
+was the same error — band 2's 16% sends the person to the deaths and the file's band 3 to the
+births, 62 against 63.
+
+---
+
+**C171 — The game's films play, from a decoder of ours; and five things the inventories said about them were wrong.**
+
+`crates/l2-smk` decodes all 45 `.smk` files and `crates/l2-game` plays each where one of
+`Smk_Play`'s seven callers does. `docs/formats/smk.md` is the whole of it; this entry is the
+part that corrects something already on file.
+
+### The premise of D5a is overtaken, not settled
+
+D5a asked which LGPL decoder to link, on the finding that no permissive one exists. None is
+linked: the decoder is ours, MIT, written from the format description. **What makes that safe
+to believe is the method, and it is worth reusing:** the LGPL `smk` crate was built in the
+scratchpad and run as a **black box** — its API read off generated rustdoc, its source never
+opened, nothing committed — and its per-film hashes of every frame's pixels, palette and
+samples are pinned as literals in `crates/l2-smk/tests/corpus/main.rs`. A copyleft implementation
+can be an oracle without being a source. D5a itself is left for the lead to close.
+
+### `Msg_DrawWindow#16` and `#21` do not speak after the film
+
+`docs/audio.json` and `docs/audio-triggers.md` both said the animated capture and ending
+branches *"speak AFTERWARDS … the trigger is the film ending"*. `Smk_Play` returns as soon as
+`Smk_Open` has decoded the first frame and run `Smk_PlayLoop` once, so the
+`Msg_PlayVoice(DAT_004F0374, DAT_004F0354)` on the next line runs **with the film's opening**.
+**[V]** from `Smk_Open`'s body. Built the other way it would have been a voice nobody hears
+until a film is over.
+
+### The capture film cannot be reached, and two sound sites stay `blocked` for it
+
+`County_ChangeOwner` (`0x004A72FE`) posts the nine *"we have taken"* letters, groups
+`0x75`…`0x7E`, with **category `0x0D`** — the animated capture branch's category. Nothing in
+this workspace posts one: `l2_kingdom::conquest::change_owner` says the letters are left to a
+caller, and there is none. So the capture film, its window and its voice are built and tested
+with a hand-posted record, and `Msg_DrawWindow#15` / `#16` are **not** marked reproduced — the
+same call `#24` got for the tip screens. The name of the gap is the letters, not the film.
+
+### Setup page 1's ids were never contradictory
+
+`crates/l2-game/src/screens/setup/mod.rs` recorded as unresolved that `FUN_00432B05`'s hotspot 4
+plays `lom.smk` while the painter draws *"Lords of Magic?"* third. `node tools/oracle/widgets.js
+widgets 4dcb48 4` answers it: the table's records are in drawing order and carry ids 1, 2, **4**,
+3 — and the third is the page's only **kind 3** record, so the trailer fires on the release
+while its neighbours fire on the press. The item had been wired to page 10.
+
+### The outcome banner read four siege outcomes as two
+
+`outcome_pair` mapped a siege to pair 2 when the player won and 3 when he lost.
+`Battle_SelectOutcomeBanner` (`0x00478419`) has four: took the castle 2, **held it 4**, driven
+off 3, **lost it 5** — so a player who held his castle was told he had taken one. `outcome_banner`
+replaces it for both banner arms and picks the battle film's row. **[V]** from the body; the four
+arms read as four different `L2.eng` group 82 sentences, which is the check on the mapping.
+
+### Screen `0x44` has no writer
+
+An image-wide scan for `C6 05 50 AC 4E 00 xx` — `mov byte ptr [g_screenId], imm8` — finds 52
+distinct immediates and no `0x44`; the other 48 stores to `g_screenId` are `mov [g_screenId], al`
+restoring a remembered screen. So the Smacker test page, `Smk_ReplayIntro` and the forty-name
+table behind it are unreachable, and `docs/arms.json` files its two widget handlers `dead`.
+**[D]**: exhaustive over immediates, and relies on the register stores only ever copying ids
+that were written first.
+
+---
+
+**C172 — The Exploration option flipped a flag nothing read, and the fog is built now.**
+
+`g_optExploration` (`0x0053F264`) has been in `Options`, the setup screen, the options page
+and the save since save version 12, and **nothing in this engine read it**: the switch looked
+like it worked and did not. In `Lords2.exe` it has eleven readers and every one but the
+options page's Yes/No is a map painter. **[V]**, each read in the decompilation:
+`Map_RenderIso` (`0x0040526E`, two surround arms), `Map_RenderAlignedRow` (`0x00405AE9`, one),
+`Map_RenderOffsetRow` (`0x00405C2F`, three), `Map_DrawTile` (`0x004063C1`), `Map_DrawTileApex`
+(`0x00406673`), `Sprite_TopIt` (`0x004071A0`), `Map_DrawArmies` (`0x00408438`) and the dead
+`FUN_00406BBA`; `Screen_AdvancedOptions` (`0x00414F68`) draws it; `Opt_ToggleExploration`
+(`0x00434693`) and `NetAct_SetGameOptions` (`0x00447E0B`) write it; `Setup_CommitOptions`
+and two resets zero or commit it. **No input arm, no AI step, no simulation pass and not the
+minimap reads the option or its bit** — the AI lords see everything.
+
+The painters test it with tile record `+2` bit `0x20`, the seen bit. Its writers, all
+**[V]**: `FUN_0046E067(x, y, r)` sets the `(2r+1)²` square; `Unit_Step` (at every tile
+centre, army only) and `Army_Create` pass 6; `FUN_0046DFD5` passes 1 for every tile of a
+county and is called by `County_ChangeOwner` and at the end of
+`Game_SetupRealmsAndCounties`; `FUN_0046DF51` clears the plane from `Map_InitScenario` and is
+the only thing that ever clears a bit. **Every writer tests `g_localPlayer` and none tests the
+option.** `Save_Write` carries the plane, because `g_tiles` is block 0.
+
+**Checked against data, not only code.** The England turn-one fixture was saved with the
+option off, and its seen bits are *exactly* the local player's county and a one-tile border —
+bit for bit, 4,096 tiles (`crates/l2-scenario/tests/explored.rs`). The battle and turn saves
+hold at least the squares round their armies and the borders of their counties; what else
+they hold is where those armies walked, which no save records, so that half is a lower bound
+and is stated as one. **The radius of 6 is verified from below by data and exactly only by
+the decompiled literal.**
+
+**Three things this found that were wrong about our own documents.** `draws-map.md` §5.2
+said *"six draw functions"* and listed seven, named the toggle as `FUN_00447E0B` (that is the
+network action), and gave `FUN_0046E067` a width and height it does not take.
+`docs/mechanics.md` said the work was *"setting it as units move and counties change hands"*,
+and it is four writers, not two: the new game's start county and a raised army both reveal.
+And a draw test's own first version asserted that the `base` bank's frame 0 — the picture of
+the dark — was blank at both zooms. It is blank at the near zoom and a green diamond at the
+far one; the test's option-off control caught the first half of that and a measurement
+settled the second.
+
+**The one divergence is representation.** The original's plane is the local player's, so a
+network game's machines each hold a different one — which cannot be lockstep state. Ours
+keeps a bit per realm (`l2_kingdom::explore::Explored`), every writer sets the bit of the
+realm the original sets it for *when that realm is the local player*, and the viewer's plane
+is exactly the original's. It is simulation-written, in the save (version 20) and in the
+digest. **And one ordering, disclosed:** our walker marks an army stopped on the commit that
+empties its path, where the original stops after crossing into the last tile, so the
+destination's square is revealed on the commit — same tiles, one crossing earlier. *(Gone:
+C184 stops the walker where the original does, and the reveal is at the edge again.)*
+
+---
+
+**C173 — A left click on a field opens the information panel, and the panel says what the field is.**
+
+Three reports from one player, whose reports of the original have held without exception:
+the left click on a field *"still brings up placeholder"*, the right click opens the right
+screen with *"the text for that field … not filled in"*, and there are *"debug squares still
+on the town square … and the fields"*. All three **[V]** against the decompilation.
+
+**The click.** `Map_Click` (`0x0043CE1A`)'s farmland arm is `_DAT_005681CC = 3; g_screenId =
+4; FUN_0041B032();`, and the right release's `FUN_0043CAF4` ends in the same two statements;
+`FUN_0041B032` picks the tile half on `g_pickedTileUnit == 0`. So on your own field the two
+buttons open one screen. `docs/arms.json` `0x0043CE1A/field-brush` said the mode byte *"is
+what makes the information panel draw the crop table instead of the tile panel"* — nothing on
+that path reads it, and both buttons write the same 3 — and the arm was answered with a popup
+of ours on screen 0, `ours/brush-popup-on-the-map`, now removed. The paths still differ in
+one respect, recorded and not built: `FUN_0043CAF4` also selects and recentres on another
+county when no unit is picked.
+
+**The words.** `TileInfo_Draw` (`0x0041C208`) draws a field from `DAT_004D2EC8`, sixteen
+bytes a terrain value — heading, body, icon, mode — and **the table's own descriptions for
+wheat (30/35 … 30/39) and cattle (30/44 … 30/47) are read and never drawn**: those two modes
+run `TileInfo_DrawGrain` and `TileInfo_DrawHerd` instead, which draw groups 77 and 22. The
+table is transcribed and asserted against the player's image. `FUN_0041BEFE` also draws an
+inset well we did not, and gives a flooded or parched field of yours row `0x11`, not 5.
+
+**What is still missing, measured.** Four county figures those reports draw are excluded in
+`docs/stored-fields.json`: `+0x278` and `+0x274`, what an event did to the grain and the herd,
+and `+0x24C` and `+0x270`, what the weather did. The *"no outside factors"* sentences are
+drawn exactly when the original's figure is provably zero — `Event_RollAll` runs before the
+grain tick and only *Rats*, *Grain found*, *Mad cows*, *Wolves*, *Bad cattle* and *Cow
+bonanza* write the two percentage bytes — and the figure lines are not drawn otherwise.
+
+**The squares, and every other thing of ours on the map and the screens**, are behind a
+debug overlay, off by default, flipped by Ctrl+D (`Prefs::debug_overlay`,
+`ours/debug-overlay-toggle`): `Sprite_TopIt` puts a banner on the town's quadrant 0 and a
+herd on a pasture and nothing else, and `Sidebar_ButtonClicked` is a hit test that draws
+nothing. Ctrl+D because the window procedure has no letter arm and `Edit_TypeChar` rejects the
+`0x04` it sends.
+
+---
+
+**C174 — The information panel's body-face headings were in the unit half, not the tile half: three drawn in body and five not drawn.** **[V]**
+
+C150 recorded that *"the tile half's headings are `&g_fontHeading`"* and *"the unit half's use
+`Pen::eng`, which is the body font, at the same slot"*, and left *"five call sites in a half
+this change does not touch"*. The brief that followed read that as five call sites in
+`TileInfo_Draw`. Reading both painters' call sites:
+
+| painter | `&g_fontHeading` calls | ours before |
+|---|---:|---|
+| `TileInfo_Draw` (`0x0041C208`) | 3 — heading 30/`local_20` at `(0x28, R*16+0x40)`, its farm-field suffix 30/`local_c` at `g_penAdvance + 0x28`, the county name `Ui_DrawCentred(100, …, 8, R*16+0x18, 0x1C0)` | the county-town heading and the county name, both already heading; the suffix belongs to the farmland arm, which is not built |
+| `TileInfo_DrawGrain`, `…Herd`, `…Castle` | 0 | — |
+| `UnitPanel_Draw` (`0x0041B19D`) | 8 | below |
+
+`UnitPanel_Draw`'s eight, and what each draws now:
+
+| call | was | is |
+|---|---|---|
+| 31/2 at `(0x18, R*16+0x30)`, transport | body, at `(0x28, R*16+0x40)` | heading, at `(0x18, R*16+0x30)` |
+| 100/`unit[+0x167] + scen*20` at `g_penAdvance + 0x18`, transport | not drawn | heading — the cargo county |
+| 31/`local_20` at `(0x28, R*16+0x40)`, merchant 0 and peasants 5 | body | heading |
+| `(owner + 0x5D)`/`nameIndex` at `(0x28, R*16+0x30)`, every army | not drawn | heading |
+| 16/0 at `(0x38, R*16+0x130)`, own army with no band | not drawn | heading |
+| `Ui_DrawNumber(mercMen, '@', "", 0x38, …)`, 16/`mercBand`, `Ui_DrawUnitNoun(mercMen, mercTroop*2 + 0x34, …)` | not drawn | heading, chained on `g_penAdvance` |
+
+`DAT_004D422C` is a NUL, read out of the image. `Ui_DrawUnitNoun` (`0x0041AC3E`) is
+`value == 1 ? index : index + 1`, without `Ui_DrawCount`'s `-1` arm. C150's *"five"* is
+`UnitPanel_Draw`'s `Eng_DrawString` heading calls outside the mercenary-band branch.
+
+**And a claim in `docs/draws.md` is contradicted by the same function.** Its *And a second
+dead thing* says `local_14` is *"read nowhere in the function"*;
+`Sprite_WGenSprite(local_14, 0x28, R*16+0x60)` reads it, and `screens/info.rs` already draws
+those five frames as the unit icons. Not edited here.
+
+Test: `chrome_text::every_unit_panel_heading_is_in_the_heading_face_inside_its_box` — six
+units, each line found in `Fntl2_22.pl8` at its call site's own position, inside
+`Ui_DrawBox(8, R*0x10 + 0x20, 0x1C, 0x1B − R)`, and not found in `Fntl2_14.pl8`.
+
+---
+
+**C175 — `Glyph_Draw` raises 23 characters in the body face, `g_glyphWidths` is 224 bytes, and `L2.eng` dropped every string with a byte above `0x7F`.** **[V]**
+
+**The raise, from the instruction bytes.** After `add [g_drawY], eax` (`y += record[0x0D]`,
+`0x00402A91`), `Glyph_Draw` (`0x00402A14`) does `cmp dword [ebp+8], 0x005AF8F0` —
+`g_fontBody` — and `jne 0x00402B0E` past everything below. Then three times:
+`xor eax, eax ; mov al, [ebp+0xC]`, `cmp eax, lo ; jl`, `cmp eax, hi ; jg`,
+`dec dword [g_drawY]`, with `(lo, hi)` = `(0x61, 0x6D)`, `(0x73, 0x77)`, `(0x80, 0x84)` and the
+decrements at `0x00402AC0`, `0x00402AE2`, `0x00402B08`. The argument is the index `c - 0x20`
+that `Ui_DrawText` passes, so the raised **characters** are `0x81…0x8D`, `0x93…0x97` and
+`0xA0…0xA4` — 23 — in **`Fntl2_14.pl8` only**. `Glyph_Draw` has nine call sites, all in
+`Ui_DrawText`, all passing the same font and index, so both shadow passes and the drop shadow
+move with the glyph. The test is the code and not the picture: `0x86` is `'a'`'s frame and
+raised, `0x87` is `0x80`'s frame and raised while `0x80` is not.
+
+**The table was missing 96 bytes.** `Ui_DrawText` looks up every byte above `0x1F`, so
+`g_glyphWidths` runs to index `0xDF`: 224 bytes, ending at `0x004D72CF`, where another table
+begins; no absolute address in the file points into `0x004D71F1…0x004D72CF`. Eleven of the 96
+are glyphs — `0xA0…0xA7` and `0xDF…0xE1` — and our 128-byte `GLYPH_MAP` drew them as blanks;
+five of the raised characters are among them. `pl8.md`'s *"highest frame the table asks for"*
+was 104 for that reason and is 105, which every face still holds.
+
+**`Eng::get` returned `None` for any string with a byte above `0x7F`**, under a comment saying
+the file is Latin-1 and that `from_utf8` would reject those bytes. It ran `from_utf8`. The
+English file has nine such strings — 295/2…295/10, the bullets of *"What should I do each
+turn?"*, each opening with `0xB7` — and `group(295)` read two strings of eleven. `Eng` now
+returns each byte as the `char` of the same number, which is the number `Font` indexes with.
+
+**What could not be done as asked.** The brief wanted the raise measured on a real `L2.eng`
+string that contains a raised character. **There is none**: the English file's only bytes
+above `0x7F` are those nine `0xB7`s, which have no glyph, and the DOS install's `L2.ENG` has
+no raised byte either. The raise is reachable only through a translated `L2.eng`, and none is
+on this machine. The test measures it on the two shared-frame pairs, and asserts the file's
+high bytes so that a translated file turns it red.
+
+Tests: `shell::glyph_draw_raises_three_index_ranges_and_only_for_g_font_body` (compares and
+decrements read out of `Lords2.exe`; every character `0x20…0xFF` put to
+`font::accent_raised`), `shell::an_accent_sits_one_row_above_its_own_frame_in_the_body_face_and_nowhere_else`
+(ink of `0x86`/`0x87` one row above `'a'`/`0x80` in body, identical in heading, small and
+eight), `shell::the_each_turn_help_page_keeps_its_nine_bullets`, and
+`shell::the_glyph_map_is_the_table_in_the_users_own_executable`, now over 224 bytes.
+
+---
+
+**C176 — every play path now behaves as one of the original's two `Sound_PlayFile`
+shapes, and the verb that never dropped a request is gone.**
+
+`Sound_PlayFile` (`0x00427990`) returns at once while the one-shot buffer, `DAT_00522AEC`, is
+still playing. Ours did that only for the troop cries and `Wall_Smash`. `Audio::play_speech` never
+dropped a request, and the fanfares and `fire.wav` went through `Audio::play_effect`, which neither
+dropped a request nor took the buffer.
+
+**The statement in front of each reproduced call site splits them into two shapes.** `[V]`
+
+* **Plain `Sound_PlayFile`: drops while the buffer plays.** Now [`Audio::play_file`]. This covers
+  the speech lines (`Panel_OpenRation` ×2, `Sidebar_Button`, `Panel_SplitButton`, `Map_ZoomOut`),
+  the tips' chained takes (`FUN_004B3ACD`), `Msg_DrawWindow`'s five message fanfares and
+  `Battle_ChooseSettlement`'s `ff_batl.wav`, `Panel_JobDetail`'s `fire.wav`, the six troop-cry
+  sites via `Sound_PlayTroopCry`, and `Wall_Smash`.
+* **`Sound_StopOneShot()` then `Sound_PlayFile`: cuts off whatever is playing, and is never
+  dropped.** Now [`Audio::stop_and_play_file`], with [`Audio::stop_one_shot`] for the stop. This
+  covers `Msg_PlayVoice` in all three bands, and setup page 4's line (`FUN_00432CC8` ×2 and
+  `Setup_ChooseCampaign`, each `S011_02.wav`).
+
+**`play_speech` is removed, so no call site can regain the old non-dropping behaviour.** A request
+that is dropped no longer becomes the buffer's occupant, so the clip that was there stays the one
+`Sound_OneShotBusy` asks about.
+
+**A behaviour change a player can hear.** The message fanfares pass `isSpeech = 1`, so the
+**Speech** switch now silences `ff_msg.wav` and `ff_capt.wav`, and the Sound Effects switch no
+longer does.
+
+**The battlefield's H and V order now works while paused.** `Battle_FormationKey` (`0x0043C77A`)
+checks `DAT_00553C6C == 0 && g_appPhase == 3`, and its `WM_CHAR` caller checks
+`g_battlePhase == 2 && DAT_0057A0CC == 0`. Neither is the pause word `DAT_0053F238`, which
+`Battle_OrderClicked` tests for click orders. So H and V change the formation while paused, as they
+do in the original.
+
+**Tests**, each ablated and observed red on its own assertion:
+* in `audio_screens`, a zoom-out line and `ff_batl` requested over the ration line are dropped and
+  do not take the buffer, and requested after the line ends both play;
+* in `audio_wiring`, a letter's fanfare holds the buffer, the lord's voice cuts it off, and
+  Speech: Off silences the fanfare;
+* in `tips`, a troop cry holds a tip's next take back until 64 ticks after the cry's last sounding
+  tick, as the narrator does;
+* in `audio_battle`, V and H change unit `+0x09` while paused.
+
+`a_screen_speaks_once` was rewritten. Its mid-line comparison had been measuring the rewind a second
+trigger caused, and the drop hides that, so it now plays the line out and listens again.
+
+**At merge.** The film merge (C171) had added one more caller of `play_speech`, which this branch
+never saw: the ending film's narrator line, `Msg_DrawWindow#21`. Its own comment names it
+`Msg_PlayVoice(DAT_004F0374, DAT_004F0354)`, so it is `stop_and_play_file(name, true)` by the same
+rule as every other `Msg_PlayVoice` site. C166's sentence about the one buffer being "set by
+`play_speech` and `play_file`" now says that `stop_and_play_file` took `play_speech`'s place, here.
+
+---
+
+**C177 — The job popup's five bodies drew nothing, the event letters drew no count, and a county with no castle has barracks for 2500.**
+
+C164 carried the figures and recorded three painters missing. They are built,
+each from its decompiled body, with every word out of the player's `L2.eng` and
+our transcription only as the fallback. **[V]** on every address, coordinate,
+lead and suffix below; each suffix pointer was read out of the shipped exe.
+
+| body | painter | calls | groups |
+|---|---|---:|---|
+| grain | `Panel_JobGrain` `0x00413590` | 27 | 77, 22, 8 |
+| cattle | `Panel_JobCattle` `0x00413B30` | 29 | 77, 8 |
+| reclamation | `Panel_JobReclamation` `0x004140F3` | 6 | 77, 8 |
+| castle | `Castle_DrawStatusBlock` `0x0041DEDB` via `FUN_00414220` | 13 | 71, 8 |
+| iron, stone, wood | `Panel_JobIndustry` `0x00412E6B` | 12 | 76, 8 |
+| event letters | `Msg_DrawWindow` category `0x0F`, `00470000.c:2067` | 3 + 8 | the event's own, 77, 8 |
+
+Every call site is reproduced except the event arm's two `Ui_DrawNumber(+0x2F8)`
+lines and the words chained after them (Plague, Wedding fever): `+0x2F8` stays
+excluded for C164's reason, and a word placed from a number that is not drawn
+cannot be placed. The blacksmith's full page (`Panel_JobBlacksmith`, 21 calls)
+and the job's `iconvill.pl8` picture remain unbuilt, as before.
+
+**Two things the reading turned up that are not the painters':**
+
+* **The event letter is unreachable in our engine.** `FUN_00448D7E` posts it —
+  `Msg_Enqueue(0, g_localPlayer, county.eventId, 0, 0x0F, county, 0, 0)`, once a
+  frame from the loop at `0x004B99C0`, for `g_selectedCounty` when its
+  `eventFired` is set and it is the local player's — and no function of ours
+  does; no `Message::Event` reaches the ring. The painter is tested by posting
+  the record directly. `frame_of`'s comment also states the arm's height rule
+  (`eventId < 0x12E ? 0xC0 : 0xE0`, the county's id, not the record's) and the
+  code ignores it; the eight events here are all below `0x12E`, so nothing drawn
+  moves, and it is recorded rather than fixed.
+* **`Castle_DrawStatusBlock` indexes two tables one word low.** `&DAT_004D8A0C +
+  type*4` and `&DAT_004D8A24 + type*4` are right for types 1…5; at type 0 they
+  read `CASTLE_WORKFORCE[4].1` and `g_castleGarrisonCap[5]` — bytes `c4 09 00 00`
+  and `00 00 00 00`. So the castle builders' popup of a county with no castle
+  says *"Boosts tax revenues by 0 %"* and *"Barracks for 2500 troops."*, and
+  `siege-aftersie.sav` holds such a county of the player's. `[V]` on the bytes
+  and the painter, `[I]` that a player sees it; reproduced, and not yet in
+  `docs/bugs.md`.
+
+**Measured and not chased:** an ordered castle with its materials delivered and
+an industry split of 100 is staffed by nobody, because castle building's share
+at `+0x130 + 3*4` is 0 after `order_castle` and wood cutting takes the county.
+Whether `Castle_Order` leaves that share alone too was not read.
+
+**Tests** — `crates/l2-game/tests/job_bodies/main.rs`, ten, each figure and word in its
+own box at the painter's coordinates. Stored non-zero: the grain store, eating
+and overall change; herd, births, deaths, slaughter, the overall change and all
+four crowding bands; industry output, efficiency and both blacksmith figures;
+castle types 1–5's bonus and barracks, and type 0's 2500. Made non-zero by the
+rule's own road: the sowing, the yield, `+0x2FC`, `crop[0]`, `crop[2]` (fields
+painted, seasons advanced), both materials owed and the hundred-season estimate
+(`order_castle`), `+0x278` and `+0x274` (`event::fire` and the season ticks),
+`+0x24C` and `+0x270` (a hand-set weather band and the tick). **Only ever zero:**
+field reclamation (`+0x204`, `+0x214`), the castle builders and so any finite
+estimate, stone's output, and the fertility band's input.
+
+Sixteen ablations went red at the box they name. **Two stayed green and are
+findings:** the iron popup reading the wood record passes, because every save
+here produces equal wood and iron at the same 80%; and reclamation's `'@'` lead
+as `' '` changes no pixel, both being glyph-less.
+
+---
+
+**C178 — A window over a page is in the page's colours, and we asked the
+window.**
+
+A player, twice: behind the first tip on the raise-army screen and on castle building, *"the
+screen behind it is color reversed. Immediately fixes after dismissing the tutorial screen and
+doesn't return"*; and on a battlefield, *"it's all reverse color ...or..something. It's blue
+grainy madness."*
+
+**The original has one display palette and only a painter writes it.** `Screen_Armoury` ends
+with `Palette_Set(armoury.256)`; `Battle_LoadAssets` sets `T32_bat1.256`. Nothing drawn over a
+page touches it: `Tip_Show` (`0x00476DA9`) saves `g_screenId`, writes `0x27` and posts a
+message; `FUN_00476E21` puts the byte back; `Msg_DrawWindow` (`0x0047309E`) calls no
+`Palette_Set` in its 10,915 bytes. There is no dim, shade or remap table on this path at all.
+`[V]`
+
+`Machine::palette_name` asked the **top** screen, and the tip host and the message scroll —
+like the menu bar, the options pages and save/load — name no palette. So any overlay turned the
+page beneath it to the campaign palette. The tip made it look like a first-open defect only
+because a tip shows once a game. It now takes the nearest screen that names a palette, looking
+down through overlays and stopping at the first page, which is where `Machine::draw` stops.
+
+**The battle report is a different defect, found while testing this one and not fixed here.**
+`BattlefieldScreen::palette` names `T32_bat1.256`, and that file is read into
+`Assets::battle` (`l2_view::scene::BattleAssets::palette`) and never into the shell's palette
+map, which is the only place the presenter looks. The name resolves to nothing and
+`.unwrap_or(&assets.palette)` quietly presents **every battlefield frame** through the campaign
+palette, window or no window — since `75f08b8`, which is in the player's build. Nothing on the
+battlefield path remaps indices, so the fallback is not harmless. This correction's own fix is
+only that a window over the battlefield now *asks* for the battlefield's palette, asserted by
+name in `tests/overlay_palette.rs`. A silent fallback on a lookup by name is what hid it: the
+next palette a screen names and nobody registers will be hidden the same way.
+
+**The test could not have been a canvas test**, which is the reusable part: every index on the
+canvas was right, and the defect lived entirely between the canvas and the glass. The presenter
+was in `main.rs`, where nothing can call it; it is `Machine::present` now, and
+`crates/l2-game/tests/overlay_palette/main.rs` asserts presented colour at fixed pixels.
+
+**A lead, not taken:** `main.rs` draws on the tick and presents on `RedrawRequested`, and the
+palette is read at present time. An event that changes the stack between the two would present
+the old canvas through the new stack's palette for one frame. `[I]` — winit's ordering was not
+driven.
+
+---
+
+**C179 — `Tick_Pulses` resets its stamp, and the armoury carried the remainder.**
+
+Three reports about the raise-army and armoury screens, read against the binary.
+
+**The walker ran 1.6 times the original's speed.** `Tick_Pulses` (`0x004BBC80`) fires when
+`0x13 < timeGetTime() - stamp` and then sets `stamp = now`, not `stamp += 20`. On a 16 ms tick
+the pulse is every second tick, 32 ms. `Anim::tick` subtracted twenty and kept the rest — the
+one reading under which the walk is exactly 200 pixels a second on every machine, which the
+original reaches only on a frame of exactly 20 ms. That is the same reading `crate::press` makes
+of `FUN_004B20ED`, the 30 ms gate beside it. `[V]` for the gate; *our tick is the frame* is
+`[I]`, as it is in `press.rs`. **Every other `Tick_Pulses` consumer in the tree was written the
+other way** — `industry.rs`'s `EVERY is PULSE_MS in 16 ms ticks`, the village — and is not
+changed here.
+
+**The walk is started by picking a rack, never by the `+`.** `FUN_004AABD8` has one call site,
+`Armoury_ClickRack`'s first statement, with the type being *left*. `Levy_Seed` (`0x004AA90A`)
+zeroes that type and the walk flag on every door into the armoury, so the first pick after a
+door never walks: *"he did… after I picked something else?"* is the original. Two divergences
+were ours: re-picking the open rack was refused (the `0x0D` arm tests no selected type), and a
+re-seed left a walk on the floor. No tip can swallow the pick — `Tip_Update` has no `0x0A` or
+`0x0D` arm.
+
+**The levy slider was a click.** `Levy_SliderClick` (`0x00435CEF`) reads the arrows on
+`pressed || doubleClick` and the track on the **level** `g_mouseLeftDown`, every frame; and
+`WM_LBUTTONDBLCLK` sets no down bit. It had no `docs/arms.json` record, which is why the
+inventory said nothing was missing.
+
+---
+
+**C180 — Five player reports were one unported function, and the lead that would have explained them all was measured and was not it.**
+
+The reports, from builds `a5b112c` and `73df349`: *"industry values don't seem to update, and
+for some reason mining started as off"*; *"the labor slider seems to reset each turn so that I
+have to reassign peasants to wheat each turn"*; *"wheat does not show the +value when it is about
+to be harvested, I'm noticing generally the industry numbers in the sidebar are inaccurate."*
+
+**The lead first, because it was plausible and it was refuted by measurement.** C168 put
+`Ai_ManageFarmsAll` at the head of the season, and an AI pass re-planning the person's county
+would have produced every one of these at once. The original's gate (`0x0049A990`) is
+`strength != 0 && isHuman == 0`, and ours tests the same two things. On England turn one and on a
+new England, realm 1 has `is_human` set, and running the pass leaves the person's county's
+labour, shares, industry share and fields byte-identical. `[V]`, measured on both paths.
+
+**What it was: `Labour_Move` (`0x00439B52`) was ported as its first two lines.** The village's
+drag and its double click (`Village_BalanceJob` → `Labour_Move`) moved the workers and stopped.
+The function goes on:
+
+```c
+FUN_00439CC2(county, from, to);             /* men on a site switch it on */
+Ration_Apply; County_RefreshEstimates; FUN_00448648(owner);
+Labour_RecomputeIndustryShare; Labour_RecomputeShares;
+Ration_Apply; County_RefreshEstimates; FUN_00448648(owner);
+```
+
+Each missing line is one of the reports, measured on England turn one's county 8 before the fix:
+
+* **No refresh:** moving 36 foresters out left the wood row at `+86`, where the original shows
+  `+57`. *"Industry values don't update."*
+* **No `FUN_00439CC2`:** 36 men dropped on the mine left it switched off, its ceiling 0, its site
+  idle, no iron row on the sidebar, and the season sent them home. C121 read the function a
+  month ago and nothing built it. *"Mining started as off"* — see below for why it starts off.
+* **No `Labour_RecomputeShares`:** the season's `Labour_Allocate` deals a county out from its
+  eight shares and never writes one, so it dealt the old split back every season. *"I have to
+  reassign peasants to wheat each turn."*
+* **The missing harvest `+`** is the same shape: the grain tail (`0x0044D374`) matches ours arm
+  for arm, and it was forecasting from a staffing the season had already undone. With the fix, a
+  sown county forecasts `+432` on the turn before harvest.
+
+`Kingdom::move_labour` is the whole function now, and `Industry_ToggleFromMap` gains the
+`Ration_Apply` and the `FUN_00448648` it lacked. That last is the Readme's *"turning a blacksmith
+on will reduce the resources available to other blacksmiths"*: on `siege-lastturn.sav` the second
+smithy's ceiling halves from 180 to 90 on the click, where ours kept 180 until the season.
+
+**Mining starts off, and that is the original.** `Game_SetupRealmsAndCounties` (`0x0049BD99`)
+switches on one industry per start county: `for (i = 0; i < 4; i++) if (i != 2 && hasResource[i])
+{ enabled[i] = 1; break; }`. Wood is record 0, so a county with a forest never starts with its
+mine. `england-turn1.sav` agrees: five switches on, all forests, all in owned counties. Both our
+paths agree with it — the importer (C57, not regressed) and `Scenario::from_map`. What was ours
+was that the one road the original gives a player to turn that mine on without the map, putting
+men on it, did nothing.
+
+**And a new game had a second defect behind the first.** A new England opened with **no foresters,
+155 idle and all four forecasts zero** in every start county. Nothing had computed an industry
+ceiling before the opening season's `Labour_AllocateAll`, for two reasons, both `[V]` by call order:
+
+* `Industry_ProduceAll` (`0x0044E852`) calls `Industry_LabourEstimate` after every production
+  pass, and ours did not. A loaded game hid this, because the importer carries the last season's
+  ceilings.
+* `Game_SetupRealmsAndCounties` runs `Labour_Allocate; Ration_Apply; County_RefreshEstimates` twice
+  per start county *before* switching the forest on, and ours did not run them at all. Every AI
+  county is allocated again at the season's head by `Ai_ManageFarmsAll`; the person's is not. So
+  his herd went through the opening season unminded: 47 head and −10 forecast. The save shows why
+  the switch has to be off during those rounds: `Industry_ProduceAll`'s `symbols.json` note gives
+  the realms' opening wood as *(0, 66, 66, 132, 166)*, and the 0 is the person's.
+
+With both, **a new England's four AI start counties match `england-turn1.sav` exactly** for the
+same realm, and the person's county matches the save's person's county job for job, ceiling for
+ceiling and forecast for forecast, on a different seat. The four tests in
+`crates/l2-game/tests/labour_move/main.rs` drive all of this through the village, End Turn, the setup
+page and the map. Six ablations were run and each was red at its own assertion.
+
+**One order is not the original's, `[D]`:** our industry passes run iron and stone over every
+county before wood runs over any, where the original goes county by county. So the weapons
+estimate made in the wood pass sees the whole realm's iron. It moves a smithy's ceiling for that
+season's two allocations only, and `Panels_RefreshAll` recomputes it before anything is drawn.
+Folding the passes would move `l2_game::save`'s pass indices.
+
+**Open, and the reason each is open:**
+
+* **"Generally inaccurate" may have a second cause we cannot measure.** `Industry_LabourEstimate`
+  writes `efficiency = ramp(workers)` on every call, and C136 left that unported. With *Advanced
+  Farming* off the ramp is a flat 80 and the write changes nothing. **All eleven saves on this
+  machine have it off.** If the player plays with it on, the original's efficiency climbs several
+  times a season (two refreshes per drag, three per switch, two more per season) and ours climbs
+  once, so ours would under-forecast and under-produce. What would settle it: **two autosaves one
+  End Turn apart from a game with Advanced Farming on**, and whether his game has it on.
+* **The person's herd on a new England is 109 against the save's 101**, on county 11 against
+  county 8. Every other figure of that county agrees. Not explained.
+* **`docs/bugs.md` B12 looks wrong, `[D]`, not acted on.** It reads `Industry_ToggleFromMap` as
+  toggling the castle share with the stale switch value. The decompilation's castle arm does that
+  (`0x0043D309`, the call inside the arm) and then **toggles it again** with the new value
+  (the shared call after the first refresh), so the share should end following the switch. A quirk
+  default rests on B12, and this correction does not change it.
+* **`Industry_ProduceAll` repaints every county's site tile, with no owner test, `[D]`.** Ours
+  skips unowned counties. So a county that secedes keeps a working mine or forest on the map after
+  `County_MakeIndependent` has switched it off: the picture and the switch disagree.
+
+---
+
+**C181 — a siege had no fire, no oil and no docked tower because five routines had
+never been read, and the three documents that described them were wrong in ways that would
+have built them wrong.**
+
+C166 filed nine battlefield sound sites as blocked on mechanics. Six of them were five routines
+of a siege, and this entry is what reading them end to end found. `docs/battle.md` §17 is the
+mechanism; this is what was believed before, and what was built.
+
+**Three descriptions were half-right, and each half would have been built.**
+* `docs/audio.json` said `FUN_0047A814` is `Melee_Tick`'s oil arm. **It has a second caller**,
+  `BattleUnit_Order`'s oil loop: a pot ordered downhill pours where it stands. And the first
+  caller is reached because `Melee_AdjacentEnemyDir` (`0x004972F9`) **does not skip siege
+  engines** — a man steps at a pot and the 999 arm puts it in melee. Built from the note alone,
+  a pot would pour only if something engaged it, and nothing in `l2-sim` could.
+* `docs/audio.json` said the bridge fire *"sets that cell and its neighbours burning"*. **It walks
+  five rings along the bridge**, lighting only bridge cells beside something already burning,
+  each seven frames longer-lived than the last. And its second caller is `Cell_TryEnter`: a
+  besieger stepping onto a bridge sets it alight.
+* `docs/battle.md` §6.3 said surfaces 10 and 17 are written by `0x00485675` and `0x00485861`.
+  **`0x00485861` writes 0x10, which burns nobody**; `FUN_004859E5` turns it into 0x11 a frame
+  later and floods the wood one ring a frame. And §14.3b filed the Readme's *"towers can not be
+  moved again"* as unlocated: it is `FUN_00491492`, **which destroys the tower** and writes a ramp.
+
+**Built**, in `crates/l2-sim`, as lockstep state: `fire.rs` (a fire is a class-5 record in the
+same hundred slots as the arrows, remembering the surface it burnt; the oil stream is class 7;
+the bridge fire; the wood fire and the AI garrison's fire arrows; `BattleMan_BurnTick`), the
+tower half of `siege.rs` (the leading-edge test from `g_engineEdgeOrtho`/`Diag`, the dock search
+from the polar facing, the ramp), the elevation-4 arm of the catapult strike, and their places in
+`runner.rs`. Every new field is in `tests/lockstep.rs`' encoder, and the field census walks the
+two structs that gained one. Six sites move from `blocked` to `reproduced`: **75 → 81 of 143**,
+and reachable files **674 → 678 of 771**.
+
+**Determinism**, proven over a siege that uses all of it: `l2_sim::proving` is a constructed
+field — ours, like `our_castle` — on which a pot pours, a tower docks, a knight climbs its ramp, a
+bridge and the men on it burn, and catapult shots bounce off a wall four high, inside two thousand
+frames. A copy whose cue record is wiped every frame equals the untouched one at every frame; a
+game with a sound `Director` listening equals one without at every frame and saves byte-identical,
+with silent audio and with the install's.
+
+**Our own castle cannot show two of the five**, and that is a finding about our layout, not about
+the rules: a tower docks only against ground exactly two high and an AI's oil will not pour from
+below two, and every wall `our_castle` draws is one high. `proving.rs` exists because of it.
+
+**Found and not built**, each named in §17.8: men attack siege engines in the original (the 999
+arm does not ask what it engaged) and `melee::engage` refuses them; rams and catapults still step
+as one cell; the player's fire arrow; the engine side-step. One defect of the original is
+reproduced and filed: `FUN_00485675` does not test its slot, so a cell set alight with the array
+full burns for good — `docs/bugs.md` `B102`.
+
+**The lesson is C140's, and the brief's.** A blocked row's note is a description written to
+explain why something could not be built, and it is read for that and nothing else. Two of these
+three were one clause short, and the missing clause was the caller.
+
+---
+
+**C182 — The press timer is one per widget record, the marker is now the kind
+itself, a double click never holds the button down, and four yes/no boxes answered raw
+clicks.**
+
+Three gaps C148 and C165 left in `crates/l2-game/src/press/mod.rs`, and two more a player
+reported while they were being closed. All of it is `[V]` from `Widget_Test` (`0x0040DA1E`),
+`App_WndProc` (`0x004B29BE`), the per-frame latch `FUN_004B191E`, `Screen_FrameInput`'s arms,
+`Screen_DrawWidgets` and the exe's own kind bytes (`node tools/oracle/kinds.js`).
+
+**One pending press was one too few.** `Press` held a single timer and a single pending
+widget. `Widget_Test`'s countdown loop walks **every** record, decrements each one's `+0x0D`,
+and calls each kind-5 handler that reaches zero without returning — so two gauntlets pressed
+a few frames apart both act, each on its own twentieth frame, and the same record pressed
+twice restarts its own count and acts once. Ours dropped the first of two, drew only one of
+them down, and a spinner pressed while a thumb waited **cancelled the thumb**. `Press` now
+keeps a timer per record; `tick()` returns every handler owed, countdown first; `pressed()`
+is gone and `is_pressed(i)` is per record, so the compiler found every painter.
+
+**`arms.rs` could not see the declared kind, and now there is nothing separate to see.** C165
+measured it: every options row declared `Kind::Press` under a `left-press-delayed` comment,
+and `arms.rs` green. A widget's kind is now written `crate::arm!("<id>", Delayed)` — which
+expands to `Kind::Delayed` and nothing else — and `arms.rs` reads that token as the marker,
+taking the gesture from the identifier through `Kind::gesture`. A comment marker may not claim
+`left-press-repeat`, `left-press-delayed` or `left-press-held`, since only a `Kind` handed to
+`Press` answers those. Both ablations run: the row declared `Press` in its `arm!` turns the set
+check red; a bare `Kind::Press` under the old comment turns the new rule red, naming the line.
+**What remains possible**: a record filed `left-press` over a widget declared bare
+`Kind::Repeat` with its own comment marker; the exe-gated kind-byte check is what catches that
+one.
+
+**A double click does not hold the button down.** `App_WndProc` answers `0x203` with
+`DAT_004EADA1 |= 1` and nothing else, so `g_mouseLeftDown` stays clear however long the second
+press is held, and its `WM_LBUTTONUP` raises no release. A kind-4 widget fires once and never
+repeats; ours started the auto-repeat. And `docs/input.md` counted six screens that dropped
+`Event::DoubleClick`: five did — diplomacy and its compose dialog, divide, the information
+panel, the message scroll, supplies — and the battle prompt never had. Each now answers where
+the original's guards do and nowhere else; `docs/input.md` §5 has the table. The county panel's
+C156 double click still sets `slider_held`, which by the same fact the original would not —
+**not changed here, recorded**.
+
+**A held arrow did not repaint.** *"The click and hold seems to increase the value but it is
+not visually shown until release."* The original paints on the frame the handler runs —
+`Tax_IncreaseCounty` ends `Panel_Tax()`; the gift stepper and `SaveLoad_Scroll` set
+`g_redrawRequest = 2`; `Battle_Frame` runs `Screen_DrawWidgets` every frame for the divide
+rows, the supplies numbers and the trade panel. Ours repaints when dirty and a repeat is not
+an event. `Press::take_redraw`, handed up by every screen that owns a `Press`.
+
+**Four yes/no boxes answered raw clicks** — found by enumerating every exe record drawn with
+frames 29 and 31, after a player met two of them (*"no sound on clicking the yes/no on save,
+and it is still on mousedown instead of mouseup"*):
+
+| box | kind | what ours did |
+|---|---|---|
+| save/load, `g_saveLoadWidgets` | 4 | saved on the click, no click, no picture — and **no 150-frame wait**: `FUN_004342F3` only sets a latch, `SaveLoad_Tick` writes `0x96` frames later |
+| castle build, `g_castleBuildWidgets` | 5 | acted on the click |
+| raise army, `DAT_004DD340` | 5 | Continue, tick and cross acted on the click |
+| trade panel, `DAT_004DD838` | 4 | no click, no picture, no repeat — and the arrows step **ten** from repeat step `0x2C` |
+
+The player's *"mousedown instead of mouseup"* on the save box is the one report here that the
+gesture does not answer: kind 4 **is** the press. What he remembered is the wait.
+
+**And one crash nobody had reached.** `supplies.rs`' `THUMB_UP_INDEX` was the literal 6, from
+three rows of spinners, over a `ROWS` of two: either thumb fell into the spinner arm and
+indexed a third row, twenty ticks after the press. It is `ROWS.len() * 2` now. Nothing had
+fired a thumb through the screen until a double-click test did.
+
+Fourteen `docs/arms.json` records. The ablations are in four groups and every one went red
+where its test says; the list is in each test's own doc comment.
+
+**The slider and the widget table share one `handle`, in the original's order.** C179 gave the
+recruitment slider its own `DoubleClick` and `Release` arms, and when this branch's table arrived
+they matched in front of it and the compiler called the widgets unreachable. The order is not a
+matter of taste: `Screen_FrameInput` (`0x0042FF10`) is
+`if ((Msg_HandleInput() == 0) && (Screen_HandleInput() == 0)) { …the fifty arms… }`, and
+`Screen_HandleInput` (`0x004BA9C8`) is the per-screen **widget** pass while `Levy_SliderClick`
+(`0x00435CEF`) lives in the `0x17` **arm**. So `DAT_004DD340`'s three kind-5 records are asked
+first and the slider gets only what they did not take — not the other way round.
+`RaiseArmyScreen::widget_press` is that hit test and its `bool` is the original's
+`Screen_HandleInput() == 0`. Three consequences fall out of the same reading and each is now
+written where it happens: `left_down` is set by **every** press, because `WM_LBUTTONDOWN` sets
+`g_mouseLeftDown` whatever the press landed on, so sliding off Continue onto the track still moves
+the knob; the right release meets the slider with no widget pass in front of it, because
+`Screen_HandleInput` is left-button only; and a release reaches both halves, ending the record's
+hold and clearing the level in one event. The two never collide geometrically — the band is
+x `0x80…0x176` by y `base+0x10…base+0x40` and the records sit at (480, 336), (352, 256) and
+(400, 260) — which is why nothing caught the order being wrong.
+
+**Found and not fixed: the castle chooser is stranded by its own film, and it predates this
+branch.** `CastleBuild_Confirm` hands `Smk_Play` a return screen of `0`, so in the original the
+end of the film *is* the map. Ours pushes the film over the chooser and leaves the chooser to pop
+itself on its next `update` — and `Machine::update` runs `run_tips` and `pump_messages` **before**
+that update. `tip::DELAY` is `0x14` frames, so on any film longer than twenty frames the castle
+screen's own advisor tip (`Tip_Update`'s `0x1B` arm) is seated the instant the film goes, the
+chooser never gets its `update`, and the player is left on the chooser under a tip. **Measured
+without this branch's timing anywhere**: pushing `Film::Castle(0)` over the chooser directly, as
+`main`'s `confirm` did, and letting the real `castle1.smk` play strands it at tick 523 of 521
+frames of film. `movies.rs` asserted the clean end state only because placeholder assets fail to
+open a film and the whole sequence fitted inside twenty frames; the two tests now assert the film
+is off the stack and say in full why they stop there. The fix is `g_smkReturnScreen` as a
+transition — *"go to screen X"*, unwinding the stack — which is the machine's vocabulary and not
+the input model's, so it is reported rather than smuggled in here.
+
+---
+
+**C183 — the battlefield was "blue grainy", ghosted and snapping, all three had
+separate causes, and the test that held the merge up for a day was the *films*, not the siege.**
+
+A player reported three things on one battlefield: the colours were *"blue grainy madness"*, men
+*"reset on their square once as they move"*, and they left *"ghosting"*.
+
+**Colours.** `Res_LoadStatic` (`0x00499859`) preloads `t32_bat1.256` and `t32_stn1.256`, and
+`Screen_DrawBattlefield` (`0x004233F7`) ends with `Palette_Set` (`0x004B0AB5`) for a field battle
+or a siege. That is a plain copy with no remap or shade table. Ours named `T32_bat1.256`, but
+`shell::PALETTES` never registered it, so the presenter silently fell back to `base01.256`: 209,925
+of 215,040 field pixels were wrong. Grass index 77 came out `(0, 97, 190)` instead of
+`(64, 85, 12)`. It is registered now, and a message or tip over the battlefield resolves to it
+through the same overlay rule as every other page. **Not the same cause as the tip backdrop.** The
+siege arm (`t32_stn1.256`) is not ported, because its tileset is not loaded either.
+
+**Ghosting.** The original clips men and horses to x 0–480, y 24–472 (`FUN_004BC020`).
+`BattleFigure_Draw` and `FUN_004BE4DF` clip every sprite to that rectangle. Ours drew them unclipped
+into the menu bar, the right column and the bottom strip, which nothing on the battlefield repaints.
+`scene::FIELD_CLIP` is that rectangle.
+
+**Snapping.** `BattleMan_Step` (`0x0048F1DD`) enters the next cell first (`FUN_00491B1F` moves the
+map position), then counts `walking` 1, 3 … 15, and `BattleFigure_Draw` draws the man trailing
+behind the cell he is already in. Ours drew the offset from the old cell, so each man was drawn up to
+28 px behind his own square and then jumped a cell. A walking man is now drawn from the cell his
+facing points into. Jumps of 16 px or more fell from 1,317 to 504. **The remaining 504 come from our
+simulation stepping before entering and re-choosing direction every tick**, which the original never
+does. That is left alone, because it changes battle outcomes, and it is documented in
+`docs/battle.md` §13.6.
+
+**Drawing does not change the battle.** `LiveBattle` is equal every tick, and `save::encode` is
+equal: on `main` at `8a1b094` the painted and the unpainted play both fingerprint
+`fnv1a dbe6c8fd57b4994a` (63,308 bytes). The honest limit of that second half, stated because the
+first reading of it was too generous: `l2_game::save` is `l2_kingdom::save` plus a ten-field prefix
+and holds **no `LiveBattle`**, so those bytes say the campaign around the battle came through
+untouched, and the battle itself is carried by the per-tick `LiveBattle` equality and nothing else.
+`tests/battle_picture.rs` drives a real battle through the screen stack and asserts pixels: the
+palette's colours against the install's own `.256`, the man found by exact frame match advancing
+every tick, nothing outside the field written, and the square he left equal to a fresh terrain pass.
+Registration ablated is red.
+
+**The red test was C171's films, not C181's siege work, and the suspicion is refuted by
+measurement.** `painting_the_battlefield_with_its_artwork_does_not_change_the_battle` panicked with
+*"a live battle"*: it read its casualty count off `g.battle` after 1,500 painted ticks and the
+battle had been handed back. Built against `3774de3^1` — `main` the commit before C181 — that
+battle ends at the same tick 655 with the same `Conclusion { winner: SIDE_B, cause: Annihilation }`
+and is handed back at the same tick 902. C181 cannot be the cause: with no woodland, bridge, wall,
+pot or engine on the field, every arm it added is unreachable here. The films landed *after* this
+branch's base (`522bd8d`). `Battle_CheckOutcome` (`0x00477DFC`) ends a field battle the frame a
+side's man count reaches zero, then counts `DAT_00568470` to 5000 behind the banner;
+`Smk_OnFinished` sets that to 5001 when the outcome film ends. No film on the base meant the banner
+kept its 5000 frames and 1,500 ticks still had a battle to read; on `main` the film opens and
+`turn::finish_battle` takes it at 902. **The expectation was wrong and the simulation was right**:
+the test keeps its claim — the two copies equal every tick — and counts casualties while there is
+still a battle to count them from. The placeholder run, whose film cannot open, holds its battle
+for all 3,000 ticks, which is the same rule seen from the other side.
+
+**Measured and left alone: the ordered army always dies.** Seven seeds of that scenario — three
+swordsmen and three archers ordered onto three crossbowmen and three macemen over eight cells of
+open ground — annihilate the human side every time, 24 men to 0, the AI losing three or five with
+only two or ten of those deaths in melee. Unchanged before C181 and on this branch's base, so it is
+neither's; no claim is made here about what the original would do with the same twelve figures.
+Written down because the determinism test is built on that battle.
+
+**At merge.** The branch reverted its own presenter change so as not to collide with the overlay
+palette's `Machine::present` (C178); what remains is the registration, which composes with that
+rule. **C178's sentence that `Battle_LoadAssets` sets `T32_bat1.256` is wrong by the same reading:**
+`Battle_LoadAssets` (`0x004987B7`) hands the tile renderer its geometry, and the palette is
+`Screen_DrawBattlefield`'s `Palette_Set`. The two comments that repeated it, beside
+`Machine::palette_name` and at the head of `tests/overlay_palette.rs`, are corrected here.
+
+**Found and not built: the black overview panel is a missing painter, not a palette fault.** A
+player on `main` without this branch also reported *"a black minimap"*. Registering the palette
+cannot touch it — `ink.background` is the index nearest black, so our `fill_rect` is black in every
+palette. The original paints the panel in `FUN_004BC51A` (`0x004BC51A`), registered by
+`Battle_LoadAssets`' `FUN_004bc107(…, 0x1E0, 0x18, 2)` and scheduled four rows a frame by
+`FUN_004BC1D1` out of `Battle_Frame`: a terrain raster of 2 × 2 tiles from `t2_bat1.pl8` (252
+frames, one per `T32_bat1.pl8` tile), a 2 × 2 man from `t2_spri.pl8` over each occupied cell in the
+**owning realm's shield colour**, and no viewport rectangle. Neither `t2_` sheet is loaded in this
+tree; ours fills flat, colours by side, and draws a frame the original does not. `[V]`, from the
+decompilation; left for a row of its own.
+
+---
+
+**C184 — C134 gave every unit a sub-tile counter and nothing drew it; a march ended a
+tile early; and the gold ball of action had never been built.**
+
+Two player reports against the same screen. On `A5B112C2B`: *"The army marching animation is
+jumping from square to square, I remember there being an animation and some interpolation
+between walking squares."* On `73DF34969`: *"The balls of the army movement are missing the
+gold ball of action, it's just a grey ball like I can't get there when I attack a town."*
+
+**The walk.** `Map_DrawArmies` (`0x00408438`) adds `table[zoom][facing][+0x149]` to a
+unit's anchor, out of six 8 × 16 `i8` tables at `0x004D8108` … `0x004D8388` — carried now,
+generated from the file and asserted against the user's copy. The unit's tile is already the
+destination (`Unit_MoveInFacing` runs at the commit), so the offset drags the figure back;
+the commit writes `+0x149 = 1` and admissions add 2, so a crossing is drawn at the eight odd
+indices; and index 1 is 28 against a pitch of 30, so the figure hops two pixels at each
+commit. **[V]** on the bytes, twice (the file, and our projection agreeing with every
+heading); **[D]** on which indices are drawn. **The frame is one tick behind**: all four tick
+handlers write `+0x07` before `Unit_Step`, which we reproduce outside the kingdom
+(`l2_game::game::UnitFrames`) because a frame index is not the world's. `+0x1B` is not
+stored: `Unit_StepOnce` is its only writer and moves it with `+0x149`, so it is always
+`+0x149 / 2`.
+
+**What ours said, and why nobody looked.** `campaign::draw_unit`'s doc said the tables had
+nothing to index with — true until C134 — and that *"a unit mid-step would sit at its
+destination tile in the original for the same reason it does here"*, which was never true.
+The second clause is what made the gap look like fidelity. **A correct explanation of why
+something is absent keeps being read after its premise has gone** — the same shape as
+C123's comment above an unported tail.
+
+**A march ended one tile early, in the simulation.** `movement::step` wrote `moving = false`
+on the commit that emptied the path. `Unit_Step` (`0x00465D28`) does not: the commit returns
+1, `moving` stays 2, the unit crosses the last tile, and the latched arm stops it at that
+tile's edge. Drawn, ours left every finished army parked at `+0x149 = 1`, a whole tile back,
+and re-walked that tile on its next order. **Fixed in the simulation**, which moves the
+digest: a march now ends 8 road ticks (32 open) later. Three tests went red, and two were
+asserting the defect's numbers — `the_wait_follows_the_units` (17, now 25) and
+`a_unit_loaded_with_no_allowance_still_walks` (49, now 57). The third was this correction's own
+presentation field reaching `Game`'s equality, now excluded from it. **[D]**
+
+**The ball.** `Map_DrawPathMarker` (`0x004081A6`) tests `local_14 = flags & 0x50`, or `0x80`
+with terrain other than `0x14`, *before* the cost, and draws `0x4E` — no owner, no reach, no
+unit. Ours had only the cost arm, and a town's cost (100) is always past the budget. Its
+placement was ours too, centred where the function adds `(0x14, 6)` and never centres. **An
+enemy army is not an action tile**; the report's *"attack"* is narrower in the binary than in
+the word.
+
+**Still not done:** `Map_DrawArmies(mode)`'s two-pixel shift on the first cell of an offset
+row; `SUBTILE_STEP_NET`; and our painter still draws every unit in one pass after every tile,
+where the original draws each in its tile's lattice slot, so a figure walking back over a
+later-drawn tile's overlay is on top in ours.
+
+**The moved trajectory took a test with it, and that assertion was asserting an accident.**
+`long_game.rs`'s `four_hundred_turns_of_england_reaches_the_rules_nothing_else_can` claimed
+`Realm_SecedeIsolatedCounties` (`0x0044AE3C`) is reached in 600 turns of England. On the new
+trajectory the human realm falls on turn 28, one realm ends with 13 of the 14 counties, nobody
+is ever cut in two, and `SECESSION` never fires. The pass takes a county only from a realm
+holding two or more contiguity blocks, and contiguity is the county neighbour list at `+0x5C`
+and nothing else (`docs/kingdom.md` §6.1). Measured off the fixture's own lists — fourteen
+counties, 39 undirected edges — **county 2 is the only cut vertex on the map**: county 1's list
+holds nothing but county 2, and removing any other county leaves the remaining thirteen
+connected. **[V]** So the pass can fire here only when a realm holds county 1 and something past
+a county 2 that is not its own — enemy or neutral alike, `Territory_ExtendBlock` joining through
+`County_IsNeighbour` (`0x00467E2C`) on same-owner adjacency. That is a fact about where the
+armies went, not about a rule: a reachability assertion resting on one articulation point of one
+map is a trajectory assertion wearing C27's clothes, and it had already survived two trajectory
+changes by luck.
+
+So the claim moved rather than being stretched or deleted.
+`a_realm_cut_in_two_loses_the_far_half_through_the_turn_machine` deals the split in one line and
+plays it through `l2_game::turn::end_turn` — the part `crates/l2-kingdom/tests/secession.rs`
+never covered, that file driving the pass over synthetic chains only. What stays in the long run
+is the invariant the pass maintains: after every one of 600 turns no realm is left holding two
+blocks, measured by a new `max_blocks` census column, which is also what tells *"nobody was
+split"* from *"the pass is not running"*. Not asserted, only measured: the mutiny fires again at
+turn 100 and a tax rate at or above 20 at turn 78, which C134's table in that test calls
+unreachable.
+
+---
+
+**C185 — the drag selection box is `Village_DrawBand`, and *"we could not find it drawing"* was spent as *"the original does not draw it"*.**
+
+A player on `ee0cb92`: *"the drag selection box has disappeared, it was probably a debug thing
+that you removed with other debug boxes."* It was not a debug thing. C173 put every marker,
+outline and line of ours that the original does not draw behind `Prefs::debug_overlay`, and the
+village's rubber band went with them on this sentence, which was in the source beside it:
+
+> `Village_BandStart`'s hit region is read out of the binary and is wider than the picture — x 0
+> … 0x1FF, y top … top + 0x178 — but **nothing in the decompiled corpus was found *drawing* the
+> band**, so the outline is ours and so is its colour.
+
+**`Village_DrawBand` (`0x00412795`) is the corpus drawing the band**, forty lines below
+`Village_DrawCluster` in the same region. It was missed because it is not reached from
+`Village_Draw`: it is a per-frame painter that opens on a **screen-id guard** rather than on a
+name that says *village*. The body, whole:
+
+```c
+/* admits 0x02, 0x05 and 0x06, then rejects 0x02 and — after FUN_004120E0
+   restores the saved 480 x 320 band — 0x06. So only 0x05, the band, draws. */
+if      (x0 < 0)                          { w += x0; x0 = 0; }
+else if (0x1FF < x0 + w)                  { w = 0x200 - x0; }
+if      (y0 < g_villageTopY)              { h -= g_villageTopY - y0; y0 = g_villageTopY; }
+else if (g_villageTopY + 0x178 <= y0 + h) { h = (g_villageTopY + 0x178) - y0; }
+FUN_00403cf4(x0, y0, w, h, 0x20);
+```
+
+`FUN_00403CF4` is now `Ui_DrawRectOutline` — four `FUN_00403A8F` lines in one colour, twenty-two
+call sites — and `0x20` is `rgb(255, 255, 255)` in `Base01.256`, the palette
+`Screen_DrawCampaign` sets and the village never replaces, because `Village_Draw` paints over the
+campaign screen rather than clearing it. So the band is **white** and ours was amber; and the
+clamp is the original's, both branches written as `else if`, so a band that starts left of zero
+is never clamped on the right. All of it is reproduced, with the install's index used where the
+install's chrome is loaded and our own ink where it is not — the rule `county::draw_strip`
+already follows for `CountyStrip_Draw`'s black `0x3F`.
+
+**Its twin was already right, by luck.** `0x0041298A` — now `Battlefield_DrawBand` — is the same
+routine for `g_screenId == 0x2A`, and `battlefield.rs` draws that band ungated because that
+screen was written after C173. One band gated and its identical twin not is the shape of the
+error: the gate was applied per *call site*, from a search for the painter by name, and the
+search missed one of the two.
+
+**What stays gated, checked one at a time.** The other twenty-odd sites C173 gated are ours: the
+county-anchor and field squares on the map (`Sprite_TopIt`'s farm arm is the pasture herd and
+nothing else, and the crop is the tile's own artwork, which `MapScreen::field_graphics` now
+paints — so those are the *"a lot of the little orange/brown squares around icons"* the same
+player also noticed going, and they are the *"debug squares still on the town square on map and
+the fields"* an earlier report asked for); the garrison marker, whose banner `draw_flags` flies
+from `FUN_004071A0`; the selection ring, against which the original's answer is the flood fill;
+the besieger dot, whose original is `Flags1a.pl8` frame `0x82` over the *castle* and is still a
+missing draw; the sidebar focus outline, which a player asked for by name; the End Turn hover
+colour, which `Screen_DrawEndTurn` passes as `0x16` whatever the pointer does; the county strip's
+quadrant outline, over quadrants the original leaves invisible; and eighteen status lines and
+*not built* stubs, in our own font, on screens whose originals carry no such words.
+
+**One hole this opened and did not close.** `Screen_DrawCampaign`'s far-zoom arm is
+`Ui_DrawBox(0, 0x19C, 0x1E, 4)` and then four draws into it — `Eng_DrawString(0x65,
+g_scenarioIndex, …)`, `Eng_DrawString(0x22, 0, …)`, `Ui_DrawYear(g_year, …)` and
+`Eng_DrawString(0x22, 1, …)`, in `&g_fontHeading` at colour `0x3F`. Our status line sat in that
+box and is gated, so at the far zoom the box is now **empty**. Neither picture is the original's:
+the box wants the map's name, the season and the year out of `L2.eng` groups 101 and 34. Filed
+rather than invented.
+
+> **Closed by C189**, which also corrects this paragraph: there is **no season** in
+> that box. The painter makes three heading draws — the map's name, *"Year"* and `Ui_DrawYear` —
+> and a fourth in the body face, and none of them is a season. A hole filed from prose rather
+> than from the listing carries the prose's errors into whoever closes it.
+
+**The lesson.** *"Nothing was found drawing it"* is a statement about a search, and C173 spent it
+as a statement about the binary. The two differ by exactly the strength of the search, and this
+search was by name in a corpus where the painter carries a screen id and not a name. Rule 5's
+*"we could not find it"* is a finding to report — and a finding is a thing to hold at arm's
+length, not a licence to switch a draw off.
+
+---
+
+**C186 — a stand-in for an absent player was installed on the path a present player
+uses, and the player watched his own army charge without him.**
+
+A player on `ee0cb92`: *"my men in battle started moving before I clicked"*, then *"I actually
+didn't see the enemy's units moving hence me thinking enemy ai on my troops"*, then *"it might be
+that enemy ai is getting applied to my units"*. The first hypothesis — our battle AI runs on the
+wrong side — is **false, and was measured rather than argued**: `tests/military.rs`
+`the_battle_ai_thinks_for_the_enemys_units_and_not_the_players` passes unchanged on the base
+commit. `Battle_UpdateAllUnits`' guard is reproduced exactly, the attacker raises as army A on
+side 4 and the defender as army B on side 0 (`Battle_InitArmies`, `0x0047EFEE`), and no handler
+ever ran for a human unit.
+
+**What actually moved them was ours, in `l2-game`, and it was documented as a deliberate
+deviation.** `engagement::begin_fight` — *"`Battle_Start` minus the screen"* — ended with
+
+```rust
+for (side, human) in [(SIDE_B, a_human), (SIDE_A, d_human)] {
+    if human { let enemy = runner.home(other_side(side)); runner.order_side(side, enemy.0, enemy.1); }
+}
+```
+
+under the comment *"This is the click a player makes on the first frame."* It was written for the
+**headless** battle, where there is no player to click, and `begin_fight` is shared with the
+**watched** one, where there is.
+
+**`Battle_Start` (`0x004778A0`) orders nobody.** `[V]`: it runs `Battlefield_Build*`,
+`Battle_InitArmies`, `FUN_00480F8B`, `Battle_UpdateAllMen` and `Battle_UpdateStrengthAdvantage`
+and returns; there is no `Order_*` call in its 655 bytes. `Battle_RaiseSide` (`0x0047FEA7`) →
+`BattleUnit_Create` (`0x00480662`) gives every figure a `tg x`/`tg y` equal to the cell it stands
+on. And it writes `DAT_0053F238 = 0xFFFFFFFF`, so a battle opens **paused** — which is why this
+was visible at all: the player saw the first frames and could tell the movement was not his.
+
+**An unordered unit is not inert, which is the half worth naming.** `BattleMan_FireMissile`'s
+`Missile_FindTarget` arm carries no human guard, so a player's archer stands on its cell and
+shoots whatever comes inside its range. *Standing* is the behaviour; helplessness is not. The
+player's own testimony — *"units don't advance on their own"* — is the binary's arithmetic as
+well.
+
+**Fixed by moving the stand-in one level out**, into `engagement::fight`, the headless path, as
+`charge_for_the_absent_player`, with the reason on the function rather than in a comment on the
+line. `begin_fight` is now `Battle_Start` and nothing else. A headless battle is byte-for-byte
+what it was — `tests/seam.rs`' fought battle is still 3,100 ticks, 178 → 0 against 182 → 22 — so
+no lockstep digest moved.
+
+**The second report was true and was not a defect.** The enemy really did stand still.
+400 peasants against 200 puts `Battle_UpdateStrengthAdvantage` (`0x0047FC01`) near −50 against
+`g_aiAggressionThreshold` of 5, so every field handler takes its cautious branch; with no attacker
+in `hit_memory` and nothing inside a charge radius of 8 or 9 cells, the only movement left is
+`Order_ToRallyWaypoint` — and **a rally waypoint is the side's own deployment marker**. `[V]`:
+`Battlefield_BuildRandom` fills all three of a side's waypoints, both rally groups, from the tile
+it just found the marker on. A cautious AI orders itself to stand where it is. The player must
+come to it. `tests/military.rs` `an_outnumbered_ai_holds_its_ground_and_does_not_advance`.
+
+**Two measurements in the tree were this, and one attribution in a held branch was wrong.**
+The ledger's `ordered-army-always-dies` — seven seeds, the human side annihilated 24 to 0 while
+the AI lost 3–5 — was the ordered side walking into a standing, shooting defence; only the human
+side was ever ordered, so *"the ordered army"* and *"the player's army"* were the same set and
+nothing distinguished them. And `worktree-agent-a55ac6f31e368d8c9` was held on *"defending AI
+archers walk to 13 cells instead of standing and shooting"*. **That branch measured no AI unit.**
+Its only measurement of 13 cells is a unit test whose walking archer is `human: true` and moved by
+`order_unit`; its field evidence is a flipped verdict in `seam.rs`, which records no side, state
+or position. Its own `send_figure` fix routes `order_side` — that is, the very order `begin_fight`
+was injecting into the player's army — into `State::Shooting`, and its `close_to_attack_tick` has
+no side test on the walking arm. The archers that walked were as likely the player's. The branch
+is untouched and still held; what changes is that its premise now has to be re-measured against a
+`begin_fight` that orders nobody.
+
+**The rule this is under is rule 5, and the failure mode is the one rule 5 exists for.** The
+deviation was *declared* — the module header said `fight` issues *"the one order a player always
+issues"* — and declaring it is what made it invisible. A stand-in for a missing input belongs on
+the path that is missing the input, never on the one where the input arrives.
+
+---
+
+**C187 — Two cattle reports, one defect and one faithful quirk, and the
+difference was only decidable because both saves were read.**
+
+Two reports arrived together and looked like one bug:
+
+> *"I don't know why 16 cows are being lost this season."*
+> *"It shows idle and +8 cows, then I click the slider towards industry, then suddenly
+> +12 cows, should be less since I moved toward industry instead of farming."*
+
+**They are not one bug, and establishing that was most of the work.** Both saves were loaded
+and diffed field by field. The first county holds 80 head on eight pastures with 114
+milkmaids and 150 people; the second holds 99 head with 259 milkmaids, 48 idle and a cattle
+ceiling of 303. Those are different diseases with the same presenting symptom — a cattle
+forecast the player could not account for.
+
+**The defect: `Herd_LabourEstimate` (`0x0044DD4D`) fills two words and we took one.** The
+loop over `workers = 0 … population` writes the growth-maximising staffing to `+0xD8`, which
+`Labour_Allocate` fills up to and which we had, *and* the **first staffing at which births
+stop trailing deaths** to `+0xD4`, which we never wrote at all. `County::labour_wanted[1]`
+held `County::new`'s zero in every county of every game this engine has ever played.
+
+That word is the herd's only distress signal, and it has **four** readers, all interface:
+`Panel_JobDetail`'s red worker count (`screens/info.rs`, `screens/job.rs`), the county
+strip's *short* produce frame (`screens/county.rs`), `Village_RebuildIcons`' unselectable
+shortfall icons (`screens/village.rs`) and the minimap's labour overlay band
+(`County::minimap_bands`). All four were reading a zero, so all four said *nothing is wrong*.
+His county wanted **149** milkmaids and had 114 — 47 % staffing, which
+`land::herd_growth` turns into seventeen extra points of death rate, and there is no
+arrangement of 150 people that would have tended 80 cows. The game had a way of telling him
+that and we had disabled it.
+
+**`[V]`, and not against one save.** Every original save stores `+0xD4` for every county, so
+the search runs against the game's own answers with nothing inverted.
+`crates/l2-kingdom/tests/cattle.rs` sweeps **every `.sav` this machine can open** — twelve
+positions, both words, every county — and the fallback arm is live in three of them:
+`lastturn.sav`'s county 1 stores 302 and 302 because its herd cannot break even at any
+staffing its county could supply, and the least-bad count *is* the argmax, so floor and
+ceiling coincide. Two other positions store 153/153 and 173/173. One arm was `[I]` and stays
+so: no save holds a county with no people, so what the floor reads when the loop never runs
+is unobserved; `LABOUR_NO_FLOOR` is used because that is what every other job writes for
+*no requirement*.
+
+**This moves the lockstep digest.** `labour_wanted` is inside `l2_kingdom::save`'s canonical
+encoding (VERSION 5 put it there), so `counties[id].labour_wanted[1]` moves from 0 to the
+break-even staffing on every county with `pop_band != 0`, at both of `Herd_LabourEstimate`'s
+call sites. Nothing in the simulation reads it — `Labour_Allocate` reads `+0xCC + slot*0x0C`
+and never `+0xC8 + slot*0x0C`, verified by exhaustion — so no rule changes; the digest moves
+because the field is state and is hashed.
+
+**And that is why one ablation had to be run a different way.** Deleting the write from
+`Kingdom::herd_season_tick` and running a whole season is **green**: `Panels_RefreshAll`
+rewrites the record afterwards and nothing downstream reads it in between, so the two call
+sites are indistinguishable from the end of a season. The test that distinguishes them runs
+`Pass::HerdSeasonTick` **alone**. Writing only half of a two-word record is the deviation
+whether or not anything can see it, but *"the ablation is green"* is a fact about the test
+and is written beside it rather than quietly not mentioned.
+
+**The second report is the original's, and the branch left it alone.** The mechanism is
+`[V]` off `Season_Advance`'s call list (`docs/kingdom.md` §3.4): `Population_UpdateAll`,
+then `Labour_AllocateAll`, then `Panels_RefreshAll` — and `County_RefreshEstimates` lives
+inside that last one. The cattle ceiling is bounded by the loop's `workers < population`, so
+on a county that wants everybody on cattle it **rises with the population** — and it rises
+one pass *after* the allocator has already dealt the newborns out. They land in Idle, and
+the next `Labour_Allocate` to run for any reason hires them. Traced on his save: the ceiling
+goes 305 → 344 across `RefreshEstimates` while the labour stays at 305, leaving 53 idle; the
+slider click re-allocates and the forecast rises. Moving towards industry really does buy
+him milkmaids. `docs/bugs.md` **B103**.
+
+**One thing on that arm was ours.** `Kingdom::set_industry_share` named `FUN_00439122` — the
+*drag* handler — and county `+0x2C`, and ran `Labour_Allocate; County_RefreshEstimates`
+**twice** with no ration pass. `Labour_SetIndustryShare` (`0x0043933B`) writes `+0x08` and
+runs `Labour_Allocate; Ration_Apply; County_RefreshEstimates`, once each. The omitted
+`Ration_Apply` is the one that bites: `herd_eaten` sizes the herd the estimate that follows
+searches over, and the forecast subtracts it twice. `Ration_Apply` is
+`ration::preview` here for the reason `Kingdom::set_ration_wanted` gives — it records and
+does not spend, and a slider dragged a hundred times in one gesture would otherwise eat the
+county. Fixing it does not change his number and the correction says so.
+
+**The finding under both of them.** The two spare words of the twelve-byte labour record were
+imported as nothing at all, and C151 already recorded the *ceiling* half of that — three
+sidebar forecasts that were the tail of an estimate pass ported without it. This is the same
+omission one word to the left, found four hundred turns later, in the same function. **A
+partially ported function does not announce the part that is missing**, and the part that
+was missing here was the only one a player could see.
+
+---
+
+**C188 — the audio layer had no `stop`, and *"blocked on finding a caller"* was
+blocked on nothing.**
+
+Two player reports on `EE0CB9233`, and one root each.
+
+**"VO doesn't seem to stop when the dialogue that produces it is closed, eg tutorial it
+will finish the line."** `Msg_Dismiss` (`0x00476768`) is four statements of state and one
+that is not: `if (g_messageGroup != 0xc2) Sound_StopOneShot();`. `Opt_ToggleMusic`
+(`0x004349A4`) has the same call on the arm that turns music *off*, so the Music row
+silences speech as well. `Audio::stop_one_shot` had been written, documented against its
+address, and **called from nowhere in the workspace** — the verb existed and the two sites
+did not. The inventory could not see it: `tools/oracle/sounds.js` scans for the nine
+*play* primitives, so all sixteen `Sound_StopOneShot` sites are outside the census by
+construction, and `docs/audio.json` was green with every voice line `reproduced`. **A
+census of what the game asks for cannot tell you the answer goes on too long.**
+`docs/audio-triggers.md` now says so in the section that excludes them.
+
+Group `0xC2` — `L2.eng` 194, *"Foiled again."* — is the original's one exemption and is
+reproduced with it; the ablation that drops the guard is red.
+
+**"No VO for 'A band of scottish pikemen are available for hire, my lord' with a
+mercenary."** `docs/audio.json` filed eight sibling voice thunks `blocked`, all eight
+carrying one note: *each is one `Sound_PlayFile` behind one table index, so the work is
+finding the caller rather than the sound*. **Seven of the eight callers were one grep of
+`tools/oracle/decomp/` away**, and had been for as long as the corpus has existed. The
+note was written once and copied to eight records, and the copy is what made it look
+answered: nobody re-reads a sentence they have already read seven times.
+
+Three of them are now built — `Sidebar_Button` hotspot 1's mercenary offer
+(`FUN_004B3714`, `S016_01` … `S016_12`, and band 1 is the Scottish pikemen exactly),
+`Panel_OpenPopulation`'s health line (`FUN_004B3768`), and the map information panel's
+sentence about whatever it opened on (`FUN_004B37BC`, both openers of screen `0x04`).
+`reproduced` 86 → **89** of 143; `blocked` 23 → **19**; the non-voice files this engine can
+reach, 30 → **55**, and the install total this engine can reach, 678 → **703** of 771.
+
+**Three things the reading found that building would not have.**
+
+* **`g_screenId = 0x17` has two writers and only one speaks.** `Armoury_Button`
+  (`0x00435AE8`) id 2, *Change*, opens the same screen silently. Ours reaches it by
+  `Transition::Replace`, so the previous tick's stack is what tells the two arrivals apart
+  — without that gate a player toggling Change and Continue hears the band announced once
+  a second. Asserted both ways.
+* **The tables are not conventions.** `0x004E2058` reads `S020_01, _02, _03, _04, _04,
+  _05, …` — entries 3 and 4 are the *same file*. `healthBand` is `0 ..= 4`, so a
+  `format!("S020_{:02}", band + 1)` would have spoken `S020_05.wav` — a file that ships —
+  for the healthiest county in the game, and nothing would have gone red. It follows that
+  **`S020_05.wav` is named in the binary and unreachable in play**, `battle5.wav`'s
+  situation. `S246`'s table is out of order too (`_02, _04, _03, _01`). Every table here is
+  transcribed from `.data`.
+* **The eighth thunk has no caller, and that is a finding about the original.**
+  `FUN_004B39E8` plays the degraded castle's three lines, `S075_02`/`_03`/`_04`, all of
+  which ship. Zero `E8` rel32 calls, zero `E9` jumps and zero dword references anywhere in
+  the image reach it; its sibling `FUN_004B3714` scores exactly one (inside
+  `Sidebar_Button`) under the same scan. `docs/bugs.md` **D40**, `docs/audio.json` `dead`,
+  and the fourth entry in `tests/sfx.rs`'s pinned set. **"Blocked on finding a caller" and
+  "there is no caller" are different answers to the same question, and only one of them is
+  reachable by building.**
+
+**What stays blocked, with the real reason rather than the copied one.** `FUN_004B36C0`
+(`Ui_OpenConfirm`, `S010_*`) — the caller is known and we have one of its thirteen call
+sites, the battlefield's autocalc, which is a field on `BattlefieldScreen` and not a
+`ScreenId`; a confirm box that is a screen unlocks all thirteen at once. `FUN_004B3940`
+(`CastleBuild_Select`, `S071_*`) — the only one of the eight whose trigger is a click
+*inside* a screen, and the selection is that screen's own field. `FUN_004B3994` (`S035_*`)
+— screen `0x20`, a front-end page not in `ScreenId` at all. `FUN_004B3B92`
+(`Msg_DrawWindow` ×4, the lord sting) — needs `voice_tick` to return a list, unchanged.
+
+---
+
+**C189 — three screens each drew a comment instead of a field, and all three
+comments had been true when they were written.**
+
+Three unrelated player reports, one shape. Every one of them is a *stale premise* left in the
+source as a sentence, still read as a fact after the thing it denied had been built.
+
+**1. *"When I attacked and it asked me to decide it said I had 0 men, I think it's because it
+was just mercenaries."*** `FUN_004224E7`, the roster painter screens `0x12` and `0x13` share,
+ends both of its modes with `Ui_DrawCount(g_units[p].menTotal, 0x48, …)` — the unit record's
+`+0x168` — and folds the band into its own row on every one of its seven rows,
+`if (g_units[p].mercTroop == local_c) local_10 += g_units[p].mercMen`. It has to, because
+`Mercenary_Hire` (`0x004AC7F3`) adds the band's men to `menTotal` and **never touches `+0x16C`**:
+
+```c
+g_units[unit].mercMen  = (&DAT_00568dc8)[band * 0x14];
+g_units[unit].menTotal = g_units[unit].menTotal + *(int *)(&DAT_00568dc8 + band * 0x14);
+```
+
+So an army raised with nothing but a hired band carries seven zero counts and a real total, and
+the two numbers are *not* interchangeable. Ours summed the seven counts for the total and passed
+`Unit::troops` raw for the rows. The right number was already on the question —
+`turn::Question::attacker_men`, read from `u.men` — and was **never drawn by anything**. Fixed by
+passing the two totals into `draw_roster` and by folding the band in one named place,
+`engagement::roster_of`, which both the question and the report now read.
+`tests/military.rs` `a_mercenary_only_army_is_not_drawn_as_no_men_at_all` asserts the two ways of
+holding two hundred pikemen paint the identical prompt.
+
+**2. The box at the far zoom was empty, and C173 is the correction that emptied it.** C173's own
+closing note filed this and did not close it. `Screen_DrawCampaign`'s (`0x0040F5FD`) zoom-2 arm:
+
+```c
+Ui_DrawBox(0, 0x19C, 0x1E, 4);
+DAT_0058FE2C = 1;  g_penAdvance = 0;
+Eng_DrawString(0x65, g_scenarioIndex, 0x40, 0x1A8, &g_fontHeading, 0x3F);
+Eng_DrawString(0x22, 0,  g_penAdvance + 0x50, 0x1A8, &g_fontHeading, 0x3F);
+Ui_DrawYear(g_year,      g_penAdvance + 0x60, 0x1A8, 1);
+DAT_0058FE2C = 0;
+Eng_DrawString(0x22, 1, 0x50, 0x1C6, &g_fontBody, 0x3F);
+```
+
+Drawn, from the player's own file, with our transcription only as the fallback. **Group 34 has
+exactly one consumer in the whole binary and it is this arm**, which is rule 6's test, not a
+naming lead: its two strings *are* this box's vocabulary, and the second of them — *"Click on
+the county you wish to view."* — is the game saying what the far zoom is for.
+
+**And the correction that filed it described it wrong.** C173's note and `docs/screens.md` §7
+both say the box wants *"the map's name, the season and the year"*. **There is no season in this
+box.** The painter makes three heading draws and a season is not one of them; the season is on
+the menu bar, out of group 29. A hole filed from prose rather than from the listing carries the
+prose's errors forward — this one would have had an agent hunting for a season draw that does
+not exist.
+
+**3. *"It says Court of LORD1 even though I wrote a name when I started the game."*** `LORD1` is
+not in `L2.eng`. A scan of all 317 groups for a lord-plus-digit returns nothing, and group 7 —
+the only default-name group there is — holds *"No player"*, *"The Knight"*, *"The Baron"*, *"The
+Countess"*, *"The Bishop"*, indexed by the **lord** and not by the realm. So it was not a
+fallback showing through: it was ours. **One defect, not two** — the typed name reaches
+`Game::player_names` correctly (`Player_SetHuman`, `0x0049BAE9`, and `tests/text.rs`
+`start_puts_the_typed_name_into_the_realm` has asserted it all along) and `court.rs` ignored it,
+under this comment:
+
+> The original draws `g_playerNames + realm * 0x2C` here; **nothing in this tree carries them
+> yet** and `screens/battle.rs` has the same hole.
+
+True when written. False from the moment hand-off 2 existed, and the comment is why nobody
+looked again. `screens/battle.rs` had the same line for the same reason and is fixed with it;
+both now go through `message::lord_name`, which is `g_playerNames` with group 7 behind it — the
+original's own two sources, in the original's own order.
+
+**What the three have in common is the thing worth keeping.** `tests/text.rs` enumerates four
+hand-offs a typed name has to survive and tests each one; all four were green while the court
+drew `LORD1`, because the fifth — *the array onto a screen that is about the player* — was not on
+the list. A chain of hand-offs is only as long as somebody wrote down, and the end of the list is
+not the end of the chain. The same is true of the battle prompt: `attacker_men` existed, was
+correct, was covered by a test that read the field, and **no test read the pixels**.
+
+---
+
+**C190 — a screen id is a destination, and we had no way
+to say one. Two player reports, one missing idea.**
+
+Two defects arrived as separate reports and share a shape: in both, the original states
+where to *go* and ours could only say where to *come back from*.
+
+> *"There doesn't seem to be a last-turn autosave either so I can't easily repro that for
+> you."*
+
+`Save_RotateAndWrite` (`0x0049A453`) keeps **three** turns, not one, and its names are three
+13-byte literals — `lastturn.sav`, `old_turn.sav`, `safeturn.sav`, `[V]` out of `.rdata` at
+`0x004DC2F0`. The rotation is `remove(safeturn); rename(old_turn, safeturn);
+rename(lastturn, old_turn);` and then `Save_Write(lastturn)`, every step's failure ignored —
+which is the whole reason a game's first autosave works. `docs/environment.md` has recorded
+the *file name* for weeks and nothing had read the function; three deep is the part that
+matters to the report, because the turn a player wants is often the one before the one that
+went wrong.
+
+**Where it is written was the second finding.** Exactly two callers, `[V]`: `Game_NewGame`
+(`0x00497E2B`) and `FUN_0049A3E6` (`0x0049A449`), now `Season_FinishFade`. The latter fires
+on `g_screenId == 0x24` — the bottom of the end-of-turn fade — and its statements are
+*reload the seasonal art, repaint, present, fade back up, autosave*. So the file holds the
+**opening of the turn that just began**, not the end of the one that finished, and
+`l2_view::fade::is_darkest` already named that frame for the art reload without anyone
+noticing the line beside it.
+
+> *"After a castle film the player is stranded on the chooser under a tip."*
+
+`CastleBuild_Confirm` (`0x00436B59`) calls `Smk_Play(castle1.smk + level * 0x10, 0x9E, 0x14,
+0, 0)`. **The fifth argument is a literal `0`: the campaign map.** Reading all eight
+`Smk_Play` call sites is what makes that mean something — seven pass `g_screenId` itself or
+the front end's `0x1F`, which in a stack is *come back where you were*, and exactly one names
+a screen that is not the one it was raised over. Ours popped the film and left the chooser to
+pop itself on its next `update`; `Machine::update` runs `run_tips` and `pump_messages` first
+and `tip::DELAY` is `0x14` frames, so on any film longer than twenty the castle advisor tip
+seated itself and the chooser never got that update. The ablation reproduces the report
+exactly: `[Campaign, Castle(1), Tip, Message]`.
+
+`Transition::Goto(ScreenId)` is the idea that was missing — *go to screen X, unwinding the
+stack*. It is neither `Pop`, which only knows what it is leaving, nor `Replace`, which leaves
+everything underneath standing. The original needed no such vocabulary because `g_screenId`
+is one byte, and a codebase that models one byte as a stack has to say the difference out
+loud or it cannot say it at all.
+
+**The autosave is raised, not performed**, and that is the part worth keeping. Seventeen test
+files end a turn through the map screen; if `tick_fade` wrote a file, every one of them would
+rotate the developer's own autosaves out from under them on every run — which is the exact
+defect being fixed, committed by the fix. So a screen reports it the way it already reports a
+widget click (`Screen::take_autosave`), the machine drains it, and `saves::run_pending` is the
+only thing in the workspace that turns it into a file. Nothing of it is on `Game`, so it is
+in neither the save nor the lockstep digest.
+
+**What was left alone.** `Film::Ending { game_over: true }` stays a `Replace(Conquest)`: its
+return screen is `g_screenId` *read after `Msg_Dismiss` has already entered `0x1C`*, so there
+is no screen on the stack to unwind to and "become this" is what the byte is saying. And
+`DAT_00553260`, the guard that suppresses the rotation, is not built — it is raised only by
+`FUN_0049B973`, the multiplayer com-link-error resync, and we have no network game.
+
+---
+
+**C191 — the only control on any job popup, and the sentence that
+says it is one. Both were filed as missing, and the *table* was filed without half of its
+own call.**
+
+A player: *"I can't choose what type of weapon my blacksmiths are making."*
+
+**Everything the choice does to the simulation was already here.** `County::weapon_type`
+(`+0x290`) has been a field since C153; `industry::weapon_shares` is `Industry_WeaponShares`
+(`0x0044F15B`); `WEAPON_COST` is `g_weaponCost` (`0x004D8990`); the AI's rota writes the byte
+every season. What did not exist was **a way for a person to write it**, and there is exactly
+one in the original: six hotspots over the smithy picture, `Hotspot_Test(0, 0x18,
+&DAT_004DCA10, 6)`, dispatched from `Screen_HandleInput` (`0x004BA9C8`) and not from
+`Screen_FrameInput`. That placement is why C61's denominator note exists: an enumeration of
+the dispatcher scores this zero without it ever appearing as a miss.
+
+**The record in `docs/arms.json` named the table and not the call, and that is the finding.**
+`Hotspot_Test`'s first two arguments are **offsets added to every record before the test**,
+and the call passes `(0, 0x18)` — which is exactly where `Sprite_WGenSprite(0, 0, 0x18)` puts
+`Smithy.pl8`. So the six rectangles are in the **picture's** coordinates. Read as screen
+coordinates, as a careful person reading only the table would read them, every weapon sits
+twenty-four pixels high: a click a player aims at the pike lands on the bow, and it lands
+*silently*, because the county still changes what it forges. `crates/l2-game/tests/job_bodies/main.rs`
+asserts both corners of all six against the player's own exe so that reading cannot recur.
+It is the same shape as `docs/arms.json`'s gesture field (C148): the record carried the
+address that would have answered the question and nobody read the rest of the line.
+
+**`FUN_0043A997` (`0x0043A997`) is five statements and four of them are the recompute**, now
+`l2_kingdom::Kingdom::set_weapon_type`:
+
+```c
+county[+0x290] = weaponType;
+Industry_LabourEstimate(county, 2, 7, 0xF, 4);
+Labour_Allocate(county);
+County_RefreshEstimates(county, g_seasonNext);
+FUN_00448648(owner);
+```
+
+The order of the middle three is load-bearing and is **the opposite way round from
+`Industry_ToggleFromMap`**: the estimate writes `labour_useful[7]`, the ceiling, and the
+allocator deals against it, so a cheaper weapon takes more smiths *on the click*. Deleting
+the leading estimate leaves the ceiling right — the two refreshes below it put it back — and
+the **headcount** wrong, which is why the test reads the headcount. And the closing
+`FUN_00448648` is the realm-wide half: a blacksmith's ceiling is a share of the realm's
+stockpile split across every staffed smithy it owns, so **what one county forges changes what
+another one can**. That is the Readme's *"turning a blacksmith on will reduce the resources
+available to other blacksmiths"* seen from the other side, and England turn one cannot test
+it at all — every realm there owns exactly one county, so the fixture is `siege-lastturn.sav`,
+whose realm 1 holds three.
+
+**Rule 6 again, and this time the group is a group of one.** `Panel_JobBlacksmith`
+(`0x00413155`) is `L2.eng` **group 75's only consumer in the whole binary**, and index 0 is
+*"Click on a weapon to change production."* — the sentence that tells a player the picture is
+a control. A page of six invisible hotspots with that line missing is not a page with a
+cosmetic gap; it is a control nobody can find, which is what the report was. Indices 1 and 2,
+*"wood needed."* and *"iron needed."*, are in the file and **on no screen**: the two cost
+figures pass `&DAT_004D3E9C` and `&DAT_004D3EA0` as their suffixes and both are the empty
+string, so the iron bar and the log carry the meaning instead. Transcribed anyway, because
+the group is the page's specification.
+
+**What moves in the lockstep digest.** `County::weapon_type` is already inside
+`l2_kingdom::save`'s canonical encoding, so nothing new is hashed — but the setter now moves
+it, and with it `labour[7]`, `labour_wanted[7]`, `labour_useful[7]` and
+`industry[2].next_season` **on every county of the acting realm**. No season pass changed and
+the End Turn differential does not move: this is a player command, and it is a command in the
+lockstep sense too — the original's own multiplayer arm is `Net_SendCommand(0x21, 0)` with
+`FUN_0043A997` run on every machine, which is this crate's model already.
+
+**Two smaller things went in beside it and one was a five-line stub of ours.** The job icon —
+`Sprite_WGenSprite(DAT_004D2974[job], 0x41, 0x69)` out of `Iconvill.pl8`, whose job-9 frame is
+overridden to `0x10` by the painter itself — was the last of the nine panels' missing draws,
+and the recess had been drawn empty since C177. And `text::draw("THE SMITHY IS A FULL PAGE")`
+is gone: `tools/draws/screens.json` had it under `literals_ours` and the draw audit's caption
+test is what noticed, which is the inventory doing the job it was built for rather than a
+person remembering.
+
+---
+
+**C192 — The battle overview panel was black, and the schedule that fills it is not
+the one a single function shows.**
+
+The player, on build `EE0CB9233`: *"battle is still a blue mess where the grass should be, a
+black minimap"*. The blue was C183's palette. The panel was a painter we did not have: ours was
+`fill_rect(ink.background)` — `ink.background` is the index nearest black in **every** palette,
+so no palette work could ever have touched it — with a dot a *side* on it and a rectangle round
+the camera.
+
+**What the original draws.** `Overview_DrawRows` (`0x004BC51A`), registered by
+`Battle_LoadAssets`' `Overview_SetSheets(t2_bat1.pl8, t2_bat2.pl8, t2_spri.pl8, 0x1E0, 0x18, 2)`
+— entries `0x0B`, `0x0C` and `0x11` of the asset table at `0x004DA550`. Two pixels a cell from
+`(480, 24)`, so the 80 × 80 field is a 160 × 160 raster ending exactly where
+`Screen_DrawBattlefield` puts `Misc_bat.pl8` frame 0, at `(0x1E0, 0xB8)`. Per cell: frame
+`cell[+3]` of `t2_bat1.pl8` — **252 frames of 2 × 2, one for each of `T32_bat1.pl8`'s 252
+32 × 32 tiles**, so the same `gfx` byte indexes both — or, over a cell holding a man, frame
+`g_realms[owner].shieldIndex` of `t2_spri.pl8`, which is seven 2 × 2 frames: an erase tile and
+six flat colours. **The men are coloured by realm, not by side**, and a `shieldIndex` of 0 draws
+no man at all. **There is no viewport rectangle.** `[V]`, and the file headers agree: 252 and 7,
+all 2 × 2. **C183's trace of this, written without building it, was right in every particular
+it stated** — the sheets, the 2 × 2 tiles, the shield colour, the absent rectangle, the four
+rows. Re-derived here from the decompilation because it was a trace and not a finding, and what
+it did not state is the two paragraphs below: how often the *full* pass runs, and that
+`t2_spri.pl8` frame 0 is an erase tile on the same sheet as the men.
+
+**Two dead branches, named so nobody builds them.** `flags & 0x1C == 4` reaches the second tile
+sheet, which for a field battle is `t2_bat2.pl8` — size `0` in the table, absent from the
+install, and skipped outright by the loader's non-siege arm. And column 0 draws the erase tile
+when `g_appPhase == 3`, which is a start-up phase; `App_Draw` has taken it past 8 long before a
+battle.
+
+**The schedule is the part that cannot be read off one function.** `Overview_Step`
+(`0x004BC1D1`) advances a row cursor, wraps it at `0x50 − n`, and paints `n` rows.
+`Screen_DrawBattlefield` enters the screen with `g_mapRedraw = 1` and `Overview_Step(0x50)`, and
+`Battle_Frame` then runs, once a frame while `g_battlePhase == 2` and `0x27 < g_screenId < 0x2B`:
+
+```c
+if (g_mapRedraw == 0) { Overview_Step(4);    Gfx_MarkSpriteDirty(0x1E0, 0x18, 10, 10, 1); }
+else                  { Overview_Step(0x50); Gfx_MarkAllDirty(); }
+FUN_004BC142(cameraX, cameraY);
+```
+
+Read that far and the honest reading is *"the full pass runs whenever `g_mapRedraw` is set, and
+who knows how often that is"*. **`FUN_004BC142` ends `if (g_mapRedraw != 0) g_mapRedraw--`** —
+so the full pass happens on the frame after entry and never again, and the rest of the battle is
+**four rows a frame: a twenty-frame sweep**. `[V]`, and it took the callee to settle it. **It is
+visible.** Eighty rows at four a frame means a man's dot appears at his new cell up to twenty
+frames after he is there and vanishes from his old one just as late, so the panel and the
+viewport disagree about where he is for as long as he walks. **How long that is in wall-clock
+time is not claimed** — nothing here measured the original's frame rate. It is reproduced, and
+`the_overview_panel_is_repainted_four_cell_rows_a_frame` asserts
+that exactly four cell rows and no more come back into agreement per frame, and that twenty
+frames sweep the panel.
+
+**Why ours keeps a raster of its own.** The original paints into the back buffer and the
+seventy-six rows it did not visit keep the pixels they already had. Our canvas has a yes/no box
+and an outcome film pushed over it and the original's screen has neither, so `BattlefieldScreen`
+holds the 160 × 160 raster and blits it whole. The schedule — which rows, in which order, how
+stale — is the original's.
+
+**And a screen nobody has: `Overview_SetSheets` has a second caller.** `FUN_00498DCB` registers
+the same painter at `(0x1D2, 0x0B)` over the `t2x*` sheets with `Misc_ske.PL8` beside it, and it
+is called by `Skirmish_Setup` (`0x0042B7F7`) and `Screen_BattleMasterRatings` (`0x00421707`).
+All seven of those files ship. Skirmish is `missing` in `docs/features.json` and this says what
+its sidebar is made of when somebody builds it. Found, not built.
+
+**Left alone: cell byte `+2`.** The original's per-cell dirty bits (`flags & 3`) and its sheet
+selector (`flags & 0x1C`) live in a byte `l2_sim::terrain::Cell` does not carry — it keeps `+0`,
+`+1`, `+3`, `+4` and `+7`, which is what a `.skr` field battle writes. Repainting every cell of
+the four rows visited is what `g_mapRedraw` makes the original do anyway, and the erase tile is
+one pass of a cell the next pass draws terrain on. Modelling `+2` would be a simulation change
+for no picture.
+
+---
+
+**C193 — the film ran on a tick, and the tick was two percent slow.**
+
+> *"The sound seems to be a bit desynced from the video"* — in ours, not the original.
+
+**What paces a film in the original, `[V]` on both halves.** `App_WinMain`'s message pump
+(`0x0040E9AB`) has **no throttle at all**: `PeekMessageA`, and when the queue is empty
+`App_IdleFrame` (`0x0040E8BB`) → `App_Draw` → `Battle_Frame`, straight round again. Its only
+`Sleep` is the 200 ms one taken when the window is inactive. So the original has no tick and
+no frame rate; it draws as fast as the machine allows, and anything paced reads a clock for
+itself. `Smk_PlayLoop` (`0x0042DBC7`) does exactly that — `if (SmackWait(g_smack) == 0) {
+…decode, blit, SmackNextFrame… }`, a poll that does nothing until the frame is due — so
+**the whole of the film's clock is inside `smackw32`**, and the question *"audio buffer,
+header rate, or the game's tick?"* is answered for the game's side before the DLL is opened:
+not the tick, because there is no tick.
+
+**And inside the DLL.** `_SmackWait@4` is 320 bytes at RVA `0x3170` of `Smackw32.dll`, and
+the only imported function it calls is `WINMM.dll!timeGetTime`, at `+0xB0` — `[V]`, by
+matching every `FF 15 <imm32>` in `BEGTEXT` against the import table and attributing each to
+the export it falls in. So the deadline is in real milliseconds. Whether the sound driver
+slews that deadline — the DirectSound path installs a `timeSetEvent` callback,
+`_TimerFunc@20`, which also reads `timeGetTime` — is not decidable from the call sites, and
+**it does not need to be**: measured over the install's 45 films, every sound track runs
+`frames × period` long to within **1 ms**, on films as long as 131 s. The audio buffer and
+the header's rate are the same clock. `crates/l2-smk/tests/corpus/main.rs`,
+`every_track_is_as_long_as_its_picture`.
+
+**Ours was neither.** `movie::Player` counts ticks of `TICK_MS` and converts, which is right
+if a tick is 16 ms. The event loop said:
+
+```rust
+let now = Instant::now();
+if now < self.next_tick { … return; }
+self.next_tick = now + TICK;        // measured from *after* the wait
+```
+
+`now` there is the deadline plus however far the wait overshot, and the next deadline is
+measured from it, so **the overshoot is kept rather than repaid and compounds once per
+tick**. It can only ever run slow: overshoot is never negative. Measured with winit 0.30's
+own wait primitive — `CreateWaitableTimerExW` with `CREATE_WAITABLE_TIMER_HIGH_RESOLUTION`
+and `WaitForSingleObject`, which is what `ControlFlow::WaitUntil` runs on Windows — a 16 ms
+tick came out at **16.31–16.42 ms**, +1.9 % to +2.6 %, with no work in the loop at all.
+
+**So the drift grows, and it is a rate rather than an amount.** 2.4 % of `intro.smk`'s
+131.5 s is over three seconds of picture behind sound by the end; 2.4 % of `bat_win5.smk`'s
+3.6 s is 71 ms, under one of its own frames. That is why the complaint is about the long
+films and why nobody saw it on a battle result.
+
+**The fix is `clock::Ticker`**: every deadline measured from the deadline before it, so an
+overshoot is repaid on the next tick, with a `MAX_CATCH_UP` of eight ticks past which a
+stall is written off rather than fast-forwarded. It is in the library and not in `main.rs`
+for the reason `audio::Director::listen` and `saves::run_pending` are — a binary's code
+cannot be called by a test — and it reads no clock itself: it is integer arithmetic over a
+monotonic reading the caller supplies, so `docs/netcode.md` D-12 is untouched.
+
+**This was never only about films.** Every animation, press timer and tip in the game is
+counted in ticks and every one of them was running two percent slow; the film is simply the
+only one with an independent clock beside it to disagree with.
+
+**What was measured and left alone.** Two constant offsets remain, and both are under a
+quarter of a frame: a frame is shown at the first tick *at or after* it is due, which at a
+16 ms poll is a mean 8 ms late where `Smk_PlayLoop`'s poll is microseconds; and a film's
+track starts on the tick its screen reaches the stack while frame 0 is decoded on the next,
+one tick later. Neither compounds, and closing either means either showing frames early or
+opening the film inside the transition that pushes it.
+
+---
+
+**C194 — the standings page's own inventory row said the marker was
+the leader's, and it is the category's. A dead button, and the two documents that
+described the screen both described it wrong.**
+
+> *"I can't click the Greatest Nobles button in the treasury view."*
+
+The button was not the defect. `court.rs` answered it with `Transition::Stay` and said so
+in a comment — *"`0x20` is not built, so this is the arm and not the destination"* — which
+is the honest form of a gap and is still a live-looking button with nothing behind it.
+`docs/arms.json` had it on file as `missing` and `docs/features.json` had the screen on
+file as `missing`, so nothing was hidden; what was missing was the screen.
+
+**Two records described screen `0x20` before it was built, and both were wrong in the same
+place.** `docs/draws.md`'s inventory row said `flags.pl8` frame 5 was *"for the leader"*.
+`docs/symbols.json` said the painter *"walks the realms at stride 0x160 and labels each
+from `g_playerNames`"*. The painter draws **one** name, not five, and frame 5 is indexed by
+`g_nobleTabX[g_nobleCategory]` — the **tab you are looking at**, not the realm that is
+ahead. The file settles it without reading a line of code: frames 0…4 of `Flags.pl8` are
+51 × 92 and frame 5 is **23 × 60**. A sixth banner would be 51 × 92.
+
+Neither sentence was careless. Both were written by someone reading the painter *for a
+count* — how many draw calls, which sheet — and a draw-call audit has no column for *what
+is this frame of*. `CLAUDE.md`'s note on `[V]` is about exactly this shape: a true
+statement about one question, promoted to an answer to another. What makes it worth a
+number is that the audit's own note called seven draw calls for a standings table
+*"suspiciously few"* and resolved the surprise the wrong way — the denominator was right
+and the **noun** was wrong. It is not a table. It is a bar chart of five flagpoles.
+
+**What the page actually is.** `Screen_GreatestNoble` (`0x0041593B`) draws one banner per
+in-play realm, at `(g_nobleColumnX[slot], (100 - pct) * 2 + 0x2D)`, on a four-pixel pole
+running from the banner's bottom edge down to `y 0x158`. `g_nobleColumnRealm`
+(`0x004D2B58`) is `5, 3, 1, 2, 4`: **the seating order is not the realm order** and realm 1
+stands in the middle. The pole is four `FUN_00403A8F` line draws, which is not one of the
+audit's 26 primitives, which is why a chart of up to twenty lines counted as zero.
+
+**`FUN_00415E42`'s seven scoring rules were written down nowhere**, and two of them are
+behaviour rather than plumbing. Category 1, *Most castles*, reads realm `+0x4C` **as a
+byte**. Category 6, *Greatest noble* — the overall standing, the thing the screen is named
+after — returns a **flat 2 for every realm while `g_year < 0x4F6`**, so it reads
+*"Greatest noble, undecided."* until 1270 in every game ever played. Neither is
+discoverable from the painter; both are one `if` in a function the draw audit never
+opened, because it makes no draw calls.
+
+**The bars are a percentage of the leader, and a tie is not a lead.** `FUN_00415BDC` writes
+`PctOf(score, best)` clamped to 0…100, so the leader's pole is always full height; sets
+`g_nobleAllLevel` when every in-play realm scores the same, and then overwrites every bar
+with **50**, the one number the page draws that it did not compute; and otherwise sets
+`g_nobleTiedAtTop` when anybody else matches the leader. The name is printed only when
+neither flag is set. The leader itself is chosen by `if (best <= v)` — **`<=`, so a tie
+goes to the highest realm index** — which never shows, because the same function then calls
+the category undecided. It is reproduced anyway: it is what would be printed the day either
+flag stops being set, and a leader chosen the other way would be a different lord.
+
+**The sound was `blocked` for a reason that turned out to be a choice.**
+`docs/audio.json` files the castle chooser's five spoken names as blocked because *"the
+selection is `CastleScreen`'s own field rather than anything on the `Game`, so a click that
+changes it is invisible to the Director"*, and it filed `S035` the same way. But
+`DAT_0055CE7C` **is a global in the original** — `Game_NewGame` zeroes it and it outlives
+the page being closed — so keeping it on `Game::nobles_category` is the faithful placement
+and the one that unblocks the sound. The edge is a counter, not a diff: `FUN_004B3994` has
+exactly two callers, `Court_OpenGreatestNoble` and `GreatestNoble_SelectCategory`, and
+**both call it unconditionally**, so pressing the tab that is already showing speaks again
+and a diff on the category would swallow that press.
+
+Two entries of the voice table are past what either caller can reach, and they are
+different mistakes: `S035_08.wav` — the line for *"undecided."* — ships and is played by
+nothing, and `FUN_004B3994`'s guard admits **nine** where the table at `0x004E2168` holds
+eight, so index 8 would read `S075_01.wav` out of the next table along.
+
+**What was left alone.** `Ui_OkButtonClicked` on this page sets `g_screenId = 0` — the map,
+not the court it was opened from — and ours pops onto the court. That is `C190`'s
+`Transition::Goto` and it is deliberately not used here: the original throws the court away
+because one byte has nowhere to keep it, and the court is where the button was.
+`docs/arms.json` `0x0042FF10/standings-ok` carries the reasoning. The multiplayer arm,
+`Net_SendCommand(0x3B, 0)`, is not built; there is no network game, and the single-player
+arm is what `Game::multiplayer` being false already means everywhere else.
+
+---
+
+**C195 — C124 fixed the wheat by reading one of `Grain_SeasonTick`'s three
+band calls, and wrote it down as all three.**
+
+> *"wheat fields still not showing the different stages of wheat growth."*
+
+**"Still."** C124 found `Terrain_Set`'s live variant and built both halves — the repaint and
+the frame term — and a test at the pixel. The player's build carried all of it. What it
+carried was this, in `maps-layers.md` §5.5, in C124 above, in `campaign::field_variant`'s
+doc and in `land::grain_repaint_fields`:
+
+```c
+band = FUN_0044CF6F(county.crop[2], county.fieldsGrain);
+```
+
+`Grain_SeasonTick` (`0x0044C8AE`) calls `FUN_0044CF6F` **three times, once in each arm**, and
+that line is neither argument of any of them. **[V]**, all three call sites:
+
+| `g_season` | the arm | the band reads |
+|---|---|---|
+| 1, Spring | `Grain_Sow`, weather cut, `crop[1] = crop[0] * 12` | `FUN_0044CF6F(crop[1], (byte)+0x206)` |
+| 2, 3, Summer and Autumn | `Grain_Grow`, weather | `FUN_0044CF6F(crop[1], (byte)+0x206)` |
+| 4, Winter | `Grain_Harvest`, weather | `FUN_0044CF6F(crop[2], (byte)+0x206)` |
+
+`crop[2]` is cleared at the top of every season and refilled only by the harvest arm. So the
+transcribed line banded a **zero** for three seasons in four, `FUN_0044CF6F` returns `2` for a
+zero crop, and every grain field on the map drew variant 0 — the sparsest of the four crops —
+from sowing until the harvest. The C124 test could not see it: it wrote the terrain byte by
+hand and asserted what the painter made of it, and nothing asked what a season writes there.
+
+**And the divisor is a field this project had filed as a duplicate.** `+0x206` is written
+beside `+0x202` by the sowing arm — `fieldsGrain`, or `1` on a shortfall — and
+`docs/stored-fields.json` excluded it as *"a second copy of +0x202 that only the tile graphic
+reads"*. **Three functions read it and two write it.** `County_DestroyField` (`0x00469E5B`)
+and `FUN_0046965A` step it down whenever `fieldsGrain <= +0x206`, and nothing steps `+0x202`
+down; `County_DestroyField` charges its crop share against it, with an `else 0` when more
+grain is painted than was sown. It is not derivable from the other two counts — destroy a
+field and then paint two, and the orders disagree — so it is a county field now,
+`County::fields_grain_standing`, imported, and in the save at version 25. **That `why` was
+the same shape as C124's `[V]`: a true statement about one reader, promoted to a statement
+about the field.**
+
+**What a wheat field passes through, all `[V]` against the decompilation.** Frames are
+`Terrain_Set`'s, `+ (stored & 3)` for the tile's own variation; `Roads1a … d.pl8` by season at
+the near zoom (§1.1c), `Roads2a.pl8` in every season at the far one (§1.1b):
+
+| terrain | frame | written by, and when |
+|---|---|---|
+| `0` wild | 80 | `Map_PlaceStartingFields` at setup; the brush's *abandon*; `County_DestroyField` when an army tramples it; `FUN_0046942C` at the next weather pass after a flood or drought |
+| `0x19 … 0x1C` reclaiming | 108, 112, 116, 120 | the brush starts it; `Field_ReclaimTick` (`0x0044C093`) at 200/400/600/800 progress, then `1` |
+| `1` fallow | 84 | setup; the brush; the end of reclamation |
+| `2` sown, variant 0 | 88 | the brush; every season's band for a crop under one sack a field, or zero |
+| `3`, `7`, `0xB`, variants 1–3 | 92, 96, 100 | `Grain_SeasonTick` → `FUN_00469D21`, **every season**, at under 41, under 81, and 81 sacks or more a field |
+| `0x17` flooded, `0x18` parched | 130, 134, *base* bank | `Weather_UpdateAll` (`0x00449889`) → `FUN_00469A9C`, one field a county in weather 5 or 1 |
+
+**There is no harvested stage.** The harvest repaints the band like any other season, from
+what was reaped; the field stays grain through Winter and the next Spring sows over it. And
+**the four crops are densities, not a growth timeline**: a county that sows 60 sacks a field
+and tends it fully draws variant 2 in all four seasons, in the original as in ours. What
+changes the picture through a year is the *seasonal sheet* the whole roads bank is swapped to,
+and the band moving when the labour cap, fertility, the weather, a trampled field or a thin
+harvest moves the crop per field.
+
+**Four more things, found on the way.**
+
+* **`kingdom.rs` called the repaint twice**, the second under a copy of the first's comment
+  with both of its names stripped out. The repaint is idempotent, so it changed no pixel.
+* **`County_DestroyField`'s repaint is unconditional** and ours returned early from both arms
+  when the guard failed, leaving the tile standing. Ported now, with the `+0x206` arm.
+* **The flood and drought damage is not built.** `Weather_UpdateAll` repaints one field a
+  county to `0x17`/`0x18` through a round-robin cursor at `+0x15B` bounded by `+0x205`, before
+  its *Advanced Farming* override — and `FUN_0046942C` turns every such field to **wild** the
+  next season, so a flood costs a field for good. `l2_kingdom::weather::update_all` does
+  neither. It is a simulation rule with saved state of its own (the cursor), outside a picture
+  fix; recorded rather than built.
+* **The England turn-one county's granary is empty**, so on that position nothing can be sown
+  until seed is bought, and a field painted *before* the seed arrives gets no farmers until
+  the next estimate round — `Field_SetType`'s own `Labour_Allocate` sizes the grain ceiling
+  from the store. Both are the original's.
+
+**The test is a year, through the screens.** `crates/l2-game/tests/wheat/main.rs` sows with the
+brush's handler, presses End Turn four times through the machine with the fog on, and after
+each turn paints the campaign map and requires the inner diamond of a lit field to equal the
+terrain pass drawn with the **literal** frame `0x58 + (stored & 3) + 4v` — `v` transcribed from
+the three calls above, not asked of `l2_kingdom` — and to differ from the other three, at both
+zooms. Our field markers are over the selected county's tiles and cover a far-zoom tile
+entirely; the test looks with another county selected, and says why.
+
+**Ablated line by line**, and three of the ablations left the screen test green. Banding
+`crop[2]` outside Winter, dropping the repaint call, dropping the variant term and fogging
+the field each turn it red. Dividing by `fieldsGrain`, reading `crop[1]` in Winter and
+deleting the shortfall arm do not: in that year no field is lost after sowing, the harvest
+equals the standing crop and the seed covers a sack a field, so the screen cannot tell those
+lines from their ablations. Each is pinned by a unit test in `l2_kingdom::land` that goes red.
+**One more green was the test's own fault**: it first read `+0x206` back from the county to
+compute what to expect, so deleting the write moved the expectation with the picture. It
+pins the divisor from what it sowed now, and that ablation is red.
+
+**The band is not only a picture, and one test went red for it.** `Ai_FindStandingCropTile`
+(`0x004A689D`), the tile an AI raiding party (mission 7) marches at, accepts a plane-0 `0x20`
+tile only when `2 < content && content < 0x17` **[V]**, the literal, and `ai_army::Aim::StandingCrop`
+matches it. Terrain `2` is excluded. Under C124's reading every sown field sat at `2` for three
+seasons in four, so **the AI's raids could not see a crop for most of the year** and fell back
+to the county anchor. With the band right they find the harvest, which is the binary's rule.
+
+**And that is why the branch sat unmerged.**
+`l2-game/tests/ai_war.rs::the_ai_realms_survive_forty_turns_of_a_world_built_by_hand` was red
+on it: realm 4 ended forty turns on one county with 2 people at health 0. The branch measured
+three ablations — C124's band back → green; the raid finder blinded → green, realm 4 at 183
+people and health 57; the old `destroy_field` back → still red — and left the question open:
+is *"every surviving AI realm is fed"* a rule, or one trajectory's luck?
+
+**It is one trajectory's luck, and re-measuring on `main` is what shows it.** Battles, the
+clock, labour and the herd's break-even floor landed between `fb5c0ef` and this merge, and on
+the trajectory they produce the test is **green with the fix in**: realm 4 is *conquered* at
+turn 21 while at health 71 with 375 people, not starved, so assertion 2 — which only applies
+to a realm still holding counties — never looks at it. Traced turn by turn, the lowest health
+any surviving AI realm reaches in the forty turns is 45 (realm 2, turn 29) and it recovers.
+The green is not the raid going quiet: blinding the raid finder still moves that world (realm
+2 ends on 4 counties at health 67 rather than 3 at 85; realm 5 keeps 10 grain fields rather
+than 6), so the raids bite and the fix is live. On the England fixture the finder changes
+nothing in forty turns — blinded and live give identical scoreboards.
+
+So the assertion was never weakened and never had to be: it is not a rule — a realm raided
+off its harvest starves, and `Ai_FindStandingCropTile` exists so that it can — but it is also
+not in danger on this trajectory. What was wrong is that a long run was the **only** witness
+of the rule, which is C184's finding in another costume: a claim you can only observe as a
+shifted trajectory is a claim nobody can ablate. So it is dealt deliberately instead.
+`crates/l2-kingdom/tests/ai_raid.rs` sows a county, ticks it through the four seasons and asks
+`aim_tile` what the raid finder sees, then tramples one field and asks again. Three ablations,
+each one line, each red: C124's crop word in Spring, Summer and Autumn; `Aim::StandingCrop`'s
+`terrain > 2`; and the sowing's write of `+0x206`.
+
+---
+
+**C196 — a gated invention, a silence that is the original's, and two
+copies of one sentence. Three small holes, and each was hidden by something that
+had been written down truthfully.**
+
+Three reports, three different ways of not being findable.
+
+**1. A besieging army had no mark, and the marker we did draw was in the way of finding
+the one that exists.** `FUN_00407F82` (`0x00407F82`) blits `Flags1a.pl8` frame `0x82` —
+24 × 28, and the **last** frame in a sheet of 131 — at `(+8, −0x38)` from the *castle*
+tile's origin, then prints the besieger's `+0x19C`, siege seasons left, ten pixels lower.
+It is called from `Sprite_TopIt`'s castle arm, which reaches the besieger through the
+garrison: `units[county.garrisonUnit].besiegedBy`.
+
+Ours drew a red dot over the **army**. It carried an honest comment saying so — *"ours is a
+dot over the unit, where the original draws nothing, so it is debug overlay only and
+`FUN_00407F82` stays a missing draw"* — and C173 had gated it on that reading. **The gate
+is what kept it.** A visible invention gets reported by a player; a gated one is correct by
+construction and stops being looked at, and the missing draw was named two lines above the
+code that stood in for it. `docs/draws-map.md` §7 now says this where the dot used to be
+counted.
+
+Four details of the draw are decisions rather than transcription, and three of them would
+have been got wrong by reading the name:
+
+* **`Ui_DrawNumberRight` centres.** `docs/symbols.md` `0x004030C6` has carried that
+  correction since C119/C140 and the name is still the false one, deliberately. The count
+  is centred in **frame `0x82`'s own width** — `g_spriteWidth = *(short *)(g_flagsSheet +
+  0x828)`, which is `8 + 0x82 * 0x10`, the width field of that frame's record.
+* **The suffix is one space and it is inside the measure.** `DAT_004D2094` is `20 00 00 00`
+  at file offset `0xD0294`.
+* **The count is flat.** `DAT_005AEA40 = 1` brackets the `Ui_DrawNumberRight` and is cleared
+  after it, so it is not the map's ordinary shadowed body text.
+* **`if (0x18 < y)` is the count's only clip.** The blit is clipped by `Clip_Horizontal` /
+  `Clip_Vertical`; the number is not, and that test is all that keeps it off the menu bar.
+
+**And the arm is not reachable at the far zoom**, which is the original's own defect and is
+reproduced: `Sprite_TopIt` computes `(2, −0x28)` for `g_mapZoom == 2` and the whole body of
+`FUN_00407F82` is inside `if (g_mapZoom == 0)`. `docs/bugs.md` `D41`,
+verified from the shipped bytes rather than from the decompiler's C.
+
+**The audit's own note about this arm was wrong in a way worth keeping.**
+`docs/draws-map.md` §6 listed it as *"needs a live siege on the campaign map, which the
+battle triple does not carry"* — read as *wait for a fixture*. What the arm wants is **two
+bytes**, `+0x19A` on the garrison and `+0x19C` on the besieger, which is the same shape as
+the mercenary marker's one byte and was staged in a test in four lines. A list of things
+*"not observed"* that does not distinguish *needs a save we do not have* from *needs a
+field written by hand* will keep the second kind unobserved indefinitely.
+
+**2. Picking a merchant says nothing, and that is the original.** Nothing is built, and the
+finding is the point — `CLAUDE.md` rule 5's *"we could not find it" is a finding to report*.
+`FUN_004B37BC` (`0x004B37BC`) is the last statement of **both** functions that open screen
+`0x04`, and its ladder is kinds 1, 4 and 2 plus the castle branch; kind 3, the merchant,
+falls out of the bottom and returns.
+
+**The silence was already built, already asserted and already ablated**, in
+`tests/audio_wiring.rs` `the_information_panel_speaks_the_unit_it_opened_on` — *"that hole
+is what this asserts hardest, because the easy mistake is to fill it"*. What was open was
+the *question*, carried by a ledger row whose next step read *"find whether the original
+speaks for a merchant at all"*. Same shape as the other two: a green test that answers a
+question, and a written-down question that does not know about it.
+
+Three readings, and the third is the one that closes it rather than merely failing to open
+it:
+
+* **the ladder** has no arm;
+* **four `S031_*.wav` ship** and there is no fifth;
+* **`L2.eng` group 31 holds five unit descriptions and four of them have voices.** Indices
+  13 … 16 are *"These starving revolutionaries…"*, *"This transport is moving goods…"*,
+  *"This is an enemy army."* and *"This is one of your armies."* — the four, in exactly the
+  order `S031_01` … `04`. Index **12** is *"Merchants allow a county to buy needed supplies
+  and raise revenue by selling goods."*: the one member of the run with prose and no
+  recording.
+
+That third reading is rule 6 used as an *absence* test. A group with one consumer is that
+screen's vocabulary, so a word in the group with no voice beside it is evidence about the
+recording session and not about our search. Without it the answer would have been *"we
+looked and did not find one"*, which is a statement about the looking.
+
+`Map_Click` (`0x0043CE1A`) corroborates it from the third side: a left click on your own
+merchant sets `g_screenId = 8`, the stall, and on somebody else's enqueues group `0x70`. The
+information panel never opens on a merchant from the left button at all. `docs/audio.json`
+`FUN_004b37bc#1` carries the whole of this as its note; nothing about the inventory's
+numbers moves, and `sounds.js --check` still agrees with the corpus on all 143 sites.
+
+**3. Two screens still invented a lord's name, and C189 is why they were easy to miss.**
+C189 fixed the court and the battle prompt and named the rule — `g_playerNames`, then
+`L2.eng` group 7 indexed by the realm's **lord**, which is the pair `Game_NewGame` itself
+seeds the array from (`Eng_Seek(7, realm[+0x07])`, then sixteen bytes copied). It did not
+sweep for the other copies. There were three, in two files, and each had grown its own
+`REALM n`:
+
+| where | the original's draw |
+|---|---|
+| `county.rs`, the strip's third line | `CountyStrip_Draw` `0x0040F7D3` — `FUN_004025D7(&g_playerNames + owner * 0x2C, 0x1E0, 0x118, 0xA0, …)` |
+| `diplomacy.rs`, the screen and its cards | `Diplo_DrawScreen` `0x00416CF3` — `Ui_DrawText(… + g_diploTarget * 0x2C, 0xD0, 0x3D, heading)`; `Diplo_DrawLordCard` `0x004171EE` — `Ui_DrawText(… + realm * 0x2C, 0x20, slot * 100 + 0x83, body)` |
+| `diplomacy.rs`, the three compose dialogs | `Diplo_DrawGiftGold` `0x00417960`, `Diplo_DrawLetter` `0x00417AEF`, `Diplo_DrawCountyRequest` `0x00417CEF` — all `Ui_DrawText(… + g_diploTarget * 0x2C, g_penAdvance + …, body)` |
+
+All five are one draw in the original and are now one function, `screens::message::lord_name`.
+**Nothing changes for a game started through the front end** — the array is read first at
+every site, which is what the compose screen's own comment was protecting — and on a `.sav`,
+which carries no typed names into this tree, the county strip, the diplomacy screen, its
+lord cards and its three compose dialogs stop saying `REALM n` and start saying what group 7
+calls that realm's lord.
+
+**Two of the three copies were each documented as correct**, with the other cited as
+precedent: the compose screen's comment said *"`screens/county.rs` settled the same question
+the same way"*, and `county.rs` explained at length why its fallback was *"not decoration"*.
+Both sentences were true. Neither was the whole rule, and each made the other look reviewed.
+
+**What was left alone, and it is the real fix.** `g_saveBlocks` entry 2 is
+`{0x00553D50, 264}` — 6 × 0x2C, the player-name table — so **the names are in the `.sav`**
+and `l2_formats::save` does not read them. Every fallback above exists because of that one
+gap. It is not touched here: `crates/l2-formats/` is the lead's (`docs/agents.md`), and the
+four-byte discrepancy between the block's base and `g_playerNames` at `0x00553D54` wants
+settling against a real file before anything reads it.
+
+---
+
+**C197 — the turn was a screen's job and it is the frame's,
+and the `else` branch nobody built gave away a county the original refuses.**
+
+Two defects the capture-letters branch found and left, and they are one entry because both
+were read out of the same two functions.
+
+### The turn stopped under an open letter, because we gave it to a screen
+
+`Battle_Frame` (`0x004B99C0`) ends its inner loop with
+
+```c
+if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
+else if ((g_battlePhase == 2) && (ticksDue != 0)) { …the battle's passes… }
+```
+
+and **there is no `g_screenId` test on either arm** — `[V]`, read whole. Everything in the
+loop's tail that does dispatch on the screen (`Screen_Draw`, `Screen_FrameInput`, the
+cursor ladder) is drawing and input. So in the original the campaign winds on under a
+county panel, a village, an open menu and the message scroll alike, and the only thing
+that suspends it is a battle.
+
+Ours wound the turn out of `MapScreen::update`, and `Machine::update` gives `update` to
+the **top** screen only. The scroll is not a screen in the original at all — `g_screenId`
+does not change when a letter opens, which is exactly why `Msg_Pump`'s own ladder goes on
+treating the map as the screen — but it is one here, so the frame a letter arrived was the
+frame the campaign stopped on, for good: single player clamps the message timer, so the
+window waits for a click that the test never gives and a player might not either.
+
+**The absence is the finding, and an absence is not visible from the half of the function
+you already read.** The pump ladder, the turn clock and the tool tips were all lifted into
+the frame driver *because they had no screen*; the turn was left where it was because the
+map plainly owns it. It does not: `Screen::update` is `Screen_FrameInput`'s half of a
+frame and the new `Screen::wind_turn` is the loop's, and the campaign map is the one screen
+that has both. `Machine::wind_turn` calls it at whatever depth the map sits.
+
+Two things it does **not** change. A battle still suspends the turn, which is
+`g_battlePhase != 0` and here is `Game::battle` plus the battlefield screen. And a turn
+waiting on screen `0x12` or `0x13` still waits: `resume_turn` asks for the prompt before it
+ticks anything, so the phase machine is its own gate — the driver only refuses to put up a
+screen already on the stack, which it never had to before because it never ran there.
+
+### A county too far to govern goes independent, and ours handed it over
+
+`County_ChangeOwner` (`0x004A72FE`) is one `if` with two branches and we had built one:
+
+```c
+if (realm[new].countyCount == 0 || County_BordersRealm(new, county)) { …the capture… }
+else {
+    if (newOwner == g_localPlayer) Msg_Enqueue(0, g_localPlayer, 0x81, 0, 0, county, 0, 0);
+    County_MakeIndependent(county);
+}
+```
+
+The `else` was marked NOT PORTED and `Capture::governable` carried the test out so the
+letter layer could stay silent rather than post a letter the world contradicted. It is
+built now, and read whole rather than summarised: the branch does **not** increment
+`countyCount`, does not `Realm_RecountStrength` the loser, does not take the happiness
+penalty, does not write the shield and does not raise the peak. Its one letter is inside
+`if (newOwner == g_localPlayer)`, so **the loser is never told** — he finds out from the
+map.
+
+`County_MakeIndependent` (`0x004AC3C6`) already existed as a `Kingdom` method for
+secession, revolt and elimination; it is now `conquest::make_independent` and the kingdom
+delegates, because the fourth caller is inside `change_owner` where neither the tables nor
+`g_seasonNext`, `g_optAdvancedFarming`, `g_optArmiesEat` and `g_countyCount` reach.
+`conquest::Restore` carries those four and `Kingdom::restore()` builds it.
+
+**What moved in the lockstep digest.** Only on an ungovernable capture, and there: section
+`counties` — `owner` is 0 rather than the taker, all four `industry[].enabled` and
+`castle_switch` are off, `garrison_unit` is cleared, `happiness` and `shown_events` are
+*unchanged* because the penalty is in the other branch, and `Labour_Allocate`,
+`Ration_Apply`, `County_RefreshEstimates` and `Tax_RecomputePreview` move the `job`,
+`grain`, `herd`, `ration`, `food`, `field` and `tax` sub-sections; section `realms` —
+`county_count` does not rise and neither does `peak_counties`. A governable capture is
+byte-identical to before. The differential's four pairs did not move (932/913, 279/270)
+and `long_game`'s hundred- and four-hundred-turn sweeps are unchanged. The frame-driver
+half adds no state at all: it changes *which frame* a tick lands on, and it stops that
+being a function of which screen a peer has open.
+
+**And a trap the fix laid bare.** `County_BordersRealm` reads `county.neighbours`, so a
+test world without an adjacency list now sends every capture down the `else` branch: six
+tests in `conquest.rs` and one in `tests/campaign.rs` went red saying *"the county did not
+change hands"* when what they were missing was two lines of neighbour data.
+`tests/military.rs` had already recorded the same trap from the secession side. The
+adjacency is in `world()` and in `campaign.rs`'s `kingdom()` now, with the reason beside
+it, and county 3 is deliberately left with none — it is what the `else` branch is tested
+with.
+
+---
+
+**C198 — the lords' names were in the `.sav` all along, and the four
+bytes in front of them are a DirectPlay id.**
+
+> *"a loaded game forgets what the lords are called."*
+
+`g_saveBlocks` entry 2 is `{0x00553D50, 264}` and `264 = 6 × 0x2C`, so the names are saved.
+`l2_formats::save` did not read them: `Game::player_names` came back empty from every load,
+and every `"REALM n"` a player met was that. **The person's own name was the worst of it.**
+`screens::message::lord_name` falls back to `L2.eng` group 7 indexed by the realm's lord, and
+`Realms_AssignLords` (`0x0049CAAA`) writes `lord = 0` for a realm somebody is *playing* —
+group 7 index 0 is **`"No player"`**, which is what the court page and the diplomacy heading
+called the reader of them.
+
+**The four bytes had to be settled first, and they were the whole shape of the record.**
+`0x00553D50` is four lower than `g_playerNames` (`0x00553D54`), which reads as a block
+misaligned by a dword with realm 5's record hanging four bytes past its end. It is not: the
+block's base is the base of a **six-slot player table**, and the name is the slot's `+0x04`.
+`Player_SetHuman` (`0x0049BAE9`) writes both halves from one argument list at one stride —
+`FUN_00401136(name, &g_playerNames + realm * 0x2c, 0x1f)` and
+`*(int *)(&DAT_00553d50 + realm * 0x2c) = dpId` — and Ghidra's own view agrees: `0x00553D50`
+has **120 immediate references in the image and `0x00553D54` has none**, because every access
+to the record goes through the table base. So the block covers slots 0 … 5 exactly and
+nothing is truncated. **[V]**
+
+`+0x00` is the **DirectPlay player id** of the person driving the realm, 0 for nobody:
+`FUN_0043E9E2` clears realms 1 … 5 and writes `g_dpPlayerId` into the local player's;
+`FUN_0043E98B(id)` maps an id back to a realm; `Net_ReadField(&DAT_00553d50 + realm * 0x2c, 4)`
+puts it on the wire; `Player_SetHuman` writes it unless the caller passes the **999** sentinel;
+and `Mp_DropDepartedPlayers` (`0x0049B2A3`) eliminates a realm marked human whose copy *has
+gone to zero*. **That promotes a hypothesis rather than adding a name.** `g_playerSlots` was
+already in `docs/hypotheses.json` at `role` confidence with the caveat *"what the table
+actually holds — a network peer, a save slot, a controller — is not established"*. It is a
+network peer. The entry is moved to `docs/symbols.json` as verified.
+
+**Measured over eighteen saves** — eleven fixtures and every `.sav` in the two installs.
+`+0x00` is zero in all of them, which is a single-player game having no connection, and it is
+the assertion that will tell us when we finally have a multiplayer save. Two more fields agree
+at the same stride and are the reason the base is not four bytes out: the local player's
+`+0x25` equals `g_realms[p].shieldIndex` in every save (two fields written by different code,
+at two different strides, 1 in six of them and 5 in the other twelve), and every realm in play
+has a terminated name. **Ablated**: `PLAYER_BASE` moved up to `0x00553D54` and the id reads
+`0x79616C50` — `"Play"`.
+
+The names load in `l2_game::scenario::from_save`, raw and beside `realm_colour`, and the
+fallback stays where it is. **Nothing moves in the lockstep digest**: the digest is
+`Canonical::hash_of(kingdom)` and `player_names` is on `Game`, which is the reason it was put
+there. `l2_game::save` already carried it, so our own `.l2sav` needed no version bump.
+
+**Left alone, and named rather than fixed.** `screens/ratings.rs` still draws
+`format!("PLAYER {}", b + 1)` where `Screen_BattleMasterRatings` (`0x00421707`) draws
+`g_playerNames[g_localPlayer]` and `g_playerNames[DAT_0056D5CC]`: the block index it has is
+not a realm id, so wiring it is a change to `Ratings`, not a call swap.
+`screens/county.rs`'s `CountyStrip_Draw` arm keeps its own copy of the fallback — it now shows
+the real name like everything else, but it drops straight to `"REALM n"` where `lord_name`
+would try group 7 first.
+
+**And a `[V]` that was four bytes wrong, in the place `CLAUDE.md` warns about.**
+`l2_scenario::newgame` and `docs/rules.md` both said the human's shield is at
+`g_playerNames + realm * 0x2C + 0x25`. `Realms_AssignLords` reads `(&DAT_00553d75)[realm * 0x2c]`,
+which is the *table's* `+0x25` and the name's `+0x21`. Nothing was built on the wrong one —
+the colour is passed into `NewGame` rather than read out of a save — so this cost nothing, and
+it is exactly the sentence that would have cost the next person a day. `crates/l2-game/src/text/mod.rs`
+had the record right the whole time and no reader used it.
+
+---
+
+**C199 — the tile panel's castle arm, four
+figures a comment said we did not carry, and the selection the right button
+also makes. Three gaps in one screen, and two of them were held open by a
+sentence that had been true.**
+
+**1. `TileInfo_DrawCastle` (`0x0041DA2F`) was not built.** Right-clicking a castle gave a
+box with a heading in it. The arm is two halves that share almost nothing:
+
+* **intact** (`castleDegraded == 0`, `+0x1C2` clear) — 71/16 and the tax bonus, 71/11 and
+  the barracks cap with 71/12 after it, and, with a garrison, the men and 71/13 or 71/19
+  for somebody else's, then 71/14 and the widget;
+* **degraded** — the builders at `(0x68, R + 0x88)` and then
+  `Castle_DrawStatusBlock(county, 8, 0x30, R)`, the same block `FUN_00414220` draws on the
+  job page at `(-0x20, 0x40, 0)`. So the county *building* a castle is the one that shows
+  the stone and wood owed and the seasons left, and the finished castle never does.
+
+**A ruined county (`+0x1C2`) draws nothing at all** — the heading stands over an empty
+box. That is the original's and is reproduced; `FUN_0041BEFE` gives it row `0x11` rather
+than the `0x0E` an intact castle gets, so the box is short and the emptiness is smaller
+than it would otherwise look.
+
+`FUN_0041BEFE`'s `0x80` arm is the layout: `0x0A` for a degraded castle of your own,
+`0x0E` for an intact unruined one, `0x11` for everything else including every resource
+site. **`0x0A` is the tallest tile layout in the game** and `Layout::ALL` already carried
+it, with the condition, and nothing produced it — the ladder had been read and only the
+farmland and county-town arms built from it. A row in a table of eleven that no code path
+can reach is not a gap anybody trips over.
+
+The tax and barracks words are `Castle_DrawStatusBlock`'s own two table reads, one word
+low, so `docs/bugs.md`'s *"Barracks for 2500 troops."* on a county with no castle is
+reproduced on this screen too. It is one function, `screens::job::castle_word`, and both
+screens call it.
+
+**2. Four figures were drawn by the job page and not here, because a comment said they
+were not carried.** `screens/info.rs`'s module doc read *"Two figures are not carried and
+are not drawn … `docs/stored-fields.json` has all four as excluded"*, and the two report
+painters each carried a `NOT PORTED` beside the line. **All four are `imported`** —
+`grain_event_change` (`+0x278`), `herd_event_change` (`+0x274`),
+`grain_weather_change` (`+0x24C`) and `herd_weather_change` (`+0x270`) — and
+`Panel_JobGrain` and `Panel_JobCattle` have been drawing them since C164.
+
+The comment was true when it was written. What made it expensive is that it was
+**specific**: it named the four offsets, cited the file that would have contradicted it,
+and explained why the *"no outside factors"* sentence was exact. A vague note gets
+re-checked; a well-sourced one gets believed, which is `CLAUDE.md`'s warning about `[V]` in
+`docs/formats/` arriving at a different document. The half that stayed right through all of
+it is the conditional sentence: the painter draws 77/24 only when the figure is zero, and
+ours drew it on the event id instead, which agreed on every save because the figure is zero
+in all of them.
+
+**3. `FUN_0043CAF4` also selects a county, and the guard nobody would guess is the third
+one.** Between `Map_ResolvePick` and the panel:
+
+```c
+if ((g_pickedTileCounty != 0) && (g_pickedTileCounty != g_selectedCounty) &&
+    (g_pickedTileUnit == 0)) {
+  DAT_0053f0dc = g_counties[g_pickedTileCounty].townTile;
+  if (DAT_0053f0dc != 0) { g_selectedCounty = …; Map_CentreOnTile(DAT_0053f0dc); }
+}
+```
+
+Right-clicking bare ground of another county selects it and recentres on its **town**;
+right-clicking a **unit** standing on that same ground selects nothing, because the panel
+that comes up is about the army. A county with no town square shows its panel and leaves
+the sidebar alone — the same shape `Map_Click`'s industry arm has, without that arm's
+outright refusal.
+
+**No new input arm.** This is a second effect of a gesture `docs/arms.json` already has
+(`0x0042FF10/map-right-opens-info`), which is why the inventory could not have found it:
+the arms count says *which* controls a screen answers, and a handler that does two things
+is one arm either way. `CLAUDE.md` rule 5's two measurements do not cover a third thing,
+and this is it.
+
+---
+
+**C200 — a man may not change his mind once he has stepped, and the siege
+picks the other palette. Both were in one `if`, and one of them had been read
+backwards for the whole life of the document.**
+
+Two reports on one screen: men still *"reset on their square"* occasionally after C183, and
+a siege runs in the field battle's colours.
+
+**The crossing.** `BattleMan_Step` (`0x0048F1DD`) decompiled end to end settles what §7 and
+`symbols.json` had both recorded the other way round. Bit 0 of `stepFlags` (`+0x34`) gates
+the function: while it is clear the figure is mid-crossing and the body returns after
+counting `moveTick` and `walking`, **above** `Melee_AdjacentEnemyDir`, above
+`Dir_FromDelta` / `BattleMan_NextPathDir` and above `BattleMan_TryStepDir`. A step
+`Cell_TryEnter` accepts runs `stepFlags &= ~1; dirc = dir; walking = 1;
+FUN_00491b1f(man)` — and `FUN_00491b1f` is the move. So the commit is the **first** tick of
+a crossing, not the last; `dirc` is fixed for it; and nothing can refuse the step half-way.
+
+`BattleMan_StateMelee` (`0x004831D8`) is the same rule from the other side and is what the
+last of the jumps needed: `Anim_Strike(); … Melee_Tick(); if ((stepFlags & 1) == 0 &&
+BattleMan_Step(1)) Anim_Walk();`. A man engaged part-way across a cell **finishes the
+crossing**, walking, and `noInterrupt = 1` makes his landing tick decide nothing. Ours
+zeroed his progress and struck where he stood, which teleported him up to 30 pixels onto
+the cell he was still entering. `dirc` is not rewritten there either — the 999 arm writes
+`dirc2` (`+0x19`, the strike frame) and leaves `dirc` (`+0x18`, the sub-cell offset) alone.
+
+Measured, one 42-figure battle, 1,200 ticks, `no_drawn_man_ever_jumps_half_a_cell_in_one_tick`:
+drawn jumps of 16 px or more **324 → 0**. (C183's 1,317 → 504 was the same defect on a
+different scenario; this branch's baseline on its own scenario is the 324.) The 324 were
+mid-crossing turns and refusals after the walk; the last 15 before the melee clause were
+figures engaged mid-crossing. **No `BattleMen_SwapPlaces` fires in that battle** — a swap
+*is* a teleport in the original, and one would have shown as a 32-pixel jump.
+
+**What moves in the lockstep digest.** `Progress` gains `free`, `stepFlags` bit 0, and it
+is hashed: a figure that has just landed and one that has just been ordered both read
+`substep == 0`, so `substep` does not cover it, and two peers that disagreed would have one
+man finishing a crossing while the other re-chose his direction. **The census could not
+have caught that** — it walked `Fighter`, `Missile` and `SiegeState`, and `progress` is one
+field name there and three in the digest. `Progress` is in the walk now; C39's rule needed
+applying one level down.
+
+**And a speed correction nobody was looking for.** `walking` runs 1, 3 … 15 — **eight**
+sub-steps — so a cell costs `8 * (moveDelay + 1)` ticks and not `9 * (…)`: 8 for a knight,
+40 for a pikeman, 48 for an engine. §7's `9` came from reading the counter as starting at
+zero, which it never does. Every relative speed the manual states is a ratio and is
+unchanged, which is exactly why the error survived: `speeds_match_what_the_manual_says` was
+green against both numbers. A test named
+`nobody_moves_before_their_troops_move_delay_has_elapsed` asserted our order rather than the
+original's and is now `a_committed_man_is_on_the_next_cell_at_once_and_holds_it_for_the_delay`.
+
+**The palette, and the measurement is the point.** `Screen_DrawBattlefield` (`0x004233F7`)
+ends every repaint with `if (g_battleIsSiege == 0) Palette_Set(0x568ee0); else
+Palette_Set(0x5675a0);` — records 2 and 1 of `g_preloadTable` (`0x004D9F48`),
+`t32_bat1.256` and `t32_stn1.256`, spelled in the table's own bytes and loaded by
+`Res_LoadStatic`'s (`0x00499859`) index ladder. C183 registered only the first and wrote
+the siege arm off as *"belongs with `t32_stn1.pl8`; one without the other would be wrong
+both ways"*. It is registered now and `BattlefieldScreen` latches `g_battleIsSiege` in
+`update` for `palette`, which is handed no context.
+
+**It changes no pixel today.** The two files differ on **3 of 256 entries** — 0, 115 and
+172; 172 is field green `(33, 49, 18)` against siege brown `(37, 13, 2)` — and **none of
+those indices appears anywhere in a painted siege**, because we draw a siege from
+`T32_bat1.pl8` and the three belong to `T32_stn1.pl8`, which is not ported: 898 of that
+sheet's 215,079 opaque pixels would move. So the arm is faithful, cheap and worth nothing
+on screen until the siege tileset lands. Recorded because the report described it as a
+visible fault and it is not one; the counts are printed by
+`a_siege_is_shown_in_t32_stn1_and_that_changes_the_picture` on every run rather than
+asserted, since both come from the player's own files.
+
+**Left alone.** `FUN_004904EC`, the mover's side-step, and `Path_DetourTooLong`'s
+give-up — both still unreproduced, both still recorded in §8.3a rather than built. The
+siege tileset. And `BattleMen_SwapPlaces`' teleport, which is the original's.
+
+---
+
+**C201 — a siege is two sheets, not one, and the byte that picks between
+them was filed as "not established".**
+
+Every battle here was painted from `T32_bat1.pl8` under `T32_bat1.256`, sieges
+included. `Battle_LoadAssets` (`0x004987B7`) picks the sheets from slots 0 and 1 of the
+asset table at `0x004DA550` on two flags — `g_battleIsSiege`, and
+`DAT_0057C910 = (uint)(1 < g_castleLevel)` — giving `t32_bat1` alone, `t32_stn1` over
+`t32_stn2`, or `t32_wod1` over `t32_wod2`; `Screen_DrawBattlefield` (`0x004233F7`) ends
+the repaint on the matching `Palette_Set`. `docs/battle.md` §13.2a has the ladder and the
+table's bytes.
+
+**What made this two jobs instead of one is cell byte `+2`.** `records.json` had bits
+`0x1C` as *"further flags … what they select is not established"* and `docs/battle.md`'s
+field table had them as *"0 picks `t32_bat1`, 4 picks `t32_bat2`"* — a file whose size in
+the asset table is **0** and which the install does not ship. Both readings are of the
+same three lines of `Battlefield_Draw32` (`0x004BCBDC`), and what they select is the
+**slot**, not the file: on a siege, slot 1 is `t32_stn2` and most of the map asks for it.
+So a second sheet that looks dead on a field battlefield is half the picture on a castle,
+and porting the first sheet without the selector would have painted a castle's grass,
+moat and rubble out of its masonry.
+
+**Which half is which is written by the builder, not inferred from the pictures.**
+`Battlefield_BuildCastle` (`0x0047C4BA`) clears the selector on every byte it copies out
+of the raster and sets it to 4 in exactly three escapes — `FUN_0047E1DC` (open ground,
+`rand & 0x0F`), `FUN_0047DCCE` (the moat, the same 49-variant water auto-tiler a field
+battle uses) and, later in the battle, `Wall_Collapse` (`FUN_0047DFE0`, rubble) and the
+siege tower's dock. Slot 0 is therefore the castle and slot 1 the ground it stands on,
+and decoding the two sheets agrees: `t32_stn1.pl8` is masonry, towers, gates, doors and
+wall tops, `t32_stn2.pl8` is sixteen grass variants, a 49-tile water set, rubble and
+debris.
+
+**And the second blit was damage all along.** The renderer draws each cell twice: the
+tile, then frame `cell[+0] + 0x8B` out of slot 1 whenever `cell[+0]` is non-zero and
+`cell[+4]` is 1…3. Read as a terrain id that is a puzzle; read as a counter it is the
+whole of the castle's wear. `Missile_Step` (`0x00492C8B`) increments `cell[+0]` on a catapult hit and
+collapses the cell past 15, `BattleMan_StateFillMoat` (`0x00483FE1`) increments the same byte from the
+11 a ditch is seeded with to 15, and frames `0x8C`…`0x9A` decode to one rubble pile
+growing from a speck to a full tile. The elevation gate is the shot's own: `Missile_Step`
+will not count a hit on a rampart 4 or more high, and the renderer will not draw damage on
+one — the same `1 ..= 3`, from two functions that share nothing else. A field battle
+reaches neither pass, because `Battlefield_BuildFromSkr` is the one builder that never
+writes `elevation`.
+
+**What is drawn now and what is not.** The sheets, the palette, the selector and the
+damage pass are built and tested against the install. The **arrangement** is still
+`l2_sim::siege::our_castle`'s and still ours: the two 6400-byte layers the original reads
+per castle out of `stnfield.pl8` are located, documented and unread. What our stand-in
+castle now takes from the binary is the *vocabulary* — the 256-entry structure tables at
+`0x004D7B80` and `0x004D7D80` say which frames are wall, keep door and drawbridge, and
+`frames_with_code` derives every tile laid rather than typing one. Where a code carries
+four frames, cycling between them is ours and says so. `castle-battle-layout` is the row
+that closes the rest.
+
+One check the tables paid for immediately: the stone table files four frames under code 9,
+the drawbridge, and the wooden table files none — `Readme.txt`'s *"only the Stone and
+Royal castles have drawbridges"*, arrived at from inside the art. And one thing the damage
+pass exposes that is ours: our runner keeps catapult hits in a side table
+(`BattleRunner::wall_hits`) where the original keeps them in `cell[+0]`, so a **ditch**
+being filled now animates and a **wall** being shot does not.
+
+---
+
+**C202 — the battlefield's last two invisible things: `A2_miss.pl8`
+and `Engine.pl8`. Six painters, two of them nobody had looked for, and a frame map
+that closes against the shipped art on all four files.**
+
+`docs/battle.md` §13.9 listed *"missiles, siege engines and the panel"* as located and
+undrawn. The panel landed with C192; these are the other two. Sixty men fought with
+nothing in the air between them and four of the eleven troop types were not on the
+screen at all.
+
+**One sheet for every missile and one for every engine, and neither is a colour.**
+`FUN_00480F8B` (`0x00480F8B`) writes `DAT_00566518` into all hundred missile records'
+`+0x00` and hands troop types **7, 8, 9 and 10 the same `DAT_00553250` in both banks** —
+slots 6 and 8 of the battle asset table at `0x004DA550`, `a2_miss.pl8` and `engine.pl8`.
+A siege engine has no side colour; the eight branches that say so are one assignment
+written eight times.
+
+**The six painters.**
+
+| function | draws | from |
+|---|---|---|
+| `FUN_004BEED4` (`0x004BEED4`) | every missile in flight | `A2_miss.pl8` |
+| `FUN_004BDC31`'s engine arms | the carriage of a catapult, tower, ram or pot | `Engine.pl8` |
+| `FUN_004BE7BE` (`0x004BE7BE`) | the catapult's **arm**, a second sprite over the carriage | `Catarm1/2.pl8` |
+| `FUN_004BEAB9` (`0x004BEAB9`) | a ram's beam, two strips 0x66 pixels apart, only in state 14 | `Engine.pl8` |
+| `FUN_004BD759` (`0x004BD759`) | a docked tower's stair, over the men | `Engine.pl8` |
+| `FUN_004BD574` (`0x004BD574`) | an animated banner — **not built**, see below | `A2_miss.pl8` |
+
+All six hang off `FUN_004BD355` (`0x004BD355`), the pass after the men: collect, sort,
+draw the figures, then per cell the overlap sprite and then that cell's missile list.
+
+**The frame map closes on all four files, and the physical frame sizes are a second
+witness.** `Engine.pl8` holds 46 frames: 0 the ram (88 × 122), 1 … 4 the tower
+(96 × 96), 5 … 12 the catapult (128 × 120), 13 … 21 and 22 … 30 the ram's two beam
+strips (48 × 35 and 48 × 22), 31 … 34 the docked stair (96 × 96), 35 … 40 a pot idling
+and 42 … 45 a pot pouring (32 × 32). The arithmetic's highest index is 45 and **41 is
+the only frame nothing reaches**. `Catarm1.pl8` and `Catarm2.pl8` hold 20 each and four
+facings of five arm poses is twenty. `A2_miss.pl8` holds 81: 0 … 7 arrows, 8 … 15 bolts,
+16 the catapult shot, 17 … 24 debris, 25 … 40 fire, and `0x21 + shield × 8 + 0 … 7` the
+banner, whose sixth shield ends on frame 80. Every block was derived from the code and
+then found to be one sprite size in the file, which no wrong base reproduces.
+
+**Two things the reading corrected in `docs/battle.md`.**
+
+* §2.3's `missileSprite` (`+0x16E`) was `[D]`, *"added to the flight direction"*. It is
+  `[V]` — `BattleMan_FireMissile` writes `(ushort)missile[+0x2E] + missile[+0x34]` — and
+  it is **not always added**: `BattleMan_StateEngineFire` (`0x004843BC`) writes the base
+  alone, so a catapult shot has one picture and not eight. Column 4 of `g_missileStats`
+  (`0x004D97B0`) is 0, 8, 16.
+* §13.7 said the pass after the figures redraws *"cells flagged `0x04` on byte `+1`"*.
+  The test is byte **`+2`** bit **`0x80`**, and what it draws is not a terrain tile.
+
+**A missile's position is already in pixels, and it is not centred.** `+0x0A`/`+0x0C` are
+thirty-seconds of a cell, a battle tile is 32 pixels, so the sub-cell unit and the screen
+pixel are one unit. `FUN_004BEED4` adds `DAT_004E5D44` — `tileSize / 2`, stored by
+`FUN_004BC020` — and **no sprite-width term**, where every figure on the field has one.
+
+**Class 7 is never drawn**, which is the function that makes §17.2's *"invisible to the
+renderer"* true: what a player sees of a pour is the fire it leaves. And **ten to a cell**:
+`Missile_LinkToCell` and the renderer both give up after ten.
+
+**Three shapes of state our simulation does not have, and what each cost.**
+
+* **The fire's shimmer.** `DAT_004E5B1C` is a render-side global, pre-incremented once
+  per fire *drawn* and never reset, indexing sixteen `(i32, i32)` offsets at
+  `0x004E4470`. A counter that survives between frames would make `l2-view` stateful, and
+  the test that draws one state twice and demands an identical canvas is that rule
+  enforced. The tick stands in for it: same offsets, same wrap, one advance a frame
+  instead of one a drawn fire.
+* **The catapult's arm swings for eighty ticks *after* the shot.**
+  `BattleMan_StateEngineFire` counts `swingTimer` to 100, looses, and wraps at 179;
+  `FUN_0048895E` steps `animPhase` only above 100 and reads `g_horseWalkCycle`
+  (`0x004D9C08`) — the **horse's** curve, reused. `l2_sim`'s `reload_counter` resets *at*
+  the loose and climbs to 100, so the zero point is the same and the window is shorter;
+  ours is clamped at eighty rather than walking into the tail, which belongs to a horse.
+* **The ram's two strips need state 14 and the pot's pour needs state 2.** Our nearest are
+  `Motion::Attacking` on a ram — which `strike_castle` sets on exactly the step the
+  original refuses into `BattleMan_StateRamGate` — and `Motion::Dying` on a pot, which
+  `pour_oil` sets in the same statement that turns it to face the pour. Both marked `[I]`
+  beside the code.
+
+**`FUN_004BD759`'s gate is a cell byte we do not carry, and the gate is not optional.**
+`FUN_00491492` stamps `DAT_004D9DD0[k + polarDirc × 9]` over a docked tower's 3 × 3 and
+sets byte `+2` bit `0x80` on the **centre**; the four centre codes read out of that table
+are `0x49`, `0x4C`, `0x61`, `0x64`, exactly the four `FUN_004BD759` answers. Our
+`Battlefield` has no byte `+2`, so ours reads `flags & 1`, which `lay_tower_ramp` sets on
+those nine cells and nothing else in `l2_sim` sets at all. Without *some* gate the tileset
+sinks it: the field's hills occupy graphic indices 64 … 111, and 73, 76, 97 and 100 are
+ordinary hillsides.
+
+**Found and not built, each for a stated reason.** `FUN_004BD574`'s banner — eight frames
+cycling on `g_pulse80`, `shield × 8 + 0x21`, on a `0x80` cell whose graphic index is 0 —
+needs the same missing byte and nothing in our field produces the cell. The `a3` bank's
+engine frames, which are unreachable code (§14.4). And the two the simulation owes rather
+than the renderer: a corpse's eighty frames, so a spent pot stops pouring rather than
+holding its last picture, and `Missile_UpdateAll`'s class-4 alternation of `+0x31`, which
+is how fast debris falls and not what it looks like.
+
+**Nothing added is hashed.** Every line of this is in `l2-view`, which reads
+`BattleRunner` and writes a canvas; `crates/l2-game/tests/battle_picture/main.rs`'s
+`painting_the_battlefield_with_its_artwork_does_not_change_the_battle` plays 1,500 ticks
+with and without painting and compares the saved bytes. The one piece of renderer state
+this could have introduced — the fire jitter counter — was kept out for that reason.
+
+---
+
+**C203 — the castle on the battlefield is the one the player built.
+`stnfield.pl8`'s two layers are read, and two of our stand-in's premises were
+wrong against the file.**
+
+`docs/battle.md` §13.2a had the file located, the directory arithmetic written
+down and the structure tables described, and ended *"the layers are not read"*.
+Every siege was therefore fought on `l2_sim::siege::our_castle`, a ring whose
+arrangement is ours, and the cost was not cosmetic: **boiling oil and siege-tower
+docking could not happen at all.** `Oil_FindPourTarget` refuses a target below
+elevation 2 and `DOCK_WALL_ELEVATION` is 2 exactly, and the stand-in has no cell
+at elevation 2 anywhere, at any level. Both halves of that are asserted rather
+than asserted-about.
+
+**The directory is an ordinary PL8 directory**, which is what makes
+`Battlefield_BuildCastle`'s (`0x0047C4BA`) `castle * 0x20` stride read: `0x20` is
+two 16-byte frame records, so castle *c* is frames `2c` and `2c + 1` and the
+builder's two 24-bit offsets at `+0x0C` and `+0x1C` are each record's own. The
+shipped file is 64,168 bytes = 8 + 160 + 10 × 6,400: ten uncompressed 80 × 80
+frames, five castles of two layers. `Battlefield_ReadStructureLayer`
+(`0x0047CEC1`) walks the second as 2 × 2 markers rather than tiles, and it zeroes
+each byte as it consumes it, so it has to be run on a copy.
+
+**The decode checks itself, which is why this is `[V]` and not a story.**
+`Deploy_SlotForUnitSiege` (`0x004816F9`) maps a troop type only to garrison slots
+**0, 1, 4 and 8** of the twelve, and every one of the five shipped layouts fills
+exactly those four and no others. Nothing in the decode arranges for that.
+
+**What the file says that we had wrong.** The moat is at levels **1, 3 and 4** —
+not "level 2 and up", which is what our ring built. And level 3 has **no** curtain
+cell at all: its opening is the drawbridge, so `wall > 0`, which our siege code
+took for a castle invariant, is false there. What does hold at every level is
+weaker and is now the assertion: there is *something* `smash_walls` can open, a
+curtain block or a drawbridge. `RAMPART_GAP_AT_BUILD = [1,0,0,1,0]` was unrelated
+to either and was already right.
+
+**Measured, five sieges on the real layouts** (`oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle`):
+
+| castle level | oil pours | towers docked |
+|---:|---:|---:|
+| 0 | 2 | 1 |
+| 1 | 3 | 0 |
+| 2 | 3 | 1 |
+| 3 | **0** | **0** |
+| 4 | 4 | 0 |
+
+against **zero and zero at every level** on the stand-in. Level 3 is left open and
+reported rather than explained: it is the level with no curtain block, so the
+besieger's route is the drawbridge, and whether the zero is the layout or our AI
+has not been established. That is a finding, not a fix.
+
+**The `OnceLock` is the original's shape, not a shortcut.** `l2_sim::castle` takes
+bytes and never a path — `l2-sim` reads no files — and `l2_game::castle` publishes
+the parsed sheets into a `OnceLock` that `begin_fight` reads. Threading the sheets
+through instead was started and backed out: `begin_fight` is reached through
+`resolve`, `resolve_fought`, `resolve_siege`, `run_siege_phase`, `fight` and
+`take_the_field`, about thirty call sites all carrying `&mut Kingdom` or
+`&mut Game`, and `Game` does not own `Assets`. The original does not thread it
+either — `Battlefield_BuildCastle` opens the file itself from a process-global
+working directory, with no parameter from its caller. With no install,
+`siege::our_castle` is still the fallback and its own tests still describe it
+truthfully, which they may, because it is still what a bare checkout fights on.
+
+**And the census hid a stale total.** `GATED_TOTAL` was one low before this work
+and nobody could see it: the census prints the correct `INVENTORY` when the *list*
+disagrees, but asserts the total in a separate statement, so a total that is wrong
+by a constant survives every run that does not change the list. It is measured at
+merge now — 541 — against the census's own count rather than against the last
+number anybody typed.
+
+---
+
+**C204 — the mine's description is a SIZE band, and the brief that
+opened the arm called it fertility.**
+
+`TileInfo_Draw`'s `flags & 0x80` arm below graphic `0x0D` — the mine, the quarry, the
+blacksmith and the lumber mill — drew nothing at all in our tile panel, so a player who
+clicked a mine got an empty well where a field gets five lines. The gap was inventoried
+and handed on with its addresses; what the handoff got wrong is the one thing a careful
+person would have transcribed straight into the code.
+
+The body index is the site's base plus an offset, and the offset was described as *"a
+fertility-band table"*. **Group 22 is never touched in this arm.** The painter's
+arithmetic is
+
+```c
+iVar2 = industry[c].total - industry[c].totalSnapshot;
+if (industry[c].disabledSeasons == 0) {
+    if (9 < iVar2) { if (iVar2 < 0x19) local_1c += 1; else if (iVar2 < 0x32) local_1c += 2; else local_1c += 3; }
+} else                                  local_1c += 4;
+```
+
+— last season's output, bucketed at 10 / 25 / 50, and `+4` when the record is knocked out.
+`L2.eng` 30/53…57 read *"A small mine."*, *"A medium mine."*, *"A large mine."*, *"A very
+large mine."*, *"A destroyed mine."*, and the other three sites the same, which is what
+settles it: a fertility band on a mine would have been four wrong sentences a player could
+read off the screen. `Sprite_TopIt` (`0x004071A0`) picks the tile's own picture off the
+same difference with the same three thresholds, so the bucketing is `[V]` from two
+painters that share no code.
+
+**And the status line is a different byte from the band.** The working-or-idle tail is
+`industry[c].enabled`, 30/77 and 30/78, while the band's `+4` is `disabledSeasons`. A site
+an army has just trampled therefore reads **operational and destroyed at once** — two
+fields, one screen, and it is the original's. Reproduced rather than tidied, and asserted:
+the arm's test sets one and not the other and demands both sentences.
+
+**Three things the specification did not say, found by building it.**
+
+* **Not all four sites exist in one county.** Every county of the England position carries
+  a blacksmith and a lumber mill and *either* a mine *or* a quarry, never both; county 5
+  has neither. A test that picked four sites out of the player's own county failed on the
+  quarry.
+* **`TileInfo_Draw` and `FUN_0041BEFE` test different ladders.** The painter excludes
+  `0x01` road and `0x08` rough before reaching `0x80`; the *layout* chooser does not. Our
+  `castle_tile` had copied the layout chooser's shorter set, so the shared
+  `settlement_tile` predicate this arm factored out is the painter's, and two bits wider
+  than what stood. No tile in the England position distinguishes them and the test asserts
+  that, so it is a correctness fix with no behaviour behind it yet.
+* **The arm's four `Sound_RestartSlot` calls were already built.** `docs/audio.json`
+  `TileInfo_Draw#1…#4` were `reproduced` before the panel could say a word, fired on the
+  panel opening by `crate::audio`. A player has been hearing the mine ring on a panel that
+  would not name it.
+
+`tools/oracle/sounds.js` could not run from an agent worktree at all — `decomp/` is
+gitignored, so it exists only in the main checkout — and `tools/draws/screendraws.js`
+already carried the three-clause fallback that fixes it. The gate was green everywhere it
+was run and unrunnable everywhere else, which is the shape of a check nobody notices
+losing.
+
+---
+
+**C205 — the menu bar was never *drawn* on the battlefield, and the
+thing it was reported as — greyed-out entries — does not exist anywhere in the
+game. The only disabled-item widget `Lords2.exe` ships has no callers.**
+
+Two reports from one player on build `52AD38A32`, and both turned into
+measurements that went against the report.
+
+**1. *"The menu buttons are deactivated in battle mode now."*** They were not
+deactivated. They were **absent**, and an absent bar and a dead bar look the
+same on a screen.
+
+`Screen_DrawMenuBar` (`0x00419C78`) does not guard on "is this the campaign map".
+It guards on a list of screen ids it **refuses** — `0x08 … 0x0D`, `0x17`,
+`0x1B … 0x20`, `0x22`, `0x2C … 0x2F` — and `0x29`, `0x2A` and `0x2B`, the three
+battle screens, are in **none of them**. So the original paints the bar through
+the whole of a battle. Ours painted the field from `VIEW.y == 24` down and left
+the 640 × 24 band above it empty.
+
+And `Screen_FrameInput`'s `0x29` arm **opens** with
+`Menu_OpenDropdown(&g_menuBarItems, 3)` — ahead of `Map_EdgeScroll`,
+`Battle_ButtonClicked`, `Battle_DragSelect`, `Battle_OrderClicked` and
+`Battle_UnitPanelClicked` — with nothing gating it: not `g_battlePhase`, not the
+pause word, not `g_battleChoiceOwner`. `0x2A` and `0x2B` do not have the arm;
+`0x29` alone does.
+
+**There is no greyed state to copy.** The drop-down's painter, `FUN_0040C725`,
+is a two-way branch per row — `0x18` on a plate for the row under the pointer,
+`0x3F` for every other — with no third colour, no skip and no flag.
+`FUN_0040E099` hit-tests every row and `FUN_0040DD92` dispatches whatever it
+returns. Not one of the sixteen handlers reads `g_battlePhase`, and neither does
+`Menu_OpenDropdown`. **So File > New Game, Load, Save and Quit are all live
+mid-battle, as are all five Options rows and all seven Help rows.** [V]
+
+The game *does* ship a greyed-item widget, which is why the instinct to look for
+one is a reasonable instinct: `FUN_0040CB7C` paints a third colour, `1`, when
+`FUN_0040CB4E(DAT_0058FCC0[id])` is set, over **20-byte** records with a
+visibility short at `+0x0E` that lets a row be skipped entirely. It is **dead
+code**. `FUN_0040E12E`, its only entry point, appears in the whole decompiled
+corpus exactly twice, both times in its own definition; `DAT_0058FCC0`,
+`DAT_005CD500` and `DAT_0059152C` appear only inside that six-function cluster.
+The menu bar's records are **12** bytes and its painter is a different function.
+An agent who found `FUN_0040CB7C` first would have built a disabled state the
+game has never shown anybody.
+
+**What a battle actually suppresses**, all of it chrome and none of it a menu:
+`Screen_DrawMenuBar`'s own two `g_battlePhase == 0` guards take off the per-realm
+shield banners and the year-with-season, leaving the three titles and the
+treasury; `Screen_DrawEndTurn` (`0x0041A734`) takes off the End Turn button;
+`FUN_0041A639` the turn timer; `FUN_00410F4B` the minimap; and
+`CountyStrip_Draw` (`0x0040F7D3`) returns at once, which is why the county strip
+is not on the battle screen. The last two matter because the frame loop paints
+both every frame whatever the screen id is — a battle is the one thing that stops
+them.
+
+Three of `Screen_FrameInput`'s `g_battlePhase` tests go the **other** way and
+*relax* during a battle: screens `0x35`/`0x36` are exempted from the multiplayer
+force-close, `0x39` is not force-closed, and a stray click does not drop to the
+campaign map. The save box is deliberately kept alive in a battle.
+
+**2. *"The sidebar iirc was much smaller in combat? or something? I might be
+misremembering."*** He was, by 158 of 160 pixels — and there is something real
+underneath the memory.
+
+Measured, from hit tests and blits rather than from any constant of ours:
+
+| | battle (`0x29`) | campaign (`0x00`) |
+|---|---|---|
+| right column | x **480 … 640**, 160 wide | x **478 … 640**, 162 wide |
+| the hit test it comes from | `Hotspot_Test(0x1E0, 0x1C0, &DAT_004DC710, 5)` | `Hotspot_Test(0x1DE, 0x1AE, &g_sidebarButtons, 6)` |
+| the view beside it | (0, 24) 480 × 448, `FUN_004BC020(…, 0, 0x18, 0xF, 0xE, 0x20)` | (0, 24) 478 × 456, `Gfx_MarkDirty(0, 0x18, 0x1DE, 0x1DF)` |
+
+**Two pixels.** Ours already had every one of those numbers right and nothing was
+changed; `the_battle_column_is_two_pixels_narrower_than_the_campaign_one` pins
+them so the next person does not have to re-derive them.
+
+What *is* much smaller is the column's **contents**, and that is the memory worth
+keeping: the campaign column holds a minimap, four mode buttons, the county
+strip, the labour slider, the produce rows, five sidebar buttons and End Turn;
+the battle column holds an 80 × 80 overview at two pixels a cell, a banner grid
+and five buttons. Nothing was smaller — nearly everything was gone.
+
+**A third thing, which the menu bar created.** The drop-down is screen `0x32`, a
+push, and `Screen::update` is the top screen's alone — so opening *File* over a
+battle froze the fight until the menu closed. `Battle_Frame` (`0x004B99C0`) is
+one `if / else if` on `g_battlePhase` with **no `g_screenId` test on either
+side**: `Machine::wind_turn` already built the first arm (C197, the turn winding
+under an open letter) and left the second unbuilt because nothing had ever put a
+screen over a battle. `Machine::wind_battle` is that `else if`, run at whatever
+depth the battlefield sits and only while something is over it.
+
+**And one refusal that is ours.** `Menu_SaveGame` (`0x00433F49`) does not test
+`g_battlePhase` and the original's `.sav` is a memory dump, so the original saves
+mid-battle and gets the battle back. `crate::save` does not encode a
+`LiveBattle`, and `decode` writes `battle: None`, so ours would have written a
+file that quietly lost the fight a player was in the middle of.
+`crates/l2-game/src/save/mod.rs` carried the sentence *"The original saves from the
+campaign map and nowhere else"*, which is false and is now corrected in place.
+The save box refuses while a battle is live, through the `Status::Failed` path
+whose first line is the game's own — `Eng_DrawString(40, ERROR_INDEX)` — so a
+player is told rather than silently robbed. `docs/arms.json`
+`ours/save-refuses-mid-battle`; the feature is `partial`, not `done`, and the gap
+names the reason.
+
+---
+
+**C206 — the title screen's clock is OURS, and the interesting part is
+the channel it came down, not the arithmetic.**
+
+A player asked for the time in MST on the title screen. There is none in `Lords2.exe`:
+`FUN_0041EA14` is 143 bytes — `FUN_00409346(Panels2, 0xA0, 10, 0x14, 0xF)`, two
+`Ui_DrawCentred` calls, then `FUN_0041EAA3`'s four items — and the binary's **one**
+calendar clock anywhere is `Log_Timestamp` (`0x004B049B`), `time` → `localtime` →
+`asctime` into `g_logTimestamp`, whose only two readers are in `Log_Write`'s buffer and
+file path. `[V]`, read whole, both. So the game's answer to *what time is it* is *write it
+in a log file*, and a clock on the front page is a **deliberate divergence** — marked
+`ours/title-mst-clock` in `tools/draws/screens.json`, and said in the code beside it so
+that nobody later "fixes" it toward the binary or cites it as a reproduction.
+
+**The rule that shaped the design is D-5, and the shape it forced is C193's.**
+*No wall clock, no scheduler* binds everything under the renderer, so `crate::wallclock`
+is pure arithmetic on a reading it is **handed** — `hhmm(unix_secs)`, `minute(unix_secs)`,
+`draw(canvas, pen, unix_secs)` — exactly as `clock::Ticker` takes monotonic nanoseconds
+from `main.rs` rather than reading them. `l2-game` the library contains no `SystemTime`
+at all; `main.rs` samples one and projects it into `Assets::wall_clock`.
+
+**`Assets` rather than `Ctx` or `Game`, and that is the whole trick.** `Ctx` is
+constructed at something like eighty sites and `Game` is the simulation, but `main.rs`
+already writes `self.assets.quirks = self.game.presentation_quirks` on the line before it
+draws — an existing, one-directional channel from the shell into every painter, through a
+struct that is in no save, no digest and no `Kingdom`. The clock rides it. The field is
+`Option<i64>` and **every test and every headless driver leaves it `None`**, which is what
+turns *nothing below the shell may read a clock* from an intention into something a test
+can fail on: `a_page_with_no_reading_draws_no_clock` asserts the page is clockless without
+one, and `the_clock_cannot_reach_the_simulation` steps two copies of one game under
+readings six months apart and demands the same checksum.
+
+**Two things the build turned up that the plan did not have.**
+
+* **A reading sampled only at redraw can never go stale.** The first version sampled in
+  `App::redraw`, beside the quirks projection, which is the obvious place — and `redraw`
+  only runs when something is *already* dirty, so the clock would have frozen at the
+  minute the page opened and nothing would have said so. The sample is now taken on the
+  tick as well, and `SetupScreen::update` compares `wallclock::minute` against the minute
+  already painted. That is also what keeps a still screen still: `take_redraw` fires once
+  a minute, not sixty times a second for a picture that changes once in thirty-six hundred.
+* **MST is a fixed offset, and the test for that is an ablation.** MST is UTC−7 all year;
+  the zone that shifts is MDT, and the host's own zone is a third answer again. There is no
+  daylight rule in the module, and `mst_does_not_shift_in_summer` pins two instants six
+  months apart to the same clock face — which is the assertion that fails the moment
+  somebody reaches for a local-time crate.
+
+Bottom **right**, opposite the build stamp, in the page's own body face at `0x3F`, flat —
+the face and colour the subtitle and all four menu captions use, taken from the page's own
+pen rather than invented. Nothing the original's page-1 painter draws reaches below the
+window's y 250. Deliberately **not** `build_id`'s plain `Fntl2_9.pl8`: that line is seven
+hex characters compared one at a time, and this is four digits read as a shape, like every
+other word on the screen.
+
+---
+
+**C207 — seven arms, and in five of them the rectangle was right and
+the EDGE was wrong. A screen can answer the correct 24 × 24 box on the wrong
+half of the click and every count in `docs/arms.json` stays green.**
+
+This is rule 5's two measurements pulling apart, and `docs/input.md` §6 names the
+split: the inventory counts *which* control a screen answers, the kind byte at
+`+0x0F` counts *how*. Four of these arms were already `reproduced` — the box was
+in the right place, the test drove a press, and the original wants a release.
+
+**`Ui_OkButtonClicked` (`0x0040E7E4`) opens `if (g_mouseLeftReleased == 0)
+return 0;`.** `[V]`. Four of `Screen_FrameInput`'s arms are that call, a right
+release, and nothing else — the merchant stall `0x08`, the trade panel `0x0C`,
+the castle chooser `0x1B` and the raise-army screen `0x17`. All four closed on
+our press. `0x0042FF10/merchant-ok`, `/trade-ok`, `/raise-army-ok` are new
+records; the castle chooser's was there and untested for its edge.
+
+**The release a double click does not raise.** `App_WndProc` (`0x004B29BE`):
+`0x201` sets `DAT_004EABC2` bit 0, `0x202` clears it, and `0x203` — the
+double-click message — sets `DAT_004EADA1` and **not** the down bit. The frame
+poll raises `g_mouseLeftReleased` only on a *change*, so the button-up that ends
+a double click raises no release at all. `crate::input::LeftButton` is that bit,
+moved into the library where a test can drive it; `main.rs` was synthesising the
+release.
+
+That is the same fact `Ration_SliderClick` (`0x0043A379`) turns on: its track
+branch reads `g_mouseLeftDown`, which a double click leaves clear. Ours latched
+`slider_held` on the double click and the thumb then followed the cursor with the
+button up.
+
+**Screen `0x27` has exactly one live control and nobody had read for it.** Every
+arm of `Screen_FrameInput`'s ladder ends `goto LAB_00431F25`, jumping the
+epilogue; `0x27` — a tip over the map — has **no arm**, so it falls out of the
+nest into the epilogue and a minimap press drops `g_screenId` to 0 directly, with
+no `Msg_Dismiss`, no `FUN_00476E21` restore and no re-arm of `DAT_004F0358`.
+`Tips::unhost` is that assignment. The negative was read at the same time and is
+worth as much: `Screen_HandleInput` (`0x004BA9C8`) is one ladder on `g_screenId`
+with **no `0x27` arm** in its 3,832 bytes, so there is no widget pass on that
+screen at all. `screens/tip.rs` said both were unknown.
+
+**Reproduced is the byte drop, and the window is left standing with it** — the
+epilogue writes the byte and nothing else, and `Msg_Pump` runs on `0x00` too. Not
+reproduced: the epilogue's own guard, `FUN_004323FE` → `Minimap_Click`
+(`0x0043253A`), which picks the county and recentres before the drop. That wants
+`MapScreen`'s county raster, which screen `0x27`'s handler cannot reach; the same
+behaviour is ours on the map's own ladder, through `Map_Click`. Two paths to one
+thing and we have the other one, said in the record rather than counted as a
+miss.
+
+**The force-close guard was built as the timer's request and it is a LATCH.**
+`DAT_0055403C` is what `Turn_End` (`0x0043AC23`) writes — 2 in single player,
+through whichever door the turn was ended — and `Turn_Tick`'s restart clears it on
+the first frame of the person's next live turn. So the guard stands for the
+**whole turn that follows**, and `run_turn_clock` tested `end_turn_pending`, the
+clock's own request, which the map takes the moment the map is on top: a panel
+opened during that turn stayed open, and ending the turn by hand with one up
+closed nothing. `TurnClock::force_close` is the field. The other two clauses are
+named in the code rather than folded away — `DAT_00553FC8` is the multiplayer
+sync-wait latch nothing in this engine sets, `DAT_00553018` the F12 override
+whose one setter is `App_WndProc`'s `VK_F12` arm.
+
+**Five ablations run**, each observed red against the pre-fix line; the two edge
+tests in `input.rs` are the ones that matter, because a release with no press
+behind it is not an edge and the button-up that ends a double click raises none.
+
+---
+
+**C208 — the intro has played at double height on every row since we
+wrote it, and the timer bug we were going to ask a player about was already
+answered in the DLL.**
+
+**1. The films.** `Smackw32.dll` (base `0x400000`) settles what no `.smk` file
+carries. `_SmackOpen@12` (`0x404EF0`) maps header flags `&6 == 2` to
+`struct+0x392 |= 0x10` and `== 4` to `|= 0x20`, doubling the height either way.
+With `0x10`, `_SmackToBuffer@28` (`0x403AF0`) sets the row step to `pitch * 2`
+and keeps the **ordinary** block writers at `0x0040CCFC`, one row each — so the
+odd display rows are never written and stay as the destination was cleared:
+black. `0x20` uses the doubling writers at `0x0040B24C`, and **no shipped file
+sets it**. All three doubled films — `Intro.smk`, `LOM.SMK`, `Credits.smk` —
+carry `0x02`, so the original's intro plays on alternate lines and ours copied
+the row into the gap. `l2_smk::YScale` and `Decoder::display` are that, and
+`a_doubled_frame_has_black_odd_rows_and_a_written_one_has_none` pins both arms.
+The clear was already there: `Screen::draw` clears to 0 for exactly the films
+that are not over a screen, which are exactly the three doubled ones.
+`crates/l2-game/tests/movies/main.rs` asserted the second copy and now asserts the
+black. **The second source is the disagreement this settles**: libsmacker calls
+`0x02` Y-double and `0x04` interlace, FFmpeg names them the other way round, and
+the DLL agrees with FFmpeg — `0x02` is the interlace. `docs/formats/smk.md`,
+*Verified*. [V]
+
+**2. The turn timer.** `docs/oracle-requests.md` §12 asked a player with a
+stopwatch whether ending a turn early can end the next one on its first frame.
+The code is not ambiguous about it: `Turn_Tick`'s (`0x0049A010`) third clause is
+the **only** per-turn reset of
+`DAT_005440C8`, it runs after the count, and its `aiStep != 999` gate is set by
+`Turn_End` (`0x0043AC23`) and cleared by `Turn_BeginPlayersTurn` (`0x0049B6D3`).
+`TurnClock::tick` already ran the clauses in that order — C158 landed it — so
+nothing moved; what was wrong was two documents still calling the mechanism
+open. §12 is retired and B99's `[I]` is narrowed to **how often** it bites,
+which is a property of the machine and not of the code.
+
+**3. `docs/oracle-requests.md` §1, the tax half.** `Tax_RecomputePreview`
+(`0x0044B80B`) is the only writer of county `+0x16` and reads
+`g_taxHappinessOther[rate]` unconditionally; `tools/oracle/kingdom.ps1` already
+reads all 51 `i32` at `0x004D63D8` out of the running binary. A save with
+counties at 20/35/50 would re-confirm an array we have entry for entry. The
+section keeps its **realm-wide averages** half, which a save is still the only
+way to read.
+
+---
+
+**C209 — three things the battlefield did not draw, and two of them
+were counting in the wrong place.**
+
+*Placeholder. The lead assigns the number on merge.*
+
+**The keep flew no flag.** `FUN_004BD355`'s overlap pass branches on cell byte
+`+2` bit `0x80`: a frame byte of zero takes `BattleBanner_Draw` (`0x004BD574`),
+anything else takes the docked tower's stair. Only one arm of
+`Battlefield_BuildCastle` sets that bit — structure code 6, the keep — and frame
+byte **0** is the only byte either structure table files under code 6, so the
+gate closes on itself. The frame is
+`g_units[g_battleArmyB]+0x02 × 8 + DAT_004E5B18 + 0x21` out of `A2_miss.pl8`:
+the garrison's shield, eight phases on `g_pulse80`, ending on the sheet's last
+frame. `l2_sim::siege::our_castle`'s keep did not carry the bit either, so the
+stand-in castle was the one castle in the game that could not have flown one.
+
+**A wall being shot did not visibly break up, and the arithmetic was right.**
+`Missile_Step` writes `cell.terrain++` — byte `+0`, which on a castle is not a
+terrain id but the damage counter — and the renderer's second pass draws slot-1
+frame `cell[+0] + 0x8B` from that same byte. This crate kept the count in a
+`wall_hits` vector beside the field: the wall came down on the right shot and
+nothing between the first shot and the last changed on screen. A filling ditch
+*did* animate, for the single reason that `fill_moat_tick` writes
+`cell.terrain`. **Two writers of one byte, one of which had been given a private
+copy** — and the copy is invisible to every test that asserts on the rule.
+The threshold moves with it: `Battlefield_BuildCastle` seeds a non-moat cell at
+1 and the collapse is `0xF < cell.terrain`, so a wall takes **fifteen** shots,
+not sixteen.
+
+**And a corpse had no lifetime.** State 2 counts `+0x173` to 80 before freeing
+the slot (state 15, the siege engine's, to 120). Nothing here counted, so every
+body stayed on the field — and for a pot of oil that is worse than untidy:
+`FUN_0047A814` puts a spent pot into state 2, and the state-2 tick is what draws
+the pour frames 42 … 45. A pot that had poured held its pouring picture for the
+rest of the battle. Two smaller pieces of the same arm came with it: debris is
+stepped one frame in two (`Missile_UpdateAll` alternates `+0x31`) and is nudged
+half a cell up and left as the shot becomes it (`m[+0x0A] -= 0x10`).
+
+---
+
+**C210 — a whole mechanic was invisible because one latch was cleared a
+season too early, and the function that reads it was never ported.**
+
+Twenty turns of play and no event letter. Random events were graded `partial`
+because the dice roll existed: `Event_RollAll` (`0x00448819`) drew, the twenty-four
+handlers fired, `Msg_DrawWindow`'s category-`0x0F` painter was written and tested.
+**Nothing posted the record.** The painter's own doc comment said so — *"nothing
+posts this record yet … the painter is here so that the day something does, the
+letter says what the original's says"* — which is an honest note that stood for
+months next to a mechanic no player could meet.
+
+**The path, end to end, all `[V]`:**
+
+| | function | |
+|---|---|---|
+| roll, store, dispatch | `Event_RollAll` | `0x00448819`, once a season |
+| the handlers | `FUN_00448E12` … `FUN_00449826` | a failing guard clears both flags |
+| **post** | `FUN_00448D7E` | once a **frame**, for `g_selectedCounty` |
+| draw | `Msg_DrawWindow` cat `0x0F` | `0x0047309E` |
+| clear the latch | `FUN_00448D7E` | and **nothing clears `eventId`, ever** |
+
+**The poster is nine lines and its only caller is the frame loop.**
+
+```c
+void FUN_00448d7e(int county) {
+    if ((g_counties[county].eventFired != 0) && (g_mouseRightDown == '\0') &&
+       (g_counties[county].eventFired = 0, g_counties[county].owner == g_localPlayer))
+        Msg_Enqueue(0, g_localPlayer, (short)g_counties[county].eventId, 0, '\x0f',
+                    (uchar)county, '\0', 0);
+}
+```
+
+`Battle_Frame` calls it at `0x004BA187` as `FUN_00448d7e(g_selectedCounty)`, between
+`Msg_Pump` and `Turn_Tick`, with no `g_screenId` test. `RefsTo` gives one caller, so
+that is the whole of it.
+
+**The rule half was wrong in a way that made the port impossible.** Our `roll_all`
+cleared `event_fired` and `event_id` at the top of every county's loop iteration.
+`Event_RollAll` clears **four fields and neither of those**:
+
+```c
+eventPopulationPct = 0; eventGrainPct = 0; eventHerdPct = 0; taxSuppressed = 0;
+```
+
+The three modifiers must go every season or they would be applied twice. The latch
+must not, because the *only* thing that clears it is the letter being posted — and
+that happens when the player looks at the county, which may be seasons later or
+never. A latch cleared at the roll is a latch no frame can ever find set. So even
+with the poster written, nothing would have reached a player.
+
+**Four consequences a player meets, none of them guessable from the roll:**
+
+* **the letter waits.** An event in a county you are not looking at arrives the
+  frame you click it. The swing agent's *"county 3's Wedding-fever id in four siege
+  saves is stale"* was this, seen from the save file: those are letters the
+  original's own player never read.
+* **`eventId` is never cleared.** It is overwritten by the next event that county
+  draws and otherwise stands for the rest of the game, which is why the county
+  panels keep showing an old event's line.
+* **the figure can go stale under the letter.** `Population_UpdateAll` zeroes
+  `+0x2F8` every season and rewrites it only when `+0x1FB` is non-zero — and
+  `Event_RollAll` *does* clear `+0x1FB`. A Wedding-fever letter opened two seasons
+  late reads **`0 extra births.`** The test
+  `a_letter_left_waiting_for_seasons_prints_a_figure_its_season_has_zeroed` pins it
+  on `siege-aftersie.sav`.
+* **a county that changed hands swallows its letter.** The clear is one comma
+  expression *before* the owner test, so the flag goes whoever holds the county.
+
+**Two defects in the painter, found by finally having a caller.** The number line
+for `0x8A` and `0x8E` was not drawn because `+0x2F8` *"is not carried"* — it is
+carried now (`County+0x2F8`, imported), so all eight of `Msg_DrawWindow`'s number
+lines are drawn rather than six. And the window's height is a rule the code had
+written down and not applied: `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0 : 0xE0`,
+so the sixteen high-numbered events were drawing in a box `0x20` too short with their
+corner button, and its 48 × 48 hit box, `0x20` too high. The note beside the constant
+had the rule backwards as well — it is the events with **no** number line that get
+the taller box.
+
+**What is not reproduced.** `g_mouseRightDown`. `crate::input::Event` has no right
+*press*: `RightClick` is the release, deliberately, because the original's fifty-odd
+right-button arms all read `DAT_004E6900` and never the held flag. There is no frame
+in this engine during which the right button is down, so the guard would be false on
+every one of them, and a flag invented to satisfy it would be a flag nothing sets.
+Recorded in `docs/arms.json` rather than papered over.
+
+**It moved a byte of the lockstep digest, and now it moves none.**
+`County::event_fired` is `County+0x000` and sits in `Encode for County`, which is
+both the save and `save::checksum` — `Canonical::hash_of(kingdom)`, the per-tick
+desync digest. So the poster wrote a hashed byte from `Game::selected`, **a
+per-peer cursor**: two peers looking at different counties hashed differently on
+the next tick. `Event_Post` may do that because the original is one machine with
+one `g_selectedCounty`; we may not, and `docs/netcode.md` §6 is the one place the
+binary is not an authority to copy from.
+
+**The clearing moved out of the kingdom, not out of the digest.** Two routes were
+open. Excluding the field from the digest but not the save needs a second encoder
+— `l2_net::Canonical` has one stream and `Encode` has one method, so that is a new
+mechanism. Moving the mark to presentation state is the tree's existing precedent:
+`Game::player_names` is off `Kingdom` for the same stated reason, that the digest
+is over the kingdom and nothing one player's interface does may live there. So
+`Game::event_posted` carries `Event_Post`'s `eventFired = 0`, in the same place in
+the same order — before the owner test, so a rival's county still swallows its
+letter — and `County::event_fired` is now written only by `Event_RollAll` and the
+24 handlers, identically on every peer. `Event_RollAll`'s *raising* of the latch
+has to be mirrored, since the kingdom's is never lowered: `message::rearm_events`
+clears the mark for every county the season report names, which is exactly the set
+whose `fire` succeeded. It is in the save (`l2_game::save::VERSION` 5) or a reload
+would re-post a read letter.
+
+In single player the two halves are the original's latch byte for byte. Checked:
+`two_peers_with_different_selections_hash_the_same_kingdom` ticks two `Game`s over
+one kingdom with different selections and asserts equal checksums — red before the
+change, with the two digests differing after a single frame — and
+`the_poster_touches_nothing_in_the_kingdom` hashes the kingdom either side of a
+post. The branch's earlier test restored the latch in a test-local clone, which
+proved the byte was the only one written and nothing about two peers.
+
+---
+
+**C211 — three of the campaign map's four reported draw defects were
+one sentence each in the painter, and the fourth was already built.**
+
+Four ledger rows, started from `Map_DrawArmies` (`0x00408438`) and the army pass
+`FUN_00405487` (`0x00405487`) rather than from the screenshots.
+
+**1. The two pixels.** `Map_DrawArmies` takes a `mode` and adds a different
+constant to the figure's x for each: `mode == 1` adds `-2` where `mode == 0`
+adds `g_mapTileHalfStep`. The only call site that passes 1 is the first
+statement of `FUN_004059AF` (`0x004059AF`), the **offset** row walker, before it
+advances `g_drawX` by the half-step — so the leftmost column of every other
+lattice row puts its figure on `g_mapViewX - 2` where the row's own spacing puts
+it on `g_mapViewX`. It is viewport-relative, not a property of the tile: scroll
+one column and a different army is the one that shifts. `l2_view::campaign::unit_anchor`.
+**`mode == 2` (`halfStep - 2`) is dead** — 0 and that single 1 are the only
+literals reaching the function in the corpus — so it is recorded here and not built.
+
+**2. The order.** The army pass does not walk `g_units` at all. It walks the
+lattice, cell by cell, and `Map_DrawArmies`' whole body is a walk of *one tile's*
+list (`g_tiles[cursor].unit`, then `+0x04`). So the painter is ordered by
+lattice row, then column, then the tile's list, and ours was ordered by array
+slot: which of two overlapping armies was on top was decided by which had the
+lower id, and the answer flipped when a slot was reused. `map::units_in_paint_order`.
+The within-tile tie-break is `[D]` — the original's is insertion order in a list
+this crate does not keep, and ascending id stands in for it.
+
+**3. The figures.** *Already built, and the ledger row was reading a stale
+comment.* `Army_Tick` (`0x0046521F`) picks sprite bank `0x48`, `0x60` or `0x78`
+on `CMP …, 300` / `CMP …, 600`; `l2_kingdom::unit::SPRITE_BANKS` and
+`ARMY_SIZE_CLASS_MAX` are those, `Unit::sprite_frame` uses them, and
+`draw_units` draws that frame. The square marker the comment describes is the
+no-sheet fallback. Nothing was changed. **`[I]` remains on the banks being
+literally one, two and three figures** — nobody has looked at `Sprite1a.pl8`.
+
+**4. The seceded mine.** `Industry_ProduceAll` (`0x0044E852`) calls
+`Industry_UpdateSiteTile` (`0x0044EDC2`) for `c = 1 … g_countyCount` with **no
+owner test**; the owner test is one level down, inside `Industry_Produce`
+(`0x0044EA92`), where `if (realm != 0)` guards production alone. Ours had put it
+on the repaint. `County_MakeIndependent` (`0x004AC3C6`) clears the four `enabled`
+flags and touches no tile, and those two functions hold every call site of
+`Industry_UpdateSiteTile` there is — so a seceded county's terrain byte stayed on
+`base + 1`, the *working* value `Sprite_TopIt` (`0x004071A0`) animates, and its
+wheel turned for the rest of the game. Deleting the gate is the whole fix.
+**Not a `docs/bugs.md` entry**: the original repaints it the next season.
+
+---
+
+**C212 — the battle prompt's spoken question, and the take that was "unread".**
+
+`docs/audio.json` filed nine `S080` sites across `Battle_BeginFromCampaign`
+(`0x004A7158`), `FUN_004A6C68` and `Siege_LaunchAssault` (`0x004A8AAB`) as
+*"which of the three a given call plays is unread, and playing the first every
+time would be a guess rather than a reproduction."* It is read. All three sites
+carry the **same ladder on `g_battleChoiceOwner`**, immediately after
+`g_screenId = 0x12`: 1 → `S080_03.wav`, 2 → `S080_01.wav`, else → `S080_02.wav`.
+`[V]` at all three. That field is already ours as
+`crate::turn::Question::choice_owner`, so the wiring is one arm on the edge that
+was already firing `ff_batl.wav` — the battle prompt opening — and the three
+call sites are three routes onto one screen.
+
+**The mapping is not the group-80 one.** The prompt draws `L2.eng` group 80
+indices 1, 2, 3 for the same three cases, in that order; the takes are 3, 1, 2.
+A table generated from the string index would have been wrong in two cases of
+three and would have looked right.
+
+**The line is usually dropped, in the original and here.** `ff_batl.wav` is
+`Battle_ChooseSettlement`'s (`0x004A6A30`), on the branch that returns 1 — which
+is the branch every one of these three sites runs on — so the fanfare holds the
+one-shot buffer and bare `Sound_PlayFile` drops what follows. We reproduce that
+by making the two calls in the original's order through the same verb rather
+than by writing the rule down; the test asserts both halves, the take with the
+effects switch off and the drop with it on.
+
+**The second half: the six lines a screen decides and cannot play.**
+
+`SaveLoad_Tick` (`0x004AD9F0`) and the merchant's four quantity handlers
+(`FUN_00435339`, `FUN_0043543D`, `FUN_00435541`, `FUN_004355DB`) are the sound
+sites whose condition is **screen-local state that is gone by the next tick**:
+which box is up when the thumb up's latch is taken, and what the quantity was
+*before* the step. `Director` derives sound by diffing the world, and there is
+nothing here to diff — so the screen reports the line it has already decided on,
+through `Game::spoken`, a count and a file name. That is `Game::nobles_spoken`'s
+mechanism, and the count rather than the name is the edge for its reason: two
+presses of one button are two lines.
+
+**The trade guard is a crossing, not a value.** All four handlers end in
+`if (0 < qty && oldQty < 1) Sound_PlayFile(take, 1, 0)`, so holding the up arrow
+says the line once — on the step that turns a sale or a standstill into a
+purchase — and stays quiet while the number climbs. Up and the ceiling button
+say `S068_01.wav`; down and the floor button say `S068_02.wav`. The down
+arrow's copy is *very nearly* dead: a step down cannot raise the quantity, so it
+can only fire when the clamp does it, with a floor above zero. Written as the
+original writes it rather than pruned.
+
+`SaveLoad_Tick`'s pair is two `if`s and not an `if`/`else`: `g_screenId == '6'`
+(the save box) speaks `S040_02.wav`, anything else `S040_01.wav`. Ours collapses
+the latch and the tick's take-up into `SaveLoadScreen::begin`, so the line is one
+frame earlier than the original's and on the same occasion.
+
+---
+
+**C213 — the battle ratings sheet's two blocks are two realms, and the
+merchant was already an army everywhere it mattered.**
+
+`Screen_BattleMasterRatings` (`0x00421707`, screen `0x2E`, `score1.256` +
+`score1.pl8`) draws its two blocks from **realm ids**, not from a side index.
+Each block reads `g_playerNames[realm]` for the line of text and
+`g_realms[realm].shieldIndex + 8` for the crest above it. `[V]`. The local
+block's realm is `g_localPlayer`; the opponent's is `DAT_0056D5CC`, written by
+`Skirmish_Setup` (`0x0042B7F7`) as `g_localPlayer == 1 ? 2 : 1` — so a skirmish
+between realms 1 and 2 names both lords, and the sheet is the same code path
+whichever one the human is.
+
+Ours had drawn the local block as "PLAYER". **`L2.eng` group 37 has no word for
+a player** — the group is the sheet's own vocabulary (CLAUDE.md rule 6) and its
+317-group map in `docs/formats/eng.md` §5 gives it no such string — so there is
+nothing to draw but the lord's name. `crates/l2-game/src/screens/ratings/mod.rs`
+takes it from the realm, with `REALM {n}` as the fallback for a realm with no
+name rather than a literal invented here.
+
+Checked: `the_ratings_blocks_name_the_two_lords` in
+`crates/l2-game/tests/screens_*.rs` sets two named realms and asserts both blocks.
+Ablated by restoring the "PLAYER" literal, it fails on the first assert.
+
+**The second half: nothing came off the merchant.** The ledger row asked whether
+a merchant should be excluded from sub-tile interpolation. It should not.
+`Merchant_Tick` (`0x00465622`) and `Transport_Tick` (`0x00465761`) are the same
+319 bytes as each other and reach `Unit_StepOnce` (`0x0046634D`), which has **no
+kind test at all**; `Map_DrawArmies` (`0x00408438`) reads the six 8×16 sprite
+tables before its first kind comparison. `[V]`: the original interpolates a
+merchant exactly as it interpolates an army. What differs is only the walk
+cycle — `g_merchantWalkFrames` (`0x004D6AB8`) advances **six frames per facing**
+against an army's three — and that is a sprite index, not motion. Recorded in
+`cross_sub_tile`'s doc comment so the next reader does not re-open it.
+
+---
+
+**C214 — the field brush sounds the terrain it paints, and `setup3.wav` is the
+skirmish bed rather than the credits.**
+
+`FUN_00438B02` (`0x00438B02`) is the one handler every field-brush button
+reaches (`crates/l2-kingdom/tests/oracle.rs` asserts that of all six records in
+`g_infoFieldBrush` `0x004DC4D0` and the waste table `0x004DC530`). It picks a
+one-shot **bank slot from the brush id**: `0x13` → slot 4 (`moo_2.wav`), `2` →
+slot 7 (`wheat.wav`), `1`/`0`/`0x19` → slot 6 (`fallow.wav`). Five
+`docs/audio.json` sites — `FUN_00438b02#1`..`#5` — go from unreproduced to
+reproduced.
+
+`audio::names::field_brush_slot` keys the slot off `County_RecountFields`'
+terrain **ranges**, not off the raw byte, because `Field_SetType`'s call to
+`Herd_UpdateCrowding` regrades a fresh pasture from `0x13` to `0x14..0x16`
+before anything downstream sees it: a byte comparison would go quiet on the
+second cow. `Director::hear_the_brush` fires off the info panel's tile terrain
+changing, which is the diff the `Director` can see — the handler ends in
+`g_screenId = 0`, so by the next tick the panel is gone and there is no
+screen-local state left to read.
+
+Checked: `the_field_brush_sounds_what_it_paints` in
+`crates/l2-game/tests/audio_wiring/main.rs` paints all three terrains and the waste
+arm; ablated, all four arms fail.
+
+**The second half: which bed `setup3.wav` is.** `FUN_00433155` plays it on
+`g_setupPage` `0xC` and `0xB`, `[V]`. `Screen_FrameInput`#1 and #2 leave screen
+`0x2F` after `0x2E`, `[V]`, and `FUN_00497A34`#1 is the `DAT_0057A0F0 == 1` arm
+of the return to the front end, `[V]` — `[I]` that the flag is the skirmish
+flag. So the track is the **skirmish** bed. It is not the credits and not the
+ending: both are films carrying their own audio, and **none of the 22
+`Music_Play` sites is a credits bed**.
+
+**Conquest music is left alone.** `Screen_DrawConquest` (`0x0041E1DD`) plays
+`setup.wav` looped for map < 8 and `setup2.wav` **once** otherwise; ours cannot
+express the second, because `Mixer::set_music` always loops, and the
+`audio_wiring` assertion
+`every_in_game_screen_over_the_front_end_is_campaign_music` would fail on the
+screen besides. Two blockers, one site, recorded rather than forced.
+
+---
+
+**C215 — the conquest interstitial picks its own bed and its own loop flag, so
+the mixer learned to play a track once.**
+
+`Screen_DrawConquest` (`0x0041E1DD`) opens with
+`Music_Play(g_campaignMap < 8 ? "setup.wav" : "setup2.wav", 0, g_campaignMap < 8)`
+— **`[V]`**: the screen chooses the file and the loop flag from one comparison.
+So `setup.wav` loops under the interstitial for the first eight maps, and past
+them `setup2.wav` plays **once** and stops. Ours answered campaign music and
+could only loop, which is two defects in one site — C214 recorded exactly that
+pair as a blocker; this is that blocker cleared.
+
+`Mixer::set_music_once` is split from `set_music` over a private `start_music`,
+so the loop flag is a parameter in exactly the one place the game passes 0 and
+`set_music`'s callers are untouched. `Music::Setup2` and `Music::loops` carry
+the track and its flag; `Audio::play_music` picks the arm; `Scene::Conquest {
+ended }` takes `ended` from `Campaign::is_complete`, the state the original
+reads as `g_campaignMap < 8`. Marked `// sfx: Screen_DrawConquest#1,#2` at the
+call. Both `docs/audio.json` sites go from unreproduced to reproduced and
+`node tools/oracle/sounds.js --check` agrees with the corpus on all 143.
+
+Checked: `the_conquest_interstitial_plays_its_own_bed` (`audio_wiring`) and
+`a_one_shot_track_stops_at_its_end_instead_of_starting_again` (`mixer`).
+`every_in_game_screen_over_the_front_end_is_campaign_music` now expects
+`Scene::Conquest` for that one screen — it is still over a running game, which
+was the half that test was ever about. Ablations: `loops()` always true fails
+the first; `set_music_once` forwarding to `set_music` fails the second.
+
+**Credits and ending music stay unwritten, and that is the answer.** The films
+carry their own track and **none of the 22 `Music_Play` sites is a credits
+bed** (C214). Nothing is left in the ledger row behind them.
+
+**The second half: the merchant's walk is locked.**
+`a_merchant_crosses_sub_tiles_at_the_road_keyed_rate_and_is_drawn_between_tiles`
+in `crates/l2-game/tests/pacing/main.rs` builds its own map and **measures** 8 ticks
+for a road tile and 32 for an open one, with a non-zero `campaign::walk_offset`
+mid-crossing. Ablated by gating `cross_sub_tile` on `UnitKind::Army`, the road
+gap is 1 against 8. `Unit_StepOnce` (`0x0046634D`) has no kind test (C213); the
+behaviour was already right and nothing held it.
+
+---
+
+**C216 — an ordered castle gets its builders; the moat is why a level 3 castle neither pours nor docks; B105.**
+
+`Castle_Order` (`0x00436D02`) calls `Labour_ToggleIndustryShare(county, 3, 1)`
+between `Castle_EvictTile` and the take, and `Castle_BuildTick` (`0x004508DE`)
+calls `(county, 3, 0)` at completion; ours never did, so an ordered castle's
+labour share stayed 0 at any split. Test `industry::tests::ordering_a_castle_puts_builders_on_it`, ablation red. The fix falsifies half of B68: a palisade's
+200 man-seasons finish in four seasons with every industry running;
+`castles.rs` test `a_county_with_its_mines_running_never_gets_round_to_the_castle`
+replaced by `the_orders_labour_share_is_what_gets_a_castle_built`. B68 carries a
+correction paragraph; census 561 to 562.
+
+Level 3 castle pours no oil and docks no tower because of the moat `[V]`:
+`Battlefield_PlaceMoatCell` zeroes the approach score the builder set to 500,
+`UnitOrder_SiegeAttTower` (`0x0048DDC7`) walks a tower only on
+`(orders > 0x3C && approach > 6) || approach > 10`. C203's docks 1,0,1,0,0 are
+the two dry castles; level 3 has 256 cells at elevation 2 against level 2's 134.
+`Moat_Fill` scores a filled cell by neighbours of surface 3/5/4 and a filled cell
+is surface 1, so 24 filled cells earned 1 point in 60,000 frames while levels 1 and
+4 reached 5 and 8 and poured. Test `only_a_dry_castle_opens_the_approach_a_siege_tower_needs`;
+`docs/battle.md` §17.6. B105: `Castle_DrawStatusBlock` indexes one word low,
+castle type 0 shows "Barracks for 2500 troops." and a 0% tax bonus;
+`docs/bugs.md` §2.10, quirks catalogue Unswitchable, reproduced in
+`screens::job::castle_word`.
+
+---
+
+**C217 — the pulse chain drops its remainder at every rung; the maceman blow is 300 once per battle; a lopsided fight rolls and the threshold swallows it.**
+
+`Tick_Pulses` (`0x004BBC80`) is a 20 ms gate that sets `elapsed = 0` (stamp = now);
+`l2_view::village::AnimationClock` gated on 80 ms with a while loop carrying the
+remainder, and `MapScreen::step_industry` took each rung as `period_ms / TICK_MS`
+ticks; both now use `village::gates_per_rung` (4 gates at 80 ms, 32 at 640). At the
+16 ms tick a gate is two ticks, so both ran 1.6x fast, the C179 factor. Tests
+`the_pulse_chain_drops_its_remainder_at_every_rung`,
+`every_rung_is_its_milliseconds_in_twenty_millisecond_gates` (l2-view);
+`industry.rs` `EVERY = [64, 32, 16, 8]` over 384 ticks; ablation 48 fast pulses
+against 30, 9 wheel turns against 6. `press.rs` and the map's flag and herd
+counters are `FUN_004B20ED` and `FUN_004CFB08`, another chain, left alone.
+
+`TroopTick_Maceman` (`0x00482789`) stores `0x12C` (300) at figure +0x198 at
+`0x004827D5`, bytes `66 c7 80 18 46 55 00 2c 01`; swordsman `0x64` at
+`0x004828B1`, knight `0xC8` at `0x00482B3C`; all eleven handlers are the same
+217 bytes with four immediates changed. `blowUsed` +0x18C (`0x0055460C`) has three
+references: `BattleUnit_Create` zeroes it at `0x00480D47`, `Melee_Tick`
+(`0x00494908`) reads and sets at `0x00494BE7` and `0x00494C46`, so the blow lands
+once per figure per battle `[V]`; `docs/battle.md`'s once-per-exchange reading,
+its +0x198 row, and three code comments (`TroopStats::heavy_blow`,
+`Figure::blow_used`, the `units.toml` header) corrected.
+
+Seed invariance when outnumbered is the threshold, not a dead RNG:
+`Battle_UpdateStrengthAdvantage` (`0x0047FC01`) fires every 101st frame and
+`Ai::rng` advances; two to one is an advantage of +100 or -50 and the jitter
+`(rand & 0x1F) - 10` spans 31, which cannot cross `AGGRESSION_THRESHOLD` 5, so
+every unit takes the same arm of `unit_order_advance` (ai.rs:1273). Test
+`a_lopsided_fight_draws_its_jitter_and_the_threshold_swallows_it`, ablation gives
+both seeds 100 at 40 v 20.
+
+---
+
+**C221 — Save mid-battle is refused by decision; animations option answers five reads in four functions; a new game runs no phase-7 pass.**
+
+Mid-battle save is refused: `Menu_SaveGame` (`0x00433F49`) does not test `g_battlePhase`, so the original saves the fight. Encoding `LiveBattle` requires `BattleRunner`, `Battle`, `Battlefield`, `Vec<Fighter>`, `Units`, `Ai`, `AiField`, `Missiles`, `SiegeState` — 196 fields over 16 structs, 21 private to l2-sim, against 242 stored fields for kingdom and 1975 lines of kingdom encoder, far past the ~150 lines allowed. The refusal stands by decision. Player message: `saveload::BATTLE_REFUSAL` under group 40 index 4, "THE BATTLE IS NOT SAVED. FINISH IT, THEN SAVE." Assertion `saving_is_refused_while_a_battle_is_live` ablates the old wording red (crates/l2-game/tests/battle_picture/main.rs).
+
+Animations option: five reads in four functions, each now tested. `Screen_BattleOutcome` (`0x00423241`) chooses the tall box with film recess (ablation `the_outcome_box_is_the_tall_one_only_when_animations_are_on` red, y band 48-144). `CastleBuild_Confirm` (`0x00436B59`) plays Castle1..5.smk over chooser. `Msg_DrawWindow` (`0x0047309E`) twice: capture films and ending films, each dismissing its letter (ablation `a_capture_letter_would_play_the_capture_films_in_rotation` off half red). `Battle_CheckOutcome` (`0x00477DFC`) plays outcome film. `Map_ClampScroll` (`0x00429B1D`) does not read the flag; doc now names the four. `docs/arms.json` 0x00434AD5/opt-animations note corrected.
+
+New game runs no phase-7 pass: `Game_NewGame` (`0x00497CED`) calls `Season_Advance` (`0x00448440`) and `Score_RankRealms`, not `Mercenary_AdvanceAll`, `Units_ResetMoves` (`0x004651B9`), or `Diplo_ReconcileAlliances` (`0x004A1847`). Those three are `Turn_Tick`'s phase-7 arm. Skipped in `start_new_game`, not removed from `SEASON_PIPELINE`, so no pass index or save version moves. End Turn still runs all three. Tests `a_new_game_runs_no_phase_seven_pass_and_a_season_end_runs_all_three` (ablation either name red) and `the_pipeline_reaches_the_files_clock` lands on england-turn1.sav's clock and stored fields with the two passes gone (crates/l2-kingdom/tests/reproduction/main.rs).
+
+---
+
+**C218 — the efficiency ramp writes back; C134's table says both states are the rules; the milkmaid's +1 is the birth floor.**
+
+`Industry_LabourEstimate` (`0x0044F318`) ends
+`(&DAT_0053fc44)[...] = (char)iVar3;` — county `+0x294` takes the ramp at real
+staffing. C136 left it unported because `County_RefreshEstimates` runs four times
+inside `Industry_ToggleFromMap` and a compounding ramp would climb four steps;
+`Industry_EfficiencyRamp` (`0x0044F248`) ramps from county `+0x29C`, not `+0x294`,
+and only `Industry_Produce` (`0x0044EA92`) copies the one into the other, so four
+refreshes ramp from the same season-old number — `[V]` both offsets, both
+functions. `County::Industry::last_efficiency` is `+0x29C`; save VERSION 26,
++272 bytes, refusal. The importer sets it from `+0x00` — `+0x08` is not in
+`docs/stored-fields.json` and with *Advanced Farming* off both are the flat 80
+every save stores. Tests `the_refresh_ramps_the_efficiency_and_four_refreshes_land_on_one_answer`
+and `with_advanced_farming_off_the_write_back_is_the_flat_eighty`, ablation red
+at 20 against 26.
+
+C134's before/after read `not in 1200` for the mutiny and rate >= 20; the binary
+says both are rules: `Wages_PayAll` (`0x004ACBD4`) sets bankruptcy stage 5 -> 0
+rather than clamping, so a never-paying realm mutinies every six seasons `[V]`;
+`FUN_0049F431`, AI step 7's abandon pass, sets 32/28/23/35 by personality
+(`AI_PERSONALITY_ABANDON_TAX_RATE`) on a county it cannot hold `[V]`. Census:
+mutiny x3 from turn 103, rate >= 20 x25 from turn 78. Table rows and assertions
+in `four_hundred_turns_of_england_reaches_the_rules_nothing_else_can` corrected.
+
+`Herd_BirthsAndDeaths` (`0x0044DA99`) is ours arm for arm. Summer, crowding 10:
+herd 4 with 1/3/6 hands births 1,1,1; herd 40 births 0,1,1. `births = per_myriad(herd, Pct(bandRate, staffing))` truncates to 0 below full staffing; `if (births == 0 && rate != 0) births = 1` is the +1.
+Staffing is `PctOf(labour, herd * 3)`, cliff is three hands a head: 12 on herd 4
+(births 4), 120 on herd 40 (births 5). Hands past the ceiling `Herd_LabourEstimate`
+picks are idle by C151. No code changed.
+
+---
+
+**C219 — the binary's SetCursor caller re-chooses every frame; ours added the table of five screen modes and read the English intro without subtitles.**
+
+`Cursor_Set` (`0x004B1CF3`) is the binary's only `SetCursor` caller; its only caller `Battle_Frame` (`0x004B99C0`) re-chooses every frame. Battlefield ids `0x28..0x2B` follow the hover ladder; everything else reads `g_cursorByScreen` (`0x004E3098`, 64 dwords, five non-zero). Ours chose nothing until now: new `l2_game::cursor` (the table), `Machine::pointer`, `VillageScreen::mode_screen_id` yielding 0x02/0x05/0x06, `main.rs` `apply_pointer` the only `set_cursor`. The question mark belongs to the whole village screen: 0x02 idle only, 0x05 band is the plain arrow, 0x06 carrying is the peasant. Pictures are the system's (Help, Crosshair, Pointer, Grabbing, Move), labelled ours; the seven `RT_GROUP_CURSOR` resources in `Lords2.exe` remain unread. `docs/screens.md` §9.8 holds the table (0x02, 0x05, 0x06, 0x10 scythe, the battle ids, 0x07 and 0x0E dead). Tests `crates/l2-game/tests/cursor.rs`: `the_table_is_its_five_non_zero_rows`, `the_village_is_the_question_mark_and_the_map_is_not`, `the_band_is_the_plain_arrow`, `carrying_a_selection_is_the_peasant`; ablation `mode_screen_id None` turns the last two red.
+
+Intro subtitles: `screens/movie.rs:141` gates cues on `!is_english(L2.eng 300/0)` (`Intro_DrawSubtitle` `0x0041A166`); new test `the_english_intro_carries_no_subtitles` drives 400 ticks, rows 400..432 black; ablation puts ink at (284, 400) on tick 152. `docs/formats/smk.md` cites the test.
+
+Palette flash: `Machine::present` read the palette off the live stack, so a click delivered between `request_redraw` and `RedrawRequested` changed the page while the canvas held the old one, measured at the probes on the campaign map. Fix is three lines in `App::present` redrawing what went dirty before presenting; a recorded palette would freeze `Screen::fade` (`FUN_004B0CB4`) and a film's `live_palette`. Test `a_page_change_between_the_draw_and_the_present_would_flash` (`overlay_palette.rs`), ablation run.
+
+---
+
+**C220 — Unit_BurnDwelling cuts the population by one quarter; Director::hear_the_wreck diffs the plot and five sound callsites speak its name.**
+
+`Unit_BurnDwelling` (`0x00468AE2`): the Entry::Plot arm had the +7 moves and +20 offence and stopped; the rest is content 0x10 to 0x13, frame 0x3c, `population -= (p + (p>>31 & 3)) >> 2`, C's truncating divide by 4, no float, no PRNG. Added `terrain::DWELLING_BURNT` and `Step::dwelling_burnt`. `Director::hear_the_wreck` diffs the 4,096-byte content plane and classifies by the value written: plot 0x13, settlement the ruin value, standing field 0; `l2_kingdom` has exactly those three writers. All six `Sound_RestartSlot(3)` sites reproduced: `Unit_BurnDwelling#1`, `Unit_TrampleTile#1..4`, `Unit_CrossField#1`; `sounds.js --check` and `tests/sfx.rs` green. Tests `burning_a_dwelling_burns_the_plot_and_takes_a_quarter_of_the_people`, `the_quarter_truncates_towards_zero_like_the_originals_shift`, `wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not`; ablation `nothing_is_burnt_by_a_merchant_by_its_owner_or_twice`.
+
+Voice: `CastleBuild_Select` (`FUN_004b3940#1`, `0x00436B22` calls `FUN_004B3940(hotspot)`, file S071_02 + `hotspot*0x10`) built through `Game::spoken`, one assignment in the click arm; test `picking_a_castle_picture_speaks_that_castles_name`, five pictures. The other three blockers are in `docs/audio.json`; the row's "screen 0x20" was wrong, 0x20 is the standings page (`FUN_004b3994#1`, reproduced), the front-end site is `FUN_00497a34#3`. Census 564 to 566 then recounted after the merge (ef71d05).
+
+---
+
+**C222 — AI lords trade for the county when they sell first; every battle re-farms every AI realm.**
+
+`Ai_TradeForCounty` (`0x0049E39B`) is `Market::trade_for_county` (default no-op, implemented by
+`CountyStall`), called from `ai_farm::lay_out` for `FarmStyle::sells_first`. Helpers
+`Ai_SellGood` (`0x004A4A3F`) and `Ai_BuyGoodDownTo` (`0x004A4C41`, halves the lot, gold read
+once); realm wants +0x70/+0x74/+0x7C pick direction. Personality +0x78/+0x7C/+0x84/+0x88/+0x8C
+read from `g_aiPersonality` (`0x004D8A58`, stride 0xF0): 1000/1500/2500/4000, 100/80/70/150,
+reserves 250/300/500/1000 `[V]`. Now `Tables` fields and ruleset keys; `kingdom.toml`
+regenerated, mods loader and fixtures updated. Differential 913–914 of 932, 270–271 of 279
+moved; realm 2's siege: 100 maces at 10 + Pct(10,100) = 20 each = 2,000; gold +2,005 → +5
+(wages -5), score +47 → -3; ablation restores 913/270. Tests `a_lord_sells_his_surplus_and_buys_the_countys_weapon`,
+`the_weapon_order_halves_until_the_treasury_covers_it`, `a_lord_with_no_stall_or_no_credit_trades_nothing`;
+`crates/l2-game/tests/differential.rs`.
+
+`FUN_0049DF48` is `Ai_ManageCountyFarms` for every realm with `isHuman == 0 && strength != 0`,
+`Ai_ManageFarmsAll`'s loop with the tests swapped. `Kingdom::ai_manage_farms_after_battle`
+called from engagement's battle path after the return and before `Defence_Disband`, as in
+`Battle_ReturnToCampaign` (`0x004AB383`). Every battle re-farms every AI realm, not the two
+that fought. Test `a_battle_re_manages_every_ai_realms_farms_and_nobody_elses` (seam.rs,
+battle-before.sav, probe county +0x1FE), ablation red; `crates/l2-game/tests/seam/main.rs`.
+
+Lost-rule-inputs blocker: +0x15A is the round-robin cursor of `FUN_0046958F` and `FUN_0046965A`
+under `County_EnsurePasture` (`0x0046921D`); +0x15B the same sweep in `FUN_00469A9C` twice from
+`Weather_UpdateAll` (`0x00449889`, weather 1 → 0x18 parched, 5 → 0x17 flooded, messages
+0x8F/0x90). The blocker is state; `County` carries neither field.
+
+---
+
+**C223 — Four gates on foraging, AI castle personalities, border greeting, battle message drain, and custom battle mode.**
+
+`g_optArmiesEat` gates four things (docs/armies.md §3.1); ours read three. Fourth: `UnitPanel_Draw` 0x0041B19D kind==1 arm drew nothing, not army body line (±0x70, ±0x5E on screen, supply 31/23..26 at +0x72, starvation 31/27+ at +0x86 in 0xF9). Built in `screens/info.rs`; test `army_foraging_moves_the_unit_panels_body_line_and_adds_two` (chrome_text).
+
+AI castle personalities exist exactly as ours: `AI_BuildCastles` 0x0049EDC7 reads `g_aiPersonality` 0x004D8A58 +0xCC..+0xDC. Knight 200/-/1000/-/10000, Baron -/500/-/4000/-, Countess -/300/-/2000/-, Bishop -/-/100/-/2000 (royal at 2,000; 0 means never). Tables::`AI_PERSONALITY_CASTLE_GOLD` and `ai::build_castles`. Tests `a_zero_gold_threshold_means_the_type_is_not_offered_rather_than_free` and `a_lord_builds_only_where_the_county_is_big_enough_and_has_no_castle`.
+
+Border violation letter: `L2.eng` 134, message 0x86. `County_GreetArmy` 0x004ABF77 calls from `Unit_EnterCounty` 0x004ABB36 under 20% of population. Posted by `l2_kingdom::arrival::greeting` (GROUP_OUTRAGE). Tests `a_neutral_county_answers_by_its_mood_first_and_the_armys_size_second` and `marching_into_a_neutral_county_opens_its_greeting_in_the_countys_own_words`.
+
+Message ring drain: `Msg_Pump` 0x00472E46 is `if (g_battlePhase==2 && g_messageGroup!=0) Msg_Dismiss(); else pull`. Guard on open window: battle drains ring one letter per two frames, does not hold it. Docs/arms.json corrected from opposite claim. Built in `Machine::pump_messages`; test `a_battle_drains_the_message_ring_one_frame_at_a_time`, arms test 7/7.
+
+Custom battle: `Battle_CheckOutcome` 0x00477DFC picks between two 16-byte name tables indexed `(g_battleOutcome*4 + DAT_0057A0F0)*0x10`. `s_bat_win1_smk` 0x004D9278 when `DAT_0057A0F0 == 0`, `s_bat_win5_smk` 0x004D93F8 otherwise. `Skirmish_Setup` 0x0042B7F7 sets `DAT_0057A0F0`. `NetCmd_Write_56` 0x004463D9 carries definition. Front-end callers 0x00433155/0043338E/00433551. Docs/battle.md §4.4a.
+
+---
+
+**C224 — The long march finds a path; splitting and garrison movement are built.**
+
+`Move_FloodFill` (`0x0046F700`): the frontier queue wraps at `0x3FF`, our `QUEUE_CAP`
+1024, an open fill queues at most 250; step cost 3 open / 1 road (`Unit_StepOnce`
+`0x0046634D`); cap 150 (`Path_CopyToUnit` `0x004707BE`); diagonals gated on the
+current tile not being a road; all match. Measured at main three ways: `order_move`
+for every straight march of 1 to 30 open tiles, `extract_path` over 17,533
+start/dest pairs at distance 10 to 30, the map screen's two clicks over all 15,038
+such pairs among the 225 tiles the campaign view opens on; no failure. Guard test
+`movement::tests::a_march_of_ten_to_thirty_open_tiles_is_ordered_whole`; ablation
+`QUEUE_CAP` 64 red.
+
+Splitting into a castle was already whole: `Army_Split` (`0x00437FD7`) gives the
+daughter the castle tile and a path; `Unit_ReachCastleBuilding` (`0x004686A0`)
+calls `Army_GarrisonApply` (`0x004A79A3`), which writes county `+0x1BC` and unit
+`+0x198`, teleports to `+0x74`/`+0x75`, charges 5; tests
+`a_split_into_a_castle_becomes_the_garrison` (100 of 300 men leave, walk 12,
+garrison at (20,20), moves_used 17) and `a_castle_split_may_be_under_fifty_men`
+(`Army_SplitConfirm` `0x00437AFB`, no minimum); ablation drops the `SplitInto::Castle`
+`order_move`, both red.
+
+Marching a garrison out is built: `Army_LeaveCastle` (`0x004374C4`) and its body
+`FUN_00437535` ported as `l2_kingdom::conquest::leave_castle`, wired to the info
+panel's garrisoned first button via `Game::leave_castle`; free tile from
+`Map_FindFreeTileNear` (`0x0046733C`) else `Army_Destroy`; both links cleared; no
+moves charged; `besiegedBy` kept. Tests `a_garrison_marches_out_onto_a_free_tile_and_pays_nothing`,
+`a_besieged_garrison_leaves_carrying_its_besieger`, `a_garrison_with_nowhere_to_stand_is_destroyed`;
+ablation leaves `garrison_county` set, first red.
+**C226 — A garrison marching onto its besieger raises the battle; marching onto your own army asks to combine.**
+
+Army_LeaveCastle (`0x004374C4`) ends `FUN_00437535` with `if (unit.besiegedBy &&
+Battle_BeginFromCampaign(unit, unit.besiegedBy)) g_battleCounty = county`;
+Battle_BeginFromCampaign (`0x004A7158`) takes marcher as g_battleArmyA and besieger as
+g_battleArmyB, caller overwrites g_battleCounty with the county left. Built as
+turn::raise_sortie off raise_idle_battle gate (Battle_ChooseSettlement `0x004A6A30`,
+called from Game::leave_castle); stale "not staged" notes in conquest.rs, game.rs,
+screens/info.rs corrected. Test a_garrison_that_marches_out_onto_its_besieger_raises_the_battle_prompt, ablation red.
+
+Map_ConfirmMoveOrder (`0x004A9252`, priority list off g_hoverMergeUnit `0x00553F44`)
+raises Ui_OpenConfirm(5, ...) (`0x0040E6F2` = L2.eng 10/5); callback MoveOrder_ConfirmCombine
+(`0x004A975D`) merges into standing army (Unit_OrderMove's fifth argument, Army_Combine
+`0x004AA181`). The original asks at order time, never halts mid-route (tiles stack); ours
+halts on Entry::Occupied, so words, direction, machinery are [V] and timing is [I], marked
+in code. Built as turn::ask_combine off Contact::Blocked, Game::combine_ask; map screen
+battlefield confirm box (g_confirmWidgets frames 29/31, CONFIRM_WIDGETS, kind-5 press)
+held modally, yes merges, no leaves both halted. Refusals speak L2.eng 274 (1500 cap) and
+167 (two mercenary bands). Tests a_march_onto_your_own_army_asks_to_combine_and_yes_merges_them
+and a_march_onto_your_own_army_answered_no_leaves_both_armies_standing, ablation red.
+
+---
+
+**C225 — Bought cattle take a field for pasture; drought and flood ruin one.**
+
+County::pasture_cursor (`+0x15A`) and blight_cursor (`+0x15B`) walked together by
+`field::sweep` to find grain and fallow; field::fallow_to_pasture (`FUN_0046958F`)
+and field::grain_to_pasture (`FUN_0046965A`) flip the bytes, called by
+field::ensure_pasture (`County_EnsurePasture` `0x0046921D`). Blight walk uses
+field::blight_one_field (`FUN_00469A9C`) and field::clear_blight (`FUN_0046942C`);
+`FUN_0046942C` clears last season's 0x17/0x18 back to waste at the top of each
+county's weather pass, so blight lasts one season. Advanced Farming override is a
+second loop after blight; a flood still ruins a field with the option off, only the
+byte reads Cloudy [V].
+
+weather::update_all takes the map, an owner_is_human predicate and the message vec
+(`Weather_UpdateAll` `0x00449889`, `Msg_Enqueue` 0x8F/0x90 as
+`Message::Drought`/`Flooding`); trade::trade calls ensure_pasture on good == Cattle
+&& qty >= 0 (`Merchant_Trade` `0x004284CE`). Save VERSION 27 (+34 bytes, body
+63_338); docs/stored-fields.json rows 87/88 imported; scenario importer, newgame and
+both newgame-diff tables carry them. County +0x234, the crop-loss ledger, has three
+writers and no reader in the decompilation [V], so it is not carried. L2.eng 143/144
+moved [D] to [V] in docs/formats/eng.md §5. reproduction.rs's "a happy kingdom raises
+no messages" relaxed because a new game's weather pass posts weather letters.
+
+Tests the_pasture_sweep_starts_after_the_cursor_and_leaves_it_on_what_it_took,
+with_no_fallow_the_sweep_eats_a_grain_field_and_docks_the_crop,
+the_blight_sweep_walks_its_own_cursor_over_every_kind_of_field,
+buying_cattle_into_a_county_with_no_pasture_converts_a_field_in_cursor_order,
+a_drought_parches_one_field_and_posts_group_143, a_flood_floods_one_field_and_posts_group_144,
+basic_farming_flattens_the_byte_and_still_ruins_the_field, plus the cursors in the
+save round-trip; ablation removes the three paint_tile calls, all seven red.
+
+Tile panel ladder was mapped and not built: `TileInfo_Draw` `0x0041C208` branches on
+the plane-1 flags with group 30 words; mountain against woodland needs
+(tile.bank & 0x1c) == 4 and CampaignMap carries no bank plane.
+
+---
+
+**C227 — Bankruptcy runs six stages: deserve, desert, disband; supplies reach and unload; start options include the garrison.**
+
+`Wages_PayAll` (`0x004ACBD4`) stages 0–5: Realm_ReleaseMercenaries `0x004AD230` (hire slots), Realm_DesertArmies `0x004AD0E8` (stages 1–4), Realm_DestroyArmies `0x004AD316` (stage 5). Ours ran desertions 0–2 and never destroyed because apply_bankruptcy keyed on realm.bankrupt_stage (next stage); pay wraps it to 0 after mutiny, so two rungs hit empty arms. Re-keyed on BankruptcyAction. A 400-man army over six unpaid seasons was 400/360/324/292/292/292, is now 400/360/324/292/263/gone. Test six_unpaid_seasons_desert_four_times_and_then_disband_every_army (crates/l2-kingdom/tests/campaign/main.rs); ablation re-measured 292/292.
+
+Supply transport: Screen_SendSupplies `0x0041AD5D`, NetAct_SendSupplies `0x00447DB6`, Transport_Spawn `0x004292AF`, Transport_RetargetAll `0x00429418` (phase 3), Transport_Deliver `0x004296B5`. Ours had all but the last; supply::deliver had zero callers, so shipments deducted and stood for ever. `0x004296B5` guards cargo_county == county, troops[0] to grain, troops[2] to herd, Herd_UpdateCrowding, tail FUN_0046F0A9 frees the slot as Army_Destroy does. Wired into units_tick::step_one ahead of attack_county. Tests a_transport_reaching_its_cargo_countys_town_unloads_and_is_gone and a_transport_passing_a_town_that_is_not_its_destination_unloads_nothing (crates/l2-kingdom/src/units_tick/mod.rs); ablation red.
+
+Start options: Game_NewGame `0x00497CED`, Setup_CommitOptions `0x00499DC3`, Game_SetupRealmsAndCounties `0x0049BD99`. Settings::apply_to reproduces 6 of 7 effects (gold 100/500/1000/2500/5000, iron/wood/stone 50 each, armour row plus difficulty×20 to slot 4 for AI, castle, county status, +100 grain to unowned) and 11 of 12 drop-downs; missing the starting garrison from g_startTroops[g_startArmySize] (row 3 = 300 men, row 0 = none), declared by Settings::unhonoured (option 5, L2.eng 102); not built.
+
+---
+
+**C228 — CampaignMap carries its bank plane to distinguish mountain from woodland.**
+
+CampaignMap gained its bank plane in map.rs, imported by the scenario and newgame
+paths. Save VERSION 28 (+round-trip test); is_mountain = (bank & 0x1c) == 4.
+Body 63,338 to 67,434 bytes; gate census 574 to 579, INVENTORY screens.rs 97 to 102.
+
+Tile information panel's ladder: TileInfo_Draw `0x0041C208` branches on plane-1
+flags with L2.eng group 30; 0x01 road 1/23/0x18; 0x04 sea 3/24/0x1D; 0x10 plot
+(village 48/49 else ruined 50/51, icon 0x1B); 0x08 rough (mountain 4/25/0x19 by
+bank else woodland 5/26/0x1A); fall-through scrubland 0/22/0x17. Map_ResolvePick
+`0x0046D5FE` blanks flags for town graphic 0x14 and empty plot. Built as picked_flags,
+tile_kind, TILE_LADDER, draw_plain_tile in crates/l2-game/src/screens/info/mod.rs.
+
+Tests a_road_tile_says_road, a_sea_tile_says_sea_and_gets_no_head_room,
+a_dwelling_plot_says_village_ruined_village_or_nothing, a_rough_tile_says_mountain_or_woodland_by_its_bank,
+an_unflagged_tile_and_a_bare_castle_plot_both_say_scrubland in
+crates/l2-game/tests/screens.rs; ablation is_mountain forced false fails
+rough-tile test on "Mountain." heading at (0x28, row*16 + 0x40).
+
+Finding: docs/arms.json has no TileInfo_Draw; docs/draws.md and draws-map.md
+track no 0x0041C208, so five draw arms tracked only in tests.
+
+---
+
+**C229 — The starting army option raises the starting garrison; all twelve start options honoured.**
+
+`FUN_0049BD99` `0x0049BD99` stages the new game through `Game_SetupRealmsAndCounties` `0x0049BD99`. `g_startArmySize` arm at `0x0049BF9E` ported into `Settings::apply_to`: basket from `g_startTroops` row `0x004DC110`, county population pre-credited so `Levy_DebitPopulation` nets to zero, `Army_Create(realm, county, 0, 0)` through `l2_kingdom::levy::create_army` (levy screen's own path), surcharge undone, first wage refunded. `Levy_ConsumeWeapons` debits still-zero armoury in original because `g_startArmoury` written after `0x0049C15B`, so armoury row restored and garrison free [V]. `Settings::unhonoured` now returns empty, all twelve options honoured.
+
+Test `army_size_raises_the_starting_garrison` (crates/l2-game/tests/newgame/main.rs): England, rows 0 and 3, 0 armies then 2 armies of 300 men {0,0,0,100,100,100,0} on bare road tiles in own counties, population and armoury intact, surcharge 0. Ablation red at 0 against 2. Census crates/l2-game/tests/newgame/main.rs 10 to 11, GATED_TOTAL 579 to 580.
+
+Three remaining lost inputs already carried: County +0x206 stored-fields row County+0x206 imported, written by `Grain_Sow`, field::grain_to_pasture `FUN_0046965A` (field.rs:328) and `County_DestroyField` `0x00469E5B`, read by wheat divisor (land.rs:1003), save VERSION 25. County +0x29C `Industry::last_efficiency` (C218), VERSION 26. Realm +0x2A `peakCounties` imported, `Realm::peak_counties`, read by `County_ChangeOwner` nine-letter ladder, set to 1 at new game as `FUN_0049BD99` does. `Unit_TrampleTile` `0x0046873F` reads whole [V]: each arm writes tile content and frame, `industry[k].disabledSeasons = 3`, `industry[k].efficiency = 0`, four-byte zero at industryRecord + 0x18, `labour[j].wanted = -1 / useful = 0`. Record +0x0C (county +0x29C) never among them, so no ramp reset to carry; exclusion stands.
+
+---
+
+**C230 — The map never rotates, no castle designer exists, prisoners and ransom are not in the original.**
+
+Map rotation: Map_BuildLattice `0x004298C1` builds all four orientations, but Map_RotateCW `0x00429F12`'s only caller is Map_RotateCCW `0x0042A01B`, which has 0 callers in the 2,452 decompiled functions and 0 widget-table references; g_mapRotation `0x00522F7C`'s only other writer is Map_LoadPlanes `0x00467770`, which zeroes it per map load, so its 4 readers always take the rotation-0 branch; Lords2.exe holds no "rotat" string and L2.eng's one is "crop rotation"; ours (tile_to_cell, crates/l2-view/src/campaign/mod.rs:415) builds rotation 0 only [V]; docs/screens.md §1.6 carries it.
+
+Castle designer: Screen_CastleBuild `0x00419789`, Screen_CastleBuildPanel `0x004198AA`, CastleBuild_Select `0x00436B22` and CastleBuild_Confirm `0x00436B59` are a picture-and-stats browser over one integer 0..4; "design" occurs twice in L2.eng and never in Lords2.exe, both in help text; ours (crates/l2-game/src/screens/castle/mod.rs, 25 tests in crates/l2-game/tests/castles/main.rs) reproduces all five buttons, both refusal guards (messages 0x93 and 0x122), the net materials and the CastleN.smk.
+
+Prisoners and ransom: "ransom", "captive", "hostage" have 0 hits in Lords2.exe and L2.eng; "prisoner" has 1, in the winner's ending speech at L2.eng offset 79178; Battle_CheckOutcome `0x00477DFC` names only g_battleLoser and g_battleWinnerOwner; a beaten lord is eliminated by Realm_RecountStrength `0x0049B42B` with group 224 "Defeat!" (194 for an AI); Msg_DrawWindow `0x0047309E`'s 0x0D capture letters, groups 114 to 126, are county capture; docs/battle.md §6.4.
+
+Four docs/battle.md table rows got their closing pipe back after the prose hook cut it; prose-llm.js now keeps it (be4987c).
+
+---
+
+**C231 — Letters, film skips, fire arrows, realm 3 AI, and battle banners.**
+
+Letters: Screen_HandleInput 0x004DDA30 at screen 0x1A tests Widget_Test first, only setting
+g_editActive = 1 and Edit_Commit on decline; g_diploLetterDraft (200 bytes, 199 typable)
+reseed on each Diplo_OpenCompliment 0x0043618B via Edit_Begin; four opening drafts from
+L2.eng group 226 indices 0..3, copied by Options_SetDefaults 0x004AE310 cut at first
+byte under 0x20; AI never reads text [V], all readers are drawers (Msg_DrawDiplomacy
+0x00475E07, Msg_DrawBeyondLetter 0x00476488) or net fields; seven Diplo_Reply handlers
+switch on kind and counters alone; ours per-screen and reseed on each open [I].
+Tests a_letter_opens_on_its_default_and_the_first_key_types_over_it,
+the_four_letter_kinds_open_on_four_different_drafts,
+the_field_holds_two_hundred_characters_and_the_send_keeps_one_less,
+the_gift_and_the_two_county_requests_have_no_draft,
+a_letter_open_does_not_stop_the_cancel_button in crates/l2-game/tests/diplomacy/main.rs;
+ablation 3 red.
+
+Help: Opt_GameHelpContents 0x00434942 is WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1),
+the only WinHelp call; L2help.hlp ships at 2,980,023 bytes (Oct 1996), out of scope;
+Menu_HelpHowDoI 0x0043480C and four siblings enqueue category 0x13 message ids 0x123..0x127;
+ours now enqueue test the_five_help_topics_put_their_message_on_the_ring; g_helpWindowGeom
+0x004D6EB8 unbuilt, row game-help.
+
+Film skips: Smk_Skip 0x0042DF30 only early exit with three callers all reproduced
+(0x0042FF10 any key via DAT_004EABB4, left and right releases); missing film-skip-sync-latch
+DAT_00553FC8 and film-skip-leave-game Net_LeaveGame 0x004B743B need multiplayer,
+film-skip-season-end FUN_0043AD25 unreachable since only top screen stepped; screen 0x44's
+two arms dead; census 580 to 581.
+
+Fire arrow: BattleUnit_Order 0x00479E90 clears unit +0x30 on every order, writes
+(y*80+x)*8 to targetCell under fifth argument (DAT_0053E874, hovered woodland) for
+side-0 unit with missile figure, no enemy under cursor, +0x08 < 5; BattleMan_StateCloseToAttack
+0x00484BF9 copies that onto every arrow's +0x44; Missile_Step's first test lights that cell;
+state 17 looses on BattleMan_FireMissile's cadence; Missile::fire_arrow became +0x44;
+test an_ordered_volley_lights_the_cell_it_was_aimed_at_and_a_figure_in_it_burns; ablation inside.
+
+Realm 3: Ai_ManageCountyFarms 0x0049DD01 dispatches on lord's style byte [1,1,0,9],
+lords 1 and 2 go to Ai_FarmStyleGrazing 0x004A42E3 clearing grain every season, realm 3's
+lord is 2; ours matched; test two_of_the_four_lords_graze_so_their_realms_never_sow;
+differential 932/914, 271 of 279.
+
+Banner: Screen_BattleOutcome 0x00423241 has three arms (g_battleChoiceOwner == 0 short box pair
+12/13; g_optAnimations == 0 short box outcome pair; else dim tall box, Ui_DrawInsetRect(0x27,0x48,
+0x192,0xC2)), all reproduced; nothing animates, recess is a well for Smacker film
+Battle_CheckOutcome 0x00477DFC plays timed by Smk_OnFinished's 5001st frame; gap is ordering
+(push film before banner paints), a fix reverted because gating push on draw flag lets picture
+decide battle (painting_the_battlefield_with_its_artwork_does_not_change_the_battle red at 620).
+
+---
+
+**C232 — Help window, garrison hand-off, tips right press, Misc_bat blits, standings to the map, siege stop-short, wall damage as a count.**
+
+Wall damage is a count, not a flag: Missile_Step 0x00492C8B gates its class-3 arm on
+`elevation != 0 && surface == 4 && frame > 2` and adds the hit to the cell's byte +0;
+ours gated on flag 0x20, which no surface-4 cell carries, while
+UnitOrder_SiegeAttCatapult 0x0048DB84 aims at surface 4 (Siege_FindCellSurface4
+0x00496566) - so every aimed shot counted nothing. Now siege::shot_damages_wall,
+surface 4 or 8 above elevation 0; 8 accepted because structure code 8 gives us a
+separate surface and no frames ([I]). FLAG_WALL kept: it is Cell_TryEnter 0x00490A44's
+byte, read by the mover, orders and the painter, and smash_walls still clears it and
+still leaves byte +0 alone, as Wall_Smash 0x0049694F does. Tests
+a_shot_counts_on_masonry_by_elevation_and_not_on_the_wall_flag and
+a_catapult_raises_the_cell_byte_of_the_wall_it_is_aimed_at; ablating the gate back to
+the flag turns the second red (walk cells 0) and leaves the curtain's count standing.
+
+Help window: Msg_DrawWindow's category-0x13 arm built (g_helpWindowGeom 0x004D6EB8, six {x,y,w,h} in 16-pixel cells, groups 291..296; paragraph counts DAT_004D6A8C + group*4; heading Ui_DrawCentred at y+0x16 in g_fontHeading); tests crates/l2-game/tests/messages/help_window.rs; L2help.hlp stays out of scope.
+
+Garrison hand-off on capture: County_ChangeOwner 0x004A72FE has no garrison statement; County_MakeIndependent 0x004AC3C6 ends with FUN_00437535(garrisonUnit, county), the loser keeps the men out on Map_FindFreeTileNear's tile, Army_Destroy when nowhere to stand; ours hands the garrison to leave_castle on both branches, Capture::garrison carries the sortie; tests crates/l2-kingdom/tests/garrison_handoff.rs.
+
+Tips: a right press under a tip drops g_screenId to 0 like the left (Screen_FrameInput's epilogue, g_mouseRightPressed 0x004EABE0); Event::RightPress added; arm 0x0042FF10/minimap-under-a-tip now both edges.
+
+Misc_bat.pl8 on the battlefield: Screen_DrawBattlefield 0x004233F7 frames 0, 1, 2 and shield+6 plates, FUN_00423530 frames 5 and 6; Chrome::draw_misc_bat; the plate counts and banner plates (FUN_004238B8, FUN_004239D5) still undrawn; tests crates/l2-game/tests/battle_picture/column.rs.
+
+Standings: Ui_OkButtonClicked 0x0040E7E4 and the right release write g_screenId = 0, so OK, right release and keyboard close are Transition::Goto(ScreenId::Campaign) (C190's road); arms 0x0042FF10/standings-ok and standings-right.
+
+Siege orders: Order_StopShortOfTarget 0x00497437 keeps range-3 per axis from the unit's own cell (stop_short_of_target, both arms of order_full); Dest_FindReachableNear 0x0048A7D9 cannot move the destination and is ported as such; Formation_SendFigure 0x00489B8D enters state 17 on enemy || targetCell != 0 and leaves it to state 5; Formation_SlotIsUsable 0x0048A672's two siege branches are a ledger row; tests crates/l2-sim/tests/siege/order_pullback.rs. Two content guards (audio determinism, battle_picture) now count missile deaths because missile units halt at range.
+
+Floods and droughts were already built (Weather_UpdateAll 0x00449889, FUN_00469A9C writes 0x17/0x18, FUN_0046942C clears last season's ruin, cursor +0x15B saved at VERSION 27); the ledger row was stale; tests crates/l2-kingdom/tests/fields/blight.rs.
+
+The fought seam verdict (crates/l2-game/tests/seam/battle.rs) is held over eight seeds, the militia holding most (6 of 8 on main), after the side-step branch showed one seed is a coin flip. The side-step branch (FUN_004904EC, Path_DetourTooLong 0x00472227, BattleMen_SwapPlaces 0x0049005F, Fighter::delay) is held unmerged: with it the militia holds 2 of 8.
+---
+
+**C233 — Peasant mobs, battlefield plates, the new game's herd and labour, the side-step, adjacency in test worlds, the job panel's dirty marks, capture sound sites.**
+
+Peasant mob crossing a border: FUN_004ABD0F; owned county by happiness, under 10 letter 154 and a County_RaiseRevolt attempt, under 30 letter 155 and unrest 1 from 0, else 156; all Msg_Enqueue category 3; toll on re-read happiness, under 10 floors it, else minus 10 on both; unowned county byte only. crates/l2-kingdom/src/mob.rs, tests mob/tests.rs and mob/tick_tests.rs.
+
+Battlefield plates: FUN_00423530's two Ui_DrawNumberRight men counts at 0x1FA/0x24A, y 0x1A6, width 0x38; FUN_004238B8's banner plates (Misc_bat frame record.frame + troop type, bases 13/24/35 at DAT_004D31F0) and FUN_004239D5's per-banner men; the original draws no selection boxes (Ui_DrawRectOutline 0x00403CF4's only battle caller is Battlefield_DrawBand 0x0041298A, the drag band). Tests crates/l2-game/tests/battle_picture/plates.rs; docs/features.json battlefield-picture is done.
+
+New game herd: Game_SetupRealmsAndCounties FUN_0049BD99 ends each county with County_RecountFields 0x00469B8D and Herd_UpdateCrowding 0x0044D913; ours skipped both, so crowding stayed at County_Reset's 10 and the herd bred 109 against the save's 101. Unowned counties: County_Reset 0x00451150 closes each county with RecountFields, UpdateCrowding, Herd_LabourEstimate, Field_ReclaimEstimate, Labour_Allocate, Ration_Apply at its opening numbers; ported as Kingdom::reset_county_for_new_game (herd 67 as the save). Test a_new_england_opens_staffed_and_forecasting_as_the_originals_turn_one claim 4. Open: milkmaids 342 against 323 (ledger row labour-allocate-again-stale-ceiling: Ration_ApplyAll 0x0044BF04 passes g_seasonPrev and shadows herdEaten into +0x190, which Herd_SeasonTick 0x0044D60D subtracts).
+
+The side-step: FUN_004904EC (two walkers plus or minus 4 over five rounds, guarded by the live Chebyshev under 2), Path_DetourTooLong 0x00472227 (caps 0x14 field, 0x96 siege, times 5, only the human owner gives up), the same-unit wait, Fighter::delay from BattleMan_Step 0x0048F1DD's swap arm, onRoute cleared at the head of the blocked arm, BattleMan_NextPathDir 0x00491A34 one-cell steps. BattleMen_SwapPlaces 0x0049005F swaps in place and the original draws that jump, so the picture test excuses that pair. The fought seam verdict is held over eight seeds (the militia holds 4 of 8 with the branch). Open: the swap arm whole (ledger row swap-places-arm-whole).
+
+Test worlds: l2-testkit worlds.rs chain_neighbours! and isolated_counties!; thirteen shared builders gained adjacency by default; no test flipped.
+
+Job panel dirty marks: Gfx_MarkDirty 0x00452306 is a count plus a union rect, Gfx_Present 0x00452160 blits only when the count is positive; Panel_JobDetail 0x00412B33 marks all before drawing, Panel_JobBlacksmith 0x00413155 marks all last, FUN_00413526 marks the forge's 128 by 128 behind g_jobPanelJob == 8; the bottom clamp tests the width (a kept defect). crates/l2-game/src/screen/dirty.rs; JobScreen::update ticked the forge on every job, now only the blacksmith.
+
+Capture sound sites: Msg_DrawWindow#15 and #16 regraded reproduced in docs/audio.json (the capture letter posts since 8b8227c; test the_narrator_reads_a_capture_over_its_film_and_the_bed_starts_over_after_it). The capture film end to end: tests/movies/triggers/capture.rs.
+
+Mercenary offer voice: no mercenary letter exists; L2.eng group 16 is the raise-army screen's list; the S016 table's only caller is Sidebar_Button 0x0043AE30 hotspot 1, so the offer arriving is silent by design, and a message window up eats the sidebar click. Tests tests/audio_wiring/audio_controls_and_feedback/mercenary_offer_voice.rs.
+
+**C234 — The oracle check, the exit box, the AI's turn, the battlefield's terrain, the pose machine, skirmish setup, faces and pointers.**
+
+The oracle check (docs/agents.md *The oracle check*, .claude/agents/oracle-check.md): every behaviour delivery is read against the decompilation before it merges. Its first runs found 5, then 7, then 5, then 4 mismatches on the pose machine and 13, 6, 4 on the skirmish setup, every one with a green suite — a passing suite says our code agrees with our tests, not with the original. The prose hook is Markdown-only since 291c333f: it had been cutting clauses out of cited Rust comments.
+
+The exit box (94a40793): App_WndProc 0x004B29BE's VK_ESCAPE arm calls Menu_Quit 0x004343F8 in game, which is Ui_OpenConfirm(0) 0x0040E6F2 — screen 0x1E, L2.eng group 10 prompt 0. crates/l2-game/src/screens/confirm.rs; Escape, File > Quit and File > New Game all raise it. Arms file-quit, file-new-game and escape-quits-outside-the-game (its in-game half).
+
+The AI's turn (78cda6d6): Turn_Tick's phase-4 arm is `AI_RunTurnStep(); if (Turn_AllRealmsDone()) Turn_AdvancePhase();` every frame, so AI realms act alongside the human from the first frame of phase 4. Ours ran them inside End Turn from the first playable build (c026a579, 2026-09-07); now turn::tick_ai_frame on idle map frames. Seven message fixtures re-seated — landless realms posted obituaries once the AI moved earlier.
+
+Field battle terrain (b2025ad4): Battlefield_BuildRandom 0x0047AAA3 reads one 80x80 frame of batfield.pl8 — 48 frames, a shuffled playlist at 0x0057CAE0 walked one per battle and net-synced; ours picks from the seed (ledger row battlefield-playlist) — through the translation table of docs/battle.md 3.0. It never writes elevation, and no shipped field carries a wood: two corrections to docs/battle.md 3 and 17.5. The painter already drew byte +3.
+
+The pose machine (4f7d5be6 and its parents): Motion::Shooting with Anim_DrawBowA2 0x0048804A's two 0x50-byte curves g_drawBowArcher 0x004D9AC8 and g_drawBowCrossbow 0x004D9B18; Anim_WalkA2 0x00486D83; Anim_StrikeA2 0x00486249, the cycle for the attacker only, the defender standing 11/9/7/9; Anim_StandA2 0x004872AE, pose index & 7, the fidget the only writer of +0x0B; Anim_DyingA2 0x00487908 from dirc; FUN_00488793 and FUN_00488436 for siege engines. The walk and strike bands had been drawn swapped; the wraps at 0x17, 0x27 and 0x2F are clamps, not wraps; the melee drop is a [D].
+
+Skirmish setup (4b0a34ff): page 12 out of the widget table 0x004DCF68 and page 13's file box with its scroll base DAT_004EA1A0; Skirmish_FillArmies 0x0042BF46 (g_troopStrengthWeight is eleven wide); Go FUN_0043D5B7 through FUN_0042B9C4's field by category; the castle level **is the row**, Battlefield_BuildCastle(DAT_0056D590), and DAT_004D4B18 is 1 at rows 5, 6 and 9 to 13; Back FUN_0043D649 to page 1. Ten arms in docs/arms.json, screen 0x1F, group front-end — and the exe cut them in half: the kind byte at +0x0F says the scroll arrows, the seesaw, the categories, the side swap and the file field are kind 2, left-press-held, and ours answer the down edge and not the 320 ms pulse, so five are reproduced and five are missing. Nothing in the engine answers Kind::Held yet.
+
+Faces and pointers: the peasants' letter (03a0f25c) blits Faces.pl8 frame 0x11 under population 0xF0 and 0x10 above it (Msg_DrawWindow category 0x02); the ending letter (45ef1171) blits the sender's face, g_messageFrom 0x00553EE0, and Victory posts from realm 0. The seven RT_GROUP_CURSOR resources of Lords2.exe are read at run time and scaled with the canvas (App_InitWindow 0x004B2258).

@@ -1,7 +1,7 @@
 # Game mechanics — what is mapped, and what is not
 
-> **Looking for how the game works, rather than how much of it we have?**
-> That is [`rules.md`](rules.md) — the same mechanics in plain language with the real
+> **Looking for how the game works?**
+> That is [`rules.md`](rules.md) — the same mechanics in plain language
 > numbers. This document is the *inventory*: what has been looked at, and what has not.
 >
 > **A mechanic that looks wrong is often the original being wrong**, and we reproduce it on
@@ -10,7 +10,7 @@
 
 **This document exists to be read by someone who has played the game**, so that they can
 point at what is missing. That is a check nothing else here can perform: you cannot grep for
-an absence, and every other document in `docs/` describes what we found rather than what we
+an absence, and every other document in `docs/` describes what we found
 failed to look for.
 
 Two mechanics were added to this project in a single conversation because a player mentioned
@@ -73,7 +73,7 @@ Legend:
   is the only thing that moves a good: positive quantity buys, negative sells, no partial
   fills, and an unowned county trades out of a purse of its own at `+0x1F4`. Which good goes
   where, and what that says about the armoury and about sheep, is `docs/kingdom.md` §7.6.
-  `crates/l2-kingdom/src/trade.rs` is the rule and `crates/l2-game/src/screens/merchant.rs`
+  `crates/l2-kingdom/src/trade/mod.rs` is the rule and `crates/l2-game/src/screens/merchant/mod.rs`
   the two screens; a player reaches it by clicking a merchant standing in a county he owns.
 
   **[V] The price is the base table plus the clicked merchant's own morale as a percentage
@@ -107,7 +107,7 @@ Legend:
   deaths
 - ✅ **Ale.** Bought at the merchant, and the merchant screen exists now.
 
-  **[V] There is no brewing, and no ale to store.** `Merchant_Trade` hands `Ale_Apply`
+**[V]** `Merchant_Trade` hands `Ale_Apply`
   (`0x00428C42`) the **crowns spent** and the happiness lands immediately; ale has no county
   field and no production. The ladder is one point per tenth of the population's worth of
   crowns, capped at five, then capped again at `5 − aleHappinessGiven`. `Ale_PreviewGain`
@@ -119,7 +119,7 @@ Legend:
   `+0x219` every season, one line above the `shownAle` reset this document already described
   — and `Readme.txt`'s *"Ale Limitations"* says the benefit is per season in English. The
   errata also says *"+3 happiness per purchase"* and this binary's ladder caps at **5**; both
-  are recorded rather than reconciled. `docs/decisions.md` C53.
+are recorded. `docs/decisions.md` C53.
 
   **[V] Ale is base game, not the expansion.** A player doubted it was ever in the shipped
   product. `L2.eng` in the stock GOG install settles it: group 68 index 19 is the merchant
@@ -133,9 +133,9 @@ Legend:
 
   > **[V] The shipped ration panel is group 87, and it has three foods.** `Panel_Ration`
   > (`0x00411B72`) draws dairy, grain and cattle out of county `+0x16C`, `+0x170` and
-  > `+0x174`. There is no county field for sheep, none for ale, and `Ration_Apply` has no
+> `+0x174`.
   > priority array in it — dairy is unconditional and the rest is one percentage. **That is
-  > the evidence**, and it is about code and record layout rather than about text.
+> the evidence**, and it is about code and record layout.
   >
   > **[I] Group 62 is corroboration, and weaker than it first looked.** Every string quoted
   > below — *"swap its priority"*, *"Sheep feed"*, *"Barrels swilled."*, *"Dairy produce
@@ -150,7 +150,7 @@ Legend:
   > *This paragraph was first written the other way round, claiming the silence as the
   > finding. Re-deriving it without `anchor.js` — after the `litNum` escape bug — produced
   > the denominator that made the claim ordinary. The conclusion survives because it never
-  > actually rested on the strings.*
+> rested on the strings.*
 
   - **Sheep and wool look like a cut subsystem.** The evidence, all `[V]`:
     - They have names — `L2.eng` group 6 lists all fourteen goods, and 3 is *"Sheep"*,
@@ -158,9 +158,9 @@ Legend:
     - They have ration-screen text: *"No sheep eaten."*, *"Sheep feed"*, *"Sheep will
       remain."* — sheep are eaten like cattle.
     - **They are the only two goods priced zero** in the merchant table, and in this
-      binary's idiom a zero is *"not offered"* rather than *"free"* — the same convention
+binary's idiom a zero is *"not offered"* — the same convention
       that stops the Baron building a royal castle.
-    - **No county can produce either**, and there is no shepherd among the nine peasant jobs.
+- There are nine peasant jobs.
     - Group 68 gives ale its own merchant tooltip and gives sheep none.
     - Two people who have played the game do not remember them.
     - **`Merchant_Trade` has no branch for good 3 or good 5, in either direction.** This is
@@ -174,7 +174,7 @@ Legend:
       good's price plaque on `Merchant.pl8` and puts sheep and wool at **(0, 0)** — no place
       on the stall. `mercgrid.pl8`, the 80 × 60 byte map that *is* the screen's hit test,
       holds exactly twelve ids and **neither 3 nor 5 appears in a single one of its 4,800
-      cells**. Those two are the statement made by the *pictures* rather than by the code or
+cells**. Those two are the statement made by the *pictures*
       the strings, and they were the last two independent sources available.
 
     Sheep make wool; both are cut; the names, the goods slots and the ration strings were
@@ -186,11 +186,11 @@ Legend:
     ration lines. At parity the game itself demonstrates you cannot buy them, which is a
     better answer than our deciding in advance that they do not exist — and it costs two
     rows in a table. **Do not prune content on a judgement that it looks dead.**
-  - ✅ *"Click on a food to swap its priority."* — **and it is not a shipped setting.** The
+- ✅ *"Click on a food to swap its priority."*
     string is group 62's, and nothing reads group 62. What ships is `Ration_Apply`: dairy is
     subtracted first and free, and the remainder is divided between slaughter and grain by
     **one percentage**, county `+0x15F`, which the player moves with `Ration_SetSplit`. A
-    dial, not a queue, and there is no third food in it to reorder.
+dial.
 
     So the earlier note here was wrong in both halves: the original does *not* let you
     reorder five foods, and our pass's *"dairy → grain → slaughter"* is not the shipped rule
@@ -206,7 +206,7 @@ Legend:
 - ✅ Population bands — one icon on screen stands for `ceil(pop/25)` people
 - ✅ **Peasant jobs: nine of them, and all three ints of every record import.** The worker
   count is word 0; word 1 is a **wanted floor** and word 2 a **useful ceiling**, and the
-  `0x0C` stride is three `i32`s rather than one and eight bytes of slack.
+`0x0C` stride is three `i32`s.
 
   Their writers are traced and named: `Grain_LabourEstimate` (`0x0044D374`) and
   `Herd_LabourEstimate` (`0x0044DD4D`) each walk `workers = 0 … population` and store the
@@ -217,6 +217,13 @@ Legend:
   The shipped save checks it: seven of the nine floors are −1 in all fourteen counties, and
   wood's ceiling is exactly 100,000 in every owned county and exactly 0 in every unowned
   one. That one byte is the whole explanation of the save's labour split.
+
+  **Importing all three is not the same as computing all three, and for a long time this
+The cattle floor (`+0xD4`) arrived from a save.
+  recomputed by any pass, so it held zero in every game this engine played from a new start
+  and in every loaded one after its first season — and it is the *only* thing that draws an
+  understaffed herd red. Both words of `Herd_LabourEstimate` are computed now, `[V]` against
+  every save on the machine; `docs/decisions.md` C187.
 - ✅ **The labour allocator** — `Labour_Allocate` (`0x0044F6E7`), 2,147 bytes, the only
   writer of the nine records. It splits the population into a farm half and an industry half
   by county `+0x08`, gives each job `Pct(half, share)` people or as many as its ceiling
@@ -235,7 +242,7 @@ Legend:
   obstruction was worth naming: `Season_Advance` (`0x00448440`, *not* `0x0044C1EE` — that
   address is inside `Field_ReclaimTick`) never calls `County_RefreshEstimates` before either
   `Labour_AllocateAll`, because **each estimate is the tail call of the pass that invalidates
-  it**. So wiring the allocator was six tail calls rather than one function, and the missing
+it**. So wiring the allocator was six tail calls, and the missing
   seventh piece was that `County_RefreshEstimates` *does* run every season — as the middle
   statement of `Panels_RefreshAll`, `Season_Advance`'s last call.
 
@@ -260,7 +267,7 @@ Legend:
 - 📖 **Unrest and revolt — traced to the end now.** The ladder was known; what it *does* was
   not. `County_RaiseRevolt` (`0x004AC185`) puts 30% of the population on a free road tile as
   a kind-2 mob at morale 50, all of them in `troops[0]` — unarmed peasants — takes them out
-  of the population, and hands the county to `County_MakeIndependent`. If there is no free
+of the population, and hands the county to `County_MakeIndependent`.
   tile it returns 0, the counter stays at 4, and the county never revolts. There is also a
   **dead branch**: the "happiness 0 revolts instantly" arm is guarded by a test identical to
   its own parent and can never run. `docs/kingdom.md` §6.
@@ -271,7 +278,7 @@ Legend:
   empire …"* and 128 *"Your lands divide."* It changes what conquest is worth in both
   directions: taking the county that *bridges* an enemy's territory costs him the far half
   for free, and a county taken behind his lines cannot be held. Implemented in
-  `crates/l2-kingdom/src/territory.rs` as `Pass::SecedeIsolatedCounties`;
+  `crates/l2-kingdom/src/territory/mod.rs` as `Pass::SecedeIsolatedCounties`;
   `docs/kingdom.md` §6.1 and `docs/rules.md` §5a.
 
   **It still has no data-side oracle.** Every realm in every fixture holds exactly one
@@ -308,7 +315,7 @@ Legend:
 
 ### The game's own three rule switches
 
-The original ships **behaviour toggles**, not just presentation ones, and a player has
+The original ships **behaviour toggles**, and a player has
 confirmed using all three: *"i recall foraging, exploration and advanced farming to be
 options I saw and tried. Fallow fields on advanced farming, a fog of war of some sort."*
 They are `g_optAdvancedFarming`, `g_optArmiesEat` and `g_optExploration` — `L2.eng` group 50
@@ -319,31 +326,60 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   halves the workforce under it, so the effective rate is one and a half sacks a reaper
   against two without it; industry efficiency has a separate without-Advanced-Farming table.
   It also flips the **AI's** planting ladder — with the option *off* an AI plants far more
-  grain, not less (`crates/l2-kingdom/src/ai_farm.rs`, and [`bugs.md`](bugs.md) §4).
+  grain, not less (`crates/l2-kingdom/src/ai_farm/mod.rs`, and [`bugs.md`](bugs.md) §4).
 - ✅ **Foraging** (`g_optArmiesEat`). An army eats county stores only while the option is on,
   and `Readme.txt` adds the consequence in the game's own words: *"Armies in castles forage
   for themselves, and therefore do not eat from county stores. When foraging is on, building
   large castles and keeping your army inside is an effective way of avoiding starvation
   problems."* The garrison exemption is modelled — `l2_kingdom::unit`, `l2_kingdom::ration`.
-- 🕳 **Exploration — wired end to end, and the fog itself is not built.** The game states the
-  rule itself, in `L2.eng` group 218 index 3: *"When Exploration is turned on, the world
-  outside your county is blacked out. It is gradually revealed as your armies move through
-  and conquer new counties."* That is the specification.
+  **Switching it mid-game takes effect at once**: `Opt_ToggleArmyForaging` re-runs the ration
+  pass and the forecasts over every county on the flip, so the ration panel already counts
+  the armies when the options panel closes. Ours flipped the flag and left every county
+  describing the old rule until the season turned; `Kingdom::toggle_army_foraging` is the fix.
+- ✅ **Exploration — the fog of war.** The game states the rule itself, in `L2.eng` group 218
+  index 3: *"When Exploration is turned on, the world outside your county is blacked out. It
+  is gradually revealed as your armies move through and conquer new counties."* For a long
+  time the switch reached `Options::exploration` and the save and **nothing read it** — it
+  looked like it worked and did not. `docs/decisions.md` C172.
 
-  **The switch now reaches the engine.** `l2_kingdom::kingdom::Options::exploration` exists,
-  the setup screen sets it, `l2-scenario` imports it from a save and `l2_kingdom::save`
-  version 12 stores it — so the setting is carried, and a game that was started with fog on
-  says so. **The behaviour is not implemented**: no rule and no painter reads the flag, and
-  the setup page prints `NOT IMPLEMENTED: EXPLORATION` under its grid while it is on
-  (`docs/decisions.md` C21). The switch is honest rather than finished.
+  **What a player sees, `[V]` from the decompilation.** An unseen tile is drawn as the
+  `base` bank's first frame with nothing standing up out of it; while the option is on, the
+  whole sea round the map is that frame too, seen or not. **What that frame looks like
+  depends on the zoom**, measured on the player's files in all four seasons: at the near zoom
+it is blank — every pixel palette index 0 — so the dark is black; at the far zoom it
+  is a filled green diamond, so zoomed out the dark is plain grass. Nothing on an unseen tile is drawn —
+  no army or merchant, no town banner, no mercenary band, no cattle, no garrison flag, and a
+  mine there does not turn. **What it does not hide:** the minimap (no reader), the right-hand
+  panel, the path balls of an order, and *clicks* — no input arm tests the bit, so a click on
+a dark tile resolves.
+  no rule and no simulation pass reads the option or the bit.
 
-  **What building it would take is now known and is smaller than it looks.** The original's
-  seen bit is **`Tile.bank` bit `0x20`** (`docs/records.json`) — a run-time bit the map file
-  never carries, *"tested only when `g_optExploration` is 1"*. So the state is one bit per
-  tile on a plane that already exists, and the work is (a) setting it as units move and
-  counties change hands, and (b) the campaign renderer honouring it. (a) belongs with
-  `l2_kingdom::movement` and is simulation state that the lockstep digest must cover; (b) is
-  `l2-view`'s. Neither is written.
+  **What lifts it, `[V]`.** A new game shows the start county with a one-tile border round
+  it; an army sees thirteen tiles square round every tile centre it stops on, and round the
+  tile it is raised on; taking a county shows it and its border. Merchants, transports and
+  peasant mobs see nothing. **Nothing ever darkens a tile again** — a county lost stays seen —
+  and **the bits are written whether the option is on or off**, so turning it on mid-game
+  blacks out only what the armies have not walked. The England turn-one fixture, saved with
+  the option off, carries exactly its player's county and border
+  (`crates/l2-scenario/tests/explored.rs`).
+
+  **Built:** `l2_kingdom::explore` (the plane and its writers), the reveals in `levy`,
+  `units_tick` and `conquest`, the import from a `.sav`, the new-game reveal, save version 20,
+  and every painter above honouring it. Its one divergence is representation: the original's
+  plane is the local player's, ours holds a bit per realm so lockstep peers agree.
+
+**Every switch on the four options panels waits before it acts.** Tick a box and it goes
+down at once, and the setting changes twenty frames later — the same delay as the yes/no
+gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`.
+
+- 🕳 **Animations** (Display options) — **flips, and nothing in our engine reads it.** In the
+  original it chooses the battle-result box with the animated inset, the castle-building
+  videos, the message scroll's animation and the battle-outcome animation.
+- 🕳 **Tool tips** (Help options) — **flips, and nothing reads it**: the tooltip layer it
+  switches is not built.
+- ✅ **Full screen** — on any desktop that is not 256 colours the original closes the panel and
+  says *"Cannot change display."*, and so does ours. ❌ **Start game help** opens a Windows 3.1
+  help file and does nothing here.
 
 - ✅ **The setup screen's twelve options start the game they show.** This used to read *"no
   option on the setup screen starts a game with the setting it shows"* — all twelve were
@@ -359,7 +395,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   - 🕳 **The starting garrison is not raised.** *Army Size* commits a row of `g_startTroops`
     and `Game_SetupRealmsAndCounties` hands it to `Army_Create`; ours does not, because
     raising an army needs a muster tile and the county's food passes re-run around it, and
-    that is `l2_kingdom::levy`'s single path rather than a second one at setup.
+that is `l2_kingdom::levy`'s single path.
   - ✅ **A new game starts on the map the list names.** This entry used to be the largest
     single thing between here and *"playable from start to finish"*, and it said so.
     `Map_InitScenario` is written — `l2_scenario::newgame`: the planes, the county
@@ -374,7 +410,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
     carries the chosen shield, `l2_scenario::newgame::assign_lords` is
     `Realms_AssignLords`' real walk — mark every human's shield taken, then give each AI
     in realm order **the lowest shield nobody has taken**, then pick that realm's lord
-    *from its shield* — and `crates/l2-game/tests/newgame.rs` drives page 4 with real
+    *from its shield* — and `crates/l2-game/tests/newgame/main.rs` drives page 4 with real
     coordinates for all five colours. Take yellow and the Knight becomes the **black**
     lord while the **Baron** becomes the red one, which is `docs/rules.md` §7a's second
     row and the thing no fixture can check. The line that stood in the way read
@@ -384,14 +420,14 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
     `DAT_0057CB40` — what stops two people both being blue — is not reproduced, and with
     one person it has exactly one consequence, that re-clicking your own colour does
     nothing. And the original re-runs `Realms_AssignLords` on **every click**
-    (`FUN_00432EE6`) rather than at *Start*; we run it once at world construction, which
+(`FUN_00432EE6`); we run it once at world construction, which
     is the same world because the walk is a pure function of the slot, the lord count and
     the choice. Both are recorded in `docs/arms.json` at `0x00432EE6/pick-shield`.
   - 🕳 **The castle on the plot is the castle work's.** The world builder stamps the *bare*
     plot, terrain `0x14`, which is `County_FindCastleTile`; raising the chosen level on it
-    is `FUN_0046826C`, keyed on the castle's level and build percentage rather than on the
+is `FUN_0046826C`, keyed on the castle's level and build percentage
     map. Until that lands, a new game's start counties have the castle level the options
-    committed and a plot on the ground rather than a keep.
+committed and a plot on the ground.
 
 ### The wider game
 - ✅ Random events: a 256-slot deck, 24 distinct, and the bug that exempts even-numbered counties
@@ -408,7 +444,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
 - ✅ **Winning and losing.** `strength = 3 × counties + armies`, recounted at the top of every
   realm's turn including the human's; the last opponent's death notice is what raises
   *"Victory!"*; the outcome byte is 10 won / 11 lost and screen `0x1C` reads it.
-  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory.rs`
+  `docs/kingdom.md` §8.4, `crates/l2-kingdom/src/victory/mod.rs`
 - ✅ **The campaign** — eight maps, both tables read out of the executable, and **nothing
   carries between them**: the next map is a whole new game. `docs/kingdom.md` §8.5
 - ✅ **Diplomacy — traced end to end and implemented.** `l2_kingdom::diplomacy` and
@@ -433,7 +469,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
     standing thermometer and the allied/at-war/mail icons, all four menu layouts, and the
     compose dialog `0x1A` behind it in its three shapes
   - 🕳 **Answering a lord.** The two prompts a lord raises — *"Accept alliance ?"* and
-    *"Pay -"* — are the only places a person answers rather than writes, and both are
+*"Pay -"* — are the only places a person answers, and both are
     blocked on `Msg_DrawWindow`'s per-category window layouts, which nobody has read.
     `docs/diplomacy.md` §10.10
   - ✅ ~~Whether the Baron favours peasant armies.~~ **Settled against it**: the rota fields
@@ -467,20 +503,20 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
 - ✅ **Missiles, and they fly.** Three weapon classes, range, reload, armour — *and* the
   arrow. A shot is an object stepping a Bresenham line four sub-steps a tick, and the
   question that had to be settled before any of it could be written is whether the original
-  resolves a hit at launch and merely animates it. **It does not.** `Missile_Step` reads the
+resolves a hit at launch and animates it. `Missile_Step` reads the
   victim out of the cell the missile has just entered, fresh, every sub-step; nothing on the
   record remembers who the shot was aimed at. So a body in the flight path takes the arrow, a
   miss keeps flying past the target, and a target that dies is not tracked. `docs/battle.md`
   §6.2 and §14.7
 - ✅ Battle AI: the strength advantage, the 200-frame think, **all 17 order handlers
   reachable**. The fourteen siege ones had never been dispatched once, because nothing could
-  produce a siege; `crates/l2-sim/tests/siege.rs` runs one and enumerates every handler it
+  produce a siege; `crates/l2-sim/tests/siege/main.rs` runs one and enumerates every handler it
   reaches. `docs/battle-ai.md` §6
 - ✅ **Sieges, both halves.** Campaign: laying one, the engine order and its ceilings, the
-  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege.rs`,
-  checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege.rs`).
+  build over seasons, breaking it, the assault and its gate — `crates/l2-kingdom/src/siege/mod.rs`,
+  checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege/main.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
-  the way in — `crates/l2-sim/src/siege.rs`.
+  the way in — `crates/l2-sim/src/siege/mod.rs`.
 - ⚠ **The castle's layout on the battlefield is ours, not the original's.**
   `Battlefield_BuildCastle`'s cell *translation* is read (`docs/battle.md` §3.0.1); the
   layout **rasters** it translates are not. `l2_sim::siege::our_castle` is a plain concentric
@@ -500,12 +536,12 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   ten-rung ladder; an evenly matched fight leaves the winner **a tenth of its army**.
   `docs/armies.md` §7.2
 - ✅ **The campaign–battle seam** — an army that reaches an enemy county now fights and hands
-  the result back: `crates/l2-kingdom/src/battle.rs` and `crates/l2-game/src/engagement.rs`,
-  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam.rs`.
+  the result back: `crates/l2-kingdom/src/battle/mod.rs` and `crates/l2-game/src/engagement/mod.rs`,
+  checked end to end against the battle fixture triple in `crates/l2-game/tests/seam/main.rs`.
   **`g_battleLoser` holds the winner**; four sites say so and `docs/armies.md` §7 lists them.
   Implementing it on the name destroys the winner and hands the county to the corpse
 - ✅ **"Will you take the field?"** — screens `0x12` and `0x13`
-  (`crates/l2-game/src/screens/battle.rs`), `L2.eng` groups 80 and 81, and a turn that
+  (`crates/l2-game/src/screens/battle/mod.rs`), `L2.eng` groups 80 and 81, and a turn that
   **suspends** while the question is up. `end_turn` used to answer `Decline` for the player
   because there was no screen to ask on; the campaign now stops mid-tick with both armies
   standing, and neither the autocalc nor the fought battle runs until a thumb is clicked.
@@ -568,10 +604,10 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   Merchant, court, send-supplies, castle-building and eleven more remain shells — right
   artwork and hotspots, contents unbuilt.
   The raise-army screen's name was the finding: the shell table called it *"hire
-  mercenaries"* and **there is no mercenaries screen** — the offer is a block on the only
+  mercenaries"* and — the offer is a block on the only
   door to the armoury a player has. C45. And the *armoury's* row was the second finding:
   filed under the wrong `L2.eng` group, with `arm_grid.pl8` called a "buy grid", it looked
-  like optional content and it holds the button that actually creates the army. C61.
+like optional content and it holds the button that creates the army. C61.
 - 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
 - 🕳 **The mouse pointer changes shape, and we draw the OS arrow everywhere.** A player
   reported *"an alternative mouse icon in the town square, it's like a question mark"*,
@@ -607,37 +643,59 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   nothing in `docs/netcode.md` terms.
 - ✅ **Sound: the music plays — and for weeks this line was wrong.** 771 `.wav` files,
   396 MB. The layer is `crates/l2-game/src/audio`, and it is in `l2-game` for the same
-  reason `winit` is (`docs/netcode.md` D-3). **A sound can only ever read the world**:
+  reason `winit` is (`docs/netcode.md` D-3).
   `Audio` is not in `Ctx`, so no screen can reach it, and the event loop derives what
   should be audible from what already happened.
 
-  **The number that keeps this row honest is 572 of 771**, and it is measured rather
-  than typed — `crates/l2-game/tests/audio_wiring.rs` drives the real paths and reads
-  back what was actually opened. **543 of those 572 are the narrator**, 448 lord takes
-  and 95 system clips, because 646 of the install's 771 files — **84 %** — are somebody
-  speaking. A player: *"that guy's voice acting is half the personality of the game."*
-  By file count he understates it.
+  **The number that keeps this row honest is 703 of 771.** 668 of them are measured
+`crates/l2-game/tests/audio_wiring/main.rs` and `tests/audio_battle.rs`
+drive the real paths and read back what was opened — and the other
+  the tip screens**, of which `crates/l2-game/tests/tips/main.rs` drives one tip's three clips
+  end to end and the rest are counted from the take table and the install's listing, not
+  driven. **565 of those 678 are the narrator** — 448 lord takes, 93 system clips and 24
+  tip takes — because 646 of the install's 771 files, **84 %**, are somebody speaking;
+  66 more are the troop cries and 17 the fighting. A player: *"that guy's voice acting is
+  half the personality of the game."* By file count he understates it.
+
+  **The last 25 are the narrator too, and they are not `Msg_PlayVoice`'s**: the screen
+voices, played by name from the function that opens the screen
+  an `L2.eng` group — the mercenary offer a county is holding, the population panel's
+  health line, and what the information panel says about the unit or castle it opened on.
+  A player reported the first of them missing by quoting it. See `docs/decisions.md`
+  C188; **and the same correction is where the narrator learned to *stop*,** which
+  no count of files can show.
 
   It was **0 of 771** from the day the layer landed until a player said he heard
   nothing — `audio::scene` derived the music from the *bottom* of the screen stack, and
-  the front end is pushed under the campaign rather than replaced by it, so it answered
+the front end is pushed under the campaign, so it answered
   *"front end"* forever (`docs/decisions.md` C116) — then 11, then 555 when the message
   window arrived and the voice class came with it, then 572 when the screens that speak
-  as they open were wired. Everything below this paragraph is about the original and was
-  never in doubt; what was in doubt was whether anything called it, which is the question
-  this row now answers with a fraction instead of a tick.
+  as they open were wired, then 573 with the pointer click — then **560**, when thirteen tip clips
+turned out to be counted because their names resolved
+  game could ask for them — then **595**, when the tip screens were built
+  (`crates/l2-game/src/tip/mod.rs`) and 35 of their 40 files could be asked for — and then
+  **674**, when the battlefield got an event stream — and then **678**, when a siege could
+  pour oil, dock a tower, burn a bridge and bounce a shot off a wall four high
+  (`docs/battle.md` §17). Everything below this paragraph is
+  about the original and; what was in doubt was whether anything
+  called it, which is the question this row now answers with a fraction instead of a tick.
 
   Two things the fraction hides. **`Battle5` is unreachable**: it ships, it decodes, and
   the counter that selects it is `DAT_0057A0F0`, the unidentified third battle mode, so
-  nothing can ask for it. And **the narrator's *chained* takes are not wired** —
-  `FUN_004B3ACD` reads a notice as a sequence of clips, one starting as the last
-  finishes, which is why `S010_13.wav` exists; we play `_01` and stop.
+  nothing can ask for it. And **the three battle tips cannot be posted**, so five tip
+  files ship and stay silent — `S212_01`, `S212_02`, `S214_01`, `S214_02`, `S214_03`
+  (215 has no clip). `Tip_Update` guards them on `g_screenId == 0` *during* a battle,
+  every writer of `g_battlePhase = 2` writes `0x29` beside it, and `Msg_Pump` closes
+  any message while the phase is 2. `[I]` — no path was found, not every path was
+  searched. The chain of takes was once filed as *"a per-message take cursor"* and
+  blamed for `S010_13.wav`; the cursor is two globals and a table, and `S010_13.wav` is
+  not in the chain at all.
 
-  **And the count that says what to do next is 50 of 143**, in `docs/audio.json` — the
+  **And the count that says what to do next is 80 of 143**, in `docs/audio.json` — the
   audio equivalent of the input-arm audit, and it now has the same two checks behind it
   that `docs/arms.json` has: `node tools/oracle/sounds.js --check` compares it with the
-  decompilation, and `crates/l2-game/tests/sfx.rs` compares it with the `// sfx:` markers
-  in `crates/`. Every site is `reproduced` (50), `blocked` (55) or `missing` (38), and a
+  decompilation, and `crates/l2-game/tests/sfx/main.rs` compares it with the `// sfx:` markers
+  in `crates/`. Every site is `reproduced` (80), `blocked` (29), `missing` (31) or `dead` (3), and a
   `blocked` record is required by the test to **name the mechanic** it is waiting for.
 
   **The denominator moved from 134 to 143 and that is the interesting part.** The audit
@@ -647,17 +705,28 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   call it. The title screen was silent for weeks with nothing in the inventory saying a
   sound was missing. `docs/decisions.md` C143.
 
-  **The two counts disagree by a factor of twenty and both are right**: 16 of the sites
-  carry 543 of the 771 files, because `Msg_PlayVoice` is a table lookup and the other
-  primitives are mostly constants. A site count weights every trigger equally and a player
-  does not. The largest thing still missing is the **battlefield**, 25 sites — and it is a
-  limit of the design rather than a to-do: a sword swing is an event inside a tick, and
-  the director derives sound from the world after the tick.
+  **The two counts disagree by a factor of twenty and both are right**: 13 of the fired
+  sites carry 530 of the 639 reachable files, because `Msg_PlayVoice` is a table lookup
+  and the other primitives are mostly constants — and six more, the troop cries, carry 66.
+  A site count weights every trigger equally and a player does not.
 
-  Of the rest, the one a player notices first is `click3.wav`, played by
-  `Sound_RestartSlot(1)` from **four sites behind three hit-testers** — `Widget_Test`
-  (`0x0040DA1E`) twice, plus `FUN_0040D6AD` and `FUN_0040D7B8` — and we have no shared
-  hit-tester to put it in. That is a widget-layer job, not an audio one.
+  **The battlefield sounds**, 22 of its 31 sites. This row used to call its 25 per-man
+sites *"a limit of the design"*: a sword swing is an event inside a
+  tick and the director derives sound from the world after it. The world kept no record of
+  the event, and that was the whole gap — `l2_sim::cue` records it, the battle never reads
+  it, and because every battlefield call drops while its buffer is sounding, a count that
+  moved since the last tick is exactly what the original could have made audible. The
+  troop cries are a round robin per troop and order, **not random**, so they draw on no
+  generator at all. `docs/audio-triggers.md` has both. The nine left each wait on a
+  mechanic `l2-sim` does not model: fire, boiling oil, a tower docking, state 17's loose,
+  the high-rampart catapult miss, and a realm eliminated mid-battle.
+
+**The pointer click is fired**, and it was two sites. `click3.wav`
+  is `Sound_RestartSlot(1)` inside `Widget_Test` (`0x0040DA1E`), at its kind-4 and kind-5
+  arms, on the **press** — never on the auto-repeat, never from a hotspot or an OK
+  button. The two sites once counted beside it are the arrows of a slider widget that
+  nothing in the executable instantiates (`docs/bugs.md` `D39`).
+  `tests/click.rs` is mostly the silent cases.
 
   | | files | size | |
   |---|---:|---:|---|
@@ -686,7 +755,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   in the game, possibly army sizes or number of counties owned"* and *"scroll1 almost
   always played in the first map right away"*; both halves hold, and the **first** clause
   is why the second is *almost* always — one county is `Scroll1` at any map size, and only
-  from the second does the percentage decide. There is no separate county track: phase 0
+  from the second does the percentage decide.
   is the whole management surface.
 
   **[V] The battle music alternates in pairs**, it does not choose. `Music_StartBattle`
@@ -709,7 +778,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   merchant, army) and `FUN_00499D97` loads seventeen for a battle (`0x004DAFC0`: click3,
   *null*, pouroil, sword5/2/3, bowmen1, bow_hit, crossbow, cros_hit, deadguy2/3/4,
   catfire, cathit, catmiss, siegedoc). Entry 1 of both is `null.wav`, which is in neither
-  install and never was — a deliberate hole in a fixed-size table.
+  install — a deliberate hole in a fixed-size table.
 
   **[V] Slot numbers are 1-based and the tables are not: `slot n` is `BANK[n − 1]`.**
   `Sound_LoadBank` *stores* at `&DAT_00522B00 + i × 4` from `i = 0`; `Sound_PlaySlot` and
@@ -723,7 +792,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   regardless. That is why `Unit_MoveInFacing` (`0x00466D84`) can ask for a movement sound
   on *every step of every moving unit* — slot 12 `Army.wav` for an army, 11
   `Merchant.wav` for a merchant or transport, 5 `Rioters.wav` for a peasant mob — and get
-  a continuous march rather than a roar. Twelve units crossing the map at once cost one
+a continuous march. Twelve units crossing the map at once cost one
   voice.
 
   **[V] The click has a trigger after all.** `Widget_Test` (`0x0040DA1E`) and
@@ -747,7 +816,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   their siblings are named by the binary and **are not in the install**: the shipping
   build knew they were dead.
 
-  **[V] There is no end-of-turn sound.** Nothing on the `Turn_End` / `Season_Advance` /
+  Nothing on the `Turn_End` / `Season_Advance` /
   phase-7 path plays anything, the End Turn button is silent, and the two call sites of
   the end-of-turn screen fade (`FUN_004B0CB4` from `0x00499...`, once either side of
   `Season_Advance` and the autosave) carry no sound call either — checked by reading both.
@@ -758,7 +827,7 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   factor of four, so it is a fade to **one quarter brightness and back**; the stepper at
   `0x004B0E03` moves each channel by at most 12 per ~20 ms over palette entries **10 … 245
   only**, which is 16 steps ≈ 320 ms each way and is why the interface chrome stays lit while
-  the map goes dark. There is no dither table and no 50 % blit on the path. `l2_view::fade`.
+the map goes dark. `l2_view::fade`.
 
   **[V→confirmed] What the dark window is for.** It was recorded as inferred cover for the
   seasonal art reload and the autosave, purely from where the two calls sit. A player who has
@@ -802,7 +871,15 @@ are the precedent for anything this project ships as an option; see [`bugs.md`](
   three readers ask `(flag < 1) || (2 < flag)`, which cannot be true. So **81% of this game's
   audio exists to satisfy a test whose answer is already fixed.** The flag is persisted in
   saves, so one could in principle carry a failing value; nothing writes one.
-- ❓ Video: 45 `.smk` files, no decoder, blocked on a licence decision (D5a)
+- ✅ **Video.** All 45 `.smk` files decode (`crates/l2-smk`, MIT, written from the format
+  description; every frame's pixels, palette and samples match an independent decoder), and
+  the game plays them where the original does: the intro, the Impressions logo and the
+  credits at start-up, the *Lords of Magic?* trailer, a castle going up, a lord falling
+  (cart, pillory, jail, gallows or axe, by how long the game has run) and the end of a
+  battle the player fought — each with its own sound track, over the music bed it stops.
+  Two gaps: **a captured county's film is built and never plays**, because nothing posts
+  the capture letters `County_ChangeOwner` raises; and the CD's fast-media ending layout is
+  not. `crate::movie` has the table of all seven `Smk_Play` callers.
 
 ---
 
@@ -812,7 +889,7 @@ The install ships **two** PE binaries. `mapl2.exe` is 253,440 bytes, dated 16 Ju
 its own error strings call it the **"L2 Battlemap editor"**. Nothing in this project has
 looked at it.
 
-It is worth a task on its own for one reason: **it is an independent implementation of the
+It is worth a task on its own for one reason:
 battlefield format by the original authors**, so it is a potential second oracle in the same
 way `Lords2.exe` is the first — and a disagreement between the two would be far more
 informative than either alone.
