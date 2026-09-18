@@ -245,3 +245,17 @@ fn a_unit_that_looses_is_marked_firing() {
     assert!(firing >= crate::unit::FIRING - 1, "0x78, less one rebuild's decrement: {firing}");
 }
 
+/// `BattleMan_StateCloseToAttack` (`0x00484BF9`, `00480000.c:2054`): unit `+0x0F`
+/// = 0x78 on the reset that looses; [`Runner::loose`] writes it for this site
+/// too. Ablate `loose`'s write of `crate::unit::FIRING` and `seen` stays 0.
+#[test]
+fn a_volley_from_state_seventeen_raises_the_units_firing_byte() {
+    let (mut r, unit, _) = a_player_archer_and_a_man_in_the_wood();
+    r.order_full(unit, 40, 42, None, true, Formation::Keep);
+    let mut seen = 0u8;
+    for _ in 0..600 {
+        r.step();
+        seen = seen.max(r.units.get(unit).firing);
+    }
+    assert_eq!(seen, 0x78, "120 frames, raised the frame the arrow leaves");
+}

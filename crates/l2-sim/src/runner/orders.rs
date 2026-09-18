@@ -134,6 +134,12 @@ impl BattleRunner {
         claimed: &[(i32, i32)],
     ) -> Option<(i32, i32)> {
         let dest = self.field.at(target.0 as usize, target.1 as usize);
+        // `if (surface == 4 && g_battleUnits[unit].category == 5) { origin =
+        // target; return 1; }` — the short-circuit that stands ahead of the
+        // loop, so the rampart-walk branch below never refuses a catapult.
+        if dest.surface == crate::siege::SURFACE_RAMPART_WALK && self.units.get(unit).category == 5 {
+            return Some((target.0 as i32, target.1 as i32));
+        }
         for radius in 0..20i32 {
             let x0 = (target.0 as i32 - radius).max(0);
             let y0 = (target.1 as i32 - radius).max(0);
@@ -144,7 +150,7 @@ impl BattleRunner {
                     if claimed.contains(&(x, y)) {
                         continue;
                     }
-                    if self.slot_is_usable(unit, x, y, dest.elevation) {
+                    if self.slot_is_usable(unit, x, y, dest.surface, dest.elevation) {
                         return Some((x, y));
                     }
                 }
@@ -153,17 +159,29 @@ impl BattleRunner {
         None
     }
 
-    /// `Formation_SlotIsUsable` (`0x0048A672`), field-battle branches only.
-    ///
-    /// **Two branches are still missing and both are the siege's.** The
-    /// original also takes the *source* cell's `surface` and refuses a cell of
-    /// any other surface when that one is
-    /// [`crate::siege::SURFACE_RAMPART_WALK`] (4)
-    /// is only ever slotted along it; and it refuses a side-0 unit an empty
-    /// cell of surface under 4 in a siege. `[V]` — 359 bytes, four parameters.
-    pub(super) fn slot_is_usable(&self, unit: usize, x: i32, y: i32, elevation: u8) -> bool {
+    /// `Formation_SlotIsUsable` (`0x0048A672`), all four branches. `surface`
+    /// and `elevation` are the caller's reference cell — the unit's
+    /// destination in [`Self::find_nearby_slot`], the unit's own cell in
+    /// [`Self::dest_find_reachable_near`]. `[V]` — 359 bytes, four parameters.
+    pub fn slot_is_usable(
+        &self,
+        unit: usize,
+        x: i32,
+        y: i32,
+        surface: u8,
+        elevation: u8,
+    ) -> bool {
         let cell = self.field.at(x as usize, y as usize);
         let occupant = self.occupant[y as usize * DIM + x as usize];
+        // First branch: `uVar2 == 0 && side == 0 && g_battleIsSiege != 0 &&
+        // surface[cell] < 4`.
+        if occupant.is_none()
+            && self.units.get(unit).side == crate::SIDE_A
+            && self.siege.is_siege
+            && cell.surface < crate::siege::SURFACE_RAMPART_WALK
+        {
+            return false;
+        }
         if cell.impassable() && occupant.is_some() {
             return true;
         }
@@ -175,6 +193,10 @@ impl BattleRunner {
             if other != unit {
                 return false;
             }
+        }
+        // `if (surface[cell] == surface || surface != 4) { … } else 0`.
+        if cell.surface != surface && surface == crate::siege::SURFACE_RAMPART_WALK {
+            return false;
         }
         if (cell.elevation as i32) < elevation as i32 - 1 {
             return false;
