@@ -115,6 +115,13 @@ pub const fn cell_byte_offset(x: i32, y: i32) -> i32 {
     (y * DIM as i32 + x) * 8
 }
 
+/// The inverse — the cell `BattleUnit_Order` (`0x00479E90`,
+/// `00470000.c:4290-4292`) took the offset from, and parked figure slot 0 on.
+pub const fn cell_of_byte_offset(off: i32) -> (u8, u8) {
+    let c = off / 8;
+    ((c % DIM as i32) as u8, (c / DIM as i32) as u8)
+}
+
 fn in_field(x: i32, y: i32) -> bool {
     (0..DIM as i32).contains(&x) && (0..DIM as i32).contains(&y)
 }

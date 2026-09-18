@@ -270,23 +270,28 @@ fn a_volley_from_state_seventeen_raises_the_units_firing_byte() {
 /// and the destination stays the (40, 58) `Order_StopShortOfTarget` left it at.
 #[test]
 fn a_volley_from_state_seventeen_marks_the_man_and_moves_the_units_destination() {
-    let (mut r, unit, archer) = a_player_archer_and_a_man_in_the_wood();
+    // No bystander: `:2032-2033` walks the figure at the ordered cell itself,
+    // so a man standing on the way is met and fought (`:2040` `engaged = 1`).
+    let (mut r, unit, archer) = an_archer_and_an_empty_wood();
     let sim = r.fighters[archer].sim;
     // Far enough that the pulled-back destination is not the archer's own cell.
     r.order_full(unit, 40, 70, None, true, Formation::Keep);
+    let ordered = { let u = r.units.get(unit); (u.target_x, u.target_y) };
     let here = (r.fighters[archer].x as i16, r.fighters[archer].y as i16);
-    let ordered = {
-        let u = r.units.get(unit);
-        (u.target_x, u.target_y)
-    };
     assert_ne!(ordered, here, "the order starts somewhere else");
-
     let mut firing = 0u8;
-    for _ in 0..600 {
+    let mut shot_from = None;
+    for _ in 0..1200 {
         r.step();
+        if shot_from.is_none() && r.sim.figures[sim].firing > 0 {
+            shot_from = Some((r.fighters[archer].x as i16, r.fighters[archer].y as i16));
+        }
         firing = firing.max(r.sim.figures[sim].firing);
     }
     assert_eq!(firing, crate::unit::FIRING, "0x78 the frame the arrow leaves");
+    // `:2026`, range less two: it stops short of the cell it was aimed at.
+    let shot_from = shot_from.expect("the archer loosed");
+    assert_ne!(shot_from, ordered, "and not from the ordered destination");
     let u = r.units.get(unit);
-    assert_eq!((u.target_x, u.target_y), here, "the shooter's cell, not {ordered:?}");
+    assert_eq!((u.target_x, u.target_y), shot_from, "the shooter's cell, not {ordered:?}");
 }

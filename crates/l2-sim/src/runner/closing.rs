@@ -15,6 +15,7 @@ impl BattleRunner {
     /// ```text
     /// :1995  reTarg>0, unit not human, figure not engaged -> reTarg = 0x32
     /// :1999  other.owner == 0 && targetCell == 0 -> own cell; stepFlags&2: state 5
+    ///        other.owner == 0 && targetCell != 0 -> aim at figure 0, the cell
     /// :2013  stepFlags & 1 clear                  -> keep walking
     /// :2025  range>>3 < chebyshev + 2             -> walk at it (own cell if
     ///                                               movStraff); engaged = 1
@@ -43,20 +44,9 @@ impl BattleRunner {
         }
         let cell = if has_unit { self.units.get(unit).target_cell } else { 0 };
 
-        // **`[I]` the fire-arrow's reacquisition.** `:1999` has none: the
-        // original's woodland order parks figure 0 on the cell as a stand-in
-        // target and `BattleUnit_Order` is the only writer of `target`. Ours
-        // re-runs `Missile_FindTarget` so a volley aimed at a cell keeps a man
-        // to fly at.
-        if cell != 0 && self.closing_target(i).is_none() {
-            if let Some(class) = WeaponClass::for_troop(self.fighters[i].troop) {
-                self.sim.figures[sim].target = self.missile_target(i, class.stats().range as i32);
-            }
-        }
-
         let mid_step = !self.fighters[i].progress.free;
-        let Some(t) = self.closing_target(i) else {
-            if cell != 0 || mid_step {
+        let Some((tx, ty)) = self.closing_aim(i, cell) else {
+            if mid_step {
                 return true;
             }
             // `:2000-2010`: at its own cell with nothing to shoot, `stepFlags &
@@ -72,7 +62,6 @@ impl BattleRunner {
             return true;
         }
 
-        let (tx, ty) = (self.fighters[t].x, self.fighters[t].y);
         let (sx, sy) = (self.fighters[i].x, self.fighters[i].y);
         // `Dist_Chebyshev`, `:2021`.
         let distance = (tx as i32 - sx as i32).abs().max((ty as i32 - sy as i32).abs());
@@ -127,12 +116,36 @@ impl BattleRunner {
         false
     }
 
-    /// `g_otherBattleMan`'s `owner != 0` (`:1999`) — alive, or a body whose
-    /// slot `BattleMan_StateDead` has not freed yet, which is why a shooter
-    /// keeps aiming at a corpse for 80 frames.
-    fn closing_target(&self, i: usize) -> Option<usize> {
-        let t = self.sim.figures[self.fighters[i].sim].target?;
-        self.fighters.iter().position(|f| f.sim == t).filter(|&k| !self.corpse_gone(k))
+    /// **What state 17 aims at** — `g_battleMen[g_otherBattleMan]`'s
+    /// `mapX`/`mapY` at `:2021-2024`, `:2032-2033` and `:2059-2060`.
+    ///
+    /// `None` is `:1999`, `other.owner == 0 && targetCell == 0`: `owner != 0`
+    /// is alive, or a body whose slot `BattleMan_StateDead` has not freed yet,
+    /// which is why a shooter keeps aiming at a corpse for 80 frames.
+    ///
+    /// **The fire-at-ground order.** `target == 0` with `targetCell != 0` is
+    /// figure slot 0, which `BattleUnit_Order` (`0x00479E90`,
+    /// `00470000.c:4291-4292`) parks on the woodland cell the player clicked
+    /// beside the `targetCell` it writes at `:4290`. Nobody stands there, so
+    /// the volley needs that phantom to fly at; `Missile_Step`
+    /// (`00490000.c:1232`) clears its `owner` when the cell lights.
+    ///
+    /// `[D]` ours decodes the unit's own `targetCell` — the same `x` and `y`
+    /// `:4290` and `:4291` take — where the original keeps one global slot 0.
+    /// The two differ only while two units hold woodland orders at once, when
+    /// the original aims both at the later cell.
+    fn closing_aim(&self, i: usize, cell: i32) -> Option<(u8, u8)> {
+        let other = self.sim.figures[self.fighters[i].sim].target;
+        let k = other.and_then(|t| self.fighters.iter().position(|f| f.sim == t));
+        if !k.is_some_and(|k| !self.corpse_gone(k)) && cell == 0 {
+            return None;
+        }
+        // A freed slot keeps its `mapX`/`mapY`; ours is the fighter where he
+        // fell.
+        Some(match k {
+            Some(k) => (self.fighters[k].x, self.fighters[k].y),
+            None => crate::fire::cell_of_byte_offset(cell),
+        })
     }
 
     /// `BattleUnit_Order` (`0x00479E90`)'s first loop: `movStraff = 0` for
