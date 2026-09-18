@@ -130,6 +130,26 @@ impl Settings {
             } else {
                 county.castle_type = self.castle_type;
             }
+            // ```c
+            // g_counties[county].castleType = g_startCastle;
+            // if (g_counties[county].castleType != 0) {
+            //   Castle_StampTile(county, g_counties[county].castleType - 1);
+            // }
+            // ```
+            // `FUN_0049BD99`, and the `if` was missing here. A starting castle
+            // sat in the record with nothing on the map, so
+            // `Ai_FindCastleBuildingTile` (`0x004A65A3`) found no castle tile in
+            // the AI's own county and `Unit_ReachCastleBuilding` (`0x004686A0`)
+            // had nothing to fire on: every garrison the AI raised for it walked
+            // at the county town and stopped there for the rest of the game.
+            let castle_type = county.castle_type;
+            if owned && castle_type != 0 {
+                l2_kingdom::map::stamp_castle_terrain(
+                    &mut game.kingdom.campaign.map,
+                    id as u8,
+                    castle_type,
+                );
+            }
             // `FUN_0049BD99`'s first loop closes on
             // `County_RecountFields(county); Herd_UpdateCrowding(county);`
             // (`0x00469B8D`, `0x0044D913`) — the row above has just replaced the

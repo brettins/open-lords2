@@ -93,11 +93,27 @@ pub fn end_players_turn(game: &mut Game) {
 pub fn tick_ai_frame(game: &mut Game) {
     open_players_turn(game);
     let mut granted = game.ai_granted;
-    drive_ai(&mut game.kingdom, &mut granted);
+    let mut letters = Vec::new();
+    drive_ai(&mut game.kingdom, &mut granted, &mut letters);
     game.ai_granted = granted;
+    post_letters(game, &letters);
 }
 
-pub fn drive_ai(kingdom: &mut Kingdom, granted: &mut bool) {
+/// Every letter the two diplomacy steps compose goes on the ring —
+/// `Msg_Enqueue` (`0x00472BC5`), which is [`crate::message::MessageQueue::post`]
+/// and drops what is not addressed to this seat.
+pub fn post_letters(game: &mut Game, letters: &[l2_kingdom::diplomacy::Letter]) {
+    let player = game.player;
+    for letter in letters {
+        game.messages.post(*letter, player);
+    }
+}
+
+pub fn drive_ai(
+    kingdom: &mut Kingdom,
+    granted: &mut bool,
+    letters: &mut Vec<l2_kingdom::diplomacy::Letter>,
+) {
     for id in 1..kingdom.realms.len() {
         if kingdom.realms[id].turn_done() {
             continue;
@@ -106,25 +122,30 @@ pub fn drive_ai(kingdom: &mut Kingdom, granted: &mut bool) {
         let step = ai::pending_step(&kingdom.realms[id], id);
         let _finished = ai::run_step(&mut kingdom.realms[id], id, marching);
         if let Some(step) = step {
-            run_handler(kingdom, id as u8, step, granted);
+            run_handler(kingdom, id as u8, step, granted, letters);
         }
     }
 }
 
-fn run_handler(kingdom: &mut Kingdom, realm: u8, step: AiStep, granted: &mut bool) {
+fn run_handler(
+    kingdom: &mut Kingdom,
+    realm: u8,
+    step: AiStep,
+    granted: &mut bool,
+    letters: &mut Vec<l2_kingdom::diplomacy::Letter>,
+) {
     match step {
-        // The two diplomacy steps. Their letters are dropped here for the same
-        // reason the taunt's are — `l2-game` has no letter screen yet — and
-        // everything they change about the simulation has already happened by
-        // the time they return: a standing moved, an alliance formed or broken,
-        // a war target named. Those four fields are what AI step 10 and the
-        // *assist ally* mission read, and until `l2_kingdom::diplomacy` existed
-        // nothing wrote any of them. `docs/decisions.md` C62.
+        // `Diplo_AnswerInbox` (`0x004A277D`) ends each of its six answers on
+        // `Msg_Enqueue`, so the reply to a letter the person sent reaches him on
+        // the recipient's next AI turn. These two returns used to be dropped
+        // here, with a comment reading *"`l2-game` has no letter screen yet"* —
+        // it has one (`crate::screens::message`), and that stale justification
+        // is `docs/decisions.md` C113's shape exactly.
         AiStep::Diplomacy => {
-            kingdom.run_ai_inbox(realm);
+            letters.extend(kingdom.run_ai_inbox(realm));
         }
         AiStep::ConsiderWar => {
-            kingdom.run_ai_diplomacy(realm);
+            letters.extend(kingdom.run_ai_diplomacy(realm));
         }
         AiStep::SetTaxRates => {
             kingdom.run_ai_tax_rates(realm);
