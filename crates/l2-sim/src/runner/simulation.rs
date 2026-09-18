@@ -277,6 +277,9 @@ impl BattleRunner {
                         facing_drawn: facing,
                         fidget: 0,
                         fidget_period: (((sim as u32 * 9 + x as u32 * 16) & 0x3F) + 0xB4) as u8,
+                        // `BattleMan_Create` zeroes the record; the first walk or stand tick
+                        // writes `+0x11` (`00480000.c:2766`, `2904`).
+                        horse_frame: 0,
                         path: Vec::new(),
                         barred: 0,
                         hold: 0,

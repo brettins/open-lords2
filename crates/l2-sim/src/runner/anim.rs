@@ -50,6 +50,12 @@ impl BattleRunner {
                 false => (f.facing_drawn + 1) % 8,
             };
         }
+        // `00480000.c:2900-2904`, after the fidget: the knight arm writes the
+        // body `+0x10` as the bare `|dirc|` and the horse `+0x11` as
+        // `|dirc| * 6` — no phase term, so a standing knight's horse stands.
+        if f.troop.index() == 6 {
+            f.horse_frame = (f.facing % 8) * 6;
+        }
     }
 
     /// `Anim_WalkA2` (`0x00486D83`) — **march**, poses 0 … 5, one every four
@@ -78,6 +84,11 @@ impl BattleRunner {
             f.phase += 1;
             if f.phase > 0x17 {
                 f.phase = 0;
+            }
+            // `00480000.c:2761-2768`: the knight arm's horse `+0x11` is
+            // `|dirc| * 6 + animPhase >> 2`, read after the step at `2756`.
+            if f.troop.index() == 6 {
+                f.horse_frame = (f.facing % 8) * 6 + (f.phase >> 2);
             }
         } else if f.troop.index() == 10 {
             // `FUN_00488436` (`00480000.c:3327`): the siege walk steps the oil pot's
@@ -141,7 +152,9 @@ impl BattleRunner {
     /// **The knight has no arm here.** `3004-3006` returns for every
     /// `troopType` the band misses — of 0 … 6 that is 6 alone — *before* the
     /// phase step and *before* `facingDrawn = dirc`, so a shovelling knight
-    /// holds the frame and the drawn facing he arrived with. **[V]**.
+    /// holds the frame `+0x10`, the horse frame `+0x11`
+    /// ([`super::Fighter::horse_frame`]) and the drawn facing he arrived
+    /// with. **[V]**.
     pub(super) fn shovel(&mut self, i: usize) {
         let f = &mut self.fighters[i];
         f.anim = Motion::Shovelling;

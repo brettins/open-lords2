@@ -100,6 +100,19 @@ pub struct Fighter {
     /// **The fidget period** — figure `+0x0C`, seeded once as
     /// `((index * 9 + x * 16) & 0x3F) + 0xB4`, so 180 … 243 frames. **[V]**
     pub fidget_period: u8,
+    /// **The horse frame a knight is drawn on** — figure `+0x11`, the second
+    /// byte the painter reads (`docs/battle.md` §13.8; `+0x10` is the body).
+    ///
+    /// `Anim_WalkA2`'s knight arm (`00480000.c:2766`) writes
+    /// `|dirc| * 6 + animPhase >> 2`, read *after* the step at `2756`;
+    /// `Anim_StandA2`'s (`00480000.c:2904`) writes `|dirc| * 6`, no phase term.
+    ///
+    /// `Anim_DyingA2` (`0x00487908`) returns for `troopType` 6 at
+    /// `00480000.c:3004-3006` without writing it, and state 9's latched arm
+    /// (`00480000.c:1697-1725`) calls that handler and nothing else — so a
+    /// shovelling knight's horse is **held** mid-stride on the byte the last
+    /// walk or stand tick left. **[V]**
+    pub horse_frame: u8,
     pub path: Vec<Pos>,
     /// Consecutive pathfinding failures. At four the figure stops trying —
     /// the original's `barred`, `+0x176`.

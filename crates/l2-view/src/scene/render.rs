@@ -136,7 +136,17 @@ pub fn draw_figures(
         // the same clip.
         if f.troop == Troop::Knights {
             if let Some(horse) = &assets.horse {
-                if let Some(frame) = horse.frame(figures::horse_frame(f.facing, f.anim, f.phase)) {
+                // **A shovelling knight's horse is held.** `Anim_DyingA2`
+                // (`0x00487908`) returns for `troopType` 6 at
+                // `00480000.c:3004-3006` before writing `horseFrame` (`+0x11`),
+                // so the painter draws the byte the last walk or stand tick
+                // left — `Fighter::horse_frame`, not a fresh pose. Ours
+                // recomputed it and stood the horse up mid-dig.
+                let pose = match f.anim {
+                    Anim::Shovelling => f.horse_frame as usize,
+                    _ => figures::horse_frame(f.facing, f.anim, f.phase),
+                };
+                if let Some(frame) = horse.frame(pose) {
                     let w = frame.width as i32;
                     canvas.blit_clipped(
                         &frame,
