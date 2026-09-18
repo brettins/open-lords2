@@ -42,7 +42,7 @@
       "todo": "Start any new game with Advanced Farming on and play through two End Turns. Nothing else is needed. The game's own autosaves from that point are the two saves one turn apart the End Turn check needs; I will copy them from the install.",
       "ask": "Reply: Q5 after the second End Turn",
       "answer": "done 20:57",
-      "outcome": "Three autosaves copied as advfarm-* fixtures; the End Turn check over them is queued."
+      "outcome": "Merged: your saves are the fifth End Turn pair. Every Advanced Farming rule the turn runs agrees; the one difference is the weather roll, which no save carries."
     },
     {
       "q": "Q6",
