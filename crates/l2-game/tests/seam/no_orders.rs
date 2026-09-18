@@ -219,6 +219,9 @@ fn the_position_the_player_gave_no_order_in_is_held_by_the_defence() {
     // defence is 60 archers; `Order_ShootAtUnit` (`0x0048C974`) puts them in
     // state 17 on the AI's aggressive arm, which is what being shot at turns
     // on (`docs/battle-ai.md`). Ablation: return `false` from
-    // `close_to_attack_tick`'s loose arm and this is 0.
-    assert!(fights.iter().all(|f| f.closing.0 > 0), "no arrow ever left state 17");
+    // `close_to_attack_tick`'s loose arm and this is 0 on every seed. Not
+    // every seed reaches it: `Battle_Start`'s lane draw (`0x004778A0`,
+    // 00470000.c:3060) sends the defence to a different end of the field, and
+    // on two of the four lanes the two sides meet without a closing shot.
+    assert!(fights.iter().any(|f| f.closing.0 > 0), "no arrow ever left state 17");
 }

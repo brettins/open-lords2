@@ -234,6 +234,13 @@ pub struct Ai {
 
 impl Ai {
     pub fn new(seed: u64) -> Self {
+        // `Battle_Start` (`0x004778A0`, 00470000.c:3060-3062), single player:
+        //   FUN_00404b2c();
+        //   g_battleApproachLane = DAT_005c9a84 & 3;
+        //   g_battleRallyGroup   = DAT_005c9a84 & 1;
+        // One step of the `FUN_00404B2C` LFSR ([`crate::terrain::Lfsr`]),
+        // masked twice, so the two agree in their low bit.
+        let r = crate::terrain::Lfsr::new(seed as u32).next();
         Ai {
             strength_advantage: 0,
             advantage_timer: 0,
@@ -247,8 +254,8 @@ impl Ai {
             men_missile: 0,
             men_knight: 0,
             season: 0,
-            approach_lane: 0,
-            rally_group: 0,
+            approach_lane: (r & 3) as usize,
+            rally_group: (r & 1) as usize,
             is_siege: false,
             multiplayer: false,
             rng: Pcg32::from_seed(seed),

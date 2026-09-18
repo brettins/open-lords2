@@ -774,9 +774,21 @@ Traced and absent, as far as this investigation went:
   `BattleMan_BurnTick`, the eleven per-troop tick handlers, the melee and missile state
   handlers, `BattleMan_Step`, `Cell_TryEnter`, `Path_Search` or `Path_Extract` touches
   `FUN_00404B2C` / `DAT_005C9A84`, the counter the battlefield builder uses for its
-  terrain variants. Damage is deterministic given positions and timings. **[D]** — over
-  the functions traced, which is most but not all of the simulation; the untraced unit
-  order handlers (§11) were not checked.
+  terrain variants. Damage is deterministic given positions and timings. **[V]** — the
+  [D] this was is now exhaustive: grepping the whole 2,452-function corpus for every
+  PRNG symbol (`Rand_Advance`, `FUN_00404B2C`, `FUN_00404B99`, `g_randStateA/B`,
+  `DAT_00591564`, `g_rand7A`, `g_rand7B`, `DAT_005AEA58`, `DAT_005AEA5C`,
+  `DAT_005C9A84`, `_DAT_0058FD6C`, `_DAT_0058FD70`) names **eight** draw sites in
+  battle code and no more: `Battle_Start` (`0x004778A0`, 00470000.c:3060 — approach
+  lane and rally group), `Battlefield_BuildRandom` (`0x0047AAA3`:4674),
+  `Battlefield_BuildFromSkr` (`0x0047B8B2`:4929), `FUN_0047E1DC`:5864 and
+  `Battlefield_BuildCastle` (`0x0047C4BA`:5137) — all four terrain frame bytes —
+  `Battlefield_BuildCastle`:5271 (`DAT_004EEB6C`, the orientation coin), and
+  `Battle_UpdateStrengthAdvantage` (`0x0047FC01`:6596, the AI's ±jitter) with
+  `Battle_Frame` (`0x004B99C0`, 004b0000.c:6930) stepping the generator once a frame.
+  **No `BattleMan_*`, `BattleUnit_*`, `Missile_*`, `Formation_*`, `UnitOrder_*`,
+  `Anim_*`, `Melee_*` or `Path_*` function names any of them.** A fight varies run to
+  run through the AI's orders, not through its hit rolls.
 * **No morale.** `L2.eng` group 47 — the battle "Group Information" panel — does contain
   the string `Morale`, alongside `Heavy Infantry / Light Infantry / Slingers / Mixed Troops
   / Auxiliaries / Men`. **The unit field it displays was not found**: no literal `47` is
@@ -870,7 +882,7 @@ the destination's elevation is exactly 5. That is the whole terrain-height movem
 Blocked by a figure of his own unit and the same troop type, walking somewhere *else*?
 `BattleMen_SwapPlaces` exchanges the two figures' positions, cells, hits and men. **[V]**
 It is a genuine swap of state between records, not a move. **Not to the same place**:
-`00490000.c:53-56` is `if (cur.tgX == other.tgX && cur.tgY == other.tgY) return 0`, so a
+`00490000.c:53-56` is `if (cur.tgX == other.tgX && cur.tgY == other.tgY) return 0`
 marching unit — all one target — never swaps through itself. This paragraph had that
 condition the wrong way round. The whole answer, and the wait `BattleMan_Step` takes on a
 0 (`00480000.c:6456-6460`), is `BattleRunner::swap_verdict` / `friendly_step`.
@@ -1917,7 +1929,7 @@ its own copy of the spawn, the band scaling, the eight launch steps and both sou
 
 | test | does |
 |---|---|
-| unit `reTarg` > 0, unit not human, figure not `engaged` (`+0x183`) | `reTarg = 50`. `Battle_UpdateAllUnits` has already counted it down this frame, so a shooting AI unit's reform is **held**, and runs out 50 frames after its last figure stops |
+| unit `reTarg` > 0, unit not human, figure not `engaged` (`+0x183`) | `reTarg = 50`. `Battle_UpdateAllUnits` has already counted it down this frame |
 | target's `owner == 0` and `targetCell == 0` | walk to its own cell; on arrival (`stepFlags & 2`) state 5 |
 | `stepFlags & 1` clear — between cells | keep walking |
 | `range >> 3 < Dist_Chebyshev + 2` — out of range | walk at the target, or stand if `movStraff`; `engaged = 1` |
@@ -1938,7 +1950,7 @@ retired has been zeroed by `FUN_0046EB78`, and is silent.
   That is how far it will *walk to*, where state 5's `Missile_FindTarget` is how far it
   will *look* (15 and 8).
 * **After its first shot it holds its ground.** `movStraff` is cleared only by
-  `BattleUnit_Order`, so a target that steps back out of range is let go until the unit
+  `BattleUnit_Order`
   is ordered again. `movStraff` has no symbol; `mov straff` is the debug panel's label
   (`00420000.c:1521`).
 * **A shooter keeps aiming at a body for 80 frames.** `BattleMan_StateDead` frees the
@@ -1996,7 +2008,7 @@ interchangeable:
 
 A man on foot adds **1** per frame; a battering ram in state 14 adds **20**. So
 one ram opens a gate in a thousand frames where a lone swordsman needs twenty
-breaches; the rampart counter does, so a wall can be chewed through repeatedly.
+breaches; the rampart counter does
 Surface 4 is what `Siege_FindCellSurface4` then hunts for, which is how the
 order layer learns the wall is down.
 
