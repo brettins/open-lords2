@@ -602,6 +602,10 @@ impl Machine {
                     self.stack.push(id.build());
                 }
             },
+            // `[D]`: the original restores `g_battlePhase` (`0x0057C8FC`, save
+            // block 14) and not `g_screenId` (`0x004EAC50`, in no block), so it
+            // has no screen to go back to and we do. Truncating to `depth` is
+            // what keeps the campaign map under a battlefield raised here.
             Transition::Resume(id) => match self.stack.iter().position(|s| s.id() == id) {
                 Some(at) => self.stack.truncate(at + 1),
                 None => {

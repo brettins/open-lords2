@@ -124,10 +124,10 @@ pub enum Transition {
     /// [`Goto`] that **keeps what is underneath**: the screen if the stack
     /// already holds it, otherwise in the place of the screen that asked.
     ///
-    /// A load is the case. `g_battlePhase` is the original's whole answer to
-    /// *what am I looking at after `Save_Read`* — one byte, restored from block
-    /// 73 (`0x00569584`) with the four battle blocks — and it has no stack to
-    /// clear or to leave a duplicate on.
+    /// A load is the case. `g_battlePhase` (`0x0057C8FC`) is save block **14**
+    /// and `g_screenId` (`0x004EAC50`) is in no block at all, so the original
+    /// restores *whether a battle is running* and not *which screen was open* —
+    /// and it has no stack to clear or to leave a duplicate on.
     Resume(ScreenId),
 }
 

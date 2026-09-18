@@ -1,6 +1,11 @@
-//! `g_aiStrengthAdvantage` and its neighbours are single-word blocks of
-//! `Save_Write`'s table: `0x0053E984` (block 63), `0x00568470` (block 47),
-//! `0x0055322C` (block 200). **[V]** — `docs/battle.md` §8.
+//! The AI globals `Save_Write`'s table does hold: `g_rallyWaypoints`
+//! (`0x00522D30`, block 91, 96 bytes), `g_battleApproachLane` (`0x0056D6B0`,
+//! block 92), `g_battleRallyGroup` (`0x0053F654`, block 93), `g_aiMenMissile`
+//! (`0x0056D6AC`, 184), `g_aiMenTotal` (`0x00553F74`, 185), `g_aiCommitCounter`
+//! (`0x00553070`, 186), `g_aiRallyX` / `g_aiRallyY` (`0x00522F70`,
+//! `0x00522F74`, 187 and 188), `g_aiRallyRequest` (`0x0056D89C`, 189),
+//! `g_aiEngagementCount` (`0x00553F28`, 192) and `g_aiMenKnight`
+//! (`0x0057C980`, 199). **[V]** — each looked up in the table at `0x004DE960`.
 
 use l2_net::{Canonical, CodecError, Decode, Encode, Pcg32, Reader};
 
@@ -99,6 +104,13 @@ impl Encode for Ai {
         let (state, increment) = self.rng.parts();
         out.u64(state);
         out.u64(increment);
+        // `[D]`: `g_aiStrengthAdvantage` (`0x004EEA98`) and `g_aiAdvantageTimer`
+        // (`0x004D9C70`) are in no block of the table — the original recomputes
+        // both within 101 frames (`Battle_UpdateStrengthAdvantage`
+        // `0x0047FC01`). Storing them is ours, because a load that waited for
+        // the recompute would run up to 101 frames of handlers off a zeroed
+        // advantage, which `a_battle_saved_and_reloaded_runs_the_same_hundred_ticks`
+        // catches as a split digest.
         out.i32(self.strength_advantage);
         out.i32(self.advantage_timer);
         out.i32(self.commit_counter);

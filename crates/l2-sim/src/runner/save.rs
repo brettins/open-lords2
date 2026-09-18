@@ -14,6 +14,10 @@ use crate::siege::SiegeState;
 use crate::terrain::{Battlefield, DIM};
 use crate::unit::Units;
 
+/// `[D]`: the table at `0x004DE960` has no occupancy block — the original's
+/// cell record is 8 bytes (`g_battlefield`, block 1) and carries no figure
+/// index. Ours is a `Vec<Option<u16>>` beside the field, so the sentinel and
+/// the length check below are this format's and not the game's.
 const NO_OCCUPANT: u16 = u16::MAX;
 
 fn end_tag(e: End) -> u8 {

@@ -124,8 +124,9 @@ impl SaveLoadScreen {
     }
 
     /// Where a load lands. `Save_Write`'s blocks 1, 7, 8 and 9 carry the battle
-    /// and block 73 (`0x00569584`) carries `g_battlePhase`, so a save made on
-    /// the battlefield comes back onto it.
+    /// and block **14** (`0x0057C8FC`) carries `g_battlePhase`, which
+    /// `Battle_Start` sets to 2, so a save made on the battlefield comes back
+    /// onto it. `g_screenId` (`0x004EAC50`) is in no block.
     fn landing(&self, ctx: &Ctx) -> Transition {
         if ctx.game.battle.is_some() {
             Transition::Resume(ScreenId::Battlefield)
