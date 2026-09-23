@@ -199,3 +199,36 @@ via_game! {
         |g, o| g.kingdom.paint_field(o.county, o.tile, o.kind);
     ToggleIndustry -> bool = |g, o| g.kingdom.toggle_industry(o.county, o.what);
 }
+
+/// `NetCmd_ReadDiploLetter` (`0x00445960`): every peer copies the text into
+/// `g_diploLetter + from * 0xCA`, and `Msg_Enqueue` (`0x00472BC5`) rings only the
+/// addressee (`g_localPlayer == to`). Group `0xF5 + kind`, category `0x0C`;
+/// kind 0 carries the gold, kinds 5..=10 the county. [V] The text travels in the
+/// command (CNEW-letter-in-command).
+impl Order for SendLetter {
+    type Reply = ();
+    fn run(self, game: &mut Game) {
+        let from = game.player;
+        let letters = &mut game.messages.letters;
+        if letters.len() <= usize::from(from) {
+            letters.resize(usize::from(from) + 1, String::new());
+        }
+        // `Net_ReadField(&g_diploLetter + from * 0xCA, 0xCA)`; `FUN_0040210C(draft, 199)`.
+        letters[usize::from(from)] = self.text.chars().take(199).collect();
+        if self.kind > 0x0C {
+            return;
+        }
+        let record = crate::message::Record {
+            to: self.to,
+            from,
+            group: 0xF5 + u16::from(self.kind),
+            // [I] `variant` is an int at `+0x0C` in `Msg_Enqueue`; ours is a byte.
+            variant: if self.kind == 0 { self.gold.clamp(0, 255) as u8 } else { 0 },
+            category: crate::message::category::DIPLOMACY,
+            county: if (5..=10).contains(&self.kind) { self.county } else { 0 },
+            ..Default::default()
+        };
+        let local = game.local_realm();
+        game.messages.enqueue(record, local);
+    }
+}

@@ -12486,3 +12486,11 @@ A closed connection or sixty seconds of silence (`net::TIMEOUT`, `[I]` ours) hal
 **C242 — The developer screen index opens on Ctrl+D, not I.**
 
 The index (`screens/index.rs`) is ours, not the original's: `App_WndProc` (`0x004B29BE`) routes no key to it. On the front end it was on `I`, which took a letter from the page-4 name field (`Screen_HandleInput` raises `g_editActive` `0x005AEB78` there). Ctrl+D types no letter, so the name field loses none; that the original binds nothing to it on the front end is `[I]`, not read. `[D]`, a developer aid; arm `ours/setup-key-index`.
+
+**CNEW-letter-in-command — a letter's text travels inside its command.**
+
+`GameCommand::SendLetter` (tag 31) carries the addressee, kind, gold, county and the text; every peer stores the text in `MessageQueue.letters[from]` and only the addressee's ring takes the category-`0x0C` record. This is the original's net command `0x49` (`NetCmd_ReadDiploLetter` `0x00445960`) in our lockstep stream: `docs/netcode.md` §5 *A letter between seats*. The queue is per seat and outside the digest. `[D]` the length prefix: the original sends a fixed 0xCA bytes.
+
+**CNEW-battle-wait-box — in battle, a stalled network game says so.**
+
+`FUN_0042476B` (`0x0042476B`, 00420000.c:1396) draws its wait glyph only when `g_battlePhase == 0`, and nothing in a battle. Ours draws a "WAITING FOR THE OTHER PLAYERS..." box there `[D]`: a battle frozen with no sign reads as a hang. `L2.eng` has no group for it (`net/status.rs`).
