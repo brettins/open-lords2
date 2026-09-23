@@ -104,6 +104,17 @@ impl Machine {
             self.dirty = true;
             return;
         }
+        // [V] App_WndProc 0x004B29BE `case 0x1b: if (g_appPhase == 3) Menu_Quit();`
+        // — ungated by g_screenId, so in a game Escape raises the exit box over
+        // any screen and closes none. Menu_Quit 0x004343F8 = Ui_OpenConfirm(0).
+        // arm: 0x004B29BE/escape-quits-outside-the-game key
+        if event == Event::KeyDown(crate::input::Key::Escape)
+            && self.ids().contains(&ScreenId::Campaign)
+            && !matches!(self.top_id(), Some(ScreenId::Confirm(_)))
+        {
+            self.push(ScreenId::Confirm(crate::screens::confirm::Ask::Quit));
+            return;
+        }
         if let Event::KeyDown(k) = event {
             let screen = self.top_screen_byte(ctx.game);
             crate::debug_keys::key_down(ctx.game, k, screen);

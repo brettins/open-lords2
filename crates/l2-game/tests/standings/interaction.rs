@@ -121,7 +121,6 @@ fn the_corner_picture_and_a_right_click_go_to_the_map() {
     for (what, event) in [
         ("the corner picture", Event::Click { x: nobles::OK.x + 4, y: nobles::OK.y + 4 }),
         ("a right release", Event::RightClick { x: 320, y: 240 }),
-        ("escape", Event::KeyDown(Key::Escape)),
     ] {
         let mut m = Machine::new(ScreenId::Campaign);
         m.push(ScreenId::Court);
@@ -158,3 +157,18 @@ fn the_page_passes_the_minimap_down() {
     assert_eq!(m.depth(), 1);
 }
 
+/// [V] App_WndProc 0x004B29BE `case 0x1b: if (g_appPhase == 3) Menu_Quit();`, ungated by
+/// g_screenId: over a panel Escape raises the exit box and closes nothing.
+/// Ablation: machine.rs's Escape intercept.
+#[test]
+fn escape_over_a_panel_raises_the_exit_box() {
+    let (mut game, assets) = bare_world();
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Court);
+    let mut c = Ctx { game: &mut game, assets: &assets };
+    m.handle(Event::KeyDown(Key::Escape), &mut c);
+    assert_eq!(
+        m.ids(),
+        vec![ScreenId::Campaign, ScreenId::Court, ScreenId::Confirm(l2_game::screens::confirm::Ask::Quit)]
+    );
+}

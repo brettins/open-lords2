@@ -30,9 +30,7 @@
       "drawn": "DAT_00568468"
     },
     "missing": [],
-    "invented": [
-      "we fire the Greatest-nobles button immediately; Widget_Test kind 5 defers it 20 frames"
-    ],
+    "invented": [],
     "notes": "The realm's balance sheet, not a diplomacy screen. L2.eng 70/1 \"Arms\" is drawn by nothing.",
     "original": 23,
     "literals_ours": [],
@@ -347,9 +345,7 @@
       "Ui_DrawNumberRight(county +0x174, ' ', \"\", 0x10A, 0x11E, 0x40, body) — its cattle column",
       "Ui_DrawNumberRight(county +0x16C, ' ', \"\", 0x144, 0x11E, 0x40, body) — its third column"
     ],
-    "invented": [
-      "text::draw \"NOT SIMULATED\" over the Fed row, because the three fields it reads are not in l2-kingdom"
-    ],
+    "invented": [],
     "literals_ours": [],
     "excluded": "FUN_004050C0() = Map_DrawFrame(); draw_strip; Widget_Draw itself. `original` here is Panel_Ration's 26 plus Panel_RationSlider's 4, because the slider is this screen's and is drawn every frame from Screen_DrawWidgets. Panel_RationSlider also makes three calls that are not among the 26 primitives — FUN_00403A8F twice (a line) and FUN_0040437D once (a filled rect) — and we draw all three.",
     "eng": {
@@ -852,7 +848,6 @@
     "literals_ours": [],
     "missing": [],
     "invented": [
-      "the DISBAND button - see literals_ours",
       "a status line below the window entirely, at (16, 466), in our 5 x 7 font - ours, a diagnostic",
       "a two-pixel caret left of the row the keyboard is on - ours; the original has no keyboard on this screen",
       "CLICK_MEN = 10: the original's arrow moves ONE man per click and relies on the widget press timer to repeat"
@@ -2018,9 +2013,7 @@
     "ours": 16,
     "literals_ours": [],
     "missing": [],
-    "invented": [
-      "the L2.eng group 82 outcome banner. It belongs to screen 0x2B, which is not built; printing it here rather than nowhere is deliberate and is marked at the site."
-    ],
+    "invented": [],
     "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels. Also excluded, and this is a BUG IN THE COUNTER rather than a decision: Screen_BattlePrompt and Screen_BattleResult are the only two painters in the audit that call Gfx_LoadCountyMode, and the path Gfx_LoadCountyMode -> Net_PumpReceive -> Net_OnSessionEvent -> Net_LeaveGame -> Smk_Skip -> Smk_OnFinished -> Screen_DrawBattlefield drops the walk into the whole screen ladder. Unpatched, screendraws.js reports 228 and 226 for these two. The stored 35 and 33 are what the SAME RULE gives with Net_PumpReceive added to SUBSTRATE_ROOTS. THE COORDINATOR MUST ADD IT OR --check WILL DISAGREE WITH THESE TWO RECORDS. Plus Defence_Disband, which the original calls from its draw function and which is a rule rather than a picture (crate::engagement runs it on the resolve path).",
     "eng": {
       "group": 81,
@@ -2083,7 +2076,6 @@
     ],
     "missing": [],
     "invented": [
-      "the \"N OF cap\" line under each engine row — REMOVED by this audit; the original draws nothing there",
       "the \"+\" and \"-\" captions on the six order widgets, drawn only where System.pl8 is missing"
     ],
     "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels.",

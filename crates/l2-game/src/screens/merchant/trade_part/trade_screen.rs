@@ -226,7 +226,7 @@ impl Screen for TradeScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
+            Event::RightClick { .. } => Transition::Pop,
             Event::KeyDown(Key::Enter) => self.confirm(ctx),
             Event::KeyDown(Key::Up) => {
                 self.step(ctx, 1);

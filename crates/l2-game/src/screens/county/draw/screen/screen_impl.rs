@@ -90,7 +90,6 @@ impl Screen for CountyScreen {
             // `docs/decisions.md` C61 found nine of.
             //
             // arm: ours/county-panel-keyboard key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => return Transition::Pop,
             Event::KeyDown(Key::Up) => {
                 self.panel = PANELS[(self.panel_index() + PANELS.len() - 1) % PANELS.len()];
             }

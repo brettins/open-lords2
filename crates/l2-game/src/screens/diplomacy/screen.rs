@@ -112,7 +112,6 @@ impl Screen for DiplomacyScreen {
                 Event::RightClick { .. } => Transition::Pop,
                 // arm: 0x0040E7E4/diplo-ok left-release
                 Event::Release { x, y } if OK.contains(x, y) => Transition::Pop,
-                Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
                 _ => Transition::Stay,
             };
         };

@@ -187,7 +187,6 @@ impl Screen for ComposeScreen {
             return match event {
                 // arm: 0x0042FF10/compose-right-exit right-release
                 Event::RightClick { .. } => Transition::Replace(ScreenId::Campaign),
-                Event::KeyDown(Key::Escape) => Transition::Pop,
                 Event::KeyDown(Key::Enter) => self.send(ctx),
                 Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
                     let fired = self.press.event(&self.widgets(), event);

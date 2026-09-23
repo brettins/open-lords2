@@ -221,8 +221,6 @@ impl Screen for CourtScreen {
             Event::Click { x, y } if OK.contains(x, y) => Transition::Pop,
             // arm: 0x0042FF10/court-right right-release
             Event::RightClick { .. } => Transition::Pop,
-            // arm: ours/court-keyboard-close key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             Event::DoubleClick { .. }
             | Event::Release { .. }
             | Event::Pointer { .. }

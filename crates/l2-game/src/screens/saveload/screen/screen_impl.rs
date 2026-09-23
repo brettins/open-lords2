@@ -70,8 +70,6 @@ impl Screen for SaveLoadScreen {
             // Escape arm is `Menu_Quit` or `g_backOut = 1`, neither of which
             // knows this box exists.
             //
-            // arm: ours/saveload-key-escape key
-            Event::KeyDown(Key::Escape) => Transition::Pop,
             // `VK_RETURN` runs `Edit_Confirm` (`0x00401C5B`), whose whole body
             // is `g_saveLoadConfirm = 100` — the identical assignment the
             // confirm widget's handler `FUN_004342F3` makes. `SaveLoad_Tick`

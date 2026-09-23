@@ -54,7 +54,27 @@ fn ending_a_turn_into_a_battle_asks_the_player_before_anything_is_decided() {
     assert!(!q.is_siege);
 }
 
-/// Taking the field raises the **battlefield** — `FUN_0043B593` with hotspot id
+/// [V] Screen_BattleResult 0x00422FF1 draws no `L2.eng` group 82 banner; that is
+/// screen 0x2B's. Ablation: result.rs drawing `GROUP_BANNER` at (0x8E, 0x7A) in 0xF9.
+#[test]
+fn the_battle_report_draws_no_outcome_banner() {
+    let (mut g, a, mut m, _, _) = a_battle_is_about_to_happen();
+    press(&mut m, &mut g, &a, 'e');
+    click(&mut m, &mut g, &a, on(battle::widget_rect(battle::DECLINE)));
+    assert_eq!(m.top_id(), Some(ScreenId::BattleResult));
+    let mut won = l2_view::Canvas::screen();
+    m.draw(&Ctx { game: &mut g, assets: &a }, &mut won);
+    g.player = 3;
+    let mut bystander = l2_view::Canvas::screen();
+    m.draw(&Ctx { game: &mut g, assets: &a }, &mut bystander);
+    let differ = (0x7A..0x7A + 16)
+        .flat_map(|y| (0x8E..0x8E + 0x180).map(move |x| (x, y)))
+        .filter(|&(x, y)| won.at(x, y) != bystander.at(x, y))
+        .count();
+    assert_eq!(differ, 0, "the report's paragraph changed with the local player's outcome");
+}
+
+/// Taking the field raises the **battlefield**— `FUN_0043B593` with hotspot id
 /// 1 calls `Battle_Start`, not the autocalc — and declining runs the autocalc.
 #[test]
 fn the_two_thumbs_reach_the_two_ways_a_battle_can_be_settled() {
@@ -159,7 +179,6 @@ fn the_prompt_has_no_way_out_but_its_two_widgets() {
     for e in [
         Event::RightClick { x: 0, y: 0 },
         Event::RightClick { x: window.centre_x(), y: window.y + 8 },
-        Event::KeyDown(Key::Escape),
         Event::KeyDown(Key::Enter),
         Event::KeyDown(Key::letter('Y')),
         Event::Click { x: window.x + 8, y: window.y + 8 },

@@ -69,10 +69,6 @@ impl Screen for NoblesScreen {
             }
             // arm: 0x0042FF10/standings-right right-release
             Event::RightClick { .. } => Transition::Goto(ScreenId::Campaign),
-            // arm: ours/standings-keyboard-close key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => {
-                Transition::Goto(ScreenId::Campaign)
-            }
             _ => Transition::Stay,
         }
     }
