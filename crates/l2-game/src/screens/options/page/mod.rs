@@ -79,7 +79,7 @@ pub enum Setting {
     /// `g_optToolTips` (`0x0053F250`), `Opt_ToggleToolTips` (`0x004347C7`).
     ToolTips,
     /// `Opt_GameHelpContents` (`0x00434942`) — `WinHelpA(hwnd, "l2help.hlp",
-    /// HELP_CONTENTS, 1)`. **A button, not a toggle**, and not honoured.
+    /// HELP_CONTENTS, 1)`. **A button, not a toggle**; ours opens [`crate::screens::help`] [D].
     StartGameHelp,
 }
 
@@ -111,14 +111,12 @@ impl Row {
         Widget::new(self.hit(), self.kind)
     }
 
-    /// Two cannot, and they are drawn anyway. *Full screen* is a DirectDraw
+    /// One cannot, and it is drawn anyway. *Full screen* is a DirectDraw
     /// mode switch in a program that is a `winit` window — and in the original
     /// it is already a permanent *Yes* on any desktop that is not 8bpp, because
-    /// `Display_Init` (`0x0042E5C0`) forces it. *Start game help* opens
-    /// `l2help.hlp` through `WinHelpA`, a Windows 3.1 help file and a Windows
-    /// API that has not shipped since Vista.
+    /// `Display_Init` (`0x0042E5C0`) forces it.
     pub fn supported(&self) -> bool {
-        !matches!(self.setting, Setting::FullScreen | Setting::StartGameHelp)
+        self.setting != Setting::FullScreen
     }
 }
 
@@ -272,7 +270,7 @@ const HELP: &[Row] = &[
         label_at: (0x80, 0x100),
         state_x: 0x120,
         widget_at: (288, 252),
-        kind: Kind::Delayed,
+        kind: crate::arm!("0x00434942/opt-game-help-contents", Delayed),
         words: Words::YesNo,
         setting: Setting::StartGameHelp,
     },

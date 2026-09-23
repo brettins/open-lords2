@@ -94,13 +94,14 @@ fn full_screen_leaves_the_panel_and_says_the_display_cannot_change() {
 }
 
 #[test]
-fn start_game_help_is_a_press_with_nothing_behind_it() {
+/// Opt_GameHelpContents 0x00434942; CNEW-help-viewer. Ablate the `Push(ScreenId::Help)` arm and it stays.
+fn start_game_help_opens_the_help_viewer_twenty_frames_later() {
     let (mut game, assets) = world();
     let prefs = game.prefs;
     let mut screen = OptionsScreen::new(Page::Help);
     let row = Page::Help.rows().iter().find(|r| r.setting == Setting::StartGameHelp).unwrap();
     let (x, y) = mid(row.hit());
-    assert_eq!(press_and_wait(&mut screen, &mut game, &assets, x, y), Transition::Stay);
+    assert_eq!(press_and_wait(&mut screen, &mut game, &assets, x, y), Transition::Push(ScreenId::Help));
     assert_eq!(game.prefs, prefs);
     assert!(game.messages.waiting().is_empty());
 }

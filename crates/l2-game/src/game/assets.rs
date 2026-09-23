@@ -42,6 +42,8 @@ pub struct Assets {
     /// the per-screen artwork the front end and the management screens load.
     pub shell: ShellAssets,
     pub films: crate::movie::FilmFiles,
+    /// `L2help.hlp`, which `Opt_GameHelpContents` (`0x00434942`) hands to `WinHelpA`; `None` on the DOS release.
+    pub help: Option<l2_formats::hlp::Hlp>,
     maps: Vec<u8>,
     minimap_files: Vec<Option<Vec<u8>>>,
 }
@@ -80,6 +82,7 @@ impl Assets {
             battle,
             shell: ShellAssets::load(vfs),
             films: crate::movie::FilmFiles::index(vfs),
+            help: vfs.read("L2help.hlp").ok().and_then(|b| l2_formats::hlp::Hlp::parse(&b)),
             maps,
             minimap_files,
         })
@@ -123,6 +126,7 @@ impl Assets {
             battle: None,
             shell: ShellAssets::empty(),
             films: crate::movie::FilmFiles::default(),
+            help: None,
             maps: vec![0u8; l2_formats::maps::SLOT_LEN],
             minimap_files: vec![None; 16],
         }

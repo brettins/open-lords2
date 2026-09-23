@@ -95,6 +95,8 @@ pub enum ScreenId {
     /// seven callers decides what the end of it does. See
     /// [`crate::screens::movie`] and [`crate::movie`].
     Movie(crate::movie::Film),
+    /// Ours [D]: the help viewer standing in for `WinHelpA`. See [`crate::screens::help`].
+    Help,
     Index,
 }
 
@@ -221,6 +223,7 @@ impl ScreenId {
             ScreenId::Tip => Box::new(crate::screens::tip::TipScreen::new()),
             ScreenId::Movie(film) => Box::new(crate::screens::movie::MovieScreen::new(film)),
             ScreenId::Index => Box::new(crate::screens::index::IndexScreen::new()),
+            ScreenId::Help => Box::new(crate::screens::help::HelpScreen::new()),
         }
     }
 }

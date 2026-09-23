@@ -53,6 +53,8 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         S::Movie(_) => Some(0x22),
         S::Tip => Some(0x27),
         S::Options(page) => page.screen_id(),
+        // WinHelpA leaves g_screenId at 0x31 (Opt_GameHelpContents 0x00434942) [I].
+        S::Help => Some(0x31),
         S::SaveLoad(mode) => Some(mode.screen_id()),
         S::Battlefield => Some(game.battle.as_ref().map_or(0x29, |b| b.screen_id())),
         S::Menu
