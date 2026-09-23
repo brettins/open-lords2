@@ -7,6 +7,7 @@
 //   node tools/pm/work.js --status            the derived view, as text
 //   node tools/pm/work.js --html <path>       the player's page: the game's features, then the work
 //   node tools/pm/work.js --html-detail <path>  every row with its git facts, for agents
+//   node tools/pm/work.js --brief id,id [--branch b] [--budget n]  an agent brief (brief.js)
 //   ...                        --file <path>  read another ledger file
 //   ...                        --features <path>  read another feature list
 //   ...                        --ref <ref>    compare and count against <ref> (default main)
@@ -1703,8 +1704,24 @@ function htmlDetail(m) {
 
 function main() {
   const pages = ['--html', '--html-detail'];
+  if (has('--brief')) {
+    const { j, problems } = load();
+    if (!j) {
+      for (const p of problems) console.error(`work: ${p.id}: ${p.msg}`);
+      process.exit(1);
+    }
+    try {
+      const ids = (opt('--brief') || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (!ids.length) throw new Error('--brief needs row ids: --brief id,id');
+      process.stdout.write(require('./brief').brief(j.items || [], ids, { branch: opt('--branch'), budget: opt('--budget') }));
+    } catch (e) {
+      console.error(`work: ${e.message}`);
+      process.exit(1);
+    }
+    return;
+  }
   if (!has('--check') && !has('--status') && !pages.some(has)) {
-    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path> | --html-detail <path>   [--file <ledger>] [--features <list>] [--ref <ref>]');
+    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path> | --html-detail <path> | --brief id,id [--branch b] [--budget n]   [--file <ledger>] [--features <list>] [--ref <ref>]');
     process.exit(2);
   }
   for (const p of pages) {
