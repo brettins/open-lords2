@@ -1,14 +1,3 @@
-#![allow(unused_imports)]
-use super::*;
-use super::pathfinding::*;
-use super::stepper::*;
-use crate::county::{County, MAX_COUNTIES};
-use crate::map::{coords, index, terrain, CampaignMap, CostMap, MAP_DIM, MAP_TILES};
-use crate::realm::{Realm, MAX_REALMS};
-use crate::unit::{UnitKind, Units, MAX_PATH};
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::map::flags;
     use crate::unit::Unit;
@@ -690,6 +679,3 @@ mod tests {
         assert_eq!(counties[1].fields_grain, 4);
         assert_eq!(counties[1].crop[1], 400);
     }
-}
-
-
