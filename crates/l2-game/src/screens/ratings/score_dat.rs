@@ -62,6 +62,7 @@ pub fn decode(bytes: &[u8], b: &mut BattleMaster) {
     }
     let tail = 0xA0 + 0x140;
     if let Some(v) = word(tail) {
+        // [D] FUN_0042D216 :5171 reads the rank raw; a negative one cannot index our usize.
         b.rank = v.max(0) as usize;
     }
     if let Some(v) = word(tail + 4) {
@@ -97,8 +98,14 @@ impl BattleMaster {
 
     /// `FUN_0042C64F`'s tail, `00420000.c:4980-4982`: read, record, write.
     pub fn record_to_file(&mut self, path: Option<&Path>, local: &str, foe: &str, mine: i32, theirs: i32) {
-        if let Some(p) = path {
-            self.read_score_dat(p);
+        // FUN_0042D216 :5163-5166: a failed open zeroes rank, battles and total.
+        match path {
+            Some(p) => self.read_score_dat(p),
+            None => {
+                self.rank = 0;
+                self.battles = 0;
+                self.total = 0;
+            }
         }
         self.record(local, foe, mine, theirs);
         if let Some(p) = path {

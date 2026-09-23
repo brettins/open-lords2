@@ -99,6 +99,8 @@ impl Screen for SetupScreen {
         }
         // Screen_FrameInput page 0xD, `00420000.c:7473-7482`: right release
         // anywhere, or Ui_OkButtonClicked (0x0040E7E4, left release in 24x24). [V]
+        // Screen_FrameInput 0x0042FF10. [D] :7474 returns to DAT_00553E5C, the opener
+        // (FUN_0043DDF4 00430000.c:8245); its other opener is the multiplayer page 0xC, redesigned.
         if self.page == SetupPage::SkirmishFile {
             let (ox, oy) = SKIRMISH_FILE_OK;
             match event {
