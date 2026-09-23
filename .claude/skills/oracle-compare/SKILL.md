@@ -5,6 +5,10 @@ description: Compare your own lords2 work against the original Lords2.exe before
 
 # Compare against the oracle
 
+**Never for netcode.** Multiplayer (l2-net, lobby, lockstep, transport, desync) is a new,
+modern design by `docs/netcode.md`; the original's netcode is the thing being replaced and is
+evidence of nothing. Its test is determinism (two peers, identical hashes), not the binary.
+
 The binary is right; our code, docs and tests are claims (CLAUDE.md, *The idea*). Do this
 **while building**, not after: a behaviour you cannot tie to a line of decompilation is
 not done. Budget: about 3 tool calls per behaviour.
