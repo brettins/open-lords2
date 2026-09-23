@@ -51,16 +51,25 @@ pub(crate) fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
         };
         let h = unit_marker_half(&screen.zoom, unit);
         let debug = ctx.game.prefs.debug_overlay;
+        let sprite = unit_sprite(&screen.zoom, ctx.game, id, unit);
+        let tile = (unit.x as usize, unit.y as usize);
         let drawn = !unit.is_garrisoned()
-            && campaign::draw_unit(
-                canvas,
-                &ctx.assets.map,
-                screen.view,
-                &screen.zoom,
-                (unit.x as usize, unit.y as usize),
-                unit_sprite(&screen.zoom, ctx.game, id, unit),
-                clip,
+            && campaign::draw_unit(canvas, &ctx.assets.map, screen.view, &screen.zoom, tile, sprite, clip);
+        // `Map_DrawArmies` (`0x00408438`): the banner follows the figure's blit.
+        let banner = match unit.kind {
+            l2_kingdom::UnitKind::Army => campaign::flag_frame(unit.shield, screen.flag_phase)
+                .map(|f| (f, campaign::ARMY_BANNER_AT)),
+            l2_kingdom::UnitKind::PeasantMob => Some((
+                campaign::MOB_BANNER_FIRST_FRAME + (screen.flag_phase % campaign::FLAG_PHASES) as usize,
+                campaign::MOB_BANNER_AT,
+            )),
+            _ => None,
+        };
+        if let (true, Some((frame, at))) = (drawn, banner) {
+            campaign::draw_unit_banner(
+                canvas, &ctx.assets.map, screen.view, &screen.zoom, tile, sprite, frame, at, clip,
             );
+        }
         if !drawn && (debug || !unit.is_garrisoned()) {
             let colour = ink.realm.get(unit.owner as usize).copied().unwrap_or(ink.dim);
             fill_clipped(canvas, cx - h - 1, cy - h - 1, h * 2 + 3, ink.background, clip);
@@ -292,7 +301,7 @@ pub(crate) fn draw_damage(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cl
 ///
 /// Every `g_flagsSheet` frame the binary names: `shield * 8 - 8 + phase` (`0x00 … 0x27`,
 /// `Map_DrawArmies` `0x00408438`), `0x38 + cost` and `0x4E` (`Map_DrawPathMarker`),
-/// `DAT_0057D390 + 0x79` (the merchant, `Map_DrawArmies`), `0x81`
+/// `DAT_0057D390 + 0x79` (the peasant mob, `Map_DrawArmies`, C88), `0x81`
 /// (`Pl8_DrawFrameClipped(g_flagsSheet, 0x81, …)`), `0x82` (`FUN_00407F82`). `FUN_00407E38`
 /// takes a frame parameter and has 0 callers. No cross, no destination marker, and
 /// `g_cursorByScreen[0x10]` (`0x004E3098`) is kind 14, `g_cursorScythe` (`0x004EABE4`) —

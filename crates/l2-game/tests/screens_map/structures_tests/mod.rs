@@ -2,6 +2,7 @@
 
 mod castles;
 pub use castles::*;
+mod banners;
 mod damage;
 mod minimap_and_seasons;
 pub use minimap_and_seasons::*;
