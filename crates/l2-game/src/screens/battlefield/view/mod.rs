@@ -38,7 +38,7 @@ pub(super) struct Banner {
 }
 
 impl Banner {
-    fn tick(&mut self) {
+    pub(super) fn tick(&mut self) {
         self.acc_ms += crate::screens::armoury::TICK_MS;
         if self.acc_ms < crate::screens::armoury::PULSE_MS {
             return;

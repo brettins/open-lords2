@@ -228,7 +228,7 @@ struct Forge {
 }
 
 impl Forge {
-    fn tick(&mut self) -> bool {
+    pub(super) fn tick(&mut self) -> bool {
         self.acc_ms += super::armoury::TICK_MS;
         if self.acc_ms < super::armoury::PULSE_MS {
             return false;
