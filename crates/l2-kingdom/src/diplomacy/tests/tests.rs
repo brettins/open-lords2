@@ -1,15 +1,3 @@
-#![allow(unused_imports)]
-use super::*;
-use super::standing::*;
-use super::inbox::*;
-use super::replies::*;
-use super::ai::*;
-use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
-use l2_net::Pcg32;
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::realm::{LORD_BISHOP, LORD_ELIMINATED};
 
@@ -368,5 +356,3 @@ mod tests {
         pay_for_help(&mut realms, 2, 3, 9, 0);
         assert_eq!(realms[2].target_county, 9);
     }
-}
-
