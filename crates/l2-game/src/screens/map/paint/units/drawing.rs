@@ -232,6 +232,50 @@ pub(crate) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
     }
 }
 
+/// **`Sprite_TopIt` (`0x004071A0`) arms 3 and 5c** — the tiles that carry the
+/// damage animation. Plane 0 is tested `0x40` first, so a town tile never
+/// reaches arm 3; arm 5c reads `(int)(char)industry[k].disabledSeasons`.
+pub(crate) fn damage_tiles(screen: &MapScreen, ctx: &Ctx) -> Vec<usize> {
+    use l2_kingdom::map::{flags, industry_state, SiteState};
+    let k = &ctx.game.kingdom;
+    let map = &k.campaign.map;
+    let mut out: Vec<usize> = (0..map.terrain.len())
+        .filter(|&t| map.flags[t] & (flags::CASTLE | flags::PLOT) == flags::PLOT)
+        .filter(|&t| map.terrain[t] == BURNT_DWELLING)
+        .collect();
+    for site in &screen.industry_sites {
+        let terrain = map.terrain.get(site.tile).copied().unwrap_or(0);
+        if !matches!(industry_state(terrain), Some((_, SiteState::Wrecked))) {
+            continue;
+        }
+        let shut = k.counties.get(site.county as usize)
+            .map_or(0, |c| c.industry[site.commodity].disabled_seasons as i8);
+        if shut >= 3 {
+            out.push(site.tile);
+        }
+    }
+    out.retain(|&t| !ctx.game.hides_tile(t));
+    out
+}
+
+/// `if (bVar2 != 0x13) return` in arm 3; `Unit_BurnDwelling` (`0x00468AE2`) writes it.
+const BURNT_DWELLING: u8 = l2_kingdom::map::terrain::DWELLING_BURNT;
+
+pub(crate) fn draw_damage(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
+    for tile in damage_tiles(screen, ctx) {
+        let (x, y) = l2_kingdom::map::coords(tile);
+        campaign::draw_damage(
+            canvas,
+            &ctx.assets.map,
+            screen.view,
+            &screen.zoom,
+            (x as usize, y as usize),
+            screen.damage_counter,
+            clip,
+        );
+    }
+}
+
 /// **`Path_MarkPreviewTiles` (`0x004A91BA`) and `Map_DrawPathMarker`** — the
 /// gold balls along an ordered path.
 ///

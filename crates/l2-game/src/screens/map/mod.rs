@@ -232,6 +232,8 @@ pub struct MapScreen {
     /// Milliseconds since the last gate, zeroed on each — `Tick_Pulses`
     /// (`0x004BBC80`) sets `stamp = now`. See [`l2_view::village::GATE_MS`].
     industry_gate_ms: u32,
+    /// `DAT_0053E9A4`, stepped 0 … 15 on `g_pulse80` by `FUN_00451F1A`.
+    damage_counter: u8,
     minimap: Option<Minimap>,
     minimap_slot: Option<usize>,
     focus: Focus,

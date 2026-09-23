@@ -298,6 +298,11 @@ impl MapScreen {
         }
         let k = &ctx.game.kingdom;
         let mut moved = false;
+        // `FUN_00451F1A` (`0x00451F1A`), from `Battle_Frame`, on `g_pulse80`.
+        if gate && self.industry_tick % village::PULSE80_GATES == 0 {
+            self.damage_counter = (self.damage_counter + 1) % campaign::DAMAGE_FRAMES;
+            moved |= !super::paint::damage_tiles(self, ctx).is_empty();
+        }
         for site in &mut self.industry_sites {
             let terrain = k.campaign.map.terrain.get(site.tile).copied().unwrap_or(0);
             let working = matches!(
