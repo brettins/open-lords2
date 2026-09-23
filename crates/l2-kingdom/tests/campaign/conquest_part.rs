@@ -56,3 +56,21 @@ fn a_county_that_can_defend_itself_produces_a_battle_and_keeps_its_owner() {
     assert_eq!(k.campaign.units.get(defender).unwrap().county, 2);
 }
 
+/// FUN_004A6C68 0x004A6C68 writes g_battleCounty (004a0000.c:2865) though no battle follows.
+/// Ablation: the `battle_county = county` in `tick_units`' castle arm, and this fails.
+#[test]
+fn a_county_taken_without_a_battle_is_still_the_battle_county() {
+    let mut k = kingdom();
+    k.counties[2].population = 10;
+    k.campaign.map.set_flags(40, 10, flags::CASTLE);
+    let id = army(&mut k, 1, 2, 300, 39, 10);
+    k.campaign.units.get_mut(id).unwrap().path = vec![(40, 10)];
+    k.campaign.units.get_mut(id).unwrap().moving = true;
+    k.campaign.battle_county = 9;
+    for _ in 0..64 {
+        let _ = k.tick_units();
+    }
+    assert_eq!(k.counties[2].owner, 1, "the march took the county");
+    assert_eq!(k.campaign.battle_county, 2);
+}
+

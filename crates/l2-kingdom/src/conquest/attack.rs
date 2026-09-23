@@ -161,6 +161,12 @@ pub fn march_and_fight(
             restore,
         )
     });
+    // FUN_004A6C68 004a0000.c:2865: set once the guards pass, battle or none.
+    if let (Some(county), Some(o)) = (castle, &outcome) {
+        if !matches!(o, Attack::Refused(_)) {
+            campaign.battle_county = county;
+        }
+    }
     (steps, outcome)
 }
 
