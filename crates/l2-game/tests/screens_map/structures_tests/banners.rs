@@ -74,3 +74,18 @@ fn an_army_flies_its_shield_and_a_peasant_mob_its_own_banner() {
     let (x0, y0) = figure_origin(&screen, &game, &assets, id);
     assert!(found(&mob, &assets, &screen, 0x79).contains(&(x0 + 0x12, y0 - 0x12)));
 }
+
+/// **The menu bar is bevelled** — `Screen_DrawMenuBar` (`0x00419C78`) calls
+/// `Ui_DrawBevelRect(0, 0, 0x280, 0x18)` (`0x00403FDD`): top and right in
+/// `0x1F`, then bottom and left in `0x10`, so the left line wins the corner.
+///
+/// **Ablated**: dropping the call turns this red.
+#[test]
+fn the_menu_bar_is_bevelled() {
+    let (mut game, assets) = world!();
+    let mut screen = MapScreen::new();
+    let c = draw(&mut screen, &mut game, &assets);
+    assert_eq!((c.at(0x100, 0), c.at(0x27F, 12)), (0x1F, 0x1F), "top and right");
+    assert_eq!((c.at(0x100, 0x17), c.at(0, 12)), (0x10, 0x10), "bottom and left");
+    assert_eq!(c.at(0, 0), 0x10, "the left line is drawn last");
+}

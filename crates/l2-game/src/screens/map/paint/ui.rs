@@ -63,6 +63,8 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
     match &ctx.assets.chrome {
         Some(c) => {
             c.draw_menu_bar_background(canvas);
+            // `Screen_DrawMenuBar`: `Ui_DrawBevelRect(0, 0, 0x280, 0x18)` after the strips.
+            crate::screens::siege::bevel_rect(canvas, 0, 0, 0x280, 0x18);
             // `Screen_DrawMenuBar` (`0x00419C78`): realms 1..=5 under
             // `strength != 0 && aiStep < 999`, banner at 270 + 16 * slot.
             let mut slot = 0;
