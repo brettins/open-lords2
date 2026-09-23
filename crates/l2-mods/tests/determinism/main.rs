@@ -1,14 +1,11 @@
 
 mod order_determinism;
-pub use order_determinism::*;
 mod hashing_and_types;
-pub use hashing_and_types::*;
 
 #[path = "../common/mod.rs"]
 mod common;
 
 use common::TempDir;
-use l2_mods::{digest, Platform, Ruleset};
 
 fn install(dir: &TempDir) {
     dir.write("Base1a.pl8", "sprite");
