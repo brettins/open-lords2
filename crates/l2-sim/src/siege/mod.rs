@@ -160,6 +160,10 @@ pub const APPROACH_SCORE_START: i32 = 500;
 /// and the AI reads it.
 pub const RAMPART_GAP_AT_BUILD: [u8; 5] = [1, 0, 0, 1, 0];
 
+/// `g_rasterGapSeed` `0x004D4A98`, twenty int32s read from Lords2.exe: `g_wallGapCount` for
+/// skirmish row `i`, `Battlefield_BuildCastle` 0x0047C4BA 00470000.c:5156-5158. **[V]**
+pub const RAMPART_GAP_SKIRMISH: [u8; 20] = [1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1];
+
 /// **A wall stands one cell high.** `Battlefield_BuildCastle`'s structure code
 /// 8 writes `elevation = 1`, and it is a named constant because
 /// `movement::can_step_elevation` allows a difference of exactly one: a wall
@@ -333,6 +337,16 @@ impl SiegeState {
             ..SiegeState::default()
         }
     }
+
+    /// `DAT_0057A0F0 != 0`: 00470000.c:5156-5158 seeds the gap count from the row.
+    pub fn mark_skirmish(&mut self) {
+        self.skirmish = true;
+        if self.is_siege {
+            // [I] a row past the table's twenty reads as 0.
+            let gap = RAMPART_GAP_SKIRMISH.get(usize::from(self.castle_level)).copied();
+            self.ramparts_breached = u32::from(gap.unwrap_or(0));
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -371,6 +385,19 @@ mod tests {
             strike_wall(&mut s, SURFACE_BAILEY, false);
         }
         assert_eq!(s.ramparts_breached, 2);
+    }
+
+    /// Ablation: drop the reseed in `mark_skirmish` and rows 5+ read level 4's 0.
+    #[test]
+    fn a_skirmish_castle_seeds_its_wall_gap_from_0x004d4a98() {
+        for (row, want) in [(0u8, 1), (3, 0), (4, 0), (5, 1), (8, 1), (10, 1), (16, 0), (19, 1), (20, 0)] {
+            let mut s = SiegeState::castle(row);
+            s.mark_skirmish();
+            assert_eq!(s.ramparts_breached, want, "row {row}");
+        }
+        let mut f = SiegeState::field();
+        f.mark_skirmish();
+        assert_eq!((f.skirmish, f.ramparts_breached), (true, 0));
     }
 
     #[test]

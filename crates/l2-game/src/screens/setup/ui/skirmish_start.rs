@@ -152,7 +152,7 @@ impl SetupScreen {
             ),
         };
         // `DAT_0057A0F0`: Battle_CheckOutcome's failed-assault arm reads `0x004D4A58`.
-        runner.siege.skirmish = true;
+        runner.siege.mark_skirmish();
         // `FUN_0042C5AD` (`0x0042C5AD`), the statement before `Battle_Start`
         // in `FUN_0043D5B7`: the two musters are copied into the records the
         // ratings sheet reads as *Before*.
