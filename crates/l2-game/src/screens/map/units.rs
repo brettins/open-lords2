@@ -267,10 +267,13 @@ impl MapScreen {
             self.status = "THE ARMY IS ALREADY THERE".into();
             return Transition::Stay;
         }
-        // [I] C226: Map_ConfirmMoveOrder 0x004A9252 asks the g_hoverMergeUnit rung ahead of the garrison's is ours at contact
-        // (turn/engine/tick.rs ask_combine).
-        if let Some(ask) = super::garrison::garrison_ask(ctx, unit, dest, dist) {
+        let hover = super::garrison::hover(ctx, unit, dest, dist);
+        if let Some(ask) = super::garrison::pick(hover, unit, dest) {
             return Transition::Push(ScreenId::Confirm(ask));
+        }
+        // `004a0000.c:3850` MoveOrder_Confirm with g_confirmAnswer = 1; C226 merge rung marches.
+        if hover.merge == 0 && super::garrison::town_refusal(ctx, hover.town) {
+            return Transition::Stay;
         }
         self.order_march(ctx, unit, dest)
     }
