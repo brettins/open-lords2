@@ -17,11 +17,6 @@
 //!   (`0x004778A0`) issues no order to anybody, so an unordered unit there
 //!   stands on the cell it deployed on and shoots whatever comes into range —
 //!   `BattleMan_FireMissile`'s `Missile_FindTarget` arm carries no human guard.
-//!
-//! * **Mercenaries lose their band.** `FUN_0047F474` tells a mercenary figure
-//!   from a levied one by a flag on the figure record; `l2_sim::Figure` has no
-//! such flag, so a band that goes into a fought battle comes out folded into
-//!   its troop type. The autocalc path scales the band correctly.
 
 mod report;
 pub use report::*;
@@ -31,6 +26,8 @@ mod siege;
 pub use siege::*;
 mod tests;
 pub use tests::*;
+#[cfg(test)]
+mod band_tests;
 
 use l2_kingdom::battle::{self, Aftermath, Settlement, Verdict};
 use l2_kingdom::conquest::Attack;

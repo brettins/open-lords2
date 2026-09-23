@@ -89,8 +89,8 @@ fn staged_siege(level: u8) -> (Game, Machine) {
     let runner = BattleRunner::deploy_siege(
         l2_sim::siege::our_castle(level),
         0x5EED,
-        l2_sim::runner::Muster { troops: &[(Troop::Swordsmen, 400)], owner: 2, human: false },
-        l2_sim::runner::Muster { troops: &[(Troop::Archers, 200)], owner: 1, human: true },
+        l2_sim::runner::Muster { troops: &[(Troop::Swordsmen, 400)], owner: 2, human: false, mercenaries: None },
+        l2_sim::runner::Muster { troops: &[(Troop::Archers, 200)], owner: 1, human: true, mercenaries: None },
         level,
     );
     let first = runner.fighters.iter().find(|f| f.side == SIDE_A).expect("a garrison figure");

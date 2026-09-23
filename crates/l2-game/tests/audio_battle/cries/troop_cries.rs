@@ -117,8 +117,8 @@ fn an_order_onto_the_moat_is_the_fourth_cry() {
     let runner = BattleRunner::deploy_siege(
         l2_sim::siege::our_castle(level),
         9,
-        l2_sim::Muster { troops: &[(Troop::Knights, 40u32)], owner: 1, human: true },
-        l2_sim::Muster { troops: &[(Troop::Archers, 8u32)], owner: 2, human: false },
+        l2_sim::Muster { troops: &[(Troop::Knights, 40u32)], owner: 1, human: true, mercenaries: None },
+        l2_sim::Muster { troops: &[(Troop::Archers, 8u32)], owner: 2, human: false, mercenaries: None },
         level,
     );
     let mut live_battle = LiveBattle::new(runner, 0, 0, 0, Some(level), 1, 1);

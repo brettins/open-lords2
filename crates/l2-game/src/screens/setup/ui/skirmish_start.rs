@@ -100,8 +100,8 @@ impl SetupScreen {
         let (mine_t, theirs_t) = (muster(&mine.counts), muster(&theirs.counts));
         let local = ctx.game.player;
         let foe = crate::screens::ratings::skirmish_opponent(local);
-        let a = Muster { troops: &mine_t, owner: local, human: true };
-        let b = Muster { troops: &theirs_t, owner: foe, human: false };
+        let a = Muster { troops: &mine_t, owner: local, human: true, mercenaries: None };
+        let b = Muster { troops: &theirs_t, owner: foe, human: false, mercenaries: None };
         // `FUN_0042BA40` (`00420000.c:4665-4673`) puts the local player in
         // `g_battleArmyB` when he attacks, so the attacking muster is his
         // whenever `DAT_0053EF5C == g_localPlayer`.

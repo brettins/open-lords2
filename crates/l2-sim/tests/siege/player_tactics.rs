@@ -23,8 +23,8 @@ pub(super) fn storming_party(level: u8) -> BattleRunner {
     BattleRunner::deploy_siege(
         siege::our_castle(level),
         99,
-        Muster { troops: STORMING_PARTY, owner: 1, human: false },
-        Muster { troops: &[(Troop::Archers, 8u32)], owner: 2, human: false },
+        Muster { troops: STORMING_PARTY, owner: 1, human: false, mercenaries: None },
+        Muster { troops: &[(Troop::Archers, 8u32)], owner: 2, human: false, mercenaries: None },
         level,
     )
 }
@@ -58,8 +58,9 @@ fn a_player_rams_the_gate_open_and_charges_through_the_breach() {
             troops: &[(Troop::BatteringRams, 2u32), (Troop::Swordsmen, 600)],
             owner: 1,
             human: true,
+            mercenaries: None,
         },
-        Muster { troops: &[(Troop::Archers, 40u32)], owner: 2, human: false },
+        Muster { troops: &[(Troop::Archers, 40u32)], owner: 2, human: false, mercenaries: None },
         level,
     );
 

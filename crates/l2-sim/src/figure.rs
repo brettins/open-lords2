@@ -133,6 +133,8 @@ pub struct Figure {
     /// what the AI's own sweeps see. It has to be in this crate, and it has to
     /// be in the lockstep digest.
     pub selected: u8,
+    /// `mercenary` — `BattleUnit_Create` (`0x00480662`, `00480000.c:260-264`).
+    pub mercenary: bool,
 }
 
 impl Figure {
@@ -168,6 +170,7 @@ impl Figure {
             straffed: false,
             full_men: men,
             selected: 0,
+            mercenary: false,
         }
     }
 

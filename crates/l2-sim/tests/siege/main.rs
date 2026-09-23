@@ -44,11 +44,13 @@ fn siege_battle(level: u8, seed: u64) -> BattleRunner {
             troops: &attacker,
             owner: 1,
             human: false,
+            mercenaries: None,
         },
         Muster {
             troops: &defender,
             owner: 2,
             human: false,
+            mercenaries: None,
         },
         level,
     )

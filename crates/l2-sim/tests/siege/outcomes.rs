@@ -81,8 +81,8 @@ fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
     let mut r = BattleRunner::deploy_siege(
         siege::our_castle(4),
         99,
-        Muster { troops: STORMING_PARTY, owner: 1, human: false },
-        Muster { troops: &[(Troop::Archers, 2_000u32)], owner: 2, human: false },
+        Muster { troops: STORMING_PARTY, owner: 1, human: false, mercenaries: None },
+        Muster { troops: &[(Troop::Archers, 2_000u32)], owner: 2, human: false, mercenaries: None },
         4,
     );
     let mut ticks = 0;

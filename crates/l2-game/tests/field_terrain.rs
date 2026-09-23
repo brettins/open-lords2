@@ -67,8 +67,8 @@ fn a_field_battle_deploys_onto_terrain_and_a_blank_field_has_none() {
     let runner = BattleRunner::deploy_muster(
         l2_game::batfield::field(0x5EED),
         0x5EED,
-        Muster { troops: a, owner: 1, human: true },
-        Muster { troops: d, owner: 2, human: false },
+        Muster { troops: a, owner: 1, human: true, mercenaries: None },
+        Muster { troops: d, owner: 2, human: false, mercenaries: None },
     );
     assert!(runner.field.cells.iter().any(|c| c.impassable()));
     assert!(!blank.cells.iter().any(|c| c.impassable()));

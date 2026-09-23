@@ -112,8 +112,8 @@ pub fn fight_unordered(save: &Save, seed: u64, on: Option<l2_sim::Battlefield>) 
         Some(field) => l2_sim::runner::BattleRunner::deploy_muster(
             field,
             seed,
-            l2_sim::runner::Muster { troops: &a, owner: 1, human: true },
-            l2_sim::runner::Muster { troops: &d, owner: 6, human: false },
+            l2_sim::runner::Muster { troops: &a, owner: 1, human: true, mercenaries: None },
+            l2_sim::runner::Muster { troops: &d, owner: 6, human: false, mercenaries: None },
         ),
         None => engagement::begin_fight(&mut k, attacker, defender, None, seed).expect("a field"),
     };

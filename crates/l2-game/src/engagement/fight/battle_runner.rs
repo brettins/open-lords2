@@ -217,9 +217,6 @@ pub(crate) fn muster_with(
     for (slot, men) in counts.iter_mut().zip(u.troops.iter()) {
         *slot = (*men).max(0) as u32;
     }
-    if let Some(band) = u.mercenaries {
-        counts[band.troop.index()] += band.men().max(0) as u32;
-    }
     for (slot, count) in extra.counts().into_iter().enumerate() {
         counts[7 + slot] = count.max(0) as u32;
     }
@@ -230,5 +227,12 @@ pub(crate) fn muster_with(
             .map(|t| (l2_sim::ALL_TROOPS[t], counts[t]))
             .collect(),
     )
+}
+
+/// `mercTroop` (`+0x195`) and `mercMen` (`+0x196`), which `Battle_RaiseSide`
+/// (`0x0047FEA7`) raises after the eleven, flagged; `mercMen == 0` raises none.
+pub(crate) fn band_of(kingdom: &Kingdom, id: usize) -> Option<(Troop, u32)> {
+    let band = kingdom.campaign.units.get(id)?.mercenaries?;
+    (band.men != 0).then(|| (l2_sim::ALL_TROOPS[band.troop.index()], band.men as u32))
 }
 

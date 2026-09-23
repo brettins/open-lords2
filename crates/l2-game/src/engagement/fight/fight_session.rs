@@ -51,8 +51,9 @@ pub fn begin_fight(
         None => kingdom.campaign.field_playlist.take_next(),
     };
 
-    let a = Muster { troops: &a_troops, owner: a_owner, human: a_human };
-    let d = Muster { troops: &d_troops, owner: d_owner, human: d_human };
+    let (a_band, d_band) = (band_of(kingdom, attacker), band_of(kingdom, defender));
+    let a = Muster { troops: &a_troops, owner: a_owner, human: a_human, mercenaries: a_band };
+    let d = Muster { troops: &d_troops, owner: d_owner, human: d_human, mercenaries: d_band };
     let mut runner = match castle_level {
         // **`Battlefield_BuildCastle` (`0x0047C4BA`), from the layout file the
         // player's own install ships.** `crate::castle` holds the two 6,400-byte
@@ -185,8 +186,8 @@ pub fn conclude_fight(
 
     // `FUN_0047F474` — the write-back. Both sides, all eleven slots, rebuilt
     // from what is still standing.
-    write_back(kingdom, attacker, runner.survivors(SIDE_B));
-    write_back(kingdom, defender, runner.survivors(SIDE_A));
+    write_back(kingdom, attacker, runner.survivors(SIDE_B), runner.band_survivors(SIDE_B));
+    write_back(kingdom, defender, runner.survivors(SIDE_A), runner.band_survivors(SIDE_A));
 
     let (winner_side, resolution) = match conclusion {
         Some(c) => (c.winner, Resolution::Fought { ticks: runner.tick, cause: c.cause }),
