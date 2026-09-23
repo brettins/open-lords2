@@ -29,9 +29,6 @@ evidence for each.
 
 - **Network play** — deterministic lockstep is built and tested; the lobby and game over a
   network are in progress.
-- **Castle designer** — deferred. The original's castle choice is a picker over five castle
-  types, and that is built; whether a wall-drawing designer belongs to this game at all is
-  open (`docs/plan.md` §8, `docs/decisions.md` C230).
 - A few gaps are named in the status page: closing archers in battle, one AI attack, some
   narration and cursor pictures.
 
