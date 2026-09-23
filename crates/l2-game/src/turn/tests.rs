@@ -92,6 +92,26 @@ mod tests {
         assert_ne!(digest(&a), digest(&b), "a battle waiting its turn");
     }
 
+    /// Ablation: `out.bool(self.mercenary)` in `Figure::encode`, or the band in
+    /// `Unit::encode` (`+0x195..+0x197`).
+    #[test]
+    fn the_digest_sees_the_mercenary_band_and_its_figures() {
+        let (mut a, b) = (asked(100), asked(100));
+        let q = a.turn.as_ref().and_then(|t| t.question.clone()).map(|q| q.attacker);
+        let band = l2_kingdom::Mercenaries { band: 3, troop: l2_kingdom::TroopType::Knight, men: 20 };
+        a.kingdom.campaign.units.get_mut(q.unwrap()).unwrap().mercenaries = Some(band);
+        assert_ne!(digest(&a), digest(&b), "the band riding with the army");
+        let seats = vec![(l2_net::PlayerSlot::new(0), 1)];
+        a.seats = seats;
+        a.apply(l2_net::PlayerSlot::new(0), &crate::command::TakeTheField {}.into());
+        let sim = &mut a.battle.as_mut().expect("the field taken").runner.sim;
+        let hired = sim.figures.iter().position(|f| f.mercenary);
+        let i = hired.expect("Muster.mercenaries raised a flagged figure");
+        let before = digest(&a);
+        a.battle.as_mut().unwrap().runner.sim.figures[i].mercenary = false;
+        assert_ne!(before, digest(&a), "Figure::mercenary");
+    }
+
     /// Ablation: the bystander guard in `take_the_field`.
     #[test]
     fn a_bystander_seat_cannot_take_the_field() {
