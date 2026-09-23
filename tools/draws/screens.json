@@ -2016,9 +2016,7 @@
     ],
     "original": 37,
     "ours": 16,
-    "literals_ours": [
-      "OK — ours: Ui_OkButton (0x0040D1BC) draws System.pl8 frame 0x33, an arrow into a hole, and no letters. This literal is the fallback drawn only where the sheet is missing."
-    ],
+    "literals_ours": [],
     "missing": [],
     "invented": [
       "the L2.eng group 82 outcome banner. It belongs to screen 0x2B, which is not built; printing it here rather than nowhere is deliberate and is marked at the site."

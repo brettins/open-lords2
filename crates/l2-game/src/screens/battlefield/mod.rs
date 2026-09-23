@@ -312,6 +312,7 @@ impl Default for BattlefieldScreen {
 /// **`Battle_SelectOutcomeBanner` (`0x00478419`)** — which of group 82's pairs,
 /// and so which row of [`crate::movie::BATTLE_FILMS`].
 fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
+    // Screen_BattleOutcome 0x00423241, `00420000.c:983-984`: owner 0 draws 0xC/0xD.
     if live.choice_owner == 0 {
         return 6;
     }

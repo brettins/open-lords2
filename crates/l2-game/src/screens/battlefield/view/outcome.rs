@@ -16,7 +16,8 @@ use crate::shell::{font, Pen};
 ///   Eng_DrawString(0x52, pair*2, 0x30, 0x138); FUN_0040328E(…, 0x30, 0x158, 0x180, 100, 0x20, 0x1A0)
 /// ```
 /// [V] `00420000.c` Screen_BattleOutcome. [I] `FUN_0047703A` is unread; `FUN_0040328E`'s
-/// `0x20, 0x1A0` are not modelled. The neutral arm is pair 6 through [`outcome_banner`].
+/// `0x20, 0x1A0` are not modelled. [V] The neutral arm hard-codes indices `0xC`/`0xD`
+/// (`00420000.c:983-984`): pair 6 through [`outcome_banner`].
 pub(super) fn draw_outcome(p: &Pen, canvas: &mut Canvas, ctx: &Ctx, live: &LiveBattle) {
     if live.mode != Mode::Outcome {
         return;
@@ -37,7 +38,6 @@ pub(super) fn draw_outcome(p: &Pen, canvas: &mut Canvas, ctx: &Ctx, live: &LiveB
     }
     p.window(canvas, OUTCOME_BOX.x, OUTCOME_BOX.y, OUTCOME_COLS, OUTCOME_ROWS, BOX_SET);
     p.ok_button(canvas, OUTCOME_OK.0, OUTCOME_OK.1, 0);
-    let head = if head.is_empty() { "THE BATTLE IS OVER.".into() } else { head };
     p.heading(canvas, OUTCOME_HEAD.0, OUTCOME_HEAD.1, &head, font::TEXT);
     if !body.is_empty() {
         p.body_wrapped(canvas, OUTCOME_BODY.0, OUTCOME_BODY.1, OUTCOME_BODY.2, &body, font::TEXT);

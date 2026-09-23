@@ -79,7 +79,7 @@ impl Screen for BattleResultScreen {
             (r.attacker_men.1, r.defender_men.1),
         );
 
-        // Screen_BattleResult 0x00422FF1: `Ui_OkButton(400, 400, 0)`.
+        // [V] Screen_BattleResult 0x00422FF1, `00420000.c:925`: `Ui_OkButton(400, 400, 0)`.
         p.ok_button(canvas, OK.0, OK.1, 0);
     }
 }

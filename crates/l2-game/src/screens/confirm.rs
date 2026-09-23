@@ -50,9 +50,9 @@ pub enum Ask {
     NewGame,
     /// `Battle_AutocalcButton` 0x0043BD67 → `FUN_0043BDCD`, 10/9.
     Autocalc,
-    /// `Battle_RetreatButton` 0x0043BA29 on a siege → `FUN_0043BB68`, 10/11.
+    /// `Battle_RetreatButton` 0x0043BA29 on a siege → `FUN_0043BAF9`, 10/11 (`00430000.c:6746`).
     Surrender,
-    /// `Battle_RetreatButton` 0x0043BA29 → `FUN_0043BAF9`, 10/12.
+    /// `Battle_RetreatButton` 0x0043BA29 → `FUN_0043BB68`, 10/12 (`00430000.c:6743`).
     Retreat,
 }
 
@@ -116,6 +116,10 @@ impl ConfirmScreen {
             Ask::Quit => Transition::Quit,
             // FUN_0043BAF9 / FUN_0043BB68 / FUN_0043BDCD: `g_screenId = g_screenIdSaved;`, then on
             // yes `Battle_GiveUp` 0x0043BE65. [I] ours settles on the battlefield's next frame.
+            // [V] Retreat/surrender's yes also writes `DAT_005653F4 = 1`/`2` (00430000.c:6783/6762):
+            // xref touches finds it read only by NetCmd_Write_3E, as action 0x27's argument, which
+            // NetAct_GiveUpDeferred 0x0044829F ignores; Battle_GiveUp does not read it. Not kept.
+            // `DAT_00553ED8 = 1` on either answer is FUN_00423530's men-panel redraw count.
             Ask::Autocalc | Ask::Surrender | Ask::Retreat => {
                 if let Some(live) = ctx.game.battle.as_deref_mut() {
                     live.confirm_autocalc();
