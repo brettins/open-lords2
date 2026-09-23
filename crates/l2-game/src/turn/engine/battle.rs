@@ -97,10 +97,8 @@ pub(crate) fn question_for(
     // > `docs/decisions.md` `C80`.
     // Seated, `net::frame` asks this on every peer: from the choosing seat, not
     // this peer's, or the world's question differs (`docs/netcode.md` §6). `[I]` ours.
-    let seated = |r: u8| game.seats.iter().any(|&(_, realm)| realm == r);
     let me = match game.seated() {
-        true if seated(attacker_owner) => attacker_owner,
-        true => defender_owner,
+        true => chooser(game, attacker_owner, defender_owner),
         false => game.player,
     };
     let mut choice_owner = 0u8;
@@ -123,6 +121,28 @@ pub(crate) fn question_for(
         defender_roster,
         choice_owner,
         castle_level,
+    }
+}
+
+/// The seat `question_for` works a seated question out from. `[I]` ours.
+pub(crate) fn chooser(game: &Game, attacker_owner: u8, defender_owner: u8) -> u8 {
+    let seated = game.seats.iter().any(|&(_, realm)| realm == attacker_owner);
+    if seated { attacker_owner } else { defender_owner }
+}
+
+impl Question {
+    /// `g_battleChoiceOwner` as `seat` sees it: the shared value is the
+    /// chooser's; the other side reads 2 (group 80 index 2), a bystander 0.
+    /// `[I]` ours, `docs/netcode.md` §6: the prompt is presentation.
+    pub fn choice_for(&self, game: &Game, seat: u8) -> u8 {
+        if !game.seated() || seat == chooser(game, self.attacker_owner, self.defender_owner) {
+            return self.choice_owner;
+        }
+        match (self.side_of(seat), self.choice_owner) {
+            (Some(_), 1) => 2,
+            (Some(_), c) => c,
+            (None, _) => 0,
+        }
     }
 }
 

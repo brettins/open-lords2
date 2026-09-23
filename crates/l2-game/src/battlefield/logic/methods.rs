@@ -50,6 +50,7 @@ impl LiveBattle {
             cries: Vec::new(),
             deferred: false,
             outbox: Vec::new(),
+            awaiting: Default::default(),
         }
     }
 
@@ -98,7 +99,7 @@ impl LiveBattle {
         bucket[3] && bucket.iter().filter(|&&b| b).count() == 1
     }
 
-    fn cry(&mut self, class: u8) {
+    pub(crate) fn cry(&mut self, class: u8) {
         let troop = self.cry_troop();
         self.cries.push(Cry { troop, class });
     }
@@ -517,7 +518,8 @@ impl LiveBattle {
                     return true;
                 }
                 let (lo, hi) = self.box_corners(d.anchor_px, (x, y));
-                self.act(BattleOp::Pick { lo, hi, commit: true });
+                let follow = Follow::Cry { class: cry::SELECTED, if_held: true };
+                self.act_then(BattleOp::Pick { lo, hi, commit: true }, follow);
                 false
             }
             DragKind::Pick => {
@@ -526,7 +528,8 @@ impl LiveBattle {
                 let a = (d.anchor_px.0 - 8, d.anchor_px.1 - 8);
                 let b = (x + 8, y + 8);
                 let (lo, hi) = self.box_corners(a, b);
-                self.act(BattleOp::Pick { lo, hi, commit: true });
+                let follow = Follow::Cry { class: cry::SELECTED, if_held: false };
+                self.act_then(BattleOp::Pick { lo, hi, commit: true }, follow);
                 true
             }
             DragKind::Nothing => return false,
@@ -535,6 +538,9 @@ impl LiveBattle {
         // after the commit, so the troop is the new selection's. The box arm
         // guards it on `DAT_00553078 != 0` — something is held — and the pick
         // arm does not guard it at all. `[V]`
+        if self.deferred {
+            return true;
+        }
         if picked {
             // sfx: Battle_DragSelect#2
             self.cry(cry::SELECTED);
@@ -573,20 +579,23 @@ impl LiveBattle {
         // **`FUN_0043C634` cries before it orders**, from the hover it was
         // handed: an enemy under the pointer first, then surface 2, then
         // anything else. `[V]`
-        if self.hover.enemy.is_some() {
+        let class = if self.hover.enemy.is_some() {
             // sfx: Battle_OrderSelection#3
-            self.cry(cry::ATTACK);
+            cry::ATTACK
         } else if self.hover.surface == cry::MOAT_SURFACE {
             // sfx: Battle_OrderSelection#1
-            self.cry(cry::MOAT);
+            cry::MOAT
         } else {
             // sfx: Battle_OrderSelection#2
-            self.cry(cry::ORDERED);
+            cry::ORDERED
+        };
+        if !self.deferred {
+            self.cry(class);
         }
         let cell = self.cell_at(x, y);
         let target = self.hover.enemy;
         let woodland = self.hover.woodland;
-        self.act(BattleOp::Order { cell, target, woodland })
+        self.act_then(BattleOp::Order { cell, target, woodland }, Follow::Cry { class, if_held: false })
     }
 
     /// `FUN_0043C2A9` (`0x0043C2A9`), the left half: **a click on a banner drops
@@ -666,13 +675,19 @@ impl LiveBattle {
     pub fn recall_group(&mut self, digit: u8) -> bool {
         let Some(slot) = group_slot(digit) else { return false };
         let Some(members) = self.groups[slot].clone() else { return false };
-        self.act(BattleOp::Recall { figures: members });
+        self.act_then(BattleOp::Recall { figures: members }, Follow::Look);
+        if !self.deferred {
+            self.look_at_selection();
+        }
+        self.redraw = true;
+        true
+    }
+
+    pub(crate) fn look_at_selection(&mut self) {
         if let Some(&first) = self.runner.selected_fighters(self.owner).first() {
             let f = &self.runner.fighters[first];
             self.look_at((f.x, f.y));
         }
-        self.redraw = true;
-        true
     }
 
     /// `FUN_0043C77A` (`0x0043C77A`) — **`H` and `V`**.

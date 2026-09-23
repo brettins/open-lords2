@@ -33,6 +33,8 @@ pub struct Machine {
     /// (`0x00476DA9`) saved in `_DAT_004F0350`. See
     /// [`Machine::seat_tip_host`].
     pub(crate) tip_seat: Option<ScreenId>,
+    /// The lockstep clock's `remaining` last frame: [`crate::turn_clock::seat_saw_expiry`].
+    pub(crate) clock_seen: Option<i32>,
 }
 
 

@@ -18,7 +18,38 @@ pub enum BattleOp {
     SkipOutcome,
 }
 
+/// What a seat does when its own queued op lands, read from the applied
+/// result: a troop cry (`Sound_PlayTroopCry` `0x00499CB1`; `if_held`: only
+/// with men picked) or `FUN_0043C910`'s camera jump. `[I]` ours,
+/// `docs/netcode.md` §4.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Follow {
+    Cry { class: u8, if_held: bool },
+    Look,
+}
+
 impl LiveBattle {
+    /// [`LiveBattle::act`]; queued, `follow` waits for the op to land.
+    pub(crate) fn act_then(&mut self, op: BattleOp, follow: Follow) -> bool {
+        if self.deferred {
+            self.awaiting.push_back((op.clone(), follow));
+        }
+        self.act(op)
+    }
+
+    fn landed(&mut self, op: &BattleOp) {
+        let Some(i) = self.awaiting.iter().position(|(o, _)| o == op) else { return };
+        let (_, follow) = self.awaiting.drain(..=i).last().expect("found");
+        match follow {
+            Follow::Cry { class, if_held } => {
+                if !if_held || self.runner.selected_count(self.owner) != 0 {
+                    self.cry(class);
+                }
+            }
+            Follow::Look => self.look_at_selection(),
+        }
+    }
+
     /// `true` when it applied, or was queued.
     pub(crate) fn act(&mut self, op: BattleOp) -> bool {
         if self.deferred {
@@ -34,6 +65,7 @@ impl LiveBattle {
         let owns = |r: &BattleRunner, f: usize| {
             r.fighters.get(f).is_some_and(|f| r.sim.figures[f.sim].owner == realm)
         };
+        let landed = (realm == self.owner && !self.awaiting.is_empty()).then(|| op.clone());
         let regroup = match op {
             BattleOp::Pick { lo, hi, commit } => {
                 self.runner.pick_box(realm, lo, hi, commit);
@@ -115,6 +147,9 @@ impl LiveBattle {
             if realm == self.owner {
                 self.current_unit = unit;
             }
+        }
+        if let Some(op) = landed {
+            self.landed(&op);
         }
         self.redraw = true;
         true

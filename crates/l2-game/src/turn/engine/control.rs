@@ -39,7 +39,8 @@ pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
 pub fn take_the_field(game: &mut Game) -> bool {
     let realm = game.player;
     let Some(q) = pending_question(game) else { return false };
-    if game.battle.is_some() || (game.seated() && q.side_of(realm).is_none()) {
+    // A seat without the thumbs (`Question::choice_for` ≠ 1) is refused too.
+    if game.battle.is_some() || (game.seated() && q.choice_for(game, realm) != 1) {
         return false;
     }
     let multiplayer = game.multiplayer;
