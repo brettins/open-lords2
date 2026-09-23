@@ -97,5 +97,26 @@ pub struct SetupScreen {
     /// the records in the widget table at `0x004DCF68` are. `held_kind` says
     /// which five.
     pub(crate) press: crate::press::Press,
+    pub(crate) prefs_read: bool,
+}
+
+impl SetupScreen {
+    /// The page reads `g_options` and `g_setupOpt*` in place, so ours seeds
+    /// from [`crate::prefs::Kept`] on first touch and writes back.
+    pub(crate) fn read_prefs(&mut self, ctx: &Ctx) {
+        if core::mem::replace(&mut self.prefs_read, true) {
+            return;
+        }
+        let kept = &ctx.game.prefs.kept;
+        self.options = kept.setup;
+        self.saved_name = kept.player_name.as_str();
+        self.name = begin_name(&self.saved_name);
+    }
+
+    pub(crate) fn keep_prefs(&self, ctx: &mut Ctx) {
+        let kept = &mut ctx.game.prefs.kept;
+        kept.setup = self.options;
+        kept.player_name = crate::text::PlayerName::new(&self.saved_name);
+    }
 }
 

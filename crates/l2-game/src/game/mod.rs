@@ -164,6 +164,8 @@ pub struct Prefs {
     /// A preference, so never in the save, never in the digest and never below
     /// this crate — the table above.
     pub debug_overlay: bool,
+    /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
+    pub kept: crate::prefs::Kept,
 }
 
 impl Default for Prefs {
@@ -180,6 +182,7 @@ impl Default for Prefs {
             game_speed: 90,
             // Ours, and off: see the field.
             debug_overlay: false,
+            kept: crate::prefs::Kept::default(),
         }
     }
 }

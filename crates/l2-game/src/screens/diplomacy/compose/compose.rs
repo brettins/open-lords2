@@ -73,8 +73,9 @@ impl ComposeScreen {
     fn field(&mut self, ctx: &Ctx) -> &mut crate::text::TextField {
         let kind = self.kind;
         self.letter.get_or_insert_with(|| {
+            let kept = draft_slot(kind).and_then(|k| ctx.game.prefs.kept.letters[k]);
             crate::text::TextField::begin(
-                &letter_default(ctx, kind),
+                &kept.map_or_else(|| letter_default(ctx, kind), |l| crate::prefs::letter_text(&l)),
                 LETTER_MAX_LEN,
                 LETTER_MAX_PIXELS,
                 crate::text::Kind::Text,
@@ -229,6 +230,11 @@ impl Screen for ComposeScreen {
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         if let Some(f) = self.letter.as_mut() {
             f.tick();
+            // `Edit_Begin(&g_diploLetterDraft + (kind - 1) * 200, ...)` edits
+            // the buffer in place, and `Options_Save` writes it out.
+            if let Some(k) = draft_slot(self.kind) {
+                ctx.game.prefs.kept.letters[k] = Some(crate::prefs::letter(&f.text()));
+            }
         }
         for i in self.press.tick() {
             let t = self.fire(ctx, i);
@@ -358,3 +364,8 @@ impl Screen for ComposeScreen {
 }
 
 
+
+/// `(kind - 1) * 200` into `g_diploLetterDraft`, for the four letter kinds.
+fn draft_slot(kind: Kind) -> Option<usize> {
+    (kind.byte() as usize).checked_sub(1).filter(|k| *k < 4)
+}
