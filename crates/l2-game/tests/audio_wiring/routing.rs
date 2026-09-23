@@ -100,7 +100,8 @@ fn the_conquest_interstitial_plays_its_own_bed() {
     assert_eq!(Music::Setup.file(), "setup.wav");
     assert!(Music::Setup.loops(), "`Music_Play(…, 0, 1)` below the eighth map");
 
-    game.campaign.map = l2_game::victory::CAMPAIGN_LENGTH;
+    // g_campaignMap is g_options+0x78, the persisted block. ablation: ours/conquest-music-live-campaign
+    game.prefs.kept.campaign_map = l2_game::victory::CAMPAIGN_LENGTH;
     assert_eq!(audio::scene(&m, &game), Scene::Conquest { ended: true });
     assert_eq!(Music::Setup2.file(), "setup2.wav");
     assert!(!Music::Setup2.loops(), "`Music_Play(…, 0, 0)` above it");

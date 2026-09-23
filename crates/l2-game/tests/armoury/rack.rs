@@ -35,7 +35,7 @@ fn a_levy_raised_on_the_england_fixture_walks_out_of_the_armoury_armed() {
         m.handle(e, &mut ctx);
     };
 
-    send(&mut m, &mut g, Event::KeyDown(l2_game::input::Key::letter('r')));
+    send(&mut m, &mut g, l2_game::screens::map::SIDEBAR_BUTTONS[0].rect().click());
     {
         let mut ctx = Ctx { game: &mut g, assets: &a };
         m.update(&mut ctx);

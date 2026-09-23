@@ -20,7 +20,7 @@ fn watch_a_turn(game: &mut l2_game::Game, machine: &mut Machine) -> Vec<Vec<(u8,
 
     {
         let mut ctx = Ctx { game, assets: &assets };
-        machine.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+        machine.handle(l2_game::screens::map::END_TURN_BUTTON.click(), &mut ctx);
     }
     assert!(l2_game::turn::turn_in_flight(game), "End Turn started a turn");
 

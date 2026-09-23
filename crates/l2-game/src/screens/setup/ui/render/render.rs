@@ -412,6 +412,8 @@ impl SetupScreen {
                     crate::victory::Track::First
                 };
                 self.campaign = true;
+                // Setup_ChooseCampaign 0x00433461, 00430000.c:892-897: both globals, before any game.
+                ctx.game.prefs.kept.remember(&crate::victory::Campaign::new(self.track));
                 self.go(SetupPage::Shield)
             }
             (SetupPage::GameType, 0) => self.go(SetupPage::Shield),
@@ -544,7 +546,15 @@ impl SetupScreen {
     /// the table and [`crate::victory::CampaignMap::settings`] is the rest of
     /// `Campaign_LoadEntry`.
     fn start_campaign(&mut self, ctx: &mut Ctx) -> Transition {
-        let campaign = crate::victory::Campaign::new(self.track);
+        self.start_campaign_row(ctx, crate::victory::Campaign::new(self.track))
+    }
+
+    /// Setup_StartGame 0x004329EC on `campaign`'s row; screen 0x1C's arm reaches it too.
+    pub(crate) fn start_campaign_row(
+        &mut self,
+        ctx: &mut Ctx,
+        campaign: crate::victory::Campaign,
+    ) -> Transition {
         let Some(row) = campaign.current() else {
             self.failure = Some("the campaign has no first map".into());
             return Transition::Stay;

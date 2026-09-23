@@ -85,7 +85,7 @@ pub(super) fn end_turn(machine: &mut Machine, game: &mut Game, assets: &Assets) 
     let before = game.kingdom.turn_count;
     {
         let mut ctx = Ctx { game: &mut *game, assets };
-        machine.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+        machine.handle(l2_game::screens::map::END_TURN_BUTTON.click(), &mut ctx);
     }
     for _ in 0..4_000 {
         if game.kingdom.turn_count > before {
@@ -191,7 +191,7 @@ pub(crate) fn drawn_variant(game: &mut Game, assets: &Assets, tile: usize, far: 
     let mut screen = MapScreen::new();
     if far {
         let mut ctx = Ctx { game: &mut *game, assets };
-        screen.handle(Event::KeyDown(Key::letter('z')), &mut ctx);
+        screen.handle(l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click(), &mut ctx);
         assert_eq!(screen.zoom().id, campaign::FAR.id, "Z zooms out");
     } else {
         screen.centre_on_tile(x, y);

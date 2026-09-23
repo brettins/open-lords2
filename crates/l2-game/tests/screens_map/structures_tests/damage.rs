@@ -55,7 +55,7 @@ fn a_burnt_dwelling_carries_the_damage_animation_at_its_offset() {
         "frame 0x28 + counter at {at:?}; found {found:?}"
     );
 
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    send(&mut screen, &mut game, &assets, l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click());
     assert_eq!(screen.zoom().id, campaign::FAR.id);
     let far = draw(&mut screen, &mut game, &assets);
     assert!(damage_at(&far, &assets, &screen).is_empty(), "arm 3 returns at g_mapZoom == 2");

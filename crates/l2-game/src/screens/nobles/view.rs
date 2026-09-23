@@ -92,7 +92,8 @@ impl Screen for NoblesScreen {
 
         for (slot, &realm) in COLUMN_REALM.iter().enumerate() {
             let Some(r) = ctx.game.kingdom.realms.get(realm as usize) else { continue };
-            if !r.in_play {
+            // Screen_GreatestNoble 0x0041593B: `if (g_realms[iVar1].strength != 0)` [V].
+            if r.strength == 0 {
                 continue;
             }
             let x = COLUMN_X[slot];

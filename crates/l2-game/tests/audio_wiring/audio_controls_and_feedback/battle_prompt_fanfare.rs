@@ -83,7 +83,7 @@ fn a_march_into_the_enemy(platform: &l2_mods::Platform) -> (bool, Vec<String>) {
     let mut director = audio::Director::welcomed();
     director.listen(&mut audio, &machine, &game);
 
-    send(&mut machine, &mut game, &assets, Event::KeyDown(Key::letter('e')));
+    send(&mut machine, &mut game, &assets, l2_game::screens::map::END_TURN_BUTTON.click());
     let mut opened = false;
     for _ in 0..400 {
         {

@@ -79,7 +79,7 @@ fn a_soldier_walks_over_and_takes_the_weapon() {
         m.update(&mut ctx);
     };
 
-    send(&mut m, &mut g, Event::KeyDown(l2_game::input::Key::letter('r')));
+    send(&mut m, &mut g, l2_game::screens::map::SIDEBAR_BUTTONS[0].rect().click());
     tick(&mut m, &mut g);
     send(
         &mut m,

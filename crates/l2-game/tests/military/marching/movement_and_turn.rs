@@ -137,7 +137,7 @@ fn the_end_of_a_turn_fades_the_screen_down_and_back_up() {
 
     assert_eq!(s.fade(), None, "no fade before the turn");
     let mut ctx = Ctx { game: &mut g, assets: &a };
-    s.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+    s.handle(l2_game::screens::map::END_TURN_BUTTON.click(), &mut ctx);
     assert_eq!(s.fade(), None, "and none while the phase machine is still running");
 
     let mut seen: Vec<u8> = Vec::new();

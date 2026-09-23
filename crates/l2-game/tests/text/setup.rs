@@ -58,7 +58,9 @@ fn the_field_takes_the_keys_the_menu_would_otherwise_spend() {
     let mut title = SetupScreen::new(SetupPage::Title);
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     let t = title.handle(Event::KeyDown(Key::Char('I')), &mut ctx);
-    assert!(matches!(t, Transition::Push(_)), "the title page still has its keyboard");
+    assert_eq!(t, Transition::Stay, "I no longer opens the developer index");
+    let t = title.handle(Event::KeyDown(Key::CtrlChar('D')), &mut ctx);
+    assert!(matches!(t, Transition::Push(_)), "Ctrl+D opens it");
 }
 
 

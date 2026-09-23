@@ -137,7 +137,7 @@ impl Screen for ArmouryScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             Event::RightClick { .. } => Transition::Pop,
-            Event::KeyDown(Key::Enter) => self.confirm(ctx, true),
+            // App_WndProc 0x004B29BE routes no arrow/Enter/letter to this screen [V].
             Event::Click { x, y } => {
                 if OK.contains(x, y) {
                     return Transition::Pop;

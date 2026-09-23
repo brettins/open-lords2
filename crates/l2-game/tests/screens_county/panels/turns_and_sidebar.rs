@@ -130,7 +130,7 @@ fn four_turns_run_through_the_machine_and_the_panel_keeps_up() {
     let mut ctx_seasons = Vec::new();
     for _ in 0..4 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        m.handle(Event::KeyDown(Key::Char('E')), &mut ctx);
+        m.handle(l2_game::screens::map::END_TURN_BUTTON.click(), &mut ctx);
         let before = game.kingdom.turn_count;
         let mut done_at = None;
         for n in 1..2_000u32 {

@@ -31,7 +31,7 @@ fn the_raise_army_screen_keeps_the_armourys_colours_behind_its_first_tip() {
     g.selected = 1;
 
     let mut m = Machine::new(ScreenId::Campaign);
-    send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('r')));
+    send(&mut m, &mut g, &a, l2_game::screens::map::SIDEBAR_BUTTONS[0].rect().click());
     tick(&mut m, &mut g, &a);
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
     let (_, before) = frame(&mut m, &mut g, &a);
@@ -173,7 +173,7 @@ fn a_page_change_between_the_draw_and_the_present_would_flash() {
     let mut drawn = vec![0u8; 640 * 480 * 4];
     m.present(&a, &canvas, &mut drawn);
 
-    send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('r')));
+    send(&mut m, &mut g, &a, l2_game::screens::map::SIDEBAR_BUTTONS[0].rect().click());
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)), "the page changed, the canvas did not");
     assert!(m.take_dirty(), "and the change marked the machine dirty - what the guard keys on");
 

@@ -222,6 +222,10 @@ impl Rect {
     pub fn centre_x(&self) -> i32 {
         self.x + self.w / 2
     }
+
+    pub fn click(&self) -> Event {
+        Event::Click { x: self.x + self.w / 2, y: self.y + self.h / 2 }
+    }
 }
 
 #[cfg(test)]
