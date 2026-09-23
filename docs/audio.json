@@ -160,10 +160,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_ff_lose_wav_004de8f8,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battle verdict. Both arms play ff_lose.wav to the side that did NOT lose, so this needs to know who won; the BattleReport travels inside turn::TurnStep::Report and is never parked on the Game, so Director cannot see it. See audio::names::fanfare::AFTER_BATTLE."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "ff_lose.wav",
+      "note": "audio::after_battle, heard by Director::listen when turn::battle::record files a report (TurnProgress::battle_reports grows). Effects switch, drop-if-busy, when the local player owns the side that did not lose: loser == A plays to B.owner, loser == B to A.owner."
     },
     {
       "id": "Battle_ReturnToCampaign#2",
@@ -171,10 +171,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_ff_lose_wav_004de904,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battle verdict. Both arms play ff_lose.wav to the side that did NOT lose, so this needs to know who won; the BattleReport travels inside turn::TurnStep::Report and is never parked on the Game, so Director cannot see it. See audio::names::fanfare::AFTER_BATTLE."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "ff_lose.wav",
+      "note": "As #1, the loser == B arm."
     },
     {
       "id": "Battle_Start#1",

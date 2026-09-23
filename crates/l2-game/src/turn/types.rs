@@ -156,3 +156,9 @@ pub struct TurnProgress {
     pub(super) unseen: Option<BattleReport>,
 }
 
+impl TurnProgress {
+    pub fn battle_reports(&self) -> &[BattleReport] {
+        &self.reports
+    }
+}
+

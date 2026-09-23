@@ -83,6 +83,13 @@ pub fn lord_sting(record: &crate::message::Record, timer: i32, lord: u8, animati
     LORD_STING.get((lord as usize).checked_sub(1)?).copied()
 }
 
+/// `Battle_ReturnToCampaign` (`0x004AB383`)'s two `Sound_PlayFile(ff_lose.wav, 0, 0)`:
+/// the local player owns the side that did **not** lose. `[V]` 004a0000.c:4716..4771.
+pub fn after_battle(attacker_won: bool, attacker: u8, defender: u8, player: u8) -> Option<&'static str> {
+    let winner = if attacker_won { attacker } else { defender };
+    (winner == player).then_some(names::fanfare::AFTER_BATTLE)
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Request {
     /// `Sound_PlaySlot(n)`, or its 28-byte thunk `FUN_004262CF(n)` — a
