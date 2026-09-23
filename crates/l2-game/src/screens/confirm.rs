@@ -184,7 +184,7 @@ impl Screen for ConfirmScreen {
         true
     }
 
-    // [V] Screen_HandleInput `004b0000.c:7311` runs Widget_Test over g_confirmWidgets; kind 5
+    // [V] Screen_HandleInput 0x004BA9C8 `004b0000.c:7311` runs Widget_Test over g_confirmWidgets; kind 5
     // plays Sound_RestartSlot(1) (`00400000.c:7627`), Press::press_delayed's click.
     fn take_clicks(&mut self) -> u8 {
         self.press.take_clicks()
