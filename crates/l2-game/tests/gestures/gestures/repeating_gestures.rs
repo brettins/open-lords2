@@ -98,7 +98,7 @@ fn a_held_tax_arrow_shows_every_step_before_the_release() {
             .count()
     };
     let mut shown = Canvas::screen();
-    let mut present = |m: &mut Machine, g: &mut Game, shown: &mut Canvas| {
+    let present = |m: &mut Machine, g: &mut Game, shown: &mut Canvas| {
         if m.take_dirty() {
             let ctx = Ctx { game: g, assets: &a };
             m.draw(&ctx, shown);

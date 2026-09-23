@@ -1,18 +1,15 @@
 
 mod session_tests;
-pub use session_tests::*;
 mod flow_tests;
-pub use flow_tests::*;
 mod divergence_tests;
-pub use divergence_tests::*;
 
 #[path = "../common/mod.rs"]
 mod common;
 
 use common::{Order, ToySim};
 use l2_net::{
-    decode_all, frame, Advance, Canonical, Config, Endpoint, FrameReader, HaltReason, Loopback,
-    Message, PeerId, PlayerSlot, Fixed, Session, SessionError, Tick, Transport,
+    decode_all, frame, Advance, Canonical, Config, Endpoint, FrameReader, Loopback,
+    Message, PeerId, PlayerSlot, Session, SessionError, Tick, Transport,
 };
 
 struct Peer {

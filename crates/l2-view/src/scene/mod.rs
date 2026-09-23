@@ -32,13 +32,14 @@ mod render;
 pub use render::*;
 
 use l2_formats::Palette;
-use l2_sim::runner::{BattleRunner, Fighter};
-use l2_sim::terrain::{Battlefield, DIM};
+#[cfg(test)]
+use l2_sim::runner::BattleRunner;
+use l2_sim::terrain::DIM;
 use l2_sim::{Troop, SIDE_A};
 
-use crate::canvas::{Canvas, Clip};
+use crate::canvas::Clip;
 use crate::engines;
-use crate::figures::{self, Anim, Colour};
+use crate::figures::{self, Colour};
 use crate::missiles;
 use crate::sheet::Sheet;
 

@@ -5,25 +5,15 @@
 mod common;
 
 mod field_panel;
-pub use field_panel::*;
 mod tile_panel_part;
-pub use tile_panel_part::*;
 mod unit_insets;
 
 use common::*;
 
 use l2_game::game::Assets;
-use l2_game::input::Event;
-use l2_game::input::Key;
-use l2_game::screen::Ctx;
-use l2_game::screen::Machine;
-use l2_game::screen::ScreenId;
-use l2_game::screens::map;
 use l2_game::screens::map::MapScreen;
-use l2_game::shell::font;
 use l2_game::Game;
 use l2_view::campaign;
-use l2_view::Canvas;
 
 fn visible_field(
     game: &mut Game,

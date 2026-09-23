@@ -31,14 +31,19 @@ pub use split_part::*;
 mod disband_part;
 pub use disband_part::*;
 
+#[cfg(test)]
 use crate::county::{County, MAX_COUNTIES};
-use crate::map::{flags, CampaignMap};
+#[cfg(test)]
+use crate::map::CampaignMap;
+#[cfg(test)]
 use crate::mercenary::MercenaryBands;
+#[cfg(test)]
 use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
 use crate::unit::{
-    ArmyNames, Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNIT_ID, TROOP_TYPES,
+    Mercenaries, TroopType, Unit, TROOP_TYPES,
 };
+#[cfg(test)]
+use crate::unit::{ArmyNames, UnitKind, Units};
 
 /// `FUN_00437FD7`'s `movesUsed += 5` on **both** halves of a plain split.
 ///

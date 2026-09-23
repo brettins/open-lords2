@@ -233,7 +233,7 @@ fn screens_change_the_world_only_through_commands() {
     assert!(hits.is_empty(), "issue a crate::command order instead:\n{}", hits.join("\n"));
 }
 
-fn seated_question(attacker_owner: u8, defender_owner: u8) -> Game {
+pub(super) fn seated_question(attacker_owner: u8, defender_owner: u8) -> Game {
     let mut g = Game::new(5);
     g.kingdom.set_county_count(3);
     g.seats = vec![(PlayerSlot::new(0), 1), (PlayerSlot::new(1), 2)];

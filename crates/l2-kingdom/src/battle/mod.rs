@@ -12,10 +12,13 @@ pub use settlement::*;
 mod campaign;
 pub use campaign::*;
 
+#[cfg(test)]
 use crate::county::{County, MAX_COUNTIES};
-use crate::math::pct;
+#[cfg(test)]
 use crate::realm::{Realm, MAX_REALMS};
+#[cfg(test)]
 use crate::tables::Tables;
+#[cfg(test)]
 use crate::unit::{ArmyNames, Unit, Units, TROOP_TYPES};
 
 

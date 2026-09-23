@@ -77,13 +77,10 @@
 mod view;
 pub use view::*;
 
-use l2_kingdom::siege::{self, Engine, ENGINES, ENGINE_ORDER_CAP};
-use l2_view::{text, Canvas};
+#[cfg(test)]
+use l2_kingdom::siege::{self, ENGINES, ENGINE_ORDER_CAP};
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Face, Pen};
-use crate::widget;
+use crate::input::Rect;
 
 /// **`L2.eng` group 83.** Verified against the *words*, not against the indices
 /// existing: index 0 is *"Siege preparations."* and 1…3 are *"Catapults"*,

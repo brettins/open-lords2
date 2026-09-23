@@ -262,11 +262,8 @@
 //! page 12: **[not reproduced]**, `front-end-pages` in `docs/arms.json`.
 
 mod helpers_part;
-pub use helpers_part::*;
 mod constants_part;
-pub use constants_part::*;
 mod ui_part;
-pub use ui_part::*;
 pub mod skirmish;
 mod page;
 pub use page::*;
@@ -275,21 +272,14 @@ pub use screen::*;
 mod constants;
 pub use constants::*;
 mod helpers;
-pub use helpers::*;
+use helpers::*;
 mod ui;
 pub use ui::*;
 
-use helpers::*;
-use constants::*;
-use ui::*;
 
-use l2_view::Canvas;
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::setup::SetupOptions;
-use crate::shell::{self, font, Pen};
-use crate::text::{self, TextField};
+#[cfg(test)]
+use crate::input::Rect;
 
 /// `L2.eng` group 11 — the front end's own strings, from index 0
 /// *"Lords of the Realm 2"* to index 49.

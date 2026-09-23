@@ -128,20 +128,11 @@
 mod raise_part;
 pub use raise_part::*;
 mod raise;
-pub use raise::*;
 
-use raise::*;
 
-use l2_kingdom::mercenary::ROSTER;
-use l2_kingdom::unit::TroopType;
-use l2_view::{text, Canvas};
 
-use crate::input::{Event, Key, Rect};
-use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::input::Rect;
 use crate::screens::armoury;
-use crate::shell::{self, font, Pen};
-use crate::widget;
 
 /// `L2.eng` group 69 — this screen's own text, shared with the armoury.
 pub const GROUP: usize = 69;

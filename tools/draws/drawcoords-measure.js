@@ -6,6 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const sd = require('./screendraws.js');
+const cp = require('./constprop.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 /** Manhattan pixels. Beyond this, two points are two different things. */
@@ -18,7 +19,7 @@ const NEAR = 24;
 // deliberately *not* treated as a width, because they are not pixels.
 function positions(params) {
   const at = name => params.findIndex(p => p === name);
-  const x = at('x'), y = at('y');
+  const x = at('x') < 0 ? at('ox') : at('x'), y = at('y') < 0 ? at('oy') : at('y'); // canvas.blit(frame, ox, oy)
   if (x < 0 || y < 0) return null;
   let w = at('width');
   if (w < 0) w = at('w');
@@ -45,9 +46,20 @@ const ORIG_NOSIG = new Set(); // a leaf whose argument positions are unknown
   // Case-folded too: the decompiler writes `FUN_0040328e` and every document
   // writes `FUN_0040328E`, so an exact lookup finds neither from the other.
   for (const r of rows) if (r.name && r.signature) sigs.set(r.name.toLowerCase(), r.signature);
+  // Unnamed leaves with no signature: (x, y) argument indices read from the body.
+  const READ = {
+    fun_004093e0: 0x0001, // [V] Ui_DrawBoxBorder(1,param_1,param_2,...)
+    fun_00409346: 0x0102, // [V] Sprite_GenFrame(param_1,0,param_2,param_3)
+    fun_004025d7: 0x0102, // [V] Ui_DrawText(param_1,local_c + param_2,param_3,...)
+    fun_0040437d: 0x0001, // [I] guards 0 < param_3 && 0 < param_4: the width and height follow
+    fun_00403a8f: 0x0001, // [I] FUN_004037ee(p1,p2,p3,p4); if (param_3 == param_1): two points
+    sprite_wgensprite: 0x0102, // [I] a is the sprite (a * 0x10 into the table); b, c follow
+  };
   for (const leaf of sd.LEAF) {
     const sig = sigs.get(leaf.toLowerCase());
-    const p = sig ? positions(cParams(sig) || []) : null;
+    const r = READ[leaf.toLowerCase()];
+    const p = sig ? positions(cParams(sig) || [])
+      : r === undefined ? null : { x: r >> 8, y: r & 0xff, w: null };
     if (p) ORIG_POS.set(leaf, p); else ORIG_NOSIG.add(leaf);
   }
 })();
@@ -171,9 +183,11 @@ function originalPoints(roots) {
     const p = ORIG_POS.get(s.name);
     if (!p) { blind.push({ why: 'no coordinate in the signature', ...s }); continue; }
     if (!s.args) { blind.push({ why: 'unparsed argument list', ...s }); continue; }
-    const x = value(s.args[p.x]), y = value(s.args[p.y]);
+    const fn = sd.lookup(s.from), env = fn ? cp.locals(fn) : new Map();
+    const at = a => { const v = value(a); return v !== null ? v : cp.evaluate(a, env); };
+    const x = at(s.args[p.x]), y = at(s.args[p.y]);
     if (x === null || y === null) { blind.push({ why: 'computed', ...s }); continue; }
-    const w = p.w === null ? null : value(s.args[p.w]);
+    const w = p.w === null ? null : at(s.args[p.w]);
     pts.push({ x, y, w, name: s.name, from: s.from, text: s.text });
   }
   return { pts, blind };

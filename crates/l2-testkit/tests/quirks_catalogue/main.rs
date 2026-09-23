@@ -5,10 +5,7 @@
 //!    `docs/bugs.md` §6.3, `docs/decisions.md` C62.
 
 mod quirks;
-pub use quirks::*;
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Disposition {

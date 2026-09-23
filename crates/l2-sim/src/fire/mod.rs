@@ -27,11 +27,9 @@ pub use woodland::*;
 mod burn_part;
 pub use burn_part::*;
 mod tests_part;
-pub use tests_part::*;
 
-use crate::figure::{Figure, State};
-use crate::missile::{Missile, Missiles, CLASS_FIRE, CLASS_OIL, SUB_CELL};
-use crate::terrain::{Battlefield, DIM};
+use crate::missile::{Missile, CLASS_FIRE, SUB_CELL};
+use crate::terrain::DIM;
 
 pub const SURFACE_BRIDGE: u8 = 7;
 pub const SURFACE_BURNING: u8 = 10;

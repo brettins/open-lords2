@@ -73,7 +73,6 @@
 //! with the reason written down.
 
 mod impls;
-pub use impls::*;
 
 use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 

@@ -29,7 +29,7 @@ pub(super) fn outline_rect(canvas: &mut Canvas, r: Rect, colour: u8) {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum Action {
+pub(crate) enum Action {
     Item(usize),
     Open(usize),
     Choose(usize),
@@ -38,7 +38,7 @@ pub(super) enum Action {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum SkirmishArm {
+pub(crate) enum SkirmishArm {
     /// `FUN_0043D929`, hotspot 0…5.
     Row(usize),
     /// `FUN_0043D9CD`, hotspot −1 and 1.

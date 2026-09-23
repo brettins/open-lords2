@@ -99,15 +99,9 @@ pub use helpers::*;
 mod screen;
 pub use screen::*;
 mod tests;
-pub use tests::*;
 
-use l2_view::{text, Canvas};
 
-use crate::input::{Event, Key, Rect};
-use crate::press::{Press, Widget};
-use crate::saves::{self, Entry};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
+use crate::input::Rect;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Mode {

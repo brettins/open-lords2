@@ -43,10 +43,7 @@ pub use player::*;
 mod subtitles;
 pub use subtitles::*;
 
-use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 
-use l2_smk::{Decoder, Smk};
 
 use crate::message::Record;
 use crate::screen::{Machine, ScreenId, Transition};

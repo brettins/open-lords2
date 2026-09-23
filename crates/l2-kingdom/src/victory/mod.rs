@@ -51,13 +51,8 @@ pub use ranking::*;
 mod outcome;
 pub use outcome::*;
 mod tests_part;
-pub use tests_part::*;
 
-use crate::county::{County, MAX_COUNTIES};
-use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
-use crate::unit::{UnitKind, Units};
-use l2_net::{Quirk, Quirks};
+use crate::realm::Realm;
 
 /// `L2.eng` group 194 — *"Foiled again."*, an **AI** realm has been eliminated.
 pub const MSG_AI_ELIMINATED: u16 = 194;

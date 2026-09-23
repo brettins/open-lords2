@@ -30,9 +30,7 @@
 mod glyph;
 pub use glyph::*;
 
-use l2_formats::DecodedFrame;
 use l2_view::sheet::Sheet;
-use l2_view::Canvas;
 
 pub const GLYPH_MAP_VA: u32 = 0x004D_71F0;
 

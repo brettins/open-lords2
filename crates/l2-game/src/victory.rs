@@ -184,6 +184,26 @@ impl Track {
     }
 }
 
+/// `DAT_0055302C`: Setup_ChooseCampaign 0x00433461 00430000.c:891 sets 1, FUN_00432CC8
+/// :646 2 (custom) and :658 3 (skirmish), FUN_00432B05 :558 2. Save block 197. [V]
+/// `Unchosen` is 0, the value before any setup page [I].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GameType {
+    #[default]
+    Unchosen = 0,
+    Campaign = 1,
+    Custom = 2,
+    Skirmish = 3,
+}
+
+impl GameType {
+    pub fn from_value(v: u8) -> Option<GameType> {
+        [GameType::Unchosen, GameType::Campaign, GameType::Custom, GameType::Skirmish]
+            .get(v as usize)
+            .copied()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Campaign {
     /// `DAT_0053F640`.

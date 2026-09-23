@@ -33,10 +33,10 @@ mod view;
 pub use view::*;
 
 mod tests;
-pub use tests::*;
+#[cfg(test)]
+mod landing_tests;
 
-use l2_sim::runner::{BattleRunner, Conclusion, Formation};
-use l2_sim::terrain::DIM;
+use l2_sim::runner::{BattleRunner, Conclusion};
 
 use crate::input::Rect;
 
@@ -345,6 +345,8 @@ pub struct LiveBattle {
     pub deferred: bool,
     /// not-encoded: this seat's clicks awaiting their tick; the commands carry them.
     pub outbox: Vec<BattleOp>,
+    /// not-encoded: what this seat does when its queued op lands. [`Follow`].
+    pub awaiting: std::collections::VecDeque<(BattleOp, Follow)>,
 }
 
 /// `g_optScrollSpeed`'s default, written by the options-defaults routine at

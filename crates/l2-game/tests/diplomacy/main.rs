@@ -5,19 +5,13 @@
 //! other direction — see `docs/decisions.md` C62 and `tests/ai_war.rs`.
 
 mod dialog_flow;
-pub use dialog_flow::*;
 mod offers_and_requests;
-pub use offers_and_requests::*;
 mod letters;
-pub use letters::*;
 
 use l2_game::game::Assets;
 use l2_game::input::Event;
-use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
-use l2_game::screens::diplomacy::{self, DiplomacyScreen, Menu};
+use l2_game::screen::{Ctx, Machine};
 use l2_game::Game;
-use l2_kingdom::diplomacy::Kind;
-use l2_view::Canvas;
 
 pub(crate) fn world() -> (Game, Assets) {
     let mut g = Game::new(5);

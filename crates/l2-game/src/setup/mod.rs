@@ -45,14 +45,11 @@
 mod tables;
 pub use tables::*;
 mod setup_options;
-pub use setup_options::*;
 mod settings;
 pub use settings::*;
 
-use l2_kingdom::realm::MAX_REALMS;
 use l2_kingdom::unit::TROOP_TYPES;
 
-use crate::game::Game;
 
 pub const OPTION_COUNT: usize = 12;
 

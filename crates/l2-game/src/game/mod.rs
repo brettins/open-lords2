@@ -24,21 +24,11 @@ pub use unit_frames::*;
 mod levy;
 pub use levy::*;
 mod game_methods;
-pub use game_methods::*;
 
-use l2_formats::maps::{MapSet, MapSlot};
-use l2_formats::Palette;
-use l2_kingdom::county::{LABOUR_CEILING_IGNORED, MAX_COUNTIES};
+use l2_kingdom::county::MAX_COUNTIES;
 use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::JOB_IDLE_TOWNSFOLK;
 use l2_kingdom::{Kingdom, SeasonReport};
-use l2_mods::vfs::Vfs;
-use l2_view::campaign::{self, MapAssets};
-use l2_view::chrome::{Chrome, Minimap};
-use l2_view::village::VillageArt;
-use l2_view::Ink;
 
-use crate::shell::ShellAssets;
 
 /// The highest tax rate the interface will set.
 ///
@@ -457,6 +447,8 @@ pub struct Game {
     /// counter, which is exactly the line between "the world" and "the session
     /// playing through it". See [`crate::victory`].
     pub campaign: crate::victory::Campaign,
+    /// `DAT_0055302C`, saved (block 197). [`crate::victory::GameType`].
+    pub game_type: crate::victory::GameType,
     /// **What to answer *"Will you take the field?"* when nobody is asked.**
     ///
     /// [`crate::turn::end_turn`] is the headless door and cannot raise a screen,

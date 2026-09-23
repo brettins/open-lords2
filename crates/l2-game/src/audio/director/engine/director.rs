@@ -124,7 +124,7 @@ impl Director {
             //
             // sfx: Battle_BeginFromCampaign#1,Battle_BeginFromCampaign#2,Battle_BeginFromCampaign#3,FUN_004a6c68#1,FUN_004a6c68#2,FUN_004a6c68#3,Siege_LaunchAssault#1,Siege_LaunchAssault#2,Siege_LaunchAssault#3
             if let Some(q) = crate::turn::pending_question(game) {
-                if let Some(&name) = names::speech::BATTLE_PROMPT.get(q.choice_owner as usize) {
+                if let Some(&name) = names::speech::BATTLE_PROMPT.get(q.choice_for(game, game.player) as usize) {
                     audio.play_file(name, true);
                 }
             }
@@ -290,7 +290,7 @@ impl Director {
         // `Panel_SplitButton` (`0x004378B3`) and `Msg_GarrisonSplitClicked`
         // (`0x004376BB`), both `Sound_PlayFile("S017_01.wav", 1, 0)` as they open 0x11.
         //
-        // sfx: Panel_SplitButton#1,FUN_004376bb#1
+        // sfx: Panel_SplitButton#1,Msg_GarrisonSplitClicked#1
         if opened(&|id| matches!(id, ScreenId::Divide(_) | ScreenId::DivideCastle(..))) {
             audio.play_file(names::speech::SPLIT_ARMY, true);
         }
@@ -420,7 +420,7 @@ impl Director {
         // bump — and **not** a diff on the category, which would swallow a
         // tab pressed twice and an open that did not change it.
         //
-        // sfx: FUN_004b3994#1
+        // sfx: Speech_PlayStandingsCategory#1
         if self.nobles_spoken != Some(game.nobles_spoken) {
             if self.nobles_spoken.is_some() {
                 if let Some(name) =
@@ -559,7 +559,7 @@ impl Director {
     /// `AI_ChooseIndustry`'s rota, which never runs on a county the local player
     /// owns.
     ///
-    // sfx: FUN_0043a997#1
+    // sfx: Blacksmith_SetWeaponType#1
     fn hear_the_smithy(&mut self, audio: &mut Audio, game: &crate::Game) {
         let now: Vec<usize> = game.kingdom.counties.iter().map(|c| c.weapon_type).collect();
         if self.weapons.len() == now.len() {

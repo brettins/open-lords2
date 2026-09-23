@@ -2,7 +2,7 @@
 mod decode;
 pub use decode::*;
 mod bitstream;
-pub use bitstream::*;
+use bitstream::*;
 mod audio;
 pub use audio::*;
 

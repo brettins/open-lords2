@@ -4,8 +4,6 @@ pub use frame_part::*;
 mod loopback;
 pub use loopback::*;
 
-use std::collections::VecDeque;
-use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PeerId(pub u32);

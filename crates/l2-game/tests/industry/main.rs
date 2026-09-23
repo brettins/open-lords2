@@ -8,12 +8,9 @@
 use std::path::PathBuf;
 
 use l2_game::game::Assets;
-use l2_game::scenario;
 use l2_game::screen::{Ctx, Screen};
 use l2_game::screens::map::MapScreen;
-use l2_kingdom::industry::MapToggle;
-use l2_kingdom::tables::{Commodity, Tables};
-use l2_mods::Platform;
+use l2_kingdom::tables::Commodity;
 
 fn install() -> Option<PathBuf> {
     l2_testkit::install_dir()
@@ -33,9 +30,7 @@ macro_rules! world {
 }
 
 mod wheel_rates;
-pub use wheel_rates::*;
 mod visual_effects;
-pub use visual_effects::*;
 
 /// ```c
 /// n = county.industry[k].total - county.industry[k].totalSnapshot;

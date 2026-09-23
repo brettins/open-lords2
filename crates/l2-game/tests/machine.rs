@@ -260,3 +260,21 @@ fn the_machine_reports_dirty_after_input_and_clean_after_a_quiet_tick() {
     }
     assert!(!m.take_dirty(), "a tick in which no screen asked for anything is not a repaint");
 }
+
+/// Screen_FrameInput 0x0042FF10's force_close, on a network seat: the shared clock's
+/// Turn_End latch closes the seat's panel. Ablation: the `close_on_turn_end` call in
+/// `Machine::update`'s lockstep arm.
+#[test]
+fn a_network_seats_panel_closes_when_the_shared_turn_ends() {
+    use l2_game::turn_clock::{Frame, TurnState};
+    let (mut game, assets) = world();
+    game.net.lockstep = true;
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Court);
+    m.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(m.top_id(), Some(ScreenId::Court), "a live turn closes nothing");
+    game.turn_clock.tick(Frame { limit: 30, turn: TurnState::Ended, battle: false });
+    assert!(game.turn_clock.force_close());
+    m.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(m.ids(), vec![ScreenId::Campaign], "screen 0x09 is in the force-close table");
+}

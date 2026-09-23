@@ -110,7 +110,6 @@
 mod score_part;
 pub use score_part::*;
 mod render;
-pub use render::*;
 mod master;
 pub use master::*;
 mod rank;
@@ -121,7 +120,7 @@ pub mod score_dat;
 
 use l2_view::Canvas;
 
-use crate::input::{Event, Key, Rect};
+use crate::input::{Event, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
 

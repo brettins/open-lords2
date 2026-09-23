@@ -12482,3 +12482,7 @@ A closed connection or sixty seconds of silence (`net::TIMEOUT`, `[I]` ours) hal
 **C241 — *Start game help* opens our own help window, not Windows'.**
 
 `Opt_GameHelpContents` (`0x00434942`, Help options row 3) is one call, `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)`: the viewer is Windows', and `winhlp32` has not shipped since Vista. Ours reads `L2help.hlp` itself (`l2-formats/src/hlp.rs`: text, the 0xE2/0xE3 hotspots, `|CONTEXT`; `[V]` 168 of 168 context offsets land on a topic header) and shows a topic in the game's window, body font and the save box's scroll arrows (System.pl8 35/37), with OK and a Back labelled `L2.eng` 11/9. All of it is `[D]`: no function of the binary draws a help viewer. Scrolling is by the arrows only, as nothing in the original scrolls by wheel or key. A popup hotspot (0xE2) opens its topic like a jump; fonts and the 41 bitmaps are not drawn. The DOS release has no `L2help.hlp`, and the screen closes at once. `g_screenId` stays `0x31` under WinHelp, so tooltips and the tip view read `ScreenId::Help` as `0x31` `[I]`.
+
+**C242 — The developer screen index opens on Ctrl+D, not I.**
+
+The index (`screens/index.rs`) is ours, not the original's: `App_WndProc` (`0x004B29BE`) routes no key to it. On the front end it was on `I`, which took a letter from the page-4 name field (`Screen_HandleInput` raises `g_editActive` `0x005AEB78` there). Ctrl+D types no letter, so the name field loses none; that the original binds nothing to it on the front end is `[I]`, not read. `[D]`, a developer aid; arm `ours/setup-key-index`.

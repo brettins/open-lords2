@@ -1,11 +1,9 @@
 
 mod lobby;
-pub use lobby::*;
 mod codec;
 pub use codec::*;
 
-use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
-use crate::command::{PlayerSlot, MAX_PLAYERS};
+use crate::command::PlayerSlot;
 use crate::packet::{Hello, Mismatch};
 use crate::transport::PeerId;
 

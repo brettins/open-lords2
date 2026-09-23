@@ -5,6 +5,7 @@
 //   node tools/decisions/corrections.js --relock        accept the current citations (rules 3, 5)
 //   node tools/decisions/corrections.js --assign TAG    number one placeholder across the whole tree
 //
+//   --at REV     check a commit (HEAD after a merge) or `index`, not the worktree
 //   --root DIR   run against another tree instead of this checkout. The tests
 //                in crates/l2-testkit/tests/corrections_tool.rs build small
 //                trees and point the tool at them.
@@ -66,13 +67,44 @@ const option = name => {
   return i < 0 ? undefined : (argv[i + 1] === undefined || argv[i + 1].startsWith('--') ? '' : argv[i + 1]);
 };
 
-const repo = option('--root') ? path.resolve(option('--root')) : path.resolve(__dirname, '..', '..');
+const at = option('--at');
+const tree = option('--root') ? path.resolve(option('--root')) : path.resolve(__dirname, '..', '..');
+const repo = at ? materialise(tree, at) : tree;
 const lockPath = path.join(repo, 'tools', 'decisions', 'citations.lock');
 const check = argv.includes('--check');
 const relock = argv.includes('--relock');
 const assignTag = option('--assign');
 
-const fail = m => { console.error('corrections: ' + m); process.exit(1); };
+function fail(m) { console.error('corrections: ' + m); process.exit(1); }
+
+// Row assign-gate-reads-worktree: `--at HEAD` (any rev) or `--at index` checks
+// what a commit holds, not the working tree a merge left behind.
+function materialise(base, rev) {
+  if (argv.includes('--assign') || argv.includes('--relock')) fail('--at reads a snapshot; it cannot --assign or --relock');
+  const { execFileSync } = require('child_process');
+  const dir = fs.mkdtempSync(path.join(require('os').tmpdir(), 'l2-corrections-at-'));
+  const idx = dir + '.index';
+  process.on('exit', () => { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(idx, { force: true }); });
+  const git = (args, env = {}) =>
+    execFileSync('git', args, { cwd: base, env: { ...process.env, ...env }, stdio: ['ignore', 'pipe', 'pipe'] });
+  const prefix = '--prefix=' + dir.replace(/\\/g, '/') + '/';
+  try {
+    if (rev === 'index') git(['checkout-index', '-a', prefix]);
+    else {
+      git(['read-tree', rev], { GIT_INDEX_FILE: idx });
+      git(['checkout-index', '-a', prefix], { GIT_INDEX_FILE: idx });
+    }
+  } catch (e) {
+    fail(`--at ${rev}: git could not write it out: ${String(e.stderr || e.message).trim()}`);
+  }
+  return dir;
+}
+
+// Row assign-refuses-conflicted-log: a half-merged log numbers nothing.
+function refuseConflicts(file, text) {
+  const i = text.split(/\r?\n/).findIndex(l => /^(<{7}|>{7})( |$)|^={7}$/.test(l));
+  if (i >= 0) fail(`${file}:${i + 1} holds a merge conflict marker. Resolve the merge first; nothing was changed.`);
+}
 
 // ---- the numbered series ---------------------------------------------------
 //
@@ -157,7 +189,9 @@ function readLogs() {
   for (const log of LOGS) {
     const abs = path.join(repo, log.file);
     if (!fs.existsSync(abs)) fail(`${log.file} is missing, and it is one of the two logs this tool numbers`);
-    const lines = fs.readFileSync(abs, 'utf8').split(/\r?\n/);
+    const raw = fs.readFileSync(abs, 'utf8');
+    refuseConflicts(log.file, raw);
+    const lines = raw.split(/\r?\n/);
     lines.forEach((L, i) => {
       for (const form of log.forms) {
         const m = form.re.exec(L);
@@ -425,7 +459,9 @@ const LOCK_HEADER = [
 
 function readLock() {
   if (!fs.existsSync(lockPath)) return null;
-  const lines = fs.readFileSync(lockPath, 'utf8').split(/\r?\n/).filter(l => l && !l.startsWith('#'));
+  const raw = fs.readFileSync(lockPath, 'utf8');
+  refuseConflicts('tools/decisions/citations.lock', raw);
+  const lines = raw.split(/\r?\n/).filter(l => l && !l.startsWith('#'));
   const number = new Map();
   const heading = new Map();
   for (const l of lines) {
@@ -650,6 +686,17 @@ function replaceBytes(buf, tag, id) {
   return { out: Buffer.concat(parts), count };
 }
 
+// Row assign-gate-reads-worktree: `git merge --no-commit` has staged the index,
+// and the commit takes the index, so what --assign wrote is staged with it.
+function stageDuringMerge(files) {
+  const { spawnSync } = require('child_process');
+  const merging = spawnSync('git', ['rev-parse', '-q', '--verify', 'MERGE_HEAD'], { cwd: repo });
+  if (merging.status !== 0) return;
+  const add = spawnSync('git', ['add', '--', ...files], { cwd: repo, encoding: 'utf8' });
+  if (add.status !== 0) fail(`a merge is in progress and staging --assign's writes failed: ${add.stderr}`);
+  console.log(`  a merge is in progress: staged ${files.length} file(s), since the commit takes the index`);
+}
+
 function refuse(m) {
   console.error('corrections: --assign refused, and nothing was changed.\n  ' + m.split('\n').join('\n  '));
   process.exit(1);
@@ -711,6 +758,7 @@ function assign(A, tag) {
     + `${uses.length} occurrence(s) in ${writes.length} file(s)`);
   for (const [file, n] of perFile) console.log(`  ${file}  ×${n}`);
   writeLock(B);
+  stageDuringMerge([...perFile.keys(), 'tools/decisions/citations.lock']);
   const left = placeholderPlan(B);
   if (left.length) console.log(`  ${left.length} placeholder(s) still to assign: ${left.map(r => r.tag).join(', ')}`);
   process.exit(0);

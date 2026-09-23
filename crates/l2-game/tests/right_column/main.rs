@@ -3,17 +3,11 @@
 //! commit that introduces it.
 
 mod geometry;
-pub use geometry::*;
 mod overlays_part;
-pub use overlays_part::*;
+use overlays_part::*;
 pub(crate) mod end_turn;
-pub use end_turn::*;
 
-use l2_game::game::Assets;
-use l2_game::input::{Event, Rect};
-use l2_game::screen::{Ctx, Machine, ScreenId, Transition};
-use l2_game::screens::{county, divide, info, map};
-use l2_game::Game;
+use l2_game::input::Rect;
 
 /// `g_sidebarButtons` (`0x004DC680`) — six 24-byte hotspot records, tested at an
 /// offset of (`0x1DE`, `0x1AE`) by `Sidebar_ButtonClicked`.

@@ -1,21 +1,15 @@
 
 mod transport;
-pub use transport::*;
 mod simulation;
-pub use simulation::*;
 
 #[path = "../common/mod.rs"]
 mod common;
 
-use std::io::Write;
-use std::net::{SocketAddr, TcpStream};
+use std::net::SocketAddr;
 use std::time::{Duration, Instant};
 
-use common::{Order, ToySim};
 use l2_net::{
-    decode_all, frame, Advance, Canonical, Config, Endpoint, Fixed, FrameReader, HaltReason,
-    Hello, Loopback, Message, Mismatch, PeerId, PlayerSlot, Session, SessionError, TcpTransport,
-    Tick, Transport, TransportError, MAX_FRAME, MAX_OUTBOX,
+    PeerId, TcpTransport, Transport,
 };
 
 const PATIENCE: Duration = Duration::from_secs(30);

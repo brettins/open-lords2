@@ -218,7 +218,6 @@ impl Screen for BattlefieldScreen {
             let ctx = Ctx { game: &mut *ctx.game, assets: ctx.assets };
             self.step_overview(&ctx);
         }
-        let speed = ctx.game.prefs.scroll_speed;
         let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
         let raised = live.mode == Mode::Outcome && !self.outcome_seen;
         let decides = live.choice_owner != 0;

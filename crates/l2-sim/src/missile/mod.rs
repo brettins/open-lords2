@@ -21,7 +21,7 @@ mod save;
 mod combat;
 pub use combat::*;
 
-use crate::facing::facing_from_delta;
+#[cfg(test)]
 use crate::figure::Figure;
 use crate::troop::Troop;
 

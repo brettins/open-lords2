@@ -14,10 +14,8 @@ pub use terrain::*;
 mod render;
 pub use render::*;
 
-use l2_formats::maps::{MapSlot, Plane, LATTICE_H, LATTICE_W, PLANE_DIM};
+use l2_formats::maps::{MapSlot, LATTICE_H, LATTICE_W, PLANE_DIM};
 
-use crate::canvas::{Canvas, Clip, Tags};
-use crate::sheet::Sheet;
 
 pub const TOP_BAR_H: i32 = 24;
 

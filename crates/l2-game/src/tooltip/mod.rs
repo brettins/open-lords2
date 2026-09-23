@@ -82,10 +82,8 @@ pub use lookup::*;
 mod render;
 pub use render::*;
 
-use l2_view::Canvas;
 
-use crate::screen::{Ctx, ScreenId};
-use crate::shell::{font, Pen};
+use crate::screen::ScreenId;
 use crate::Game;
 
 /// `L2.eng` group 220, the tips' only consumer is this layer.

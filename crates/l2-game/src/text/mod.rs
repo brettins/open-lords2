@@ -41,7 +41,6 @@
 mod player_name;
 pub use player_name::*;
 mod tests_part;
-pub use tests_part::*;
 
 use l2_view::Canvas;
 

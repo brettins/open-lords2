@@ -4,11 +4,9 @@
 //! sixteen blocks of `0x3200`.
 
 mod pe;
-pub use pe::*;
+use pe::*;
 mod layout;
-pub use layout::*;
 mod save;
-pub use save::*;
 
 mod types;
 pub use types::*;

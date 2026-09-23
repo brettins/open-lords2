@@ -107,7 +107,7 @@ fn two_rows_pressed_five_ticks_apart_both_toggle_each_on_its_own_twentieth_tick(
     let (first, second) = (page.rows()[0], page.rows()[1]);
     let (a0, b0) = (value(first.setting, &mut game, &assets), value(second.setting, &mut game, &assets));
     let mut screen = OptionsScreen::new(page);
-    let mut press = |screen: &mut OptionsScreen, game: &mut Game, r: options::Row| {
+    let press = |screen: &mut OptionsScreen, game: &mut Game, r: options::Row| {
         let (x, y) = mid(r.hit());
         let mut ctx = Ctx { game, assets: &assets };
         screen.handle(Event::Click { x, y }, &mut ctx);

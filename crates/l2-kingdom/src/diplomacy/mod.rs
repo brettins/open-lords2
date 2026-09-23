@@ -26,10 +26,8 @@ pub use replies::*;
 mod ai;
 pub use ai::*;
 mod tests;
-pub use tests::*;
 
-use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
+use crate::realm::MAX_REALMS;
 use l2_net::Pcg32;
 
 

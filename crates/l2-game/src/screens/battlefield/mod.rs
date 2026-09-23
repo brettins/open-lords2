@@ -84,21 +84,16 @@
 mod view;
 pub use view::*;
 
-use l2_sim::runner::Formation;
 use l2_sim::terrain::DIM;
-use l2_view::{text, Canvas};
 
 use crate::battlefield::{
-    self, BannerLayout, Button, Cursor, LiveBattle, Mode, OVERVIEW, TILE, VIEW, VIEW_COLS,
-    VIEW_ROWS,
+    Button, LiveBattle,
 };
-use crate::input::{Event, Key, Rect};
+use crate::input::Rect;
 use crate::press::Widget;
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screen::{Ctx, ScreenId, Transition};
 use crate::screens::confirm::Ask;
-use crate::screens::menubar;
-use crate::shell::{font, Pen};
-use crate::turn::{self, TurnStep};
+use crate::turn::TurnStep;
 
 /// `L2.eng` group 10 — the game's directory of confirmable actions.
 pub const GROUP_CONFIRM: usize = 10;

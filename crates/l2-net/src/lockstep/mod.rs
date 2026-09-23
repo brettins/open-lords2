@@ -2,13 +2,11 @@
 mod session;
 pub use session::*;
 
-use std::collections::BTreeMap;
 
 use crate::canonical::{Canonical, Digest};
-use crate::command::{commands_are_distinct, order_commands, Command, PlayerSlot, Tick};
-use crate::desync::{DesyncDump, Divergence, History, HISTORY};
-use crate::packet::{Ack, HaltReason, TickPacket, MAX_ACKS};
-use crate::replay::Replay;
+use crate::command::{Command, PlayerSlot, Tick};
+use crate::desync::HISTORY;
+use crate::packet::HaltReason;
 
 pub trait Simulation {
     fn step(&mut self, tick: Tick, commands: &[Command]);

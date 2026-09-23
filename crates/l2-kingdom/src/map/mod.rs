@@ -4,11 +4,9 @@ pub use site::*;
 mod castle;
 pub use castle::*;
 mod campaign;
-pub use campaign::*;
 mod cost;
 pub use cost::*;
 
-use crate::tables::{MOVE_COST_BLOCKED, MOVE_COST_IMPASSABLE};
 
 pub const MAP_DIM: usize = 64;
 

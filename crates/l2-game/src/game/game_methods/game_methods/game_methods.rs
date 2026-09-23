@@ -51,6 +51,7 @@ impl Game {
             tips: crate::tip::Tips::new(),
             chosen_gold: 0,
             multiplayer: false,
+            game_type: crate::victory::GameType::Unchosen,
             seats: Vec::new(),
             net: Default::default(),
             turn_clock: crate::turn_clock::TurnClock::default(),

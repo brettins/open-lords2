@@ -37,7 +37,6 @@ impl MapScreen {
             scroll_speed: DEFAULT_SCROLL_SPEED,
             prefs_scroll: DEFAULT_SCROLL_SPEED,
             scroll_wait: 0,
-            press: Press::default(),
         }
     }
 

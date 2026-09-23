@@ -156,13 +156,8 @@ pub use words::*;
 mod screen;
 pub use screen::*;
 
-use l2_view::Canvas;
 
 use crate::game::PRESENTATION;
-use crate::input::{Event, Key, Rect};
-use crate::press::{Kind, Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
 
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

@@ -110,7 +110,9 @@ having several agents edit the shared one.
 
 ## Briefing an agent
 
-Include, every time:
+`node tools/pm/work.js --brief id,id [--branch agent/x] [--budget n]` prints the brief: the
+standard preamble (`tools/pm/preamble.md`) and the rows in the order given. Edit the preamble
+there, not in a brief. Include, every time:
 
 - The paths and how to run things (or point at `docs/environment.md`)
 - **What is already established**, so they don't re-derive it
@@ -214,7 +216,10 @@ becomes `tests/x/main.rs`, anything else `x/mod.rs`) then `tools/review/widen.js
 crates/<crate>` until `cargo check --workspace --tests` is clean. Widen reads every seam
 class rustc reports and escalates `pub(super)` to `pub(crate)` for a cousin; what it cannot
 read is a file's own doing (a cut inside a const, a self-reading test) and goes back to the
-lead. 215 files went through it in one evening at about 3 s each.
+lead. 215 files went through it in one evening at about 3 s each. Last,
+`tools/review/prune-imports.js <crate>` removes the parent's `use` lines the split copied and
+nobody reads (never `cargo fix`: it drops imports only `#[cfg(test)]` code needs); then
+`cargo build -p <crate>` and `cargo test -p <crate> --no-run` must be warning-free.
 
 ## What agents are good and bad at here
 

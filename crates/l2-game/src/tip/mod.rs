@@ -102,9 +102,6 @@ pub use update_part::*;
 mod text;
 pub use text::*;
 
-use crate::message::{self, Record};
-use crate::screen::ScreenId;
-use crate::Game;
 
 /// The first tip group. `FUN_00476A5D` clears `g_tipShown + 200` for `0x14`
 /// bytes, which is what fixes the range.

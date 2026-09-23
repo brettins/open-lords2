@@ -29,14 +29,9 @@ pub use handlers_part::*;
 mod world;
 pub use world::*;
 mod handlers;
-pub use handlers::*;
+use handlers::*;
 mod tests;
-pub use tests::*;
 
-use crate::figure::{Figure, State};
-use crate::troop::Troop;
-use crate::unit::{chebyshev, pct_of, Units, MAX_UNITS, REFORM_INTERVAL};
-use l2_net::Pcg32;
 
 pub const DIM: usize = 80;
 pub const CELLS: usize = DIM * DIM;

@@ -5,22 +5,16 @@
 //! and the saved game says 36.
 
 mod conquest_part;
-pub use conquest_part::*;
 mod battle;
-pub use battle::*;
 mod no_orders;
 pub use no_orders::*;
 mod no_orders_field;
-pub use no_orders_field::*;
 mod realm;
-pub use realm::*;
 
 use l2_formats::save::Save;
-use l2_game::engagement::{self, Answer, Resolution};
-use l2_kingdom::conquest::{self, Attack};
 use l2_kingdom::kingdom::Kingdom;
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM};
-use l2_kingdom::unit::{TroopType, Unit, UnitKind, TROOP_TYPES};
+use l2_kingdom::unit::{Unit, UnitKind, TROOP_TYPES};
 
 /// `g_units`, `0x0052F0B0`, stride `0x1A4` — `docs/armies.md` §1.
 const UNIT_BASE: u32 = 0x0052_F0B0;

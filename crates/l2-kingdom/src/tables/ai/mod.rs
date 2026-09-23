@@ -2,7 +2,6 @@
 mod ladders;
 pub use ladders::*;
 mod tables;
-pub use tables::*;
 
 use super::*;
 

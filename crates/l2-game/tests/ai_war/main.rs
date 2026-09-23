@@ -6,12 +6,9 @@
 //! dispatched passes every unit test it has.
 
 mod simulation;
-pub use simulation::*;
 mod handlers;
-pub use handlers::*;
 
 use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
-use l2_kingdom::tables::Tables;
 use l2_kingdom::{Kingdom, UnitKind};
 use l2_game::game::Game;
 

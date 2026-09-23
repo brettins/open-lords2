@@ -180,6 +180,7 @@ impl Decode for LiveBattle {
             cries: input.seq(Cry::decode)?,
             deferred: false,
             outbox: Vec::new(),
+            awaiting: Default::default(),
         })
     }
 }

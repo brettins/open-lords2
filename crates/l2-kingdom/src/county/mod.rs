@@ -8,10 +8,9 @@
 mod county;
 pub use county::*;
 
-use crate::tables::{
-    Commodity, Weather, FIELD_PROGRESS_MAX, JOB_CATTLE_FARMING, JOB_COUNT, JOB_GRAIN_FARMING,
-    JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT,
-};
+use crate::tables::Commodity;
+#[cfg(test)]
+use crate::tables::{Weather, JOB_CATTLE_FARMING, JOB_COUNT, JOB_IDLE_TOWNSFOLK};
 
 /// The three per-county ratings the minimap's statistic overlays colour by,
 /// recomputed by `FUN_00451BBA` on every minimap draw and stored in the five

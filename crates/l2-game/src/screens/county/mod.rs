@@ -217,10 +217,7 @@
 //! [`draw_strip`] has always done and what the tests run against.)*
 
 mod layout_part;
-pub use layout_part::*;
 
-use crate::shell::{font, Pen, TRAILING};
-use crate::widget;
 
 mod layout;
 pub use layout::*;
@@ -229,16 +226,14 @@ pub use draw::*;
 mod strip;
 pub use strip::*;
 
-use l2_kingdom::tables::{
-    HEALTH_BAND_NAMES, JOB_IDLE_TOWNSFOLK, RATION_LEVEL_COUNT, RATION_NAMES,
-};
-use l2_view::chrome::{self, misc_cty, system};
-use l2_view::{text, Canvas};
+#[cfg(test)]
+use l2_view::chrome::system;
 
-use crate::game::{MAX_RATION_SPLIT, MAX_TAX_RATE};
-use crate::input::{Event, Key, Rect};
-use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
+#[cfg(test)]
+use crate::game::MAX_RATION_SPLIT;
+#[cfg(test)]
+use crate::input::Rect;
+use crate::press::Press;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Panel {
     Tax,

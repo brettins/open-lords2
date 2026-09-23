@@ -146,6 +146,8 @@ impl ConquestScreen {
         if campaign.is_complete() {
             return Transition::Replace(ScreenId::Setup(SetupPage::Title));
         }
+        // [D] Setup_StartGame 0x004329EC runs on the setup globals the last game left set; ours
+        // builds a fresh SetupScreen, so the shield (g_realms[local].shieldIndex) and prefs are re-read.
         let local = ctx.game.player as usize;
         let shield = ctx.game.kingdom.realms.get(local).map_or(1, |r| r.shield_index);
         let mut setup = SetupScreen::new(SetupPage::Title);
@@ -197,6 +199,10 @@ impl Screen for ConquestScreen {
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         let ctx: &Ctx = ctx;
         self.adopt(ctx);
+        // Screen_FrameInput 0x0042FF10 00420000.c:7521: `DAT_0055302c == 2` leaves on the frame. [V]
+        if ctx.game.game_type == crate::victory::GameType::Custom {
+            return Transition::Replace(ScreenId::Setup(SetupPage::Title));
+        }
         Transition::Stay
     }
 

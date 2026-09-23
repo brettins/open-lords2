@@ -79,7 +79,7 @@
 
 use l2_view::Canvas;
 
-use crate::input::{Event, Key, Rect};
+use crate::input::{Event, Rect};
 use crate::press::{Press, Widget};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Pen};

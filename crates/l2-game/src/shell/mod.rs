@@ -13,7 +13,8 @@
 //! the presenter asks the top screen.
 
 mod assets;
-pub use assets::*;
+#[cfg(test)]
+use assets::*;
 mod drawing;
 pub use drawing::*;
 
@@ -23,8 +24,8 @@ pub mod font;
 use std::collections::BTreeMap;
 
 use l2_formats::Palette;
-use l2_mods::vfs::Vfs;
 use l2_view::sheet::Sheet;
+#[cfg(test)]
 use l2_view::Canvas;
 
 pub use eng::Eng;
