@@ -296,9 +296,6 @@ pub struct MapScreen {
     press: Press,
 }
 
-/// `Ui_OpenConfirm(5, …)` — `L2.eng` group 10 index 5, *"Combine armies?"*,
-/// which `Map_ConfirmMoveOrder` (`0x004A9252`) raises off `g_hoverMergeUnit`.
-pub const COMBINE_PROMPT: usize = 5;
 
 /// **Rule 6**: the group's own words, with our transcription only when the
 /// install's `L2.eng` has nothing at that index.
@@ -316,6 +313,7 @@ mod paint;
 mod panel;
 mod terrain;
 mod units;
+pub(crate) mod garrison;
 
 #[cfg(test)]
 mod tests;

@@ -17,6 +17,7 @@ fn marching_an_army_onto_your_own_castle_puts_it_inside() {
     let here = visible_in(&g, 1);
     plot(&mut g, 1, here);
     g.kingdom.counties[1].castle_type = 2; // a motte and bailey, 200 men
+    g.kingdom.counties[1].owner = 1;
     l2_kingdom::map::stamp_castle_terrain(&mut g.kingdom.campaign.map, 1, 2);
 
     let outside = (here.0 - 1, here.1);
@@ -24,7 +25,10 @@ fn marching_an_army_onto_your_own_castle_puts_it_inside() {
 
     click(&mut m, &mut g, &a, pixel(outside.0, outside.1).unwrap());
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.moving), "ordered from the map");
+    answer_yes(&mut m, &mut g, &a);
+    tick(&mut m, &mut g, &a);
+    let ordered = |u: &Unit| u.moving || u.garrison_county == 1;
+    assert!(g.kingdom.campaign.units.get(id).is_some_and(ordered), "ordered from the map");
 
     march(&mut m, &mut g, &a);
     end_turn(&mut m, &mut g, &a);
@@ -41,13 +45,18 @@ fn a_castle_refuses_more_men_than_it_can_barrack() {
     let here = visible_in(&g, 1);
     plot(&mut g, 1, here);
     g.kingdom.counties[1].castle_type = 1; // a palisade: 150 men
+    g.kingdom.counties[1].owner = 1;
     l2_kingdom::map::stamp_castle_terrain(&mut g.kingdom.campaign.map, 1, 1);
 
     let outside = (here.0 - 1, here.1);
     let id = army_at(&mut g, 1, 1, 151, outside);
     click(&mut m, &mut g, &a, pixel(outside.0, outside.1).unwrap());
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    end_turn(&mut m, &mut g, &a);
+    answer_yes(&mut m, &mut g, &a);
+    // MoveOrder_ConfirmGarrison 0x004A9372 `:3913`: the split offer, and no march.
+    assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| !u.moving));
+    tick(&mut m, &mut g, &a);
+    assert_eq!(g.messages.open().map(|r| r.group), Some(0xA6));
 
     assert_eq!(g.kingdom.counties[1].garrison_unit, 0, "151 men will not fit in 150");
     let unit = g.kingdom.campaign.units.get(id).expect("still there");
@@ -217,3 +226,17 @@ fn a_castle_is_stamped_onto_the_map_and_changes_picture_as_it_goes_up() {
     );
 }
 
+
+fn yes() -> (i32, i32) {
+    let r = l2_game::screens::battlefield::CONFIRM_YES;
+    (r.x + r.w / 2, r.y + r.h / 2)
+}
+
+fn answer_yes(m: &mut Machine, g: &mut Game, a: &Assets) {
+    let at = yes();
+    click(m, g, a, at);
+    send(m, g, a, Event::Release { x: at.0, y: at.1 });
+    for _ in 0..=l2_game::press::DELAYED_FRAMES {
+        tick(m, g, a);
+    }
+}

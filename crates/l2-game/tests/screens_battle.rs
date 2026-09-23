@@ -21,7 +21,8 @@ use l2_view::Canvas;
 fn the_battle_screens_draw_the_original_sentences() {
     let (_game, assets) = world!();
     let eng = &assets.shell;
-    use l2_game::screens::battle::{GROUP_BANNER, GROUP_OWNERLESS, GROUP_PROMPT, GROUP_RESULT};
+    use l2_game::screens::battle::{GROUP_OWNERLESS, GROUP_PROMPT, GROUP_RESULT};
+    use l2_game::screens::battlefield::GROUP_BANNER;
 
     assert_eq!(eng.text(GROUP_PROMPT, 0), "A Battle is to be fought.");
     assert_eq!(eng.text(GROUP_PROMPT, 1), "Will you take the field?");
