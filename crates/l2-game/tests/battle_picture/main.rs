@@ -25,6 +25,7 @@ use motion::*;
 mod column;
 
 mod band;
+mod marker;
 
 mod plates;
 mod panel;

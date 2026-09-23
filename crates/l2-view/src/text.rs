@@ -121,7 +121,17 @@ pub fn width(s: &str) -> i32 {
     }
 }
 
+thread_local! {
+    static DRAWN: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Calls of [`draw`] on this thread: `l2-game/tests/placeholders` wants none in normal play.
+pub fn drawn() -> usize {
+    DRAWN.with(std::cell::Cell::get)
+}
+
 pub fn draw(canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
+    DRAWN.with(|d| d.set(d.get() + 1));
     let mut cx = x;
     for c in s.chars() {
         let g = glyph(c);
