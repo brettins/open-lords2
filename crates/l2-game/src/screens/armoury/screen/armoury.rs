@@ -103,12 +103,15 @@ impl ArmouryScreen {
             }
             Err(no) => {
                 self.outcome = Raised::Refused(no);
-                self.status = match no {
-                    LevyRefusal::NoMen => "AN ARMY OF ZERO MEN IS NO ARMY".into(),
-                    LevyRefusal::TooFew => "FEWER THAN 50 MEN IS IMPRACTICAL".into(),
-                    LevyRefusal::NowhereToStand => "NOWHERE IN THE COUNTY TO STAND".into(),
+                // `Army_RaiseConfirm` 0x00435B4D `00430000.c:3120`, `:3123`, `:3128`; `g_screenId = 0` `:3134` closes on all three.
+                use crate::message::group;
+                let g = match no {
+                    LevyRefusal::NoMen => group::ZERO_MEN,
+                    LevyRefusal::TooFew => group::UNDER_FIFTY,
+                    LevyRefusal::NowhereToStand => group::NOWHERE_TO_STAND,
                 };
-                Transition::Stay
+                crate::message::tell_player(ctx.game, g);
+                Transition::Pop
             }
         }
     }
@@ -187,6 +190,29 @@ impl Screen for ArmouryScreen {
         if !ctx.assets.shell.has_armoury_grid() {
             text::draw(canvas, 8, 20, "NO ARM_GRID.PL8 - RACKS ARE RECTANGLES", ink.dim);
         }
+    }
+}
+
+#[cfg(test)]
+mod refusal_tests {
+    use super::*;
+
+    /// `Army_RaiseConfirm` `00430000.c:3120` then `:3134`: a levy of zero is
+    /// scroll 0xA8 (`L2.eng` 168) and the screen closes. Ablate `tell_player`
+    /// and the queue is empty.
+    #[test]
+    fn a_levy_of_zero_raises_scroll_168_and_closes() {
+        let mut game = crate::Game::new(3);
+        game.kingdom.set_county_count(3);
+        game.player = 1;
+        game.kingdom.counties[1].owner = 1;
+        let assets = crate::Assets::placeholder();
+        let mut screen = ArmouryScreen::new(1);
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        assert!(matches!(screen.confirm(&mut ctx, true), Transition::Pop));
+        assert_eq!(screen.outcome, Raised::Refused(LevyRefusal::NoMen));
+        assert!(game.messages.pull(), "nothing queued");
+        assert_eq!(game.messages.open().map(|r| r.group), Some(0xA8));
     }
 }
 

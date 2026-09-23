@@ -1,0 +1,22 @@
+{ "reviewed": "73dc0a17fa75da5da97422ee4464af6fce4c54c2",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screen/machine.rs", "line": 216,
+      "address": "0x004BB978", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-game/src/screen/tick_gate.rs", "line": 14,
+      "address": "0x004BB978", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-game/src/screen/tick_gate.rs", "line": 33,
+      "address": "0x004BB978", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-game/src/screen/tick_gate.rs", "line": 30,
+      "address": "0x004BB978", "verdict": "departure",
+      "note": "[D] netcode: multiplayer arms (table 1s, DAT_004E3240) not reproduced" },
+    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 513,
+      "address": "0x004B99C0", "verdict": "mismatch",
+      "note": "tick_fade now sits behind the tick gate; Season_FinishFade (004b0000.c:6711) runs after the tick loop whatever ticksDue is, so an open letter stalls our fade and not the original's" },
+    { "file": "crates/l2-game/src/screens/setup/ui/render/render.rs", "line": 350,
+      "address": "0x00432CC8", "verdict": "match",
+      "note": "" }
+  ] }

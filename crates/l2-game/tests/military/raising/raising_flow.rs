@@ -279,11 +279,12 @@ fn a_levy_of_nothing_and_a_levy_under_fifty_are_both_refused() {
         set_levy(&mut m, &mut g, &a, percent);
         press_and_wait(&mut m, &mut g, &a, on(army::continue_button(false)));
         click(&mut m, &mut g, &a, on(armoury::CREATE_BOX));
-        assert_eq!(
-            m.top_id(),
-            Some(ScreenId::Armoury(1)),
-            "{percent} %: the screen stays open on a refusal",
-        );
+        // `Army_RaiseConfirm` `00430000.c:3120`/`:3123` enqueue, then `:3134`
+        // `g_screenId = 0` closes on the refusal too.
+        assert_eq!(m.top_id(), Some(ScreenId::Campaign), "{percent} %: the screen closes");
+        g.messages.pull();
+        let want = if percent == 0 { 0xA8 } else { 0x94 };
+        assert_eq!(g.messages.open().map(|r| r.group), Some(want), "{percent} %: the scroll");
         assert_eq!(g.kingdom.campaign.units.len(), 0, "{percent} %: and nothing was raised");
         assert_eq!(g.kingdom.counties[1].population, 1_000, "{percent} %: nobody left");
     }

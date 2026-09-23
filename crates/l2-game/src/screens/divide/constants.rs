@@ -124,6 +124,3 @@ pub fn widgets() -> Vec<Widget> {
     out
 }
 
-// arm: ours/divide-click-moves-ten left-press
-pub const CLICK_MEN: i32 = 10;
-

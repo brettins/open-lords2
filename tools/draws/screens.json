@@ -154,20 +154,12 @@
     "placeholder": 3,
     "widget_records": 0,
     "missing": [
-      "Ui_HistoryGraph(0x20, 0x54, 0) — the whole 402x155 bar chart. We draw its own Ui_DrawInsetRect and a diagnostic inside it; g_countyHistory (400 turns x 16 counties x 8 bytes) is not in l2-kingdom and Graphs.pl8 is not one of l2-view's sheets",
       "Ui_DrawYear(DAT_00553228, 0x20, 0xF0, 3) — the year at the head of the history window, which has no meaning without the history",
       "Ui_DrawText(\"-\", pen + 0x20, 0xF0, body) — the axis separator between the two years",
-      "Ui_DrawYear(g_year, 0x58, 0xF0, 3) — the right-hand year; drawn alone it would say the graph is scaled when it is not",
-      "Ui_DrawNumber(peak, '@', \"\", pen + 0xB0, 0xF0, body) — Ui_HistoryGraph's return value, the greatest population on record",
-      "Eng_DrawString(73, 9, pen + 0xB0, 0xF0, body) — \"people.\", the second half of that sentence"
+      "Ui_DrawYear(g_year, 0x58, 0xF0, 3) — the right-hand year; drawn alone it would say the graph is scaled when it is not"
     ],
-    "invented": [
-      "canvas.fill_rect over the graph rectangle, so the empty recess reads as empty rather than as whatever the map left there",
-      "text::draw_centred \"POPULATION HISTORY\" inside it",
-      "text::draw_centred \"NOT SIMULATED\" inside it"
-    ],
+    "invented": [],
     "literals_ours": [
-      "NOT SIMULATED — an honest diagnostic of ours, in our own 5 x 7 font: g_countyHistory has no counterpart in l2-kingdom, so the graph recess says so. Drawn on the population and happiness panels and again over the ration panel's Fed row.",
       "SMITH — an honest fallback of ours, in our own 5 x 7 font, for an install with no Misc_cty.pl8: the county strip's blacksmith row is FUN_004106C4's weaponType + 0x30, and with no sheet there is no icon to draw. Its four neighbours (WOOD, IRON, WEAPONS, STONE), CASTLE and NEEDS are the same fallback reached through INDUSTRY_LABEL and draw_strip_icon; SEASON/SEASONS and NEEDED fall back only when L2.eng is absent, where the game's own group 8 and 71/18 supply them."
     ],
     "excluded": "FUN_004050C0(), which is Map_DrawFrame() behind a 16 ms throttle — one whole campaign-map frame under the inset. Ours is Screen::is_overlay plus the map screen on the stack. Also excluded: draw_strip, which is CountyStrip_Draw and belongs to the map's sidebar, not to this painter.",
@@ -186,12 +178,11 @@
         6,
         7,
         8,
+        9,
         10,
         11
       ],
-      "not_drawn": [
-        9
-      ],
+      "not_drawn": [],
       "verified_against_words": true
     },
     "sheets": [],
@@ -219,16 +210,11 @@
     "placeholder": 3,
     "widget_records": 0,
     "missing": [
-      "Ui_HistoryGraph(0x20, 0x54, 1) — the same picture in happiness mode, which is Graphs.pl8 frame 1 rather than frame 0",
       "Ui_DrawYear(DAT_00553228, 0x20, 0xF0, 3)",
       "Ui_DrawText(\"-\", pen + 0x20, 0xF0, body)",
       "Ui_DrawYear(g_year, 0x58, 0xF0, 3)"
     ],
-    "invented": [
-      "canvas.fill_rect over the graph rectangle",
-      "text::draw_centred \"HAPPINESS HISTORY\"",
-      "text::draw_centred \"NOT SIMULATED\""
-    ],
+    "invented": [],
     "literals_ours": [],
     "excluded": "FUN_004050C0() = Map_DrawFrame(); draw_strip, which is the map's sidebar.",
     "eng": {
@@ -848,9 +834,7 @@
     "literals_ours": [],
     "missing": [],
     "invented": [
-      "a status line below the window entirely, at (16, 466), in our 5 x 7 font - ours, a diagnostic",
-      "a two-pixel caret left of the row the keyboard is on - ours; the original has no keyboard on this screen",
-      "CLICK_MEN = 10: the original's arrow moves ONE man per click and relies on the widget press timer to repeat"
+      "a status line below the window entirely, at (16, 466), in our 5 x 7 font - ours, a diagnostic"
     ],
     "removed_this_pass": [
       "widget::button 'SPLIT' at (16, 446) and widget::button 'CANCEL' at (264, 446) - both invented; the original's split and cancel are widget records 0 and 1, the tick and the cross. The CANCEL button OVERLAPPED the tick's hit box (288..320, 420..452), so a click on the original's split control cancelled.",
@@ -1017,7 +1001,7 @@
       "Advice::fallback()'s four English paragraphs, which are only reached when L2.eng is absent"
     ],
     "literals_ours": [
-      "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL  ENTER AGREES - KEYS ARE OURS — ours: the whole keyboard is ours (C21); the original's only inputs are the six widgets and the corner OK"
+      "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL - KEYS ARE OURS — ours: the whole keyboard is ours (C21); the original's only inputs are the six widgets and the corner OK"
     ],
     "real": 24,
     "placeholder": 2,

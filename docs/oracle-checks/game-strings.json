@@ -1,0 +1,9 @@
+{ "reviewed": "ecca3f89fe0f4be09054b28df1d0763f38ba5ede",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/castle/screen.rs", "line": 88, "address": "0x00436B59", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/castle/screen.rs", "line": 90, "address": "0x00436B59", "verdict": "departure", "note": "NoSuchType is a refusal the original lacks; code calls it ours without a [D]" },
+    { "file": "crates/l2-game/src/screens/divide/screen.rs", "line": 17, "address": "0x00437AFB", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/divide/screen.rs", "line": 163, "address": "0x00437AFB", "verdict": "mismatch", "note": "Army_SplitConfirm sets g_screenId = 0 at :4318 on every path; ours stays open with a status line after the scroll" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 227, "address": "0x0043733A", "verdict": "mismatch", "note": "Err(_) sends 0x91 for NotAnArmy too; the original sends 0x91 only when neither home nor current county is the owner's" }
+  ] }

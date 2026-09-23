@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 
+pub mod graph;
 mod render;
 pub use render::*;
 mod screen_impl;

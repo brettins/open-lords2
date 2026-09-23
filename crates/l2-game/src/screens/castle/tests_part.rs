@@ -80,5 +80,24 @@ mod tests {
             "the tick and the cross overlap"
         );
     }
+
+    /// `CastleBuild_Confirm` 0x00436B59 `:3802` / `:3809`: the refusals are
+    /// scrolls 0x93 / 0x122 (`L2.eng` 147, 290), not our text. Ablate the
+    /// `enqueue` in `confirm` and both fail.
+    #[test]
+    fn refusals_are_the_original_s_scrolls() {
+        for (level, want) in [(2, 0x93), (0, 0x122)] {
+            let mut game = crate::Game::new(3);
+            game.kingdom.set_county_count(3);
+            game.kingdom.counties[1].castle_type = 3;
+            let assets = crate::Assets::placeholder();
+            let mut screen = CastleScreen::new(1);
+            screen.select(level);
+            let mut ctx = Ctx { game: &mut game, assets: &assets };
+            let _ = screen.confirm(&mut ctx);
+            assert!(game.messages.pull(), "level {level}: nothing queued");
+            assert_eq!(game.messages.open().map(|r| r.group), Some(want));
+        }
+    }
 }
 

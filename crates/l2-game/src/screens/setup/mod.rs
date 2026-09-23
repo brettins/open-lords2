@@ -257,13 +257,9 @@
 //!
 //! # One divergence still here, and it is the page graph
 //!
-//! `FUN_00432CC8` sends *Custom game* and *Skirmish!* to page **4** as well —
-//! with `DAT_0055302C` at 2 or 3 — so in the original every route to a game
-//! passes through the shield page and *Continue* is what leaves it. Ours sends
-//! them straight to pages 7 and 12. That is **[not reproduced]** and recorded
-//! it is the same reading of page 4 that hid the
-//! campaign start, and closing it is the rest of `front-end-pages` in
-//! `docs/arms.json`.
+//! `FUN_00432CC8` sends *Custom game* (hotspot 3) and *Skirmish!* (hotspot 5) to page
+//! **4**, `DAT_0055302C` 2 or 3. Custom does here; skirmish still goes straight to
+//! page 12: **[not reproduced]**, `front-end-pages` in `docs/arms.json`.
 
 mod helpers_part;
 pub use helpers_part::*;

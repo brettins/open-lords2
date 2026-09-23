@@ -27,7 +27,6 @@ pub struct CastleScreen {
     /// is the same value at the same moment.
     selected: Option<usize>,
     pub choice: CastleChoice,
-    pub message: Option<&'static str>,
     press: Press,
 }
 
@@ -40,7 +39,6 @@ impl CastleScreen {
             county,
             selected: None,
             choice: CastleChoice::None,
-            message: None,
             press: Press::new(),
         }
     }
@@ -84,23 +82,25 @@ impl CastleScreen {
         match ctx.issue(order) {
             crate::command::Castled::Refused(why) => {
                 self.choice = CastleChoice::Refused(why);
-                self.message = Some(match why {
-                    // `L2.eng` 147/1 and 290/1, the two the original sends.
-                    CastleRefusal::AlreadyBuilt => {
-                        "THE CASTLE IN THIS COUNTY IS ALREADY OF THE TYPE YOU PROPOSE"
-                    }
-                    CastleRefusal::Downgrade => {
-                        "YOUR CURRENT CASTLE IS STRONGER THAN THE ONE YOU PROPOSE, MY LORD"
-                    }
-                    CastleRefusal::NoSuchType => "THERE IS NO SUCH CASTLE",
-                });
+                // `CastleBuild_Confirm` 0x00436B59: `Msg_Enqueue(0,g_localPlayer,0x93,…)`
+                // and `(…,0x122,…)`; `NoSuchType` is ours and sends nothing.
+                let group = match why {
+                    CastleRefusal::AlreadyBuilt => Some(crate::message::group::CASTLE_ALREADY),
+                    CastleRefusal::Downgrade => Some(crate::message::group::CASTLE_STRONGER),
+                    // [D] CastleBuild_Confirm 0x00436B59 has two guards; an unknown type is our input check.
+                    CastleRefusal::NoSuchType => None,
+                };
+                if let Some(group) = group {
+                    let player = ctx.game.player;
+                    let record = crate::message::Record { to: player, group, ..Default::default() };
+                    ctx.game.messages.enqueue(record, player);
+                }
                 return Transition::Pop;
             }
             crate::command::Castled::Ownerless => return Transition::Pop,
             crate::command::Castled::Ordered => {}
         }
         self.choice = CastleChoice::Ordered(want);
-        self.message = Some("CONSTRUCTION BEGINS");
         if ctx.game.prefs.animations {
             return Transition::Push(ScreenId::Movie(crate::movie::Film::Castle(want - 1)));
         }

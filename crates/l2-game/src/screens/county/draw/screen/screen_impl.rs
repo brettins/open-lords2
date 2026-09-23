@@ -87,17 +87,6 @@ impl Screen for CountyScreen {
             //
             // arm: 0x0042FF10/panel-right-closes right-release
             Event::RightClick { .. } => return Transition::Pop,
-            // `docs/decisions.md` C61 found nine of.
-            //
-            // arm: ours/county-panel-keyboard key
-            Event::KeyDown(Key::Up) => {
-                self.panel = PANELS[(self.panel_index() + PANELS.len() - 1) % PANELS.len()];
-            }
-            Event::KeyDown(Key::Down) => {
-                self.panel = PANELS[(self.panel_index() + 1) % PANELS.len()];
-            }
-            Event::KeyDown(Key::Left) => self.adjust(ctx, -1),
-            Event::KeyDown(Key::Right) => self.adjust(ctx, 1),
             Event::Click { x, y } => {
                 // `Ui_OkButtonClicked` (`0x0040E7E4`) — the 24 × 24 corner
                 // picture the panel's own `Ui_OkButton` call stashed.

@@ -213,9 +213,7 @@ impl Screen for InfoScreen {
                     // [`l2_kingdom::divide::disband_county`] is the two clauses
                     // and [`crate::game::Game::disband_army`] the whole of it,
                     // including the refusal. **The confirm box is not
-                    // reproduced** — `Ui_OpenConfirm(6, …)` is `L2.eng` 10/6 —
-                    // and neither is the message scroll, so the refusal is a
-                    // status line of ours.
+                    // reproduced** — `Ui_OpenConfirm(6, …)` is `L2.eng` 10/6.
                     //
                     // arm: 0x00437002/info-disband left-press
                     (1, _) => match ctx.issue(crate::command::DisbandArmy { army: id }) {
@@ -224,9 +222,11 @@ impl Screen for InfoScreen {
                             self.status = format!("{men} MEN WENT HOME TO {name}");
                             Transition::Pop
                         }
-                        Err(_) => {
-                            self.status =
-                                "MARCH IT TO A COUNTY YOU RULE BEFORE DISBANDING".into();
+                        Err(no) => {
+                            // Panel_DisbandButton 00430000.c:4076-4084: 0x91 only when neither county is the owner's.
+                            if no == l2_kingdom::divide::DisbandRefusal::NowhereToGo {
+                                crate::message::tell_player(ctx.game, crate::message::group::CANNOT_DISBAND);
+                            }
                             Transition::Pop
                         }
                     },

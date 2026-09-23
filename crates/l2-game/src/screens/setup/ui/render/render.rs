@@ -345,7 +345,12 @@ impl SetupScreen {
             (SetupPage::Options, 0) => self.go(SetupPage::Campaign),
             (SetupPage::Options, 1) => self.go(SetupPage::Load),
             (SetupPage::Options, 2) => self.go(SetupPage::Skirmish),
-            (SetupPage::Options, 3) => self.go(SetupPage::Custom),
+            // FUN_00432CC8 0x00432CC8 hotspot 3: `g_setupPage = 4; DAT_0055302c = 2;
+            // DAT_0057d320 = 0;` — page 4 first; its Continue (FUN_00433155) goes to 7. [V]
+            (SetupPage::Options, 3) => {
+                self.campaign = false;
+                self.go(SetupPage::Shield)
+            }
             (SetupPage::Options, 4) => self.go(SetupPage::Title),
             // **`FUN_00432EE6` (`0x00432EE6`), and it does two things.**
             //

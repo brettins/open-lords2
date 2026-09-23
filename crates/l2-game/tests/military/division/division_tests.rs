@@ -45,7 +45,7 @@ fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
     tick(&mut m, &mut g, &a);
 
     let at = on(divide::parent_button(0));
-    for _ in 0..5 {
+    for _ in 0..55 {
         click(&mut m, &mut g, &a, at);
         send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
     }
@@ -57,7 +57,8 @@ fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
 
     assert_eq!(g.kingdom.campaign.units.len(), 2, "the split went through");
     let daughter = g.kingdom.campaign.units.iter().map(|(_, u)| u.men).min().unwrap();
-    assert_eq!(daughter, 60, "five presses and a double click, ten men each, and no repeat");
+    // Ablation: SplitScreen_ToParent 0x00437D65 moves one man per call; ten per press moves all 300.
+    assert_eq!(daughter, 56, "55 presses and a double click, one man each, and no repeat");
 }
 
 #[test]
@@ -69,7 +70,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     press(&mut m, &mut g, &a, 'a');
     tick(&mut m, &mut g, &a);
 
-    for _ in 0..12 {
+    for _ in 0..120 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
@@ -95,7 +96,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
 }
 
 #[test]
-fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
+fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_and_the_screen_closes() {
     let (mut g, a, mut m) = on_the_map();
     let (here, _) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
@@ -107,7 +108,8 @@ fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
-    assert_eq!(m.top_id(), Some(ScreenId::Divide(id)), "the screen stays up");
+    // Army_SplitConfirm 00430000.c:4318 closes on every path; 0x94 is queued.
+    assert_ne!(m.top_id(), Some(ScreenId::Divide(id)), "the screen closes");
     assert_eq!(g.kingdom.campaign.units.len(), 1, "and nothing was split");
 }
 
@@ -157,6 +159,9 @@ fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
 
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the panel closes either way");
     assert!(g.kingdom.campaign.units.get(id).is_some(), "and the army is still there");
+    // `Panel_DisbandButton` `00430000.c:4084`; ablate its `tell_player` and this fails.
+    g.messages.pull();
+    assert_eq!(g.messages.open().map(|r| r.group), Some(0x91), "scroll 145 says why");
 }
 
 #[test]
@@ -280,7 +285,7 @@ fn a_split_into_a_castle_may_send_fewer_than_fifty() {
     click(&mut m, &mut g, &a, at);
     send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
-    assert_eq!(g.kingdom.campaign.units.len(), 2, "ten men into the keep: no minimum");
+    assert_eq!(g.kingdom.campaign.units.len(), 2, "one man into the keep: no minimum");
     let daughter = g.kingdom.campaign.units.iter().map(|(_, u)| u.men).min().unwrap();
-    assert_eq!(daughter, 10);
+    assert_eq!(daughter, 1);
 }

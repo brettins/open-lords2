@@ -9,6 +9,16 @@ use crate::press::{Press, Widget};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
+
+/// `Army_SplitConfirm` 0x00437AFB `00430000.c:4353`, `:4357`; the other
+/// refusals are ours or silent there.
+pub(super) fn split_scroll(no: SplitRefusal) -> Option<u16> {
+    match no {
+        SplitRefusal::TooFew => Some(crate::message::group::UNDER_FIFTY),
+        SplitRefusal::GarrisonFull(_) => Some(crate::message::group::GARRISON_FULL),
+        _ => None,
+    }
+}
 use crate::widget;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26,7 +36,6 @@ pub struct DivideScreen {
     /// castle county and tile from `Msg_GarrisonSplitClicked` (`0x004376BB`).
     into: SplitInto,
     basket: SplitBasket,
-    pub(super) row: usize,
     pub outcome: Divided,
     status: String,
     seeded: bool,
@@ -46,7 +55,6 @@ impl DivideScreen {
             unit,
             into: SplitInto::Field,
             basket: SplitBasket::default(),
-            row: 0,
             outcome: Divided::None,
             status: String::new(),
             seeded: false,
@@ -74,8 +82,8 @@ impl DivideScreen {
 // mercenary band and swaps whole, in the
             // function itself. The four arms are declared on [`widgets`].
             i if i < TICK_INDEX => {
-                self.row = i / 2;
-                self.move_men(i / 2, i % 2 == 0, CLICK_MEN);
+                // SplitScreen_ToParent 0x00437D65: one man per call; kind 4 repeats.
+                self.move_men(i / 2, i % 2 == 0, 1);
                 Transition::Stay
             }
             TICK_INDEX => self.split(ctx),
@@ -139,6 +147,9 @@ impl DivideScreen {
             }
             Err(no) => {
                 self.outcome = Divided::Refused;
+                if let Some(g) = split_scroll(no) {
+                    crate::message::tell_player(ctx.game, g);
+                }
                 self.status = match no {
                     SplitRefusal::NotAnArmy => "THAT IS NOT YOUR ARMY".into(),
                     SplitRefusal::AlreadyMoved => "IT HAS ALREADY MARCHED THIS SEASON".into(),
@@ -147,7 +158,8 @@ impl DivideScreen {
                     SplitRefusal::GarrisonFull(n) => format!("ONLY {n} WOULD FIT"),
                     SplitRefusal::NowhereToStand => "NOWHERE NEARBY TO STAND".into(),
                 };
-                Transition::Stay
+                // Army_SplitConfirm 0x00437AFB 00430000.c:4318 `g_screenId = 0` first: every path closes.
+                Transition::Pop
             }
         }
     }
@@ -215,24 +227,6 @@ impl Screen for DivideScreen {
         match event {
             // arm: 0x0042FF10/back-one-rather-than-to-the-map right-release
             Event::RightClick { .. } => Transition::Pop,
-            // arm: ours/divide-keyboard key
-            Event::KeyDown(Key::Up) => {
-                self.row = self.row.saturating_sub(1);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Down) => {
-                self.row = (self.row + 1).min(MERC_ROW);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Right) => {
-                self.move_men(self.row, true, 1);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Left) => {
-                self.move_men(self.row, false, 1);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Enter) => self.split(ctx),
             // **A double click is a press to all eighteen**, because every one
             // is `Widget_Test` kind 4 or 5 and both guards read
             // `g_mouseLeftPressed || g_mouseLeftDoubleClick`: a stepper steps
@@ -298,9 +292,6 @@ impl Screen for DivideScreen {
             let noun = ctx.assets.shell.text(NOUN_GROUP, NOUN_BASE + row * 2 + 1).to_string();
             let label = if noun.is_empty() { format!("{}s", troop.name()) } else { noun };
             pen.body(canvas, NOUN_X, y, &label, font::TEXT);
-            if row == self.row {
-                canvas.fill_rect(NOUN_X - 4, y, 2, 14, ink.highlight);
-            }
             arrows(&pen, canvas, row, &self.press);
             // `Ui_DrawNumber(…, '@', &DAT_004D40E8 | &DAT_004D40EC, 0xD8 | 0x188,
             // …)`: every number on this screen is `'@'` with a NUL suffix —
@@ -326,9 +317,6 @@ impl Screen for DivideScreen {
             let troop_noun =
                 if troop_noun.is_empty() { format!("{}s", m.troop.name()) } else { troop_noun };
             pen.body(canvas, NOUN_X + 0x40, y + 0x10, &troop_noun, font::TEXT);
-            if self.row == MERC_ROW {
-                canvas.fill_rect(NOUN_X - 4, y, 2, 14, ink.highlight);
-            }
             let (left, right) = if self.basket.mercenaries_leave {
                 (0, m.men())
             } else {
