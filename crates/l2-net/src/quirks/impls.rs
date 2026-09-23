@@ -11,7 +11,6 @@ impl Quirk {
         Quirk::EmpireTaxHappinessWraps,
         Quirk::AnyAleFillsATinyVillage,
         Quirk::UnownedCountyTradesUnchecked,
-        Quirk::CastleSwitchMovesShareBackwards,
         Quirk::InflowListHasNoBreak,
         Quirk::ExtinctCountyRecordsNegativeDeaths,
         Quirk::AiUnrestDeadBand,
@@ -33,7 +32,6 @@ impl Quirk {
             Quirk::EmpireTaxHappinessWraps => "B4",
             Quirk::AnyAleFillsATinyVillage => "B10",
             Quirk::UnownedCountyTradesUnchecked => "B11a",
-            Quirk::CastleSwitchMovesShareBackwards => "B12",
             Quirk::InflowListHasNoBreak => "B15",
             Quirk::ExtinctCountyRecordsNegativeDeaths => "B16",
             Quirk::AiUnrestDeadBand => "B17",
@@ -54,7 +52,6 @@ impl Quirk {
             Quirk::EmpireTaxHappinessWraps => "EmpireTaxHappinessWraps",
             Quirk::AnyAleFillsATinyVillage => "AnyAleFillsATinyVillage",
             Quirk::UnownedCountyTradesUnchecked => "UnownedCountyTradesUnchecked",
-            Quirk::CastleSwitchMovesShareBackwards => "CastleSwitchMovesShareBackwards",
             Quirk::InflowListHasNoBreak => "InflowListHasNoBreak",
             Quirk::ExtinctCountyRecordsNegativeDeaths => {
                 "ExtinctCountyRecordsNegativeDeaths"
@@ -86,9 +83,6 @@ impl Quirk {
             }
             Quirk::UnownedCountyTradesUnchecked => {
                 "Lordless counties trade with no stock and no gold"
-            }
-            Quirk::CastleSwitchMovesShareBackwards => {
-                "The castle switch moves its labour share the wrong way"
             }
             Quirk::InflowListHasNoBreak => {
                 "The migration panel names the wrong county"

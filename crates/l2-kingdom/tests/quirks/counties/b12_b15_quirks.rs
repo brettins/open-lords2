@@ -12,31 +12,35 @@ use l2_kingdom::realm::Realm;
 use l2_kingdom::tables::{Season, Tables, Weather};
 use l2_kingdom::{Quirk, Quirks};
 
+/// B12 retracted: `Industry_ToggleFromMap` `0x0043D309` calls the guarded share
+/// setter with the old switch, flips `+0x1B0`, then calls it with the new one.
 #[test]
-fn b12_the_castle_switch_moves_its_labour_share_backwards_or_forwards() {
+fn b12_retracted_the_castle_share_follows_the_switch() {
     use l2_kingdom::industry::MapToggle;
-    let (faithful, fixed) = pair(Quirk::CastleSwitchMovesShareBackwards);
+    use l2_kingdom::tables::JOB_CASTLE_BUILDING as CASTLE;
+    let mut c = County::new();
+    c.population = 400;
+    let mut shares = Vec::new();
+    for _ in 0..4 {
+        let on = l2_kingdom::industry::toggle_from_map(&mut c, MapToggle::Castle);
+        shares.push((on, c.labour_share[CASTLE] > 0));
+    }
+    // Ablate: drop the second setter call and ON leaves the share at 0.
+    assert_eq!(shares, [(true, true), (false, false), (true, true), (false, false)]);
 
-    let walk = |quirks: Quirks| {
-        let mut c = County::new();
-        c.population = 400;
-        let mut shares = Vec::new();
-        for _ in 0..4 {
-            l2_kingdom::industry::toggle_from_map(&mut c, MapToggle::Castle, quirks);
-            shares.push(c.labour_share[l2_kingdom::tables::JOB_CASTLE_BUILDING]);
-        }
-        shares
-    };
-
-    let a = walk(faithful);
-    let b = walk(fixed);
-    assert_ne!(a, b, "the share sequence must differ: {a:?} against {b:?}");
-    assert!(
-        b[0] > 0,
-        "fixed, switching castle building ON gives it a share: {b:?}"
-    );
+    // Out of step (switch off, share held): the first call clears the stale
+    // share, the second deals a fresh one. Ablate the first and it stays 77.
+    let mut c = County::new();
+    c.population = 400;
+    c.labour_share = [33, 50, 17, 77, 0, 0, 23, 0];
+    let mut fresh = County::new();
+    fresh.population = 400;
+    fresh.labour_share = [33, 50, 17, 0, 0, 0, 100, 0];
+    l2_kingdom::industry::toggle_from_map(&mut c, MapToggle::Castle);
+    l2_kingdom::industry::toggle_from_map(&mut fresh, MapToggle::Castle);
+    assert_eq!(c.labour_share[CASTLE], fresh.labour_share[CASTLE]);
+    assert_ne!(c.labour_share[CASTLE], 77);
 }
-
 
 #[test]
 fn b15_the_inflow_list_holds_one_repeated_value_or_a_list() {
