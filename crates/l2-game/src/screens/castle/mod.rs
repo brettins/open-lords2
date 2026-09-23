@@ -101,16 +101,9 @@ pub use constants::*;
 mod screen;
 pub use screen::*;
 mod tests_part;
-pub use tests_part::*;
 
-use l2_kingdom::industry::{self, CastleRefusal};
-use l2_view::{text, Canvas};
 
-use crate::press::{Press, Widget};
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
 
 // ---------------------------------------------------------------------------
 // `L2.eng` group 71, and every index this screen draws

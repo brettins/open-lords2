@@ -39,16 +39,15 @@
 //! it refuses to move anybody and says so.
 
 mod screen;
-pub use screen::*;
 
-use l2_kingdom::county::County;
-use l2_kingdom::tables::{JOB_IDLE_TOWNSFOLK, JOB_NAMES};
 use l2_view::village::{self as vill, ICONS_PER_CLUSTER};
-use l2_view::{text, Canvas};
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::widget;
+#[cfg(test)]
+use crate::input::Event;
+#[cfg(test)]
+use crate::screen::Screen;
+#[cfg(test)]
+use crate::screen::Ctx;
 
 /// **The rubber band's colour, `FUN_00412795`'s literal fifth argument.**
 ///

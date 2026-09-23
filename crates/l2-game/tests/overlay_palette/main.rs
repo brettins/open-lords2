@@ -9,15 +9,10 @@
 //! backdrop behind a tip is the backdrop, in its own colours. `[V]`
 
 
-use l2_game::battlefield::LiveBattle;
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
-use l2_game::message;
-use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::{army, message as scroll};
+use l2_game::input::Event;
+use l2_game::screen::{Ctx, Machine};
 use l2_game::Game;
-use l2_sim::runner::{Army, BattleRunner};
-use l2_sim::Troop;
 use l2_view::Canvas;
 
 macro_rules! assets {
@@ -32,7 +27,6 @@ macro_rules! assets {
 }
 
 mod overlay_palette;
-pub use overlay_palette::*;
 
 fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {
     let mut ctx = Ctx { game: g, assets: a };

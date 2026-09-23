@@ -87,16 +87,11 @@
 //! and plays `s033_01.wav`.
 
 mod screen;
-pub use screen::*;
 
-use l2_view::Canvas;
 
-use crate::input::{Event, Key, Rect};
+use crate::input::Rect;
 use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use l2_kingdom::Kingdom;
 
-use crate::shell::{font, Face, Pen};
 
 /// `L2.eng` group 33 — eight strings.
 pub const GROUP: usize = 33;

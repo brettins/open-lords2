@@ -3,18 +3,14 @@
 use std::path::PathBuf;
 
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
-use l2_game::scenario;
-use l2_game::screen::{Ctx, Screen, ScreenId, Transition};
+use l2_game::input::Event;
+use l2_game::screen::{Ctx, Screen, Transition};
 use l2_game::screens::merchant::{
-    ceiling_button, confirm_button, down_button, plaque, up_button, MerchantScreen, TradeScreen,
-    PANEL, PANEL_OK, STALL_OK,
+    plaque, STALL_OK,
 };
 use l2_view::Canvas;
 use l2_game::Game;
-use l2_kingdom::tables::Tables;
-use l2_kingdom::trade::{self, Good};
-use l2_mods::Platform;
+use l2_kingdom::trade::self;
 
 fn install() -> Option<PathBuf> {
     l2_testkit::install_dir()
@@ -34,9 +30,7 @@ macro_rules! world {
 }
 
 mod trade_actions;
-pub use trade_actions::*;
 mod merchant_ui;
-pub use merchant_ui::*;
 
 fn send<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets, e: Event) -> Transition {
     let mut ctx = Ctx { game, assets };

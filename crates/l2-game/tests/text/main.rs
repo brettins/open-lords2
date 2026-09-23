@@ -11,20 +11,13 @@
 //! stands behind the array.
 
 mod setup;
-pub use setup::*;
 mod persistence;
-pub use persistence::*;
 mod rendering;
-pub use rendering::*;
 
 use l2_game::game::{Assets, Game};
 use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Screen, Transition};
-use l2_game::screens::setup::{SetupPage, SetupScreen, NAME_PLATE_X, NAME_PLATE_Y, NAME_X};
-use l2_game::text::{FontMetrics, Kind, PlayerName, TextField, NAME_MAX_TYPED, PLAYER_NAME_LEN};
-use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::Tables;
-use l2_view::Canvas;
+use l2_game::screens::setup::{SetupPage, SetupScreen};
 
 pub(crate) fn bare() -> (Game, Assets) {
     (Game::new(1), Assets::placeholder())

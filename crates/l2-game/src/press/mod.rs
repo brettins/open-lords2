@@ -17,7 +17,6 @@ pub use kind::*;
 mod press;
 pub use press::*;
 
-use crate::input::{Event, Rect};
 
 pub const TICK_MS: u32 = 16;
 

@@ -180,25 +180,20 @@
 //!   construction on the player's own tile. `screens/info.rs`'s layout ladder
 //!   has no castle arm to call it from — it returns row `0x0A` for nothing.
 
-use crate::screen::{Ctx, Dirty, Screen, ScreenId, Transition};
+use crate::screen::{Ctx, Dirty};
 mod screen;
-pub use screen::*;
 mod common;
 pub use common::*;
 mod blacksmith_part;
 pub use blacksmith_part::*;
 mod bodies;
-pub use bodies::*;
 mod castle;
 pub use castle::*;
 
 use l2_kingdom::county::County;
-use l2_kingdom::tables::{
-    Commodity, Tables, JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING, JOB_COUNT, JOB_FIELD_RECLAMATION,
-    JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_NAMES, JOB_STONE_QUARRYING, JOB_WOOD_CUTTING,
-};
-use l2_view::chrome::system;
-use l2_view::Canvas;
+use l2_kingdom::tables::JOB_COUNT;
+#[cfg(test)]
+use l2_kingdom::tables::Tables;
 
 const BOX_X: i32 = 48;
 const BOX_Y: i32 = 96;

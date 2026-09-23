@@ -2,15 +2,11 @@
 //! happened to work — `docs/decisions.md` C1.
 
 mod track_tests;
-pub use track_tests::*;
 mod voice_tests;
-pub use voice_tests::*;
 mod format_tests;
-pub use format_tests::*;
 
 use std::path::{Path, PathBuf};
 
-use l2_game::audio::{names, track, wav};
 
 pub(crate) fn find(dir: &Path, name: &str) -> Option<PathBuf> {
     let want = name.to_ascii_lowercase();

@@ -2,16 +2,15 @@
 
 use std::path::PathBuf;
 
-use l2_formats::maps::MapSet;
 use l2_game::game::Assets;
 use l2_game::input::Event;
 use l2_game::scenario;
-use l2_game::screen::{Ctx, Screen, ScreenId, Transition};
+use l2_game::screen::{Ctx, Screen, Transition};
 use l2_game::screens::setup::{
     SetupPage, SetupScreen, CUSTOM_BUTTONS, CUSTOM_BUTTON_Y, MAP_LIST_ROW, MAP_LIST_ROWS,
     MAP_LIST_X, MAP_LIST_Y,
 };
-use l2_game::{turn, Game};
+use l2_game::Game;
 use l2_kingdom::realm::MAX_REALMS;
 
 /// `L2.eng` group 101's first five names, which are the first five slots.
@@ -35,18 +34,13 @@ macro_rules! assets {
 }
 
 mod start_game;
-pub use start_game::*;
 mod campaign;
-pub use campaign::*;
+use campaign::*;
 mod heraldry;
-pub use heraldry::*;
 mod army_size;
-pub use army_size::*;
 mod quaintville;
-pub use quaintville::*;
 mod realm_fields;
 mod load_page;
-pub use realm_fields::*;
 
 pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {
     let mut ctx = Ctx { game, assets };

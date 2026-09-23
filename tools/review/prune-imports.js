@@ -3,7 +3,7 @@
 // behind. `cargo fix` breaks the test build here (it drops imports only #[cfg(test)] code
 // uses), so: an import unused in the lib test build (or in an integration test) is removed;
 // one unused only in the plain lib build gets `#[cfg(test)]`; `pub use x::*` that rustc says
-// reexports nothing pub becomes `use x::*`. Then `cargo build -p <crate>` and
+// reexports nothing pub becomes `pub(crate) use x::*`. Then `cargo build -p <crate>` and
 // `cargo test -p <crate> --no-run` are the caller's.
 const { execSync } = require("child_process");
 const fs = require("fs");
@@ -17,17 +17,24 @@ const key = m => m.message.spans.map(s => `${s.file_name}|${s.byte_start}-${s.by
 const suggestions = m => m.message.children.flatMap(c => c.spans.filter(s => s.suggested_replacement !== null));
 
 function pass() {
-  const libOut = parse(run("check --lib")), testOut = parse(run("test --lib --no-run"));
-  const A = libOut.filter(m => mine(m) && unused(m));
-  // A dev-dependency cycle builds the plain lib inside the test run too: subtract its messages.
-  let B = testOut.filter(m => mine(m) && unused(m));
-  if (testOut.some(m => m.reason === "compiler-artifact" && m.package_id.includes(`/${crate}#`) && m.target.kind.includes("lib") && !m.profile.test)) {
-    const n = {}; for (const m of A) n[key(m)] = (n[key(m)] || 0) + 1;
-    B = B.filter(m => n[key(m)] > 0 ? (n[key(m)]--, false) : true);
-  }
+  // Lib and bin alike: unused in the target's test build too is removed, else `#[cfg(test)]`.
+  const target = (kind, flag) => {
+    const out = parse(run(`check ${flag}`)).filter(m => m.reason !== "compiler-message" || m.target.kind.includes(kind));
+    const tOut = parse(run(`test ${flag} --no-run`));
+    const a = out.filter(m => mine(m) && unused(m));
+    let b = tOut.filter(m => mine(m) && unused(m) && m.target.kind.includes(kind));
+    // A dev-dependency cycle builds the plain lib inside the test run too: subtract its messages.
+    if (kind === "lib" && tOut.some(m => m.reason === "compiler-artifact" && m.package_id.includes(`/${crate}#`) && m.target.kind.includes("lib") && !m.profile.test)) {
+      const n = {}; for (const m of a) n[key(m)] = (n[key(m)] || 0) + 1;
+      b = b.filter(m => n[key(m)] > 0 ? (n[key(m)]--, false) : true);
+    }
+    const inB = new Set(b.map(key));
+    return { out: [...out, ...tOut], b, only: a.filter(m => !inB.has(key(m))) };
+  };
+  const L = target("lib", "--lib"), N = target("bin", "--bins");
+  const libOut = [...L.out, ...N.out], testOut = [], B = [...L.b, ...N.b], libOnly = [...L.only, ...N.only];
   const cOut = parse(run("check --tests")).filter(m => m.reason !== "compiler-message" || m.target.kind.includes("test"));
   const C = cOut.filter(m => mine(m) && unused(m));
-  const inB = new Set(B.map(key)), libOnly = A.filter(m => !inB.has(key(m)));
   const ops = {}, taken = {};
   const add = (f, a, b, r) => (ops[f] ||= []).push([a, b, r]);
   // Two warnings on one `use` (a file compiled twice) disagree on braces: one per pass.
@@ -51,7 +58,7 @@ function pass() {
   }
   for (const m of [...libOut, ...testOut, ...cOut].filter(m => mine(m) && /^glob import doesn't reexport/.test(m.message.message))) {
     const s = m.message.spans[0], text = fs.readFileSync(s.file_name).toString("latin1");
-    if (text.slice(s.byte_start - 8, s.byte_start) === "pub use " && claim(s.file_name, s.byte_start - 8, s.byte_start)) add(s.file_name, s.byte_start - 8, s.byte_start, "use ");
+    if (text.slice(s.byte_start - 8, s.byte_start) === "pub use " && claim(s.file_name, s.byte_start - 8, s.byte_start)) add(s.file_name, s.byte_start - 8, s.byte_start, "pub(crate) use ");
   }
   let n = 0;
   for (const [f, list] of Object.entries(ops)) {

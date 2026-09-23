@@ -10,10 +10,9 @@
 
 use l2_game::game::Assets;
 use l2_game::input::Event;
-use l2_game::message::{self, category, Prompt, Record};
+use l2_game::message::{category, Prompt, Record};
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::Game;
-use l2_kingdom::victory::Outcome;
 
 
 fn send(m: &mut Machine, g: &mut Game, a: &Assets, e: Event) {
@@ -112,19 +111,13 @@ macro_rules! painted {
 }
 
 mod dismissal_and_timing;
-pub use dismissal_and_timing::*;
 mod prompts_and_alliances;
-pub use prompts_and_alliances::*;
+use prompts_and_alliances::*;
 mod outcomes_and_obituaries;
-pub use outcomes_and_obituaries::*;
 mod posting_and_sync;
-pub use posting_and_sync::*;
 mod painting_and_layout;
-pub use painting_and_layout::*;
 mod battle_drain;
-pub use battle_drain::*;
 mod help_window;
-pub use help_window::*;
 mod county_portrait;
 mod ending_face;
 

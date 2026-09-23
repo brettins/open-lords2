@@ -65,9 +65,9 @@
 //! `docs/decisions.md` C138.
 
 mod types;
-pub use types::*;
+use types::*;
 mod far_box;
-pub use far_box::*;
+use far_box::*;
 
 mod sidebar;
 pub use sidebar::*;
@@ -82,17 +82,11 @@ use l2_view::chrome::{self, Minimap, MinimapMode, MinimapTint};
 use l2_view::village;
 use l2_view::{text, Canvas, Clip, Ink, Tags};
 
-use crate::input::{Event, Key, Rect};
-use crate::press::Press;
+use crate::input::{Event, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::screens::battlefield::{
-    BOX_SET, CONFIRM_BOX, CONFIRM_COLS, CONFIRM_NO_FRAME, CONFIRM_ROWS, CONFIRM_WIDGETS,
-    CONFIRM_YES_FRAME, GROUP_CONFIRM,
-};
 use crate::screens::county;
 use crate::screens::confirm;
 use crate::screens::menubar;
-use crate::screens::saveload::Mode as SaveLoadMode;
 use crate::turn;
 use crate::shell::{font, Pen};
 use crate::widget;
@@ -293,19 +287,8 @@ pub struct MapScreen {
     scroll_speed: i32,
     prefs_scroll: i32,
     scroll_wait: u32,
-    press: Press,
 }
 
-
-/// **Rule 6**: the group's own words, with our transcription only when the
-/// install's `L2.eng` has nothing at that index.
-fn ours_or(from_eng: &str, ours: &str) -> String {
-    if from_eng.is_empty() {
-        ours.into()
-    } else {
-        from_eng.to_uppercase()
-    }
-}
 
 mod camera;
 mod events;

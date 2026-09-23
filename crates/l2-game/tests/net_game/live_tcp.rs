@@ -4,11 +4,11 @@
 use crate::seats::{assets, two_worlds};
 use l2_game::battlefield::BattleOp;
 use l2_game::command::{self as cmd, BattleOrder};
-use l2_game::net::{Live, Stepper};
+use l2_game::net::Live;
 use l2_game::{turn, Game};
 use l2_kingdom::unit::{Unit, UnitKind};
 use l2_game::command::GameCommand;
-use l2_net::{decode_all, state_hash, PeerId, PlayerSlot, TcpTransport, Transport};
+use l2_net::{decode_all, PeerId, PlayerSlot, TcpTransport, Transport};
 use std::time::Duration;
 
 const SEASONS: u32 = 3;
@@ -77,7 +77,7 @@ pub fn pair() -> Option<[Peer; 2]> {
     let seats = stage(&mut ga);
     let _ = stage(&mut gb);
     let (ta, tb) = connect();
-    let mut make = |mut game: Game, t: TcpTransport, i: usize, patience: u32| {
+    let make = |mut game: Game, t: TcpTransport, i: usize, patience: u32| {
         game.net.me = Some(PlayerSlot::new(i as u8));
         let live = Live::new(t, &mut game, 0x1025).expect("a seat");
         let (realm, army, county, target) = seats[i];
@@ -173,11 +173,6 @@ pub fn pump(peers: &mut [Peer; 2]) {
         p.play();
         p.live.pump(&mut p.game);
     }
-}
-
-pub fn hash(p: &mut Peer) -> u64 {
-    let mut m = 0;
-    state_hash(&Stepper { game: &mut p.game, malformed: &mut m })
 }
 
 /// Ablations: `self.net.outbox.push` in `Game::issue` (applied at once: the

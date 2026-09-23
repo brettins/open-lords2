@@ -142,15 +142,8 @@ pub use dropdown::*;
 mod render;
 pub use render::*;
 mod tests_part;
-pub use tests_part::*;
 
-use l2_view::{text, Canvas};
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::screens::options::Page;
-use crate::screens::saveload::Mode;
-use crate::shell::font;
 
 const BAR_X: i32 = 10;
 const BAR_Y: i32 = 6;

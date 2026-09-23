@@ -29,17 +29,12 @@ pub use battle::*;
 mod ai_part;
 pub use ai_part::*;
 mod tests;
-pub use tests::*;
 
-use l2_kingdom::ai::{self, AiStep};
-use l2_kingdom::conquest::Attack;
-use l2_kingdom::phase::{Phase, PhaseWait};
 use l2_kingdom::units_tick::{Contact, Encounter};
 use l2_kingdom::victory::Outcome;
-use l2_kingdom::{Kingdom, SeasonReport};
+use l2_kingdom::SeasonReport;
 
-use crate::engagement::{self, Answer, BattleReport, SiegePhase};
-use crate::game::Game;
+use crate::engagement::BattleReport;
 
 pub const MAX_TICKS: u32 = 2048;
 

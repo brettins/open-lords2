@@ -124,17 +124,11 @@ pub use types::*;
 mod constants;
 pub use constants::*;
 mod screen;
-pub use screen::*;
 mod painters;
 pub use painters::*;
 
-use l2_kingdom::conquest::LeftCastle;
-use l2_view::Canvas;
 
-use crate::input::{Event, Key, Rect};
 use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Face, Pen};
 
 fn at_screen_edge(x: i32, y: i32) -> bool {
     x <= 0 || y <= 0 || x >= l2_view::canvas::WIDTH as i32 - 1 || y >= l2_view::canvas::HEIGHT as i32 - 1

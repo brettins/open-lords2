@@ -150,7 +150,7 @@ fn a_pot_of_oil_sits_eight_pixels_low_and_bubbles_through_six_frames() {
         &[(Troop::Peasants, 1)],
         |(x, y)| (x as i32 - 7, y as i32 - 7),
     );
-    let mut canvas = Canvas::screen();
+    let mut canvas;
     let pot = live(&g)
         .runner
         .fighters

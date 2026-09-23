@@ -19,33 +19,27 @@
 //! `docs/agents.md`, *compute the probe from the constant you are ablating*.
 
 mod render;
-pub use render::*;
+use render::*;
 mod motion;
-pub use motion::*;
+use motion::*;
 mod column;
 
 mod band;
-pub use band::*;
 
 mod plates;
-pub use column::*;
 mod panel;
-pub use panel::*;
 mod entities;
-pub use entities::*;
 mod ui;
-pub use ui::*;
 
-use l2_formats::{DecodedFrame, Palette};
+use l2_formats::DecodedFrame;
 use l2_game::battlefield::{self as bf, LiveBattle};
 use l2_game::game::Assets;
 use l2_game::input::Event;
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::menubar;
 use l2_game::Game;
 use l2_sim::runner::{Army, BattleRunner};
 use l2_sim::terrain::DIM;
-use l2_sim::{Motion, Troop, SIDE_A, SIDE_B};
+use l2_sim::{Troop, SIDE_A};
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 

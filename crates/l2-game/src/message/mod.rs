@@ -77,12 +77,8 @@ pub use layout::*;
 mod queue;
 pub use queue::*;
 mod tests;
-pub use tests::*;
 
-use l2_kingdom::diplomacy::Letter;
-use l2_kingdom::victory::{self, Ending, Outcome, OutcomeStep};
 
-use crate::game::Game;
 
 /// The ring is 50 slots. `Msg_Reset` clears `0..0x32` and both cursors wrap at
 /// `0x31`.

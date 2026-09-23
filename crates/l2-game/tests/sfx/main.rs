@@ -3,9 +3,8 @@
 //! claimed ids equals the set the file calls `reproduced`.
 
 mod sfx_tests;
-pub use sfx_tests::*;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 fn repo_root() -> PathBuf {

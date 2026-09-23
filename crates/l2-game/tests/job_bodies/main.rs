@@ -15,20 +15,12 @@
 
 
 use l2_game::game::Assets;
-use l2_game::message::category;
-use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
+use l2_game::screen::{Ctx, Screen};
 use l2_game::screens::job::JobScreen;
 use l2_game::shell::font::{Font, Style};
-use l2_game::{scenario, Game};
-use l2_kingdom::event::{EventKind, RealmPurse};
+use l2_game::Game;
 use l2_kingdom::field::FieldType;
 use l2_kingdom::kingdom::Kingdom;
-use l2_kingdom::tables::{
-    Commodity, Season, Tables, Weather, JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING,
-    JOB_FIELD_RECLAMATION, JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_STONE_QUARRYING,
-    JOB_WOOD_CUTTING,
-};
-use l2_mods::Platform;
 use l2_view::Canvas;
 
 
@@ -63,11 +55,8 @@ macro_rules! fixture_world {
 }
 
 mod job_popups;
-pub use job_popups::*;
 mod events_and_letters;
-pub use events_and_letters::*;
 mod tile_panel;
-pub use tile_panel::*;
 
 fn draw_job(game: &mut Game, assets: &Assets, county: usize, job: usize) -> Canvas {
     let mut screen = JobScreen::new(county as u8, job);

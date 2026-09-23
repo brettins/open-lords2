@@ -48,15 +48,6 @@ pub use constants::*;
 mod screen;
 pub use screen::*;
 mod tests_part;
-pub use tests_part::*;
 
-use l2_kingdom::divide::{SplitBasket, SplitInto, SplitRefusal};
-use l2_kingdom::unit::{ALL_TROOP_TYPES, TroopType};
-use l2_view::{text, Canvas};
 
-use crate::press::{Press, Widget};
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Face, Pen};
-use crate::widget;
 

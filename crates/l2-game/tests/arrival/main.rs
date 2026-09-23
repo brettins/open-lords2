@@ -1,14 +1,13 @@
 
 mod arrival_tests;
-pub use arrival_tests::*;
 
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
-use l2_game::message::{category, Record};
+use l2_game::input::Event;
+use l2_game::message::Record;
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::{map, message as scroll};
 use l2_game::Game;
-use l2_kingdom::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
+use l2_kingdom::map::{CampaignMap, MAP_DIM, MAP_TILES};
 use l2_kingdom::movement::{self, Routing};
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 use l2_view::campaign;

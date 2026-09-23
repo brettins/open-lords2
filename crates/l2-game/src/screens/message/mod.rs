@@ -34,11 +34,11 @@ pub use render::*;
 
 use l2_view::Canvas;
 
-use crate::input::{Event, Key, Rect};
+use crate::input::{Event, Rect};
 use crate::press::{Press, Widget};
-use crate::message::{self, category, Prompt, Record, Shape};
+use crate::message::{self, Prompt, Record, Shape};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
+use crate::shell::{font, Pen};
 
 /// `FUN_004093E0(…, …, …, …)`'s border set. Every one of `Msg_DrawWindow`'s
 /// arms passes the four-argument form, which is border set 1.

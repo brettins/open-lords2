@@ -69,9 +69,7 @@
 use l2_formats::pl8::DecodedFrame;
 use l2_game::game::Assets;
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::{battlefield, diplomacy, divide};
 use l2_game::Game;
-use l2_view::chrome::panels;
 use l2_view::sheet::Sheet;
 use l2_view::Canvas;
 
@@ -99,11 +97,8 @@ macro_rules! world {
 }
 
 mod pinned_part;
-pub use pinned_part::*;
 mod diplomacy_part;
-pub use diplomacy_part::*;
 mod army_and_confirm;
-pub use army_and_confirm::*;
 
 fn rivals() -> Game {
     let mut g = Game::new(5);

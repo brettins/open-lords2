@@ -25,18 +25,19 @@ pub use fight::*;
 mod siege;
 pub use siege::*;
 mod tests;
-pub use tests::*;
 #[cfg(test)]
 mod band_tests;
 #[cfg(test)]
 mod session_tests;
 
-use l2_kingdom::battle::{self, Aftermath, Settlement, Verdict};
+use l2_kingdom::battle::{Aftermath, Settlement, Verdict};
+#[cfg(test)]
 use l2_kingdom::conquest::Attack;
+#[cfg(test)]
 use l2_kingdom::kingdom::Kingdom;
-use l2_kingdom::unit::TROOP_TYPES;
-use l2_sim::runner::{blank_field, BattleRunner, Muster};
-use l2_sim::{End, Troop, SIDE_A, SIDE_B};
+use l2_sim::End;
+#[cfg(test)]
+use l2_sim::Troop;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Resolution {

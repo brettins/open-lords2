@@ -71,18 +71,16 @@
 //!   clock is `docs/netcode.md`'s to design, not this module's to port.
 
 mod clock;
-pub use clock::*;
 mod draw_part;
 pub use draw_part::*;
 
 mod screens;
 pub use screens::*;
 
-use l2_view::Canvas;
 
 use crate::game::Game;
-use crate::screen::{Ctx, ScreenId};
-use crate::shell::{font, Pen};
+#[cfg(test)]
+use crate::screen::ScreenId;
 
 pub const FRAME: usize = 0x60;
 pub const FRAME_X: i32 = 0x194;

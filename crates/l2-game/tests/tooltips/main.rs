@@ -14,22 +14,14 @@
 //! one on.
 
 mod behavior;
-pub use behavior::*;
 mod rendering;
-pub use rendering::*;
 mod battle;
-pub use battle::*;
 
 use l2_game::game::Assets;
-use l2_game::input::{Event, Rect};
+use l2_game::input::Event;
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::county::Panel;
-use l2_game::screens::options::{self, Setting};
-use l2_game::shell::Pen;
-use l2_game::tooltip::{self, Shown, Sidebar};
+use l2_game::tooltip::Shown;
 use l2_game::Game;
-use l2_kingdom::unit::{TroopType, Unit, UnitKind};
-use l2_view::Canvas;
 
 
 fn tick(m: &mut Machine, g: &mut Game, a: &Assets) {

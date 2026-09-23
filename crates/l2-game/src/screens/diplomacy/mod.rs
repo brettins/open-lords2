@@ -66,26 +66,18 @@
 mod main;
 pub use main::*;
 mod screen;
-pub use screen::*;
 mod compose;
 pub use compose::*;
 mod tests;
-pub use tests::*;
 
-use l2_kingdom::diplomacy::{group, Kind};
-use l2_kingdom::realm::MAX_REALMS;
-use l2_view::Canvas;
+use l2_kingdom::diplomacy::Kind;
 
-use crate::input::{Event, Key, Rect};
-use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::input::Rect;
+use crate::press::Press;
 // **`Ui_DrawText(&g_playerNames + realm * 0x2C, …)`, once for the whole
 // crate.** This module had a copy that stopped at `g_playerNames` and printed
 // `REALM n` when it was empty; `docs/decisions.md` C189's pair of sources is
 // the whole rule and lives in one place.
-use crate::screens::message::lord_name;
-use crate::shell::{font, Pen};
-use crate::widget;
 
 /// `L2.eng` group 72 — *"Diplomacy."*, and every label on both screens.
 pub const GROUP: usize = 72;

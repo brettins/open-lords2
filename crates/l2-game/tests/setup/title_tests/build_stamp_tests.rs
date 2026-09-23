@@ -117,7 +117,7 @@ fn every_pixel_of_the_build_stamp_is_inside_the_visible_canvas() {
         top + height - screen_h,
     );
 
-    let mut blank = Canvas::screen();
+    let blank = Canvas::screen();
     let mut painted = Canvas::screen();
     l2_game::build_id::draw(&mut painted, &pen);
     let rows: Vec<usize> = (0..l2_view::canvas::HEIGHT)
