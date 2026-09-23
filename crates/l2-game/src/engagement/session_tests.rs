@@ -79,8 +79,9 @@ fn a_new_game_and_a_skirmish_carry_the_selectors_and_the_battle_county() {
 #[test]
 fn a_first_assault_keeps_the_fresh_scores_and_a_repeat_takes_the_countys() {
     let (mut k, a, d) = two_armies();
-    let mut r = begin_fight_in(&mut k, a, d, Some(1), 7, false).unwrap();
+    let mut r = begin_fight_in(&mut k, a, d, Some(0), 7, false).unwrap();
     let fresh = r.castle_damage();
+    assert!(fresh.approach_score != 0 || fresh.ramparts_breached != 0, "{fresh:?}");
     k.counties[5].siege_scars.approach_score = 9;
     restore_last_siege(&mut k, 5, &mut r);
     assert_eq!(r.castle_damage(), fresh);
