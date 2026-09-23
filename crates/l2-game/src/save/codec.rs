@@ -105,7 +105,7 @@ fn encode_record(out: &mut Canonical, r: &crate::message::Record) {
     out.u8(r.to);
     out.u8(r.from);
     out.u32(r.group as u32);
-    out.u8(r.variant);
+    out.u32(r.variant as u32);
     out.u8(r.category);
     out.u8(r.county);
     out.u8(r.spare);
@@ -117,7 +117,7 @@ fn decode_record(input: &mut Reader<'_>) -> Result<crate::message::Record, LoadE
         to: input.u8()?,
         from: input.u8()?,
         group: input.u32()? as u16,
-        variant: input.u8()?,
+        variant: input.u32()? as i32,
         category: input.u8()?,
         county: input.u8()?,
         spare: input.u8()?,

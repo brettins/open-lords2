@@ -96,6 +96,11 @@ commands! {
     29 DismissReport,
     30 BattleOrder,
     31 SendLetter,
+    32 PostLetter,
+    33 GiftReply,
+    34 EndAllianceReply,
+    35 SetWeaponType,
+    36 SetIndustryShare,
 }
 
 /// The slot this machine issues from. `[I]` one seat until the lobby's

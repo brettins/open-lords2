@@ -19,7 +19,7 @@ use crate::screens::setup::MAP_COUNT;
 
 pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 
-pub const VERSION: u32 = 9;
+pub const VERSION: u32 = 10;
 
 /// The oldest version this build reads. [D] ours, C239: raised to `VERSION` unless the
 /// change is a pure addition with defaults and the previous release's reader is kept.

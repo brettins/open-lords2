@@ -222,13 +222,57 @@ impl Order for SendLetter {
             to: self.to,
             from,
             group: 0xF5 + u16::from(self.kind),
-            // [I] `variant` is an int at `+0x0C` in `Msg_Enqueue`; ours is a byte.
-            variant: if self.kind == 0 { self.gold.clamp(0, 255) as u8 } else { 0 },
+            variant: if self.kind == 0 { self.gold } else { 0 },
             category: crate::message::category::DIPLOMACY,
             county: if (5..=10).contains(&self.kind) { self.county } else { 0 },
             ..Default::default()
         };
         let local = game.local_realm();
         game.messages.enqueue(record, local);
+        // `if (g_localPlayer == local_8)`: kind 0 `Net_SendCommand(0x4A)`, kind 4 `(0x4B)`. [V]
+        if !game.net.lockstep || local != self.to {
+            return;
+        }
+        match self.kind {
+            0 => game.net.outbox.push(GiftReply { from, gold: self.gold }.into()),
+            4 => game.net.outbox.push(EndAllianceReply { with: from }.into()),
+            _ => {}
+        }
     }
+}
+
+/// `Net_DiploPost` (`0x00448308`), action 0x2A of opcode 0x48: `Diplo_SendClicked`
+/// (`0x00436408`) posts to an AI lord through the network, never directly. [V]
+impl Order for PostLetter {
+    type Reply = ();
+    fn run(self, game: &mut Game) {
+        let Some(kind) = l2_kingdom::diplomacy::Kind::from_byte(self.kind) else { return };
+        let from = game.player;
+        game.kingdom.post_letter(from, self.to, kind, self.gold, self.county);
+    }
+}
+
+/// `NetAct_DiploReply` (`0x00448339`), opcode 0x4A: issued by the gift's addressee.
+impl Order for GiftReply {
+    type Reply = bool;
+    fn run(self, game: &mut Game) -> bool {
+        let me = game.player;
+        l2_kingdom::diplomacy::gift_reply(&mut game.kingdom.realms, me, self.from, self.gold)
+    }
+}
+
+/// `NetAct_DiploBreakAlliance` (`0x004483D1`), opcode 0x4B: `Diplo_BreakAlliance(to, from)`.
+impl Order for EndAllianceReply {
+    type Reply = ();
+    fn run(self, game: &mut Game) {
+        let me = game.player;
+        l2_kingdom::diplomacy::break_alliance(&mut game.kingdom.realms, me, self.with);
+    }
+}
+
+via_game! {
+    // `Blacksmith_WeaponClicked` (`0x0043A950`): opcode 0x21, `Blacksmith_SetWeaponType` (`0x0043A997`).
+    SetWeaponType -> bool = |g, o| g.kingdom.set_weapon_type(o.county, o.weapon);
+    // `NetAct_SetIndustryShare` (`0x00447FA1`): `Labour_SetIndustryShare(county, share)`.
+    SetIndustryShare -> bool = |g, o| g.kingdom.set_industry_share(o.county, o.share);
 }

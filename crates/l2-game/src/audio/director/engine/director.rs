@@ -389,7 +389,7 @@ impl Director {
                     //
                     // sfx: Msg_DrawWindow#16,Msg_DrawWindow#21
                     if let Some((group, variant)) = film.voice() {
-                        if let Some(name) = names::message_voice(group, variant) {
+                        if let Some(name) = names::message_voice(group, variant.into()) {
                             audio.stop_and_play_file(&name, true);
                         }
                     }

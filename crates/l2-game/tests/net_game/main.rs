@@ -176,3 +176,4 @@ fn a_one_byte_tamper_is_a_divergence_at_its_tick() {
     assert_eq!(d.tick, at, "{d}");
     assert_eq!(d.last_agreed, Some(Tick(at.0 - 1)));
 }
+mod diplomacy;

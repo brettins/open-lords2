@@ -220,7 +220,7 @@ pub(crate) fn answer_garrison(
             let record = crate::message::Record {
                 to,
                 group: 0xA6,
-                variant: unit as u8,
+                variant: unit as i32,
                 category: crate::message::category::GARRISON_PROMPT,
                 county,
                 payload: (map::index(dest.0, dest.1) * 8) as i32,

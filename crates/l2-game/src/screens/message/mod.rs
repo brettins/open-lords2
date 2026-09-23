@@ -311,15 +311,21 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
             }
             Transition::Pop
         }
-        // `FUN_004368FD` / `FUN_0043695D` — the *ally's* answer to a request the
-        // player made. Both set `g_diploKind` to one of two values by hotspot
-        // and post it: 7/8 for help, 9/10 for attack. Those four kinds are
-        // beyond `l2_kingdom::diplomacy::Kind`'s seven, which stops at 6 — they
-        // are network commands and not composer kinds, and `Net_SendCommand`
-        // (`0x49`) is their only consumer. In a single-player game the two
-        // handlers therefore do nothing but dismiss.
+        // `Diplo_ReplyHelpClicked` (`0x004368FD`) / `Diplo_ReplyAttackClicked` (`0x0043695D`):
+        // kinds 7..=10 exist only as opcode 0x49; single player only dismisses. [V]
         Prompt::AnswerHelpRequest | Prompt::AnswerAttackRequest => {
+            let open = ctx.game.messages.open().map(|r| (r.from, r.county));
             message::dismiss(ctx.game);
+            let Some((to, county)) = open.filter(|_| ctx.game.net.lockstep) else {
+                return Transition::Pop;
+            };
+            // `g_diploKind = hotspot == 0 ? 8 : 7` (help), `? 10 : 9` (attack); `Net_SendCommand(0x49)`. [V]
+            // [I] `g_pickedCounty = DAT_0056894C` read as the open letter's county.
+            let base = if matches!(prompt, Prompt::AnswerHelpRequest) { 7 } else { 9 };
+            let kind = if yes { base } else { base + 1 };
+            let me = usize::from(ctx.game.player);
+            let text = ctx.game.messages.letters.get(me).cloned().unwrap_or_default();
+            ctx.issue(crate::command::SendLetter { to, kind, gold: 0, county, text });
             Transition::Pop
         }
         // `FUN_004376BB` (`0x004376BB`) — *"Cannot garrison castle."*
@@ -356,6 +362,23 @@ mod tests {
         assert_eq!(face_frame(2, true, 3), 12, "a human rival");
         assert_eq!(face_frame(2, false, 0), 16, "realm 0 is the game itself");
         assert_eq!(face_frame(2, false, 6), 17, "and 6 is the merchant");
+    }
+
+    /// Ablation: the `ctx.issue(SendLetter { .. })` in `answer`'s help/attack arm.
+    #[test]
+    fn a_seats_answer_to_a_plea_for_help_is_a_letter_back() {
+        let assets = crate::game::Assets::placeholder();
+        let mut game = crate::Game::new(5);
+        game.net.lockstep = true;
+        let plea = Record { to: 1, from: 2, group: 0xFA, category: 0x0C, county: 4, ..Default::default() };
+        game.messages.reopen(plea, 0);
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        answer(&mut ctx, Prompt::AnswerHelpRequest, false);
+        let sent = game.net.outbox.iter().find_map(|c| match c {
+            crate::command::GameCommand::SendLetter(l) => Some((l.to, l.kind, l.county)),
+            _ => None,
+        });
+        assert_eq!(sent, Some((2, 8, 4)), "thumb-down on 0xFA is kind 8");
     }
 }
 
