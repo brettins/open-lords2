@@ -31,11 +31,15 @@ impl SetupScreen {
             unhonoured: Vec::new(),
             failure: None,
             campaign: false,
+            network: false,
             autosave: false,
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
             prefs_read: false,
+            load: None,
+            load_opener: SetupPage::Options,
+            load_list_hit: false,
             skirmish: Default::default(),
             troops: Default::default(),
             troops_file: None,
@@ -170,7 +174,9 @@ impl SetupScreen {
                 }
             }
             SetupPage::SkirmishFile => self.skirmish_file_arms(&mut v),
-            SetupPage::NoCd | SetupPage::Load => {
+            // Screen_HandleInput 0x004BA9C8, 004b0000.c:7355-7362: page 3 is the box's table. [V]
+            SetupPage::Load => {}
+            SetupPage::NoCd => {
                 v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
             }
             SetupPage::Skirmish | SetupPage::SkirmishMulti => self.skirmish_arms(&mut v),
@@ -307,7 +313,10 @@ impl SetupScreen {
 
     fn item(&mut self, i: usize, ctx: &mut Ctx) -> Transition {
         match (self.page, i) {
-            (SetupPage::Title, 0) => self.go(SetupPage::Options),
+            (SetupPage::Title, 0) => {
+                self.network = false;
+                self.go(SetupPage::Options)
+            }
             (SetupPage::Title, 1) => {
                 // `FUN_00432B05` opens with `DAT_0057D320 = 0` before any of
                 // its four arms: arriving at page 4 from the title menu is
@@ -315,6 +324,7 @@ impl SetupScreen {
                 //
                 // arm: 0x00432B05/multiplayer-clears-campaign left-release
                 self.campaign = false;
+                self.network = true;
                 self.go(SetupPage::Shield)
             }
             // `FUN_00432B05`'s hotspot 4 — *"Lords of Magic?"* — is the THIRD
@@ -439,6 +449,10 @@ impl SetupScreen {
             // arm: 0x00432B05/name-field-open left-release
             self.name = begin_name(&self.saved_name);
         }
+        if page == SetupPage::Load && self.page != SetupPage::Load {
+            // FUN_004335F0 0x004335F0 00430000.c:975, FUN_00432CC8 :632 `DAT_00553e5c = g_setupPage`. [V]
+            self.load_opener = self.page;
+        }
         self.page = page;
         self.selected = 0;
         Transition::Stay
@@ -466,6 +480,9 @@ impl SetupScreen {
         }
         if HUMAN_PLAYERS > self.player_starts {
             return Transition::Stay;
+        }
+        if self.network {
+            return self.open_lobby(ctx);
         }
         let settings = self.options.commit(HUMAN_PLAYERS, ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();

@@ -52,11 +52,52 @@ impl BattleRunner {
         castle_level: Option<u8>,
         tables: Option<&crate::CastleTables>,
     ) -> Self {
+        let session = Session::default();
+        Self::deploy_prepared(field, seed, army_a, army_b, castle_level, tables, session, |_| {})
+    }
+
+    /// Any of the three fields, opened from the last battle's [`Session`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn deploy_in_session(
+        field: Battlefield,
+        tables: Option<&crate::CastleTables>,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: Option<u8>,
+        session: Session,
+    ) -> Self {
+        Self::deploy_prepared(field, seed, army_a, army_b, castle_level, tables, session, |_| {})
+    }
+
+    /// What `Battle_Start` (`0x004778A0`) left in `g_battleApproachLane` and
+    /// `g_battleRallyGroup`.
+    pub fn session(&self) -> Session {
+        Session {
+            multiplayer: self.ai.multiplayer,
+            lane: self.ai.approach_lane,
+            rally: self.ai.rally_group,
+        }
+    }
+
+    /// `prep` runs on the built field before either side is raised.
+    pub(crate) fn deploy_prepared(
+        field: Battlefield,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: Option<u8>,
+        tables: Option<&crate::CastleTables>,
+        session: Session,
+        prep: impl FnOnce(&mut BattleRunner),
+    ) -> Self {
         let total = army_a.men() + army_b.men();
         let class = MEN_PER_FIGURE_TABLE[size_class(total)];
         let mpf_a = side_scale(army_a.men(), class);
         let mpf_b = side_scale(army_b.men(), class);
         let mut runner = BattleRunner::empty(field, seed);
+        let prev = (session.lane, session.rally);
+        runner.ai = Ai::new_for_battle(seed, session.multiplayer, prev);
         runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
         runner.size_class = size_class(total) as u8;
         if let Some(level) = castle_level {
@@ -92,8 +133,9 @@ impl BattleRunner {
                 );
             }
         }
-        runner.raise_men(&army_a, mpf_a, SIDE_B);
-        runner.raise_men(&army_b, mpf_b, SIDE_A);
+        prep(&mut runner);
+        runner.raise_men(&army_a, mpf_a, SIDE_B, false);
+        runner.raise_men(&army_b, mpf_b, SIDE_A, castle_level.is_some());
         runner.settle();
         runner
     }
@@ -285,13 +327,17 @@ impl BattleRunner {
             return Some(Conclusion { winner: SIDE_B, cause: End::Annihilation });
         }
         if self.siege.is_siege {
+            // `00470000.c:3344-3369`: the failed-assault arm runs after the
+            // break-in arm in the same frame, and its `g_battleLoser` stands.
+            if self.ai.breach_score == 0
+                && self.ai.siege_engine_count == 0
+                && self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL
+            {
+                return Some(Conclusion { winner: SIDE_A, cause: End::AssaultFailed });
+            }
+            // `:3344-3347`: `g_castleEntered` credits `g_battleArmyA`, side 4.
             if self.siege.broke_in {
                 return Some(Conclusion { winner: SIDE_B, cause: End::BrokeIn });
-            }
-            if self.ai.breach_score == 0 && self.ai.siege_engine_count == 0 {
-                if self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL {
-                    return Some(Conclusion { winner: SIDE_A, cause: End::AssaultFailed });
-                }
             }
         }
         None

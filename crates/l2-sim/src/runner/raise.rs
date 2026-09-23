@@ -12,29 +12,61 @@ impl BattleRunner {
             &Muster { troops: &men, owner: army.owner, human: army.human, mercenaries: None },
             MEN_PER_FIGURE as u32,
             side,
+            false,
         );
     }
 
-    pub(super) fn raise_men(&mut self, army: &Muster, men_per_figure: u32, side: Side) {
+    /// `siege`: `Battle_RaiseSideSiege` (`0x004801F8`), which `Battle_InitArmies`
+    /// (`00470000.c:6556-6561`) calls for army B, side 0, in a siege.
+    pub(super) fn raise_men(&mut self, army: &Muster, men_per_figure: u32, side: Side, siege: bool) {
         assert_ne!(army.owner, 0, "owner 0 is the original's free-slot marker");
         let mpf = men_per_figure.max(1);
         let mut counts = [0u32; 11];
         for &(t, n) in army.troops {
             counts[t.index()] += n;
         }
-        let mut ordinal = 0usize;
-        for &troop in RAISE_ORDER.iter() {
+        let order: &[Troop] = if siege { &RAISE_ORDER_SIEGE } else { &RAISE_ORDER };
+        let mut at = Cursor { ordinal: 0, oil: 0, siege };
+        for &troop in order {
             let count = counts[troop.index()];
             let left = if troop.index() > 6 { count * mpf } else { count };
-            if !self.raise_troop(army, troop, left, false, mpf, side, &mut ordinal) {
+            if !self.raise_troop(army, troop, left, false, mpf, side, &mut at) {
                 return;
             }
         }
         // `Battle_RaiseSide` (`0x0047FEA7`): after the eleven, `mercMen` of
         // `mercTroop` is split the same way and raised with `mercenary = 1`.
         if let Some((troop, men)) = army.mercenaries {
-            self.raise_troop(army, troop, men, true, mpf, side, &mut ordinal);
+            self.raise_troop(army, troop, men, true, mpf, side, &mut at);
         }
+    }
+
+    /// `Deploy_SlotForUnitSiege` (`0x004816F9`, `00480000.c:484-527`).
+    pub(super) fn deploy_slot_siege(&self, troop: Troop, oil: &mut usize) -> (u8, u8) {
+        let slot = match troop {
+            Troop::Peasants | Troop::Knights => 8,
+            // `:508` `if ((local_8 == 0) && (DAT_004eeafc == 0)) local_8 = 1;`
+            Troop::Crossbowmen | Troop::Archers if self.wall_missile_latch == 0 => 1,
+            Troop::Crossbowmen | Troop::Archers => 0,
+            Troop::Macemen | Troop::Swordsmen | Troop::Pikemen => 4,
+            _ => {
+                // `:511-522`: slot 9 walks `0x00554200` by `DAT_004D98C0`, back
+                // to entry 0 on an empty entry, wrapping after 8. **[D]** the
+                // cursor starts at 0 each battle; the original's is a `.data`
+                // global (initial 0) that persists across battles.
+                let table = &self.ai_field.wall_slot[1];
+                let (mut x, mut y) = table[*oil];
+                if x == 0 || y == 0 {
+                    *oil = 0;
+                    (x, y) = table[0];
+                }
+                *oil = if *oil + 1 > 8 { 0 } else { *oil + 1 };
+                // [D] Deploy_SlotForUnitSiege 0x004816F9 :512-513 copies 0x00554200 unchecked; ours indexes the grid.
+                let c = |v: i16| v.clamp(0, DIM as i16 - 1) as u8;
+                return (c(x), c(y));
+            }
+        };
+        self.field.deploy_side0[slot]
     }
 
     /// One `while (local_8 != 0)` loop of `Battle_RaiseSide` (`0x0047FEA7`):
@@ -48,22 +80,33 @@ impl BattleRunner {
         mercenary: bool,
         mpf: u32,
         side: Side,
-        ordinal: &mut usize,
+        at: &mut Cursor,
     ) -> bool {
-        let per_unit = MAX_FIGURES_PER_UNIT[troop.index()] as u32;
+        // `Battle_RaiseSideSiege` `00480000.c:50-52`, `:77-79`: `DAT_004ee8f8 = 3`.
+        let per_unit = match troop {
+            Troop::Crossbowmen | Troop::Archers if at.siege => 3,
+            _ => MAX_FIGURES_PER_UNIT[troop.index()] as u32,
+        };
         let footprint = FOOTPRINT[troop.index()];
         while left > 0 {
             let unit_men = left.min(per_unit * mpf);
             let figures = unit_men.div_ceil(mpf) as usize;
+            // `BattleUnit_Create` (`0x00480662`, `:159-164`) places before it classifies.
+            let slot = if at.siege {
+                self.deploy_slot_siege(troop, &mut at.oil)
+            } else {
+                self.deploy_slot(at.ordinal, side)
+            };
             let mut category = CATEGORY_OF_TROOP[troop.index()];
-            if self.siege.is_siege && side == SIDE_A && category == 1 && self.wall_missile_latch < 2 {
+            // `:199-208`: side 0's first missile unit in a siege is category 9
+            // (`DAT_004eeafc`), the next two 10 (`DAT_004ee8ec < 2`).
+            if self.siege.is_siege && side == SIDE_A && category == 1 && self.wall_missile_latch < 3 {
+                category = if self.wall_missile_latch == 0 { 9 } else { 10 };
                 self.wall_missile_latch += 1;
-                category = 8 + self.wall_missile_latch;
             }
             let Some(unit) = self.units.create(army.owner, army.human, side, category) else {
                 return false;
             };
-            let slot = self.deploy_slot(*ordinal, side);
             let rows = formation::rows_for(troop, figures);
             for i in 0..figures {
                 let men = if i + 1 == figures {
@@ -127,8 +170,28 @@ impl BattleRunner {
                 });
             }
             left -= unit_men;
-            *ordinal += 1;
+            at.ordinal += 1;
         }
         true
     }
 }
+
+/// `DAT_004EEAD0`, the oil cursor `DAT_004D98C0`, and which raise is running.
+pub(super) struct Cursor {
+    ordinal: usize,
+    oil: usize,
+    siege: bool,
+}
+
+/// `g_raiseOrderSiege` (`0x004D98A0`). **[V]** read out of the binary as
+/// `10, 5, 1, 6, 0, 3, 2, 4`: no catapult, tower or ram.
+pub const RAISE_ORDER_SIEGE: [Troop; 8] = [
+    Troop::Oil,
+    Troop::Archers,
+    Troop::Crossbowmen,
+    Troop::Knights,
+    Troop::Peasants,
+    Troop::Swordsmen,
+    Troop::Macemen,
+    Troop::Pikemen,
+];

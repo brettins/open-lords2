@@ -47,7 +47,7 @@ fn a_line_or_a_fanfare_over_the_one_shot_buffer_is_dropped_and_after_it_plays() 
     };
     let ration = ScreenId::County(1, Panel::Ration);
     let prompt = ScreenId::BattlePrompt;
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &stack(&[]), &game);
 
     listen(&mut director, &mut audio, &stack(&[ration]), &game);

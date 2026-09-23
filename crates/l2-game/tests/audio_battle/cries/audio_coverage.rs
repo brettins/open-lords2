@@ -132,7 +132,7 @@ fn a_cry_over_a_cry_is_dropped_and_its_take_is_spent() {
     };
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let mut sound = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let a = Assets::placeholder();
     let (mut g, mut m) = staged(&[(Troop::Peasants, 4)], &[(Troop::Knights, 1)]);
     let drain = |sound: &mut Audio, name: &str| {

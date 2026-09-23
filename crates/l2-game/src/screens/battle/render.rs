@@ -146,18 +146,3 @@ pub(crate) fn draw_roster(
     let _ = ink;
 }
 
-/// The seven banners in our own words, for an install with no `L2.eng`. The
-/// original's are far better and are used whenever they are there.
-pub(crate) fn ours_banner(outcome: Outcome) -> String {
-    match outcome {
-        Outcome::Won => "THE BATTLE IS WON.",
-        Outcome::Lost => "THE BATTLE IS LOST.",
-        Outcome::SiegeWon => "THE SIEGE IS WON.",
-        Outcome::SiegeLost => "THE SIEGE IS LOST.",
-        Outcome::SiegeLifted => "THE SIEGE IS LIFTED.",
-        Outcome::CastleLost => "THE CASTLE IS LOST.",
-        Outcome::Bystander => "THE CONFLICT IS OVER.",
-    }
-    .to_string()
-}
-

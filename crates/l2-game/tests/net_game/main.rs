@@ -2,6 +2,7 @@
 //! identical, and a copy that is not is caught on the tick it stopped being.
 
 mod script;
+mod lobby_tcp;
 mod seats;
 mod two_seats;
 

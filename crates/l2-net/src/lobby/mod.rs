@@ -75,6 +75,8 @@ pub struct Start {
     /// The host's `g_startingGoldChosen` from its last game: an unseated realm
     /// keeps it (`FUN_0049C995`, `0x0049C995`), and it is process state.
     pub unseated_gold: i32,
+    /// The host's map slot and options, opaque here; `l2_game::net::Setup` reads it.
+    pub setup: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -144,6 +146,7 @@ pub struct Lobby {
     started: Option<Start>,
     shield: u8,
     unseated_gold: i32,
+    setup: Vec<u8>,
 }
 
 fn check_name(name: String, roster: &Roster) -> Result<String, LobbyError> {

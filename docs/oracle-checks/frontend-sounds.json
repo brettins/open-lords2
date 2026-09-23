@@ -1,0 +1,62 @@
+{
+  "reviewed": "94d4beb7bae80eb3aaaf0ae44a9753f7c89c848f",
+  "date": "2026-09-23",
+  "behaviours": [
+    {
+      "file": "crates/l2-game/src/audio/director/engine/director.rs",
+      "line": 99,
+      "address": "0x00497A34",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/mod.rs",
+      "line": 153,
+      "address": "0x004148E4",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/methods.rs",
+      "line": 212,
+      "address": "0x004AD9F0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/methods.rs",
+      "line": 216,
+      "address": "0x004AD9F0",
+      "verdict": "match",
+      "note": "Setup_StartGame runs whatever Save_Read returned when Net_WaitForPreload is nonzero; the stay-on-failure guard is ours and labelled [I], not [D]. FIXED: relabelled [D], starting over a failed read is unsafe."
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/load_page.rs",
+      "line": 17,
+      "address": "0x0042FF10",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/load_page.rs",
+      "line": 14,
+      "address": "0x0042FF10",
+      "verdict": "match",
+      "note": "Right release sets g_setupPage = DAT_00553E5C, the page that opened the box; ours always goes to Options. FIXED: load_opener, and the FUN_0043400B(1) same-frame guard."
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/load_page.rs",
+      "line": 33,
+      "address": "0x00434308",
+      "verdict": "match",
+      "note": "SaveLoad_Cancel restores DAT_00553E5C; FUN_004335F0 hotspot 4 (the Custom page) sets it to its own page, so Cancel from Custom returns to Custom, not Options. FIXED: load_opener set in go()."
+    },
+    {
+      "file": "crates/l2-game/src/screens/saveload/screen/screen_impl.rs",
+      "line": 140,
+      "address": "0x004149EC",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

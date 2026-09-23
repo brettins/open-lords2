@@ -54,6 +54,10 @@ pub enum Ask {
     Surrender,
     /// `Battle_RetreatButton` 0x0043BA29 → `FUN_0043BB68`, 10/12 (`00430000.c:6743`).
     Retreat,
+    /// Map_ConfirmMoveOrder 0x004A9252 → MoveOrder_ConfirmCombine 0x004A975D, 10/5 (`004a0000.c:3861`).
+    Combine,
+    /// Map_ConfirmMoveOrder 0x004A9252 → MoveOrder_ConfirmGarrison 0x004A9372, 10/7 (`004a0000.c:3857`).
+    Garrison { unit: usize, county: u8, dest: (u8, u8) },
 }
 
 impl Ask {
@@ -65,6 +69,8 @@ impl Ask {
             Ask::Autocalc => 9,
             Ask::Surrender => 11,
             Ask::Retreat => 12,
+            Ask::Combine => 5,
+            Ask::Garrison { .. } => 7,
         }
     }
 
@@ -87,6 +93,8 @@ impl Ask {
             Ask::Autocalc => "Autocalc battle?",
             Ask::Surrender => "Surrender castle?",
             Ask::Retreat => "Retreat from field?",
+            Ask::Combine => "Combine armies?",
+            Ask::Garrison { .. } => "Garrison castle?",
         }
     }
 }
@@ -109,6 +117,14 @@ impl ConfirmScreen {
     /// (*g_confirmCallback)();` — index 0 is the thumb up, index 1 the thumb
     /// down.
     fn answer(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
+        use crate::screens::map::garrison;
+        match self.ask {
+            Ask::Combine => return garrison::answer_combine(ctx, yes),
+            Ask::Garrison { unit, county, dest } => {
+                return garrison::answer_garrison(ctx, yes, unit, county, dest)
+            }
+            _ => {}
+        }
         if !yes {
             return Transition::Pop;
         }
@@ -132,6 +148,7 @@ impl ConfirmScreen {
             // named, so which page it lands on is not established; ours is the
             // title page, the front end's own first.
             Ask::NewGame => Transition::Replace(ScreenId::Setup(SetupPage::Title)),
+            Ask::Combine | Ask::Garrison { .. } => Transition::Pop,
         }
     }
 }

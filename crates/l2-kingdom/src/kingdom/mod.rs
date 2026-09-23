@@ -156,6 +156,10 @@ pub struct Campaign {
     /// (`FUN_00444A2F`). [`crate::field_playlist`].
     pub field_playlist: crate::field_playlist::FieldPlaylist,
     pub explored: crate::explore::Explored,
+    /// `g_battleApproachLane` (`0x0056D6B0`) and `g_battleRallyGroup`, as the
+    /// last `Battle_Start` (`0x004778A0`, `00470000.c:3104-3118`) left them;
+    /// its multiplayer arm steps them from here. `.bss`, so 0 at start.
+    pub battle_selectors: (u8, u8),
 }
 
 impl Default for Campaign {
@@ -180,6 +184,7 @@ impl Campaign {
             // `Map_InitScenario` clears every seen bit (`FUN_0046DF51`) straight
             // after the planes are loaded.
             explored: crate::explore::Explored::new(),
+            battle_selectors: (0, 0),
         }
     }
 }

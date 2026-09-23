@@ -26,13 +26,6 @@ impl Screen for MapScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        if ctx.game.combine_ask.is_some() {
-            let fired = self.press.event(&CONFIRM_WIDGETS, event);
-            if fired.is_some() || self.press.busy() {
-                self.scrolled = true;
-            }
-            return Transition::Stay;
-        }
         if (turn::turn_in_flight(ctx.game) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {
@@ -460,14 +453,9 @@ impl Screen for MapScreen {
             let read = Ctx { game: ctx.game, assets: ctx.assets };
             self.begin_move_selection(&read, unit);
         }
-        if let Some(widget) = self.press.tick().next() {
-            return self.answer_combine(ctx, widget == 0);
-        }
+        // C226: Map_ConfirmMoveOrder 0x004A9252 Ui_OpenConfirm(5, 0xA0, 0xA0, MoveOrder_ConfirmCombine) `004a0000.c:3861`: screen 0x1E.
         if ctx.game.combine_ask.is_some() {
-            if self.press.any_pressed() {
-                self.scrolled = true;
-            }
-            return Transition::Stay;
+            return Transition::Push(ScreenId::Confirm(confirm::Ask::Combine));
         }
         self.flag_tick = (self.flag_tick + 1) & 0x7F;
         let phase = self.flag_tick >> 4;
@@ -725,7 +713,6 @@ impl Screen for MapScreen {
         draw_menu_bar(canvas, ctx, false);
         draw_right_panel(self, canvas, ctx);
         draw_unit_banner(self, canvas, ctx);
-        draw_combine_box(self, canvas, ctx);
     }
 }
 

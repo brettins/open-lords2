@@ -33,7 +33,7 @@ fn a_season_then_the_army_button(
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     let mut rec = message::Record::default();
     rec.group = 130;
@@ -112,7 +112,7 @@ fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let mut offered = 0u8;
     for _ in 0..8 {
         bands.advance(&mut game.kingdom.counties, 14, game.kingdom.options.quirks);
@@ -163,7 +163,7 @@ fn a_map_with_an_offer(
     game.kingdom.counties[1].mercenary_offer = band;
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    (game, machine, Audio::headless(&platform.vfs), audio::Director::new())
+    (game, machine, Audio::headless(&platform.vfs), audio::Director::welcomed())
 }
 
 fn press_the_army_button(machine: &mut Machine, game: &mut Game, assets: &Assets) {

@@ -40,7 +40,7 @@ fn a_letters_fanfare_holds_the_buffer_and_the_lord_cuts_it_off() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     assert!(game.messages.enqueue(letter(&game), game.player), "the letter was accepted");
     let mut held = None;
     for _ in 0..240 {
@@ -64,7 +64,7 @@ fn a_letters_fanfare_holds_the_buffer_and_the_lord_cuts_it_off() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     game.messages.enqueue(letter(&game), game.player);
     for _ in 0..20 {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
@@ -164,7 +164,7 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
 }
 
 #[test]
-fn the_music_fanfares_screens_and_the_click_are_fifty_five_more() {
+fn the_music_fanfares_screens_and_the_click_are_fifty_six_more() {
     let Some(dir) = l2_testkit::install_dir() else {
         l2_testkit::skip!("no game install, so nothing to open");
     };
@@ -212,6 +212,7 @@ fn the_music_fanfares_screens_and_the_click_are_fifty_five_more() {
         l2_game::audio::names::speech::ZOOM_OUT,
         l2_game::audio::names::speech::SPLIT_ARMY,
         l2_game::audio::names::speech::CHOOSE_YOUR_SHIELD,
+        l2_game::audio::names::speech::WELCOME,
     ] {
         audio.play_effect(line);
     }
@@ -255,6 +256,7 @@ fn the_music_fanfares_screens_and_the_click_are_fifty_five_more() {
             "merchant.wav",
             "moo_2.wav",
             "rioters.wav",
+            "s011_01.wav",
             "s011_02.wav",
             "s016_01.wav",
             "s016_02.wav",
@@ -300,7 +302,7 @@ fn the_music_fanfares_screens_and_the_click_are_fifty_five_more() {
          ADDED this is good news and the number in crates/l2-game/src/audio/mod.rs, \
          docs/mechanics.md and docs/decisions.md C116 moves with it."
     );
-    assert_eq!(audio.heard().len(), 55, "55 of 771 outside the voice class");
+    assert_eq!(audio.heard().len(), 56, "56 of 771 outside the voice class");
 
     // gap in the wiring, it is `DAT_0057A0F0` being unidentified, and
     // `BattleKind` refusing to guess at a third mode is why.

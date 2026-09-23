@@ -64,7 +64,7 @@ fn every_lobby_message_round_trips() {
         Message::Ready(true),
         Message::Ready(false),
         Message::Roster(roster.clone()),
-        Message::Start(l2_net::Start { seed: SEED, roster, unseated_gold: -7 }),
+        Message::Start(l2_net::Start { seed: SEED, roster, unseated_gold: -7, setup: vec![] }),
         Message::Refused(vec![
             Mismatch::Protocol { ours: 1, theirs: 2 },
             Mismatch::Engine { ours: "a".into(), theirs: "b".into() },

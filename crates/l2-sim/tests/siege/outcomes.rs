@@ -76,13 +76,15 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
     assert!(walls_struck > 0, "no catapult shot was ever counted against a wall");
 }
 
+/// Missile units of three at slots 0 and 1 (`Battle_RaiseSideSiege` `0x004801F8`)
+/// do not hold a gate alone; pikemen at slot 4 do.
 #[test]
 fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
     let mut r = BattleRunner::deploy_siege(
         siege::our_castle(4),
         99,
         Muster { troops: STORMING_PARTY, owner: 1, human: false, mercenaries: None },
-        Muster { troops: &[(Troop::Archers, 2_000u32)], owner: 2, human: false, mercenaries: None },
+        Muster { troops: &[(Troop::Archers, 1_000u32), (Troop::Pikemen, 1_000)], owner: 2, human: false, mercenaries: None },
         4,
     );
     let mut ticks = 0;
@@ -94,6 +96,6 @@ fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
         }
         assert!(ticks < 200_000, "neither side could finish it");
     };
-    assert_eq!(end.winner, SIDE_A, "the garrison holds");
+    assert_eq!(end.winner, SIDE_A, "the garrison holds: {end:?} at {ticks}");
 }
 

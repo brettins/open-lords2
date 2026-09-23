@@ -1,0 +1,16 @@
+{ "reviewed": "217989097da1910e130f676b0306700fa1abd9b1",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/battlefield/logic/methods.rs", "line": 279, "address": "0x004BBBE3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/confirm.rs", "line": 72, "address": "0x004A9252", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/confirm.rs", "line": 73, "address": "0x004A9252", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 458, "address": "0x004A9252", "verdict": "departure", "note": "Combine raised at contact, not at order time; C226" },
+    { "file": "crates/l2-game/src/screens/map/units.rs", "line": 272, "address": "0x004A9252", "verdict": "departure", "note": "g_hoverMergeUnit rung skipped at click, garrison asked first; timing recorded in C226" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 12, "address": "0x004A8E0B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 25, "address": "0x00470678", "verdict": "match", "note": "neighbour order matches; ours bounds-checks the map edge where the original reads adjacent memory" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 46, "address": "0x004A975D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 55, "address": "0x004A975D", "verdict": "departure", "note": "0xA7 on two merc bands: MoveOrder_ConfirmCombine has none; C226 records the 167 refusal" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 62, "address": "0x004A9372", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 114, "address": "0x004A9372", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/garrison.rs", "line": 123, "address": "0x004A9372", "verdict": "match", "note": "" }
+  ] }

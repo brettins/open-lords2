@@ -25,11 +25,34 @@ impl SaveLoadScreen {
             working: 0,
             latched: false,
             redraw: false,
+            shift: (0, 0),
         };
         if mode == Mode::Load {
             screen.select(0);
         }
         screen
+    }
+
+    /// Setup page 3: FUN_004335F0 hotspot 4 / FUN_00432CC8 hotspot 2 open it with
+    /// `Edit_Begin(&DAT_004EA130, 8, 0xA0, 1)` and the box at [`FRONT_END`]. [V]
+    pub fn front_end() -> SaveLoadScreen {
+        let mut s = SaveLoadScreen::new(Mode::Load);
+        s.shift = (FRONT_END.0 - BOX_X, FRONT_END.1 - BOX_Y);
+        s
+    }
+
+    #[cfg(test)]
+    pub(crate) fn set_entries(&mut self, entries: Vec<Entry>) {
+        self.entries = entries;
+    }
+
+    pub fn is_front_end(&self) -> bool {
+        self.shift != (0, 0)
+    }
+
+    pub fn row(&self, i: usize) -> Rect {
+        let r = Self::row_rect(i);
+        Rect::new(r.x + self.shift.0, r.y + self.shift.1, r.w, r.h)
     }
 
     pub fn mode(&self) -> Mode {
@@ -71,7 +94,7 @@ impl SaveLoadScreen {
 
     pub(crate) fn at(&self, x: i32, y: i32) -> Option<usize> {
         (0..PAGE)
-            .find(|&i| Self::row_rect(i).contains(x, y))
+            .find(|&i| self.row(i).contains(x, y))
             .map(|i| self.top + i)
             .filter(|&i| i < self.entries.len())
     }
@@ -171,6 +194,10 @@ impl SaveLoadScreen {
                 let Some(i) = self.entries.iter().position(|e| e.name == name) else {
                     return Transition::Pop;
                 };
+                // FUN_004AD9F0 :5712 `g_screenId == 0x1F`: Save_Read, then Setup_StartGame.
+                // [D] :5717-5736 starts the game whatever Save_Read returned; starting over a
+                // half-read world is not safe, so a failed read keeps the box up with 40/4.
+                let front = self.is_front_end();
                 let tables = ctx.game.kingdom.tables;
                 match saves::read_path(&self.entries[i].path, tables) {
                     Ok(game) => {
@@ -187,7 +214,16 @@ impl SaveLoadScreen {
                         ctx.game.tips = tips;
                         ctx.game.chosen_gold = chosen;
                         ctx.game.prefs = prefs;
+                        if front {
+                            return Transition::Push(ScreenId::Campaign);
+                        }
                         self.landing(ctx)
+                    }
+                    Err(e) if front => {
+                        self.latched = true;
+                        self.working = FAIL_TICKS;
+                        self.status = Status::Failed(e.to_string());
+                        Transition::Stay
                     }
                     Err(_) => Transition::Pop,
                 }

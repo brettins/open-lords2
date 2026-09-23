@@ -204,3 +204,51 @@ fn screens_change_the_world_only_through_commands() {
     scan(&dir, &mut hits);
     assert!(hits.is_empty(), "issue a crate::command order instead:\n{}", hits.join("\n"));
 }
+
+fn seated_question(attacker_owner: u8, defender_owner: u8) -> Game {
+    let mut g = Game::new(5);
+    g.kingdom.set_county_count(3);
+    g.seats = vec![(PlayerSlot::new(0), 1), (PlayerSlot::new(1), 2)];
+    let q = crate::turn::Question {
+        attacker: 0,
+        defender: 1,
+        county: 1,
+        is_siege: false,
+        attacker_owner,
+        defender_owner,
+        attacker_men: 100,
+        defender_men: 80,
+        attacker_roster: [0; l2_kingdom::unit::TROOP_TYPES],
+        defender_roster: [0; l2_kingdom::unit::TROOP_TYPES],
+        choice_owner: attacker_owner,
+        castle_level: None,
+    };
+    crate::turn::suspend_on(&mut g, q);
+    g
+}
+
+/// Ablation: `concerns` in `AnswerBattle::run`.
+#[test]
+fn a_bystander_seat_cannot_answer_anothers_battle() {
+    let mut g = seated_question(1, 3);
+    g.apply(PlayerSlot::new(1), &AnswerBattle { answer: Answer::Decline }.into());
+    assert!(crate::turn::pending_question(&g).is_some(), "seat 2 answered realm 1's battle");
+}
+
+/// Ablation: each clause of `concerns`.
+#[test]
+fn a_battle_concerns_its_sides_seats_only() {
+    let mut g = seated_question(1, 3);
+    let mut as_realm = |realm: u8, sides| {
+        g.player = realm;
+        super::turn::concerns(&g, sides)
+    };
+    assert!(as_realm(1, Some((1, 3))), "the attacker's seat");
+    assert!(as_realm(1, Some((3, 1))), "the defender's seat");
+    assert!(!as_realm(2, Some((1, 3))), "a bystander seat");
+    assert!(as_realm(2, Some((3, 4))), "no seated side: anyone's");
+    assert!(as_realm(2, None), "nothing pending");
+    g.seats.truncate(1);
+    g.player = 2;
+    assert!(super::turn::concerns(&g, Some((1, 3))), "single player is unguarded");
+}

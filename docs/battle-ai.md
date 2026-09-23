@@ -110,8 +110,8 @@ read here from the disassembly at `0x00480743`–`0x00480934`:
 | **category** | 2 | 1 | 3 | 3 | 2 | 1 | 4 | 5 | 6 | 7 | 8 |
 
 and then, **only** in a siege and **only** for side 0 (the defender), the first missile
-unit raised becomes **category 9** and the next one **category 10**, latched by two globals
-so it happens at most once each.
+unit raised becomes **category 9** and the next **two** become **category 10** (`DAT_004EEAFC`,
+then `DAT_004EE8EC < 2`; `00480000.c:199-208`). **[V]**
 
 ### 1.3 The whole table, with names
 
@@ -601,7 +601,7 @@ is at elevation ≥ 2, and then only to the densest cluster of enemy figures wit
 (needing three enemies) or within four cells (needing two, when it is on the rampart
 proper). That is a genuine "wait until they bunch up under you" rule.
 
-**[D]** Categories 9 and 10 — the first two missile units of a garrison — are the odd ones
+**[D]** Categories 9 and 10 — the first three missile units of a garrison — are the odd ones
 out. Category 9's handler does nothing at all except increment `orders`, so that unit holds
 whatever wall slot `Deploy_SlotForUnitSiege` put it on for the entire battle.
 

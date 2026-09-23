@@ -203,17 +203,19 @@ impl Screen for BattlefieldScreen {
         if after_film {
             ctx.game.films.finished = None;
         }
+        let speed = ctx.game.prefs.scroll_speed;
         let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
         if after_film {
             live.skip_outcome();
         }
-        live.edge_scroll();
+        live.edge_scroll(speed);
         live.tick();
         let done = live.mode == Mode::Outcome && live.outcome_ticks > battlefield::OUTCOME_FRAMES;
         {
             let ctx = Ctx { game: &mut *ctx.game, assets: ctx.assets };
             self.step_overview(&ctx);
         }
+        let speed = ctx.game.prefs.scroll_speed;
         let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
         let raised = live.mode == Mode::Outcome && !self.outcome_seen;
         let decides = live.choice_owner != 0;

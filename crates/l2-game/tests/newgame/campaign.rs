@@ -142,6 +142,7 @@ fn continue_without_a_campaign_opens_the_custom_page() {
     let mut screen = SetupScreen::new(SetupPage::Title);
     let r = item_rect(1);
     click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
+    screen.set_network(false);
     assert_eq!(screen.page(), SetupPage::Shield);
 
     let (x, y, _) = SHIELD_BUTTONS[1];

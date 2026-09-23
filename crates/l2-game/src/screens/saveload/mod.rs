@@ -149,6 +149,9 @@ pub const BOX_Y: i32 = 0x90;
 pub const BOX_COLS: i32 = 0x1C;
 pub const BOX_ROWS: i32 = 0x14;
 
+/// `FUN_004148E4`'s box, `FUN_00409346(.., 0x60, 10, 0x1C, 0x15)`, the front end's page 3. [V]
+pub const FRONT_END: (i32, i32) = (0x60, 0x0A);
+
 pub const HEADING: (i32, i32) = (0x20, 0xA0);
 
 /// The colour every one of the painter's four rectangles is drawn in —
@@ -191,8 +194,8 @@ pub const CANCEL: (i32, i32, usize, i32) = (BOX_X + 352, BOX_Y + 64, 31, 32);
 pub const SCROLL_UP: (i32, i32, usize, i32) = (BOX_X + 384, BOX_Y + 144, 35, 24);
 pub const SCROLL_DOWN: (i32, i32, usize, i32) = (BOX_X + 384, BOX_Y + 176, 37, 24);
 
-pub(super) fn widget_rect(w: (i32, i32, usize, i32)) -> Rect {
-    Rect::new(w.0, w.1, w.3, w.3)
+pub(super) fn widget_rect(w: (i32, i32, usize, i32), shift: (i32, i32)) -> Rect {
+    Rect::new(w.0 + shift.0, w.1 + shift.1, w.3, w.3)
 }
 
 /// **`SaveLoad_Tick`'s wait, in frames: `DAT_0057D3C4 = 0x96`.**

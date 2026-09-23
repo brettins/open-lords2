@@ -118,12 +118,14 @@ pub struct Director {
     cues: Option<l2_sim::Cues>,
     cries_heard: usize,
     troop_cries: TroopCries,
+    /// `DAT_0055CE90` cleared: set only by FUN_00497500 at start-up.
+    welcomed: bool,
 }
 
 fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
     use crate::screen::ScreenId as S;
     match id {
-        S::Setup(_) | S::Menu | S::Index => true,
+        S::Setup(_) | S::Lobby | S::Menu | S::Index => true,
         S::Confirm(_) | S::Slider(_) => false,
         S::Movie(film) => film.is_front_end(),
         S::Campaign

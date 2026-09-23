@@ -65,6 +65,8 @@ struct App {
     pictures: Vec<l2_formats::cursors::Picture>,
     cursors: Vec<(u16, CustomCursor)>,
     cursor_scale: u32,
+    /// The lobby's sockets; `l2_game::net::service` pumps them between ticks (D-5).
+    net: Option<l2_game::net::Driver>,
 }
 
 impl App {
@@ -209,6 +211,16 @@ impl App {
         }
     }
 
+    /// Outside any tick: `docs/netcode.md` D-5. On Start the lobby's world replaces ours.
+    fn pump_net(&mut self) {
+        let tables = self.game.kingdom.tables;
+        let game = &mut self.game;
+        if let Some(world) = l2_game::net::service(&mut self.net, game, &self.assets, tables) {
+            self.game = world;
+            self.machine.mark_dirty();
+        }
+    }
+
     fn listen(&mut self) {
         self.director.listen(&mut self.audio, &self.machine, &self.game);
     }
@@ -238,6 +250,7 @@ impl ApplicationHandler for App {
             event_loop.exit();
             return;
         }
+        self.pump_net();
         let owed = self.ticker.due(self.started.elapsed().as_nanos() as u64);
         if let Some(next) = self.ticker.next_ns() {
             let deadline = self.started + Duration::from_nanos(next);
@@ -451,6 +464,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .unwrap_or_default(),
         cursors: Vec::new(),
         cursor_scale: 0,
+        net: None,
     };
 
     let event_loop = EventLoop::new()?;

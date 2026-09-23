@@ -371,3 +371,17 @@ That is the whole of the question this section used to ask a person with a stopw
 order of the three clauses settles it, and the same order is now `TurnClock::tick`'s. What a
 stopwatch would still add is only **how often it bites on real hardware**, which is a matter of
 how long a turn takes to run, not of what the code does. `docs/bugs.md` B99.
+
+## 13. A siege in the original, four numbers read live per lane
+
+**For whoever has `Lords2.exe` running and a memory reader.** Start any siege (a skirmish
+castle row does), and once the battlefield is up read the eight 4-byte values at
+**`0x0055CDF0`–`0x0055CE0C`**: four `(x, y)` pairs at `0x0055CDF0 + lane * 8` (x) and
+`0x0055CDF4 + lane * 8` (y), lanes 0–3. Note the castle row and `g_battleApproachLane`
+(`0x0056D6B0`) beside them. One siege per castle level (rows 0–4) is the whole ask.
+
+**Why.** Lane 0 of every level's staging point rests on our reading of
+`FUN_0047D474`'s marker scan, which **zeroes each marker as it reads it**; a raw rescan of the
+layout disagrees with our `castle::tables()` on lane 0 (level 0: raw `(51, 78)` against ours
+`(9, 41)`). The live table is the tie-breaker: whichever it matches is right, and
+`Battlefield_BuildCastle` (`00470000.c:5325-5326`) reads that pair to pick the siege layout.

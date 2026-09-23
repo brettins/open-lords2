@@ -124,7 +124,6 @@ impl Encode for LiveBattle {
         out.bool(self.skirmish);
         out.option(self.conclusion.as_ref(), |c, v| v.encode(c));
         out.bool(self.autocalc);
-        out.i32(self.scroll_speed);
         out.u32(self.scroll_wait);
         out.bool(self.redraw);
         out.seq(&self.cries, |c, cry| cry.encode(c));
@@ -176,7 +175,6 @@ impl Decode for LiveBattle {
             skirmish: input.bool()?,
             conclusion: input.option(l2_sim::Conclusion::decode)?,
             autocalc: input.bool()?,
-            scroll_speed: input.i32()?,
             scroll_wait: input.u32()?,
             redraw: input.bool()?,
             cries: input.seq(Cry::decode)?,

@@ -600,10 +600,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s011_01_wav_004dbc44,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S011_01.wav, the front end's one-per-session welcome line. BLOCKED on the page, not on the line: FUN_00497A34 is the RETURN to the front end, and the page it returns to has no ScreenId -- our front end is ScreenId::Setup(SetupPage) and nothing in this engine leaves a running game for it, which is why #1 and #3 on this same function are both unreached. Director::listen's stack diff is the mechanism and it needs an arrival it can see. Unblocks with the page; the line is then one play_file. (The ledger row calls this 'screen 0x20'; 0x20 is the standings page, FUN_004b3994#1, which is reproduced -- the number does not belong to this site.)"
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/director/engine/director.rs",
+      "sound": "S011_01.wav",
+      "note": "The front end is reached through FUN_00497A34 at boot too: App_WinMain FUN_004B3571(0) sets DAT_005C9274 after the intro, App_IdleFrame (00400000.c:8174-8176) then calls FUN_00497A34(0), and DAT_0055CE90 was set by FUN_00497500 at start-up. [V] So the line is the first front-end arrival of a session: Director::welcomed flags it. Sound_PlayFile(..,1,0) with no stop, so play_file."
     },
     {
       "id": "FUN_004a6c68#1",

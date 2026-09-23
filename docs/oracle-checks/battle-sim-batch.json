@@ -1,0 +1,15 @@
+{ "reviewed": "f597b76fd5b522486c261ec0e600700b163936fc",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/ai/types.rs", "line": 264, "address": "0x004778A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 100, "address": "0x004778A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/engagement/fight/fight_session.rs", "line": 102, "address": "0x004778A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs", "line": 111, "address": "0x0042BA40", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/raise.rs", "line": 19, "address": "0x004801F8", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/raise.rs", "line": 84, "address": "0x004801F8", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/raise.rs", "line": 45, "address": "0x004816F9", "verdict": "departure", "note": "oil cursor DAT_004D98C0 reset per battle, labelled [D]" },
+    { "file": "crates/l2-sim/src/runner/raise.rs", "line": 64, "address": "0x004816F9", "verdict": "mismatch", "note": "clamps slot-9 coordinates to 0..DIM-1; the original copies 0x00554200 entries unclamped" },
+    { "file": "crates/l2-sim/src/runner/raise.rs", "line": 94, "address": "0x00480662", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/raise.rs", "line": 102, "address": "0x00480662", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 334, "address": "0x00477DFC", "verdict": "match", "note": "" }
+  ] }

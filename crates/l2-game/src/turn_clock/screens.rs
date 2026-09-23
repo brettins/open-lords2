@@ -61,7 +61,7 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Siege(_) => 0x1D,
         ScreenId::Confirm(_) => 0x1E,
         ScreenId::Slider(_) => 0x21,
-        ScreenId::Setup(_) => 0x1F,
+        ScreenId::Setup(_) | ScreenId::Lobby => 0x1F,
         ScreenId::Nobles => 0x20,
         ScreenId::Movie(_) => 0x22,
         ScreenId::About => 0x25,

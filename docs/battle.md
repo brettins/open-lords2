@@ -494,7 +494,10 @@ negated for side 0 so the two armies face each other. **[V]**
 
 The siege defender uses `Battle_RaiseSideSiege` instead: eight troop types from
 `g_raiseOrderSiege` with no catapults, towers or rams, and archers and crossbowmen capped
-at three figures per unit. **[I]** on the "defender" reading, **[V]** on the mechanics.
+at three figures per unit, the band included. `Battle_InitArmies` (`00470000.c:6556-6561`) calls it
+for army B, side 0, whenever `g_battleIsSiege`. Each unit is placed by `Deploy_SlotForUnitSiege`
+(`0x004816F9`): peasants and knights at garrison slot 8, foot at 4, the first missile unit at
+1 and the rest at 0, oil round the first nine entries of `0x00554200`. **[V]** (`runner/raise.rs`).
 
 ### 5.3 Strength bands
 

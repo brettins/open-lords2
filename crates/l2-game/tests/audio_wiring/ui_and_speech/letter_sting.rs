@@ -17,7 +17,7 @@ fn listen(rec: message::Record, lord: u8, ticks: usize) -> Vec<(usize, String)> 
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     assert!(game.messages.enqueue(rec, game.player), "the record was accepted");
     let mut out = Vec::new();
     for t in 1..=ticks {
