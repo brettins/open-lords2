@@ -135,3 +135,23 @@ fn a_starting_castle_is_drawn_on_its_plot() {
     }
     assert_eq!(seen, 5, "five lords, five start counties");
 }
+
+/// FUN_0049C995 0x0049C995 :5760-5763: an unseated realm keeps the last game's chosen gold.
+/// Ablation: `r.gold = before` in `carry_chosen_gold` -> 0, and this fails.
+#[test]
+fn an_unseated_realm_holds_the_previous_games_chosen_gold() {
+    let assets = assets!();
+    let mut game = Game::new(SEED);
+    let full = start(&assets, &mut game, 4);
+    l2_game::setup::carry_chosen_gold(&mut game, 0, full.gold);
+    let before = game.chosen_gold;
+    start(&assets, &mut game, 1);
+    l2_game::setup::carry_chosen_gold(&mut game, before, full.gold);
+    assert_eq!(game.kingdom.realms[3].gold, full.gold, "the previous game's value");
+    let mut fresh = Game::new(SEED);
+    start(&assets, &mut fresh, 1);
+    let b = fresh.chosen_gold;
+    l2_game::setup::carry_chosen_gold(&mut fresh, b, full.gold);
+    assert_eq!(fresh.kingdom.realms[3].gold, 0, "0 in a fresh run");
+    assert_eq!(game.kingdom.realms[1].gold, full.gold, "a seated realm is not touched");
+}

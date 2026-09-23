@@ -79,7 +79,7 @@ fn the_screen_paints_inside_its_own_window_and_nothing_outside_it() {
 }
 
 #[test]
-fn the_load_screen_refuses_a_file_it_cannot_read_and_stays_open() {
+fn a_load_that_cannot_read_its_file_closes_the_box_silently() {
     let own = Saves::new("corrupted");
     let name = "CORRUPTED";
     let (mut game, assets) = bare();
@@ -98,12 +98,39 @@ fn the_load_screen_refuses_a_file_it_cannot_read_and_stays_open() {
     let mut t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
     for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
         t = l2_game::Screen::update(&mut screen, &mut ctx);
+        if t != l2_game::Transition::Stay {
+            break;
+        }
     }
 
-    assert_eq!(t, l2_game::Transition::Stay, "a refused load leaves the screen open");
-    assert!(matches!(screen.status(), Status::Failed(_)));
+    // SaveLoad_Tick 0x004AD9F0 :5746, g_screenId restored before Save_Read.
+    assert_eq!(t, l2_game::Transition::Pop, "a failed load closes the box");
     assert_eq!(digest(&game.kingdom), before, "and the world it refused to replace is untouched");
 }
 
 
 
+
+#[test]
+fn a_load_of_a_name_with_no_file_shows_the_error_line_then_clears_it() {
+    use l2_game::screens::saveload::FAIL_TICKS;
+    let _own = Saves::new("latch-missing");
+    let (mut game, assets) = bare();
+    let before = digest(&game.kingdom);
+    let mut screen = SaveLoadScreen::new(Mode::Load);
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    for c in "NOSUCH".chars() {
+        l2_game::Screen::handle(&mut screen, Event::Text(c), &mut ctx);
+    }
+    l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    // SaveLoad_Tick 0x004AD9F0 :5791-5794: the latch, and group 40/4 while the count runs.
+    assert!(matches!(screen.status(), Status::Failed(_)), "the error line shows at once");
+    for _ in 1..FAIL_TICKS {
+        assert_eq!(l2_game::Screen::update(&mut screen, &mut ctx), l2_game::Transition::Stay);
+        assert!(matches!(screen.status(), Status::Failed(_)), "for the whole count");
+    }
+    // :5768, the count ends by clearing the latch: no load, box open, line blank.
+    assert_eq!(l2_game::Screen::update(&mut screen, &mut ctx), l2_game::Transition::Stay);
+    assert_eq!(screen.status(), &Status::Idle);
+    assert_eq!(digest(&game.kingdom), before);
+}

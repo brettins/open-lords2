@@ -27,6 +27,8 @@ pub struct SaveLoadScreen {
     press: Press,
     /// `DAT_0057D3C4` — frames left before the load or the save; 0 is none.
     working: u8,
+    /// `DAT_00591548`, the failure latch: set, the count ends by clearing it instead of working.
+    pub(super) latched: bool,
     /// `g_redrawRequest = 2` — `SaveLoad_Tick` (`0x004AD9F0`) sets it after the
     /// three `g_screenId` arms, so the frame the count reaches zero is painted
     /// whatever the outcome was.

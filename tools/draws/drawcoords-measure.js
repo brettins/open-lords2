@@ -270,9 +270,8 @@ function ourPoints(moduleFile) {
     const record = (name, args, off, via, where) => {
       const pos = OURS_POS.get(name);
       if (!pos) return false;
-      // `canvas` is the first argument at every call site and is not a parameter
-      // in the position table, so drop it before indexing.
-      const a = args[0] && /canvas/.test(args[0]) ? args.slice(1) : args;
+      // `canvas` is not in the position table; `number_in(face, canvas, x, y)` puts it second.
+      const a = args.filter((s, i) => !(i === 0 ? /canvas/ : /^\s*canvas\s*$/).test(s));
       const x = value(a[pos.x], 'ours'), y = value(a[pos.y], 'ours');
       const site = { name, file: where ? where.file : file, line: where ? where.line : lineAt(off),
         via, text: a.join(', ').replace(/\s+/g, ' ').slice(0, 90) };

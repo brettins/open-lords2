@@ -48,6 +48,7 @@ impl Game {
             map_zoom_far: false,
             messages: crate::message::MessageQueue::new(),
             tips: crate::tip::Tips::new(),
+            chosen_gold: 0,
             multiplayer: false,
             turn_clock: crate::turn_clock::TurnClock::default(),
             films: crate::movie::Reel::default(),

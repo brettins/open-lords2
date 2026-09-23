@@ -553,9 +553,11 @@ impl SetupScreen {
                 // 004a0000.c:6090, `Opt_ToggleTipScreens` `0x00434787` 00430000.c:1716), neither of
                 // them here (`crate::prefs`).
                 let prefs = ctx.game.prefs;
+                let before = ctx.game.chosen_gold;
                 *ctx.game = game;
                 ctx.game.tips = tips;
                 ctx.game.prefs = prefs;
+                crate::setup::carry_chosen_gold(ctx.game, before, settings.gold);
                 self.failure = None;
             }
             Err(e) => {

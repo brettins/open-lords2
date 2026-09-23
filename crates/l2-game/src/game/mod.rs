@@ -609,6 +609,9 @@ pub struct Game {
     /// game or a load, so `screens::setup` and `screens::saveload` carry it
     /// across the two places a whole `Game` is replaced.
     pub tips: crate::tip::Tips,
+    /// `g_startingGoldChosen` (`0x0053F278`), not-encoded: per run, like [`Self::tips`].
+    /// Setup_CommitOptions 0x00499DC3 sets it; FUN_0049C995 0x0049C995 reads it earlier. [V]
+    pub chosen_gold: i32,
     /// **`g_multiplayer`** (`0x00553D18`). False in every game this workspace
     /// can start; it is here because two rules branch on it and neither is
     /// reachable without it — `Msg_Pump`'s 399-tick message timeout, and the

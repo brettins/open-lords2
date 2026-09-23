@@ -264,6 +264,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         prefs: crate::game::Prefs::default(),
         presentation_quirks: crate::game::Quirks::default(),
         tips: crate::tip::Tips::new(),
+        chosen_gold: 0,
         films: crate::movie::Reel::default(),
         nobles_category: 0,
         nobles_spoken: 0,
