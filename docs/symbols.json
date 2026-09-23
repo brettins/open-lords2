@@ -5105,7 +5105,7 @@
       "section": "kingdom",
       "confidence": "verified",
       "signature": "void Tax_CollectAll(void)",
-      "comment": "Per county: rate = 320 + castle bonus (480/560/640/720/800 for castle types 1..5, i.e. +50/75/100/125/150%); take = Pct(Pct(population, rate), taxRate); credited to the owner realm's gold, and to realm +0xF4/+0xF8 (Realm::tax_ledger), which nothing reads (docs/decisions.md C168). Also writes the tax happiness delta 5 - taxRate + realm[+0x28] into county +0x0E."
+      "comment": "Per county: rate = 320 + castle bonus (480/560/640/720/800 for castle types 1..5, i.e. +50/75/100/125/150%); take = Pct(Pct(population, rate), taxRate); credited to the owner realm's gold (a lordless county, realm 0, banks it in its own purse +0x1F4 instead, C149), and to realm +0xF4/+0xF8 (Realm::tax_ledger), which nothing reads (docs/decisions.md C168). Also writes the tax happiness delta 5 - taxRate + realm[+0x28] into county +0x0E."
     },
     {
       "addr": "0x0044B80B",
@@ -6441,6 +6441,30 @@
       "comment": "Fills g_countyFieldTiles - 17 rows of twenty i32 byte offsets - from the map, at the end of Map_InitScenario, and clears the twenty u16 at county +0x90 when the argument is 1. Sweeps tiles in ascending byte-offset order and puts each farmland tile (plane-0 bit 0x20) of a county in 1..17 in that county first free slot. [V] AND THE TWENTY-SLOT TABLE RAZES WHAT WILL NOT FIT: a county twenty-first farm tile takes content 0, frame 6, flags 0 and its bank cleared back to base - it stops being farmland at all, before the first season runs. So twenty fields per county is a fact about the map rather than a cap on a counter. No shipped map exercises the razing branch; crates/l2-scenario/tests/newgame/main.rs exercises it on a synthetic slot. See decisions.md C62."
     },
     {
+      "addr": "0x0046DF51",
+      "name": "Fog_ClearExplored",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Fog_ClearExplored(void)",
+      "comment": "Clears the explored bit 0x20 of tile +2 (bank) on all 64x64 tiles, then Gfx_MarkAllDirty. Only caller Map_InitScenario, after Map_LoadPlanes. Ours: l2_kingdom::explore."
+    },
+    {
+      "addr": "0x0046DFD5",
+      "name": "Fog_RevealCounty",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Fog_RevealCounty(uint county)",
+      "comment": "Fog_RevealSquare(x, y, 1) on every tile of the county: the county and a one-tile border. Callers: the local player's start county (00490000.c:5599) and County_ChangeOwner when the new owner is g_localPlayer."
+    },
+    {
+      "addr": "0x0046E067",
+      "name": "Fog_RevealSquare",
+      "section": "map",
+      "confidence": "verified",
+      "signature": "void Fog_RevealSquare(int x, int y, int r)",
+      "comment": "Sets the explored bit 0x20 of tile +2 over the (2r+1)^2 square round (x, y), clipped to the map. r = 6 round a moving unit (00460000.c:4337) and a spawned one (004a0000.c:4153)."
+    },
+    {
       "addr": "0x0046E1B0",
       "name": "Unit_Spawn",
       "section": "units",
@@ -6804,6 +6828,38 @@
       "confidence": "verified",
       "signature": "void ToolTip_Draw(void)",
       "comment": "The tool-tip layer, gated on g_optToolTips: picks the id into DAT_004EAC00 (FUN_00477131 or FUN_004770B8 by DAT_004EAC00), then draws L2.eng group 220 at that index twice - once to measure the wrapped width, once over the panel it sizes from it - at DAT_004EB268/DAT_004EB270 + 4. Index 0 is the group's \"Null tool tip\" placeholder, not the subject. Sole consumer of group 220; only caller is Battle_Frame."
+    },
+    {
+      "addr": "0x0047703A",
+      "name": "ToolTip_Drop",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "void ToolTip_Drop(void)",
+      "comment": "If a tip is up (DAT_004EAC00), zeroes it and restores the 0x30 x 0x28 background saved under it. Screen_Draw's first call, so any repaint takes the tip away."
+    },
+    {
+      "addr": "0x004772B6",
+      "name": "ToolTip_PickId",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int ToolTip_PickId(void)",
+      "comment": "g_toolTipScreenLadder[g_screenId]: 1 -> ToolTip_CampaignId, 2 -> ToolTip_BattleId, else 0 (no tip)."
+    },
+    {
+      "addr": "0x00477320",
+      "name": "ToolTip_CampaignId",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int ToolTip_CampaignId(void)",
+      "comment": "The L2.eng group 220 index under the pointer on the campaign screens. Ours: tooltip::campaign_tip."
+    },
+    {
+      "addr": "0x004777AA",
+      "name": "ToolTip_BattleId",
+      "section": "ui",
+      "confidence": "verified",
+      "signature": "int ToolTip_BattleId(void)",
+      "comment": "The L2.eng group 220 index under the pointer on the battlefield HUD. Ours: tooltip::battle_tip."
     },
     {
       "addr": "0x004778A0",
@@ -10563,6 +10619,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "One message-category byte per L2.eng group, read by Tip_Show. [V] For all twenty tip groups 200..219 the byte read out of the exe equals (strings in the group - 1) + 4, so categories 5..9 are Msg_DrawWindow's 'tip window with 1..5 paragraphs' layouts. Twenty independent chances to disagree and none does."
+    },
+    {
+      "addr": "0x004D6FB8",
+      "name": "g_toolTipScreenLadder",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "One byte per g_screenId 0x00..0x43: 1 campaign tips, 2 battlefield tips, 0 none. Read only by ToolTip_PickId. Ours: tooltip::SCREENS."
     },
     {
       "addr": "0x004D71F0",

@@ -280,10 +280,8 @@ impl Game {
     /// ```
     ///
     /// `hire` is the county's standing offer, `county +0x1AD`, or `None` for a
-    /// pure levy. The price is **not** checked inside
-    /// [`l2_kingdom::MercenaryBands::hire`] — the screen refuses first, with
-/// `L2.eng` 69/3 — so this checks it here
-    /// negative.
+    /// pure levy. The band's price is checked neither here nor in
+    /// [`l2_kingdom::MercenaryBands::hire`]: the armoury confirm refuses first, `L2.eng` 69/3.
     pub fn raise_army(
         &mut self,
         county: u8,
