@@ -509,9 +509,9 @@ field where `+0x290` leaves a four-byte hole that is the stone row's word; and e
 fixture save on this machine stores, at `+0x2A8 + c*0x18`, the forecast its own record `c`'s
 workers produce — never record `c + 1`'s (`crates/l2-scenario/tests/import/main.rs`).
 
-### 5.6 Three widgets are drawn over the map from `Battle_Frame` and are in no document
+### 5.6 Four widgets are drawn over the map from `Battle_Frame` and are in no document
 
-None of these is in `Screen_DrawCampaign`; all three are per-frame calls from the whole-game
+None of these is in `Screen_DrawCampaign`; all four are per-frame calls from the whole-game
 frame function, which is `docs/draws.md` §3's first hiding place.
 
 | what | function | draws |
@@ -519,10 +519,16 @@ frame function, which is `docs/draws.md` §3's first hiding place.
 | **the turn timer** | `FUN_0041A639` | `Misc_cty` frame `0x60` at **(404, 430)** plus the seconds left, `' '` + digits + `" "`, **centred** in 50 pixels from (424, 442), when `g_battlePhase == 0 && 0 < DAT_005440C8 && (DAT_0055403C < 1 \|\| aiStep == 999) && 0 < g_optTimeLimit && DAT_004D2E80[g_screenId] == 0` — **reproduced**, `crate::turn_clock` |
 | **the multiplayer chat banner** | `FUN_00420316` | a shaded 480 × 32 plate at (0, 24) and two lines in the two realms' own colours, on a countdown that ends by forcing a full map redraw |
 | **the network-wait glyph** | `FUN_0042476B(10, 0x1E)` | `Panels.pl8` frame **`0x105`** — the file's one 48 × 48 glyph — at (10, 30) while a peer is behind, for at most 1,600 ms |
-| **the heartbeat** | `FUN_0041A844` | a 8 × 3 filled bar at (2, 476) and a 10 × 5 outline at (1, 475), recoloured every twelve frames from the tick counter |
+| **the heartbeat** | `FUN_0041A844` | a 8 × 3 filled bar at (2, 476) and a 10 × 5 outline at (1, 475), recoloured every twelve frames from the tick counter; multiplayer-only, **unported** |
 
 The turn timer sits **inside the map viewport**, 74 pixels left of the sidebar, which is the
 only thing on this screen that does.
+
+**The battlefield's entry clear.** `Screen_DrawBattlefield` (`0x004233F7`) opens with
+`Gfx_ClearScreen` (`FUN_004B1867`: memset 0 over 640 x 480 via `FUN_004B3E51`), and that
+clear is the only painter of the bottom band under the field. **Reproduced**: `canvas.clear(0)`
+at the head of `BattlefieldScreen::draw`, tested by `battle_picture/band.rs`. The rows 472-473
+painter `FUN_0041424A` belongs to `Map_ZoomOut` alone, not to the battlefield. [D]
 
 ### 5.7 The surround is not redrawn unless it is water
 
