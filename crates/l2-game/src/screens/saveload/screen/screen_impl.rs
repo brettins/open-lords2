@@ -37,7 +37,7 @@ impl Screen for SaveLoadScreen {
             if self.working == 0 {
                 // SaveLoad_Tick 0x004AD9F0 :5767-5768: `else { DAT_00591548 = 0; }`. [V]
                 if core::mem::take(&mut self.latched) {
-                    // [D] CNEW-save-compat: our line stays until the name is edited, to be read.
+                    // [D] C239: our line stays until the name is edited, to be read.
                     if !matches!(self.status, Status::Mismatch { .. }) {
                         self.status = Status::Idle;
                     }

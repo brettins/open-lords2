@@ -180,7 +180,7 @@ fn write_versioned(own: &Saves, name: &str, game: &Game, version: u32) {
     std::fs::write(own.path.join(file(name)), &bytes).expect("write");
 }
 
-/// CNEW-save-compat: ablate the `Err(e) => match load_failure` arm back to `Pop` and it fails.
+/// C239: ablate the `Err(e) => match load_failure` arm back to `Pop` and it fails.
 #[test]
 fn an_in_game_load_of_another_format_says_so_and_keeps_the_box_up() {
     let own = Saves::new("newer");
@@ -235,7 +235,7 @@ fn a_file_error_is_still_the_originals_line_and_the_in_game_box_still_closes() {
     assert_eq!(load_failure(&world, false), Some(Status::Mismatch { found: 31, expected: 33 }));
 }
 
-/// CNEW-save-compat's policy against every fixture of ours: a file inside
+/// C239's policy against every fixture of ours: a file inside
 /// `MIN_READABLE..=VERSION` on both layers loads, and every other is refused on its version.
 #[test]
 fn every_fixture_either_loads_or_is_refused_on_its_version() {

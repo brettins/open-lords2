@@ -34,7 +34,7 @@ pub fn checksum(kingdom: &Kingdom) -> u64 {
     Canonical::hash_of(kingdom)
 }
 
-/// The oldest version this build reads. [D] ours, CNEW-save-compat: raised to `VERSION` unless the
+/// The oldest version this build reads. [D] ours, C239: raised to `VERSION` unless the
 /// change is a pure addition with defaults and the previous release's reader is kept.
 pub const MIN_READABLE: u32 = VERSION;
 

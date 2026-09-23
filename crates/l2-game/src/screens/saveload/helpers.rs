@@ -29,7 +29,7 @@ pub(super) fn ours(detail: &str) -> String {
     format!("OURS: {detail}")
 }
 
-/// [D] ours, CNEW-save-compat: no L2.eng string says this; 40/4 stays for every other failure.
+/// [D] ours, C239: no L2.eng string says this; 40/4 stays for every other failure.
 pub fn mismatch_lines(found: u32, expected: u32) -> [String; 2] {
     let age = if found < expected { "an older" } else { "a newer" };
     [

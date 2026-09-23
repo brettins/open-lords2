@@ -41,7 +41,7 @@ impl core::fmt::Display for Error {
 impl std::error::Error for Error {}
 
 impl Error {
-    /// `(found, expected)` when either layer refused the file on its format version. CNEW-save-compat
+    /// `(found, expected)` when either layer refused the file on its format version. C239
     pub fn version_mismatch(&self) -> Option<(u32, u32)> {
         let Error::Load { detail, .. } = self else { return None };
         match detail {

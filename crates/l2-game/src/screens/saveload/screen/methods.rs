@@ -221,7 +221,7 @@ impl SaveLoadScreen {
                         }
                         self.landing(ctx)
                     }
-                    // [D] CNEW-save-compat: a version mismatch keeps the in-game box up too.
+                    // [D] C239: a version mismatch keeps the in-game box up too.
                     Err(e) => match load_failure(&e, front) {
                         Some(status) => {
                             self.latched = true;

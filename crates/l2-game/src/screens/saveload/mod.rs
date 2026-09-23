@@ -243,7 +243,7 @@ pub enum Status {
     Idle,
     Working,
     Failed(String),
-    /// [D] ours, CNEW-save-compat: a save of another format version, in place of 40/4.
+    /// [D] ours, C239: a save of another format version, in place of 40/4.
     Mismatch { found: u32, expected: u32 },
 }
 
