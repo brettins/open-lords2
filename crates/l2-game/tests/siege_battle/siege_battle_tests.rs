@@ -182,10 +182,15 @@ fn the_player_besieges_watches_fills_the_ditch_and_the_castle_is_billed_for_it()
     let (mut g, a, mut m) = on_the_map();
     let (keep, garrison) = castle_with_garrison(&mut g, &mut m, &a, 2, 3, 200);
 
-    let camp = (keep.0 - 1, keep.1 + 1);
+    // [V] measured: at `keep.0 - 1` the garrison sorties while 10/8 waits out its kind-5 press.
+    let camp = (keep.0 - 3, keep.1 + 1);
     let besieger = army_at(&mut g, 1, 1, 120, camp);
     click(&mut m, &mut g, &a, pixel(camp.0, camp.1).unwrap());
     click(&mut m, &mut g, &a, pixel(keep.0, keep.1).unwrap());
+    // Map_ConfirmMoveOrder 0x004A9252 `004a0000.c:3853`: 10/8 "Besiege castle?", answered yes.
+    let yes = on(l2_game::screens::battlefield::CONFIRM_YES);
+    click(&mut m, &mut g, &a, yes);
+    send(&mut m, &mut g, &a, Event::Release { x: yes.0, y: yes.1 });
     run_until(&mut m, &mut g, &a, "the siege", |_, g| {
         g.kingdom.campaign.units.get(besieger).is_some_and(|u| u.besieging_county == 2)
     });

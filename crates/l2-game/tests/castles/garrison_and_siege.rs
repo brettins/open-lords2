@@ -101,10 +101,15 @@ fn an_army_that_marches_onto_an_enemy_castle_besieges_it_and_the_turn_settles_th
         "a castle plus a garrison shuts the county",
     );
 
-    let camp = (keep.0 - 1, keep.1 + 1);
+    // [V] measured: at `keep.0 - 1` the garrison attacks the camp (a turn Question) while 10/8
+    // waits out its kind-5 press.
+    let camp = (keep.0 - 3, keep.1 + 1);
     let besieger = army_at(&mut g, 1, 1, 800, camp);
     click(&mut m, &mut g, &a, pixel(camp.0, camp.1).unwrap());
     click(&mut m, &mut g, &a, pixel(keep.0, keep.1).unwrap());
+    // Map_ConfirmMoveOrder 0x004A9252 `004a0000.c:3853`: 10/8 "Besiege castle?" first.
+    assert!(matches!(m.top_id(), Some(ScreenId::Confirm(_))), "Besiege castle?");
+    press_and_wait(&mut m, &mut g, &a, on(l2_game::screens::battlefield::CONFIRM_YES));
     assert!(g.kingdom.campaign.units.get(besieger).is_some_and(|u| u.moving), "ordered");
 
     // **The march happens while he watches it, and it is the march that lays

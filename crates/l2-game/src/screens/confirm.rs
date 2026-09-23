@@ -58,6 +58,12 @@ pub enum Ask {
     Combine,
     /// Map_ConfirmMoveOrder 0x004A9252 → MoveOrder_ConfirmGarrison 0x004A9372, 10/7 (`004a0000.c:3857`).
     Garrison { unit: usize, county: u8, dest: (u8, u8) },
+    /// Map_ConfirmMoveOrder 0x004A9252 → MoveOrder_Confirm 0x004A983B, 10/4 (`004a0000.c:3869`).
+    Slaughter { unit: usize, dest: (u8, u8), town: u8 },
+    /// Map_ConfirmMoveOrder 0x004A9252 → MoveOrder_Confirm 0x004A983B, 10/10 (`004a0000.c:3865`).
+    DestroyField { unit: usize, dest: (u8, u8), town: u8 },
+    /// Map_ConfirmMoveOrder 0x004A9252 → MoveOrder_ConfirmSiege 0x004A960F, 10/8 (`:3853`).
+    Siege { unit: usize, county: u8, dest: (u8, u8) },
 }
 
 impl Ask {
@@ -71,6 +77,9 @@ impl Ask {
             Ask::Retreat => 12,
             Ask::Combine => 5,
             Ask::Garrison { .. } => 7,
+            Ask::Slaughter { .. } => 4,
+            Ask::DestroyField { .. } => 10,
+            Ask::Siege { .. } => 8,
         }
     }
 
@@ -95,6 +104,9 @@ impl Ask {
             Ask::Retreat => "Retreat from field?",
             Ask::Combine => "Combine armies?",
             Ask::Garrison { .. } => "Garrison castle?",
+            Ask::Slaughter { .. } => "Slaughter villagers?",
+            Ask::DestroyField { .. } => "Destroy field?",
+            Ask::Siege { .. } => "Besiege castle?",
         }
     }
 }
@@ -123,6 +135,12 @@ impl ConfirmScreen {
             Ask::Garrison { unit, county, dest } => {
                 return garrison::answer_garrison(ctx, yes, unit, county, dest)
             }
+            Ask::Slaughter { unit, dest, town } | Ask::DestroyField { unit, dest, town } => {
+                return garrison::answer_move(ctx, yes, unit, dest, town)
+            }
+            Ask::Siege { unit, county, dest } => {
+                return garrison::answer_siege(ctx, yes, unit, county, dest)
+            }
             _ => {}
         }
         if !yes {
@@ -148,7 +166,7 @@ impl ConfirmScreen {
             // named, so which page it lands on is not established; ours is the
             // title page, the front end's own first.
             Ask::NewGame => Transition::Replace(ScreenId::Setup(SetupPage::Title)),
-            Ask::Combine | Ask::Garrison { .. } => Transition::Pop,
+            _ => Transition::Pop,
         }
     }
 }
@@ -164,6 +182,12 @@ impl Screen for ConfirmScreen {
 
     fn is_overlay(&self) -> bool {
         true
+    }
+
+    // [V] Screen_HandleInput `004b0000.c:7311` runs Widget_Test over g_confirmWidgets; kind 5
+    // plays Sound_RestartSlot(1) (`00400000.c:7627`), Press::press_delayed's click.
+    fn take_clicks(&mut self) -> u8 {
+        self.press.take_clicks()
     }
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {

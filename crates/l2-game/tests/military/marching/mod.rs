@@ -6,6 +6,7 @@ mod siege_and_garrison;
 pub use siege_and_garrison::*;
 mod merging;
 mod garrison_prompt;
+mod move_prompts;
 pub use merging::*;
 mod movement_and_turn;
 pub use movement_and_turn::*;
