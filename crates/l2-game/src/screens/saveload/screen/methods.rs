@@ -181,8 +181,11 @@ impl SaveLoadScreen {
                         // `Options_SetDefaults` (004a0000.c:6090) and `Opt_ToggleTipScreens`
                         // `0x00434787` (00430000.c:1716), neither in a load.
                         let prefs = ctx.game.prefs;
+                        // [I] whether g_saveBlocks holds 0x0053F278; carried as per run.
+                        let chosen = ctx.game.chosen_gold;
                         *ctx.game = game;
                         ctx.game.tips = tips;
+                        ctx.game.chosen_gold = chosen;
                         ctx.game.prefs = prefs;
                         self.landing(ctx)
                     }

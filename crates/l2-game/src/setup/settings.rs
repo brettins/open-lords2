@@ -83,12 +83,7 @@ impl Settings {
                 realm.lord = 0;
                 realm.county_count = 1;
                 realm.peak_counties = 1;
-                // Gold is left. `FUN_0049C995` (`00490000.c:5719`) wrote
-                // `g_startingGoldChosen` into all of 1 … 5 when the lobby was
-                // entered — *before* `Setup_CommitOptions` (`0x00499DC3`) set
-                // it — so the original's value here is the previous game's,
-                // 0 in a fresh process. A new `Game` is built per game, so
-                // ours is 0. [I]
+                // Gold: `carry_chosen_gold`, FUN_0049C995 0x0049C995.
                 continue;
             }
             let realm = &mut game.kingdom.realms[id];
@@ -272,3 +267,17 @@ impl Settings {
     }
 }
 
+
+/// FUN_0049C995 0x0049C995 (00490000.c:5760-5763) writes `g_startingGoldChosen` into realms
+/// 1..5 at lobby entry, before Setup_CommitOptions 0x00499DC3 sets this game's value; only
+/// seated realms are overwritten (Game_SetupRealmsAndCounties :5691). So an unseated realm
+/// holds the previous game's chosen gold, 0 in a fresh run. [V]
+pub fn carry_chosen_gold(game: &mut Game, before: i32, chosen: i32) {
+    for id in 1..MAX_REALMS {
+        let r = &mut game.kingdom.realms[id];
+        if !r.in_play && !r.is_human {
+            r.gold = before;
+        }
+    }
+    game.chosen_gold = chosen;
+}
