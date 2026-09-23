@@ -133,7 +133,10 @@ pub fn our_castle(level: u8) -> Battlefield {
         deploy_side4: [(0, 0); 12],
         home_side0: (cx as u8, (cy + half / 2) as u8),
         home_side4: (cx as u8, 64),
-    };
+        enemy_end: Default::default(),
+        rally: Default::default(),
+    }
+    .with_home_tables();
     for (slot, (dx, dy)) in crate::terrain::DEPLOY_OFFSETS.iter().enumerate() {
         let clamp = |v: i32| v.clamp(1, DIM as i32 - 2) as u8;
         let sx = (dx / 3).clamp(-half + 2, half - 2);

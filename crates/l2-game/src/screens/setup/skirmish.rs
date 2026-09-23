@@ -104,7 +104,7 @@ impl SkirmishArmy {
 ///
 /// Side outer at stride `0x6E`, difficulty inner at stride `0x16`
 /// `Troops_Load` (`0x0042AC0C`) parses `TROOPS2.ENG` (the local player
-/// attacking) or `TROOPS3.ENG` (defending) into it. Rows 35…54 are written
+/// defending) or `TROOPS3.ENG` (attacking) into it. Rows 35…54 are written
 /// instead by `FUN_0042D4AA` when a `.skr` file is loaded, which scales the
 /// file's own counts by 5/3, 4/3, 1, 2/3 and 1/3 across the five difficulty
 /// columns.
@@ -145,9 +145,9 @@ pub struct Skirmish {
     /// reads. It is a separate global and it does **not** always agree with
     /// the other two; see [`Skirmish::scroll`].
     pub row: usize,
-    /// `DAT_0053EF5C == g_localPlayer`. The attacker's half of the table is
+    /// `DAT_0053EF5C == g_localPlayer`. The defender's half of the table is
     /// side 1.
-    pub local_attacks: bool,
+    pub local_defends: bool,
     /// Realm `+0x24` for realms 1 and 2 — `DAT_00553DA4` and `DAT_00553DD0`,
     /// the difficulty column each army is drawn from.
     pub difficulty: [u8; 2],
@@ -167,7 +167,7 @@ impl Default for Skirmish {
     /// **`FUN_0042B919` (`0x0042B919`)**, fifteen assignments, and these are
     /// the eight of them that live here: category 0, row 0, scroll 0, slot 0,
     /// not custom, `DAT_0053EF5C = 1` — realm 1, which in single player is the
-    /// local player, so he attacks — and both handicaps at 2, the middle of
+    /// local player, so he defends — and both handicaps at 2, the middle of
     /// the three the seesaw allows.
     fn default() -> Self {
         Skirmish {
@@ -176,7 +176,7 @@ impl Default for Skirmish {
             top: 0,
             slot: 0,
             row: 0,
-            local_attacks: true,
+            local_defends: true,
             difficulty: [2, 2],
             custom: false,
             file: None,
@@ -237,11 +237,11 @@ impl Skirmish {
     ///
     /// The caller must then reload the table: `00430000.c:8126` calls
     /// `Troops_Load` (`0x0042AC0C`), because which side the local player is on
-    /// picks the *file* — `TROOPS2.ENG` attacking, `TROOPS3.ENG` defending.
+    /// picks the *file* — `TROOPS2.ENG` defending, `TROOPS3.ENG` attacking.
     /// `SetupScreen::load_troops` is that call.
     pub fn swap_sides(&mut self) {
         self.edited = None;
-        self.local_attacks = !self.local_attacks;
+        self.local_defends = !self.local_defends;
     }
 
     /// **The handicap seesaw** — `FUN_0043DAF3`. Hotspot 1 takes one column
@@ -304,27 +304,27 @@ impl Skirmish {
     }
 
     /// `DAT_0053EF5C == 1`, the test `FUN_004209C1` (`00420000.c:246`) puts
-    /// the role captions on — realm 1 attacking, not the local player
-    /// attacking. `FUN_0042B919` starts `DAT_0053EF5C` at 1 and `FUN_0043DD83`
+    /// the role captions on — realm 1 defending, not the local player
+    /// defending. `FUN_0042B919` starts `DAT_0053EF5C` at 1 and `FUN_0043DD83`
     /// moves it between `g_localPlayer` and `DAT_0056D5CC`, so on this page,
     /// where the local player is realm 1 and the opponent is not, the two
     /// tests coincide. **Inferred** — nothing here reads a realm number.
-    pub fn realm1_attacks(&self) -> bool {
-        self.local_attacks
+    pub fn realm1_defends(&self) -> bool {
+        self.local_defends
     }
 
     /// Which half of the table each army is drawn from — `local_c` in
     /// `Skirmish_FillArmies`, computed once per army as
     /// `DAT_0053EF5C == owner`.
     pub fn side_of(&self, local: bool) -> usize {
-        usize::from(self.local_attacks == local)
+        usize::from(self.local_defends == local)
     }
 
     /// **`Skirmish_FillArmies` (`0x0042BF46`)**, both armies, in its order.
     ///
     /// Returns `(local, other)`. The army records they land in are
     /// `DAT_00553EFC` and `DAT_00553F34`, which `FUN_0042BA40` sets to
-    /// `(2, 1)` when the local player is the attacker and `(1, 2)` when he is
+    /// `(2, 1)` when the local player is the defender and `(1, 2)` when he is
     /// not — [`Skirmish::slots`].
     pub fn fill_armies(&self, table: &TroopsTable) -> (SkirmishArmy, SkirmishArmy) {
         let row = table.counts(self.kind, self.row, self.side_of(true), self.difficulty[0]);
@@ -339,9 +339,9 @@ impl Skirmish {
     /// `DAT_0053EF5C == g_localPlayer` the local player takes record **2**
     /// (`g_battleArmyB`) and the opponent record 1 (`g_battleArmyA`); the
     /// other branch is the other way round. So `g_battleArmyA` always holds
-    /// the side the local player is *not* on when he attacks.
+    /// the side the local player is *not* on when he defends.
     pub fn slots(&self) -> (usize, usize) {
-        if self.local_attacks { (2, 1) } else { (1, 2) }
+        if self.local_defends { (2, 1) } else { (1, 2) }
     }
 
     /// **[D]** a seed that is a pure function of the page — no clock and no
@@ -355,7 +355,7 @@ impl Skirmish {
             | (self.row as u64) << 16
             | (d[0] as u64) << 8
             | d[1] as u64
-            | u64::from(self.local_attacks) << 40;
+            | u64::from(self.local_defends) << 40;
         n.wrapping_mul(0x9E37_79B9_7F4A_7C15)
     }
 }

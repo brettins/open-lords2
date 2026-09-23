@@ -84,6 +84,30 @@ fn markers_fill_the_slot_the_third_cell_names() {
     }
 }
 
+/// 00470000.c:4661-4688 (side 0) / :4703-4729 (side 4).
+#[test]
+fn marker_blocks_fill_the_enemy_end_and_rally_tables() {
+    let mut r = raster();
+    // 0x04 over 0x07, 0x08 at (x+2, y+1): enemy-end slot 2 at (x+2, y).
+    r[30 * DIM + 40] = 0x04;
+    r[31 * DIM + 40] = 0x07;
+    r[31 * DIM + 42] = 0x08;
+    // 0x0F over 0x08, 0x07 at (x+1, y+1), 0x42 at (x+1, y): group 1, index 2.
+    r[40 * DIM + 50] = 0x0F;
+    r[41 * DIM + 50] = 0x08;
+    r[41 * DIM + 51] = 0x07;
+    r[40 * DIM + 51] = 0x42;
+    let f = build_field(&r, 3);
+    assert_eq!(f.enemy_end[0][2], (42, 30), "DAT_00544050 slot 2");
+    assert_eq!(f.enemy_end[0][0], f.home_side4, "[D] unwritten slot: the marker tile");
+    assert_eq!(f.rally[1][1][2], (52, 40), "DAT_00522D60 + 0x18 + 2*8");
+    assert_eq!(f.at(40, 30).terrain, id::OPEN, "FUN_0047D79C erases the block");
+
+    let ai = crate::runner::ai_field_for(&f);
+    assert_eq!(ai.enemy_end[0][2], (42, 30), "ai_field_for copies the table");
+    assert_eq!(ai.rally[1][1][2], (52, 40));
+}
+
 #[test]
 fn a_lone_marker_cell_claims_no_slot() {
     let mut r = vec![0u8; RASTER_BYTES];

@@ -105,10 +105,10 @@ impl SetupScreen {
         pen.body_centred(canvas, 0xE, 0x140, 0x96, &self.name(), font::TEXT);
 
         // The roles do move: `DAT_0053EF5C == 1` (`00420000.c:246`) — realm 1
-        // is the attacker — puts 11/0x17 on the left and 11/0x18 on the
+        // is the defender — puts 11/0x17 on the left and 11/0x18 on the
         // right. Realm 1 is the local player in single player, so this is not
-        // the same test as `local_attacks`.
-        let (left, right) = if s.realm1_attacks() { (0x17, 0x18) } else { (0x18, 0x17) };
+        // the same test as `local_defends`.
+        let (left, right) = if s.realm1_defends() { (0x17, 0x18) } else { (0x18, 0x17) };
         pen.eng_centred(canvas, GROUP, left, 0xB, 0x112, 0x78, font::TEXT);
         pen.eng_centred(canvas, GROUP, right, 0x116, 0x112, 0x78, font::TEXT);
 

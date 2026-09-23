@@ -273,6 +273,26 @@ pub struct SiegeState {
     /// defender twice what a shot into its end does. This is the number the
     /// repair is charged in **wood or stone** — `docs/bugs.md` B69. `[V]`.
     pub wall_damage: u16,
+    /// `DAT_0057A0F0`, the custom-battle flag; `castle_level` is then the
+    /// list row `DAT_0056D590` (00470000.c:5060). **[V]**
+    pub skirmish: bool,
+}
+
+/// `0x004D4A58`, fifteen int32s read from Lords2.exe: whether a failed
+/// assault on skirmish castle row `i` ends the battle. **[V]**
+pub const ASSAULT_ENDS_SKIRMISH: [u8; 15] = [0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0];
+
+impl SiegeState {
+    /// Battle_CheckOutcome (`0x00477DFC`) 00470000.c:3350-3359: campaign
+    /// `g_castleLevel >= 3`, skirmish `DAT_004D4A58[DAT_0056D590]`.
+    pub fn failed_assault_ends(&self) -> bool {
+        if self.skirmish {
+            // [I] a row past the table's fifteen reads as 0.
+            ASSAULT_ENDS_SKIRMISH.get(usize::from(self.castle_level)) == Some(&1)
+        } else {
+            self.castle_level >= crate::runner::ASSAULT_REPEATS_BELOW_LEVEL
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -325,6 +345,15 @@ pub enum WallBlow {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Ablation: `castle_level >= 3` for a skirmish ends row 7 and repeats row 5.
+    #[test]
+    fn a_skirmish_castle_ends_a_failed_assault_by_its_row_in_0x004d4a58() {
+        let ends = |row, skirmish| SiegeState { skirmish, ..SiegeState::castle(row) }.failed_assault_ends();
+        assert!(ends(5, true) && ends(6, true) && ends(13, true));
+        assert!(!ends(7, true) && !ends(4, true) && !ends(14, true));
+        assert!(ends(3, false) && !ends(2, false), "campaign: g_castleLevel < 3");
+    }
 
     #[test]
     fn a_man_on_the_rampart_chews_the_wall_and_a_man_on_the_ground_chews_the_gate() {

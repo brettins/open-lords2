@@ -14,7 +14,7 @@ impl SetupScreen {
     /// The `.skr` rows 35…54 are re-laid afterwards, since `Troops_Load`
     /// clears all 35 of its own rows and this table holds 55.
     pub(crate) fn load_troops(&mut self, ctx: &Ctx) {
-        let attacks = self.skirmish.local_attacks;
+        let attacks = self.skirmish.local_defends;
         // `g_multiplayer == 0` — page 12 is the single-player skirmish; page
         // 11 is the multiplayer one and takes `TROOPS.ENG`.
         let multiplayer = self.page == SetupPage::SkirmishMulti;
