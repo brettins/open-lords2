@@ -94,7 +94,7 @@ fn full_screen_leaves_the_panel_and_says_the_display_cannot_change() {
 }
 
 #[test]
-/// Opt_GameHelpContents 0x00434942; CNEW-help-viewer. Ablate the `Push(ScreenId::Help)` arm and it stays.
+/// Opt_GameHelpContents 0x00434942; C241. Ablate the `Push(ScreenId::Help)` arm and it stays.
 fn start_game_help_opens_the_help_viewer_twenty_frames_later() {
     let (mut game, assets) = world();
     let prefs = game.prefs;

@@ -1,4 +1,4 @@
-//! CNEW-help-viewer: `Opt_GameHelpContents` 0x00434942's `WinHelpA` as our own screen.
+//! C241: `Opt_GameHelpContents` 0x00434942's `WinHelpA` as our own screen.
 
 use l2_game::game::Assets;
 use l2_game::input::Event;

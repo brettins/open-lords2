@@ -70,7 +70,7 @@ impl OptionsScreen {
                 );
                 Transition::Pop
             }
-            // Opt_GameHelpContents 0x00434942: WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1); ours is a screen [D] CNEW-help-viewer.
+            // Opt_GameHelpContents 0x00434942: WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1); ours is a screen [D] C241.
             Setting::StartGameHelp => Transition::Push(ScreenId::Help),
             other => {
                 toggle(other, ctx);

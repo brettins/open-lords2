@@ -1,4 +1,4 @@
-//! The help viewer: `L2help.hlp` in the game's own window. [D] CNEW-help-viewer —
+//! The help viewer: `L2help.hlp` in the game's own window. [D] C241 —
 //! `Opt_GameHelpContents` (`0x00434942`) calls `WinHelpA(hwnd, "l2help.hlp",
 //! HELP_CONTENTS, 1)` and the viewer is Windows'; no function of the binary draws
 //! one, so the frame, scroll arrows and OK are the save box's (`g_saveLoadWidgets`)

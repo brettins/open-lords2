@@ -1651,7 +1651,7 @@
       "gesture": "left-press-delayed",
       "addr": "0x00434942",
       "what": "Help options row 3, 'Start game help': record 2 (0x004DDD18) at (288, 252), kind 5. Twenty frames after the press, WinHelpA(hwnd, 'l2help.hlp', HELP_CONTENTS, 1).",
-      "note": "[D] CNEW-help-viewer: the viewer is Windows' WinHelp; ours pushes ScreenId::Help, our own window reading L2help.hlp (contents, jump hotspots, |CONTEXT, Back, OK).",
+      "note": "[D] C241: the viewer is Windows' WinHelp; ours pushes ScreenId::Help, our own window reading L2help.hlp (contents, jump hotspots, |CONTEXT, Back, OK).",
       "ours": "crates/l2-game/src/screens/help/mod.rs",
       "evidence": "V"
     },
