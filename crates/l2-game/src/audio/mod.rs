@@ -95,6 +95,11 @@ impl Default for Options {
 pub enum Scene {
     ///: `setup.wav` **is** the music, played
     FrontEnd,
+    /// Skirmish pages 0xB/0xC (and 13): every way in is `Music_Play("setup3.wav", 0, 1)`.
+    Skirmish,
+    /// Ratings 0x2E and rank 0x2F: no Music call reaches them (Battle_CheckOutcome
+    /// `00470000.c:3462-3468`), so the battle bed plays on. [V]
+    Sheet,
     Campaign { county_count: u8, share_of_map_pct: i32 },
     /// **The conquest interstitial, screen `0x1C`** — the one screen over a
     /// running game that is not campaign music. `Screen_DrawConquest`

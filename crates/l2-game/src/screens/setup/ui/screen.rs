@@ -97,6 +97,18 @@ impl Screen for SetupScreen {
                 t => return t,
             }
         }
+        // Screen_FrameInput page 0xD, `00420000.c:7473-7482`: right release
+        // anywhere, or Ui_OkButtonClicked (0x0040E7E4, left release in 24x24). [V]
+        if self.page == SetupPage::SkirmishFile {
+            let (ox, oy) = SKIRMISH_FILE_OK;
+            match event {
+                Event::RightClick { .. } => return self.go(SetupPage::Skirmish),
+                Event::Release { x, y } if Rect::new(ox, oy, 24, 24).contains(x, y) => {
+                    return self.go(SetupPage::Skirmish)
+                }
+                _ => {}
+            }
+        }
         match event {
             // arm: ours/setup-key-up key
             Event::KeyDown(Key::Up) => self.selected = (self.selected + n - 1) % n,

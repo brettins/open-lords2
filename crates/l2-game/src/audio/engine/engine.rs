@@ -179,7 +179,23 @@ impl Audio {
             // comes back. One bed, two call sites, and this is both.
             //
             // sfx: App_WinMain#1,FUN_00497a34#2
-            Scene::FrontEnd => Some(Music::Setup),
+            Scene::FrontEnd => {
+                let playing = self.music_name();
+                if front_end_keeps(self.scene, playing.as_deref()) {
+                    self.scene = Some(scene);
+                    return;
+                }
+                Some(Music::Setup)
+            }
+            // FUN_00433155 (setup OK, DAT_0055302c == 3), FUN_00497a34 (DAT_0057A0F0 == 1),
+            // Screen_FrameInput 0x2F (`00420000.c:7512`, `:7516`); each then opens page 0xB/0xC.
+            //
+            // sfx: FUN_00433155#1,FUN_00497a34#1,Screen_FrameInput#1,Screen_FrameInput#2
+            Scene::Skirmish => Some(Music::Setup3),
+            Scene::Sheet => {
+                self.scene = Some(scene);
+                return;
+            }
             Scene::Campaign { county_count, share_of_map_pct } => {
                 Some(track::campaign(county_count, share_of_map_pct))
             }

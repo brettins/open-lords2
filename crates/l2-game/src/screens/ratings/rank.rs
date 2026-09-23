@@ -25,8 +25,7 @@
 //! So the chain is `0x2E` → `0x2F` → page 12, on **either** button, pressed,
 //! anywhere; neither sheet has a back door and neither tests the keyboard.
 //! `Music_Play("setup3.wav", 0, 1)` is `docs/audio.json`'s two `0x0042FF10`
-//! records and is **not** wired here: our bed is picked by
-//! `audio::director::scene` from the screen stack, which has no restart edge.
+//! records: `audio::Scene::Skirmish`, on arriving at page 12.
 use super::*;
 
 /// `L2.eng` group 38 — the twelve ranks `Ui_DrawCentred(0x26, DAT_0053E9E0, …)`
@@ -84,8 +83,8 @@ impl Screen for RankScreen {
         Some(RANK_PALETTE)
     }
 
-    /// `FUN_0042D179` runs before any sheet opens; with no `score.dat`
-    /// (`FUN_0042D216`) its table is the whole book.
+    /// `FUN_0042D179` runs before any sheet opens (App_WinMain); the sheet
+    /// itself never reads `score.dat`.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         ctx.game.battle_master.seed_defaults(&ctx.assets.shell);
         Transition::Stay
@@ -140,24 +139,12 @@ impl Screen for RankScreen {
         );
         // The five rows all carry `&g_playerNames + g_localPlayer * 0x2C` —
         // one name repeated, not five.
-        let name = match ctx.game.player_names.get(ctx.game.player as usize) {
-            Some(n) if !n.as_str().is_empty() => n.as_str().to_string(),
-            _ => format!("REALM {}", ctx.game.player),
-        };
+        // `00420000.c:635`: drawn as is, empty or not.
+        let name = ctx.game.player_names.get(ctx.game.player as usize).map_or(String::new(), |n| n.as_str());
         for row in 0..MINE_SHOWN {
             let y = row as i32 * ROW_PITCH + MINE_Y0;
             pen.body(canvas, NAME_X, y, &name, font::TEXT);
             pen.number_in(Face::Body, canvas, SCORE_X, y, book.mine[row], ' ', " ", font::TEXT);
-        }
-
-        if ctx.game.prefs.debug_overlay {
-            l2_view::text::draw(
-                canvas,
-                4,
-                470,
-                "SCORE.DAT IS NOT READ OR WRITTEN: THIS BOOK LASTS ONE RUN",
-                ink.dim,
-            );
         }
     }
 }

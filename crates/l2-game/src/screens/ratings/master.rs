@@ -114,8 +114,7 @@ fn step(table: &[(i32, i32); 12], battles: i32, past_the_end: i32) -> i32 {
 impl BattleMaster {
     /// `FUN_0042D179` — the table with no `score.dat`: ten scores out of the
     /// executable and ten names out of `L2.eng` group 7. `FUN_0042D216`'s
-    /// missing-file limb leaves exactly this standing, so it is the book
-    /// itself here, not a placeholder.
+    /// missing-file limb leaves it standing (`score_dat.rs`).
     pub fn seed_defaults(&mut self, assets: &crate::shell::ShellAssets) {
         if !self.top.is_empty() {
             return;

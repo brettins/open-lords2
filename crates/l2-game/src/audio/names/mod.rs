@@ -63,10 +63,8 @@ pub const MUSIC_BATTLE: [&str; 5] = [
     "battle5.wav",
 ];
 
-/// Two siblings ship and are not reached from our engine: `setup2.wav`, which
-/// `Screen_DrawConquest` (`0x0041E1DD`) plays **unlooped** once the campaign is
-/// past its eighth map, and `SETUP3.WAV`, which four sites play over the
-/// credits and the ending. See [`super::track::Music::Setup`].
+/// `setup2.wav`: `Screen_DrawConquest` (`0x0041E1DD`), unlooped past the eighth
+/// map. `setup3.wav`: the four skirmish sites, [`super::Scene::Skirmish`].
 pub const MUSIC_SETUP: &str = "setup.wav";
 pub const MUSIC_SETUP2: &str = "setup2.wav";
 pub const MUSIC_SETUP3: &str = "setup3.wav";

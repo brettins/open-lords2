@@ -68,6 +68,8 @@ pub fn stamp_castle_terrain(map: &mut CampaignMap, county: u8, castle_type: u8) 
     let Some(t) = terrain::CASTLE_PLOT.checked_add(castle_type.min(5)) else { return 0 };
     let tiles = castle_plot_tiles(map, county);
     for i in &tiles {
+        // Map_StampBlock 0x0046AC22: `bank |= 1; bank &= 0xe3; … bank |= bankBits(0x10)`. [V]
+        map.bank[*i] = ((map.bank[*i] | 1) & 0xE3) | 0x10;
         map.terrain[*i] = t;
     }
     tiles.len()
@@ -91,5 +93,28 @@ pub fn castle_stamp(castle_type: u8, castle_degraded: u8, castle_percent: u8) ->
         frames: core::array::from_fn(|q| base + BLOCK_QUADRANTS_2[q]),
         terrain: terrain::CASTLE_PLOT + castle_type,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stamping_a_castle_sets_the_castle_bank_bits_on_its_block() {
+        let mut map = CampaignMap::empty();
+        let corner = 10 * MAP_DIM + 10;
+        let block = [corner, corner + 1, corner + MAP_DIM, corner + MAP_DIM + 1];
+        for t in block {
+            map.county[t] = 3;
+            map.flags[t] = flags::SETTLEMENT;
+            map.terrain[t] = terrain::CASTLE_PLOT + 1;
+            map.bank[t] = 0x0E;
+        }
+        assert_eq!(stamp_castle_terrain(&mut map, 3, 2), 4);
+        for t in block {
+            assert_eq!(map.bank[t], 0x13, "Map_StampBlock: (0x0E | 1) & 0xE3 | 0x10");
+            assert_eq!(map.terrain[t], 0x16, "content 0x15 + level");
+        }
+    }
 }
 

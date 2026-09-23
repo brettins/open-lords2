@@ -20,8 +20,7 @@ fn page13(files: usize) -> SetupScreen {
 ///
 /// **Ablation:** `crates/l2-game/src/screens/setup/ui/skirmish_file.rs`, the
 /// `FILE_SCROLL` loop in `skirmish_file_arms` — with the two records gone the
-/// press lands on the full-screen `Action::Item(0)` cancel instead and the top
-/// never moves.
+/// top never moves.
 #[test]
 fn page_13s_two_arrows_move_the_file_lists_scroll_base() {
     let (mut game, assets) = world!();
@@ -45,6 +44,29 @@ fn page_13s_two_arrows_move_the_file_lists_scroll_base() {
     let mut s = page13(20);
     click(&mut s, &mut game, &assets, down.0 + WIDGET_SIDE, down.1 + mid);
     assert_eq!(s.skirmish_file_top(), 0, "the box is 24 wide, not 25");
+}
+
+/// Screen_FrameInput page 0xD, `00420000.c:7473-7482`: a right release
+/// anywhere, or a left release on the 24x24 OK. A left click elsewhere stays.
+///
+/// **Ablation:** the `SkirmishFile` block in `setup/ui/screen.rs` `handle`.
+#[test]
+fn page_13_closes_on_a_right_release_or_the_ok_and_nothing_else() {
+    use l2_game::screens::setup::SKIRMISH_FILE_OK;
+    let (mut game, assets) = world!();
+    let at = |s: &SetupScreen| s.id();
+    let mut s = page13(3);
+    click(&mut s, &mut game, &assets, 10, 10);
+    assert_eq!(at(&s), ScreenId::Setup(SetupPage::SkirmishFile), "a stray left click stays");
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    let (ox, oy) = SKIRMISH_FILE_OK;
+    s.handle(Event::Release { x: ox + 24, y: oy + 4 }, &mut ctx);
+    assert_eq!(at(&s), ScreenId::Setup(SetupPage::SkirmishFile), "the OK box is 24 wide");
+    s.handle(Event::Release { x: ox + 4, y: oy + 4 }, &mut ctx);
+    assert_eq!(at(&s), ScreenId::Setup(SetupPage::Skirmish), "Ui_OkButtonClicked");
+    let mut s = page13(3);
+    s.handle(Event::RightClick { x: 10, y: 10 }, &mut ctx);
+    assert_eq!(at(&s), ScreenId::Setup(SetupPage::Skirmish), "g_mouseRightReleased");
 }
 
 /// `SaveLoad_Scroll`'s list-2 clamp (`00430000.c:1476-1479`) is
