@@ -67,6 +67,7 @@ use l2_view::Canvas;
 use crate::input::Event;
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
+use crate::screens::setup::{SetupPage, SetupScreen};
 use crate::victory::ConquestBranch;
 
 /// `L2.eng` group 36 — **nineteen strings, of which the painter draws sixteen**
@@ -106,24 +107,17 @@ pub enum Outcome {
 
 impl Outcome {
     pub const ALL: [Outcome; 3] = [Outcome::Won, Outcome::Lost, Outcome::Finished];
-
-    fn next(self) -> Outcome {
-        match self {
-            Outcome::Won => Outcome::Lost,
-            Outcome::Lost => Outcome::Finished,
-            Outcome::Finished => Outcome::Won,
-        }
-    }
 }
 
 pub struct ConquestScreen {
     outcome: Outcome,
     adopted: bool,
+    autosave: bool,
 }
 
 impl ConquestScreen {
     pub fn new() -> ConquestScreen {
-        ConquestScreen { outcome: Outcome::Won, adopted: false }
+        ConquestScreen { outcome: Outcome::Won, adopted: false, autosave: false }
     }
 
     pub fn outcome(&self) -> Outcome {
@@ -143,6 +137,27 @@ impl ConquestScreen {
             ConquestBranch::Lost => Outcome::Lost,
             ConquestBranch::Finished => Outcome::Finished,
         };
+    }
+
+    /// Screen_FrameInput 0x0042FF10, 00420000.c:7525-7532: `g_campaignMap < 8` starts
+    /// the next row (Setup_StartGame 0x004329EC), else `g_screenId = 0`. [V]
+    fn next_game(&mut self, ctx: &mut Ctx) -> Transition {
+        let campaign = ctx.game.campaign.clone();
+        if campaign.is_complete() {
+            return Transition::Replace(ScreenId::Setup(SetupPage::Title));
+        }
+        let local = ctx.game.player as usize;
+        let shield = ctx.game.kingdom.realms.get(local).map_or(1, |r| r.shield_index);
+        let mut setup = SetupScreen::new(SetupPage::Title);
+        setup.read_prefs(ctx);
+        setup.track = campaign.track;
+        setup.shield = usize::from(shield.clamp(1, 5)) - 1;
+        let t = setup.start_campaign_row(ctx, campaign);
+        self.autosave = setup.take_autosave();
+        match t {
+            Transition::Push(id) => Transition::Replace(id),
+            t => t,
+        }
     }
 }
 
@@ -165,15 +180,18 @@ impl Screen for ConquestScreen {
         Some(PALETTE)
     }
 
-    fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
+    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             // App_WndProc 0x004B29BE routes no key to screen 0x1C [V].
-            Event::Click { .. } => {
-                self.outcome = self.outcome.next();
-                Transition::Stay
-            }
+            // arm: 0x0042FF10/conquest-next-left left-release
+            // arm: 0x0042FF10/conquest-next-right right-release
+            Event::Release { .. } | Event::RightClick { .. } => self.next_game(ctx),
             _ => Transition::Stay,
         }
+    }
+
+    fn take_autosave(&mut self) -> bool {
+        core::mem::take(&mut self.autosave)
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
@@ -277,13 +295,5 @@ mod tests {
         let last = 0x80 + 6 * 0x14;
         assert!(last < BOX_Y + BOX_ROWS_LONG * 16, "the last line must be inside the box");
         assert!(last > BOX_Y + BOX_ROWS_SHORT * 16, "and outside the short one");
-    }
-
-    #[test]
-    fn the_three_outcomes_cycle() {
-        assert_eq!(Outcome::Won.next(), Outcome::Lost);
-        assert_eq!(Outcome::Lost.next(), Outcome::Finished);
-        assert_eq!(Outcome::Finished.next(), Outcome::Won);
-        assert_eq!(Outcome::ALL.len(), 3);
     }
 }

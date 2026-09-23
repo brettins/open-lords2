@@ -100,7 +100,7 @@ pub struct Kept {
 }
 
 impl Kept {
-    /// Both campaign globals sit inside the 0x468-byte block Options_Save writes.
+    /// Both campaign globals sit inside the 0x468-byte block Options_Save 0x004AE15F writes.
     pub fn remember(&mut self, c: &crate::victory::Campaign) {
         self.campaign_map = c.map;
         self.campaign_track = c.track;

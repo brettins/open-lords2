@@ -1434,6 +1434,30 @@
       "evidence": "V"
     },
     {
+      "id": "0x0042FF10/conquest-next-left",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1C",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "SCREEN 0x1C, ANY LEFT RELEASE -- Screen_FrameInput 00420000.c:7520-7534. DAT_0055302C == 2 drops to screen 0 at once; otherwise a release with g_campaignMap < 8 is Setup_StartGame on the row Campaign_EnterConquest loaded, and at 8 g_screenId = 0 (the title) with DAT_005C9274 = 1.",
+      "note": "Ours cycled the three outcomes on a left press until 2026-09-23. The DAT_0055302C == 2 limb is not modelled [I]: ours has no mode 2 in single player.",
+      "ours": "crates/l2-game/src/screens/conquest.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/conquest-next-right",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1C",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "SCREEN 0x1C, ANY RIGHT RELEASE -- Screen_FrameInput 00420000.c:7520-7534. DAT_0055302C == 2 drops to screen 0 at once; otherwise a release with g_campaignMap < 8 is Setup_StartGame on the row Campaign_EnterConquest loaded, and at 8 g_screenId = 0 (the title) with DAT_005C9274 = 1.",
+      "note": "Ours cycled the three outcomes on a left press until 2026-09-23. The DAT_0055302C == 2 limb is not modelled [I]: ours has no mode 2 in single player.",
+      "ours": "crates/l2-game/src/screens/conquest.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x00434174/skirmish-pick-file",
       "status": "reproduced",
       "group": "front-end",

@@ -1,34 +1,19 @@
-#![allow(unused_imports)]
 use super::*;
-use super::navigation::*;
-use super::eng_part::*;
-use super::font_part::*;
-use super::glyph::*;
-use std::path::PathBuf;
-use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
-use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
-use l2_game::screens::county::Panel;
+use l2_game::input::Event;
+use l2_game::screen::{Ctx, Screen, ScreenId, Transition};
 use l2_game::screens::conquest::ConquestScreen;
-use l2_game::screens::setup::{self, SetupPage};
-use l2_game::screens::court::CourtScreen;
-use l2_game::screens::ratings::RatingsScreen;
-use l2_game::shell::{font, Eng};
-use l2_game::Game;
-use l2_view::Canvas;
+use l2_game::screens::setup::SetupPage;
 
+/// Screen_FrameInput 0x0042FF10, 00420000.c:7529-7531: `g_campaignMap >= 8` returns
+/// to screen 0 on either button's release; a press does nothing.
 #[test]
-fn the_conquest_screen_says_all_three_of_the_things_it_can_say() {
+fn a_release_after_the_last_map_returns_to_the_title() {
     let (mut game, assets) = bare();
+    game.campaign.map = l2_game::victory::CAMPAIGN_LENGTH;
     let mut s = ConquestScreen::new();
-    let mut seen = Vec::new();
-    for _ in 0..3 {
-        seen.push(s.outcome());
-        let mut ctx = Ctx { game: &mut game, assets: &assets };
-        s.handle(Event::Click { x: 0, y: 0 }, &mut ctx);
-    }
-    seen.sort_by_key(|o| format!("{o:?}"));
-    seen.dedup();
-    assert_eq!(seen.len(), 3, "the three branches of FUN_0041E1DD");
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    assert_eq!(s.handle(Event::Click { x: 0, y: 0 }, &mut ctx), Transition::Stay);
+    let title = Transition::Replace(ScreenId::Setup(SetupPage::Title));
+    assert_eq!(s.handle(Event::Release { x: 0, y: 0 }, &mut ctx), title);
+    assert_eq!(s.handle(Event::RightClick { x: 0, y: 0 }, &mut ctx), title);
 }
-
