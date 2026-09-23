@@ -878,7 +878,7 @@ fn every_field_of_a_missile_and_a_fighter_reaches_the_bytes() {
     ];
 
     let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let src = std::fs::read_to_string(root.join("tests/lockstep.rs")).expect("this file");
+    let src = std::fs::read_to_string(root.join("tests/lockstep/main.rs")).expect("this file");
     // **`encode_state`'s body, not the whole file.** Scanning the file let any
     // `.name` anywhere in it stand for a hashed field: dropping
     // `Progress::free` from the encoder stayed green because
