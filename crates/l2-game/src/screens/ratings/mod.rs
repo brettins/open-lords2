@@ -111,6 +111,12 @@ mod score_part;
 pub use score_part::*;
 mod render;
 pub use render::*;
+mod master;
+pub use master::*;
+mod rank;
+pub use rank::*;
+mod end;
+pub use end::*;
 
 use l2_view::Canvas;
 
@@ -183,20 +189,27 @@ pub struct Ratings {
 }
 
 pub struct RatingsScreen {
-    ratings: Ratings,
+    /// `None` is the screen as `Screen_Draw` reaches it: the numbers are
+    /// globals — `DAT_00553EFC`, `DAT_00553F34`, `DAT_0053E9B4` —
+    /// [`crate::Game::battle_master`]. `Some` is a test naming them.
+    ratings: Option<Ratings>,
 }
 
 impl RatingsScreen {
     pub fn new() -> RatingsScreen {
-        RatingsScreen { ratings: Ratings::default() }
+        RatingsScreen { ratings: None }
     }
 
     pub fn with(ratings: Ratings) -> RatingsScreen {
-        RatingsScreen { ratings }
+        RatingsScreen { ratings: Some(ratings) }
     }
 
-    pub fn ratings(&self) -> &Ratings {
-        &self.ratings
+    pub fn ratings(&self) -> Option<Ratings> {
+        self.ratings
+    }
+
+    fn shown(&self, ctx: &Ctx) -> Ratings {
+        self.ratings.unwrap_or(ctx.game.battle_master.last)
     }
 }
 

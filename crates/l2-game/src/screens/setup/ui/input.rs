@@ -400,6 +400,7 @@ impl SetupScreen {
                 pen.body(canvas, 0x80, 0xB0 + row as i32 * 0x10, name, font::TEXT);
             }
             pen.ok_button(canvas, SKIRMISH_FILE_OK.0, SKIRMISH_FILE_OK.1, 0);
+            self.paint_skirmish_file_arrows(canvas, pen);
         }
     }
 }

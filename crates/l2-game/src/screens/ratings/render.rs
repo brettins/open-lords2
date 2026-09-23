@@ -42,7 +42,7 @@ impl Screen for RatingsScreen {
                 Transition::Pass
             }
             // arm: 0x0042FF10/ratings-any-press left-press
-            Event::Click { .. } | Event::RightClick { .. } => Transition::Pop,
+            Event::Click { .. } | Event::RightClick { .. } => Transition::Replace(ScreenId::Rank),
             // arm: ours/ratings-keyboard-close key
             Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             _ => Transition::Stay,
@@ -73,11 +73,10 @@ impl Screen for RatingsScreen {
             font::TEXT,
         );
 
-        let (mine, theirs) = score(&self.ratings);
-        let blocks = [
-            (self.ratings.mine, self.ratings.theirs, self.ratings.realms.0, mine),
-            (self.ratings.theirs, self.ratings.mine, self.ratings.realms.1, theirs),
-        ];
+        let r = self.shown(ctx);
+        let (mine, theirs) = score(&r);
+        let blocks =
+            [(r.mine, r.theirs, r.realms.0, mine), (r.theirs, r.mine, r.realms.1, theirs)];
         for (b, &((before, after), (their_before, their_after), realm, points)) in
             blocks.iter().enumerate()
         {
@@ -153,7 +152,7 @@ impl Screen for RatingsScreen {
                 canvas,
                 4,
                 470,
-                "NO SKIRMISH MODE: THESE ARE A BATTLE'S NUMBERS AND NOTHING FILLS THEM YET",
+                "SCORE.DAT IS NOT READ OR WRITTEN: THIS BOOK LASTS ONE RUN",
                 ink.dim,
             );
         }

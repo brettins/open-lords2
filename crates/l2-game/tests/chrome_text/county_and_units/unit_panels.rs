@@ -194,4 +194,64 @@ fn the_unit_panel_says_the_year_an_army_was_formed_in_ad() {
     );
 }
 
+/// **The army panel's troop grid is four rows `0x1A` apart, not seven `0xD`
+/// apart.** `UnitPanel_Draw` (`0x0041B19D`) calls
+/// `FUN_004224E7(unit, 0, 0x38, R * 0x10 + 0xBE, &g_fontBody, 2)`, whose
+/// mode-2 body is
+///
+/// ```c
+/// for (c = 0; c < 6; c += 2) {
+///   Pl8_DrawFrame(misc, c + 0x2F, x,        c * 0xD + y);
+///   Ui_DrawCount(troops[c],   c * 2 + 0x34, x + 0x20, c * 0xD + y + 4, …);
+///   Pl8_DrawFrame(misc, c + 0x30, x + 0xC0, c * 0xD + y);
+///   Ui_DrawCount(troops[c+1], c * 2 + 0x36, x + 0xE0, c * 0xD + y + 4, …);
+/// }                                          /* c is 6 here */
+/// Ui_DrawCount(troops[6], 0x40, x + 0x20, c * 0xD + y + 4, …);
+/// Ui_DrawCount(menTotal,  0x48, x + 0xE0, c * 0xD + y + 4, …);
+/// ```
+///
+/// **`c` steps by two**, so a row of the pair is `0x1A` apart; ours read `0xD`
+/// off the expression and piled seven rows into four. The `menTotal` line was
+/// missing outright.
+///
+/// **Ablated** by putting `(t / 2) * 13` back: rows 1..3 and the total all
+/// miss.
+#[test]
+fn the_army_panels_troop_grid_is_the_original_grid() {
+    use l2_game::screens::info::{InfoScreen, Target};
+    use l2_kingdom::unit::{Unit, UnitKind};
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let county = own_county(&game);
+    const ROW: i32 = 2;
+    const TROOPS: [i32; 7] = [12, 34, 56, 78, 91, 23, 45];
+    let mut u = Unit::new(UnitKind::Army, game.player, 10, 10);
+    u.county = county;
+    u.home_county = county;
+    u.owner_is_human = true;
+    u.troops = TROOPS;
+    let men: i32 = TROOPS.iter().sum();
+    u.men = men;
+    let id = game.kingdom.campaign.units.spawn(u).expect("a free slot");
+    let mut panel = InfoScreen::new(Target::Unit(id));
+    let canvas = draw(&mut panel, &mut game, &assets);
+
+    for (t, want) in TROOPS.iter().enumerate() {
+        let y = ROW * 16 + 0xC2 + (t as i32 / 2) * 0x1A;
+        let x = if t % 2 == 0 { 0x58 } else { 0x118 };
+        assert_eq!(
+            find_on_row(&canvas, body, &want.to_string(), font::TEXT, y),
+            Some(x + LEAD),
+            "troop {t} is not at ({x}, {y})",
+        );
+    }
+    let total = men.to_string();
+    let y = ROW * 16 + 0xC2 + 3 * 0x1A;
+    assert_eq!(
+        find_on_row(&canvas, body, &total, font::TEXT, y),
+        Some(0x118 + LEAD),
+        "menTotal is not at (0x118, {y})",
+    );
+}
+
 

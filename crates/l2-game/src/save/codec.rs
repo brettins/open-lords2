@@ -225,6 +225,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
 
     Ok(Game {
         kingdom,
+        battle_master: crate::screens::ratings::BattleMaster::default(),
         messages,
         multiplayer: false,
         ai_granted: false,

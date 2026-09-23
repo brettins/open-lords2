@@ -6,6 +6,8 @@ mod title_and_build;
 pub use title_and_build::*;
 mod tile_panel;
 pub use tile_panel::*;
+mod confirm_box;
+pub use confirm_box::*;
 
 use super::*;
 use super::top_bar::*;

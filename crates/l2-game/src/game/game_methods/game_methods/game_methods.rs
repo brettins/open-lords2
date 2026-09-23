@@ -57,6 +57,7 @@ impl Game {
             nobles_category: 0,
             nobles_spoken: 0,
             spoken: (0, ""),
+            battle_master: crate::screens::ratings::BattleMaster::default(),
         }
     }
 

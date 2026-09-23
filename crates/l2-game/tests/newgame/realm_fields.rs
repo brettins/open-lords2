@@ -86,3 +86,52 @@ fn a_second_game_rebuilds_every_realm_and_leaves_an_unseated_one_holding_one_cou
         );
     }
 }
+
+/// **The starting castle is drawn on the plot.**
+///
+/// ```c
+/// g_counties[county].castleType = g_startCastle;
+/// if (g_counties[county].castleType != 0) {
+///   Castle_StampTile(county, g_counties[county].castleType - 1);
+/// }
+/// ```
+///
+/// `Game_SetupRealmsAndCounties` (`0x0049BD99`, `00490000.c:5714-5716`), and
+/// the `if` was missing from [`Settings::apply_to`]. Every lord began with a
+/// castle in the record and bare `0x14` ground on the map, so
+/// `Ai_FindCastleBuildingTile` (`0x004A65A3`) found no castle tile in the AI's
+/// own county and `Unit_ReachCastleBuilding` (`0x004686A0`) had nothing to fire
+/// on: the garrisons AI step 7 raised for it walked at the county town and
+/// stood there for the rest of the game. Ablate the `stamp_castle_terrain` call
+/// in `crates/l2-game/src/setup/settings.rs` and this goes red.
+#[test]
+fn a_starting_castle_is_drawn_on_its_plot() {
+    let assets = assets!();
+    let mut game = Game::new(SEED);
+    let s = start(&assets, &mut game, 4);
+    assert_ne!(s.castle_type, 0, "the castle row is 'none', so this proves nothing");
+    let mut seen = 0;
+    for id in game.kingdom.county_ids() {
+        if game.kingdom.counties[id].owner == 0 {
+            continue;
+        }
+        seen += 1;
+        let drawn = (0..l2_kingdom::map::MAP_TILES)
+            .filter(|&i| {
+                game.kingdom.campaign.map.county[i] as usize == id
+                    && game.kingdom.campaign.map.flags[i]
+                        & l2_kingdom::map::flags::SETTLEMENT
+                        != 0
+                    && (l2_kingdom::map::terrain::CASTLE_FROM
+                        ..=l2_kingdom::map::terrain::CASTLE_TO)
+                        .contains(&game.kingdom.campaign.map.terrain[i])
+            })
+            .count();
+        assert_eq!(
+            drawn, 4,
+            "county {id} has castleType {} and {drawn} castle tiles — `Map_StampBlock` writes a 2×2",
+            game.kingdom.counties[id].castle_type
+        );
+    }
+    assert_eq!(seen, 5, "five lords, five start counties");
+}

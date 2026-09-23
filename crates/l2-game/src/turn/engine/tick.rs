@@ -78,10 +78,12 @@ pub(super) fn run_phase_tick(game: &mut Game) {
     let phase = game.kingdom.turn.phase;
     if phase == Phase::PlayersTurn {
         let mut granted = game.turn.as_ref().is_some_and(|p| p.granted);
-        drive_ai(&mut game.kingdom, &mut granted);
+        let mut letters = Vec::new();
+        drive_ai(&mut game.kingdom, &mut granted, &mut letters);
         if let Some(p) = game.turn.as_mut() {
             p.granted = granted;
         }
+        super::super::ai_part::post_letters(game, &letters);
     }
     let (_, report) = game.kingdom.tick(settled(&game.kingdom, phase));
 

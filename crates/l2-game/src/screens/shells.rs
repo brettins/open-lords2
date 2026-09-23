@@ -91,6 +91,7 @@ pub fn screen_for(id: u8) -> Option<ScreenId> {
         0x0B => Some(ScreenId::Diplomacy),
         0x25 => Some(ScreenId::About),
         0x2E => Some(ScreenId::Ratings),
+        0x2F => Some(ScreenId::Rank),
         _ => None,
     }
 }

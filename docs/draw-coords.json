@@ -1,14 +1,14 @@
 {
   "generated_by": "node tools/draws/drawcoords.js --write",
   "totals": {
-    "compared": 118,
-    "exact": 117,
-    "original_points": 453,
-    "original_blind": 497,
-    "our_points": 153,
-    "our_blind": 408,
+    "compared": 120,
+    "exact": 119,
+    "original_points": 455,
+    "original_blind": 502,
+    "our_points": 157,
+    "our_blind": 417,
     "original_only": 335,
-    "ours_only": 35
+    "ours_only": 37
   },
   "near_misses": [
     {

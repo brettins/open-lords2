@@ -161,12 +161,14 @@ fn right_click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
 }
 
 /// `g_infoUnitButtons` (`0x004DC560`) record `i`, at `(48 | 112 | 176, 352)`,
-/// 40 square. `Layout { row: 2 }` for the player's own army is what puts them
-/// at their table y.
+/// 40 square. `Hotspot_Test(0, DAT_00553D2C << 4, &DAT_004DC560, 3)` adds the
+/// row, and the row for the player's own army is 2.
+const OWN_ARMY_ROW: i32 = 2;
+
 fn info_button(i: usize) -> (i32, i32) {
     on(l2_game::input::Rect::new(
         info::BUTTON_X[i],
-        info::BUTTON_DY,
+        OWN_ARMY_ROW * 16 + info::BUTTON_DY,
         info::BUTTON_DIM,
         info::BUTTON_DIM,
     ))

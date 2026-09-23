@@ -666,10 +666,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "g_msgVoiceS010 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "BLOCKED, and the blocker is the confirm box itself, not the sound. The caller is known: Ui_OpenConfirm (0x0040E6F2), whose last statement it is, playing S010_01..16 by L2.eng group 10 index. We have 1 of its 13 call sites, and the one we have is a field on BattlefieldScreen rather than a ScreenId -- so there is no confirm screen to hang the line on and twelve of the thirteen prompts cannot be reached at all. Unblocks when the confirm box is a screen in its own right; the Game::spoken channel then carries it in one line, as the castle chooser's does."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/screens/confirm.rs",
+      "sound": "S010_01..16 by L2.eng group 10 index; the two prompts we open are 0 and 1",
+      "note": "Ui_OpenConfirm (0x0040E6F2) ends FUN_004B36C0(prompt), Sound_PlayFile(g_msgVoiceS010 + prompt * 0x10, 1, 0); g_msgVoiceS010 (0x004DF7B8) is char[16][16], S010_01..S010_16, read out of the image. Was blocked on there being no confirm screen to hang the line on -- ConfirmScreen is one, and its first update speaks through Game::spoken. Eleven of the thirteen Ui_OpenConfirm call sites are still not built, so eleven of the sixteen lines cannot be reached."
     },
     {
       "id": "FUN_004b3714#1",

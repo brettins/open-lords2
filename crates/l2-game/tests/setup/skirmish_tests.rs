@@ -26,7 +26,7 @@ fn table() -> TroopsTable {
     TroopsTable { rows }
 }
 
-fn page12(game: &mut Game, assets: &Assets) -> SetupScreen {
+pub(crate) fn page12(game: &mut Game, assets: &Assets) -> SetupScreen {
     let mut s = SetupScreen::new(SetupPage::Skirmish);
     s.set_troops(table());
     let _ = (game, assets);

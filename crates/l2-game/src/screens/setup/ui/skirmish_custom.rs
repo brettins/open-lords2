@@ -29,6 +29,7 @@ impl SetupScreen {
     pub(crate) fn paint_skirmish_custom(&self, ctx: &Ctx, canvas: &mut Canvas, pen: &Pen) {
         self.paint_custom_muster(canvas, pen);
         self.paint_custom_sides(ctx, canvas, pen);
+        self.paint_custom_count_buttons(canvas, pen);
     }
 
     /// `FUN_0042130F` — the strength still unspent, the head count, and the
@@ -45,15 +46,19 @@ impl SetupScreen {
         // `FUN_0042C476` (`00420000.c:4803`) is
         // `DAT_0051FBBC - sum(count x weight)` over the army record, and
         // `Skirmish_FillArmies` (`00420000.c:4743`) and `FUN_0042C2ED` (`:4784`)
-        // both zero it.
-        //
-        // **[D]** it is therefore 0 on every frame we draw: only the `+`/`-`
-        // arms (`FUN_0043D74E`, `FUN_0043D7A7`, `00430000.c:7846`, `:7883`)
-        // move the record off the table row, and their widget table is not
-        // wired.
-        let spent: i32 = mine.counts.iter().zip(STRENGTH_WEIGHT).map(|(&c, w)| c as i32 * w).sum();
+        // both zero it. It is 0 until a `+`/`-` arm moves the record off the
+        // table row — [`Skirmish::spare_strength`].
         let w = pen.eng(canvas, GROUP, 0x1C, 0x3C, 0x1B0, font::TEXT);
-        pen.number_in(Face::Body, canvas, w, 0x1B0, mine.strength - spent, ' ', SUFFIX, font::TEXT);
+        pen.number_in(
+            Face::Body,
+            canvas,
+            w,
+            0x1B0,
+            s.spare_strength(&self.troops),
+            ' ',
+            SUFFIX,
+            font::TEXT,
+        );
 
         // `g_units[DAT_00553EFC].menTotal` at `(0x2B, 0x1C5)`, and then 11/0x21
         // for one man and 11/0x1B for any other number — at `g_penAdvance +
