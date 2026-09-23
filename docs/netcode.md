@@ -692,6 +692,15 @@ queue is per seat and outside the digest, so a text a peer never shows cannot
 diverge a world. Carrying it in the command rather than a side channel keeps one
 ordered stream and makes a recorded game replay the letters.
 
+What a letter *does* is a second command, issued by the addressee's seat when it
+applies the first, as the original's `0x49` reader sends `0x4A`/`0x4B` only where
+`g_localPlayer == to`: a gift is `GiftReply` (`NetAct_DiploReply` `0x00448339`;
+the gold moves only if the sender still holds it), an end of alliance
+`EndAllianceReply` (`Diplo_BreakAlliance`). A letter to an AI lord is `PostLetter`
+(opcode `0x48`, `Net_DiploPost` → `Diplo_Post`), applied by every peer. The
+answers to a plea for help or attack are `SendLetter` kinds 7..=10 and change
+nothing but the asker's ring.
+
 ### The phase machine is part of the contract
 
 Turn resolution must be an explicit, ordered sequence of phases, not "whatever
