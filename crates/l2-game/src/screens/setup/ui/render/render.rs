@@ -31,6 +31,7 @@ impl SetupScreen {
             unhonoured: Vec::new(),
             failure: None,
             campaign: false,
+            via_skirmish: false,
             network: false,
             autosave: false,
             track: crate::victory::Track::First,
@@ -324,7 +325,8 @@ impl SetupScreen {
                 //
                 // arm: 0x00432B05/multiplayer-clears-campaign left-release
                 self.campaign = false;
-                self.network = true;
+                // 00430000.c:558 `DAT_0055302c = 2`.
+                (self.network, self.via_skirmish) = (true, false);
                 self.go(SetupPage::Shield)
             }
             // `FUN_00432B05`'s hotspot 4 — *"Lords of Magic?"* — is the THIRD
@@ -342,15 +344,25 @@ impl SetupScreen {
                 Transition::Push(ScreenId::Movie(crate::movie::Film::LordsOfMagic))
             }
             (SetupPage::Title, 3) => Transition::Quit,
+            // arm: 0x00432CC8/campaign left-press
             (SetupPage::Options, 0) => self.go(SetupPage::Campaign),
+            // arm: 0x00432CC8/load left-press
             (SetupPage::Options, 1) => self.go(SetupPage::Load),
-            (SetupPage::Options, 2) => self.go(SetupPage::Skirmish),
-            // FUN_00432CC8 0x00432CC8 hotspot 3: `g_setupPage = 4; DAT_0055302c = 2;
-            // DAT_0057d320 = 0;` — page 4 first; its Continue (FUN_00433155) goes to 7. [V]
-            (SetupPage::Options, 3) => {
-                self.campaign = false;
+            // FUN_00432CC8 0x00432CC8 hotspot 5 (00430000.c:650-659): page 4 with
+            // `DAT_0055302c = 3`; FUN_00433155 :794 sends its Continue to 0xC. [V]
+            // arm: 0x00432CC8/skirmish left-press
+            (SetupPage::Options, 2) => {
+                (self.campaign, self.via_skirmish) = (false, true);
                 self.go(SetupPage::Shield)
             }
+            // FUN_00432CC8 0x00432CC8 hotspot 3: `g_setupPage = 4; DAT_0055302c = 2;
+            // DAT_0057d320 = 0;` — page 4 first; its Continue (FUN_00433155) goes to 7. [V]
+            // arm: 0x00432CC8/custom left-press
+            (SetupPage::Options, 3) => {
+                (self.campaign, self.via_skirmish) = (false, false);
+                self.go(SetupPage::Shield)
+            }
+            // arm: 0x00432CC8/back left-press
             (SetupPage::Options, 4) => self.go(SetupPage::Title),
             // **`FUN_00432EE6` (`0x00432EE6`), and it does two things.**
             //
@@ -517,10 +529,8 @@ impl SetupScreen {
     /// arm: 0x00433155/continue left-press
     fn continue_pressed(&mut self, ctx: &mut Ctx) -> Transition {
         if !self.campaign {
-            // `DAT_0055302C` picks between page 7/8 and page 11/12 here. This
-            // build has one person and no skirmish setup, so the one live
-            // destination is the custom page.
-            return self.go(SetupPage::Custom);
+            // FUN_00433155 0x00433155 :794-808, single-player arms: DAT_0055302C == 3 -> 0xC, else 7.
+            return self.go(if self.via_skirmish { SetupPage::Skirmish } else { SetupPage::Custom });
         }
         self.start_campaign(ctx)
     }
