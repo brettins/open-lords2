@@ -55,7 +55,7 @@ fn a_running_siege_reaches_the_fourteen_handlers_a_field_battle_cannot() {
 }
 
 #[test]
-fn the_garrisons_first_two_missile_units_take_the_two_wall_categories() {
+fn the_garrisons_first_three_missile_units_take_the_two_wall_categories() {
     let r = siege_battle(4, 7);
     let mut wall: Vec<u8> = (1..=l2_sim::MAX_UNITS)
         .map(|u| r.units.get(u))
@@ -63,7 +63,7 @@ fn the_garrisons_first_two_missile_units_take_the_two_wall_categories() {
         .map(|u| u.category)
         .collect();
     wall.sort_unstable();
-    assert_eq!(wall, vec![9, 10], "exactly one of each, and only for the defender");
+    assert_eq!(wall, vec![9, 10, 10], "00480000.c:199-208: one 9, two 10s, only for the defender");
 
     assert!(
         (1..=l2_sim::MAX_UNITS)

@@ -52,6 +52,19 @@ impl BattleRunner {
         castle_level: Option<u8>,
         tables: Option<&crate::CastleTables>,
     ) -> Self {
+        Self::deploy_prepared(field, seed, army_a, army_b, castle_level, tables, |_| {})
+    }
+
+    /// `prep` runs on the built field before either side is raised.
+    pub(crate) fn deploy_prepared(
+        field: Battlefield,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: Option<u8>,
+        tables: Option<&crate::CastleTables>,
+        prep: impl FnOnce(&mut BattleRunner),
+    ) -> Self {
         let total = army_a.men() + army_b.men();
         let class = MEN_PER_FIGURE_TABLE[size_class(total)];
         let mpf_a = side_scale(army_a.men(), class);
@@ -92,8 +105,9 @@ impl BattleRunner {
                 );
             }
         }
-        runner.raise_men(&army_a, mpf_a, SIDE_B);
-        runner.raise_men(&army_b, mpf_b, SIDE_A);
+        prep(&mut runner);
+        runner.raise_men(&army_a, mpf_a, SIDE_B, false);
+        runner.raise_men(&army_b, mpf_b, SIDE_A, castle_level.is_some());
         runner.settle();
         runner
     }

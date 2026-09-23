@@ -32,6 +32,8 @@ mod simulation;
 mod raise;
 #[cfg(test)]
 mod band_tests;
+#[cfg(test)]
+mod siege_raise_tests;
 pub use simulation::*;
 mod closing;
 pub use closing::*;

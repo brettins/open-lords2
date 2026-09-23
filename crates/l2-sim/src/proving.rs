@@ -82,13 +82,16 @@ pub fn field() -> Battlefield {
     f
 }
 
+/// The pot stands at `0x00554200` entry 0: `Deploy_SlotForUnitSiege` (`0x004816F9`).
 pub fn deploy() -> BattleRunner {
-    BattleRunner::deploy_siege(
+    BattleRunner::deploy_prepared(
         field(),
         SEED,
         Muster { troops: &BESIEGER, owner: 1, human: true, mercenaries: None },
         Muster { troops: &GARRISON, owner: 2, human: true, mercenaries: None },
-        LEVEL,
+        Some(LEVEL),
+        None,
+        |r| r.ai_field.wall_slot[1][0] = (POT_AT.0 as i16, POT_AT.1 as i16),
     )
 }
 
