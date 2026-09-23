@@ -268,7 +268,7 @@ fn a_split_into_a_castle_may_send_fewer_than_fifty() {
     let mut rec = l2_game::message::Record::default();
     (rec.group, rec.category, rec.to) = (166, l2_game::message::category::GARRISON_PROMPT, g.player);
     (rec.variant, rec.county) = (id as _, 1);
-    rec.payload = (here.1 as usize * MAP_DIM + here.0 as usize) as i32;
+    rec.payload = ((here.1 as usize * MAP_DIM + here.0 as usize) * 8) as i32;
     assert!(g.messages.enqueue(rec, g.player));
     tick(&mut m, &mut g, &a);
     let [yes, _] = l2_game::message::Prompt::Garrison.widgets();

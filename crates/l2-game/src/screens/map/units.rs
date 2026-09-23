@@ -259,13 +259,18 @@ impl MapScreen {
     ///     g_screenId = 0; DAT_0056D64C = 1; Map_ConfirmMoveOrder(); }
     /// ```
     pub(super) fn confirm_move_order(&mut self, ctx: &mut Ctx, unit: usize, dest: (u8, u8)) -> Transition {
-        let available = self.move_order.as_ref().is_some_and(|sel| {
-            sel.field.cost_to(dest.0, dest.1).is_some_and(|d| d > 0)
-        });
+        let field = self.move_order.as_ref().map(|sel| &sel.field);
+        let available = field.and_then(|f| f.cost_to(dest.0, dest.1)).is_some_and(|d| d > 0);
+        let dist = field.map_or(0, |f| super::garrison::hover_distance(f, dest));
         self.cancel_move_selection();
         if !available {
             self.status = "THE ARMY IS ALREADY THERE".into();
             return Transition::Stay;
+        }
+        // [I] the g_hoverMergeUnit rung ahead of the garrison's is ours at contact
+        // (turn/engine/tick.rs ask_combine).
+        if let Some(ask) = super::garrison::garrison_ask(ctx, unit, dest, dist) {
+            return Transition::Push(ScreenId::Confirm(ask));
         }
         self.order_march(ctx, unit, dest)
     }

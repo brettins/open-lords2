@@ -5,38 +5,6 @@ use super::*;
 use super::ui::*;
 use super::*;
 
-/// **`Screen_ConfirmBox` (`0x0040CCFA`) over the campaign map** — the same box
-/// the battlefield draws, at `Ui_OpenConfirm`'s own `(0xA0 − 0x10, 0xA0 − 0x10)`
-/// with `g_confirmWidgets`' frames 29 and 31.
-///
-/// The words are `L2.eng` group 10 index 5 — *"Combine armies?"* — read from
-/// the group, never typed here (rule 6).
-pub(crate) fn draw_combine_box(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx) {
-    if ctx.game.combine_ask.is_none() {
-        return;
-    }
-    let p = Pen {
-        assets: &ctx.assets.shell,
-        ink: &ctx.assets.ink,
-        chrome: ctx.assets.chrome.as_ref(),
-        shadow: Some(font::SHADOW),
-        caps: None,
-    };
-    p.window(canvas, CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_COLS, CONFIRM_ROWS, BOX_SET);
-    let s = ours_or(ctx.assets.shell.text(GROUP_CONFIRM, COMBINE_PROMPT), "COMBINE ARMIES?");
-    p.body(canvas, CONFIRM_BOX.x + 0x20, CONFIRM_BOX.y + 0x20, &s, font::TEXT);
-    for (i, (w, label)) in CONFIRM_WIDGETS.iter().zip(["YES", "NO"]).enumerate() {
-        let frame = if i == 0 { CONFIRM_YES_FRAME } else { CONFIRM_NO_FRAME };
-        // `Widget_Draw` (`0x0040CFD2`): the pressed picture is `base + 1`.
-        let frame = if screen.press.is_pressed(i) { frame + 1 } else { frame };
-        let drawn =
-            ctx.assets.chrome.as_ref().is_some_and(|c| c.draw_system(canvas, frame, w.rect.x, w.rect.y));
-        if !drawn {
-            crate::widget::button(canvas, &ctx.assets.ink, w.rect, label, false);
-        }
-    }
-}
-
 pub(crate) fn draw_units(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let ink = &ctx.assets.ink;
     for id in units_in_paint_order(ctx.game) {

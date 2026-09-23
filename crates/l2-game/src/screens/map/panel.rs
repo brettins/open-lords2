@@ -41,42 +41,6 @@ impl MapScreen {
         }
     }
 
-    /// **`MoveOrder_ConfirmCombine` (`0x004A975D`)** — the *"Combine armies?"*
-    /// callback,
-    ///
-    /// Yes is `Army_Combine(g_hoverMergeUnit, mover)` (`0x004AA181`): the
-    /// mover folds **into the standing army** and its slot is gone, which is
-    /// the direction the original's fifth `Unit_OrderMove` argument fixes. No
-    /// leaves the mover where `Entry::Occupied` stopped it — the halt that
-    /// stood here before the question did.
-    ///
-    /// The original tests the 1500 cap *before* the order and says `L2.eng`
-    /// 274 when it fails; ours meets it here, in
-    /// [`l2_kingdom::unit::combine`]'s own refusal,
-    /// status line because the map has no message scroll yet.
-    pub(super) fn answer_combine(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
-        let Some((mover, occupant)) = ctx.game.combine_ask.take() else { return Transition::Stay };
-        self.scrolled = true;
-        if !yes {
-            self.status = "THE ARMY STANDS".into();
-            return Transition::Stay;
-        }
-        self.status = match ctx.issue(crate::command::CombineArmies { occupant, mover }) {
-            Ok(men) => format!("COMBINED - {men} MEN"),
-            // `L2.eng` 274, the original's own refusal for the cap.
-            Err(l2_kingdom::unit::CombineRefusal::TooMany) => {
-                ours_or(ctx.assets.shell.text(274, 0), "OVER THE LIMIT OF 1500 TROOPS")
-            }
-            // `L2.eng` 167: the mercenaries will not fight together.
-            Err(l2_kingdom::unit::CombineRefusal::TwoMercenaryBands) => ours_or(
-                ctx.assets.shell.text(167, 0),
-                "THESE MERCENARIES WILL NOT FIGHT TOGETHER",
-            ),
-            Err(l2_kingdom::unit::CombineRefusal::NotAnArmy) => "NOTHING TO COMBINE".into(),
-        };
-        Transition::Stay
-    }
-
     /// `Minimap_ModeButton` (`0x0043AB76`), button 0…3 of
     /// [`MINIMAP_MODE_BUTTONS`].
     pub(super) fn minimap_mode_button(&mut self, ctx: &mut Ctx, button: usize) {
