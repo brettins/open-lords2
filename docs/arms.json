@@ -3918,6 +3918,83 @@
       "what": "Escape leaves the idle village and cancels a drag in progress; Enter leaves.",
       "why": "No key reaches any of the village's three screen ids in the original.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
+    },
+    {
+      "id": "ours/map-arrow-scroll",
+      "status": "invention",
+      "removed": true,
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "key",
+      "what": "The arrow keys scrolled the campaign map one step.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. Scrolling is Map_ScrollStep 0x00431F59 from Map_EdgeScroll (pointer on the outermost pixel), which we reproduce."
+    },
+    {
+      "id": "ours/map-letter-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "key",
+      "what": "Letter keys on the campaign map: V village, R raise army, A divide, N next army, I index, S save, L load, Z zoom, E and Space end turn.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. Each has its click in the original, which we have: the sidebar (Sidebar_Button 0x0043AE30), the town click (Map_Click 0x0043CE1A), the unit panel, the File menu, the minimap zoom button (Minimap_ModeButton 0x0043AB76) and End Turn (0x0043AC23)."
+    },
+    {
+      "id": "ours/trade-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "management-screens",
+      "screen": "0x0C",
+      "gesture": "key",
+      "what": "Up/Down stepped the quantity by 1, Left/Right by 10, M and S jumped to the limits.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. The spinner and limit buttons (trade_widgets) remain."
+    },
+    {
+      "id": "ours/raise-army-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "armoury",
+      "screen": "0x17",
+      "gesture": "key",
+      "what": "Enter opened the armoury, Left/Right stepped the levy percent, H toggled hiring.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. H is Battle_FormationKey only in battle. The slider and buttons remain."
+    },
+    {
+      "id": "ours/armoury-enter",
+      "status": "invention",
+      "removed": true,
+      "group": "armoury",
+      "screen": "0x0A",
+      "gesture": "key",
+      "what": "Enter confirmed the armoury.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call."
+    },
+    {
+      "id": "ours/rack-arrow-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "armoury",
+      "screen": "0x0D",
+      "gesture": "key",
+      "what": "Right equipped one man, Left unequipped one.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call."
+    },
+    {
+      "id": "ours/conquest-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "front-end",
+      "screen": "0x1C",
+      "gesture": "key",
+      "what": "Any key, and Left/Up backwards, cycled the conquest screen outcome.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. The screen 0x1C arm in Screen_FrameInput reads g_mouseLeftReleased/g_mouseRightReleased only."
     }
   ]
 }

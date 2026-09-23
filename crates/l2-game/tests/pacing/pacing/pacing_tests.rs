@@ -119,7 +119,7 @@ fn a_letter_open_over_the_map_does_not_stop_the_turn() {
 
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        machine.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+        machine.handle(l2_game::screens::map::END_TURN_BUTTON.click(), &mut ctx);
     }
     assert!(l2_game::turn::turn_in_flight(&game), "End Turn started a turn");
 
@@ -188,7 +188,7 @@ fn a_merchant_crossing_a_tile_is_audible() {
 
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        machine.handle(Event::KeyDown(Key::letter('e')), &mut ctx);
+        machine.handle(l2_game::screens::map::END_TURN_BUTTON.click(), &mut ctx);
     }
     let before = game.kingdom.turn_count;
     for _ in 0..GIVE_UP {

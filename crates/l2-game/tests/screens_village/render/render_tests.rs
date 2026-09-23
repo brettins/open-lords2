@@ -219,7 +219,8 @@ fn the_machine_paints_the_campaign_map_under_the_village() {
     let mut canvas = Canvas::screen();
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        machine.handle(Event::KeyDown(Key::letter('v')), &mut ctx);
+        machine.push(ScreenId::Village(county));
+        let _ = &mut ctx;
     }
     assert_eq!(
         machine.ids(),

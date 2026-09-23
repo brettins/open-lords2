@@ -44,61 +44,10 @@ impl Screen for MapScreen {
             // *is* File > Quit, which is `Ui_OpenConfirm(0, …)`, and not a way
             // out on its own. Ours used to pop straight off the map.
             // Taken in Machine::handle for every in-game screen.
-            Event::KeyDown(Key::Up) => {
-                self.scroll(Dir::N);
-            }
-            Event::KeyDown(Key::Down) => {
-                self.scroll(Dir::S);
-            }
-            Event::KeyDown(Key::Left) => {
-                self.scroll(Dir::W);
-            }
-            Event::KeyDown(Key::Right) => {
-                self.scroll(Dir::E);
-            }
-            Event::KeyDown(Key::Char('V')) => {
-                if ctx.game.is_players(ctx.game.selected) {
-                    return Transition::Push(ScreenId::Village(ctx.game.selected));
-                }
-                self.status = "NOT YOUR COUNTY".into();
-            }
-            // **Ours, and only the key is.** The original reaches the
-            // raise-army screen from the county strip's first button —
-            // `Sidebar_Button` (`0x0043AE30`), hotspot 1, *"the county's
-            // army"*, which sets `g_screenId = 0x17`. That strip is another
-            // agent's, so the destination is the original's
-            // not. See `screens::army`.
-            Event::KeyDown(Key::Char('R')) => {
-                let county = ctx.game.selected;
-                if ctx.game.open_levy(county) {
-                    return Transition::Push(ScreenId::RaiseArmy(county));
-                }
-                self.status = "SELECT ONE OF YOUR COUNTIES FIRST".into();
-            }
-            // **Ours, and only the key is.** The original reaches screen `0x11`
-            // from the *unit panel*'s split button, which is one of the three
-            // hotspots `FUN_00437002` tests over an army. We have no unit
-            // panel — our map click goes straight to move-order mode, which is
-            // what `Panel_MoveButton` does with two of its three siblings
-            // unbuilt — so this is the door to it. See `screens::divide`.
-            Event::KeyDown(Key::Char('A')) => match self.selected_unit {
-                Some(unit) if ctx.game.is_players_unit(unit) => {
-                    return Transition::Push(ScreenId::Divide(unit))
-                }
-                _ => self.status = "CLICK ONE OF YOUR ARMIES FIRST".into(),
-            },
-            Event::KeyDown(Key::Char('N')) => self.cycle_unit(ctx),
-            Event::KeyDown(Key::Char('I')) => return Transition::Push(ScreenId::Index),
-            Event::KeyDown(Key::Char('S')) => {
-                return Transition::Push(ScreenId::SaveLoad(SaveLoadMode::Save))
-            }
-            Event::KeyDown(Key::Char('L')) => {
-                return Transition::Push(ScreenId::SaveLoad(SaveLoadMode::Load))
-            }
-            Event::KeyDown(Key::Char('Z')) => self.toggle_zoom(ctx),
-            Event::KeyDown(Key::Char('E')) | Event::KeyDown(Key::Space) => {
-                return self.end_turn(ctx)
-            }
+            // App_WndProc 0x004B29BE: no VK_UP/VK_DOWN arm, VK_LEFT/RIGHT are
+            // Edit_Left/Right, WM_CHAR is Battle_FormationKey + Edit_TypeChar
+            // 0x00401A20: no map scroll or letter key [V]. Scrolling is
+            // Map_ScrollStep 0x00431F59 at the edge; the rest are clicks.
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
                 self.pointer_in = true;

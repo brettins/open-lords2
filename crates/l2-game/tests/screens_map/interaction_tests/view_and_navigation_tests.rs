@@ -32,7 +32,7 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
     let before = draw(&mut screen, &mut game, &assets);
     let near_visible = visible_counties(&screen);
 
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    send(&mut screen, &mut game, &assets, l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click());
     let far = draw(&mut screen, &mut game, &assets);
     let far_visible = visible_counties(&screen);
     assert!(
@@ -42,10 +42,10 @@ fn zooming_out_shows_more_of_the_map_and_scrolling_moves_the_near_view() {
     assert_eq!(far_visible, 14);
     assert!(before.diff_count(&far) > 10_000, "and it is a different picture");
 
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    send(&mut screen, &mut game, &assets, l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click());
     let home = screen.viewport();
     let a = draw(&mut screen, &mut game, &assets);
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
+    edge_step(None, &mut screen, &mut game, &assets, (639, 240));
     assert_eq!(screen.viewport().col, home.col + 1);
     let b = draw(&mut screen, &mut game, &assets);
     assert!(a.diff_count(&b) > 10_000, "scrolling one column must repaint the map");

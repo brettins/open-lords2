@@ -80,14 +80,7 @@ impl Screen for RackScreen {
             // Both ways out go back to the armoury: `g_screenId = 0x0A;
             // FUN_004180F6()`.
             Event::RightClick { .. } => Transition::Pop,
-            Event::KeyDown(Key::Right) => {
-                self.press(ctx, Button::EquipOne);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Left) => {
-                self.press(ctx, Button::UnequipOne);
-                Transition::Stay
-            }
+            // App_WndProc 0x004B29BE routes no arrow/Enter/letter to this screen [V].
             Event::Click { x, y } => {
                 if RACK_OK.contains(x, y) {
                     return Transition::Pop;

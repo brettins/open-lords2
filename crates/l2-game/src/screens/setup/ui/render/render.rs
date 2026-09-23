@@ -569,6 +569,8 @@ impl SetupScreen {
         }
         if let Some(c) = campaign {
             ctx.game.campaign = c;
+            // 00430000.c:893-897: page 4 writes g_campaignTrack and g_campaignMap.
+            ctx.game.prefs.kept.remember(&ctx.game.campaign);
         }
         settings.apply_to(ctx.game);
         self.name_the_lords(ctx);

@@ -77,7 +77,7 @@ fn end_turn_does_not_make_the_ai_run_its_turn_a_second_time() {
 
     let mut ctx = Ctx { game: &mut game, assets: &assets };
     m.handle(
-        l2_game::input::Event::KeyDown(l2_game::input::Key::Char('E')),
+        l2_game::screens::map::END_TURN_BUTTON.click(),
         &mut ctx,
     );
     tick(&mut m, &mut game, &assets);

@@ -106,17 +106,21 @@ fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
     listen(&mut director, &mut audio, &machine, &game);
 
     machine.push(ScreenId::Trade(0, l2_kingdom::trade::Good::Grain as u8));
-    send(&mut machine, &mut game, &assets, Event::KeyDown(Key::Up));
+    let up = l2_game::screens::merchant::up_button().click();
+    send(&mut machine, &mut game, &assets, up);
+    let (x, y) = match up { Event::Click { x, y } => (x, y), _ => unreachable!() };
+    send(&mut machine, &mut game, &assets, Event::Release { x, y });
     listen(&mut director, &mut audio, &machine, &game);
     assert!(
         audio.heard().contains(&"s068_01.wav"),
-        "the up arrow's crossing into buying did not speak - heard {:?}",
+        "the up button's crossing into buying did not speak - heard {:?}",
         audio.heard()
     );
 
     let spoken = game.spoken.0;
     for _ in 0..5 {
-        send(&mut machine, &mut game, &assets, Event::KeyDown(Key::Up));
+        send(&mut machine, &mut game, &assets, up);
+        send(&mut machine, &mut game, &assets, Event::Release { x, y });
         listen(&mut director, &mut audio, &machine, &game);
     }
     assert_eq!(game.spoken.0, spoken, "the spinner said its line once per crossing");

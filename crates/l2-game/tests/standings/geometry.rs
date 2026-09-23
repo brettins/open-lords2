@@ -137,7 +137,7 @@ fn the_poles_are_drawn_to_the_height_the_percentages_say() {
     assert_eq!(height(2), expect(50), "half the leader's crowns is half the pole");
     assert_eq!(height(3), expect(0), "nothing in the bank is still a pole");
 
-    game.kingdom.realms[5].in_play = false;
+    game.kingdom.realms[5].strength = 0; // ablation: ours/standings-in-play-skip
     let mut canvas = l2_view::Canvas::screen();
     {
         let ctx = Ctx { game: &mut game, assets: &assets };

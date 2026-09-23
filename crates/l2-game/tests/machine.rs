@@ -148,7 +148,7 @@ fn only_the_top_screen_is_offered_input() {
     let mut m = Machine::new(ScreenId::Campaign);
     let before = game.kingdom.turn_count;
 
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Char('E')));
+    send(&mut m, &mut game, &assets, l2_game::screens::map::END_TURN_BUTTON.click());
     assert_eq!(
         game.kingdom.turn_count, before,
         "E starts the turn; it does not finish it inside the keystroke",

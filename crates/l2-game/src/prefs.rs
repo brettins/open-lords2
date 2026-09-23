@@ -92,6 +92,19 @@ pub struct Kept {
     /// `g_diploLetterDraft` `+0xD8`. `None` is `Options_SetDefaults`' copy of
     /// `L2.eng` group 226, `004a0000.c:6115-6129`.
     pub letters: [Option<Letter>; 4],
+    /// `g_campaignMap` `0x0053F258`, `g_options+0x78`: Options_Validate zeroes it on a
+    /// bad magic (004a0000.c:6060); Screen_DrawConquest 0x0041E1DD tests `< 8`. [V]
+    pub campaign_map: usize,
+    /// `g_campaignTrack` `0x0053F640`, `g_options+0x460`. [V]
+    pub campaign_track: crate::victory::Track,
+}
+
+impl Kept {
+    /// Both campaign globals sit inside the 0x468-byte block Options_Save writes.
+    pub fn remember(&mut self, c: &crate::victory::Campaign) {
+        self.campaign_map = c.map;
+        self.campaign_track = c.track;
+    }
 }
 
 impl Default for Kept {
@@ -100,6 +113,8 @@ impl Default for Kept {
             player_name: PlayerName::new(crate::text::DEFAULT_PLAYER_NAME),
             setup: SetupOptions::new(),
             letters: [None; 4],
+            campaign_map: 0,
+            campaign_track: crate::victory::Track::First,
         }
     }
 }
@@ -139,6 +154,9 @@ fn encode_kept(k: &Kept, out: &mut String) {
     for (key, i) in SETUP_KEYS {
         out.push_str(&format!("{key}={}\n", k.setup.get(i)));
     }
+    out.push_str(&format!("CampaignMap={}\n", k.campaign_map));
+    let track = i32::from(k.campaign_track == crate::victory::Track::Second);
+    out.push_str(&format!("CampaignTrack={track}\n"));
     out.push_str(&format!("PlayerName={}\n", k.player_name.as_str()));
     for (n, l) in k.letters.iter().enumerate() {
         if let Some(l) = l {
@@ -188,6 +206,11 @@ fn set(p: &mut Prefs, key: &str, v: i32) {
         "ScrollSpeed" => p.scroll_speed = clamp_speed(v),
         "GameSpeed" => p.game_speed = clamp_speed(v),
         "DebugOverlay" => p.debug_overlay = v != 0,
+        "CampaignMap" => p.kept.campaign_map = v.max(0) as usize,
+        "CampaignTrack" => {
+            p.kept.campaign_track =
+                if v == 1 { crate::victory::Track::Second } else { crate::victory::Track::First }
+        }
         _ => {
             if let Some((_, i)) = SETUP_KEYS.iter().find(|(k, _)| *k == key) {
                 p.kept.setup.set(*i, v.max(0) as usize);
@@ -277,6 +300,8 @@ mod tests {
                     s
                 },
                 letters: [None, Some(letter("Thou art; a knave")), None, Some(letter("x"))],
+                campaign_map: 8,
+                campaign_track: crate::victory::Track::Second,
             },
             ..Prefs::default()
         }
@@ -304,7 +329,8 @@ mod tests {
         let p = flipped();
         assert_eq!(decode(&encode(&p)), p);
         let keys = KEYS.iter().map(|(k, _)| *k).chain(SETUP_KEYS.iter().map(|(k, _)| *k));
-        for key in keys.chain(["PlayerName", "LetterDraft2", "LetterDraft4"]) {
+        let kept = ["PlayerName", "LetterDraft2", "LetterDraft4", "CampaignMap", "CampaignTrack"];
+    for key in keys.chain(kept) {
             assert!(encode(&p).contains(&format!("\n{key}=")), "{key} is not written");
         }
         assert!(!encode(&p).contains("LetterDraft1="), "an untouched draft stays L2.eng's");

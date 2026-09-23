@@ -64,7 +64,7 @@
 
 use l2_view::Canvas;
 
-use crate::input::{Event, Key};
+use crate::input::Event;
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{self, font, Pen};
 use crate::victory::ConquestBranch;
@@ -167,11 +167,8 @@ impl Screen for ConquestScreen {
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Left) | Event::KeyDown(Key::Up) => {
-                self.outcome = self.outcome.next().next();
-                Transition::Stay
-            }
-            Event::KeyDown(_) | Event::Click { .. } => {
+            // App_WndProc 0x004B29BE routes no key to screen 0x1C [V].
+            Event::Click { .. } => {
                 self.outcome = self.outcome.next();
                 Transition::Stay
             }
@@ -227,7 +224,7 @@ impl Screen for ConquestScreen {
                 pen.heading_centred(canvas, BOX_X, 0x58, TEXT_W, &name, font::TEXT);
                 body(canvas, 2, 0x80);
                 body(canvas, 3, 0x98);
-                let next = a.text(GROUP_MAPS, (map + 1).min(MAX_MAP)).to_string();
+                let next = a.text(GROUP_MAPS, next_map(&ctx.game.campaign)).to_string();
                 pen.heading_centred(canvas, BOX_X, 0xB0, TEXT_W, &next, font::TEXT);
             }
             Outcome::Lost => {
@@ -250,9 +247,24 @@ impl Screen for ConquestScreen {
     }
 }
 
+/// Ui_DrawCentred(0x65, g_scenarioIndex, 0x70, 0xB0) [V]: Campaign_EnterConquest
+/// 0x00497879 calls Campaign_LoadEntry, which sets g_scenarioIndex from
+/// g_campaignTableA/B[g_campaignMap] (00490000.c:4664/4674) — the next row, not slot + 1.
+pub fn next_map(campaign: &crate::victory::Campaign) -> usize {
+    campaign.current().map_or(0, |m| m.scenario).min(MAX_MAP)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_win_names_the_campaign_tables_next_row() {
+        let mut c = crate::victory::Campaign::new(crate::victory::Track::First);
+        assert_eq!(next_map(&c), 17, "row 0 is Quaintville, scenario 17");
+        c.map = 1;
+        assert_eq!(next_map(&c), 12, "row 1 is scenario 12, not 17 + 1");
+    }
 
     #[test]
     fn the_window_is_centred_on_the_screen() {

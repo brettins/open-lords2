@@ -82,25 +82,6 @@ impl MapScreen {
         self.centre_on_tile(anchor.0, anchor.1);
     }
 
-    pub(super) fn cycle_unit(&mut self, ctx: &mut Ctx) {
-        let mine = ctx.game.player_units();
-        if mine.is_empty() {
-            self.cancel_move_selection();
-            self.status = "YOU HAVE NOTHING ON THE MAP".into();
-            return;
-        }
-        let next = match self.selected_unit {
-            Some(cur) => mine.iter().copied().find(|&id| id > cur).unwrap_or(mine[0]),
-            None => mine[0],
-        };
-        self.begin_move_selection(ctx, next);
-        if let Some(u) = ctx.game.kingdom.campaign.units.get(next) {
-            let (x, y, men, left, kind) = (u.x, u.y, u.men, u.moves_left(), u.kind);
-            self.centre_on_tile(x as usize, y as usize);
-            self.status = format!("{} #{next}: {men} MEN, {left} MOVES", kind.name().to_uppercase());
-        }
-    }
-
     /// `FUN_00476768` is the original's shape for the ending: dismissing the
     /// message that set `DAT_0053F0C4` calls `FUN_00497879` — which advances the
 /// campaign counter on a win — and sets `g_screenId = 0x1C`.
@@ -169,6 +150,7 @@ impl MapScreen {
         let over = outcome.outcome.is_over();
         if over {
             ctx.game.campaign.enter_conquest_screen();
+            ctx.game.prefs.kept.remember(&ctx.game.campaign);
         }
         // **`Turn_Tick`'s phase 7 fades the screen the instant `Season_Advance`
         // returns**, and this is that instant. `FUN_004B0CB4(_, 1, _)` down to

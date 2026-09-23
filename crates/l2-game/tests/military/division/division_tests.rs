@@ -19,13 +19,13 @@ use l2_view::campaign;
 #[test]
 fn a_selected_army_opens_the_division_screen_and_an_unselected_one_does_not() {
     let (mut g, a, mut m) = on_the_map();
-    press(&mut m, &mut g, &a, 'a');
+    press(&mut m, &mut g, &a, 'a'); // no key reaches the map (App_WndProc 0x004B29BE)
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "there is nothing selected");
 
     let (here, _) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    press(&mut m, &mut g, &a, 'a');
+    m.push(ScreenId::Divide(id));
     assert_eq!(m.top_id(), Some(ScreenId::Divide(id)));
 }
 
@@ -39,9 +39,9 @@ fn a_selected_army_opens_the_division_screen_and_an_unselected_one_does_not() {
 fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
     let (mut g, a, mut m) = on_the_map();
     let (here, _) = adjacent_pair(|x| x < 30);
-    army_at(&mut g, 1, 1, 300, here);
+    let id = army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    press(&mut m, &mut g, &a, 'a');
+    m.push(ScreenId::Divide(id));
     tick(&mut m, &mut g, &a);
 
     let at = on(divide::parent_button(0));
@@ -67,7 +67,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     let (here, _) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    press(&mut m, &mut g, &a, 'a');
+    m.push(ScreenId::Divide(id));
     tick(&mut m, &mut g, &a);
 
     for _ in 0..120 {
@@ -101,7 +101,7 @@ fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
     let (here, _) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
-    press(&mut m, &mut g, &a, 'a');
+    m.push(ScreenId::Divide(id));
     tick(&mut m, &mut g, &a);
 
     for _ in 0..3 {
@@ -208,11 +208,11 @@ fn the_division_screen_returns_to_the_information_panel_and_not_to_the_map() {
 fn the_division_screen_paints_inside_the_window_the_painter_opens() {
     let (mut g, a, mut m) = on_the_map();
     let (here, _) = adjacent_pair(|x| x < 30);
-    army_at(&mut g, 1, 1, 300, here);
+    let id = army_at(&mut g, 1, 1, 300, here);
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     let before = frame(&mut m, &mut g, &a);
 
-    press(&mut m, &mut g, &a, 'a');
+    m.push(ScreenId::Divide(id));
     tick(&mut m, &mut g, &a);
     let after = frame(&mut m, &mut g, &a);
 

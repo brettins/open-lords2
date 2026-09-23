@@ -25,7 +25,7 @@ fn the_conquest_screen_says_all_three_of_the_things_it_can_say() {
     for _ in 0..3 {
         seen.push(s.outcome());
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        s.handle(Event::KeyDown(Key::Enter), &mut ctx);
+        s.handle(Event::Click { x: 0, y: 0 }, &mut ctx);
     }
     seen.sort_by_key(|o| format!("{o:?}"));
     seen.dedup();

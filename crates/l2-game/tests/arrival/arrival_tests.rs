@@ -37,7 +37,7 @@ fn an_army_walking_inside_a_turn_is_greeted_too() {
     let id = army_at(&mut g, 1, 300, (31, y));
     order(&mut m, &mut g, &a, id, (33, y));
     let before = g.kingdom.turn_count;
-    send(&mut m, &mut g, &a, Event::KeyDown(Key::letter('e')));
+    send(&mut m, &mut g, &a, l2_game::screens::map::END_TURN_BUTTON.click());
 
     let r = next_letter(&mut m, &mut g, &a);
     // `Game::turn` is the crate's; the ablation above is what shows the

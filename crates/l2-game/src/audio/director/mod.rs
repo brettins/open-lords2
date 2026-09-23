@@ -70,7 +70,7 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
     // is up — it is entered by `Transition::Replace` — and it plays its own
     // bed. `Screen_DrawConquest` (`0x0041E1DD`).
     if matches!(machine.top_id(), Some(ScreenId::Conquest)) {
-        return Scene::Conquest { ended: game.campaign.is_complete() };
+        return Scene::Conquest { ended: game.prefs.kept.campaign_map >= crate::victory::CAMPAIGN_LENGTH };
     }
     let county_count = game
         .kingdom
