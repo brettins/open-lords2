@@ -1,0 +1,23 @@
+{ "reviewed": "37d3b071d8a02f522850c81dd03a0629d4837d83",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 203,
+      "address": "0x0041298A", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/battlefield/view/screen/screen.rs", "line": 323,
+      "address": "0x0041298A", "verdict": "mismatch",
+      "note": "Band width/height is |d| max 1; original is |d| + 1, clamped to x < 0x1E0 and y 0x18..0x1D8, and the clamp omission carries no [D]." },
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 207,
+      "address": "0x004BE070", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 215,
+      "address": "0x004BE070", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 217,
+      "address": "0x004BE070", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 221,
+      "address": "0x004BE070", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 243,
+      "address": "0x004BE070", "verdict": "mismatch",
+      "note": "Original draws nothing when the frame's data offset is outside 0..0x4BAF1 or DAT_0058FE18 == 5; ours draws a box, unlabeled." },
+    { "file": "crates/l2-game/src/screens/battlefield/view/drawing.rs", "line": 234,
+      "address": "0x004BD233", "verdict": "departure",
+      "note": "[I] labelled: walks selected_fighters instead of viewport cells tested against realm +0xEE & selectedSeen." }
+  ] }

@@ -315,14 +315,19 @@ impl Screen for BattlefieldScreen {
         // (`0x0041298A`), the twin of the village's `Village_DrawBand`. Both
         // normalise the box against the live pointer and hand it to
         // `Ui_DrawRectOutline` (`0x00403CF4`) in colour `0x20`; this one clamps
-        // to x < `0x1E0` and y `0x18 … 0x1D8`. Ours is un-clamped.
+        // to x < `0x1E0` and y `0x18 … 0x1D8` (00410000.c:945, 959-968: size = distance + 1).
         if let Some(d) = live.drag {
-            let r = Rect::new(
-                d.anchor_px.0.min(d.px.0),
-                d.anchor_px.1.min(d.px.1),
-                (d.px.0 - d.anchor_px.0).abs().max(1),
-                (d.px.1 - d.anchor_px.1).abs().max(1),
-            );
+            let (x0, y0) = (d.anchor_px.0.min(d.px.0), d.anchor_px.1.min(d.px.1).max(0x18));
+            let mut w = (d.px.0 - d.anchor_px.0).abs() + 1;
+            let mut h = (d.px.1 - d.anchor_px.1).abs() + 1;
+            if x0 + w > 0x1E0 {
+                w = 0x1E0 - x0;
+            }
+            // [I] the y clamp mirrors the x one against 0x1D8.
+            if y0 + h > 0x1D8 {
+                h = 0x1D8 - y0;
+            }
+            let r = Rect::new(x0, y0, w.max(1), h.max(1));
             p.outline(canvas, r.x, r.y, r.w, r.h, BAND_INK);
         }
 

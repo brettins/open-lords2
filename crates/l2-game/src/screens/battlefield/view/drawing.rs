@@ -240,7 +240,9 @@ pub(super) fn draw_selection_markers(
         let men = live.runner.sim.figures[fig.sim].men;
         let (frame, dx, dy) = selection_marker(class, men, fig.troop.index());
         let drawn = chrome.is_some_and(|c| c.draw_misc_bat(canvas, frame, sx + dx, sy + dy));
-        if !drawn {
+        // [D] FUN_004BE070 0x004BE070 draws nothing when the frame is out of range; ours
+        // boxes the man only when Misc_bat.pl8 is missing from the install.
+        if !drawn && chrome.is_none() {
             crate::widget::frame(canvas, Rect::new(sx, sy, TILE, TILE), ink.highlight);
         }
     }
