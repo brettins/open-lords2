@@ -7,11 +7,11 @@
 mod minimap;
 pub use minimap::*;
 mod chrome;
-pub use chrome::*;
 
-use l2_formats::{DecodedFrame, Palette, Pl8};
+use l2_formats::{DecodedFrame, Palette};
 
-use crate::canvas::{Canvas, Clip};
+#[cfg(test)]
+use crate::canvas::Canvas;
 use crate::sheet::Sheet;
 
 

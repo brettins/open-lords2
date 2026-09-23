@@ -7,23 +7,12 @@
 //!   decide (C5, C8).
 
 mod corpus;
-pub use corpus::*;
 mod oracle;
-pub use oracle::*;
 mod render;
-pub use render::*;
 
 use std::{fs, path::{Path, PathBuf}};
 
-use l2_sim::runner::{self as battle, BattleRunner};
-use l2_sim::terrain;
-use l2_sim::{Troop, SIDE_A, SIDE_B};
-use l2_view::campaign;
-use l2_view::canvas::Canvas;
-use l2_view::chrome;
-use l2_view::figures::{self, Anim, Colour};
-use l2_view::scene::{self, BattleAssets, Camera};
-use l2_view::sheet::Sheet;
+use l2_sim::Troop;
 
 fn asset_dir() -> Option<PathBuf> {
     l2_testkit::install_dir()
