@@ -230,7 +230,7 @@ impl Screen for ComposeScreen {
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         if let Some(f) = self.letter.as_mut() {
             f.tick();
-            // `Edit_Begin(&g_diploLetterDraft + (kind - 1) * 200, ...)` edits
+            // `Edit_Begin(&g_diploLetterDraft` (0x0053F2B8) ` + (kind - 1) * 200, ...)` edits
             // the buffer in place, and `Options_Save` writes it out.
             if let Some(k) = draft_slot(self.kind) {
                 ctx.game.prefs.kept.letters[k] = Some(crate::prefs::letter(&f.text()));

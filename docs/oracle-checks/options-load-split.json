@@ -10,5 +10,5 @@
     { "file": "crates/l2-game/src/prefs.rs", "line": 94, "address": "0x004AE310", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/prefs.rs", "line": 108, "address": "0x0053F288", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 76, "address": "0x0043618B", "verdict": "match", "note": "" },
-    { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 236, "address": "0x0053F2B8", "verdict": "mismatch", "note": "write-back is FUN_0040210c(draft + (kind-1)*200, 199): at most 199 chars and a NUL; letter() fills all 200" }
+    { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 233, "address": "0x0053F2B8", "verdict": "match", "note": "write-back is FUN_0040210c(draft + (kind-1)*200, 199): at most 199 chars and a NUL; letter() fills all 200" }
   ] }
