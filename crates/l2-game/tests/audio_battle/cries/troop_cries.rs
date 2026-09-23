@@ -153,3 +153,22 @@ fn an_order_onto_the_moat_is_the_fourth_cry() {
 }
 
 
+
+/// `Screen_FrameInput`'s `0x2A` ladder, `00420000.c:7428`:
+/// `Battle_DragSelect()` then `Battle_OrderClicked()`. A click on empty ground
+/// is a press that opens `0x2A` and a release the drag arm declines, so the
+/// order is the `0x2A` ladder's second guard. Ablation: drop `order_at` from
+/// the release arm in `screens/battlefield/view/screen/screen.rs`.
+#[test]
+fn a_release_the_drag_declines_is_ordered_from_0x2a() {
+    let a = Assets::placeholder();
+    let (mut g, mut m) = staged(&[(Troop::Pikemen, 4)], &[(Troop::Knights, 3)]);
+    box_the_army(&mut m, &mut g, &a);
+    let (x, y) = pixel(live(&g), empty_cell(live(&g)));
+    send(&mut m, &mut g, &a, Event::Pointer { x, y });
+    send(&mut m, &mut g, &a, Event::Click { x, y });
+    assert_eq!(live(&g).screen_id(), 0x2A, "the press opened the drag");
+    let before = live(&g).cries.len();
+    send(&mut m, &mut g, &a, Event::Release { x, y });
+    assert_eq!(live(&g).cries[before..], [Cry { troop: 4, class: cry::ORDERED }]);
+}

@@ -2609,12 +2609,14 @@
     },
     {
       "id": "0x0043C57D/order-during-drag",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x2A",
       "gesture": "left-release",
       "addr": "0x0043C57D",
       "what": "0x2A's ladder runs FUN_0043C57D as its second guard, so the order arm is live during a drag as well as on the field. In practice FUN_0043BF07 consumes the release first and this never fires; it is recorded because a change to the order of the two would make it fire, and because 'the same function on a second screen' is exactly what C61 found nobody counts.",
+      "ours": "crates/l2-game/src/screens/battlefield/view/screen/screen.rs",
+      "note": "It does fire: a click on empty ground is a press that opens 0x2A (FUN_0043BF07 arm 1) and a release its third case declines, so this guard, not 0x29's, gives the ordinary click-to-move. Ours runs one release arm for both modes, same order.",
       "evidence": "V"
     },
     {
