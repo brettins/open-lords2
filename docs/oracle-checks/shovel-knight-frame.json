@@ -38,8 +38,8 @@
       "note": "Was a mismatch on 8df0dc17: the doc named two writers of +0x11. Three now, Anim_StrikeA2 (2571-2573) added."
     },
     {
-      "file": "crates/l2-sim/src/runner/simulation.rs",
-      "line": 280,
+      "file": "crates/l2-sim/src/runner/raise.rs",
+      "line": 111,
       "address": "0x0046E4C8",
       "verdict": "departure",
       "note": "Was a wrong uncited claim on 8df0dc17 that BattleMan_Create zeroes the record. It does not: 00460000.c:8262-8296 takes the first slot with owner == 0 and writes twelve fields, +0x11 not among them, so a recycled slot keeps the old horse frame. We seed 0; labelled [D] with the reason the difference cannot be observed."
