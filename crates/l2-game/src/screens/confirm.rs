@@ -161,7 +161,7 @@ impl Screen for ConfirmScreen {
         };
         p.window(canvas, CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_COLS, CONFIRM_ROWS, BOX_SET);
         // Rule 6: the player's own `L2.eng` group 10 says the words.
-        // `Eng_DrawString(10, g_confirmPrompt, …)` draws the group's bytes as
+        // Screen_ConfirmBox 0x0040CCFA: `Eng_DrawString(10, g_confirmPrompt, …)` draws the group's bytes as
         // they are; the `to_uppercase` that stood here widened *"Exit the
         // game?"* past the box's own right edge at `0x90 + 14 * 16`.
         let from_eng = ctx.assets.shell.text(GROUP_CONFIRM, self.ask.prompt());

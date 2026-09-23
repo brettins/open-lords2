@@ -389,13 +389,13 @@ impl Screen for InfoScreen {
                     }
                 }
                 if u.kind == UnitKind::Merchant {
-                    // `Eng_DrawString(5, unit.nameIndex, 0x68, R * 0x10 + 0xA4,
+                    // UnitPanel_Draw 0x0041B19D: `Eng_DrawString(5, unit.nameIndex, 0x68, R * 0x10 + 0xA4,
                     // &g_fontBody, 0x3F)` — the merchant's own name, and group
                     // 5's only consumer here.
                     pen.eng(canvas, MERCHANT_NAME_GROUP, u.name_index as usize, 0x68, l.y(0xA4), font::TEXT);
                 }
                 if u.kind == UnitKind::Transport {
-                    // `Pl8_DrawFrame(g_miscCtySheet, realm.shieldIndex + 0x55,
+                    // UnitPanel_Draw 0x0041B19D: `Pl8_DrawFrame(g_miscCtySheet, realm.shieldIndex + 0x55,
                     // 0x198, R * 0x10 + 0x60)` — whose supplies these are.
                     let shield = k.realms.get(u.owner as usize).map_or(0, |r| r.shield_index);
                     pen.misc_frame(canvas, shield as usize + 0x55, 0x198, l.y(0x60));
@@ -407,15 +407,13 @@ impl Screen for InfoScreen {
                     pen.count(canvas, 0x12E, l.y(0xA4), u.troops[2], 0x46, font::TEXT);
                 }
                 if u.kind == UnitKind::Army && u.owner == ctx.game.player {
-                    // `Ui_DrawInsetRect(0x18, (R + 8) * 0x10 + 0x18, 0x1A0,
+                    // UnitPanel_Draw 0x0041B19D: `Ui_DrawInsetRect(0x18, (R + 8) * 0x10 + 0x18, 0x1A0,
                     // (0xE - R) * 0x10)` — the recess the troop grid sits in,
                     // drawn before the lines on it.
                     pen.inset(canvas, Rect::new(0x18, (l.row + 8) * 16 + 0x18, 0x1A0, (0xE - l.row) * 16));
                     let w = pen.eng(canvas, UNIT_GROUP, FORMED, HEADING_X, l.y(0xA0), font::TEXT);
                     // `Ui_DrawYear(yearFormed, g_penAdvance + 0x28, …, 0)` —
-                    // **style 0, which appends `L2.eng` 26/1 "AD"**. We drew the
-                    // bare number
-                    // holds for this line was missing. `CLAUDE.md` rule 6.
+                    // **style 0, which appends `L2.eng` 26/1 "AD"**. Rule 6.
                     pen.year(canvas, w, l.y(0xA0), u.year_formed, 0, font::TEXT);
                     let w = pen.eng(canvas, UNIT_GROUP, WAGES, 0xF8, l.y(0xA0), font::TEXT);
                     pen.count(canvas, w, l.y(0xA0), u.wages, 0, font::TEXT);
@@ -430,7 +428,7 @@ impl Screen for InfoScreen {
                         let w = pen.number_in(face, canvas, 0xF8, l.y(0x170), left, '@', "", font::TEXT);
                         pen.eng(canvas, UNIT_GROUP, MOVES_LEFT, w, l.y(0x170), font::TEXT);
                     }
-                    // `Sprite_WGenSprite(0x28, DAT_004DC560, DAT_004DC562 +
+                    // UnitPanel_Draw 0x0041B19D: `Sprite_WGenSprite(0x28, DAT_004DC560, DAT_004DC562 +
                     // DAT_00553D2C * 0x10)` — the widget record's `(48, 352)`
                     // **plus the row**, which the `- l.row * 16` here cancelled.
                     let first = if u.garrison_county == 0 { icon::MOVE } else { icon::SORTIE };
