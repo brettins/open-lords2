@@ -335,7 +335,8 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
             message::dismiss(ctx.game);
             if unit != 0 && ctx.game.kingdom.campaign.units.get(unit).is_some() {
                 // `g_screenId = 0x11`, seeded as `Panel_SplitButton` seeds.
-                let tile = l2_kingdom::map::coords(tile.max(0) as usize);
+                // 004a0000.c:3844 payload is g_hoverTileOffset, a byte offset (y*64+x)*8 (0x00568974).
+                let tile = l2_kingdom::map::coords(tile.max(0) as usize / 8);
                 return Transition::Replace(ScreenId::DivideCastle(unit, county, tile));
             }
             Transition::Pop

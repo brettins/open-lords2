@@ -123,7 +123,9 @@ const SETUP_KEYS: [(&str, usize); 12] = [
 pub fn letter(s: &str) -> Letter {
     let mut out = [0u8; LETTER_BYTES];
     let chars = s.chars().filter(|c| (0x20..0x100).contains(&(*c as u32)));
-    for (slot, c) in out.iter_mut().zip(chars) {
+    // 004b0000.c:7255 FUN_0040210c(draft, 199): at most 199, the 200th byte stays NUL.
+    // [D] characters below 0x20 are dropped, not cut at (Options_SetDefaults 004a0000.c:6121-6127).
+    for (slot, c) in out.iter_mut().take(LETTER_BYTES - 1).zip(chars) {
         *slot = c as u8;
     }
     out
