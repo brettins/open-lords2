@@ -229,6 +229,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         messages,
         multiplayer: false,
         seats: Vec::new(),
+        net: Default::default(),
         ai_granted: false,
         player,
         // This comment used to read *"The original saves from the campaign map

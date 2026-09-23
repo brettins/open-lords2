@@ -27,6 +27,7 @@ impl Lobby {
             started: None,
             shield: 1,
             unseated_gold: 0,
+            setup: Vec::new(),
         })
     }
 
@@ -42,6 +43,7 @@ impl Lobby {
             started: None,
             shield: 0,
             unseated_gold: 0,
+            setup: Vec::new(),
         })
     }
 
@@ -64,12 +66,22 @@ impl Lobby {
         self
     }
 
+    /// The host's game setup, carried to every peer in `Start`.
+    pub fn with_setup(mut self, setup: Vec<u8>) -> Lobby {
+        self.setup = setup;
+        self
+    }
+
     pub fn role(&self) -> Role {
         self.role
     }
 
     pub fn roster(&self) -> &Roster {
         &self.roster
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn local_slot(&self) -> PlayerSlot {
@@ -141,6 +153,7 @@ impl Lobby {
             seed: self.identity.seed,
             roster: self.roster.clone(),
             unseated_gold: self.unseated_gold,
+            setup: self.setup.clone(),
         };
         self.started = Some(start.clone());
         self.outbox.push(Outgoing {
@@ -194,7 +207,8 @@ impl Lobby {
             .identity
             .check(&join.hello)
             .into_iter()
-            .filter(|m| !matches!(m, Mismatch::SameSlot(_)))
+            // The host seats and seeds: a joiner cannot know either beforehand.
+            .filter(|m| !matches!(m, Mismatch::SameSlot(_) | Mismatch::Seed { .. }))
             .collect();
         if !mismatches.is_empty() {
             self.outbox.push(Outgoing {

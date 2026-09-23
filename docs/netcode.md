@@ -29,6 +29,13 @@ could play — while two clients colliding on any other slot were reseated silen
 situation, opposite answer, decided by who happened to open the game. The lobby now filters
 `SameSlot` and reseats.
 
+The seed went the same way when the lobby got a screen: a joiner types an address, not a
+seed, and `Start` carries the host's (`new_game_seed` reads only that). The lobby filters
+`Mismatch::Seed` too; a reseated client finds its slot by its name, which the roster keeps
+unique. `Start::setup` carries the host's map slot and twelve options (`l2_game::net::Setup`),
+so a joiner's own setup page never reaches the world. `l2_game::net::Driver` owns the
+`TcpTransport` and the lobby and is pumped by the app loop between ticks (D-5).
+
 ### What "real loss, NAT, MTU, head-of-line blocking" amounts to
 
 That list sat on the status page as untested. Taken one at a time, it deserves a reckoning

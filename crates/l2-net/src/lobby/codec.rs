@@ -81,6 +81,7 @@ impl Encode for Start {
         out.u64(self.seed);
         self.roster.encode(out);
         out.i32(self.unseated_gold);
+        out.bytes(&self.setup);
     }
 }
 
@@ -90,6 +91,7 @@ impl Decode for Start {
             seed: input.u64()?,
             roster: Roster::decode(input)?,
             unseated_gold: input.i32()?,
+            setup: input.bytes()?.to_vec(),
         })
     }
 }

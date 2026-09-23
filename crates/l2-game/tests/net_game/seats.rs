@@ -20,7 +20,14 @@ pub fn assets() -> Option<Assets> {
 }
 
 pub fn settings(quirks: Quirks) -> Settings {
-    Settings { ai_lords: 1, ..SetupOptions::new().commit(2, quirks) }
+    setup().settings(2, quirks)
+}
+
+/// England, three lords: two seats and one AI.
+pub fn setup() -> net::Setup {
+    let mut options = SetupOptions::new();
+    options.set(l2_game::setup::option::NOBLES, 1);
+    net::Setup { map: ENGLAND as u8, options }
 }
 
 /// The host and one client over `Loopback`, each lobby fed only bytes.
@@ -32,6 +39,7 @@ fn lobbies(client_quirks: Quirks) -> (Result<Start, LobbyError>, Option<Start>) 
     let h0 = net::hello(&settings(Quirks::FAITHFUL), &tables, WORLD_SEED, s0);
     let h1 = net::hello(&settings(client_quirks), &tables, WORLD_SEED, s1);
     let host = Lobby::host(h0, "Richard").unwrap().with_shield(4).with_unseated_gold(333);
+    let host = host.with_setup(setup().encode());
     let mut host = host;
     let mut client = Lobby::join(h1, "Matilda").unwrap().with_shield(4);
     client.greet().unwrap();
@@ -74,11 +82,10 @@ pub fn two_worlds(assets: &mut Assets) -> (Game, Game) {
     let (host, client) = lobbies(Quirks::FAITHFUL);
     let (host, client) = (host.expect("the lobby starts"), client.expect("Start arrived"));
     assert_eq!(host, client);
-    let s = settings(Quirks::FAITHFUL);
     let mut build = |start: &Start, me: u8, clock: i64| {
         assets.wall_clock = Some(clock);
         let slot = PlayerSlot::new(me);
-        net::new_game(assets, ENGLAND, &s, start, slot, Tables::DEFAULT).expect("England builds")
+        net::new_game(assets, start, slot, Quirks::FAITHFUL, Tables::DEFAULT).expect("England builds")
     };
     (build(&host, 0, 1_000), build(&client, 1, 9_999_999))
 }

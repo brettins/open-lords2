@@ -59,6 +59,7 @@ pub mod divide;
 pub mod index;
 pub mod info;
 pub mod job;
+pub mod lobby;
 pub mod map;
 pub mod menu;
 pub mod menubar;

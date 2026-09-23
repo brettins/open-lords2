@@ -15,6 +15,8 @@ pub enum ScreenId {
     Village(u8),
     Job(u8, usize),
     Setup(crate::screens::setup::SetupPage),
+    /// Ours: the network lobby. [`crate::screens::lobby`].
+    Lobby,
     /// `g_screenId` `0x1E` — **the yes/no box** `Ui_OpenConfirm`
     /// (`0x0040E6F2`) opens. The question is part of the identity because in
     /// the original it is `g_confirmCallback`, and two questions are two
@@ -155,6 +157,7 @@ impl ScreenId {
             ScreenId::Village(id) => Box::new(crate::screens::village::VillageScreen::new(id)),
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
+            ScreenId::Lobby => Box::new(crate::screens::lobby::LobbyScreen::new()),
             ScreenId::Confirm(ask) => Box::new(crate::screens::confirm::ConfirmScreen::new(ask)),
             ScreenId::Slider(spin) => Box::new(crate::screens::slider::SliderScreen::new(spin)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),

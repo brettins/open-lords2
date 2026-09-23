@@ -60,6 +60,7 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::Message
         | S::County(..)
         | S::Setup(_)
+        | S::Lobby
         | S::Conquest
         | S::Diplomacy
         | S::DiploCompose(..)

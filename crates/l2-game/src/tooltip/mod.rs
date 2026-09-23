@@ -150,7 +150,7 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::Conquest => Some(0x1C),
         S::Nobles => Some(0x20),
         S::Siege(_) => Some(0x1D),
-        S::Menu | S::Setup(_) => Some(0x1F),
+        S::Menu | S::Setup(_) | S::Lobby => Some(0x1F),
         S::About => Some(0x25),
         S::Movie(_) => Some(0x22),
         S::Tip => Some(0x27),

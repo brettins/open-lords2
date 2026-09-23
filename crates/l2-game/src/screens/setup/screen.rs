@@ -64,6 +64,8 @@ pub struct SetupScreen {
     /// person had arrived — so *Play Now!* built England instead of
     /// Quaintville. `docs/decisions.md` C117.
     pub(crate) campaign: bool,
+    /// Arrived by *Multiple players*: *Start* opens the lobby. [D] ours.
+    pub(crate) network: bool,
     /// **A `Save_RotateAndWrite` is owed** — `Game_NewGame`'s own call to it
     /// (`0x00497E2B`), raised when *Start* has built a world. See
     /// [`crate::screen::Screen::take_autosave`].
