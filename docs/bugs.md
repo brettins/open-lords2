@@ -935,6 +935,18 @@ is the one function, and the job page and the tile panel both call it. Unswitcha
 the two words are the whole of what the block says about a castle that is not there,
 and a corrected pair is a different screen, not a variation of it.
 
+### B106 — `score.dat` carries 80 bytes of the battles text
+
+`FUN_0042D216` reads `0xA0` bytes at `0x51FD00` (`00420000.c:5169`) and `FUN_0042D2DC`
+writes the same `0xA0` back, but the two ten-score tables end at `0x51FD50`, where
+`FUN_0042AA90` loads `battles.eng` (`:4268`). So every save of the scores writes the first
+80 bytes of the battles text into the file, and every load writes the file's 80 bytes over
+that text. `[V]` on the lengths and addresses; what a player sees of it is `[I]` (the
+battles text is read by `Skirmish_Setup` `0x0042B7F7`, `:4566`, and whether it is reloaded
+after the scores load is unchecked). Ours writes the spill as zeros and ignores it on load
+(`screens/ratings/score_dat.rs` `SPILL`) `[D]`: the file keeps the original's length, the
+text is not ours to carry.
+
 ## 2.11 The turn timer
 
 ### B99 — End a turn early and a slow turn can end the next one before you see it

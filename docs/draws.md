@@ -507,16 +507,10 @@ are **{0, 2, 5}** and nothing else. The wrapped-paragraph draw beside it,
 — a field that a panel does not label is not thereby unlabelled, but it is certainly not
 *verified by a label*.
 
-### And a second dead thing in the same twenty lines
+### And a second thing in the same twenty lines, which is not dead
 
-The same ladder assigns **`local_14`** five times — `0x23`, `0x24`, `0x25`, `0x26`, `0x27`
-— and `local_14` is **read nowhere in the function**. Five values, one per unit kind, in
-exactly the shape of the two indices beside them that *are* used, going nowhere. Whether
-`0x23`…`0x27` are group 31 indices 35–39, or indices into something else entirely, is
-**unestablished, and this document declines to guess** — `docs/agents.md` records
-`docs/bugs.md` B65 as the good case, where an agent found a number that matched and a story
-available for free and refused to build on it. This is the same shape: a plausible story is
-available.
-
-What is *verified* is the absence: the local is dead. Recorded so that the next reader of
-`UnitPanel_Draw` does not spend the hour again.
+The same ladder assigns **`local_14`** five times — `0x23`, `0x24`, `0x25`, `0x26`, `0x27`,
+one per unit kind. An earlier reading here called it read nowhere; it is read once, further
+down: `Sprite_WGenSprite(local_14, 0x28, DAT_00553d2c * 0x10 + 0x60)` (`00410000.c:4216`),
+straight after `icon_tmp.pl8` is loaded. `[V]` on the read; `[I]` that `0x23`…`0x27` pick the
+unit-kind icon from that file.

@@ -300,7 +300,7 @@ fn the_music_fanfares_screens_and_the_click_are_fifty_six_more() {
         ],
         "the set of sounds this engine can reach has changed. If a call site was \
          ADDED this is good news and the number in crates/l2-game/src/audio/mod.rs, \
-         docs/mechanics.md and docs/decisions.md C116 moves with it."
+         docs/mechanics.md and docs/decisions.md C188 moves with it."
     );
     assert_eq!(audio.heard().len(), 56, "56 of 771 outside the voice class");
 

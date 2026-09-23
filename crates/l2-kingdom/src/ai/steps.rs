@@ -16,8 +16,9 @@ pub enum AiStep {
     /// inbox and the realm's per-rival message counters.
     Diplomacy = 1,
     /// `0x004A0C1D` — age every rival's grudge counter, add to it for a rival
-    /// who is winning or who holds a coveted county, and declare war when it
-    /// passes the lord's personality threshold.
+    /// who is winning or who holds a coveted county. Writes no war target
+    /// itself: only `Diplo_Offend` `0x004A1EE1` sets `warTarget` (`004a0000.c:787`),
+    /// called from here at `:407`.
     ConsiderWar = 2,
     /// `0x0049D638` — `AI_SetTaxRates`: [`set_tax_rates`] and
     /// [`grant_resources`].
