@@ -124,7 +124,7 @@ impl Director {
             //
             // sfx: Battle_BeginFromCampaign#1,Battle_BeginFromCampaign#2,Battle_BeginFromCampaign#3,FUN_004a6c68#1,FUN_004a6c68#2,FUN_004a6c68#3,Siege_LaunchAssault#1,Siege_LaunchAssault#2,Siege_LaunchAssault#3
             if let Some(q) = crate::turn::pending_question(game) {
-                if let Some(&name) = names::speech::BATTLE_PROMPT.get(q.choice_owner as usize) {
+                if let Some(&name) = names::speech::BATTLE_PROMPT.get(q.choice_for(game, game.player) as usize) {
                     audio.play_file(name, true);
                 }
             }

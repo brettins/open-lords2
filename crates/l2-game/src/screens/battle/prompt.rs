@@ -109,7 +109,7 @@ impl Screen for BattlePromptScreen {
     /// on —.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let Some(q) = BattlePromptScreen::question(ctx) else { return Transition::Pop };
-        if q.choice_owner != 1 {
+        if q.choice_for(ctx.game, ctx.game.player) != 1 {
             return Transition::Stay;
         }
         let fired = self.press.event(&prompt_widgets(), event);
@@ -150,7 +150,8 @@ impl Screen for BattlePromptScreen {
         let s = if s.is_empty() { "A BATTLE IS TO BE FOUGHT.".to_string() } else { s };
         p.heading(canvas, HEADING.0, HEADING.1, &s, font::TEXT);
 
-        let (index, wrap) = match q.choice_owner {
+        let owner = q.choice_for(ctx.game, ctx.game.player);
+        let (index, wrap) = match owner {
             1 => (1usize, 0xB4),
             2 => (2, 0x118),
             _ => (3, 0x118),
@@ -175,7 +176,7 @@ impl Screen for BattlePromptScreen {
             (q.attacker_men, q.defender_men),
         );
 
-        if q.choice_owner == 1 {
+        if owner == 1 {
             // `Widget_Draw`'s `base + 1` while `+0x0D` runs — the thumb goes
             // down when it is pressed.
             for (i, w) in [TAKE_THE_FIELD, DECLINE].into_iter().enumerate() {
