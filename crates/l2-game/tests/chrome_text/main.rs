@@ -3,14 +3,9 @@
 use std::path::PathBuf;
 
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
 use l2_game::screen::{Ctx, Screen};
-use l2_game::screens::map::MapScreen;
-use l2_game::screens::setup::{SetupPage, SetupScreen};
-use l2_game::shell::font::{self, Font, Style};
-use l2_game::{scenario, Game};
-use l2_kingdom::tables::Tables;
-use l2_mods::Platform;
+use l2_game::shell::font::{Font, Style};
+use l2_game::Game;
 use l2_view::Canvas;
 
 fn install() -> Option<PathBuf> {
@@ -34,13 +29,10 @@ macro_rules! world {
 }
 
 mod top_bar;
-pub use top_bar::*;
+use top_bar::*;
 mod panels;
-pub use panels::*;
 mod county_and_units;
-pub use county_and_units::*;
 mod png_part;
-pub use png_part::*;
 
 pub(crate) fn draw<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets) -> Canvas {
     let mut canvas = Canvas::screen();

@@ -35,10 +35,8 @@ pub use view::*;
 mod tests;
 #[cfg(test)]
 mod landing_tests;
-pub use tests::*;
 
-use l2_sim::runner::{BattleRunner, Conclusion, Formation};
-use l2_sim::terrain::DIM;
+use l2_sim::runner::{BattleRunner, Conclusion};
 
 use crate::input::Rect;
 

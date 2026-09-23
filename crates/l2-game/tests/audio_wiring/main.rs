@@ -6,17 +6,12 @@
 //! for every state a running game can be in. `docs/decisions.md` C116.
 
 mod routing;
-pub use routing::*;
 mod ui_and_speech;
-pub use ui_and_speech::*;
 mod audio_controls_and_feedback;
-pub use audio_controls_and_feedback::*;
 
-use l2_game::audio::{self, Audio, Scene};
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
+use l2_game::input::Event;
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::message;
 use l2_game::screens::setup::SetupPage;
 use l2_game::Game;
 

@@ -8,18 +8,17 @@
 mod app;
 mod launch;
 mod os;
-pub use app::*;
+use app::*;
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use l2_game::audio::Audio;
 use l2_game::game::Assets;
-use l2_game::input::{window, Event as GameEvent, Key};
+use l2_game::input::{window, Event as GameEvent};
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::setup::SetupPage;
 use l2_game::{scenario, Game};
-use l2_mods::Platform;
 use l2_view::Canvas;
 
 use pixels::{Pixels, SurfaceTexture};

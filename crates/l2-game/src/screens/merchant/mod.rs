@@ -150,13 +150,11 @@ pub use merchant::*;
 mod trade_part;
 pub use trade_part::*;
 
-use l2_kingdom::trade::{self, Good, Order, Quote, Refusal};
-use l2_view::{text, Canvas};
+#[cfg(test)]
+use l2_kingdom::trade::{self, Good};
 
-use crate::input::{Event, Key, Rect};
-use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
+#[cfg(test)]
+use crate::input::Rect;
 
 /// `L2.eng` group 68 — the merchant's own words, and **only the trade panel
 /// draws any of them**. `Screen_Merchant` calls `Eng_DrawString` not once.

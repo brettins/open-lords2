@@ -49,10 +49,6 @@ impl CountyScreen {
         self.panel = panel;
     }
 
-    pub(crate) fn panel_index(&self) -> usize {
-        PANELS.iter().position(|&p| p == self.panel).unwrap_or(0)
-    }
-
     pub(crate) fn adjust(&self, ctx: &mut Ctx, step: i32) {
         let id = self.county;
         let Some(c) = ctx.game.kingdom.counties.get(id as usize) else { return };
@@ -112,7 +108,6 @@ impl CountyScreen {
 
     pub(super) fn draw_panel(&self, ctx: &Ctx, canvas: &mut Canvas) {
         let pen = self.pen(ctx);
-        let ink = &ctx.assets.ink;
         let armies_eat = ctx.game.kingdom.options.armies_eat;
         let (bx, by, cols, rows) = self.panel.box_cells_for(armies_eat);
         pen.window(canvas, bx, by, cols, rows, 0);

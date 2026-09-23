@@ -1,17 +1,14 @@
 
 mod widget_tests;
-pub use widget_tests::*;
 mod page_quirks;
-pub use page_quirks::*;
 mod slider_tests;
 
-use l2_game::game::{Assets, Prefs, PRESENTATION};
-use l2_game::input::{Event, Key};
+use l2_game::game::Assets;
+use l2_game::input::Event;
 use l2_game::press;
-use l2_game::screen::{Ctx, Machine, Screen, ScreenId, Transition};
+use l2_game::screen::{Ctx, Screen, ScreenId, Transition};
 use l2_game::screens::options::{self, OptionsScreen, Page, Setting};
 use l2_game::Game;
-use l2_kingdom::{Quirk, Quirks};
 
 pub(crate) fn world() -> (Game, Assets) {
     (Game::new(1), Assets::placeholder())

@@ -24,12 +24,6 @@
 //! ground one in four. **8 ticks a road tile, 32 an open one.** `[V]`
 
 
-use l2_game::audio::{self, Audio};
-use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
-use l2_game::scenario;
-use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_kingdom::tables::Tables;
 use l2_kingdom::UnitKind;
 
 const FEWEST_TICKS_PER_TILE: u32 = 8;
@@ -46,7 +40,6 @@ macro_rules! england {
 }
 
 mod pacing;
-pub use pacing::*;
 
 fn merchant_slots(game: &l2_game::Game) -> Vec<usize> {
     game.kingdom

@@ -10,21 +10,13 @@
 use std::path::PathBuf;
 
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
-use l2_game::scenario;
-use l2_game::screen::{Ctx, Machine, Screen, ScreenId};
-use l2_game::screens::county as county_screen;
-use l2_game::screens::map::MapScreen;
-use l2_game::screens::setup::{
-    SetupPage, SetupScreen, CUSTOM_BUTTONS, CUSTOM_BUTTON_Y, MAP_LIST_ROW, MAP_LIST_X, MAP_LIST_Y,
-};
+use l2_game::input::Event;
+use l2_game::screen::{Ctx, Machine};
 use l2_game::screens::village::VillageScreen;
 use l2_game::Game;
-use l2_kingdom::field::FieldType;
-use l2_kingdom::tables::{Commodity, Tables};
 use l2_mods::Platform;
 use l2_view::village as vill;
-use l2_view::{campaign, Canvas};
+use l2_view::Canvas;
 
 /// `Industry_EfficiencyRamp` (`FUN_0044F248`)'s first line:
 const FLAT_EFFICIENCY: i32 = 80;
@@ -60,9 +52,7 @@ macro_rules! assets {
 }
 
 mod drag_and_drop_tests;
-pub use drag_and_drop_tests::*;
 mod game_flow_tests;
-pub use game_flow_tests::*;
 
 /// `DAT_0053F04C`, the industry column's pitch, typed from `CountyStrip_Draw`.
 fn pitch(rows: usize) -> i32 {

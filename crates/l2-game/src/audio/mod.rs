@@ -46,7 +46,6 @@
 //!   over four clips and a sentinel.
 
 mod engine;
-pub use engine::*;
 mod director;
 pub use director::*;
 mod events;
@@ -61,10 +60,11 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 
 use mixer::Mixer;
-use track::{BattleCycle, BattleKind, Music};
+use track::{BattleCycle, BattleKind};
+#[cfg(test)]
+use track::Music;
 use wav::Sound;
 
 /// The three switches the original's sound options screen (`0x42`) has, in its

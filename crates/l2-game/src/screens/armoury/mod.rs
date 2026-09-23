@@ -194,17 +194,10 @@ pub use walker::*;
 mod screen;
 pub use screen::*;
 mod tests;
-pub use tests::*;
 
-use l2_kingdom::levy::{self, LevyRefusal};
 use l2_kingdom::tables::WEAPON_TYPE_COUNT;
-use l2_kingdom::unit::TroopType;
-use l2_view::{text, Canvas};
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
-use crate::widget;
+use crate::input::Rect;
 
 /// `L2.eng` group 69 — **shared with the raise-army screen**, which is what
 /// `docs/formats/eng.md` §5 already said: *"Mercenary hire and the

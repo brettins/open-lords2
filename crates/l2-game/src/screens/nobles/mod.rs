@@ -113,14 +113,9 @@ pub use types::*;
 mod view;
 pub use view::*;
 
-use l2_view::Canvas;
 
-use l2_kingdom::realm::Realm;
-use l2_kingdom::tables::SCORE_INPUT_CASTLES;
 
-use crate::input::{Event, Key, Rect};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{font, Pen};
+use crate::input::Rect;
 
 /// `L2.eng` group 35 — eight strings, which is the whole group, and this
 /// screen is its **only consumer in the binary**. `CLAUDE.md` rule 6.

@@ -194,7 +194,6 @@ mod tests {
         assert_eq!(Shape::of(10), Shape::Prompt);
     }
 
-    #[test]
     /// **The event window's height is a rule, and the corner button rides on
     /// it.** `Msg_DrawWindow`'s category-`0x0F` arm opens
     /// `DAT_00552ff8 = (short)eventId < 0x12E ? 0xC0: 0xE0;` and the group *is*

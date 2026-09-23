@@ -4,11 +4,11 @@
 
 use l2_game::audio::{self, Audio};
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
+use l2_game::input::Event;
 use l2_game::message::{category, Record};
 use l2_game::movie::{self, Film};
 use l2_game::screen::{Ctx, Machine, ScreenId};
-use l2_game::screens::{castle, setup};
+use l2_game::screens::castle;
 use l2_game::Game;
 use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 
@@ -48,9 +48,7 @@ macro_rules! install {
 mod triggers;
 pub use triggers::*;
 mod playback;
-pub use playback::*;
 mod audio_part;
-pub use audio_part::*;
 
 fn realms() -> Game {
     let mut g = Game::new(0xF11A);

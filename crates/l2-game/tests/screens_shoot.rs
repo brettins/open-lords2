@@ -6,7 +6,6 @@ use common::*;
 
 use l2_game::game::Assets;
 use l2_game::input::Event;
-use l2_game::input::Key;
 use l2_game::screen::Ctx;
 use l2_game::screen::Machine;
 use l2_game::screen::ScreenId;

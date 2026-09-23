@@ -8,7 +8,6 @@
 //! > travels that road; what was missing was a test that did, not the code.
 
 mod siege_battle_tests;
-pub use siege_battle_tests::*;
 mod confirm_fold;
 
 use l2_game::game::Assets;

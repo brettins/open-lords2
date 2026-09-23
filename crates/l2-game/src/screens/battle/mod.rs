@@ -122,25 +122,18 @@
 //! 8/9 siege lifted, 10/11 castle lost, 12/13 the conflict is over.
 
 mod render;
-pub use render::*;
+use render::*;
 mod prompt;
 pub use prompt::*;
 mod result;
 pub use result::*;
 mod tests_part;
-pub use tests_part::*;
 
-use l2_kingdom::battle::Outcome;
-use l2_kingdom::unit::ALL_TROOP_TYPES;
 use l2_view::chrome::system;
-use l2_view::{text, Canvas};
 
-use crate::engagement::{Answer, Roster};
-use crate::input::{Event, Rect};
-use crate::press::{Press, Widget};
-use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::shell::{self, font, Pen};
-use crate::turn::{self, Question, TurnStep};
+use crate::input::Rect;
+use crate::screen::Ctx;
+use crate::shell::{font, Pen};
 
 /// `L2.eng` group 80 — the prompt's own text.
 pub const GROUP_PROMPT: usize = 80;
