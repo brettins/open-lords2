@@ -38,6 +38,9 @@ pub(crate) fn time_up(game: &mut Game) -> TurnStep {
 impl Order for AnswerBattle {
     type Reply = TurnStep;
     fn run(self, game: &mut Game) -> TurnStep {
+        if !concerns(game, turn::pending_question(game).map(|q| (q.attacker_owner, q.defender_owner))) {
+            return TurnStep::Stuck;
+        }
         turn::answer_battle(game, self.answer)
     }
 }
@@ -54,6 +57,10 @@ impl Order for TakeTheField {
 impl Order for FinishBattle {
     type Reply = TurnStep;
     fn run(self, game: &mut Game) -> TurnStep {
+        let owner = game.battle.as_ref().map(|b| (b.owner, b.owner));
+        if !concerns(game, owner) {
+            return TurnStep::Stuck;
+        }
         turn::finish_battle(game)
     }
 }
@@ -62,6 +69,18 @@ impl Order for FinishBattle {
 impl Order for DismissReport {
     type Reply = TurnStep;
     fn run(self, game: &mut Game) -> TurnStep {
+        let sides = turn::pending_report(game).map(|r| (r.attacker_owner, r.defender_owner));
+        if !concerns(game, sides) {
+            return TurnStep::Stuck;
+        }
         turn::dismiss_report(game)
     }
+}
+
+/// Seated, a battle's question, field and report are its sides' seats' alone;
+/// one with no seated side is anyone's. `[I]` ours, as `take_the_field`'s bystander rule.
+pub(crate) fn concerns(game: &Game, sides: Option<(u8, u8)>) -> bool {
+    let Some((a, d)) = sides else { return true };
+    let seated = |r: u8| game.seats.iter().any(|&(_, realm)| realm == r);
+    !game.seated() || game.player == a || game.player == d || !(seated(a) || seated(d))
 }

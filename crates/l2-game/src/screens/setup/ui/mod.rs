@@ -21,6 +21,7 @@ pub use skirmish_start::*;
 mod input;
 pub use input::*;
 mod held;
+mod network;
 pub use held::*;
 
 use super::*;

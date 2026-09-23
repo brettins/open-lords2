@@ -79,7 +79,7 @@ fn the_human_takes_quaintvilles_western_start_three_games_in_four() {
 /// D-5. Ablation: `new_game_seed`'s `(Some(s), _) => s.seed` arm.
 #[test]
 fn a_network_game_deals_from_start_not_the_clock() {
-    let start = l2_net::Start { seed: 0x5EED, roster: Default::default(), unseated_gold: 0 };
+    let start = l2_net::Start { seed: 0x5EED, roster: Default::default(), unseated_gold: 0, setup: vec![] };
     assert_eq!(new_game_seed(Some(1), Some(&start)), 0x5EED);
     assert_eq!(new_game_seed(Some(2), Some(&start)), 0x5EED);
 }

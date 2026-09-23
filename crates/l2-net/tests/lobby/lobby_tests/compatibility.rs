@@ -33,18 +33,15 @@ fn an_incompatible_peer_is_refused_with_every_reason_at_once() {
     assert_eq!(t.host.roster().len(), 1, "a refused peer must leave no trace");
 }
 
+/// A joiner cannot know the host's seed; `Start` carries it. Ablation: the
+/// `Mismatch::Seed` arm of `on_join`'s filter.
 #[test]
-fn a_peer_with_a_different_seed_cannot_join() {
+fn a_joiners_seed_is_the_hosts_to_choose() {
     let mut t = Table::new("Richard");
-    let mut bad = hello(1);
-    bad.seed = SEED ^ 1;
-    match t.join(1, bad, "Matilda") {
-        Err(LobbyError::Incompatible(reasons)) => {
-            assert!(reasons.iter().any(|m| matches!(m, Mismatch::Seed { .. })));
-        }
-        other => panic!("a different seed diverges before tick 0: {other:?}"),
-    }
-    assert_eq!(t.host.roster().len(), 1);
+    let mut theirs = hello(1);
+    theirs.seed = SEED ^ 1;
+    assert!(t.join(1, theirs, "Matilda").is_ok());
+    assert_eq!(t.host.roster().len(), 2);
 }
 
 /// A quirk changes what the simulation computes, so it is part of the agreed

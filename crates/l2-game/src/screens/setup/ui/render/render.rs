@@ -31,6 +31,7 @@ impl SetupScreen {
             unhonoured: Vec::new(),
             failure: None,
             campaign: false,
+            network: false,
             autosave: false,
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
@@ -306,7 +307,10 @@ impl SetupScreen {
 
     fn item(&mut self, i: usize, ctx: &mut Ctx) -> Transition {
         match (self.page, i) {
-            (SetupPage::Title, 0) => self.go(SetupPage::Options),
+            (SetupPage::Title, 0) => {
+                self.network = false;
+                self.go(SetupPage::Options)
+            }
             (SetupPage::Title, 1) => {
                 // `FUN_00432B05` opens with `DAT_0057D320 = 0` before any of
                 // its four arms: arriving at page 4 from the title menu is
@@ -314,6 +318,7 @@ impl SetupScreen {
                 //
                 // arm: 0x00432B05/multiplayer-clears-campaign left-release
                 self.campaign = false;
+                self.network = true;
                 self.go(SetupPage::Shield)
             }
             // `FUN_00432B05`'s hotspot 4 — *"Lords of Magic?"* — is the THIRD
@@ -465,6 +470,9 @@ impl SetupScreen {
         }
         if HUMAN_PLAYERS > self.player_starts {
             return Transition::Stay;
+        }
+        if self.network {
+            return self.open_lobby(ctx);
         }
         let settings = self.options.commit(HUMAN_PLAYERS, ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();
