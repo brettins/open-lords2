@@ -12,124 +12,8 @@ use l2_kingdom::tables::{Weather, JOB_COUNT};
 use l2_kingdom::unit::Unit;
 use l2_kingdom::{CampaignMap, Options};
 
-/// Where the nine labour records begin inside a county record, and how far
-/// apart they are — `+0xC4`, stride `0x0C`, worker count at word 0.
-///
-/// **`[V]`.** The layout is fixed by the labour allocator (`FUN_0044F6E7`),
-/// which clears the block with
-/// `for (c = 0; c < 9; c++) *(int *)(county + 0xC4 + c * 0x0C) = 0;` — nine
-/// records, twelve bytes each, count first. The England turn-one fixture then checks
-/// itself: county 1 holds 218 cattle farmers and 217 wood cutters against a
-/// population of 435, county 2 holds 323 and 133 against 456, and **every one
-/// of the fourteen sums to its population exactly**, which no wrong stride
-/// would do fourteen times running. `docs/kingdom.md` §13.
-const LABOUR_BASE: u32 = 0xC4;
-const LABOUR_STRIDE: u32 = 0x0C;
-
-/// `+0x130 + job*4` — eight `i32` percentages, and `+0x08` — one signed byte.
-///
-/// **`[V]`.** `FUN_00450000` recomputes them and indexes them as
-/// `(&DAT_0053FAE0)[i * 4]` across two ranges, `0..3` and `3..8`; and both of
-/// the binary's default setters (`FUN_004514F8`, `FUN_0045158B`) leave each
-/// range summing to exactly 100.
-const LABOUR_SHARE_BASE: u32 = 0x130;
-const INDUSTRY_SHARE: u32 = 0x08;
-
-/// `+0x1B0` — the castle-building switch `Industry_ToggleFromMap` flips and
-/// `Labour_Allocate` gates castle building on.
-const CASTLE_SWITCH: u32 = 0x1B0;
-
-/// **`+0x0F`, `+0x10` and `+0xC0` — the three numbers the county panels read
-/// out of the county record and nothing here imported.** `docs/decisions.md`
-/// C142.
-///
-/// `Tax_RecomputePreview` (`0x0044B80B`) writes `+0x0F` (`dHapTaxLocal`) and
-/// `+0xC0` (`taxShown`); `Health_Apply`'s pass writes `+0x10`
-/// (`dHapHealth`). `Panel_Tax` (`0x0041152F`) draws `realm+0x28 + county+0x0F`
-/// on its *This county* line and `Ui_DrawCount(county+0xC0, …)` on *People
-/// pay*; `Panel_Ration` (`0x00411B72`) draws `+0x10` beside the health band.
-///
-/// **`[V]` against the original's own bytes, in twelve saves.** `+0x0F` is
-/// `5 - taxRate` in every owned county of every save on this machine — 5 at
-/// rate 0, 2 at rate 3, −1 at rate 6, −3 at rate 8 — which is
-/// `Tax_RecomputePreview`'s second statement exactly. And `+0xC0` is
-/// `Pct(Pct(population, castleBase), taxRate)` to the unit in eight of the
-/// nine counties that carry a rate above zero: `sieging.sav` county 1 stores
-/// **147** for 767 people at rate 6 with no castle, `safeturn.sav` county 2
-/// stores **283** for 738 at rate 8 behind a wooden castle. The ninth is
-/// `incombat.sav`, whose population fell while the battle was open and whose
-/// stored 245 is the *pre-battle* population's answer — which is the point of
-/// reading the byte.
-const D_HAP_TAX_LOCAL: u32 = 0x0F;
-const D_HAP_HEALTH: u32 = 0x10;
-const TAX_SHOWN: u32 = 0xC0;
-
-/// `+0x1FE` — the county's farming style, which is
-/// [`l2_kingdom::county::County::farm_style`].
-///
-/// **This was not imported at all until the map-file constructor needed it,
-/// and that is a defect of its own.** `AI_ManageFields(0)` dispatches the
-/// *unowned* counties on it and `Ai_ManageCountyFarms` overwrites it with the
-/// owning lord's style every pass —
-/// arrived at style 0 and every neutral county farmed as a style-0 lord would,
-/// whatever the file said. `County_Reset` (`0x00451150`) seeds it to
-/// `countyId & 1` at new game, and `docs/symbols.md` records that the England
-/// turn-one fixture holds only 0, 1 and 9 here — the exact value set
-/// `AI_PERSONALITY_FARM_STYLE` produces, which is what says the offset is
-/// right.
-const FARM_STYLE: u32 = 0x1FE;
-
-/// `+0x1F4` — **an unowned county's own treasury**, and `+0x1A4` / `+0x1A5` /
-/// `+0x1A0` — its merchant stall: how many merchants are standing in it, the
-/// slot of the last one counted, and the lifetime visit total.
-///
-/// **`[V]`, and read straight out of the fixtures.** `Tax_CollectAll`
-/// (`0x0044B59B`) banks a lordless county's tax into `+0x1F4`, and `Ai_BuyGood`
-/// (`0x004A4B12`) refuses every purchase unless `+0x1A4` is non-zero and then
-/// prices the goods by `g_units[+0x1A5].morale`. Those four bytes are therefore
-/// the whole of whether a county nobody owns can feed itself.
-///
-/// None of them was imported,
-/// **fifty sacks of grain a season, per unowned county, in perpetuity.** The
-/// six one-turn-apart saves carry `+0x1F4` at 186, 297, 260 (county 1), 195,
-/// 316, 294 (county 3) and 436 (siege county 3), and `+0x1A4` non-zero on every
-/// county holding a merchant. `l2_kingdom::county::County::purse`'s own comment
-/// asserted *"it is 0 in every fixture"*, which was true of `england-turn1.sav`
-/// and of nothing else. `docs/decisions.md` C149.
-const PURSE: u32 = 0x1F4;
-const MERCHANT_VISITS: u32 = 0x1A0;
-const MERCHANT_COUNT: u32 = 0x1A4;
-const MERCHANT_UNIT: u32 = 0x1A5;
-
-/// `g_mercBands` (`0x00568DC0`) — **the twelve mercenary bands' live table**,
-/// stride `0x14`, slot 0 never a band — and `g_mercBandsInPlay`
-/// (`0x00554030`), how many of them this map uses.
-///
-/// **`[V]`, three ways, none of them resemblance to the roster.**
-///
-/// * **The block closes.** `Save_Write`'s table saves `0x00568DC0` as a block of
-///   exactly **260** bytes, which is `13 × 0x14`: slot 0 and twelve bands, and
-///   not a byte either side.
-///
-///   `Mercenary_Init` (`0x004AC904`) copies `+0x02` start county, `+0x05` troop,
-///   `+0x07` reload, `+0x08` men, `+0x0C` price and `+0x10` the unread wage out
-///   of six static arrays; all eighteen saves on this machine hold exactly
-///   [`l2_kingdom::mercenary::ROSTER`] there, and every slot past the in-play
-///   count is zero. [`read_mercenaries`] refuses a save where they disagree,
-///   because the kingdom keeps those six in the roster and
-///   would otherwise replace the file's values in silence.
-///
-/// * **County `+0x1AD` is `Mercenary_OfferInCounty` over this table**, in every
-///   county of every save — including `siege-old_turn.sav`, where bands 2 and 3
-/// both stand in county 1 and the cache holds **2**, the lower-numbered one.
-///
-/// What no save settles: `+0x00`, the hiring unit, is **zero in every band of
-/// every save** — nobody on this machine ever hired one — so the importer's
-/// check that a hirer carries its band has only been exercised by a test that
-/// writes the byte.
-const MERCENARY_BANDS_VA: u32 = 0x0056_8DC0;
-const MERCENARY_BAND_STRIDE: u32 = 0x14;
-const MERCENARY_BANDS_IN_PLAY: u32 = 0x0055_4030;
+const TILE_BANK: usize = 2;
+const BANK_SEEN: u8 = 0x20;
 
 /// `+0x294 + c*0x18` — the four industry records, the three bytes of each that
 /// say whether it can run — `+1` the resource, `+2` the countdown, `+3` the
@@ -158,30 +42,6 @@ const MERCENARY_BANDS_IN_PLAY: u32 = 0x0055_4030;
 /// showed a mine**: the village picks the mine for cluster 0 only when the
 /// county has a mine *and no quarry*, and a county that claims both is a county
 /// with a quarry. `docs/decisions.md` C57.
-const INDUSTRY_BASE: u32 = 0x294;
-const INDUSTRY_STRIDE: u32 = 0x18;
-const INDUSTRY_HAS_RESOURCE: u32 = 1;
-const INDUSTRY_DISABLED_SEASONS: u32 = 2;
-const INDUSTRY_ENABLED: u32 = 3;
-const INDUSTRY_NEXT_SEASON: u32 = 0x14;
-
-/// `g_countyFieldTiles` (`0x0053EA00`) — 17 × 20 × `u32`, **the map tiles that
-/// are each county's fields**, stored as byte offsets into [`TILES`].
-///
-/// **`[V]`.** Save block 12 is 1,360 bytes = 17 × 80 exactly, and applying
-/// `County_RecountFields`' terrain ladder to the tiles this names reproduces
-/// all three stored field counts for all fourteen counties of the England
-/// turn-one fixture — see `crates/l2-kingdom/tests/fields/main.rs`.
-const COUNTY_FIELD_TILES: u32 = 0x0053_EA00;
-const COUNTY_FIELD_STRIDE: u32 = 0x50;
-
-/// `g_tiles` (`0x00522F90`) — 4,096 eight-byte tile records, `y * 64 + x`.
-const TILES: u32 = 0x0052_2F90;
-const TILE_STRIDE: u32 = 8;
-
-const TILE_BANK: u32 = 2;
-const BANK_SEEN: u8 = 0x20;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct IndustryState {
     pub has_resource: bool,
@@ -211,78 +71,6 @@ pub struct IndustryState {
     pub total_snapshot: i32,
 }
 
-/// **The offsets C161 imports**, one constant each, and nothing
-/// else. Every one is a row of `docs/stored-fields.json` with status
-/// `imported`, and `crates/l2-scenario/tests/stored_fields/main.rs` holds each to the
-/// file's own bytes after [`Scenario::kingdom`] in every save on the machine —
-/// so the prose for each lives in that inventory and in the kingdom field's own
-/// doc comment, not a third time here.
-mod stored {
-    pub const EVENT_FIRED: u32 = 0x000;
-    pub const D_HAP_TAX: u32 = 0x00E;
-    pub const SHOWN_ARMY: u32 = 0x015;
-    pub const TAX_HAP_OTHER: u32 = 0x016;
-    pub const HAPPINESS_AVG: u32 = 0x018;
-    pub const HAPPINESS_SUM: u32 = 0x01C;
-    pub const UNREST_WARNED: u32 = 0x021;
-    pub const POP_CHANGE_PCT: u32 = 0x02C;
-    pub const POP_ARMY: u32 = 0x038;
-    pub const LARGEST_INFLOW: u32 = 0x044;
-    pub const INFLOW_SOURCES: u32 = 0x048;
-    pub const EMIGRANT_DESTINATION: u32 = 0x058;
-    pub const LARGEST_INFLOW_SOURCE: u32 = 0x059;
-    pub const CHANGE_REASON: u32 = 0x05B;
-    pub const FIELD_PROGRESS: u32 = 0x090;
-    pub const SHOWN_ALE: u32 = 0x194;
-    pub const FRIENDLY_TROOPS: u32 = 0x198;
-    pub const ENEMY_TROOPS: u32 = 0x19C;
-    pub const SOW_SHORTFALL: u32 = 0x1A7;
-    pub const TAX_SUPPRESSED: u32 = 0x1A8;
-    pub const EVENT_ID: u32 = 0x1AA;
-    pub const CASTLE_RUINED: u32 = 0x1C2;
-    pub const CASTLE_DEGRADED: u32 = 0x1C3;
-    pub const CASTLE_PERCENT: u32 = 0x1C4;
-    pub const CASTLE_WORK_LEFT: u32 = 0x1CC;
-    pub const CASTLE_STONE_OWED: u32 = 0x1D0;
-    pub const CASTLE_WOOD_OWED: u32 = 0x1D4;
-    pub const CASTLE_WORK_TOTAL: u32 = 0x1D8;
-    pub const CASTLE_STONE_TOTAL: u32 = 0x1DC;
-    pub const CASTLE_WOOD_TOTAL: u32 = 0x1E0;
-    pub const SIEGE_MOAT_FILLED: u32 = 0x1E4;
-    pub const SIEGE_WALL_DAMAGE: u32 = 0x1E6;
-    pub const SIEGE_BREACH_SCORE: u32 = 0x1E8;
-    pub const SIEGE_APPROACH_SCORE: u32 = 0x1EC;
-    pub const SIEGE_RAMPARTS_BREACHED: u32 = 0x1F0;
-    pub const SIEGE_GATE_OPEN: u32 = 0x1F1;
-    pub const CASTLE_LEVEL_LEFT: u32 = 0x1F9;
-    pub const EVENT_POPULATION_PCT: u32 = 0x1FB;
-    pub const EVENT_GRAIN_PCT: u32 = 0x1FC;
-    pub const EVENT_HERD_PCT: u32 = 0x1FD;
-    pub const PASTURE_CURSOR: u32 = 0x15A;
-    pub const BLIGHT_CURSOR: u32 = 0x15B;
-    pub const FIELDS_GRAIN_SOWN: u32 = 0x202;
-    pub const FIELDS_GRAIN_STANDING: u32 = 0x206;
-    pub const RECLAIM_FIELDS_FINISHING: u32 = 0x20C;
-    pub const RECLAIM_SEASONS_TO_NEXT: u32 = 0x214;
-    pub const ALE_HAPPINESS_GIVEN: u32 = 0x219;
-    pub const GRAIN_CHANGE_EXPECTED: u32 = 0x22C;
-    pub const GRAIN_SOWN_EXPECTED: u32 = 0x230;
-    pub const CROP: u32 = 0x240;
-    pub const HERD_CHANGE_EXPECTED: u32 = 0x258;
-    pub const HERD_BIRTHS_EXPECTED: u32 = 0x268;
-    pub const HERD_DEATHS_EXPECTED: u32 = 0x26C;
-    pub const GRAIN_WEATHER_CHANGE: u32 = 0x24C;
-    pub const HERD_WEATHER_CHANGE: u32 = 0x270;
-    pub const HERD_EVENT_CHANGE: u32 = 0x274;
-    pub const GRAIN_EVENT_CHANGE: u32 = 0x278;
-    pub const WEAPON_TYPE: u32 = 0x290;
-    pub const MERCENARY_OFFER: u32 = 0x1AD;
-    /// Realm `+0x2D`, twenty-four bytes: `Army_PickName`'s per-name counters.
-    pub const REALM_ARMY_NAMES: u32 = 0x02D;
-    pub const LEVY_SURCHARGE: u32 = 0x2F4;
-    pub const EVENT_POPULATION_SWING: u32 = 0x2F8;
-    pub const GRAIN_GROWN_EXPECTED: u32 = 0x2FC;
-}
 
 /// **`[V]`, and it used to be `[I]`.** It was the one number in the whole
 /// reproduction that came from prior art
@@ -443,7 +231,7 @@ pub struct CountyState {
     /// records (`+1`, `+2`, `+3` and `+0x14` of a record based at `+0x294`), in
     /// commodity order **wood, iron, weapons, stone**: whether the county has
     /// the resource, how many seasons the industry is out of action, whether its
-    /// switch is on, and next season's forecast. See [`INDUSTRY_BASE`].
+    /// switch is on, and next season's forecast. See [`IndustryState`].
     pub industry: [IndustryState; 4],
     pub fields_fallow: i32,
     pub fields_cattle: i32,

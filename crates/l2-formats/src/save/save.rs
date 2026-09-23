@@ -111,6 +111,7 @@ impl Save {
                 }
                 ids
             },
+            stored: self.county_stored(index)?,
         })
     }
 
@@ -173,6 +174,7 @@ impl Save {
                 }
                 p
             },
+            stored: self.realm_stored(index)?,
         })
     }
 

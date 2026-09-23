@@ -290,7 +290,8 @@ of the population, and hands the county to `County_MakeIndependent`.
 
 ### Land and building
 - ✅ Castle types, costs, workforce, garrison caps, free archers
-- 🕳 **The castle designer.** One of the game's signature features. Untouched.
+- ✅ **No castle designer exists.** `Screen_CastleBuild` (`0x00419789`) is a picture-and-stats
+  browser over one level 0…4, and ours reproduces it. `docs/decisions.md` C230.
 - 📖 Industry: wood, iron, stone, weapons, with an efficiency ramp that compounds seasonally
 - 📖 **A county's resources come from the map**, not from the county record —
   `County_PlaceResourceSites` reads plane 2 on `Town`-bank tiles at load. And an enemy army
@@ -372,14 +373,14 @@ a dark tile resolves.
 372: down at once, and the setting changes twenty frames later — the same delay as the yes/no
 gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`.
 
-- 🕳 **Animations** (Display options) — **flips, and nothing in our engine reads it.** In the
-  original it chooses the battle-result box with the animated inset, the castle-building
-  377: videos, the message scroll's animation and the battle-outcome animation.
-- 🕳 **Tool tips** (Help options) — **flips, and nothing reads it**: the tooltip layer it
-  switches is not built.
+- ✅ **Animations** (Display options) — five reads in four functions, each tested: the tall
+  battle-result box with its film recess, the castle-building films and the rest. C221.
+- ✅ **Tool tips** (Help options) — the tooltip layer is built. C167; a nudged tip returns
+  without the one-second rest, `docs/bugs.md` B107.
 - ✅ **Full screen** — on any desktop that is not 256 colours the original closes the panel and
-  says *"Cannot change display."*, and so does ours. ❌ **Start game help** opens a Windows 3.1
-  help file and does nothing here.
+  says *"Cannot change display."*, and so does ours. ✅ **Start game help** opens our own help
+  window over `L2help.hlp`'s contents topic — chapter links, Back, scroll arrows, OK — where
+  the original called `WinHelpA` (`Opt_GameHelpContents`, `0x00434942`). C241.
 
 - ✅ **The setup screen's twelve options start the game they show.** This used to read *"no
   option on the setup screen starts a game with the setting it shows"* — all twelve were
@@ -392,10 +393,8 @@ gauntlets. Ours changed it on the click. `docs/arms.json` group `options-panels`
 
   393: Two things in that list are still short of the original, and both are marked on the page:
 
-  - 🕳 **The starting garrison is not raised.** *Army Size* commits a row of `g_startTroops`
-    and `Game_SetupRealmsAndCounties` hands it to `Army_Create`; ours does not, because
-    397: raising an army needs a muster tile and the county's food passes re-run around it, and
-that is `l2_kingdom::levy`'s single path.
+  - ✅ **The starting garrison is raised.** *Army Size*'s `g_startTroops` row goes to
+    `Army_Create` from `Settings::apply_to`, as `Game_SetupRealmsAndCounties` does. C229.
   - ✅ **A new game starts on the map the list names.** This entry used to be the largest
     single thing between here and *"playable from start to finish"*, and it said so.
     `Map_InitScenario` is written — `l2_scenario::newgame`: the planes, the county
@@ -468,10 +467,10 @@ committed and a plot on the ground.
   - ✅ The diplomacy screen — `0x0B`, *"the other lords"*: a card per rival with the
     469: standing thermometer and the allied/at-war/mail icons, all four menu layouts, and the
     compose dialog `0x1A` behind it in its three shapes
-  - 🕳 **Answering a lord.** The two prompts a lord raises — *"Accept alliance ?"* and
-*"Pay -"* — are the only places a person answers, and both are
-    blocked on `Msg_DrawWindow`'s per-category window layouts, which nobody has read.
-    `docs/diplomacy.md` §10.10
+  - ✅ **Answering a lord.** *"Accept alliance ?"* and *"Pay -"* are answered on the message
+    window (`FUN_00436872`); a compliment's letter opens on its `L2.eng` group 226 draft.
+    C231. 🕳 Letters between two human lords are not drawn as letters (ledger
+    `diplomatic-letter-painters`).
   - ✅ ~~Whether the Baron favours peasant armies.~~ **Settled against it**: the rota fields
     476: are `g_weaponCost` indices, pinned by the lookup the rota loop makes next, and the
     Baron's ten-step rota contains no crossbows at all. §8.3
@@ -517,10 +516,9 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   checked against **five snapshots of a real siege** (`crates/l2-kingdom/tests/siege/main.rs`).
   Battle: the two damage accumulators, the three siege end conditions, the wall, the gate and
   the way in — `crates/l2-sim/src/siege/mod.rs`.
-- ⚠ **The castle's layout on the battlefield is ours, not the original's.**
-  `Battlefield_BuildCastle`'s cell *translation* is read (`docs/battle.md` §3.0.1); the
-  layout **rasters** it translates are not. `l2_sim::siege::our_castle` is a plain concentric
-  keep with one of everything the rules need, and says so in its name and everywhere it draws.
+- ✅ **The castle on the battlefield is the one the player built** — `stnfield.pl8`'s two
+  layers are read. C203. A castle's garrison is raised by the siege rules: its own order,
+  archer and crossbow units of three on the wall slots by troop type, oil on the rampart.
 - ✅ Siege engines and boiling oil as things that act: they are raised into the battle with
   the right counts (`Army_PrepareForBattle`, verified against `siege-sieging.sav`), the ram
   526: is the only figure that can reach the wall-breaking state, and the oil unit gets the
@@ -547,16 +545,17 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   standing, and neither the autocalc nor the fought battle runs until a thumb is clicked.
   Right-release declines, and **nothing times out** — the timeout gate returns 0 outright
   unless `g_multiplayer`
-- 🕳 **A battle the player watches is not one the player can steer.** Orders go in at
-  deployment and nothing withdraws, surrenders or re-tasks a unit mid-battle; the lever
-  552: exists (`BattleRunner::withdraw`) and no rule pulls it. Taking the field runs the real
-  simulation and shows the result; it does not yet *show the battle*
-- 🕳 **Screen `0x2B`, the outcome banner, is not built.** All seven of `L2.eng` group 82's
-  heading/body pairs are reachable — `l2_kingdom::battle::outcome` picks between them and
-  `BattleReport::outcome(local_player)` is the call — and `0x13` prints the heading so the
-  result is not lost, but the banner has a screen of its own with three layouts and a movie
-  panel
-- ❓ Capture — prisoners and ransom, which nothing here has looked at
+- ✅ **A battle the player fights is one the player steers**: selection, orders, an ordered
+  volley that lights a wood (C231), retreat and surrender behind the original's confirms.
+- ✅ **A mercenary band fights as its own units** (`Battle_RaiseSide`, `0x0047FEA7`) and its
+  survivors go back to the band (`Battle_WriteBackCasualties`, `0x0047F474`).
+- ✅ **Battlefield markers.** A field battle's AI marches to `Battlefield_BuildRandom`'s enemy-end
+  and rally markers; a siege and a skirmish castle keep the last open field's tables, saved and
+  hashed with the campaign.
+- ✅ **Screen `0x2B`, the outcome banner** — `Screen_BattleOutcome` (`0x00423241`)'s three arms.
+  C231. The film is still pushed after the banner paints; that ordering is the gap.
+- ✅ **Capture — prisoners and ransom are not in the original.** A beaten lord is eliminated.
+  C230.
 
 ---
 
@@ -587,7 +586,7 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   `docs/screens-county.md` §6.4.5
 588: - ✅ **The job popup** (screen `0x0F`) — the window and the head of it: the job's name, its
   589: worker count, and the three-colour rule that reads the record's other two words. Its nine
-  per-job bodies are not drawn and say so.
+  per-job bodies are drawn. C177, C191.
 - ✅ **The village's animations** — `Village_Animate` draws **six** overlays, three of them
   unconditional, off eight counters on a 80 ms / 160 ms pulse chain; two of the eight are
   stepped and drawn by nothing (`docs/bugs.md` B65). `villani1.pl8` is the iron mine's
@@ -608,8 +607,19 @@ resolves a hit at launch and animates it. `Missile_Step` reads the
   608: door to the armoury a player has. C45. And the *armoury's* row was the second finding:
   filed under the wrong `L2.eng` group, with `arm_grid.pl8` called a "buy grid", it looked
 like optional content and it holds the button that creates the army. C61.
-- 🕳 The original's fonts (`Fntl2_9/14/22.pl8`) — we draw with a hand-made 5×7
-- 🕳 **The mouse pointer changes shape, and we draw the OS arrow everywhere.** A player
+- ✅ **The original's fonts** — `Fntl2_9/14/22.pl8` and `Font_10.pl8`, with `Glyph_Draw`'s
+  raised characters. C163, C175.
+- ✅ **Escape asks to exit** over any screen in a game, the battlefield included: `Menu_Quit`
+  (`0x004343F8`) raises the confirm box `0x1E`. C234.
+- ✅ **A march asks first.** *Slaughter villagers?*, *Destroy field?*, *Besiege castle?* and
+  *Garrison castle?* from `Map_ConfirmMoveOrder` (`0x004A9252`), with its refusals.
+- ✅ **The turn stops under the original's pausing screens and an open letter** —
+  `FUN_004BB978`'s table (battle prompt and result, conquest, menus, options, save/load,
+  films), and not under the confirm box. C197, amended.
+- ✅ **The season turn closes every screen above the map** (`FUN_0043AD25`, `g_screenId = 0`),
+  a film included, and ends move mode.
+- ✅ **The mouse pointer changes shape**: the seven `RT_GROUP_CURSOR` resources are read from
+  `Lords2.exe` at run time (C219, C234). A player
   reported *"an alternative mouse icon in the town square, it's like a question mark"*,
   *"only when you're not selecting"* — and he is right twice over. `docs/screens.md` §9 has
   the whole mapping; the short version:
@@ -879,9 +889,8 @@ the map goes dark. `l2_view::fade`.
   credits at start-up, the *Lords of Magic?* trailer, a castle going up, a lord falling
   880: (cart, pillory, jail, gallows or axe, by how long the game has run) and the end of a
   battle the player fought — each with its own sound track, over the music bed it stops.
-  Two gaps: **a captured county's film is built and never plays**, because nothing posts
-  883: the capture letters `County_ChangeOwner` raises; and the CD's fast-media ending layout is
-  not. `crate::movie` has the table of all seven `Smk_Play` callers.
+  A captured county's film plays over the capture letter (C233). One gap: the CD's
+  fast-media ending layout. `crate::movie` has the table of all seven `Smk_Play` callers.
 
 ---
 

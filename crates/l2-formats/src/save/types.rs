@@ -59,6 +59,7 @@ pub struct Realm {
     pub weapons: [i32; WEAPON_TYPES],
     /// `+0x84 + other * 0x10` — this realm's view of each other realm.
     pub pairs: [DiploPair; REALM_RECORDS],
+    pub stored: RealmStored,
 }
 
 impl Realm {
@@ -348,6 +349,7 @@ pub struct County {
     /// [`County::neighbour_count`] are live. Read as the full sixteen slots the
 /// record affords so the trailing zeros are visible.
     pub neighbours: [u8; NEIGHBOUR_SLOTS],
+    pub stored: CountyStored,
 }
 
 impl County {
