@@ -221,23 +221,8 @@ pub struct Standings {
 /// The original says the same thing in the only way it can: in a network game
 /// `Court_OpenGreatestNoble` does **not** call this, it sends
 /// `Net_SendCommand(0x3B, 0)`, whose deferred action `NetAct_RankRealms`
-/// (`0x00448422`) runs the identical pair on every peer. We have no network
-/// game and take the single-player arm; when one exists this call site is one
-/// of the places that has to become a command.
+/// (`0x00448422`) runs the identical pair on every peer: [`crate::command::RankRealms`].
 pub fn recount(game: &mut crate::game::Game) {
-    let t = game.kingdom.tables;
-    l2_kingdom::ai::rank_realms(&t, &mut game.kingdom.realms);
-    for realm in 1..l2_kingdom::MAX_REALMS as u8 {
-        let (armies, total_men) = game.kingdom.campaign.units.realm_totals(realm);
-        let l2_kingdom::Kingdom { realms, counties, county_count, .. } = &mut game.kingdom;
-        l2_kingdom::ai::update_realm_totals(
-            &mut realms[realm as usize],
-            counties,
-            *county_count,
-            realm,
-            armies,
-            total_men,
-        );
-    }
+    game.issue(crate::command::RankRealms {});
 }
 

@@ -116,7 +116,9 @@ impl DivideScreen {
 
     /// `FUN_00437AFB` with no destination county — the plain field split.
     fn split(&mut self, ctx: &mut Ctx) -> Transition {
-        match ctx.game.split_army(self.unit, &self.basket, SplitInto::Field) {
+        let order =
+            crate::command::SplitArmy { army: self.unit, basket: self.basket, into: SplitInto::Field };
+        match ctx.issue(order) {
             Ok(id) => {
                 self.outcome = Divided::Split(id);
                 Transition::Pop

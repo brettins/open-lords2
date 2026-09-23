@@ -183,13 +183,9 @@ impl MapScreen {
             self.status = "NOT YOUR UNIT".into();
             return Transition::Stay;
         }
-        let besieging = {
-            let l2_kingdom::Kingdom { counties, campaign, .. } = &mut ctx.game.kingdom;
-            if campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0) {
-                l2_kingdom::siege::validate_link(counties, &mut campaign.units, unit);
-            }
-            ctx.game.kingdom.campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0)
-        };
+        ctx.issue(crate::command::ValidateSiegeLink { unit });
+        let besieging =
+            ctx.game.kingdom.campaign.units.get(unit).is_some_and(|u| u.besieging_county != 0);
         // arm: 0x0043CE1A/siege-preparation left-release
         if besieging {
             self.cancel_move_selection();
@@ -256,7 +252,7 @@ impl MapScreen {
     }
 
     pub(super) fn order_march(&mut self, ctx: &mut Ctx, unit: usize, dest: (u8, u8)) -> Transition {
-        match ctx.game.order_unit_move(unit, dest) {
+        match ctx.issue(crate::command::MoveUnit { unit, dest }) {
             Some(0) => self.status = "THAT TILE CANNOT BE REACHED - THE ARMY STANDS".into(),
             Some(steps) => {
                 let left = ctx
