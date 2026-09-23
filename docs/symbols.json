@@ -80,6 +80,20 @@
       "signature": "void Mem_CopyBytes(int src, int dst, int len)"
     },
     {
+      "addr": "0x004014F0",
+      "name": "Text_Width",
+      "section": "text",
+      "confidence": "verified",
+      "comment": "(text,font): pixel width of a NUL-terminated string; space is 4, other glyphs map through the byte table at 0x004D71D0 into the font record (stride 0x10). Loop capped at 10000."
+    },
+    {
+      "addr": "0x004015B9",
+      "name": "Text_GlyphWidth",
+      "section": "text",
+      "confidence": "verified",
+      "comment": "(ch,font): 0 for NUL or unmapped glyphs, 4 for space, else the glyph width from the font record via table 0x004D71D0."
+    },
+    {
       "addr": "0x004017BF",
       "name": "Eng_CopyString",
       "section": "text",
@@ -110,6 +124,13 @@
       "confidence": "verified",
       "signature": "void Ui_NumberToBuffer(int value, int start, int forceSign)",
       "comment": "Formats value into g_numberBuffer starting at index start, writing '-' or '+' at start and shifting when it does. Callers pass start = 1 so index 0 stays free for a sign character."
+    },
+    {
+      "addr": "0x004025D7",
+      "name": "Ui_DrawTextCentredIn",
+      "section": "text",
+      "confidence": "verified",
+      "comment": "(text,x,y,width,font,colour): width measured by Text_Width, left = x + max(0,(width-w)/2), then Ui_DrawText. The raw-string sibling of Ui_DrawCentred."
     },
     {
       "addr": "0x00402637",
@@ -176,6 +197,20 @@
       "comment": "The L2.eng word-wrapper. NOT RENAMED: docs/screens-county.md and docs/draws.md cite it by this name. The signature is recorded so tools/draws/drawcoords.js can read its coordinates, and the argument positions are [I] from two call sites agreeing with constants we had already read off the same painters: Trade_DrawPanel FUN_0040328e(0x44,0x12,0x60,0xf6,0x1c0,100,0,0,...) against merchant ADVICE_X/ADVICE_Y/ADVICE_W = 0x60/0xF6/0x1C0, and Screen_SendSupplies FUN_0040328e(0x21,7,0xf0,0x70,0xb0,100,0,0,...) against supplies PROMPT_AT = (0xF0,0x70,0xB0). docs/screens-county.md section on wrapped text already writes it FUN_0040328E(group, index, x, y, width, ...)."
     },
     {
+      "addr": "0x0040352F",
+      "name": "Ui_WrapText",
+      "section": "text",
+      "confidence": "inferred",
+      "comment": "(text,x,y,width,font,colour): up to 100 passes filling a 200-byte line buffer at 0x005AEA60. [I] a raw-string word wrapper; rest not read."
+    },
+    {
+      "addr": "0x00403A8F",
+      "name": "Gfx_DrawLine",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(x0,y0,x1,y1,colour): clips via FUN_004037EE, then vertical, horizontal or Bresenham (error term DAT_0058FD5C) plotting through FUN_004039C7."
+    },
+    {
       "addr": "0x00403CF4",
       "name": "Ui_DrawRectOutline",
       "section": "ui",
@@ -192,12 +227,26 @@
       "comment": "A recessed rectangle: colour 0x10 along the top and right edges, 0x1F along the bottom and left."
     },
     {
+      "addr": "0x00403EE4",
+      "name": "Gfx_DrawBevel",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(x,y,w,h): clamps to the screen, then four Gfx_DrawLine calls: top and left in colour 0x35, bottom and right in 0x28."
+    },
+    {
       "addr": "0x00403FDD",
       "name": "Ui_DrawBevelRect",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Ui_DrawBevelRect(int x, int y, int w, int h)",
       "comment": "Four clipped lines: top and right in palette index 0x1F, bottom and left in 0x10."
+    },
+    {
+      "addr": "0x0040437D",
+      "name": "Gfx_FillRect",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(x,y,w,h,colour): clamps to g_screenStride x g_screenHeight, then one Gfx_DrawLine per row."
     },
     {
       "addr": "0x0040464C",
@@ -222,6 +271,13 @@
       "confidence": "verified",
       "signature": "void Rand_Advance(void)",
       "comment": "The pseudo-random generator the battle AI uses. Two 31-bit Fibonacci LFSRs (taps at bits 0 and 4) are each stepped 31 times, then masked into six output globals - &0x7FFF, &0x7F and &7 per generator. Distinct from FUN_00404B2C / DAT_005C9A84, the counter the battlefield builders use."
+    },
+    {
+      "addr": "0x00404B2C",
+      "name": "Rng_LfsrStep",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Clocks the 31-bit LFSR DAT_00591564 31 times: shift right, feed bit0 xor bit4 into bit 30."
     },
     {
       "addr": "0x00404D6B",
@@ -336,6 +392,13 @@
       "comment": "THE GAME'S OWN NAME FOR THIS ROUTINE: its three failure messages read \"ERR:top_it no data \" and \"ERR:top_it bad data \", written by Log_Write from a literal address (0x004D1C6C-ish) at 0x004071A0. The whole 0x00409934-0x0040A9B0 blitter family names itself the same way and five of those names confirm symbols we had already guessed - see docs/decisions.md C72. Draws the part of a tall map sprite that overhangs the tile above it; it marks the tiles it touches through the dirty helpers at 0x00452436/0x00452489/0x004524DC."
     },
     {
+      "addr": "0x00407F82",
+      "name": "Map_DrawFlag",
+      "section": "map",
+      "confidence": "inferred",
+      "comment": "Zoom 0 only: offsets g_drawX/Y and blits frame 0x82 of g_flagsSheet."
+    },
+    {
       "addr": "0x004081A6",
       "name": "Map_DrawPathMarker",
       "section": "ui",
@@ -360,12 +423,40 @@
       "comment": "Writes the back buffer to shot1.lbm, shot2.lbm, shot3.lbm or shot4.lbm through the writer at 0x00408F1A. Its only caller is App_WndProc's key ladder, so the original's screenshot key has four fixed slots and no filename cycling. .lbm is Deluxe Paint's format, not one the game reads back."
     },
     {
+      "addr": "0x00408FCB",
+      "name": "Gfx_LoadBackdrop",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(path,rows): File_ReadChunk(path, g_backBufferBits, g_screenStride*rows, 0x18); on failure Log_Write(0x4D21CC) and the fatal exit FUN_004B2234."
+    },
+    {
+      "addr": "0x00409346",
+      "name": "Sprite_GenBox",
+      "section": "sprite",
+      "confidence": "verified",
+      "comment": "Sprite_GenBox(sprite,x,y,w,h): Sprite_GenFrame(sprite,0,x,y) then Sprite_GenBlank(sprite,x+0x10,y+0x10,w-2); the whole body."
+    },
+    {
       "addr": "0x00409397",
       "name": "Ui_DrawBox",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Ui_DrawBox(int x, int y, int cols, int rows)",
       "comment": "Ui_DrawBoxBorder(0, ...) plus Ui_DrawBoxInterior inset by one cell. Sizes are in 16-pixel cells: the strip under the far-zoom map is Ui_DrawBox(0, 412, 30, 4) = 480x64."
+    },
+    {
+      "addr": "0x004093E0",
+      "name": "Ui_DrawBoxStyle1",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "(x,y,cols,rows): Ui_DrawBoxBorder(1,x,y,cols,rows) then Ui_DrawBoxInterior(x+0x10,y+0x10,cols-2,rows-2); the whole body. Style 1 sibling of Ui_DrawBox (style 0); 24 painters call it."
+    },
+    {
+      "addr": "0x00409429",
+      "name": "Ui_DrawBoxStyle2",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "(x,y,cols,rows): Ui_DrawBoxBorder(2,...) then Ui_DrawBoxInterior(x+0x10,y,cols-2,rows-1); the whole body. Style 2 sibling of Ui_DrawBox (style 0)."
     },
     {
       "addr": "0x0040946D",
@@ -480,6 +571,13 @@
       "comment": "Lays the menu-bar titles out left to right from a 16-byte-per-item table, writing each measured x back into the table so the drop-downs know where to open. The campaign table is g_menuBarItems, three items, L2.eng groups 1, 2 and 3."
     },
     {
+      "addr": "0x0040C725",
+      "name": "Menu_DrawDropdown",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Screen 0x32 only: Ui_DrawBoxStyle2 sized by item count x 0x15, then each item with the hovered one marked."
+    },
+    {
       "addr": "0x0040C8D1",
       "name": "Menu_SaveBackdrop",
       "section": "ui",
@@ -539,6 +637,13 @@
       "comment": "Hit-tests the same table Widget_Draw draws, and runs the press timer and the auto-repeat counter. The hit box is a square of side record +0x06. Publishes record +0x10 and +0x14 into g_uiHotspotId and g_uiHotspotArg, then calls record +0x08."
     },
     {
+      "addr": "0x0040DD92",
+      "name": "Menu_TrackTitles",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "(menu,count): when the button is up, Menu_HitTitle opens the hovered menu (DAT_00522CAC). [I] rest not read."
+    },
+    {
       "addr": "0x0040DECA",
       "name": "Menu_OpenDropdown",
       "section": "ui",
@@ -553,6 +658,13 @@
       "confidence": "verified",
       "signature": "int Menu_HitTitle(short * items, int count)",
       "comment": "Hit-tests the menu-bar titles: record short 0 is x, short 1 the measured right edge Ui_DrawMenuTitles wrote back, short 2 is y, and the height is a fixed 12. Returns a 1-based index, 0 for a miss."
+    },
+    {
+      "addr": "0x0040E099",
+      "name": "Menu_HitItem",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "(items,count,x,y): 1-based index of the item (6-short stride, first short = row y) whose 0x90 x 0xF box holds the mouse, else 0."
     },
     {
       "addr": "0x0040E3EE",
@@ -650,6 +762,34 @@
       "comment": "The selected county's strip in the map sidebar: name, population, happiness, tax rate, ration achieved and the health thermometer for an owned county; frame 0x3A and the owner's name for one you do not hold. docs/screens-county.md section 2."
     },
     {
+      "addr": "0x0040FEC1",
+      "name": "County_ListFarmRows",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "(county): fills DAT_0053F690 with the rows the farm plate shows - cattle (1) if fieldsCattle or herd, grain (0) if fieldsGrain or grain, 2 if +0x204 - and counts them in DAT_00553C60."
+    },
+    {
+      "addr": "0x004100AF",
+      "name": "County_DrawLabourMark1",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Frame 0x4C, 0x29 or ... by labour[1] useful/workers/wanted at x 0x1E2. [I] rest not read."
+    },
+    {
+      "addr": "0x0041062E",
+      "name": "County_DrawIndustry0Delta",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Frame 0x2E at x 0x252 and industry[0].nextSeason as a delta at x 0x22C, next row. [I] which industry 0 is."
+    },
+    {
+      "addr": "0x004106C4",
+      "name": "County_DrawWeaponMark",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Frame weaponType+0x4F or +0x30 by labour[7] useful < workers, at x 0x256/600. [I] rest not read."
+    },
+    {
       "addr": "0x004107D1",
       "name": "CountyStrip_DrawCastleIcon",
       "section": "ui",
@@ -664,6 +804,13 @@
       "confidence": "verified",
       "signature": "void Minimap_Draw(int x, int y)",
       "comment": "Called as Minimap_Draw(0x1E0, 0x19). Blits the 128x128 g_minimapPixels raster at (x-2, y+3) = (478, 28), tints it through Minimap_DrawOverlay, draws a 29x123 Misc_cty strip at (x+0x83, y+7) and a mode badge at (x+5, y+5). The picture is drawn at (478,28) while Minimap_Click hit-tests (480,25): that 2/3 pixel disagreement is the original."
+    },
+    {
+      "addr": "0x00410C71",
+      "name": "Minimap_DrawFramed",
+      "section": "map",
+      "confidence": "verified",
+      "comment": "(realm,x,y): Blit_Raster(0x569590, x-2, y+3, 0x80, 0x80) then Minimap_DrawOverlay at the same place."
     },
     {
       "addr": "0x00410CBD",
@@ -776,6 +923,13 @@
       "comment": "The blacksmith body of the job popup, with smithy.pl8 and hearth.pl8 and the weapon's cost from g_weaponCost."
     },
     {
+      "addr": "0x00413526",
+      "name": "Forge_AnimFire",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "On g_pulse80 steps a frame counter 0..10 and draws it at (0x58,0x9D) from sheet DAT_004EABEC. [I] the forge fire, per crates county screen."
+    },
+    {
       "addr": "0x00413590",
       "name": "Panel_JobGrain",
       "section": "ui",
@@ -795,6 +949,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "The field-reclamation body of the job popup: how many fields are being reclaimed and how many seasons to the next one."
+    },
+    {
+      "addr": "0x00414220",
+      "name": "Castle_DrawStatusSelected",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Castle_DrawStatusBlock(g_selectedCounty,-0x20,0x40,0); the whole body."
     },
     {
       "addr": "0x00414660",
@@ -821,12 +982,26 @@
       "comment": "Screens 0x35 and 0x36, one painter with a mode flag: L2.eng group 40 index 0 \"Loading a conquest.\" or 1 \"Saving a conquest.\"."
     },
     {
+      "addr": "0x004148E4",
+      "name": "SaveLoad_DrawScreen",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "(title): Sprite_GenBox, group 0x28 index title as heading, Gfx_DrawBevel and three outline boxes, then SaveLoad_DrawStatus."
+    },
+    {
       "addr": "0x004149EC",
       "name": "SaveLoad_DrawStatus",
       "section": "ui",
       "confidence": "verified",
       "signature": "void SaveLoad_DrawStatus(void)",
       "comment": "The progress and error line of the load/save screens 0x35 and 0x36 - not the file browser. Switches on g_screenId to choose L2.eng group 40 string 2 'Loading game. Please wait.' or 3 'Saving game. Please wait.', and prints 4 'File error. Operation canceled.' on failure."
+    },
+    {
+      "addr": "0x00414E06",
+      "name": "SaveLoad_DrawList",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Clears the list well at (0x7E,0xAE), outlines it, then draws rows from DAT_004EA1A0 to DAT_004EB25C. [I] rest not read."
     },
     {
       "addr": "0x00414F68",
@@ -1023,6 +1198,13 @@
       "signature": "void Screen_RaiseArmy(void)"
     },
     {
+      "addr": "0x00418E2D",
+      "name": "Armoury_DrawBasket",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Frame from g_villani1Sheet at (0x66,10), then the levy basket count for g_armourySelectedType against the stock. [I] rest not read."
+    },
+    {
       "addr": "0x00418FC5",
       "name": "Armoury_RestoreWalkerStrip",
       "section": "ui",
@@ -1091,6 +1273,13 @@
       "comment": "Subtitles over the opening Smacker: a ladder on the frame number draws one of the eleven strings of L2.eng group 301 (\"1268 AD\", \"The king is Dead\", ...) centred at y 400, or clears the band with FUN_0040437D. Suppressed entirely in the English build - it copies L2.eng group 300 index 0 (seven bytes) and returns when it strcmps equal to \"English\". Sole consumer of groups 300 and 301; only caller is Smk_PlayLoop, via g_smack+0x374."
     },
     {
+      "addr": "0x0041A639",
+      "name": "Screen_DrawTurnTimer",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Draws the turn clock DAT_005440C8 at (0x1A8,0x1BA) over frame 0x60 when g_optTimeLimit > 0, no battle, and the screen allows it (table 0x004D2E80). Promoted from docs/hypotheses.json."
+    },
+    {
       "addr": "0x0041A734",
       "name": "Screen_DrawEndTurn",
       "section": "ui",
@@ -1138,12 +1327,26 @@
       "comment": "Screen 0x18. L2.eng group 33, \"Send supplies\", with county names from group 100."
     },
     {
+      "addr": "0x0041B032",
+      "name": "Screen_MapInfo",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Tile panel (Info_PickTileLayout) when nothing is picked, else UnitPanel_Draw; then Gfx_Present(1). Screen_Draw painter for g_screenId 0x04 (hypothesis, promoted)."
+    },
+    {
       "addr": "0x0041B19D",
       "name": "UnitPanel_Draw",
       "section": "units",
       "confidence": "verified",
       "signature": "void UnitPanel_Draw(void)",
       "comment": "Draws the info panel for the selected unit. Its Eng_DrawString (group, index) pairs name every unit type: L2.eng group 31 strings 0 'Merchant.', 5 'Revolting peasants.', 2 'Supplies for', 15/16 army; descriptions 12/13/14/15/16. For a merchant it also draws group 5 indexed by the route number - the merchant's name."
+    },
+    {
+      "addr": "0x0041BEFE",
+      "name": "Info_PickTileLayout",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Sets the info-panel layout id DAT_00553D2C from g_pickedTileFlags bits 0x20/4/0x10/0x40/0x80 and the picked county castle state."
     },
     {
       "addr": "0x0041C208",
@@ -1201,6 +1404,20 @@
       "comment": "Screen 0x45. Loads lom.256 and lom.pl8 and installs the palette: the Lords of Magic advertisement the front end links to, and nothing else."
     },
     {
+      "addr": "0x0041E61D",
+      "name": "FrontEnd_LoadPageArt",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Per g_setupPage loads its art; page 10 reads gateway.256 and gateway.pl8. [I] rest not read."
+    },
+    {
+      "addr": "0x0041E7E1",
+      "name": "FrontEnd_Draw",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Screen 0x1F: FrontEnd_LoadPageArt, then the painter for g_setupPage (1 FrontEnd_DrawTitle, 2 FUN_0041EC8A, ...)."
+    },
+    {
       "addr": "0x0041E962",
       "name": "LowMemory_Draw",
       "section": "ui",
@@ -1209,12 +1426,26 @@
       "comment": "The start-up low-memory warning: L2.eng group 297 index 0 centred as a heading at (0x50,0x38) and index 1 wrapped at (0x70,0x60) over a 0x1E x 0xB box, then presents immediately. Sole consumer of group 297; no caller in the corpus."
     },
     {
+      "addr": "0x0041EA14",
+      "name": "FrontEnd_DrawTitle",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Box at (0xA0,10), then L2.eng group 11 index 0 heading and index 1 body centred at x 0x80 width 0x180."
+    },
+    {
       "addr": "0x0041EF57",
       "name": "Setup_DrawShieldPage",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Setup_DrawShieldPage(void)",
       "comment": "Setup page 4 - the gateway and panels2 backgrounds under L2.eng 11.10, \"Choose your title and your shield.\" Draws the five shields and the name plate; the hotspots it registers are handled by Setup_ShieldClick. NOT the campaign page: Setup_ChooseCampaign is page 5's handler and page 4 is where it goes."
+    },
+    {
+      "addr": "0x0041F1DD",
+      "name": "Setup_DrawClaimedShields",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "For realms 1..5: unclaimed slot draws frame 2n+0xCB at x 0x70 + (n-1)*0x58, a local claim adds frame 0xD7. [I] rest not read."
     },
     {
       "addr": "0x0041F86D",
@@ -1231,6 +1462,20 @@
       "confidence": "verified",
       "signature": "void ScenarioList_Draw(void)",
       "comment": "The five-row scenario list box, with the selected row inverted and a proportional scrollbar thumb whose three segments are computed from the scroll offset, 5, and the total. Row text is L2.eng group 101, the 60 map slot names, but indexed *through* the byte table DAT_0050A460, so the visible order is not the group's order. What builds that table has not been read."
+    },
+    {
+      "addr": "0x004209C1",
+      "name": "Skirmish_DrawSides",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Both side names centred at (0xE,0x140) and (0x118,0x140), then group 11 index 0x17/0x18 labels swapped by DAT_0053EF5C."
+    },
+    {
+      "addr": "0x00421231",
+      "name": "Skirmish_DrawTitle",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Draws a battle title from FUN_0042AB82/FUN_0042AB15 centred at (0x25,0x78) width 0x179. [I] rest not read."
     },
     {
       "addr": "0x00421707",
@@ -1253,6 +1498,13 @@
       "confidence": "verified",
       "comment": "The siege preparation screen (0x1D): L2.eng group 83, the seasons remaining from +0x19C, and a count plus a percent-complete bar for each of the three siege-engine records at +0x182, +0x188 and +0x18E.",
       "signature": "void Screen_SiegePrep(void)"
+    },
+    {
+      "addr": "0x004224E7",
+      "name": "Battle_DrawTroopColumns",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "(unitA,unitB,x,y,font,mode): mode 0 draws per troop row (7) the count, icon and noun of each side, adding mercMen to the mercTroop row."
     },
     {
       "addr": "0x00422D22",
@@ -1283,6 +1535,20 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "Screens 0x28 and 0x29, and the frame around 0x2A: the battle sidebar - Misc sheet frames 0, 1 and 2 at x 480, the same 162-pixel column the campaign uses - the menu bar, and the field or siege palette chosen by g_battleIsSiege. The main loop treats 0x28.. 0x2A as one range."
+    },
+    {
+      "addr": "0x00423530",
+      "name": "Battle_DrawCornerHud",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Battle only, when g_battleMenA/B changed: frame 1 at (0x1E0,0x1C0) and frame 5 over it. [I] rest not read."
+    },
+    {
+      "addr": "0x004239D5",
+      "name": "Battle_ListSelectedMen",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Under 0x1E: walks men 1..0x50 owned and selected by the local player with men left, up to 0x50 of them. [I] rest not read."
     },
     {
       "addr": "0x00423B4F",
@@ -1353,6 +1619,13 @@
       "confidence": "verified",
       "signature": "undefined4 Sound_RestartSlot(int slot)",
       "comment": "SetCurrentPosition(0) then Play, unconditionally - the other verb, and the one that does NOT drop when busy. Widget_Test (0x0040DA1E) uses it for slot 1, click3.wav, on every widget press. Slot numbers are 1-based; see Sound_PlaySlot."
+    },
+    {
+      "addr": "0x004262CF",
+      "name": "Sound_PlaySlotWrap",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "Calls Sound_PlaySlot(slot); the whole body."
     },
     {
       "addr": "0x004262EB",
@@ -1616,6 +1889,20 @@
       "comment": "Draws an off-map surround cell: base bank, frame = the lattice cell value minus 0x0FFF0000, which is the background byte the map file stores in its 65x129 tail."
     },
     {
+      "addr": "0x0042AA90",
+      "name": "Battles_LoadEng",
+      "section": "fileio",
+      "confidence": "verified",
+      "comment": "Reads battles.eng into 0x0051FD50 and turns every byte < 0x20 into NUL; returns the length."
+    },
+    {
+      "addr": "0x0042AB15",
+      "name": "Battles_Seek",
+      "section": "text",
+      "confidence": "verified",
+      "comment": "(n): g_engCursor to the n-th NUL-terminated string of the battles.eng buffer 0x0051FD50, skipping control bytes."
+    },
+    {
       "addr": "0x0042AC0C",
       "name": "Troops_Load",
       "section": "battle",
@@ -1632,12 +1919,68 @@
       "comment": "Sets up a stand-alone skirmish: army records 1 and 2, loads BATTLES.ENG and the TROOPS table, fills both armies."
     },
     {
+      "addr": "0x0042B9C4",
+      "name": "Skirmish_BuildField",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Skirmish type DAT_0053E91C 0 or 1 -> Battlefield_BuildRandom, 2 -> Battlefield_BuildCastle(DAT_0056D590), else ..."
+    },
+    {
+      "addr": "0x0042BA40",
+      "name": "Skirmish_SetupEnemyLord",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Single player: realm DAT_0056D5CC gets a lord from the troops table row of the skirmish type, isHuman 0, name from L2.eng group 7, one county; shield swap on a clash. [I] the enemy side."
+    },
+    {
       "addr": "0x0042BF46",
       "name": "Skirmish_FillArmies",
       "section": "battle",
       "confidence": "verified",
       "signature": "void Skirmish_FillArmies(void)",
       "comment": "Copies one row of g_troopsTable into the two army records used by the battle, choosing the side by whether the player is the attacker and the difficulty column per player, then recomputes each army total men (+0x168) and autocalc strength."
+    },
+    {
+      "addr": "0x0042C64F",
+      "name": "Battle_WeighArmies",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Sums troop counts x g_troopStrengthWeight for two armies (DAT_00553EFC and +2). [I] what the 120 lines do with the sums."
+    },
+    {
+      "addr": "0x0042CC4A",
+      "name": "Score_AddGame",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "Increments games played DAT_00568988, adds DAT_0053E9B4 to the total and averages; bands by game count follow. [I] the rest of 137 lines not read."
+    },
+    {
+      "addr": "0x0042D179",
+      "name": "Score_Defaults",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Ten default scores from 0x004D49C8 and ten names from L2.eng group 7 (indices at 0x004D49F0) into the score table."
+    },
+    {
+      "addr": "0x0042D216",
+      "name": "Score_Load",
+      "section": "fileio",
+      "confidence": "verified",
+      "comment": "Reads score.dat: 0xA0 bytes to 0x0051FD00, 0x140 to 0x0051FBC0, then two counters; zeroes them when the file is missing."
+    },
+    {
+      "addr": "0x0042D2DC",
+      "name": "Score_Save",
+      "section": "fileio",
+      "confidence": "verified",
+      "comment": "Writes score.dat: 0xA0 bytes of 0x0051FD00, 0x140 of 0x0051FBC0, then three counters."
+    },
+    {
+      "addr": "0x0042D4AA",
+      "name": "Scenario_LoadTables",
+      "section": "fileio",
+      "confidence": "inferred",
+      "comment": "Reads 0x6E0 then 0xE4C bytes of the file named at 0x0053F5FC, then writes the per-row values /3 into the table at 0x00516B02. [I] which file."
     },
     {
       "addr": "0x0042D806",
@@ -1864,6 +2207,13 @@
       "comment": "Turns the desktop cursor position into g_mapScrollDir: an edge is the outermost pixel of the desktop (x == 0, x == GetSystemMetrics(0)-1, likewise for y), and 8 means no edge. Returns 0 without scrolling when the campaign map is at the far zoom, so the far view never moves."
     },
     {
+      "addr": "0x004323FE",
+      "name": "Hud_MapClick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Minimap_Click on the campaign map, BattleMap_Click in battle (g_battlePhase 2), else 0."
+    },
+    {
       "addr": "0x00432443",
       "name": "BattleMap_Click",
       "section": "ui",
@@ -1928,6 +2278,20 @@
       "comment": "The Start button. [V] In a single-player game it calls Game_NewGame and drops to g_screenId 0. It is also what the OK button on the conquest screen reaches while the campaign counter is below 8, which settles what carries across a campaign map boundary: nothing does. Each map of a campaign is a whole new game, and the only state that survives is g_campaignMap, g_campaignTrack and g_gameOutcome."
     },
     {
+      "addr": "0x00432B05",
+      "name": "Setup_NetMenuClick",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Hotspot 3 quits, 2 Net_JoinGame -> setup page 4 and s011_02.wav, 1 -> page 2. [I] which network page this is."
+    },
+    {
+      "addr": "0x00432CC8",
+      "name": "Setup_Page4Click",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Hotspot dispatch: 4 -> page 1, 1 -> page 5, 2 enumerates saves -> page 3. [I] page 4 per crates setup handlers."
+    },
+    {
       "addr": "0x00432EE6",
       "name": "Setup_ShieldClick",
       "section": "ui",
@@ -1987,6 +2351,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "File > Save (group 1 index 3). The same glob as Menu_LoadGame, then screen 0x36."
+    },
+    {
+      "addr": "0x00434174",
+      "name": "Setup_ListRowClick",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Hit test of the file list at x 0x80..0x1DF, y 0xB0..0x14F; row = top + (y-0xB0)/16, compared with strcmp to the current name."
     },
     {
       "addr": "0x00434308",
@@ -2255,6 +2626,34 @@
       "comment": "The handler of all seven records of g_nobleTabs, screen 0x20's tab row. Three statements: g_nobleCategory = g_uiHotspotId; g_redrawRequest = 2; Speech_PlayStandingsCategory(g_uiHotspotId). So a tab picks the category, repaints, and speaks the category's own name - unconditionally, including when the tab pressed is the one already showing."
     },
     {
+      "addr": "0x00435339",
+      "name": "Trade_StepQuantityUp",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "Steps DAT_00554170 by 1 (or 10 past 0x2C), capped at DAT_0057A0FC, and sets g_tradeCrowns from it."
+    },
+    {
+      "addr": "0x0043543D",
+      "name": "Trade_StepQuantityDown",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Mirror of Trade_StepQuantityUp: steps DAT_00554170 down by 1 (10 past 0x2C) to the floor DAT_0053E9E4."
+    },
+    {
+      "addr": "0x00435541",
+      "name": "Trade_QuantityToFloor",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Sets DAT_00554170 to the floor DAT_0053E9E4, g_tradeCrowns from it, and plays s068_02.wav when it turns positive."
+    },
+    {
+      "addr": "0x004355DB",
+      "name": "Trade_QuantityToMax",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Sets DAT_00554170 to the cap DAT_0057A0FC, g_tradeCrowns from it, and plays s068_01.wav when it turns positive. Mirror of Trade_QuantityToFloor."
+    },
+    {
       "addr": "0x00435673",
       "name": "Ale_PreviewGain",
       "section": "kingdom",
@@ -2400,6 +2799,13 @@
       "comment": "Widget 5, index 8 \"Ask ally to attack\": g_diploKind 6, county cleared."
     },
     {
+      "addr": "0x00436372",
+      "name": "Diplo_AdjustGift",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "Hotspot 1 adds 10, hotspot 0 subtracts 10 from g_diploGold, clamped to 0..realm gold. g_diploWidgets records 6 and 7, the minus/plus pair (hypothesis, promoted)."
+    },
+    {
       "addr": "0x00436408",
       "name": "Diplo_SendClicked",
       "section": "diplomacy",
@@ -2438,6 +2844,13 @@
       "confidence": "verified",
       "signature": "void Diplo_ReplyAttackClicked(void)",
       "comment": "Diplo_ReplyHelpClicked's twin for group 0xFB, 'Launch an attack.' -- table 0x004DDB20, sender from DAT_0057C964, kinds 9 and 10. The two functions differ in exactly those two bytes and the global the sender comes out of."
+    },
+    {
+      "addr": "0x004369BD",
+      "name": "Diplo_PickLordCard",
+      "section": "diplomacy",
+      "confidence": "verified",
+      "comment": "On a left press, the box (0x30, n*100+0x31, 0x52 x 0x4E) of each other living lord n sets g_diploTarget. Screen 0x0B after Widget_Test over g_diploWidgets (hypothesis, promoted)."
     },
     {
       "addr": "0x00436A88",
@@ -2517,6 +2930,13 @@
       "comment": "The garrison's Leave button, and the function that made the reachability tool earn its place. It has NO CALL ANYWHERE in the image -- not an E8, not an E9, not an absolute dword in code -- and it is live: its address sits in a hotspot table, which is how the button reaches it. A call scan alone would have declared a working control dead. See tools/oracle/reaches.js and docs/decisions.md C94."
     },
     {
+      "addr": "0x00437535",
+      "name": "Garrison_Eject",
+      "section": "units",
+      "confidence": "verified",
+      "comment": "(unit,county): Map_FindFreeTileNear the unit; none -> Army_Destroy; else moves it to that tile, clears unit.garrisonCounty and county.garrisonUnit, relinks it, and starts Battle_BeginFromCampaign if it was besieged."
+    },
+    {
       "addr": "0x004376BB",
       "name": "Msg_GarrisonSplitClicked",
       "section": "ui",
@@ -2573,6 +2993,27 @@
       "comment": "Releases any mercenary band, returns troops[1..6] to the realm's weapons[0..5] - troop type t maps to weapon slot t-1, the same off-by-one Levy_Init uses in the other direction - and returns the men to the county's population, its labour[8].workers and its popArmy. Then Army_Destroy, clear the garrison link, recompute the realm wage bill and re-run the labour allocator and Ration_Apply three times over. The county is the home county, or the current one when the home county has changed hands."
     },
     {
+      "addr": "0x00438990",
+      "name": "Info_TileHotspotTest",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Own county, flag 0x20, no unit, graphic not 0x17/0x18: Hotspot_Test on layout DAT_00553D2C. [I] rest not read."
+    },
+    {
+      "addr": "0x00438A91",
+      "name": "TilePanel_WidgetHit",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Widget_Test(8,0x20,g_tilePanelWidgets,DAT_00568474) != 0; the whole body."
+    },
+    {
+      "addr": "0x00438ACC",
+      "name": "Info_PickGarrison",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Unless g_mapZoom is 2, picks the picked county garrison unit and runs Screen_MapInfo."
+    },
+    {
       "addr": "0x00438BEC",
       "name": "Field_SetType",
       "section": "ui",
@@ -2593,6 +3034,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "The sidebar's lower plate: farm jobs left of x 560, industry right of it. Sets g_jobPanelJob and opens screen 0x0F."
+    },
+    {
+      "addr": "0x00439079",
+      "name": "Minimap_RightClickTest",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Hit test x >= 0x1DE, y 0x18..0x98 with the right button released and g_minimapMode set. [I] rest not read."
     },
     {
       "addr": "0x00439122",
@@ -2663,6 +3111,13 @@
       "confidence": "verified",
       "signature": "void Labour_Move(int county, int fromCluster, int toCluster, int workers)",
       "comment": "Moves workers between two labour slots of one county and re-runs the county's food and industry passes twice. The caller's count is selected icons times county +0xB8 (popBand), clamped to what the source slot holds - so one icon is one twenty-fifth of the population, rounded up."
+    },
+    {
+      "addr": "0x00439CC2",
+      "name": "County_IndustryForBuilding",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "(county,x,kind): kind 6/5/4 -> industry 0/3/1 when that resource is present, else 999. [I] rest not read."
     },
     {
       "addr": "0x00439DF0",
@@ -2827,6 +3282,13 @@
       "section": "ui",
       "confidence": "verified",
       "comment": "The sidebar's full-width bottom button: ends the local player's turn by writing 999 into the realm record's +0x00."
+    },
+    {
+      "addr": "0x0043AD25",
+      "name": "Gfx_ModeForScreen",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "Chooses 1 (Gfx_LoadCountyMode) or 2 by g_screenId class. [I] rest not read."
     },
     {
       "addr": "0x0043AE30",
@@ -3028,6 +3490,13 @@
       "comment": "A digit with no Ctrl. Copies a stored selection back, regroups it, and then PUTS THE CAMERA ON IT -- the function ends by scanning for the first selected figure and setting DAT_0055CE70 / DAT_005678A0 to its position minus seven. The camera jump is part of the arm, not a convenience."
     },
     {
+      "addr": "0x0043CAF4",
+      "name": "Map_LeftClick",
+      "section": "map",
+      "confidence": "inferred",
+      "comment": "Campaign map: Map_PickTile(1), stores the hover tile and its (x,y); at zoom 2 zooms in on it. [I] rest not read."
+    },
+    {
       "addr": "0x0043CE1A",
       "name": "Map_Click",
       "section": "ui",
@@ -3042,6 +3511,48 @@
       "confidence": "verified",
       "signature": "void Industry_ToggleFromMap(int county, int industry)",
       "comment": "Clicking an industry building on the campaign map switches that industry on or off: it XORs the enable byte at +0x297 + industry*0x18 - the byte Labour_Allocate gates each mining job on - and maps the industry to its labour slot (0 wood -> 6, 1 iron -> 4, 2 weapons -> 7, 3 stone -> 5). Argument 4 is castle building instead, and toggles +0x1B0. Map_Click picks the argument from a ladder on g_pickedTileGraphic: 0..3 iron, 4..6 stone, 7..9 weapons, 10..12 wood, 13..20 nothing, 21+ castle. [V] The last statement is Msg_Enqueue with id 0xE6 + industry*2 + on, and L2.eng groups 228..237 are ten consecutive ONE-STRING groups that land in exactly that order: 230/231 Forestry, 232/233 Mining, 234/235 Blacksmith, 236/237 Quarrying - which confirms the industry numbering 0 wood, 1 iron, 2 weapons, 3 stone independently of the labour ladder. The castle arm does not use industry*2 at all; it writes -2 or -1 by hand, landing on 228 Building off and 229 Building on. A player described this mechanic unprompted the day it was found - 'you can click on the forest or mine on the main map to turn them off for that county. Forestry off. Forestry On.' - and the shipped Readme.txt describes it a third time. See docs/kingdom.md 7.4.1."
+    },
+    {
+      "addr": "0x0043D5B7",
+      "name": "Skirmish_Start",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Single player or a host with a claimed side: Skirmish_SetupEnemyLord, FUN_0042C5AD, then Battle_Start."
+    },
+    {
+      "addr": "0x0043D649",
+      "name": "Setup_BackToMainMenu",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Leaves a network game, g_setupPage 1, clears battle phase, FUN_00499034, Res_LoadButtons(0), redraw."
+    },
+    {
+      "addr": "0x0043D9CD",
+      "name": "Skirmish_ScrollList",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Net command 0x53, then DAT_0053F64C += hotspot, clamped to 0..DAT_0053F0D4-6."
+    },
+    {
+      "addr": "0x0043DC1D",
+      "name": "Skirmish_PickBattleType",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Net command 0x53, skirmish type DAT_0053E91C = hotspot (3 -> 0 when DAT_0055CD34), row base 0x2C or 0x1C. [I] DAT_0053E91C 0/1 random field, 2 castle (Skirmish_BuildField)."
+    },
+    {
+      "addr": "0x0043DD83",
+      "name": "Skirmish_SwapSides",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Net command 0x53, DAT_0053EF5C toggles between the local player and DAT_0056D5CC, Troops_Load."
+    },
+    {
+      "addr": "0x0043DDF4",
+      "name": "Setup_OpenListPage",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Single player or host, with DAT_005653E8 > 0: remembers the page and opens setup page 0xD."
     },
     {
       "addr": "0x0043E668",
@@ -4981,6 +5492,13 @@
       "comment": "The seven estimate passes that fill every labour record's floor and ceiling: crowding, Field_ReclaimEstimate, Grain_LabourEstimate, Herd_LabourEstimate, four Industry_LabourEstimate calls and Castle_BuildEstimate."
     },
     {
+      "addr": "0x00448648",
+      "name": "Realm_LabourEstimateAll",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "(realm): Industry_LabourEstimate(county,2,7,0xF,4) for every county the realm owns."
+    },
+    {
       "addr": "0x004486A9",
       "name": "Realm_SnapshotLedger",
       "section": "kingdom",
@@ -5026,6 +5544,13 @@
       "confidence": "verified",
       "signature": "void Weather_UpdateAll(void)",
       "comment": "Dryness (+0x21D) += seasonal delta (Spring +8, Summer +24, Autumn +12, Winter -12) minus rand/8, doubled for one random county and half again for its neighbours; banded into +0x21B: <5 Flooding, <20 Storms, <70 Cloudy, <95 Sunny, else Drought, with Drought becoming Frost in Winter and Spring. Forced to Cloudy when Advanced Farming is off."
+    },
+    {
+      "addr": "0x00449D6E",
+      "name": "County_SeasonModifier",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "(county): in season 2 returns 4, 2 or -8 by county +0x21E; ... [I] rest not read."
     },
     {
       "addr": "0x00449EF3",
@@ -5210,6 +5735,13 @@
       "confidence": "verified",
       "signature": "void Grain_SeasonTick(void)",
       "comment": "The grain cycle. Entering Spring it sows (Grain_Sow, store -= seed); entering Summer and Autumn it grows; entering Winter it harvests into the store. Weather scales each stage. Also applies the rats/surplus random-event modifier at +0x1FC."
+    },
+    {
+      "addr": "0x0044CF6F",
+      "name": "Ratio_Band",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "(a,b): 2 if a<1 or b<1; else a/b <41 -> 3, <81 -> 7, else 11. Called with (crop[1], county+0x206)."
     },
     {
       "addr": "0x0044CFE1",
@@ -6345,6 +6877,27 @@
       "comment": "[I] on the name, [V] on the behaviour. Called from Merchant_Trade's tail only when cattle were BOUGHT: recounts the fields and, if fieldsCattle is 0, turns one field into pasture - a fallow one through FUN_0046958F, or failing that a grain one through FUN_0046965A, which also docks the standing crop by one field's share and steps +0x206 down. Both walk a per-county round-robin cursor at +0x15A bounded by +0x205 and give up after 20 tries. So buying cows into a county with no pasture creates the pasture, at the cost of a grain field if that is all there is. NOT REPRODUCED in crates/l2-kingdom: it needs the tile map, the cursor field and a save entry, and it is a rule of its own rather than part of the transaction."
     },
     {
+      "addr": "0x0046942C",
+      "name": "County_ClearFieldCrops",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "(county): each of the 20 g_countyFieldTiles whose content is 0x17 or 0x18 gets Terrain_Set(tile,0,0) ..."
+    },
+    {
+      "addr": "0x0046965A",
+      "name": "County_NextField15A",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "(county): advances +0x15A modulo +0x205, up to 20 steps, to the next non-empty g_countyFieldTiles slot. Sibling of County_NextField15B."
+    },
+    {
+      "addr": "0x00469A9C",
+      "name": "County_NextField15B",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "(county,..): advances +0x15B modulo +0x205, up to 20 steps, to the next non-empty g_countyFieldTiles slot."
+    },
+    {
       "addr": "0x00469B51",
       "name": "County_RecountFieldsAll",
       "section": "kingdom",
@@ -6359,6 +6912,13 @@
       "confidence": "verified",
       "signature": "void County_RecountFields(int county)",
       "comment": "Rebuilds the county's five field tallies from the map: walks its 20 slots in g_countyFieldTiles and buckets each tile's graphic byte out of g_tiles - 1 fallow (+0x1FF), 2..14 grain (+0x201), 15..22 pasture (+0x200), 0/23/24 to +0x203 and 25 and above to +0x204. The tallies are a cache; the map is the state. +0x204 is load-bearing: Field_SetType switches the reclamation labour share on exactly when it is non-zero. [V] Recomputed from g_countyFieldTiles and g_tiles in the England turn-one fixture, all five tallies reproduce in all fourteen counties - 168 field tiles - which pins every band boundary. Independently reproduced by the field-brush work on every other reachable save including the four-county battle map. It is also the first call in County_RefreshEstimates, so the herd's crowding estimate always runs against a field count refreshed one call earlier."
+    },
+    {
+      "addr": "0x00469D21",
+      "name": "County_SetTerrainRange",
+      "section": "map",
+      "confidence": "verified",
+      "comment": "(county,terrain,flag,lo,hi): every tile of the county with flag 0x20 and content in [lo,hi] gets Terrain_Set(tile,terrain,flag)."
     },
     {
       "addr": "0x00469E0E",
@@ -6758,6 +7318,13 @@
       "comment": "THE MESSAGE WINDOW, and twenty arms chosen by the record category byte at +0x11. Heading Eng_DrawString(group, 0), body (group, variant + 1) wrapped, Ui_OkButton in the corner at (x + w - 0x30, y + h - 0x30), Msg_PlayVoice on a per-category timer value. THREE OF ITS ARMS ARE NOT DRAWING AT ALL and none of them is visible from the category switch: category 0x0B opens with a test of g_realms[g_localPlayer].ally and calls Msg_Dismiss and returns when it is set, so an alliance offer that arrives when you already have an ally closes itself unseen; category 0x0E is THE ONLY WRITER OF DAT_0053F0C4 DURING PLAY and, with g_opponentsRemaining at zero, calls Msg_Enqueue(0, g_localPlayer, 0xE1, 0, 0x0E, ...) -- it pushes group 225 onto the ring it is being drawn from, which is the mainline victory; category 0x04 clamps g_messageTimer to 100 and draws no button, so the floating tip is the one message a player cannot close. Categories 0x0D and 0x0E also dismiss THEMSELVES and play a Smacker when g_optAnimations is 1. Its last two statements copy Ui_OkButton's stashed position into DAT_005681DC / DAT_0056950C, which is where Msg_HandleInput's 48x48 hit box comes from."
     },
     {
+      "addr": "0x00475B41",
+      "name": "Msg_PickLordFilm",
+      "section": "diplomacy",
+      "confidence": "inferred",
+      "comment": "(realm,kind): kind 0xE1 picks a fixed film name; otherwise a lord film chosen by g_realms.lord and years since DAT_00553228 (<6, <12, ...) is copied to 0x004F0340."
+    },
+    {
       "addr": "0x00475D73",
       "name": "Msg_LoadPortrait",
       "section": "diplomacy",
@@ -6806,6 +7373,13 @@
       "comment": "THE FIRST THING Screen_FrameInput DOES, on every screen id there is, and the arm that swallows a click before any screen sees it. Returns 0 when it wants nothing. Its order is not the order a reader expects: a RIGHT release dismisses whatever is up, with no rectangle and no category test in front of it -- so right-clicking an alliance offer is neither yes nor no; then five Widget_Test calls, one per prompt (category 0x11 -> 0x004DDB50, category 10 -> 0x004DDA90, category 0x0B -> 0x004DDAC0, and category 0x0C's groups 0xF8/0xFA/0xFB -> 0x004DDAC0/0x004DDAF0/0x004DDB20); then a LEFT press inside a 48x48 box at (DAT_005681DC - 0xC, DAT_0056950C - 0xC), which is TWICE the 24x24 picture Ui_OkButtonClicked hit-tests everywhere else. Those two globals are last frame's copy of where Msg_DrawWindow's Ui_OkButton call put itself, so THE DRAW CREATES THIS HOTSPOT and a category that draws no button has no left-click target at all."
     },
     {
+      "addr": "0x00476A5D",
+      "name": "Tip_ResetAll",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "Clears the 20 tip-shown flags at DAT_004F0360, the saved screen DAT_004F0350, and re-arms DAT_004F0358 = 0x14. [V] the state Tip_Show writes."
+    },
+    {
       "addr": "0x00476AA7",
       "name": "Tip_Update",
       "section": "ui",
@@ -6822,6 +7396,13 @@
       "comment": "Shows one first-time tip screen: saves g_screenId, switches to screen 0x27, marks g_tipShown[group] and posts the group with the category from g_tipCategory[group]. [V] Fourteen literal groups reach it - 200, 201, 202, 206..212, 214, 215, 217, 218 - and each is an L2.eng group whose label names the screen it belongs to. See docs/formats/eng.md 5.3."
     },
     {
+      "addr": "0x00476E21",
+      "name": "Tip_Close",
+      "section": "ui",
+      "confidence": "verified",
+      "comment": "When g_screenId is 0x27 restores the screen Tip_Show saved at DAT_004F0350 (0x27 -> 0), re-arms DAT_004F0358 = 0x14, redraw. [V] the inverse of Tip_Show."
+    },
+    {
       "addr": "0x00476E95",
       "name": "ToolTip_Draw",
       "section": "ui",
@@ -6836,6 +7417,27 @@
       "confidence": "verified",
       "signature": "void ToolTip_Drop(void)",
       "comment": "If a tip is up (DAT_004EAC00), zeroes it and restores the 0x30 x 0x28 background saved under it. Screen_Draw's first call, so any repaint takes the tip away."
+    },
+    {
+      "addr": "0x004770B8",
+      "name": "Tooltip_RestoreUnder",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "On mouse change: clamps, then copies the saved 0x30 x 0x28 block at 0x004E6980 back to the screen. [I] rest not read."
+    },
+    {
+      "addr": "0x00477131",
+      "name": "Tooltip_Poll",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "After 1 s without mouse change calls FUN_004772B6 and places the box at mouse x + 0x1E. [I] rest not read."
+    },
+    {
+      "addr": "0x00477249",
+      "name": "Tooltip_ClampPos",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Clamps DAT_004EB268 to 0..0x1B8 and DAT_004EB270 likewise. [I] tooltip position, from Tooltip_RestoreUnder."
     },
     {
       "addr": "0x004772B6",
@@ -6875,6 +7477,13 @@
       "section": "sound",
       "confidence": "verified",
       "comment": "THE BATTLE MUSIC PICKER. Alternates within a pair rather than choosing: a field battle flips g_battleTrackField between battle1 and battle2, a siege flips g_battleTrackSiege between battle3 and battle4, and DAT_0057A0F0 selects battle4/battle5. The counter is stepped BEFORE use from zero, so the first battle of a session plays the second track of its pair. Reached from Opt_ToggleMusic when g_battlePhase is 2. Its opening branch tests whether battle2.wav EXISTS and is dead on a complete install."
+    },
+    {
+      "addr": "0x00477C89",
+      "name": "Battle_EnterScreen",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "g_screenId 0x29, g_battlePhase 2, g_castleLevel from the battle county castle state (building, degraded +0x1F9, or castleType-1). [I] rest not read."
     },
     {
       "addr": "0x00477DFC",
@@ -6962,6 +7571,13 @@
       "confidence": "verified",
       "signature": "void Battle_ChargeAll(uint player)",
       "comment": "Every figure of this player whose troopType is under 7 -- so no siege engine and no oil -- gets state 8, free pursuit, and its unit gets halted = 1, which switches the every-500-frame reform off. NOT Order_ChargeNearest (0x0048C8AF), which is the AI's and also clears the withdraw flag and the figures' targets."
+    },
+    {
+      "addr": "0x0047A814",
+      "name": "BattleMan_PourOil",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Missile_Spawn at (x,y) with kind byte 7, four Missile_Step calls, state 2, face the target. [I] kind 7 = boiling oil per crates/l2-game battle sfx notes."
     },
     {
       "addr": "0x0047AAA3",
@@ -7058,6 +7674,13 @@
       "confidence": "verified",
       "signature": "void Wall_Collapse(int cellOffset)",
       "comment": "A wall cell comes down under catapult fire. Reached only from Missile_Step, when a class-3 shot lands on a cell whose elevation is 1..3 and whose surface is 4, and only once that cell's terrain byte - counted up one per shot - passes 0x0F. Writes surface = 9, flags = 2, ELEVATION = 0 (a breach is rubble at ground level, not a step, which matters because a step of more than one level is refused), flags2 &= 0xE3 | 4. Then, for each of the four orthogonal neighbours still at surface 5 - the bailey, i.e. inside (C99) - it adds one to g_siegeBreachScore, calls FUN_0048EE46 on that neighbour, and adds one to DAT_0056D648."
+    },
+    {
+      "addr": "0x0047E1DC",
+      "name": "Battlefield_SetCellFrame",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Cell DAT_005533CC gets frame DAT_005C9A84 & 0xF and flags2 bits 0x1C set to 4."
     },
     {
       "addr": "0x0047E230",
@@ -7193,6 +7816,13 @@
       "confidence": "verified",
       "signature": "void BattleUnit_Create(int siegePlacement, int troopType, int outnumbered, int side, int men, int owner, int mercenary)",
       "comment": "Allocates a battle unit and fills it with ceil(men / g_menPerFigure) figures laid out in a rectangle. Sets the unit category from the troop type, and copies the troop and missile stats into every figure."
+    },
+    {
+      "addr": "0x00480F8B",
+      "name": "BattleMen_AssignSheets",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "For men 1..0x50 with an owner, clears then sets spriteSheet and horseSheet by troopType and sheetBank."
     },
     {
       "addr": "0x0048143B",
@@ -7455,6 +8085,27 @@
       "comment": "Slot 17 of g_manStateTable, the state Formation_SendFigure gives a bow or crossbow figure that has something standing on its destination. The largest state handler in the battle at 2340 bytes; it drives the missile record fields directly."
     },
     {
+      "addr": "0x0048551D",
+      "name": "Bridge_Collapse",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Plays dest_ind.wav, damages (x,y) by 0x78 and rings out to radius 5 over surface-7 cells with falling strength. [I] meaning of surface 7. [I] called only from Cell_TryEnter on surface 7 with figure side 4 (hypothesis Bridge_Cross); the body is a blast, not a crossing."
+    },
+    {
+      "addr": "0x00485675",
+      "name": "Battle_SpawnKind5",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "(x,y,strength): Missile_Spawn(1,x,y,x,y) with kind byte 5, offset (-0x10,-0x18), life 20000. [I] a debris/flame effect; called by Bridge_Collapse."
+    },
+    {
+      "addr": "0x00485861",
+      "name": "Battle_SpawnKind5b",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "Battle_SpawnKind5 with the Missile_Spawn result checked first."
+    },
+    {
       "addr": "0x00485BB1",
       "name": "Missile_UpdateAll",
       "section": "battle",
@@ -7587,6 +8238,27 @@
       "section": "battle",
       "confidence": "verified",
       "comment": "The a3 twin of Anim_DrawBowA2: N 13 -> 8, curves g_drawBowCrossbowA3 / g_drawBowArcherA3, base +10 -> +6. Unreferenced."
+    },
+    {
+      "addr": "0x00488436",
+      "name": "Anim_EngineMove",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "troopType 8 only: picks a frame index from dirc x polarDirc. [I] same siege-tower reading as Tower_DockOnWall. [I] the troopType > 6 arm of every a2 walk handler (hypothesis, promoted)."
+    },
+    {
+      "addr": "0x00488793",
+      "name": "Anim_EngineHold",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "troopType 10 cycles animPhase 0..0x2F and uses animPhase/8 + 0x23; 9 -> 0; ... [I] rest not read. [I] the troopType > 6 arm of the four stationary a2 handlers (hypothesis, promoted)."
+    },
+    {
+      "addr": "0x0048895E",
+      "name": "Anim_EngineWork",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Picks a sprite frame by troopType: 10 -> polarDirc/2 + 0x2A, 9 -> 0, 8 -> polarDirc/2 + 1, 7 -> dirc + 5, ... [I] rest not read. [I] called by the engine fire/work/ram/dead states (hypothesis, promoted)."
     },
     {
       "addr": "0x00488DFE",
@@ -8117,6 +8789,13 @@
       "comment": "When a figure walks into a friendly figure of the same troop type it swaps places with it, carrying position, cell, hits and men across. Returns 2 on a swap."
     },
     {
+      "addr": "0x004904EC",
+      "name": "BattleMan_PickStepDir",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Dir_FromDelta toward (tgX,tgY), then up to five BattleMan_TryStepDir attempts; returns the first direction that succeeds. [I] the rotation between attempts is not read here."
+    },
+    {
       "addr": "0x00490616",
       "name": "BattleMan_TryStepDir",
       "section": "battle",
@@ -8154,12 +8833,26 @@
       "comment": "The diagonal twin of Cell_TryEnterEngineOrtho, reading g_engineEdgeDiag. Same return vocabulary, same ram-only 6."
     },
     {
+      "addr": "0x00491492",
+      "name": "Tower_DockOnWall",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "troopType 8 only: when the cell ahead is wall (elevation 2) the man is destroyed and a 3x3 ramp from g_towerRampFrames is laid. [I] troopType 8 = siege tower, from the frame table name."
+    },
+    {
       "addr": "0x00491A34",
       "name": "BattleMan_NextPathDir",
       "section": "battle",
       "confidence": "verified",
       "signature": "uint BattleMan_NextPathDir(int man)",
       "comment": "Returns the direction towards the figure current waypoint and consumes it. The list is walked from the end, because Path_Extract builds it backwards from the destination."
+    },
+    {
+      "addr": "0x00491B1F",
+      "name": "BattleMan_StepCell",
+      "section": "battle",
+      "confidence": "verified",
+      "comment": "(man): clears the man from his cell figure slot, then moves mapX/mapY and cellOffset (row 0x280) one step along dirc."
     },
     {
       "addr": "0x00492C8B",
@@ -8350,12 +9043,26 @@
       "comment": "Pulls a move destination back so the unit halts (range - 3) cells from its target, leaving the result in g_foundTileX / g_foundTileY. This is how missile units stop at firing range instead of closing."
     },
     {
+      "addr": "0x004976A1",
+      "name": "Game_StartTurnClock",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "Stamps timeGetTime (0 single player), adds 10 to DAT_005440C8, sets every living realm aiStep 1, restores g_screenId. [I] rest of 64 lines not read."
+    },
+    {
       "addr": "0x00497879",
       "name": "Campaign_EnterConquest",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Campaign_EnterConquest(void)",
       "comment": "The step out of a finished game and into screen 0x1C. [V] Increments the campaign counter g_campaignMap ONLY when g_gameOutcome is 10, which is the whole rule for replaying a lost map; copies g_scenarioIndex into g_campaignLastMap so the interstitial can name the country just fought over; calls Campaign_LoadEntry to bring in the next row; sets g_screenId = 0x1C. Reached from Msg_Dismiss when the dismissed message left the outcome at 10 or 11."
+    },
+    {
+      "addr": "0x004978AD",
+      "name": "Setup_InitSinglePlayer",
+      "section": "ui",
+      "confidence": "inferred",
+      "comment": "Game_InitRealms, g_localPlayer = 1 with shield 1, FUN_0049BAE9(0,1,..), Realms_AssignLords. [I] the single-player path; called from Setup_NetMenuClick."
     },
     {
       "addr": "0x00497CED",
@@ -8394,6 +9101,13 @@
       "confidence": "verified",
       "signature": "undefined4 Gfx_LoadCountyMode(void)",
       "comment": "Loads the campaign map artwork. base = (g_mapZoom == 2) ? 0x20 : 0, plus (g_season-1)*8; then eight consecutive g_resourceTable entries go to g_bankBase, g_bankMtns, g_bankRoads, g_bankTown, g_bankCastle, g_spriteSheetA, g_spriteSheetB and g_flagsSheet in that order - independent confirmation of the bank order in maps-layers.md section 1.1. Misc_cty.pl8 follows into g_miscCtySheet."
+    },
+    {
+      "addr": "0x00498DCB",
+      "name": "Battle_LoadSheets",
+      "section": "battle",
+      "confidence": "inferred",
+      "comment": "Reserves 75000 scratch, loads t2_spri.pl8 and misc_ske.PL8 (g_miscCtySheet), branching on the skirmish type DAT_0053E91C. [I] rest not read."
     },
     {
       "addr": "0x00499859",
@@ -8554,6 +9268,13 @@
       "comment": "The starting position, from Game_NewGame after Map_InitScenario. Every county takes grain, herd, population, health and happiness from g_countyStatus[g_startCountyStatus]; every realm with a lord takes its start county out of g_playerStartTable, gold from g_startingGoldChosen, 50 each of iron, wood and stone, weapons from g_startArmoury[g_startWeapons] with difficulty * 20 extra in slot 4 for an AI, a garrison raised by Army_Create from g_startTroops[g_startArmySize], and the castle from g_startCastle. A realm with no lord is skipped entirely. Finally every unowned county gets 100 more grain."
     },
     {
+      "addr": "0x0049C995",
+      "name": "Game_InitRealms",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Turn phase 1, then realms 1..5 get shieldIndex = realm and gold = g_startingGoldChosen."
+    },
+    {
       "addr": "0x0049CAAA",
       "name": "Realms_AssignLords",
       "section": "diplomacy",
@@ -8599,6 +9320,13 @@
       "confidence": "verified",
       "signature": "void Ai_ManageCountyFarms(uint realm)",
       "comment": "For each county this AI holds: order more fields reclaimed if it is short for its population - none at all, or under 3 with over 200 people, under 5 over 400, under 7 over 600, under 9 over 1000, all of which ask for one; over 1200 people asks for two - then copy the lord's farmStyle from g_aiPersonality into county +0x1FE and lay the fields out by it, then Labour_Allocate. [V] Only styles 0, 1 and 9 are dispatched, and county +0x1FE in the England turn-one fixture holds only 0, 1 and 9."
+    },
+    {
+      "addr": "0x0049DF48",
+      "name": "Ai_ManageAllFarms",
+      "section": "kingdom",
+      "confidence": "verified",
+      "comment": "Ai_ManageCountyFarms for every living (strength != 0) non-human realm 1..5."
     },
     {
       "addr": "0x0049DFC6",
@@ -8905,6 +9633,20 @@
       "comment": "The wait predicate for turn phases 3 and 6. Walks slots 1..150 and, for every unit of this kind with moving != 0, sets moving = 2 and returns 1. It is not a read-only query: it promotes 'ordered' (1) to 'stepping' (2) as well as reporting that the phase is still busy, so one call both starts a phase's units and waits on them."
     },
     {
+      "addr": "0x004A5003",
+      "name": "County_RaiseDefaultLevy",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "(county): Levy_Init at the percentage PctOf(0x32,population), then Army_Create for the owner at its happiness cost. [I] rest not read."
+    },
+    {
+      "addr": "0x004A50AE",
+      "name": "County_RaiseLevy",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "(county,pct,minPop,mode): refuses when population < minPop, else Levy_Init(county, Pct(population,pct)); mode 2 gives the owner 500 of weapons 1,3,4. [I] the rest of the 84 lines not read."
+    },
+    {
       "addr": "0x004A545F",
       "name": "Levy_EquipSlot",
       "section": "units",
@@ -9023,6 +9765,13 @@
       "confidence": "verified",
       "comment": "Decides which of three ways a battle is settled, and is called by all three battle entries (Army_AttackCounty, the army-versus-army path FUN_004A7158, and Siege_LaunchAssault). Returns 0 when NEITHER side's ownerIsHuman is set - an AI-versus-AI battle is autocalculated with no screen at all. Otherwise it returns 1, sets g_battleBothHuman when both sides are human, records which player owns the take-the-field choice in g_battleChoiceOwner, and copies both owners and shields for the screens; each caller then tests (g_optFightHumansOnly == 0 && !bothHuman) to autocalc straight to the report screen 0x13, or pushes the prompt screen 0x12 and asks. There is no distance test, no army-size cutoff and no separate quick-battle toggle on this path.",
       "signature": "int Battle_ChooseSettlement(void)"
+    },
+    {
+      "addr": "0x004A6C68",
+      "name": "Army_ContestCounty",
+      "section": "units",
+      "confidence": "inferred",
+      "comment": "(unit,county): an army (kind 1) entering a county it does not own, undefended or garrisoned by an ally, spends 8 moves and sets g_battleCounty, not a siege. [I] rest of 97 lines not read."
     },
     {
       "addr": "0x004A7158",
@@ -9296,6 +10045,13 @@
       "signature": "void Levy_Init(int county, int men)"
     },
     {
+      "addr": "0x004AABD8",
+      "name": "Levy_LoadTroopFilm",
+      "section": "kingdom",
+      "confidence": "inferred",
+      "comment": "(county,type): when 0<type and the owner has fewer than the levy basket asks, loads trp_xb_<shield>_<type>.pl8 (fallback trp_xb_b) into DAT_0057A0C0. [I] shown as the walking soldier."
+    },
+    {
       "addr": "0x004AAD07",
       "name": "Battle_AutoResolve",
       "section": "units",
@@ -9334,6 +10090,13 @@
       "confidence": "verified",
       "comment": "Called when a unit crosses a county border: sets +0x10, fires County_GreetArmy for a neutral county, and for an owned one sends message 0xAA (L2.eng group 170, the sixteen invasion taunts) when that county is the unit's declared destination.",
       "signature": "void Unit_EnterCounty(int unit, uint county)"
+    },
+    {
+      "addr": "0x004ABD0F",
+      "name": "Unit_SetCounty",
+      "section": "units",
+      "confidence": "inferred",
+      "comment": "(unit,county): sets unit.county; on entering an owned county whose happiness < 10, Msg_Enqueue 0x9A and County_RaiseRevolt. [I] rest of 45 lines not read."
     },
     {
       "addr": "0x004ABF77",
@@ -9693,6 +10456,20 @@
       "comment": "Copies 256 six-bit RGB triples into the display palette, widening by multiplying by 4, then forces entry 0 to black."
     },
     {
+      "addr": "0x004B0CB4",
+      "name": "Pal_Load256",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(handle,mode,rgb): copies 256 RGB triples into DAT_004EA530; mode 1 keeps bytes as read, otherwise scales 6-bit VGA values x4."
+    },
+    {
+      "addr": "0x004B11CE",
+      "name": "Pal_ApplyAndRepaint",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Palette_Set(0x004E6600), FUN_004B1867, Gfx_Repaint; the whole body."
+    },
+    {
       "addr": "0x004B1208",
       "name": "Gfx_PresentTiled",
       "section": "platform",
@@ -9709,12 +10486,26 @@
       "comment": "One unconditional Blt of the back buffer to g_presentRect. NO CALLERS; Gfx_Present has the same call inside its budget check."
     },
     {
+      "addr": "0x004B1310",
+      "name": "Gfx_DimToGrey",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "Builds a 256-entry table 0x3F - (r+g+b)/3/8 at 0x004EAC60, then remaps the 0x4B000-byte back buffer through it. [I] rest not read."
+    },
+    {
       "addr": "0x004B1CF3",
       "name": "Cursor_Set",
       "section": "ui",
       "confidence": "verified",
       "signature": "void Cursor_Set(int kind)",
       "comment": "The only caller of SetCursor in the binary. Maps a cursor KIND onto one of the eight HCURSORs App_InitWindow loaded: 0 and 13 -> g_cursorArrow, 2 -> g_cursorQuestion, 4 -> g_cursorCross, 5 -> g_cursorCrossTarget, 6 -> g_cursorRing, 12 -> g_cursorPeasant, 14 -> g_cursorScythe, anything else -> g_cursorArrow. Stores the choice in g_cursorCurrent. Its ONE caller is Battle_Frame, the whole-game per-frame function, which outside the battle range 0x28..0x2A just passes g_cursorByScreen[g_screenId] and inside it runs a hand-written ladder on what is under the pointer. So the pointer is re-chosen from scratch every frame and nothing else in the game touches it. docs/screens.md section 9."
+    },
+    {
+      "addr": "0x004B1DE0",
+      "name": "Stub_004B1DE0",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "Empty body; called before many redraws."
     },
     {
       "addr": "0x004B1DEB",
@@ -9837,6 +10628,13 @@
       "comment": "[V] The window procedure - DefWindowProcA at the tail, four parameters, PostQuitMessage on WM_DESTROY. WM_PAINT routes to Smk_OnPaint while a movie is up and to Gfx_Repaint otherwise; WM_SIZE and WM_MOVE recompute g_presentRect from GetClientRect+ClientToScreen (windowed) or GetSystemMetrics (full-screen) and log \"OK :Minimizing.  \" or \"OK :Window moved.  \"; WM_ACTIVATEAPP maintains g_windowActive and logs \"OK :Active.  \" / \"OK :Not active.  \"; WM_KEYDOWN is the keyboard's front door, with Escape, Return, Backspace and F1 handled here before anything else sees them. Its display-reacquisition arm is dead - see g_displayLost and docs/bugs.md B77."
     },
     {
+      "addr": "0x004B3571",
+      "name": "Film_PlayOrSkip",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "(skip): 1 sets DAT_005C9274; else Smk_Play(0x004E24C0,0x28,0x50,...) and sets it on failure. [I] which film."
+    },
+    {
       "addr": "0x004B35C1",
       "name": "Msg_PlayVoice",
       "section": "diplomacy",
@@ -9845,12 +10643,68 @@
       "comment": "Maps an L2.eng group to a .wav filename in one of three tables. Groups 170..197 - the diplomatic letters - index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10, giving Kt/Bn/Ct/Bp <group>_<1..4>.wav for the Knight, Baron, Countess and Bishop. Groups 100..169 and 200..284 have one system file each. All 448 lord files exist in the install."
     },
     {
+      "addr": "0x004B36C0",
+      "name": "Sound_PlayS010",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "(i): for 0<=i<16 plays g_msgVoiceS010 + i*0x10 as a one-shot."
+    },
+    {
+      "addr": "0x004B3714",
+      "name": "Sound_PlayS016",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "(i): for 0<=i<16 plays S016_01.wav + i*0x10 (a 16-byte name table) as a one-shot."
+    },
+    {
       "addr": "0x004B3994",
       "name": "Speech_PlayStandingsCategory",
       "section": "sound",
       "confidence": "verified",
       "signature": "void Speech_PlayStandingsCategory(int category)",
       "comment": "if (-1 < n && n < 9) Sound_PlayFile(0x004E2168 + n * 0x10, 1, 0) - the spoken half of L2.eng group 35, S035_01..08, file named after group and index. Two callers, Court_OpenGreatestNoble and GreatestNoble_SelectCategory, both passing g_nobleCategory, which is 0..6."
+    },
+    {
+      "addr": "0x004B39E8",
+      "name": "Castle_PlayDamageSound",
+      "section": "sound",
+      "confidence": "inferred",
+      "comment": "(county): degraded castle with +0x1D0 or +0x1D4 zero picks S075_02.wav or a sibling. [I] rest not read."
+    },
+    {
+      "addr": "0x004B3ACD",
+      "name": "Sound_PlayS201Seq",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "(event): next entry of the 5-byte row at 0x004E1E40 (cursor DAT_0052F004); when no one-shot is busy and 1 s has passed, plays S201_02.wav table entry n-1 (n < 0x1F)."
+    },
+    {
+      "addr": "0x004B3B92",
+      "name": "Sound_PlayS246",
+      "section": "sound",
+      "confidence": "verified",
+      "comment": "(i): for 0<=i<5 stops the one-shot and plays S246_02.wav + i*0x10."
+    },
+    {
+      "addr": "0x004B3E51",
+      "name": "Mem_Zero",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(dst,len): zero fill, 64 bytes per unrolled step then the tail."
+    },
+    {
+      "addr": "0x004B3F0A",
+      "name": "Gfx_GrabRect",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(dst,..): copies g_spriteHeight rows of g_spriteWidth dwords from the back buffer at (g_drawX,g_drawY) into dst."
+    },
+    {
+      "addr": "0x004B414A",
+      "name": "Gfx_FillSpriteRect",
+      "section": "platform",
+      "confidence": "verified",
+      "comment": "(x,y,colour): writes the colour byte, replicated to a dword, into the back buffer at (x,y) for g_spriteHeight rows of g_spriteWidth x 16 bytes."
     },
     {
       "addr": "0x004B43B1",
@@ -10235,6 +11089,13 @@
       "comment": "Screen 0x13s auto-dismiss: 5000 ms after _DAT_005689A0, and immediately when two or more sieges are pending in a siege. Returns 0 unconditionally when g_multiplayer is clear."
     },
     {
+      "addr": "0x004BC020",
+      "name": "Grid_Configure",
+      "section": "platform",
+      "confidence": "inferred",
+      "comment": "Stores eleven layout parameters (cell size, halves, quarter, square) in globals at 0x004E5D3C..0x004E6578. [I] an 80 x 80 grid per crates battle map."
+    },
+    {
       "addr": "0x004BC107",
       "name": "Overview_SetSheets",
       "section": "battle",
@@ -10302,6 +11163,13 @@
       "confidence": "verified",
       "signature": "void Missiles_DrawCellList(int head)",
       "comment": "Every missile standing on one cell, walking cell byte +6 through missile +0x04 and giving up after ten - the same ten Missile_LinkToCell walks. Screen position is origin + (missile +0x0A, +0x0C) - camera * 0x20 + tileSize/2, with NO sprite-width centring: a missile's position is in thirty-seconds of a cell and a battle tile is 32 pixels, so the two units are one. Frame is missile +0x12, from g_missileSheet. Class 7, the boiling-oil stream, is stepped over and never drawn; class 5 takes one of g_fireJitter's sixteen offsets first. docs/battle.md 13.11."
+    },
+    {
+      "addr": "0x004CFB08",
+      "name": "Map_TickFrame",
+      "section": "map",
+      "confidence": "inferred",
+      "comment": "Counts frames (DAT_0057D378, DAT_0057D388) unless under 16 ms since the last GetTickCount, then Map_DrawFrame. [I] rest not read."
     }
   ],
   "globals": [

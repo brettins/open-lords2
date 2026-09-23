@@ -68,29 +68,12 @@
   "imageBase": "0x00400000",
   "functions": [
     {
-      "addr": "0x0041A639",
-      "name": "Screen_DrawTurnTimer",
-      "section": "ui",
-      "confidence": "subject",
-      "comment": "The per-turn countdown, drawn from the frame loop: Misc_cty frame 0x60 at (404, 430), then the seconds left centred in 50 px at (424, 442), trailing space from DAT_004D41D0. docs/decisions.md C158.",
-      "basis": "crates/l2-game/src/turn_clock/mod.rs quotes the draw: guard g_battlePhase == 0 && 2 < g_appPhase && 0 < DAT_005440C8 plus the screen table at DAT_004D2E80, then Ui_DrawNumberRight(DAT_005440C8, ' ', &DAT_004D41D0, 0x1A8, 0x1BA, 0x32, &g_fontBody, 0x3F).",
-      "caveat": "Name suggested by the coordinator at merge, not used or verified by the branch, which calls it by its address throughout. The address and the behaviour are the branch's; the name is a hypothesis."
-    },
-    {
       "addr": "0x0041AEA2",
       "name": "SendSupplies_DrawPanel",
       "section": "ui",
       "confidence": "role",
       "basis": "Called by Screen_DrawWidgets for screen 0x18, whose painter Screen_SendSupplies draws L2.eng group 33, 'Send supplies'.",
       "comment": "The send-supplies overlay."
-    },
-    {
-      "addr": "0x0041B032",
-      "name": "Screen_MapInfo",
-      "section": "ui",
-      "confidence": "role",
-      "basis": "The painter Screen_Draw dispatches for g_screenId 0x04, which Screen_FrameInput (0x0042FF10) sets after a map click that picked something. Branches to UnitPanel_Draw when a unit is picked and FUN_0041BEFE otherwise, on the same g_pickedTileFlags bits Map_Click uses.",
-      "comment": "docs/screens-county.md calls this 'the map information panel'; nothing has read what it draws."
     },
     {
       "addr": "0x00428471",
@@ -132,22 +115,6 @@
       "confidence": "role",
       "basis": "Called by Screen_DrawWidgets for both 0x2E and 0x2F, the two Battle Master screens, and by Menu_NewGame before it opens its confirmation box.",
       "comment": "Shared overlay for the two score screens. Being called from Menu_NewGame as well means the role may be wider than 'the ratings panel' - read it before promoting."
-    },
-    {
-      "addr": "0x00436372",
-      "name": "Diplo_AdjustGift",
-      "section": "diplomacy",
-      "confidence": "subject",
-      "basis": "Records 6 and 7 of g_diploWidgets, frames 68 and 66 at (184, 240) and (216, 240), hotspot ids 1 and 0 - the minus/plus pair. The screen it sits on draws L2.eng group 72 index 18, 'Gift of', beside g_diploGold.",
-      "comment": "Raise or lower the offered gift; the hotspot id says which way."
-    },
-    {
-      "addr": "0x004369BD",
-      "name": "Diplo_PickLordCard",
-      "section": "diplomacy",
-      "confidence": "both",
-      "basis": "Screen_FrameInput calls it for g_screenId 0x0B immediately after Widget_Test over g_diploWidgets. It walks realms 1..5, skipping g_localPlayer and any realm with strength 0, and hit-tests FUN_004B1DEB(0x30, slot*100 + 0x31, 0x52, 0x4E) -- the same rectangle Diplo_DrawLordCard draws its inset in, with the same slot counter. On a hit it writes g_diploTarget and returns 1.",
-      "comment": "Selecting which rival the diplomacy screen is about. One reading of the body; the corroboration is that its rectangle is literally the painter's."
     },
     {
       "addr": "0x0043B04C",
@@ -225,42 +192,6 @@
       "comment": "Empty stub.",
       "basis": "slot 16 of g_manStateTable",
       "caveat": "An empty `ret`, like slot 0. Whether slot 16 is reachable was not checked; no writer of state = 16 was found by grep over the struct-typed corpus, but a computed write would not show up in that search."
-    },
-    {
-      "addr": "0x0048551D",
-      "name": "Bridge_Cross",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "Called from Cell_TryEnter for an attacking figure entering a bridge cell, with the cell x and y.",
-      "basis": "Cell_TryEnter calls it, and only when the cell surface is 7 and the figure side is 4",
-      "caveat": "battle.md 3 has surface 7 as bridge on independent evidence, and side 4 is the attacker. What the function then does to the bridge was not read."
-    },
-    {
-      "addr": "0x00488436",
-      "name": "Anim_EngineMove",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "Siege-engine frames, the arm Anim_WalkA2 takes for troopType > 6. Recomputes a tower's polarDirc from its dirc with hysteresis on the diagonals, then writes frame +0x10: ram 0, tower (polarDirc >> 1) + 1, catapult dirc + 5, pot of oil (animPhase >> 3) + 0x23 over an animPhase that wraps past 0x2F. For a catapult it also writes horseFrame +0x11 = dirc * 5, less 0x14 for dirc > 3 - the base of its arm in catarm1/2.pl8, which CatapultArm_Draw (0x004BE7BE) reads.",
-      "basis": "the else-branch every a2 animation handler takes for troopType > 6, and the ONLY one Anim_WalkA2 takes. Every frame it can write is inside Engine.pl8's 46, and each block it names is one physical sprite size in the file - docs/battle.md 13.11",
-      "caveat": "The frame arithmetic is now verified against the shipped art; the NAME is still the reading. 'Move' rests on its one caller being the walk handler, which is exhaustive but is an argument about intent, not a fact about the bytes."
-    },
-    {
-      "addr": "0x00488793",
-      "name": "Anim_EngineHold",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "The still pose for a siege engine: the same frames as Anim_EngineMove without the tower polar recompute.",
-      "basis": "the arm Anim_StrikeA2, Anim_StandA2, Anim_DyingA2 and Anim_DrawBowA2 all take for troopType > 6 - the four stationary handlers, enumerated exhaustively",
-      "caveat": "'Hold' is a guess at intent. What is settled is that its callers are exactly the handlers that do not move a figure, and that its frames are Anim_EngineMove's."
-    },
-    {
-      "addr": "0x0048895E",
-      "name": "Anim_EngineWork",
-      "section": "battle",
-      "confidence": "subject",
-      "comment": "Siege-engine frames while the engine is doing its job. Three differences from Anim_EngineMove, all verified against Engine.pl8: a pot of oil draws the POUR, (polarDirc >> 1) + 0x2A, rather than the idle bubble; a catapult's arm gets g_horseWalkCycle[animPhase >> 2] added to its base, with animPhase stepped only while swingTimer >= 100 - the eighty ticks after the shot, BattleMan_StateEngineFire wrapping the timer at 179; and a ram counts animPhase DOWN from 0x8F, horseFrame = animPhase >> 4, which is the beam RamBeam_Draw (0x004BEAB9) draws.",
-      "basis": "called by BattleMan_StateEngineFire, BattleMan_StateEngineWork, BattleMan_StateRamGate, BattleMan_StateEngineDead and Anim_CollapseA2 - enumerated exhaustively, and the only three engine helpers in the binary",
-      "caveat": "'Work' is the reading. The frame formulas are verified: 0x2A + polar/2 and 0x23 + phase/8 are the pot's two blocks in Engine.pl8, 42..45 and 35..40, and the arm's base plus g_horseWalkCycle's 0..4 is exactly Catarm1.pl8's twenty frames."
     }
   ],
   "fields": [
