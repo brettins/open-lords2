@@ -1012,6 +1012,30 @@
       "source": "docs/arms.json missing arms, lead 2026-09-23",
       "next": "info-leave-castle, film-skip-season-end, order-during-drag, foreign-county-refusal, court-f2, four battlefield debug keys, opt-game-help-contents, setup-load-name",
       "note": ""
+    },
+    {
+      "id": "brokein-winner-side",
+      "title": "A castle broken into in a skirmish may credit the wrong side",
+      "track": "play",
+      "system": "battle",
+      "state": "open",
+      "branch": null,
+      "depends_on": [],
+      "source": "skirmish-castle-fixes agent 2026-09-23",
+      "next": "l2-sim runner/simulation.rs:399 names winner SIDE_B for BrokeIn; in skirmish the attacker is SIDE_A (skirmish_start.rs). Read Battle_CheckOutcome for the winner on a break-in",
+      "note": "[I]"
+    },
+    {
+      "id": "bugs-score-dat-overrun",
+      "title": "Record in docs/bugs.md: the original reads score.dat 80 bytes into the battles text",
+      "track": "process",
+      "system": "docs",
+      "state": "open",
+      "branch": null,
+      "depends_on": [],
+      "source": "skirmish-castle-fixes agent 2026-09-23",
+      "next": "FUN_0042D216 reads 0xA0 bytes into a 0x50 table; the spill lands in the battles.eng buffer at 0x51FD50 (00420000.c:4268); ours writes the spill as zeros [D]",
+      "note": ""
     }
   ]
 }
