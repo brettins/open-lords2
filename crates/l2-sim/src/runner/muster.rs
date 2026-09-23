@@ -8,7 +8,7 @@ impl Muster<'_> {
         men.sum::<u32>() + self.mercenaries.map_or(0, |(_, n)| n)
     }
 
-    /// Battle_InitArmies 00470000.c:6499-6504: counts of types 7..10.
+    /// Battle_InitArmies 0x0047EFEE 00470000.c:6499-6504: counts of types 7..10.
     pub fn engines(&self) -> u32 {
         self.troops.iter().filter(|(t, _)| t.is_siege()).map(|(_, n)| *n).sum()
     }

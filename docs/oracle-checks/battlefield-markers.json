@@ -1,0 +1,17 @@
+{ "reviewed": "14dddcfa55a3f342303550ab6e0c9a835e96f401",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/terrain/field.rs", "line": 158, "address": "0x0047AAA3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/terrain/field.rs", "line": 166, "address": "0x0047AAA3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/terrain/field.rs", "line": 176, "address": "0x0047AAA3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/terrain/field.rs", "line": 189, "address": "0x0047AAA3", "verdict": "departure", "note": "[D] unwritten enemy-end/rally entries fall back to marker tile; original keeps last battle's value" },
+    { "file": "crates/l2-sim/src/runner/muster.rs", "line": 6, "address": "0x004AC7F3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/muster.rs", "line": 12, "address": "0x0047EFEE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/muster.rs", "line": 28, "address": "0x0047EFEE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/siege/mod.rs", "line": 283, "address": "0x004D4A58", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/siege/mod.rs", "line": 288, "address": "0x00477DFC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 334, "address": "0x00477DFC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 348, "address": "0x00477DFC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs", "line": 155, "address": "0x004D4A58", "verdict": "match", "note": "" },
+    { "file": "crates/l2-formats/src/troops.rs", "line": 58, "address": "0x0042AC0C", "verdict": "match", "note": "" }
+  ] }

@@ -73,7 +73,7 @@ pub struct AiField {
 }
 
 impl AiField {
-    /// **[V]** `Battlefield_BuildFromSkr`'s tables (00470000.c:4940-4951,
+    /// **[V]** `Battlefield_BuildFromSkr 0x0047B8B2`'s tables (00470000.c:4940-4951,
     /// :4971-4982): rally waypoints on the side's own marker, enemy ends on the
     /// other's. A `batfield.pl8` field reads its marker blocks instead
     /// ([`crate::terrain::build_field`]; `ai_field_for` copies them).

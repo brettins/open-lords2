@@ -109,7 +109,7 @@ pub struct Battlefield {
 
 pub type MarkerTables = ([[(u8, u8); 4]; 2], [[[(u8, u8); 3]; 2]; 2]);
 
-/// `Battlefield_BuildFromSkr` 00470000.c:4940-4951, :4971-4982: every
+/// `Battlefield_BuildFromSkr` 0x0047B8B2 00470000.c:4940-4951, :4971-4982: every
 /// enemy-end slot on the other side's marker tile, every rally waypoint on
 /// the side's own. **[V]**
 pub fn tables_at_homes(home_side0: (u8, u8), home_side4: (u8, u8)) -> MarkerTables {

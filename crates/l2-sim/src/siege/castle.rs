@@ -136,6 +136,7 @@ pub fn our_castle(level: u8) -> Battlefield {
         enemy_end: Default::default(),
         rally: Default::default(),
     }
+    // [D] see castle/builder.rs: the original keeps the last field battle's tables here.
     .with_home_tables();
     for (slot, (dx, dy)) in crate::terrain::DEPLOY_OFFSETS.iter().enumerate() {
         let clamp = |v: i32| v.clamp(1, DIM as i32 - 2) as u8;
