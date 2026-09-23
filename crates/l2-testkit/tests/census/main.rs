@@ -52,6 +52,7 @@ impl Gate {
 const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/battle_fixtures.rs", "fixture", 3),
     ("crates/l2-formats/tests/corpus.rs", "install", 5),
+    ("crates/l2-formats/tests/hlp.rs", "install", 1),
     ("crates/l2-formats/tests/maps.rs", "install", 6),
     ("crates/l2-formats/tests/save/realms_and_counties/county_records.rs", "saves", 3),
     ("crates/l2-formats/tests/save/realms_and_counties/realms_and_map.rs", "saves", 6),
@@ -153,6 +154,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/movies/audio_part.rs", "install", 4),
     ("crates/l2-game/tests/movies/playback/input_and_drawing.rs", "install", 3),
     ("crates/l2-game/tests/movies/playback/timing_and_sound.rs", "install", 4),
+    ("crates/l2-game/tests/movies/triggers/gameplay.rs", "install", 3),
     ("crates/l2-game/tests/movies/triggers/validation.rs", "install", 1),
     ("crates/l2-game/tests/net_game/live_desync.rs", "other", 1),
     ("crates/l2-game/tests/net_game/live_tcp.rs", "other", 1),
@@ -309,7 +311,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 689;
+pub(crate) const GATED_TOTAL: usize = 693;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

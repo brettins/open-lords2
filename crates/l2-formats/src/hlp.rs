@@ -4,7 +4,8 @@
 //! [V] measured on the install's `L2help.hlp` (2 980 023 bytes): `|SYSTEM` minor 33
 //! (HCW 4.0), flags 0, so `|TOPIC` is 4 KiB blocks with no LZ77; no `|Phrases`, no
 //! `|PhrIndex`; record 3 (contents) is TOPICOFFSET 0; no `.cnt` beside it, so
-//! `Opt_GameHelpContents`'s `HELP_CONTENTS` opens that topic. 170 topics.
+//! `Opt_GameHelpContents` (0x00434942, `WinHelpA(g_hwnd,"l2help.hlp",3,1)` 00430000.c:1831)
+//! opens that topic with `HELP_CONTENTS`. 170 topics.
 //! Not read: LinkData1 formatting (fonts, hotspots, jumps via `|CONTEXT`), bitmaps.
 
 const MAGIC: i32 = 0x0003_5F3F;
