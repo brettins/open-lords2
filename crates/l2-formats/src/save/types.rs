@@ -342,6 +342,8 @@ pub struct County {
     pub dryness: i8,
     pub grain: i32,
     pub herd: i32,
+    /// `+0x240`, `+0x244`, `+0x248` — seed, standing crop, this season's harvest.
+    pub crop: [i32; 3],
     /// `+0x5C …` — the adjacency ids, of which the first
     /// [`County::neighbour_count`] are live. Read as the full sixteen slots the
 /// record affords so the trailing zeros are visible.

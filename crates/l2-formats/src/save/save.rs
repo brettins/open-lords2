@@ -99,6 +99,11 @@ impl Save {
             dryness: self.i8_at(base + 0x21D)?,
             grain: self.i32_at(base + 0x224)?,
             herd: self.i32_at(base + 0x250)?,
+            crop: [
+                self.i32_at(base + 0x240)?,
+                self.i32_at(base + 0x244)?,
+                self.i32_at(base + 0x248)?,
+            ],
             neighbours: {
                 let mut ids = [0u8; NEIGHBOUR_SLOTS];
                 for (slot, id) in ids.iter_mut().enumerate() {
