@@ -1,15 +1,3 @@
-#![allow(unused_imports)]
-use super::*;
-use super::tick::*;
-use crate::conquest::{self, Attack};
-use crate::kingdom::Kingdom;
-use crate::merchant;
-use crate::movement::{self, Entry, Offence};
-use crate::phase::Phase;
-use crate::unit::{UnitKind, Units};
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
     use crate::unit::Unit;
@@ -399,5 +387,3 @@ mod tests {
         refresh_allowances(&mut k.campaign.units);
         assert_eq!(k.campaign.units.get(id).unwrap().move_allowance, 15);
     }
-}
-
