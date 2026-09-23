@@ -200,7 +200,7 @@ impl SaveLoadScreen {
                 let front = self.is_front_end();
                 let tables = ctx.game.kingdom.tables;
                 match saves::read_path(&self.entries[i].path, tables) {
-                    Ok(game) => {
+                    Ok(mut game) => {
                         let tips = ctx.game.tips;
                         // A preference is the machine's, never the world's
                         // (`crate::game::Prefs`); `Save_Read` `0x004ADFE6` reads its
@@ -210,6 +210,8 @@ impl SaveLoadScreen {
                         let prefs = ctx.game.prefs;
                         // FUN_0049C995 0x0049C995 :5760. [I] whether g_saveBlocks holds 0x0053F278.
                         let chosen = ctx.game.chosen_gold;
+                        // g_battleCounty is .bss and Save_Read 0x004ADFE6 does not read it [I].
+                        game.kingdom.campaign.battle_county = ctx.game.kingdom.campaign.battle_county;
                         *ctx.game = game;
                         ctx.game.tips = tips;
                         ctx.game.chosen_gold = chosen;

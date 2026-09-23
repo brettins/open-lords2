@@ -48,6 +48,30 @@ fn a_click_on_the_load_screen_means_the_row_it_drew_even_if_a_save_arrived_since
     );
 }
 
+/// g_battleCounty is `.bss`, outside Save_Read 0x004ADFE6's blocks [I]: a load keeps the process value.
+/// Ablation: `game.kingdom.campaign.battle_county = ...` in the load arm, and this fails.
+#[test]
+fn a_load_keeps_the_battle_county_the_process_held() {
+    let _own = Saves::new("battle-county");
+    let (mut game, assets) = bare();
+    saves::write("kept", &furnished(0x5409)).expect("write");
+    game.kingdom.campaign.battle_county = 17;
+    let mut screen = SaveLoadScreen::new(Mode::Load);
+    let r = SaveLoadScreen::row_rect(0);
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    l2_game::Screen::handle(&mut screen, Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
+    l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
+    let mut t = l2_game::Transition::Stay;
+    for _ in 0..=l2_game::screens::saveload::WORK_FRAMES {
+        t = l2_game::Screen::update(&mut screen, &mut ctx);
+        if t != l2_game::Transition::Stay {
+            break;
+        }
+    }
+    assert_eq!(t, l2_game::Transition::Pop, "the load went through");
+    assert_eq!(game.kingdom.campaign.battle_county, 17);
+}
+
 #[test]
 fn the_screen_paints_inside_its_own_window_and_nothing_outside_it() {
     use l2_game::screens::saveload::{BOX_COLS, BOX_ROWS, BOX_X, BOX_Y};

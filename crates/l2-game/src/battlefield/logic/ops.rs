@@ -83,10 +83,11 @@ impl LiveBattle {
                 false
             }
             BattleOp::Charge => {
-                if self.choice_owner == 0 || self.charged {
+                // 00430000.c:6857 `if ((g_battleChoiceOwner != 0) && (DAT_0055322c == 0))`
+                if self.choice_owner == 0 || self.has_charged(realm) {
                     return false;
                 }
-                self.charged = true;
+                self.charged |= 1 << realm;
                 self.runner.charge_all(realm);
                 false
             }

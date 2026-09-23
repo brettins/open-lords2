@@ -299,7 +299,7 @@ fn press_the_assault_home(m: &mut Machine, g: &mut Game, a: &Assets) {
     let target = overview_px(keep_centre(g));
     click(m, g, a, target);
     click(m, g, a, on(bf::Button::Charge.rect()));
-    assert!(g.battle.as_ref().is_none_or(|b| b.charged), "DAT_0055322C, the charge latch");
+    assert!(g.battle.as_ref().is_none_or(|b| b.charged != 0), "DAT_0055322C, the charge latch");
 }
 
 fn keep_centre(g: &Game) -> (u8, u8) {

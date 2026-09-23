@@ -114,5 +114,33 @@ mod tests {
             assert_eq!((ours.0 as usize, ours.1 as usize), (theirs.x, theirs.y), "at {x},{y}");
         }
     }
+
+    fn chasing(b: &LiveBattle, realm: u8) -> bool {
+        let figs = &b.runner.sim.figures;
+        b.runner.fighters.iter().filter(|f| figs[f.sim].owner == realm)
+            .all(|f| figs[f.sim].state == l2_sim::State::Chasing)
+    }
+
+    /// `DAT_0055322C` is per process (Battle_ChargeButton 0x0043BD02), so each seat charges once.
+    /// Ablation: `self.has_charged(realm)` in ops.rs -> `self.charged != 0`, and this fails.
+    #[test]
+    fn the_first_seat_to_charge_leaves_the_others_charge() {
+        use l2_sim::{runner::Army, Troop};
+        let field = l2_sim::terrain::build(&vec![0u8; l2_sim::terrain::CELLS], 1);
+        let a = [(Troop::Peasants, 20u16)];
+        let runner = BattleRunner::deploy_armies(
+            field,
+            0x5EED,
+            Army { troops: &a, owner: 2, human: true },
+            Army { troops: &a, owner: 1, human: true },
+        );
+        let mut b = LiveBattle::new(runner, 0, 0, 0, None, 1, 1);
+        b.apply(1, BattleOp::Charge);
+        assert!(chasing(&b, 1) && !chasing(&b, 2));
+        b.apply(2, BattleOp::Charge);
+        assert!(chasing(&b, 2), "seat 2's charge was used up by seat 1's");
+        assert!(b.has_charged(1) && b.has_charged(2));
+        assert!(!b.press_charge(), "seat 1 has had its charge");
+    }
 }
 
