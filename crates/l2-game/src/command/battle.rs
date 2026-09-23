@@ -1,5 +1,5 @@
 //! A battle click as a command: the runner changes on its tick, on every peer.
-//! `docs/netcode.md` §4.
+//! `docs/netcode.md` Â§4.
 
 use super::codec::Wire;
 use super::*;
@@ -9,10 +9,10 @@ use l2_sim::runner::Formation;
 
 impl Wire for Vec<usize> {
     fn put(&self, out: &mut Canonical) {
-        out.seq(self, |c, i| c.len32(*i));
+        out.seq(self, |c, i| i.put(c));
     }
     fn get(input: &mut Reader<'_>) -> Result<Self, CodecError> {
-        input.seq(|r| r.len32())
+        input.seq(|r| usize::get(r))
     }
 }
 

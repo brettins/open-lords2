@@ -157,8 +157,11 @@ impl Machine {
         // clicked before the scroll covers it. See
         // [`crate::message::post_event`]. No screen test: the original has none.
         crate::message::post_event(ctx.game);
-        self.run_turn_clock(ctx);
-        if self.wind_turn(ctx) {
+        // A network game's clock is `net::frame`'s, on the session's tick.
+        if !ctx.game.net.lockstep {
+            self.run_turn_clock(ctx);
+        }
+        if self.join_battle(ctx) || self.wind_turn(ctx) {
             self.run_tooltips(ctx);
             return;
         }
@@ -198,6 +201,22 @@ impl Machine {
     /// walking into a county panel. `docs/decisions.md` C197.
     ///
     // arm: 0x004B99C0/frame-winds-the-turn frame
+    /// A network game: a battle this seat's realm is in comes to it, whoever
+    /// took the field. `docs/netcode.md` §4.
+    fn join_battle(&mut self, ctx: &mut Ctx) -> bool {
+        let me = ctx.game.player;
+        let mine = crate::command::battle_sides(ctx.game).is_some_and(|(a, d)| a == me || d == me);
+        if !ctx.game.net.lockstep || !mine || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield) {
+            return false;
+        }
+        let Some(depth) = self.stack.iter().position(|s| s.id() == ScreenId::Campaign) else {
+            return false;
+        };
+        self.apply_at(depth, Transition::Push(ScreenId::Battlefield));
+        self.dirty = true;
+        true
+    }
+
     fn wind_turn(&mut self, ctx: &mut Ctx) -> bool {
         if ctx.game.battle.is_some() || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield) {
             // arm: 0x004B99C0/frame-winds-the-battle frame
@@ -507,6 +526,7 @@ impl Machine {
         self.draw_turn_timer(ctx, canvas);
         // `FUN_00476E95` comes after `FUN_0041A639` in `Battle_Frame`.
         crate::tooltip::draw(ctx, &self.tooltips, canvas);
+        crate::net::draw_status(ctx, canvas);
     }
 
     fn base(&self) -> usize {

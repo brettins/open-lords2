@@ -182,7 +182,8 @@ pub fn hash(p: &mut Peer) -> u64 {
 
 /// Ablations: `self.net.outbox.push` in `Game::issue` (applied at once: the
 /// peers desync); `b.tick()` in `net::frame` (the battle never ends);
-/// `encode_battle` dropping `owner` (the seats' owners differ: a desync).
+/// `owner` hashed in `encode_battle` (the seats hold different owners); `apply` in
+/// `BattleOrder` (the battle never ends).
 #[test]
 fn two_peers_over_tcp_play_seasons_and_a_live_battle_in_step() {
     let Some(mut peers) = pair() else { l2_testkit::skip!("no install") };
