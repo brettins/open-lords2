@@ -140,10 +140,8 @@ impl Screen for RankScreen {
         );
         // The five rows all carry `&g_playerNames + g_localPlayer * 0x2C` —
         // one name repeated, not five.
-        let name = match ctx.game.player_names.get(ctx.game.player as usize) {
-            Some(n) if !n.as_str().is_empty() => n.as_str().to_string(),
-            _ => format!("REALM {}", ctx.game.player),
-        };
+        // `00420000.c:635`: drawn as is, empty or not.
+        let name = ctx.game.player_names.get(ctx.game.player as usize).map_or(String::new(), |n| n.as_str());
         for row in 0..MINE_SHOWN {
             let y = row as i32 * ROW_PITCH + MINE_Y0;
             pen.body(canvas, NAME_X, y, &name, font::TEXT);

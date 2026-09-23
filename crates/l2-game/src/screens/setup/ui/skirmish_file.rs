@@ -51,9 +51,6 @@ impl SetupScreen {
                 Action::Skirmish(SkirmishArm::File(r)),
             ));
         }
-        // Everything outside the ten rows is `SaveLoad_Cancel`
-        // (`0x00434308`), the *OK* cross, which is the page's one way back.
-        v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
     }
 
     /// `Screen_DrawWidgets`' page-13 arm — `FUN_00414E06(DAT_004E65DC)` and

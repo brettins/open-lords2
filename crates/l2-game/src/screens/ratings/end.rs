@@ -62,13 +62,33 @@ impl BattleMaster {
 /// `g_battleWithdrawal` with `DAT_005656F8` naming who withdrew, then
 /// `g_castleEntered` with `DAT_0053EF5C`. The flag names the side that
 /// **suffered** it, which is why `Ending::Withdrew { local: true }` scores the
-/// local player 0.
+/// local player 0. The castle arm is keyed on the attacker, not the winner:
+/// `if ((g_castleEntered == 0) || (DAT_0053ef5c != g_localPlayer))`,
+/// `00420000.c:4934`. [V]
 pub fn ending_of(c: Option<l2_sim::runner::Conclusion>, local_side: u8) -> Ending {
     let Some(c) = c else { return Ending::Fought };
     let local_lost = c.winner != local_side;
     match c.cause {
         l2_sim::runner::End::Withdrawal => Ending::Withdrew { local: local_lost },
-        l2_sim::runner::End::BrokeIn => Ending::CastleFell { local: local_lost },
+        // `DAT_0053EF5C == g_localPlayer`: the local muster is `SIDE_A` when he attacks (skirmish_start.rs).
+        l2_sim::runner::End::BrokeIn => Ending::CastleFell { local: local_side == l2_sim::SIDE_A },
         _ => Ending::Fought,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use l2_sim::runner::{Conclusion, End};
+
+    #[test]
+    fn a_castle_ending_is_charged_to_the_attacker_whoever_won() {
+        let c = |winner| Some(Conclusion { winner, cause: End::BrokeIn });
+        for w in [l2_sim::SIDE_A, l2_sim::SIDE_B] {
+            let at = ending_of(c(w), l2_sim::SIDE_A);
+            assert_eq!(at, Ending::CastleFell { local: true }, "00420000.c:4934");
+            let def = ending_of(c(w), l2_sim::SIDE_B);
+            assert_eq!(def, Ending::CastleFell { local: false });
+        }
     }
 }
