@@ -6,7 +6,7 @@
       "note": "" },
     { "file": "crates/l2-sim/src/ai/types.rs", "line": 55, "address": "0x0048BECD", "verdict": "match",
       "note": "" },
-    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 66, "address": "0x004778A0", "verdict": "match",
+    { "file": "crates/l2-sim/src/runner/simulation/deploy_part.rs", "line": 70, "address": "0x004778A0", "verdict": "match",
       "note": "" }
   ]
 }

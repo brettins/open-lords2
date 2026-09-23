@@ -1,0 +1,239 @@
+
+mod marching;
+pub use marching::*;
+
+use super::*;
+use crate::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
+use crate::unit::Unit;
+use crate::Options;
+
+fn kingdom() -> Kingdom {
+    let mut k = Kingdom::new(0x2E5);
+    assert!(k.set_county_count(2));
+    k.season = 1;
+    k.season_next = 2;
+    k.year = 1268;
+    k.options = Options { armies_eat: false, ..Options::default() };
+
+    let mut map = CampaignMap::empty();
+    for i in 0..MAP_TILES {
+        map.county[i] = if i % MAP_DIM < 32 { 1 } else { 2 };
+    }
+    for x in 0..64u8 {
+        map.set_flags(x, 10, flags::ROAD);
+    }
+    k.campaign.map = map;
+
+    for id in 1..=2 {
+        k.counties[id].population = 500;
+        k.counties[id].happiness = 70;
+    }
+    k.counties[1].owner = 1;
+    k.counties[1].anchor_x = 10;
+    k.counties[1].anchor_y = 10;
+    k.counties[2].anchor_x = 50;
+    k.counties[2].anchor_y = 10;
+    k.realms[1].in_play = true;
+    k.realms[1].is_human = true;
+    k
+}
+
+fn army(k: &mut Kingdom, owner: u8, x: u8, y: u8) -> usize {
+    let mut u = Unit::new(UnitKind::Army, owner, x, y);
+    u.men = 100;
+    u.troops[0] = 100;
+    u.county = k.campaign.map.county_at(x, y);
+    u.owner_is_human = k.realms[owner as usize].is_human;
+    k.campaign.units.spawn(u).expect("a free slot")
+}
+
+/// *"fifteen points on a road is fifteen tiles, and it takes fifteen
+/// ticks."* Fifteen tiles is right and fifteen ticks was the whole of
+/// `docs/decisions.md` **C134** — the missing half of
+/// `Unit_StepOnce` (`0x0046634D`), which admits every tick on a road and
+/// needs **eight** admissions to cross a sixteen-wide tile. It is left
+/// here because a test that has to be rewritten to
+/// make a fix pass is the strongest evidence that the fix is a change in
+/// behaviour and not a tidy-up.
+///
+/// The first tile is entered on the tick the order is walked, because
+/// `Unit_Spawn` (`0x0046E1B0`) leaves `+0x14B` bit 0 set, so the arrivals
+/// fall on ticks 1, 9, 17 … and the fifteenth on 113.
+///
+/// **The 8 is typed here, not read from [`crate::tables::SUBTILE_SPAN`] or
+/// [`crate::tables::SUBTILE_STEP_SOLO`]**, so that ablating either of those
+/// constants cannot move this probe with it — `docs/agents.md`, *ablating a
+/// constant while computing your probe from that same constant tests
+/// nothing at all*.
+#[test]
+fn a_unit_enters_one_tile_every_eight_ticks_on_a_road() {
+    let mut k = kingdom();
+    let id = army(&mut k, 1, 5, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (20, 10), movement::Routing::Direct)
+        .expect("a road runs the whole way");
+
+    let mut ticks = 0usize;
+    let mut arrivals: Vec<(usize, u8)> = Vec::new();
+    while k.units_moving(UnitKind::Army) && ticks < 1000 {
+        let t = k.tick_units();
+        ticks += 1;
+        assert!(t.stepped <= 1, "one unit, one tile");
+        let x = k.campaign.units.get(id).unwrap().x;
+        if arrivals.last().map(|&(_, px)| px) != Some(x) {
+            arrivals.push((ticks, x));
+        }
+    }
+    assert_eq!(k.campaign.units.get(id).unwrap().x, 20);
+    assert_eq!(
+        arrivals.iter().map(|&(_, x)| x).collect::<Vec<u8>>(),
+        (6..=20).collect::<Vec<u8>>(),
+        "fifteen tiles, in order"
+    );
+    assert_eq!(
+        arrivals.iter().map(|&(t, _)| t).collect::<Vec<usize>>(),
+        (0..15).map(|n| 1 + n * 8).collect::<Vec<usize>>(),
+        "eight ticks a road tile, and the first one free"
+    );
+    assert_eq!(k.campaign.units.get(id).unwrap().moves_used, 15);
+}
+
+/// Ablation: delete the `u.kind == UnitKind::Army` test and the merchant
+/// line goes red; flip `!=` and all three do.
+#[test]
+fn an_army_crossing_into_a_county_its_owner_does_not_hold_is_an_incursion() {
+    let mut k = kingdom();
+    let out = army(&mut k, 1, 30, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, out, (34, 10), movement::Routing::Direct)
+        .unwrap();
+    let mut seen = Vec::new();
+    for _ in 0..200 {
+        seen.extend(k.tick_units().incursions);
+    }
+    assert_eq!(seen, vec![Incursion { unit: out, owner: 1, county: 2 }]);
+
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, out, (30, 10), movement::Routing::Direct)
+        .unwrap();
+    let mut home = Vec::new();
+    for _ in 0..200 {
+        home.extend(k.tick_units().incursions);
+    }
+    assert_eq!(k.campaign.units.get(out).unwrap().county, 1, "it walked home");
+    assert!(home.is_empty(), "county 1 is realm 1's: {home:?}");
+
+    let mut trader = Unit::new(UnitKind::Merchant, 6, 30, 12);
+    trader.county = 1;
+    let t = k.campaign.units.spawn(trader).unwrap();
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, t, (34, 12), movement::Routing::Direct)
+        .unwrap();
+    let mut carts = Vec::new();
+    for _ in 0..400 {
+        carts.extend(k.tick_units().incursions);
+    }
+    assert_eq!(k.campaign.units.get(t).unwrap().county, 2, "the merchant crossed");
+    assert!(carts.is_empty(), "only Army_Tick calls Unit_EnterCounty: {carts:?}");
+}
+
+#[test]
+fn crossing_into_a_neutral_county_posts_its_greeting_and_taking_its_town_posts_the_capture() {
+    let mut k = kingdom();
+    k.counties[2].happiness = 5;
+    for (a, b) in [(1usize, 2u8), (2, 1)] {
+        k.counties[a].neighbour_count = 1;
+        k.counties[a].neighbours[0] = b;
+    }
+    k.realms[1].peak_counties = 1;
+    k.campaign.map.set_flags(40, 10, flags::CASTLE);
+    let out = army(&mut k, 1, 30, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, out, (40, 10), movement::Routing::Direct)
+        .unwrap();
+    let mut posted = Vec::new();
+    for _ in 0..400 {
+        posted.extend(k.tick_units().posted);
+    }
+    assert_eq!(posted.len(), 2, "{posted:?}");
+    let Posted::Letter(greeting) = posted[0] else { panic!("{posted:?}") };
+    assert_eq!((greeting.to, greeting.group, greeting.county), (1, 0x82, 2), "wretched");
+    let Posted::Capture(capture) = posted[1] else { panic!("{posted:?}") };
+    assert_eq!((capture.new_owner, capture.old_owner, capture.county), (1, 0, 2));
+    assert_eq!((capture.held_before, capture.peak_before), (1, 1));
+    assert_eq!(k.counties[2].owner, 1, "a wretched county surrenders");
+}
+
+#[test]
+fn the_wait_follows_the_units() {
+    let mut k = kingdom();
+    assert!(!k.units_moving(UnitKind::Army));
+    let id = army(&mut k, 1, 5, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, id, (8, 10), movement::Routing::Direct)
+        .unwrap();
+    assert!(k.units_moving(UnitKind::Army));
+    // `Unit_Step` (`0x00465D28`) does not stop a unit on the commit that
+    // empties its path: the commit returns 1, `moving` stays 2, the unit
+    // crosses into the tile over the next eight admissions, and only at
+    // that tile's edge does the latched arm find `field_0x1c == 0` and
+    // write `moving = 0`. Ours stopped it on the commit, which left every
+    // finished march parked at `+0x149 = 1` — one whole tile back from
+    // where it stood, the moment the walk tables drew it. Typed, not
+    // computed: 1 + 8 + 8 + 8.
+    let mut ticks = 0usize;
+    while k.units_moving(UnitKind::Army) && ticks < 500 {
+        k.tick_units();
+        ticks += 1;
+    }
+    assert!(!k.units_moving(UnitKind::Army));
+    assert_eq!(ticks, 25, "the wait drops on the tick the last tile is crossed, not the tick it is entered");
+    assert_eq!(k.campaign.units.get(id).unwrap().sub_tile, 0, "and the army stands at rest, not a tile back");
+    assert_eq!(k.campaign.units.get(id).unwrap().tile(), (8, 10));
+}
+
+#[test]
+fn two_enemy_armies_meeting_raise_a_battle_and_stop_the_sweep() {
+    let mut k = kingdom();
+    k.realms[2].in_play = true;
+    let a = army(&mut k, 1, 5, 10);
+    let _b = army(&mut k, 2, 6, 10);
+    let c = army(&mut k, 1, 20, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, a, (8, 10), movement::Routing::Direct)
+        .unwrap();
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, c, (24, 10), movement::Routing::Direct)
+        .unwrap();
+
+    let t = k.tick_units();
+    let e = t.battle().expect("a battle is due");
+    assert_eq!(e.mover, a);
+    assert_eq!(e.occupant, _b);
+    assert_eq!(e.county, 1);
+    assert_eq!(k.campaign.units.get(a).unwrap().tile(), (5, 10), "and nobody moved onto it");
+    assert_eq!(
+        k.campaign.units.get(c).unwrap().tile(),
+        (20, 10),
+        "the higher slot did not move at all: the sweep was abandoned"
+    );
+}
+
+#[test]
+fn a_friendly_unit_blocks_rather_than_fights() {
+    let mut k = kingdom();
+    let a = army(&mut k, 1, 5, 10);
+    let b = army(&mut k, 1, 6, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, a, (8, 10), movement::Routing::Direct)
+        .unwrap();
+    let t = k.tick_units();
+    assert_eq!(t.battle(), None);
+    assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: b }]);
+}
+
+#[test]
+fn an_ally_is_not_attacked() {
+    let mut k = kingdom();
+    k.realms[2].in_play = true;
+    k.realms[1].ally = 2;
+    let a = army(&mut k, 1, 5, 10);
+    let b = army(&mut k, 2, 6, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, a, (8, 10), movement::Routing::Direct)
+        .unwrap();
+    let t = k.tick_units();
+    assert_eq!(t.battle(), None);
+    assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: b }]);
+}
+

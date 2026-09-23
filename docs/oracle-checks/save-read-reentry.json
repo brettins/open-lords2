@@ -17,8 +17,8 @@
       "note": "g_battleWithdrawal = 0 at 00470000.c:3220, gated on the battle being present as the original gates on g_battlePhase == 2"
     },
     {
-      "file": "crates/l2-sim/src/runner/simulation.rs",
-      "line": 411,
+      "file": "crates/l2-sim/src/runner/simulation/queries.rs",
+      "line": 222,
       "address": "0x00477C89",
       "verdict": "match",
       "note": "the same function recomputes g_castleLevel from the county (00470000.c:3196-3206), sets DAT_0053f238 = -1 and DAT_0057c910; resume carries only the withdrawal clear, unlabeled | fixed 4d689940: castle level recomputed over block 125, DAT_0053F238 ported, DAT_0057C910 [D]"
@@ -38,8 +38,8 @@
       "note": "g_screenId = 0 then 0x29 on g_battlePhase == 2; block table confirms 0x0057C8FC is block 14 and 0x004EAC50 is in no block"
     },
     {
-      "file": "crates/l2-game/src/screen/machine.rs",
-      "line": 611,
+      "file": "crates/l2-game/src/screen/machine/drawing.rs",
+      "line": 76,
       "address": "0x004976A1",
       "verdict": "departure",
       "note": "[D] labelled: the original lands on one screen with no stack, we truncate to the resumed screen's depth"

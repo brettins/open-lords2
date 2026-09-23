@@ -17,22 +17,22 @@
       "note": ""
     },
     {
-      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-      "line": 328,
+      "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+      "line": 35,
       "address": "0x00432B05",
       "verdict": "match",
       "note": ""
     },
     {
-      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-      "line": 354,
+      "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+      "line": 61,
       "address": "0x00432CC8",
       "verdict": "match",
       "note": ""
     },
     {
-      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-      "line": 533,
+      "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs",
+      "line": 75,
       "address": "0x00433155",
       "verdict": "match",
       "note": ""

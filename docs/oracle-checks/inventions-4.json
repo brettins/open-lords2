@@ -17,15 +17,15 @@
       "note": "Fixed on agent/conquest-guard: Game.game_type carries DAT_0055302C (save block 197); ConquestScreen::update leaves for the title when it is Custom (2), before any click."
     },
     {
-      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-      "line": 521,
+      "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs",
+      "line": 63,
       "address": "0x004329EC",
       "verdict": "match",
       "note": ""
     },
     {
-      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-      "line": 389,
+      "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+      "line": 96,
       "address": "0x00433461",
       "verdict": "match",
       "note": ""

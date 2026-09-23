@@ -3,15 +3,15 @@
   "date": "2026-09-23",
   "behaviours": [
     {
-      "file": "crates/l2-game/src/screen/machine.rs",
-      "line": 256,
+      "file": "crates/l2-game/src/screen/machine/turns.rs",
+      "line": 111,
       "address": "0x0043AD25",
       "verdict": "match",
       "note": "skip fires when the fade starts, after Season_Advance; Turn_Tick phase 7 runs FUN_0043AD25 before Season_Advance (00490000.c:4716-4718); fixed: [D] after Season_Advance in the same phase-7 frame, before any screen its step pushes; the stack is presentation (season-closes)"
     },
     {
-      "file": "crates/l2-game/src/screen/machine.rs",
-      "line": 259,
+      "file": "crates/l2-game/src/screen/machine/turns.rs",
+      "line": 114,
       "address": "0x0042DF30",
       "verdict": "match",
       "note": ""

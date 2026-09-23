@@ -347,8 +347,8 @@
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 167,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/hits.rs",
+   "line": 74,
    "address": "0x00434174",
    "verdict": "match",
    "note": ""
@@ -361,15 +361,15 @@
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 189,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+   "line": 143,
    "address": "0x0043D649",
    "verdict": "match",
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 190,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+   "line": 150,
    "address": "0x0043DA9E",
    "verdict": "match",
    "note": ""
@@ -382,29 +382,29 @@
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 325,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/hits.rs",
+   "line": 176,
    "address": "0x0042BF46",
    "verdict": "match",
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 461,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+   "line": 168,
    "address": "0x0057A0F0",
    "verdict": "match",
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 468,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+   "line": 175,
    "address": "0x0042130F",
    "verdict": "match",
    "note": ""
   },
   {
-   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-   "line": 468,
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+   "line": 175,
    "address": "0x00420DE4",
    "verdict": "match",
    "note": ""

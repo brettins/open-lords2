@@ -13,14 +13,14 @@
     { "file": "crates/l2-sim/src/runner/closing.rs", "line": 117, "address": "0x00484BF9", "verdict": "match", "note": "" },
     { "file": "crates/l2-sim/src/runner/closing.rs", "line": 131, "address": "0x00484BF9", "verdict": "match", "note": "" },
     { "file": "crates/l2-sim/src/runner/closing.rs", "line": 138, "address": "0x00479E90", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 252, "address": "0x00489F9D", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 461, "address": "0x00484BF9", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 639, "address": "0x00484BF9", "verdict": "departure", "note": "[D] battle tick stands in for Gtime DAT_0057C998 in the blocked seed" },
-    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 689, "address": "0x00484BF9", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 819, "address": "0x00492C8B", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/orders.rs", "line": 898, "address": "0x00492C8B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders/movement.rs", "line": 36, "address": "0x00489F9D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders/targeting.rs", "line": 161, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders/targeting.rs", "line": 118, "address": "0x00484BF9", "verdict": "departure", "note": "[D] battle tick stands in for Gtime DAT_0057C998 in the blocked seed" },
+    { "file": "crates/l2-sim/src/runner/orders/targeting.rs", "line": 168, "address": "0x00484BF9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders/missiles.rs", "line": 74, "address": "0x00492C8B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/orders/missiles.rs", "line": 153, "address": "0x00492C8B", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/audio/events.rs", "line": 162, "address": "0x00484BF9", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/ai/world/methods.rs", "line": 29, "address": "0x00479E90", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/ai/world/methods/moves.rs", "line": 31, "address": "0x00479E90", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/engagement/fight/fight_session.rs", "line": 129, "address": "0x00484BF9", "verdict": "departure", "note": "[I] C186 stand-in re-points at the enemy's living centre; the original has no such order" }
   ]
 }

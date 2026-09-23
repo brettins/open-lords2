@@ -24,10 +24,10 @@ fn the_root_is_the_one_the_application_starts_on() {
 /// C27, nine instances, and this was the tenth.
 #[test]
 fn the_application_calls_the_director() {
-    let src = include_str!("../../src/main.rs");
+    let src = include_str!("../../src/app_frame.rs");
     assert!(
         src.contains("self.director.listen(&mut self.audio, &self.machine, &self.game)"),
-        "main.rs no longer calls Director::listen, so nothing drives the audio layer \
+        "app_frame.rs no longer calls Director::listen, so nothing drives the audio layer \
          and every test in this file passes anyway"
     );
     assert!(

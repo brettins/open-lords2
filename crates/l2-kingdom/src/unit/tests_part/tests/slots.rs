@@ -1,0 +1,217 @@
+#![allow(unused_imports)]
+use super::*;
+use super::recount::*;
+use super::super::*;
+use crate::tables::Tables;
+
+#[test]
+fn slot_zero_is_never_a_unit_and_the_array_holds_a_hundred_and_fifty() {
+    let mut units = Units::new();
+    assert_eq!(units.free_slot(), Some(1), "the first free slot is 1, not 0");
+    for i in 1..=MAX_UNIT_ID {
+        assert_eq!(units.spawn(army(1, 50)), Some(i));
+    }
+    assert_eq!(units.free_slot(), None);
+    assert_eq!(units.spawn(army(1, 50)), None, "the 151st is refused, not grown");
+    assert_eq!(units.len(), MAX_UNIT_ID);
+}
+
+#[test]
+fn a_freed_slot_is_reused_by_the_next_spawn() {
+    let mut units = Units::new();
+    let a = units.spawn(army(1, 50)).unwrap();
+    let b = units.spawn(army(1, 60)).unwrap();
+    units.remove(a);
+    assert_eq!(units.spawn(army(2, 70)), Some(a), "the lowest free slot wins");
+    assert!(units.get(b).is_some());
+}
+
+#[test]
+fn an_army_gets_fifteen_moves_and_everything_else_gets_ten() {
+    assert_eq!(UnitKind::Army.move_allowance(), 15);
+    for k in [UnitKind::PeasantMob, UnitKind::Merchant, UnitKind::Transport] {
+        assert_eq!(k.move_allowance(), 10, "{}", k.name());
+    }
+    for b in 1..=4u8 {
+        assert_eq!(UnitKind::from_byte(b).map(UnitKind::byte), Some(b));
+    }
+    assert_eq!(UnitKind::from_byte(0), None);
+    assert_eq!(UnitKind::from_byte(5), None, "the NULL tick handler is unreachable");
+}
+
+#[test]
+fn only_armies_and_mobs_are_combatants() {
+    assert!(UnitKind::Army.is_combatant());
+    assert!(UnitKind::PeasantMob.is_combatant());
+    assert!(!UnitKind::Merchant.is_combatant());
+    assert!(!UnitKind::Transport.is_combatant());
+}
+
+#[test]
+fn a_knight_is_a_man_in_armour_and_a_peasant_carries_nothing() {
+    assert_eq!(TroopType::Peasant.weapon_slot(), None);
+    for t in ALL_TROOP_TYPES.iter().skip(1) {
+        let slot = t.weapon_slot().expect("every equipped type has a weapon");
+        assert!(slot < crate::tables::WEAPON_TYPE_COUNT);
+    }
+    assert_eq!(TroopType::Knight.weapon_slot(), Some(5));
+    assert_eq!(crate::tables::WEAPON_NAMES[5], "Armour");
+    assert_eq!(TroopType::Crossbowman.weapon_slot(), Some(0));
+    assert_eq!(crate::tables::WEAPON_NAMES[0], "Crossbow");
+}
+
+#[test]
+fn an_empty_army_scores_one_and_a_single_peasant_scores_twenty_two() {
+    let empty = Unit::new(UnitKind::Army, 1, 0, 0);
+    assert_eq!(empty.strength_score(), 1);
+
+    let mut one = Unit::new(UnitKind::Army, 1, 0, 0);
+    one.troops[TroopType::Peasant.index()] = 1;
+    one.men = 1;
+    assert_eq!(one.strength_score(), 2 + STRENGTH_SCORE_BONUS);
+}
+
+#[test]
+fn the_strength_score_weights_each_type_and_adds_the_band() {
+    let mut u = Unit::new(UnitKind::Army, 1, 0, 0);
+    u.troops[TroopType::Knight.index()] = 10;
+    u.men = 10;
+    assert_eq!(u.strength_score(), 10 * 22 + STRENGTH_SCORE_BONUS);
+
+    u.mercenaries = Some(Mercenaries { band: 11, troop: TroopType::Knight, men: 50 });
+    u.men += 50;
+    assert_eq!(u.strength_score(), (10 + 50) * 22 + STRENGTH_SCORE_BONUS);
+}
+
+#[test]
+fn desertion_skips_any_troop_type_of_ten_or_fewer() {
+    let mut u = Unit::new(UnitKind::Army, 1, 0, 0);
+    u.troops = [100, 11, 10, 9, 0, 250, 1];
+    u.men = u.troops.iter().sum();
+    let before = u.men;
+
+    let lost = u.desert();
+    assert_eq!(u.troops, [90, 10, 10, 9, 0, 225, 1]);
+    assert_eq!(lost, 10 + 1 + 25);
+    assert_eq!(u.men, before - lost);
+
+    let mut small = Unit::new(UnitKind::Army, 1, 0, 0);
+    small.troops = [10; TROOP_TYPES];
+    small.men = 70;
+    assert_eq!(small.desert(), 0);
+    assert_eq!(small.men, 70, "seventy men in sevens never desert at all");
+}
+
+#[test]
+fn the_sprite_class_breaks_at_three_hundred_and_one_and_six_hundred_and_one() {
+    let mut u = Unit::new(UnitKind::Army, 1, 0, 0);
+    for (men, class) in [(1, 0), (300, 0), (301, 1), (600, 1), (601, 2), (1500, 2)] {
+        u.men = men;
+        assert_eq!(u.size_class(), class, "{men} men");
+    }
+}
+
+
+#[test]
+fn two_armies_totalling_fifteen_hundred_merge_and_fifteen_hundred_and_one_does_not() {
+    let mut units = Units::new();
+    let a = units.spawn(army(1, 750)).unwrap();
+    let b = units.spawn(army(1, 750)).unwrap();
+    assert_eq!(combine(&mut units, a, b), Ok(1500));
+    assert!(units.get(b).is_none(), "the absorbed army is gone");
+    assert_eq!(units.get(a).unwrap().men, 1500);
+
+    let mut units = Units::new();
+    let a = units.spawn(army(1, 751)).unwrap();
+    let b = units.spawn(army(1, 750)).unwrap();
+    assert_eq!(combine(&mut units, a, b), Err(CombineRefusal::TooMany));
+    assert!(units.get(b).is_some(), "a refused merge leaves both armies");
+}
+
+/// `L2.eng` 167: *"The mercenaries in these armies will not fight
+/// together."*
+#[test]
+fn two_armies_both_carrying_mercenaries_refuse_to_merge() {
+    let band = Mercenaries { band: 9, troop: TroopType::Maceman, men: 150 };
+    let mut units = Units::new();
+    let mut one = army(1, 200);
+    one.mercenaries = Some(band);
+    let mut two = army(1, 200);
+    two.mercenaries = Some(band);
+    let a = units.spawn(one).unwrap();
+    let b = units.spawn(two).unwrap();
+    assert_eq!(combine(&mut units, a, b), Err(CombineRefusal::TwoMercenaryBands));
+
+    units.get_mut(b).unwrap().mercenaries = None;
+    assert!(combine(&mut units, a, b).is_ok());
+    assert_eq!(units.get(a).unwrap().mercenaries, Some(band));
+}
+
+#[test]
+fn a_merge_takes_the_higher_of_the_two_move_counts_in_both_directions() {
+    for (a_used, b_used) in [(12, 2), (2, 12)] {
+        let mut units = Units::new();
+        let mut one = army(1, 100);
+        one.moves_used = a_used;
+        let mut two = army(1, 100);
+        two.moves_used = b_used;
+        let a = units.spawn(one).unwrap();
+        let b = units.spawn(two).unwrap();
+        assert!(combine(&mut units, a, b).is_ok());
+        assert_eq!(
+            units.get(a).unwrap().moves_used,
+            12,
+            "merging {a_used} and {b_used} must leave the army spent"
+        );
+    }
+}
+
+#[test]
+fn a_merge_sums_the_seven_troop_counts() {
+    let mut units = Units::new();
+    let mut one = Unit::new(UnitKind::Army, 1, 0, 0);
+    one.troops = [10, 20, 30, 40, 50, 60, 70];
+    one.men = one.troops.iter().sum();
+    let mut two = Unit::new(UnitKind::Army, 1, 0, 0);
+    two.troops = [1, 2, 3, 4, 5, 6, 7];
+    two.men = two.troops.iter().sum();
+    let a = units.spawn(one).unwrap();
+    let b = units.spawn(two).unwrap();
+    assert!(combine(&mut units, a, b).is_ok());
+    assert_eq!(units.get(a).unwrap().troops, [11, 22, 33, 44, 55, 66, 77]);
+    assert_eq!(units.get(a).unwrap().men, units.get(a).unwrap().troop_total());
+}
+
+
+#[test]
+fn a_realm_uses_every_name_before_repeating_one() {
+    let mut names = ArmyNames::new();
+    let mut seen = Vec::new();
+    for _ in 0..ARMY_NAME_SLOTS {
+        seen.push(names.pick(1));
+    }
+    seen.sort_unstable();
+    seen.dedup();
+    assert_eq!(seen.len(), ARMY_NAME_SLOTS, "all twenty-four before any repeat");
+    assert_eq!(names.pick(1), 0, "and then round again from the first");
+}
+
+#[test]
+fn a_destroyed_army_gives_back_only_half_of_what_its_name_cost() {
+    let mut names = ArmyNames::new();
+    let n = names.pick(1);
+    assert_eq!(names.counters(1)[n as usize], 2);
+    names.release(1, n);
+    assert_eq!(names.counters(1)[n as usize], 1, "not back to zero");
+    assert_ne!(names.pick(1), n);
+}
+
+#[test]
+fn a_realm_outside_one_to_five_never_touches_a_counter() {
+    let mut names = ArmyNames::new();
+    assert_eq!(names.pick(0), 0);
+    assert_eq!(names.pick(9), 0);
+    assert_eq!(names.counters(0), &[0; ARMY_NAME_SLOTS]);
+}
+
+

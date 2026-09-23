@@ -186,11 +186,11 @@ fn a_page_change_between_the_draw_and_the_present_would_flash() {
          so this test cannot see a flash"
     );
 
-    let main_rs = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/main.rs"),
+    let frame_rs = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/app_frame.rs"),
     )
-    .expect("main.rs is beside this test");
-    let present = main_rs.split("fn present(&mut self)").nth(1).expect("App::present");
+    .expect("app_frame.rs holds App::present");
+    let present = frame_rs.split("fn present(&mut self)").nth(1).expect("App::present");
     let body = &present[..present.find("fn redraw").unwrap_or(present.len())];
     assert!(
         body.contains("if self.machine.take_dirty()") && body.contains("self.redraw()"),

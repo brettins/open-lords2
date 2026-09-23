@@ -3,8 +3,8 @@
   "date": "2026-09-23",
   "behaviours": [
     {
-      "file": "crates/l2-game/src/screen/machine.rs",
-      "line": 111,
+      "file": "crates/l2-game/src/screen/machine/state.rs",
+      "line": 114,
       "address": "0x004B29BE",
       "verdict": "mismatch",
       "note": "Adds a guard (no Confirm on top) Ui_OpenConfirm 0x0040E6F2 does not test, and gates on Campaign in the stack where the original tests g_appPhase == 3, which a skirmish battle also holds [I]."

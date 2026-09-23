@@ -272,12 +272,12 @@ fn a_presentation_quirk_is_written_to_the_session_not_to_the_world() {
 #[test]
 fn the_presentation_quirks_are_projected_into_the_assets() {
     let src = std::fs::read_to_string(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join("main.rs"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src").join("app_frame.rs"),
     )
-    .expect("main.rs is part of this check");
+    .expect("app_frame.rs is part of this check");
     assert!(
         src.replace("\r\n", "\n").contains("self.assets.quirks = self.game.presentation_quirks;"),
-        "main.rs no longer copies Game::presentation_quirks into Assets::quirks, so a \
+        "app_frame.rs no longer copies Game::presentation_quirks into Assets::quirks, so a \
          presentation quirk set on the quirks page would change nothing on screen"
     );
 }

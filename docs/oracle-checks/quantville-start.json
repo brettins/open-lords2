@@ -6,7 +6,7 @@
       "note": "Original draws from the live LFSR (Game_NewGame reseeds nothing); ours is SEED ^ wall clock, the seed-as-parameter shape of netcode D-3a, cited in the docstring." },
     { "file": "crates/l2-game/src/scenario.rs", "line": 49, "address": "0x00441905", "verdict": "match",
       "note": "" },
-    { "file": "crates/l2-game/src/screens/setup/ui/render/render.rs", "line": 595, "address": "0x00497E65", "verdict": "match",
+    { "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs", "line": 137, "address": "0x00497E65", "verdict": "match",
       "note": "" }
   ]
 }
