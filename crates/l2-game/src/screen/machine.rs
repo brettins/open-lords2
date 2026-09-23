@@ -174,7 +174,7 @@ impl Machine {
         if !ctx.game.net.lockstep {
             self.run_turn_clock(ctx);
         } else {
-            // arm: 0x0042FF10/force-close-on-turn-end timer, per seat off the shared clock [I]
+            // Screen_FrameInput 0x0042FF10 force_close, per seat off the shared clock [I]
             self.dirty |= crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen);
             self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);
         }
