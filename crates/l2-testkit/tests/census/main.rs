@@ -112,7 +112,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/chrome_text/county_and_units/unit_panels.rs", "england", 3),
     ("crates/l2-game/tests/chrome_text/county_and_units/zoom_and_battle.rs", "england", 2),
     ("crates/l2-game/tests/chrome_text/panels/confirm_box.rs", "england", 1),
-    ("crates/l2-game/tests/chrome_text/panels/drop_down_plate.rs", "england", 1),
+    ("crates/l2-game/tests/chrome_text/panels/drop_down_plate.rs", "england", 2),
     ("crates/l2-game/tests/chrome_text/panels/tile_panel.rs", "england", 1),
     ("crates/l2-game/tests/chrome_text/panels/title_and_build.rs", "england", 2),
     ("crates/l2-game/tests/chrome_text/top_bar.rs", "england", 5),
@@ -304,7 +304,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 678;
+pub(crate) const GATED_TOTAL: usize = 679;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),
