@@ -4,6 +4,7 @@
 mod track_tests;
 mod voice_tests;
 mod format_tests;
+mod exe_tables;
 
 use std::path::{Path, PathBuf};
 
