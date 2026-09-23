@@ -1,3 +1,4 @@
+crates/l2-formats/src/cursors_tests.rs install 1
 crates/l2-formats/tests/battle_fixtures.rs fixture 3
 crates/l2-formats/tests/corpus.rs install 5
 crates/l2-formats/tests/hlp.rs install 2
@@ -28,6 +29,7 @@ crates/l2-game/tests/audio_battle/cries/audio_coverage.rs executable 1
 crates/l2-game/tests/audio_battle/cries/audio_coverage.rs install 2
 crates/l2-game/tests/audio_battle/determinism.rs install 2
 crates/l2-game/tests/audio_battle/events.rs install 1
+crates/l2-game/tests/audio_install/exe_tables.rs install 2
 crates/l2-game/tests/audio_install/format_tests.rs executable 1
 crates/l2-game/tests/audio_install/format_tests.rs install 2
 crates/l2-game/tests/audio_install/track_tests.rs england 1
@@ -237,6 +239,7 @@ crates/l2-scenario/tests/explored.rs fixture 1
 crates/l2-scenario/tests/explored.rs install 1
 crates/l2-scenario/tests/import/county.rs england 5
 crates/l2-scenario/tests/import/county.rs saves 6
+crates/l2-scenario/tests/import/economy/advanced_forecast.rs saves 1
 crates/l2-scenario/tests/import/economy/forecasts_and_events.rs saves 3
 crates/l2-scenario/tests/import/economy/industry_and_labor.rs england 4
 crates/l2-scenario/tests/import/economy/industry_and_labor.rs saves 1
