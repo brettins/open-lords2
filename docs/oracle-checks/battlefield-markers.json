@@ -10,8 +10,8 @@
     { "file": "crates/l2-sim/src/runner/muster.rs", "line": 28, "address": "0x0047EFEE", "verdict": "match", "note": "" },
     { "file": "crates/l2-sim/src/siege/mod.rs", "line": 283, "address": "0x004D4A58", "verdict": "match", "note": "" },
     { "file": "crates/l2-sim/src/siege/mod.rs", "line": 288, "address": "0x00477DFC", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 334, "address": "0x00477DFC", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 348, "address": "0x00477DFC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation/queries.rs", "line": 145, "address": "0x00477DFC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation/queries.rs", "line": 159, "address": "0x00477DFC", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs", "line": 155, "address": "0x004D4A58", "verdict": "match", "note": "" },
     { "file": "crates/l2-formats/src/troops.rs", "line": 58, "address": "0x0042AC0C", "verdict": "match", "note": "" }
   ] }

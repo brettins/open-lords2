@@ -4,8 +4,8 @@
  "source": "seeded from the conversation, not the report",
  "behaviours": [
   {
-   "file": "crates/l2-game/src/battlefield/logic/methods.rs",
-   "line": 408,
+   "file": "crates/l2-game/src/battlefield/logic/methods/field.rs",
+   "line": 15,
    "address": "0x0043BF07",
    "verdict": "match",
    "note": ""

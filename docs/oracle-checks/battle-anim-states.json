@@ -137,8 +137,8 @@
    "note": ""
   },
   {
-   "file": "crates/l2-sim/src/runner/combat.rs",
-   "line": 436,
+   "file": "crates/l2-sim/src/runner/combat/castle.rs",
+   "line": 37,
    "address": "0x00483A88",
    "verdict": "match",
    "note": ""
@@ -151,8 +151,8 @@
    "note": ""
   },
   {
-   "file": "crates/l2-sim/src/runner/orders.rs",
-   "line": 309,
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 93,
    "address": "0x004831D8",
    "verdict": "match",
    "note": ""

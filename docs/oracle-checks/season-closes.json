@@ -2,8 +2,8 @@
   "date": "2026-09-23",
   "behaviours": [
     { "file": "crates/l2-formats/src/hlp.rs", "line": 7, "address": "0x00434942", "verdict": "match", "note": "" },
-    { "file": "crates/l2-game/src/screen/machine.rs", "line": 258, "address": "0x0042DF30", "verdict": "match", "note": "" },
-    { "file": "crates/l2-game/src/screen/machine.rs", "line": 261, "address": "0x0043AD25", "verdict": "departure", "note": "[D] runs at the fade after Season_Advance; original calls FUN_0043AD25 before it (00490000.c:4716)" },
+    { "file": "crates/l2-game/src/screen/machine/turns.rs", "line": 113, "address": "0x0042DF30", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screen/machine/turns.rs", "line": 116, "address": "0x0043AD25", "verdict": "departure", "note": "[D] runs at the fade after Season_Advance; original calls FUN_0043AD25 before it (00490000.c:4716)" },
     { "file": "crates/l2-game/src/screen/tick_gate.rs", "line": 41, "address": "0x0043AD25", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/screen/tick_gate.rs", "line": 53, "address": "0x0043AD25", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/screens/map/camera.rs", "line": 181, "address": "0x0043AD25", "verdict": "match", "note": "" }

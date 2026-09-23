@@ -29,7 +29,7 @@
     { "file": "crates/l2-sim/src/runner/movement/sidestep.rs", "line": 279,
       "address": "0x0049005F", "verdict": "match",
       "note": "" },
-    { "file": "crates/l2-sim/src/runner/combat.rs", "line": 611,
+    { "file": "crates/l2-sim/src/runner/combat/castle.rs", "line": 176,
       "address": "0x0048F1DD", "verdict": "departure",
       "note": "[D] at runner/mod.rs:169: delay and both barred carried, delayState=3 and stepFlags &= 0xFD not modelled." }
   ]

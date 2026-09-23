@@ -14,8 +14,8 @@
       "address": "0x0047F474", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/engagement/fight/resolution.rs", "line": 62,
       "address": "0x0047F474", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 338,
+    { "file": "crates/l2-sim/src/runner/simulation/queries.rs", "line": 149,
       "address": "0x0047F474", "verdict": "match", "note": "" },
-    { "file": "crates/l2-sim/src/runner/simulation.rs", "line": 348,
+    { "file": "crates/l2-sim/src/runner/simulation/queries.rs", "line": 159,
       "address": "0x0047F474", "verdict": "match", "note": "" }
   ] }

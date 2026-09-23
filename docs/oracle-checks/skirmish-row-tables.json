@@ -66,8 +66,8 @@
       "note": ""
     },
     {
-      "file": "crates/l2-sim/src/runner/simulation.rs",
-      "line": 104,
+      "file": "crates/l2-sim/src/runner/simulation/deploy_part.rs",
+      "line": 108,
       "address": "0x0047AAA3",
       "verdict": "match",
       "note": ""

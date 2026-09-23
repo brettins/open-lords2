@@ -31,8 +31,8 @@
       "note": ""
     },
     {
-      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
-      "line": 390,
+      "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs",
+      "line": 97,
       "address": "0x00433461",
       "verdict": "match",
       "note": "inventions-4: Setup_ChooseCampaign writes both at the hotspot press, before any game; cites function+address. Test choosing_the_second_campaign_is_remembered_before_any_game."

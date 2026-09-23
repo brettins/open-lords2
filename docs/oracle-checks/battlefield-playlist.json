@@ -73,8 +73,8 @@
       "note": "skirmish arm (DAT_0057A0F0 != 0) reads DAT_0056D590 and does not step the cursor"
     },
     {
-      "file": "crates/l2-kingdom/src/kingdom/pipeline/pipeline/pipeline.rs",
-      "line": 50,
+      "file": "crates/l2-kingdom/src/kingdom/pipeline/pipeline/pipeline/setup.rs",
+      "line": 53,
       "address": "0x00497CED",
       "verdict": "match",
       "note": "Game_NewGame calls PlayerStart_Shuffle, whose tail deals the table"
