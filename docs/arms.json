@@ -1792,7 +1792,7 @@
       "gesture": "left-press",
       "addr": "0x0043524E",
       "what": "Hotspot_Test(0, 0, &g_nobleTabs, 7) - seven 38 x 35 boxes along y 428..463, x 46, 84, 122, 160, 198, 236, 274 - all one handler, FUN_0043524E, which is three statements: DAT_0055CE7C = g_uiHotspotId; g_redrawRequest = 2; FUN_004B3994(g_uiHotspotId). So a tab picks the category, repaints, and speaks the category's own name out of S035_01..07.",
-      "note": "ONE RECORD AND ONE FUNCTION, per this file's counted-per-implementation rule: the seven records differ only in x and in the id at +0x10. Screen_DrawWidgets has no 0x20 arm, so nothing draws them - the tabs are part of grtnoble.pl8 and the marker over the selected one is flags.pl8 frame 5, at g_nobleTabX[category], which is the category's x and not the leader's. The category is kept on the Game and not on the screen so that the spoken name can be reproduced at all; see docs/audio.json FUN_004b3994#1.",
+      "note": "ONE RECORD AND ONE FUNCTION, per this file's counted-per-implementation rule: the seven records differ only in x and in the id at +0x10. Screen_DrawWidgets has no 0x20 arm, so nothing draws them - the tabs are part of grtnoble.pl8 and the marker over the selected one is flags.pl8 frame 5, at g_nobleTabX[category], which is the category's x and not the leader's. The category is kept on the Game and not on the screen so that the spoken name can be reproduced at all; see docs/audio.json Speech_PlayStandingsCategory#1.",
       "ours": "crates/l2-game/src/screens/nobles/mod.rs",
       "evidence": "V"
     },
