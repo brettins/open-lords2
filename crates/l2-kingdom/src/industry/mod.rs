@@ -20,12 +20,15 @@ pub use castles::*;
 mod ui;
 pub use ui::*;
 
+#[cfg(test)]
 use crate::county::County;
-use crate::math::pct;
+#[cfg(test)]
 use crate::realm::Realm;
+#[cfg(test)]
 use crate::report::Message;
-use crate::tables::{Commodity, Tables, RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COUNT};
-use l2_net::{Quirk, Quirks};
+use crate::tables::{Commodity, Tables, WEAPON_TYPE_COUNT};
+#[cfg(test)]
+use l2_net::Quirks;
 
 /// The two denominators `FUN_0044F15B` (`0x0044F15B`) computes before every
 /// weapons `resourceLimit`,

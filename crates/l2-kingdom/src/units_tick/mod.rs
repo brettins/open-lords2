@@ -30,14 +30,11 @@
 //! tick early, this is the paragraph that is wrong.
 
 mod tick;
-pub use tick::*;
 mod tests;
-pub use tests::*;
 
 use crate::conquest::{self, Attack};
 use crate::kingdom::Kingdom;
-use crate::merchant;
-use crate::movement::{self, Entry, Offence};
+use crate::movement::Offence;
 use crate::phase::Phase;
 use crate::unit::{UnitKind, Units};
 

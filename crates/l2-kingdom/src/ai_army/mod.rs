@@ -44,14 +44,7 @@ pub use aim::*;
 mod army;
 pub use army::*;
 
-use crate::county::{County, MAX_COUNTIES};
-use crate::kingdom::Kingdom;
-use crate::levy::{self, LevyBasket, Muster};
-use crate::map::{flags, CampaignMap, MAP_DIM};
-use crate::math::pct;
-use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
-use crate::unit::{TroopType, UnitKind, Units};
+use crate::unit::TroopType;
 
 /// Unit `+0x1A` — **what an army is currently trying to do.**
 ///

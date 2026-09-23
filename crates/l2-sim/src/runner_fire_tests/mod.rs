@@ -1,18 +1,11 @@
 
 mod oil_and_rampart_tests;
-pub use oil_and_rampart_tests::*;
 mod bridge_and_tower_tests;
-pub use bridge_and_tower_tests::*;
 mod wood_and_proving_tests;
-pub use wood_and_proving_tests::*;
 mod ground_fire_tests;
-pub use ground_fire_tests::*;
+use ground_fire_tests::*;
 
 use super::*;
-use crate::cue::Cues;
-use crate::fire::{SURFACE_BRIDGE, SURFACE_BURNING, SURFACE_WOODLAND, SURFACE_WOOD_BURNING, SURFACE_WOOD_CATCHING};
-use crate::proving;
-use crate::terrain::flag;
 
 fn cell(x: u8, y: u8) -> usize {
     y as usize * DIM + x as usize

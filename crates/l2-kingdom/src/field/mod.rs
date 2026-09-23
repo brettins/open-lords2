@@ -59,7 +59,6 @@ pub use operations::*;
 mod ui;
 pub use ui::*;
 mod tests;
-pub use tests::*;
 
 use crate::county::{County, MAX_FIELDS};
 use crate::map::CampaignMap;

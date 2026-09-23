@@ -45,7 +45,6 @@ mod art;
 pub use art::*;
 
 use crate::sheet::Sheet;
-use crate::Canvas;
 
 pub const CLUSTER_COUNT: usize = 8;
 

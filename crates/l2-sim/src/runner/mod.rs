@@ -22,7 +22,6 @@ mod anim_tests;
 #[cfg(test)]
 mod dying_tests;
 mod fighter;
-pub use fighter::*;
 mod save;
 mod muster;
 pub use muster::*;
@@ -36,21 +35,16 @@ mod band_tests;
 mod siege_raise_tests;
 #[cfg(test)]
 mod conclusion_tests;
-pub use simulation::*;
 mod closing;
 pub use closing::*;
 #[cfg(test)]
 mod closing_tests;
 mod orders;
-pub use orders::*;
 mod stop_short;
 pub use stop_short::*;
 mod combat;
-pub use combat::*;
 mod movement;
-pub use movement::*;
 mod tests;
-pub use tests::*;
 
 use crate::ai::{self, Ai, AiField};
 use crate::facing::{facing_from_delta, FACING_DELTA};
@@ -58,7 +52,7 @@ use crate::fire;
 use crate::formation::{self, FOOTPRINT, MAX_FIGURES_PER_UNIT, ROW_MAX, TYPE_PRIORITY, WEAPON_CLASS};
 use crate::missile::{self, WeaponClass};
 use crate::movement::Progress;
-use crate::pathfind::{self, Grid, Outcome, Pos};
+use crate::pathfind::{Grid, Pos};
 use crate::terrain::{self, Battlefield, DIM};
 use crate::unit::{chebyshev, Units, CATEGORY_OF_TROOP, MAX_UNITS};
 use crate::{Battle, Motion, Side, State, Troop, SIDE_A, SIDE_B};

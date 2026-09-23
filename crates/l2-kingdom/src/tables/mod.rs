@@ -10,7 +10,6 @@ pub use constants::*;
 mod ai;
 pub use ai::*;
 mod methods;
-pub use methods::*;
 
 /// `g_season` is 1..=4 and indexes `L2.eng` group 29 directly:
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

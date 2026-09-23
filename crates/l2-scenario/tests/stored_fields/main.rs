@@ -9,20 +9,14 @@
 //!   added to `docs/records.json` goes red here until somebody decides about it.
 
 mod layout_tests;
-pub use layout_tests::*;
 mod oracle_tests;
-pub use oracle_tests::*;
 mod accessors_part;
-pub use accessors_part::*;
+use accessors_part::*;
 mod value_tests;
-pub use value_tests::*;
 
-use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
-use l2_formats::save::{Save, COUNTY_BASE, COUNTY_STRIDE, REALM_BASE, REALM_STRIDE};
-use l2_kingdom::Kingdom;
-use l2_scenario::Scenario;
+use l2_formats::save::{COUNTY_STRIDE, REALM_STRIDE};
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

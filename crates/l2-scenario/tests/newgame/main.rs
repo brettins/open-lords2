@@ -1,8 +1,7 @@
 
-use l2_formats::maps::{MapSet, Plane, PLANE_DIM, SLOT_LEN};
-use l2_kingdom::map::MAP_TILES;
-use l2_scenario::newgame::{self, MapError, NewGame};
-use l2_scenario::{CountyState, Scenario};
+use l2_formats::maps::MapSet;
+use l2_scenario::newgame::NewGame;
+use l2_scenario::Scenario;
 
 macro_rules! maps {
     () => {
@@ -14,9 +13,7 @@ macro_rules! maps {
 }
 
 mod build;
-pub use build::*;
 mod comparison;
-pub use comparison::*;
 
 
 /// Slot 0 is England — `L2.eng` group 101 names it, and rendering it produces

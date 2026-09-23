@@ -57,11 +57,13 @@ mod steps;
 pub use economy::*;
 pub use steps::*;
 
+#[cfg(test)]
 use crate::county::County;
+#[cfg(test)]
 use crate::realm::{Realm, AI_STEP_DONE};
+#[cfg(test)]
 use crate::tables::{
-    ai_grant_tier, tax_rate_for, Tables, AI_CASTLE_LADDER_LEN, AI_GOLD_GRANT_SMALL_COUNTIES,
-    AI_WEAPON_ROTA_ORDER,
+    tax_rate_for, Tables,
 };
 
 pub const AI_HANDLER_COUNT: i32 = 14;

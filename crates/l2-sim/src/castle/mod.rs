@@ -38,13 +38,9 @@ pub use builder::*;
 mod tables_part;
 pub use tables_part::*;
 
-use crate::siege::{
-    code, FLAG_DRAWBRIDGE, FLAG_KEEP, FLAG_WALL, STRUCTURE_STONE, STRUCTURE_WOOD, SURFACE_BAILEY,
-    SURFACE_DRAWBRIDGE, SURFACE_FIELD, SURFACE_GROUND, SURFACE_KEEP, SURFACE_RAMPART_WALK,
-    SURFACE_WALL, SURFACE_WATER,
-};
-use crate::terrain::{flag, id, tileset, Battlefield, Cell, Lfsr, CELLS, DIM};
-use crate::AiField;
+#[cfg(test)]
+use crate::siege::SURFACE_FIELD;
+use crate::terrain::CELLS;
 
 /// One layer is one 80 x 80 raster — the `0x1900` of both `File_ReadChunk`
 /// calls.

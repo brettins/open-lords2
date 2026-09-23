@@ -10,12 +10,8 @@
 //!    checked against a position where the two could be told apart.
 
 mod siege_tests;
-pub use siege_tests::*;
 
 use l2_formats::save::Save;
-use l2_kingdom::battle::{self, CASTLE_STRENGTH_PERCENT};
-use l2_kingdom::siege::{self, Engine, ENGINE_WORK};
-use l2_kingdom::unit::{Unit, UnitKind, Units, TROOP_TYPES};
 
 /// `g_units`, `0x0052F0B0`, stride `0x1A4` — `docs/armies.md` §1.
 const UNIT_BASE: u32 = 0x0052_F0B0;

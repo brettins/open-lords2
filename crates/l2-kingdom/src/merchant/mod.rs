@@ -25,12 +25,7 @@ pub use traversal::*;
 mod placement;
 pub use placement::*;
 mod tests_part;
-pub use tests_part::*;
 
-use crate::county::{County, MAX_COUNTIES};
-use crate::map::{flags, CampaignMap};
-use crate::movement;
-use crate::unit::{UnitKind, Units};
 
 pub const ROUTES: usize = 6;
 

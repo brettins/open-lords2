@@ -24,11 +24,14 @@ pub use attack::*;
 mod castle;
 pub use castle::*;
 
+#[cfg(test)]
 use crate::county::{County, MAX_COUNTIES};
-use crate::levy::{self, Defence};
-use crate::map::CampaignMap;
+#[cfg(test)]
 use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::{Season, Tables};
+use crate::tables::Season;
+#[cfg(test)]
+use crate::tables::{Tables};
+#[cfg(test)]
 use crate::unit::{ArmyNames, UnitKind, Units};
 
 /// **The four globals `County_MakeIndependent` (`0x004AC3C6`) reads** and

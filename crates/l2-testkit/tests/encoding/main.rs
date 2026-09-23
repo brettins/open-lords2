@@ -60,9 +60,8 @@
 //! revisits.
 
 mod free_function_codecs_part;
-pub use free_function_codecs_part::*;
+use free_function_codecs_part::*;
 mod struct_analysis;
-pub use struct_analysis::*;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

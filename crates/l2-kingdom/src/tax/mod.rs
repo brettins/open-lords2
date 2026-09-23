@@ -3,11 +3,16 @@
 mod calc;
 pub use calc::*;
 
+#[cfg(test)]
 use crate::county::County;
+#[cfg(test)]
 use crate::math::pct;
+#[cfg(test)]
 use crate::realm::Realm;
+#[cfg(test)]
 use crate::tables::{Tables, MAX_TAX_RATE};
-use l2_net::{Quirk, Quirks};
+#[cfg(test)]
+use l2_net::Quirks;
 
 pub const FREE_TAX_RATE: i32 = 5;
 

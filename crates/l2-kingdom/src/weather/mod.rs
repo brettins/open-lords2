@@ -23,9 +23,11 @@
 mod update;
 pub use update::*;
 
+#[cfg(test)]
 use crate::county::County;
-use crate::math::clamp;
+#[cfg(test)]
 use crate::tables::{Season, Tables, Weather};
+#[cfg(test)]
 use l2_net::Pcg32;
 
 /// The dryness accumulator is a signed byte in the original (county `+0x21D`),

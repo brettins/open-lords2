@@ -10,10 +10,12 @@ pub use actions::*;
 mod calculator;
 pub use calculator::*;
 
+#[cfg(test)]
 use crate::county::County;
-use crate::math::clamp;
+#[cfg(test)]
 use crate::tables::Tables;
-use l2_net::{Quirk, Quirks};
+#[cfg(test)]
+use l2_net::Quirks;
 
 pub const HAPPINESS_MIN: i32 = 0;
 pub const HAPPINESS_MAX: i32 = 100;

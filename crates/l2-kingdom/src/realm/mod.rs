@@ -3,10 +3,12 @@
 //! byte layout is not.
 
 mod methods;
-pub use methods::*;
 
-use crate::tables::{Tables, WEAPON_TYPE_COUNT};
-use l2_net::{Quirk, Quirks};
+use crate::tables::WEAPON_TYPE_COUNT;
+#[cfg(test)]
+use crate::tables::{Tables};
+#[cfg(test)]
+use l2_net::Quirks;
 
 pub const MAX_REALMS: usize = 6;
 

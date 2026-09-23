@@ -39,11 +39,14 @@ pub use engine::*;
 mod assault;
 pub use assault::*;
 
+#[cfg(test)]
 use crate::county::{County, MAX_COUNTIES};
-use crate::math::pct_of;
+#[cfg(test)]
 use crate::realm::{Realm, MAX_REALMS};
+#[cfg(test)]
 use crate::tables::Tables;
-use crate::unit::{Unit, UnitKind, Units, MAX_UNITS};
+#[cfg(test)]
+use crate::unit::{UnitKind, Units};
 
 /// The three engine types, in the order their records sit in the unit record
 /// (`+0x182`, `+0x188`, `+0x18E` — stride 6) and in `g_siegeEngineWork`.

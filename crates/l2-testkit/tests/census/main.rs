@@ -6,12 +6,10 @@
 //! through a hard-coded path copied between files.
 
 mod scanner;
-pub use scanner::*;
+use scanner::*;
 mod assertions;
-pub use assertions::*;
 
 use std::collections::BTreeMap;
-use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Gate {

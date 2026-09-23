@@ -8,12 +8,9 @@
 //!   `Siege_RecordCastleDamage` (`0x004784CA`) bills a castle's repair from.
 
 mod drawbridge;
-pub use drawbridge::*;
 mod moat;
-pub use moat::*;
 
 use l2_sim::siege;
-use l2_sim::terrain::{id, DIM};
 use l2_sim::{BattleRunner, Muster, Troop};
 
 fn siege_battle(level: u8, seed: u64) -> BattleRunner {

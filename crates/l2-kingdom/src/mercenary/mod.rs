@@ -27,12 +27,16 @@
 //! reading is right, and would not be if it were not.
 
 mod bands;
-pub use bands::*;
 
+#[cfg(test)]
 use crate::county::{County, MAX_COUNTIES};
+#[cfg(test)]
 use crate::realm::{Realm, MAX_REALMS};
-use crate::unit::{Mercenaries, TroopType, UnitKind, Units};
-use l2_net::{Quirk, Quirks};
+use crate::unit::TroopType;
+#[cfg(test)]
+use crate::unit::{Mercenaries, UnitKind, Units};
+#[cfg(test)]
+use l2_net::Quirks;
 
 pub const MERCENARY_BANDS: usize = 12;
 

@@ -22,12 +22,7 @@
 //! arithmetic is written out longhand.
 
 mod forecast;
-pub use forecast::*;
 
-use l2_kingdom::industry::MapToggle;
-use l2_kingdom::tables::Commodity;
-use l2_scenario::Scenario;
-use l2_testkit::england;
 
 const DIVISOR: [i32; 4] = [1, 1, 4, 2];
 
