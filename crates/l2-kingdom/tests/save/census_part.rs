@@ -146,10 +146,9 @@ pub(crate) mod census {
     }
 
     pub fn fixture_region() -> String {
-        let src = std::fs::read_to_string(
-            repo_root().join("crates/l2-kingdom/tests/save/main.rs"),
-        )
-        .expect("this file");
+        let src = ["main.rs", "furnished_state.rs", "campaign.rs"]
+            .map(|f| std::fs::read_to_string(repo_root().join("crates/l2-kingdom/tests/save").join(f)).expect(f))
+            .concat();
         let begin = "// --- the fixture: begin ";
         let end = "// --- the fixture: end ";
         let from = src.find(begin).expect("the opening fixture marker");
