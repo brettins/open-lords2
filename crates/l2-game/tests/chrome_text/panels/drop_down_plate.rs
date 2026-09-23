@@ -82,4 +82,36 @@ fn the_drop_down_plate_has_no_top_rail() {
     }
 }
 
+/// `FUN_0040C725`: the picked caption is drawn inside `DAT_005aea40 = 1`, flat.
+/// Ablation: give the picked caption the embossed pen and the count is non-zero.
+#[test]
+fn the_picked_drop_down_caption_is_flat() {
+    use l2_game::screens::menubar::{item_rect, titles, DropdownScreen};
+    let (mut game, assets) = world!();
+    let mut screen = DropdownScreen::new(0);
+    let hit = {
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        let r = item_rect(&titles(&ctx), 0, 0);
+        screen.handle(Event::Pointer { x: r.x + 4, y: r.y + 4 }, &mut ctx);
+        r
+    };
+    assert_eq!(screen.hover(), Some(0));
+    let canvas = draw(&mut screen, &mut game, &assets);
+
+    // `FUN_004b414a(x + 8, item.y + y + 0x1e, 0x3f)`, 0xB cells by 0x10.
+    let (x0, y0) = (hit.x + 8, hit.y - 1);
+    let (mut caption, mut emboss) = (0, 0);
+    for y in y0..y0 + 0x10 {
+        for x in x0..x0 + 0xB * 16 {
+            match canvas.at(x as usize, y as usize) {
+                0x18 => caption += 1,
+                c if c == font::SHADOW.0 || c == font::SHADOW.1 => emboss += 1,
+                _ => {}
+            }
+        }
+    }
+    assert!(caption > 0, "no 0x18 caption under the highlight");
+    assert_eq!(emboss, 0, "the picked caption carries the emboss pair");
+}
+
 
