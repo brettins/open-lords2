@@ -380,8 +380,9 @@ impl Screen for TradeScreen {
             pen.eng(canvas, GROUP, ask, x, ASK_AT.1, colour);
             // The good's name is not repeated here; ours used to add it. The
             // two suffixes are `&DAT_004D3F84` / `…88`, both NUL. **[V]**
-            let (qx, qy) = QTY_AT;
-            pen.number_in(shell::Face::Body, canvas, qx, qy, self.qty.abs(), '@', "", font::TEXT);
+            // Trade_DrawPanel 0x0041635F: `Ui_DrawNumber(..,0x60,0xe0,..)`. [V]
+            let (q, body) = (self.qty.abs(), shell::Face::Body);
+            pen.number_in(body, canvas, QTY_AT.0, QTY_AT.1, q, '@', "", font::TEXT);
             let idx = if self.qty < 1 { WE_RECEIVE } else { TOTAL_COST_OF };
             let x = pen.eng(canvas, GROUP, idx, TOTAL_AT.0, TOTAL_AT.1, font::TEXT);
             pen.count(canvas, x, TOTAL_AT.1, self.crowns(ctx), CROWN_NOUN, font::TEXT);

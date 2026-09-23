@@ -127,7 +127,7 @@ const LEAF = new Set([
   'Ui_DrawBevelRect', 'Ui_DrawMenuTitles', 'Ui_HistoryGraph', 'Ui_OkButton',
   'Glyph_Draw', 'Blit_Raster',
   'FUN_004025d7', // a string centred in a width, from a char*
-  'FUN_0040328e', // a wrapped L2.eng paragraph
+  'FUN_0040328e', 'FUN_0040328E', // a wrapped L2.eng paragraph; the second is symbols.json's spelling
   'FUN_00403cf4', // a rectangle outline
   'FUN_0040437d', // a filled rectangle
   'FUN_00409346', // a framed box with a picture
