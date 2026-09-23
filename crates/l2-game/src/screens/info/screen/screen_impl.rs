@@ -191,6 +191,8 @@ impl Screen for InfoScreen {
                     // when the castle is besieged — `Battle_BeginFromCampaign`
                     // (`0x004A7158`), staged by `Game::leave_castle`; the
                     // prompt comes up on the map behind this pop.
+                    //
+                    // arm: 0x004374C4/info-leave-castle left-press
                     (0, true) => match ctx.game.leave_castle(id) {
                         LeftCastle::Marched { tile, .. } => {
                             self.status = format!("MARCHED OUT TO {},{}", tile.0, tile.1);

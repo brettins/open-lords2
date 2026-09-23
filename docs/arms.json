@@ -2005,13 +2005,14 @@
     },
     {
       "id": "0x004374C4/info-leave-castle",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
       "gesture": "left-press",
       "addr": "0x004374C4",
       "what": "The GARRISONED table (0x004DC5A8) replaces the move button with FUN_004374C4: find a free tile near the castle with Map_FindFreeTileNear, move the army out, clear county.garrisonUnit and unit.garrisonCounty, and start a battle if the county was besieged - or Army_Destroy the army if no tile is free. Multiplayer command 0x36.",
-      "note": "Unnamed in docs/symbols.json and it is a real action. Army_LeaveCastle is earned. A sortie is the only way a garrison gets out.",
+      "note": "Was already built (Game::leave_castle over l2_kingdom::conquest::leave_castle, sortie staged) and unmarked. Unverified against FUN_00437535: its no-tile path is Army_Destroy alone, where ours also clears county.garrisonUnit and recounts first.",
+      "ours": "crates/l2-game/src/screens/info/screen/screen_impl.rs",
       "evidence": "V"
     },
     {
