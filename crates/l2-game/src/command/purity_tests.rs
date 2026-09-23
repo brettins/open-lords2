@@ -1,6 +1,6 @@
 //! Presentation code changes the hashed world (`net::sim::encode_state`,
 //! `turn::engine::wind::encode_progress`) only through `crate::command`.
-//! `docs/netcode.md` §5; CNEW-net-local.
+//! `docs/netcode.md` §5; C245.
 
 use std::path::Path;
 
@@ -106,7 +106,7 @@ const ALLOWED: &[Allowed] = &[
         pattern: "*ctx.game = ",
         gate: "if ctx.game.net.lockstep {",
         back: 40,
-        why: "CNEW-net-local: Load is refused in a network game",
+        why: "C245: Load is refused in a network game",
     },
     Allowed {
         file: "screens/saveload/screen/methods.rs",

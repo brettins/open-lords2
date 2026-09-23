@@ -12495,6 +12495,6 @@ The index (`screens/index.rs`) is ours, not the original's: `App_WndProc` (`0x00
 
 `FUN_0042476B` (`0x0042476B`, 00420000.c:1396) draws its wait glyph only when `g_battlePhase == 0`, and nothing in a battle. Ours draws a "WAITING FOR THE OTHER PLAYERS..." box there `[D]`: a battle frozen with no sign reads as a hang. `L2.eng` has no group for it (`net/status.rs`).
 
-**CNEW-net-local — in a network game, the world changes only through commands; Load is refused.**
+**C245 — in a network game, the world changes only through commands; Load is refused.**
 
 Presentation code (screens, the frame driver, the letter ring, sound, the app shell) may not change hashed state (`net::sim::encode_state`, `encode_progress`) except by `GameCommand`. Three exceptions were one peer's alone: Load swapped the whole world (`screens/saveload/screen/methods.rs`), so in a network game it is refused with *"A network game cannot load a save. Saving is allowed; resuming one is not, yet."* `[D]`, no `L2.eng` string; saving stays per seat and resuming a network game is out of scope. F4's `add_hits` (`App_WndProc` `0x004B29BE` `case 0x73`) is off under `net.lockstep`. A skirmish's `battle.take()` is local by construction (`setup/`) and `debug_assert`s so. `command/purity_tests.rs` scans for mutation patterns; each allowed hit names its file, pattern and the gate that must stand beside it. Single player is unchanged.

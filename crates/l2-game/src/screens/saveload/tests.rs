@@ -114,7 +114,7 @@ mod tests {
         assert_eq!(s.top, 0);
     }
 
-    /// CNEW-net-local. Ablation: the `net.lockstep` gate in `confirm`'s Load arm.
+    /// C245. Ablation: the `net.lockstep` gate in `confirm`'s Load arm.
     #[test]
     fn a_network_game_refuses_to_load_and_keeps_its_world() {
         let dir = std::env::temp_dir().join(format!("l2-netload-{}", std::process::id()));

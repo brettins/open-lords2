@@ -1182,7 +1182,7 @@ have enabled.
   or more peers each may have heard a different last packet. Instead each survivor's
   frozen world gives the absent realms to the AI (`is_human = false`, which
   `ai::steps` skips) and names the leaver; saving it goes on as a single-player game.
-- **No loading in a network game** (CNEW-net-local). Replacing the world is one
+- **No loading in a network game** (C245). Replacing the world is one
   peer's act, so the save box's Load refuses under `net.lockstep` and says so;
   saving stays per seat. Resuming a saved network game is out of scope for now. F4's
   debug `add_hits` is off in a network game; a skirmish is local (`setup/`), never

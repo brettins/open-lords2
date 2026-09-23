@@ -52,7 +52,7 @@ pub fn key_down(game: &mut Game, key: Key, screen: Option<u8>) {
         Key::F3 if dk.debug => dk.panel_on = !dk.panel_on,
         // `case 0x73`, gated on `DAT_0053f684 == 1`.
         // arm: 0x004B29BE/debug-add-hits key
-        // [D] CNEW-net-local: world-changing, so never in a network game.
+        // [D] C245: world-changing, so never in a network game.
         Key::F4 if dk.debug && !game.net.lockstep => add_hits(game),
         _ => {}
     }

@@ -65,7 +65,7 @@ fn the_food_debug_branch_bands_by_ration_achieved() {
     assert_eq!(c.minimap_bands().food, 6);
 }
 
-/// CNEW-net-local. Ablation: `!game.net.lockstep` on F4.
+/// C245. Ablation: `!game.net.lockstep` on F4.
 #[test]
 fn f4_changes_nothing_in_a_network_game() {
     let mut g = game();

@@ -263,7 +263,7 @@ impl BattlefieldScreen {
         // `Battle_ReturnToCampaign` and goes to `0x2E`. `screens/ratings/end.rs`.
         if ctx.game.battle.as_ref().is_some_and(|b| b.skirmish) {
             let live = ctx.game.battle.take().expect("tested above");
-            // CNEW-net-local: a skirmish starts from setup/, local and never deferred.
+            // C245: a skirmish starts from setup/, local and never deferred.
             debug_assert!(!live.deferred && !ctx.game.net.lockstep, "a skirmish in a network game");
             let side = ctx.game.battle_master.local_side();
             let other = if side == l2_sim::SIDE_A { l2_sim::SIDE_B } else { l2_sim::SIDE_A };
@@ -328,7 +328,7 @@ fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
 }
 
 
-/// CNEW-net-local. Ablation: the `debug_assert!` in `settle`'s skirmish arm.
+/// C245. Ablation: the `debug_assert!` in `settle`'s skirmish arm.
 #[cfg(test)]
 #[test]
 #[should_panic(expected = "a skirmish in a network game")]

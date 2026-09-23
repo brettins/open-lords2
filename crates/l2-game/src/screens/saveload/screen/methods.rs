@@ -182,7 +182,7 @@ impl SaveLoadScreen {
     pub(crate) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
             Mode::Load => {
-                // [D] CNEW-net-local: the swap below would change one peer's world only.
+                // [D] C245: the swap below would change one peer's world only.
                 if ctx.game.net.lockstep {
                     self.status = Status::NetworkGame;
                     return Transition::Stay;
