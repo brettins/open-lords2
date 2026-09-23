@@ -166,3 +166,26 @@ fn a_decided_battle_plays_the_film_for_its_outcome_in_rotation() {
     assert_eq!(m.top_id(), Some(ScreenId::Battlefield));
 }
 
+
+/// FUN_0043AD25 0x0043AD25, Turn_Tick phase 7: `g_screenId == 0x22` -> `Smk_Skip()`,
+/// then `g_screenId = 0`. Ablate the stack cut in `Machine::wind_turn` and the film stays.
+#[test]
+fn a_film_still_playing_when_a_network_season_turns_is_skipped() {
+    let (_p, a) = install!();
+    let mut g = realms();
+    g.multiplayer = true;
+    ai_turns_over(&mut g);
+    g.issue(l2_game::command::EndTurn {});
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Movie(Film::Credits));
+    let before = g.kingdom.turn_count;
+    for _ in 0..2_000 {
+        tick(&mut m, &mut g, &a);
+        if g.kingdom.turn_count > before {
+            break;
+        }
+    }
+    assert!(g.kingdom.turn_count > before, "the season turns under the film");
+    assert_eq!(m.ids(), vec![ScreenId::Campaign]);
+    assert_eq!(g.films.finished, Some(Film::Credits), "Smk_Skip runs Smk_OnFinished");
+}

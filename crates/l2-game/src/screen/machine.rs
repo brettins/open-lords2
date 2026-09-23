@@ -252,6 +252,15 @@ impl Machine {
             return false;
         };
         let t = self.stack[depth].wind_turn(ctx);
+        // arm: 0x0043AD25/film-skip-season-end frame
+        if !fading && self.stack[depth].fade().is_some() {
+            if let Some(film) = tick_gate::season_skips_film(&self.ids(), depth) {
+                // Smk_Skip 0x0042DF30 -> Smk_OnFinished; then FUN_0043AD25's g_screenId = 0
+                ctx.game.films.finished = Some(film);
+                self.stack.truncate(depth + 1);
+                self.dirty = true;
+            }
+        }
         if self.stack[depth].take_redraw() {
             self.dirty = true;
         }

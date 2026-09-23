@@ -33,9 +33,31 @@ pub fn withheld(byte: Option<u8>, message_open: bool, multiplayer: bool) -> bool
     byte.is_some_and(|b| PAUSES.get(b as usize).is_some_and(|&p| p != 0)) || message_open
 }
 
+/// `FUN_0043AD25` (`0x0043AD25`), run by `Turn_Tick` phase 7 before `Season_Advance`:
+/// `if (g_screenId == '"') { Smk_Skip(); … } g_screenId = 0;` [V] `00430000.c:6181`.
+/// The film above `depth` (the campaign) it skips. Reached in a network game only:
+/// `DAT_004E31B0[0x22]` is 1, so [`withheld`] stops a single-player turn under it [V].
+pub fn season_skips_film(ids: &[super::ScreenId], depth: usize) -> Option<crate::movie::Film> {
+    ids.get(depth + 1..)?.iter().rev().find_map(|id| match id {
+        super::ScreenId::Movie(f) => Some(*f),
+        _ => None,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// FUN_0043AD25 0x0043AD25: a film over the campaign is skipped; none, nothing.
+    #[test]
+    fn the_season_turn_skips_a_film_over_the_campaign() {
+        use super::super::ScreenId;
+        use crate::movie::Film;
+        let ids = [ScreenId::Menu, ScreenId::Campaign, ScreenId::Movie(Film::Credits)];
+        assert_eq!(season_skips_film(&ids, 1), Some(Film::Credits));
+        assert_eq!(season_skips_film(&ids[..2], 1), None);
+        assert!(withheld(Some(0x22), false, false), "DAT_004E31B0[0x22] = 1 in single player");
+    }
 
     /// DAT_004E31B0: 0x1E (confirm) 0, 0x12/0x13 battle prompt/result 1, 0x32 menu 1.
     #[test]

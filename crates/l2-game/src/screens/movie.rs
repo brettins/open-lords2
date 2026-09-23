@@ -22,9 +22,8 @@
 //! A skip is `Smk_OnFinished` — so a skip during
 //! the start-up sequence moves on to the next film. Two
 //! other callers skip without the player: `FUN_0043AD25`, which `Turn_Tick`'s
-//! end-of-season phase runs, and `Net_LeaveGame`. Ours cannot reach either
-//! state — a film pauses our turn, because only the top screen is stepped — and
-//! `docs/arms.json` records both as missing.
+//! end-of-season phase runs (network games only: `tick_gate::season_skips_film`),
+//! and `Net_LeaveGame`, which `docs/arms.json` records as missing.
 
 use l2_view::canvas::shade_table;
 use l2_view::Canvas;
