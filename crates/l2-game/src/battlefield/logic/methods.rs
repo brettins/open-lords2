@@ -45,7 +45,6 @@ impl LiveBattle {
             skirmish: false,
             conclusion: None,
             autocalc: false,
-            scroll_speed: DEFAULT_SCROLL_SPEED,
             scroll_wait: 0,
             redraw: true,
             cries: Vec::new(),
@@ -268,7 +267,7 @@ impl LiveBattle {
     /// a second.
     ///
     /// // arm: 0x00432221/battle-edge-scroll hover-at-edge
-    pub fn edge_scroll(&mut self) -> bool {
+    pub fn edge_scroll(&mut self, scroll_speed: i32) -> bool {
         let Some(dir) = self.edge_direction() else {
             self.scroll_wait = 0;
             return false;
@@ -277,7 +276,8 @@ impl LiveBattle {
             self.scroll_wait -= 1;
             return false;
         }
-        self.scroll_wait = scroll_interval_ticks(self.scroll_speed);
+        // Map_ScrollStep 0x00431F59 in g_battlePhase 2 -> Map_ScrollThrottle 0x004BBBE3 reads g_optScrollSpeed.
+        self.scroll_wait = scroll_interval_ticks(scroll_speed);
         let (dx, dy) = dir.delta();
         let before = self.cam;
         self.cam = (self.cam.0 + dx, self.cam.1 + dy);

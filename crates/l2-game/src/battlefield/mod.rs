@@ -336,7 +336,6 @@ pub struct LiveBattle {
     /// Retreat and Autocalc buttons both land here, because both of them run
     /// `FUN_0043BE65`, which is `Battle_AutoResolve`.
     pub autocalc: bool,
-    pub scroll_speed: i32,
     pub scroll_wait: u32,
     pub redraw: bool,
     pub cries: Vec<Cry>,
