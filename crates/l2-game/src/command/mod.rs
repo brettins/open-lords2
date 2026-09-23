@@ -4,6 +4,7 @@
 mod codec;
 mod orders;
 mod run;
+mod turn;
 #[cfg(test)]
 mod tests;
 
@@ -83,6 +84,11 @@ commands! {
     22 BalanceAllLabour,
     23 PaintField,
     24 ToggleIndustry,
+    25 EndTurn,
+    26 AnswerBattle,
+    27 TakeTheField,
+    28 FinishBattle,
+    29 DismissReport,
 }
 
 /// The slot this machine issues from. `[I]` one seat until the lobby's

@@ -519,26 +519,7 @@ impl Screen for MapScreen {
         if self.fading.is_some() {
             return self.tick_fade();
         }
-        if ctx.game.turn_clock.end_turn_pending() && !turn::turn_in_flight(ctx.game) {
-            ctx.game.turn_clock.take_end_turn();
-            return self.end_turn(ctx);
-        }
-        let resumed = self.resume_turn(ctx);
-        if resumed != Transition::Stay {
-            return resumed;
-        }
-        if !turn::turn_in_flight(ctx.game) {
-            // **`Turn_Tick`'s phase-4 arm on an ordinary frame.** The original
-            // is *in* phase 4 while the person deliberates and calls
-            // `AI_RunTurnStep` (`0x0049A581`) every frame of it, so the AI
-            // realms take their turn before End Turn and not inside it. See
-            // [`turn::tick_ai_frame`].
-            turn::tick_ai_frame(ctx.game);
-            if turn::tick_units_only(ctx.game) > 0 {
-                self.scrolled = true;
-            }
-        }
-        Transition::Stay
+        self.wind(ctx)
     }
 
     fn fade(&self) -> Option<u8> {

@@ -6,6 +6,8 @@ mod tick;
 pub use tick::*;
 mod battle;
 pub use battle::*;
+mod wind;
+pub use wind::*;
 
 use super::*;
 use super::types::*;

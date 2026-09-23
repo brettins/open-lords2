@@ -54,7 +54,7 @@ impl BattlePromptScreen {
     }
 
     fn answer(ctx: &mut Ctx, answer: Answer) -> Transition {
-        match turn::answer_battle(ctx.game, answer) {
+        match ctx.issue(crate::command::AnswerBattle { answer }) {
             TurnStep::Report(_) => Transition::Replace(ScreenId::BattleResult),
             TurnStep::Ask(_) => Transition::Stay,
             TurnStep::Running | TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,
@@ -122,7 +122,7 @@ impl Screen for BattlePromptScreen {
             // **not** settle the battle. Its arm is declared on
             // [`prompt_widgets`].
             Some(0) => {
-                if turn::take_the_field(ctx.game) {
+                if ctx.issue(crate::command::TakeTheField {}) {
                     Transition::Replace(ScreenId::Battlefield)
                 } else {
                     BattlePromptScreen::answer(ctx, Answer::TakeTheField)

@@ -297,7 +297,7 @@ impl BattlefieldScreen {
             ctx.game.battle_master.record(&mine_name, &foe_name, a, b);
             return Transition::Replace(ScreenId::Ratings);
         }
-        match turn::finish_battle(ctx.game) {
+        match ctx.issue(crate::command::FinishBattle {}) {
             TurnStep::Report(_) => Transition::Replace(ScreenId::BattleResult),
             TurnStep::Ask(_) => Transition::Replace(ScreenId::BattlePrompt),
             TurnStep::Running | TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,
