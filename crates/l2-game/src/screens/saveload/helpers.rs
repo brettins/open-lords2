@@ -29,6 +29,23 @@ pub(super) fn ours(detail: &str) -> String {
     format!("OURS: {detail}")
 }
 
+/// [D] ours, CNEW-save-compat: no L2.eng string says this; 40/4 stays for every other failure.
+pub fn mismatch_lines(found: u32, expected: u32) -> [String; 2] {
+    let age = if found < expected { "an older" } else { "a newer" };
+    [
+        format!("This save was made by {age} build of the game"),
+        format!("(save format {found}; this build reads {expected})."),
+    ]
+}
+
+/// What a failed load leaves on the box; `None` closes it.
+pub fn load_failure(e: &saves::Error, front: bool) -> Option<Status> {
+    if let Some((found, expected)) = e.version_mismatch() {
+        return Some(Status::Mismatch { found, expected });
+    }
+    front.then(|| Status::Failed(e.to_string()))
+}
+
 pub(super) fn directory_line(dir: &str) -> String {
     let room = BOX_X + BOX_COLS * 16 - 4 - DIR_LINE.0;
     let whole = ours(dir);

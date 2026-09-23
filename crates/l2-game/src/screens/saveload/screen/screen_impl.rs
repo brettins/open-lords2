@@ -37,7 +37,10 @@ impl Screen for SaveLoadScreen {
             if self.working == 0 {
                 // SaveLoad_Tick 0x004AD9F0 :5767-5768: `else { DAT_00591548 = 0; }`. [V]
                 if core::mem::take(&mut self.latched) {
-                    self.status = Status::Idle;
+                    // [D] CNEW-save-compat: our line stays until the name is edited, to be read.
+                    if !matches!(self.status, Status::Mismatch { .. }) {
+                        self.status = Status::Idle;
+                    }
                     return Transition::Stay;
                 }
                 // SaveLoad_Tick 0x004AD9F0 :5765 `g_redrawRequest = 2`, the unlatched arm only. [V]
@@ -179,6 +182,11 @@ impl SaveLoadScreen {
             // `DAT_0057D3C4` runs.
             Status::Working => {
                 pen.eng(canvas, GROUP, self.mode.working_index(), status_at.0, status_at.1, font::TEXT);
+            }
+            Status::Mismatch { found, expected } => {
+                for (i, line) in mismatch_lines(*found, *expected).iter().enumerate() {
+                    text::draw(canvas, status_at.0, status_at.1 + 12 * i as i32, line, ink.bad);
+                }
             }
             Status::Failed(detail) => {
                 pen.eng(canvas, GROUP, ERROR_INDEX, status_at.0, status_at.1, font::TEXT);

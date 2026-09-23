@@ -219,13 +219,16 @@ impl SaveLoadScreen {
                         }
                         self.landing(ctx)
                     }
-                    Err(e) if front => {
-                        self.latched = true;
-                        self.working = FAIL_TICKS;
-                        self.status = Status::Failed(e.to_string());
-                        Transition::Stay
-                    }
-                    Err(_) => Transition::Pop,
+                    // [D] CNEW-save-compat: a version mismatch keeps the in-game box up too.
+                    Err(e) => match load_failure(&e, front) {
+                        Some(status) => {
+                            self.latched = true;
+                            self.working = FAIL_TICKS;
+                            self.status = status;
+                            Transition::Stay
+                        }
+                        None => Transition::Pop,
+                    },
                 }
             }
             Mode::Save => {

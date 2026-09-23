@@ -85,7 +85,8 @@ fn a_load_that_cannot_read_its_file_closes_the_box_silently() {
     let (mut game, assets) = bare();
 
     let mut bytes = save::encode(&game);
-    bytes[8..12].copy_from_slice(&(save::VERSION + 1).to_le_bytes());
+    let last = bytes.len() - 1;
+    bytes[last] ^= 0xFF;
     std::fs::write(own.path.join(file(name)), &bytes).expect("write");
 
     let before = digest(&game.kingdom);
@@ -107,9 +108,6 @@ fn a_load_that_cannot_read_its_file_closes_the_box_silently() {
     assert_eq!(t, l2_game::Transition::Pop, "a failed load closes the box");
     assert_eq!(digest(&game.kingdom), before, "and the world it refused to replace is untouched");
 }
-
-
-
 
 #[test]
 fn a_load_of_a_name_with_no_file_shows_the_error_line_then_clears_it() {
@@ -133,4 +131,101 @@ fn a_load_of_a_name_with_no_file_shows_the_error_line_then_clears_it() {
     assert_eq!(l2_game::Screen::update(&mut screen, &mut ctx), l2_game::Transition::Stay);
     assert_eq!(screen.status(), &Status::Idle);
     assert_eq!(digest(&game.kingdom), before);
+}
+
+/// Loads the named save through the box; returns the transition after the failure count.
+fn load_through(screen: &mut SaveLoadScreen, game: &mut Game, assets: &Assets, name: &str) -> l2_game::Transition {
+    let mut ctx = Ctx { game, assets };
+    let row = screen.entries().iter().position(|e| e.name == name).expect("listed");
+    let r = screen.row(row);
+    l2_game::Screen::handle(screen, Event::Click { x: r.x + 2, y: r.y + 2 }, &mut ctx);
+    let mut t = l2_game::Screen::handle(screen, Event::KeyDown(Key::Enter), &mut ctx);
+    let frames = l2_game::screens::saveload::WORK_FRAMES as usize;
+    for _ in 0..frames + usize::from(l2_game::screens::saveload::FAIL_TICKS) + 2 {
+        t = l2_game::Screen::update(screen, &mut ctx);
+        if t != l2_game::Transition::Stay {
+            break;
+        }
+    }
+    t
+}
+
+fn write_versioned(own: &Saves, name: &str, game: &Game, version: u32) {
+    let mut bytes = save::encode(game);
+    bytes[8..12].copy_from_slice(&version.to_le_bytes());
+    std::fs::write(own.path.join(file(name)), &bytes).expect("write");
+}
+
+/// CNEW-save-compat: ablate the `Err(e) => match load_failure` arm back to `Pop` and it fails.
+#[test]
+fn an_in_game_load_of_another_format_says_so_and_keeps_the_box_up() {
+    let own = Saves::new("newer");
+    let (mut game, assets) = bare();
+    write_versioned(&own, "NEWER", &game, save::VERSION + 1);
+    let before = digest(&game.kingdom);
+    let mut screen = SaveLoadScreen::new(Mode::Load);
+    let t = load_through(&mut screen, &mut game, &assets, "NEWER");
+    assert_eq!(t, l2_game::Transition::Stay, "the box stays up");
+    // ablate the Mismatch guard in the latch's count end and the line goes blank.
+    assert_eq!(
+        screen.status(),
+        &Status::Mismatch { found: save::VERSION + 1, expected: save::VERSION },
+        "and the line outlives the failure count"
+    );
+    assert_eq!(digest(&game.kingdom), before);
+}
+
+#[test]
+fn the_front_end_names_an_older_format_rather_than_file_error() {
+    let own = Saves::new("older");
+    let (mut game, assets) = bare();
+    write_versioned(&own, "OLDER", &game, save::MIN_READABLE - 1);
+    let mut screen = SaveLoadScreen::front_end();
+    assert_eq!(load_through(&mut screen, &mut game, &assets, "OLDER"), l2_game::Transition::Stay);
+    assert_eq!(
+        screen.status(),
+        &Status::Mismatch { found: save::MIN_READABLE - 1, expected: save::VERSION }
+    );
+}
+
+#[test]
+fn the_mismatch_line_says_older_or_newer_and_both_numbers() {
+    use l2_game::screens::saveload::mismatch_lines;
+    let [a, b] = mismatch_lines(7, 8);
+    assert_eq!(a, "This save was made by an older build of the game");
+    assert_eq!(b, "(save format 7; this build reads 8).");
+    assert!(mismatch_lines(9, 8)[0].contains("a newer build"));
+}
+
+/// 40/4 stays the original's line for every failure that is not a version: SaveLoad_Tick 0x004AD9F0 :5791-5794.
+#[test]
+fn a_file_error_is_still_the_originals_line_and_the_in_game_box_still_closes() {
+    use l2_game::screens::saveload::load_failure;
+    let io = saves::Error::Io { path: PathBuf::from("x"), detail: "gone".into() };
+    assert!(matches!(load_failure(&io, true), Some(Status::Failed(_))));
+    assert_eq!(load_failure(&io, false), None);
+    let world = saves::Error::Load {
+        name: "w".into(),
+        detail: LoadError::Kingdom(l2_kingdom::save::LoadError::UnsupportedVersion { found: 31, supported: 33 }),
+    };
+    assert_eq!(load_failure(&world, false), Some(Status::Mismatch { found: 31, expected: 33 }));
+}
+
+/// CNEW-save-compat's policy against every fixture of ours: a file inside
+/// `MIN_READABLE..=VERSION` on both layers loads, and every other is refused on its version.
+#[test]
+fn every_fixture_either_loads_or_is_refused_on_its_version() {
+    let Ok(root) = std::env::var("LORDS2_FIXTURES") else { return };
+    let Ok(dir) = std::fs::read_dir(PathBuf::from(root).join("ours")) else { return };
+    let (game_range, world_range) = (
+        save::MIN_READABLE..=save::VERSION,
+        l2_kingdom::save::MIN_READABLE..=l2_kingdom::save::VERSION,
+    );
+    // Scaffold: no world-format 32 fixture exists (all are 31); one inside the range must load.
+    for path in dir.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "l2sav")) {
+        let Err(e) = saves::read_path(&path, Tables::DEFAULT) else { continue };
+        let (found, expected) = e.version_mismatch().unwrap_or_else(|| panic!("{}: {e}", path.display()));
+        let range = if expected == save::VERSION { &game_range } else { &world_range };
+        assert!(!range.contains(&found), "{}: format {found} is readable and was refused", path.display());
+    }
 }
