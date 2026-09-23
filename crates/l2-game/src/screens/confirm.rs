@@ -64,8 +64,8 @@ impl Ask {
     /// fallback.
     fn ours(self) -> &'static str {
         match self {
-            Ask::Quit => "EXIT THE GAME?",
-            Ask::NewGame => "START A NEW GAME?",
+            Ask::Quit => "Exit the game?",
+            Ask::NewGame => "Start a new game?",
         }
     }
 }
@@ -74,11 +74,14 @@ pub struct ConfirmScreen {
     ask: Ask,
     press: Press,
     redraw: bool,
+    /// `Ui_OpenConfirm` speaks once, as it opens. Ours has no enter hook, so
+    /// the first `update` is it.
+    spoke: bool,
 }
 
 impl ConfirmScreen {
     pub fn new(ask: Ask) -> ConfirmScreen {
-        ConfirmScreen { ask, press: Press::default(), redraw: true }
+        ConfirmScreen { ask, press: Press::default(), redraw: true, spoke: false }
     }
 
     /// `Ui_ConfirmClicked` (`0x00434E1F`) is `g_confirmAnswer = g_uiHotspotId;
@@ -121,7 +124,20 @@ impl Screen for ConfirmScreen {
         Transition::Stay
     }
 
-    fn update(&mut self, _ctx: &mut Ctx) -> Transition {
+    fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        // `Ui_OpenConfirm` (`0x0040E6F2`) ends `FUN_004B36C0(prompt)` —
+        // `Sound_PlayFile(g_msgVoiceS010 + prompt * 0x10, 1, 0)`, the group 10
+        // index speaking itself. `docs/audio.json` filed this blocked on there
+        // being no confirm screen to hang it on; this is that screen.
+        //
+        // sfx: FUN_004b36c0#1
+        if !self.spoke {
+            self.spoke = true;
+            if let Some(&line) = crate::audio::names::speech::CONFIRM_PROMPT.get(self.ask.prompt())
+            {
+                ctx.game.spoken = (ctx.game.spoken.0.wrapping_add(1), line);
+            }
+        }
         if let Some(widget) = self.press.tick().next() {
             self.redraw = true;
             return self.answer(widget == 0);
@@ -145,12 +161,12 @@ impl Screen for ConfirmScreen {
         };
         p.window(canvas, CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_COLS, CONFIRM_ROWS, BOX_SET);
         // Rule 6: the player's own `L2.eng` group 10 says the words.
+        // `Eng_DrawString(10, g_confirmPrompt, …)` draws the group's bytes as
+        // they are; the `to_uppercase` that stood here widened *"Exit the
+        // game?"* past the box's own right edge at `0x90 + 14 * 16`.
         let from_eng = ctx.assets.shell.text(GROUP_CONFIRM, self.ask.prompt());
-        let s = if from_eng.is_empty() {
-            self.ask.ours().to_string()
-        } else {
-            from_eng.to_uppercase()
-        };
+        let s =
+            if from_eng.is_empty() { self.ask.ours().to_string() } else { from_eng.to_string() };
         p.body(canvas, CONFIRM_BOX.x + PROMPT_INSET, CONFIRM_BOX.y + PROMPT_INSET, &s, font::TEXT);
         draw_gauntlets(&p, canvas, ctx, &self.press);
     }

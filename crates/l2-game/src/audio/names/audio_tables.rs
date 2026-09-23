@@ -233,6 +233,31 @@ pub mod speech {
         "S071_05.wav",
         "S071_06.wav",
     ];
+
+    /// **`Ui_OpenConfirm`'s last statement** (`0x0040E6F2`) is
+    /// `FUN_004B36C0(prompt)`, which is
+    /// `if (0 <= prompt && prompt < 0x10) Sound_PlayFile(g_msgVoiceS010 + prompt * 0x10, 1, 0)`.
+    /// `g_msgVoiceS010` (`0x004DF7B8`) is `char[16][16]`, `S010_01.wav` …
+    /// `S010_16.wav`, read out of the image — so the index is the `L2.eng`
+    /// group 10 prompt plus one. `[V]`
+    pub const CONFIRM_PROMPT: [&str; 16] = [
+        "S010_01.wav",
+        "S010_02.wav",
+        "S010_03.wav",
+        "S010_04.wav",
+        "S010_05.wav",
+        "S010_06.wav",
+        "S010_07.wav",
+        "S010_08.wav",
+        "S010_09.wav",
+        "S010_10.wav",
+        "S010_11.wav",
+        "S010_12.wav",
+        "S010_13.wav",
+        "S010_14.wav",
+        "S010_15.wav",
+        "S010_16.wav",
+    ];
 }
 
 /// The fanfares, which are played by name —

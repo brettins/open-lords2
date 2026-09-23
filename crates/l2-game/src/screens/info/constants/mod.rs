@@ -81,6 +81,8 @@ pub const HEALTH0: usize = 0x1B;
 /// panel's negative deltas take.
 pub const STARVING: u8 = 0xF9;
 pub const MERC_GROUP: usize = 16;
+/// `L2.eng` group 5 — the merchants' names, indexed by the route number.
+pub const MERCHANT_NAME_GROUP: usize = 5;
 
 /// **The unit half's heading-face lines**, every one `&g_fontHeading` in
 /// `UnitPanel_Draw` (`0x0041B19D`) and every y `R * 0x10 + k`.
