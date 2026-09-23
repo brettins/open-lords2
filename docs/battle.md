@@ -2422,9 +2422,15 @@ directly. **[V]**
 ```
   x   0 … 479   y  24 … 471   the battlefield, 15 x 14 tiles of 32
   x 480 … 639   y  24 … 183   the overview: the whole 80 x 80 field at 2 px a cell
-                y 185 … 404   the banners of the figures you hold
-                y 448 … 479   five buttons, 32 x 32 each
+                y 184 … 411   the banner panel, `misc_cty` frame 0 at (480,184)
+                y 412 … 447   the strength boxes, frame 2 at (480,412); counts at y 422
+                y 448 … 479   five buttons, frame 1 at (480,448), 32 x 32 each
 ```
+
+**[D]** Positions are `Screen_DrawBattlefield`'s blits (`0x004233F7`:
+`Pl8_DrawFrameHere(g_miscCtySheet, 0|2|1, 0x1E0, 0xB8|0x19C|0x1C0)`,
+`Ui_DrawNumberRight(..., 0x1A6, ...)`). The banner table's rows (185 … 404) sit
+inside the panel; they are where the banners go, not where the panel is.
 
 ### 15.3 A battle starts paused
 
