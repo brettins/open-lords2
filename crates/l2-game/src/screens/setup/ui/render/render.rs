@@ -36,6 +36,7 @@ impl SetupScreen {
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
             prefs_read: false,
+            load: None,
             skirmish: Default::default(),
             troops: Default::default(),
             troops_file: None,
@@ -170,7 +171,8 @@ impl SetupScreen {
                 }
             }
             SetupPage::SkirmishFile => self.skirmish_file_arms(&mut v),
-            SetupPage::NoCd | SetupPage::Load => {
+            SetupPage::Load => {}
+            SetupPage::NoCd => {
                 v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
             }
             SetupPage::Skirmish | SetupPage::SkirmishMulti => self.skirmish_arms(&mut v),

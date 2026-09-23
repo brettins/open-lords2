@@ -45,6 +45,7 @@ pub use army_size::*;
 mod quaintville;
 pub use quaintville::*;
 mod realm_fields;
+mod load_page;
 pub use realm_fields::*;
 
 pub(crate) fn click(screen: &mut SetupScreen, game: &mut Game, assets: &Assets, x: i32, y: i32) -> Transition {

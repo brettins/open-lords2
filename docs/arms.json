@@ -3428,14 +3428,15 @@
     },
     {
       "id": "0x004BA9C8/setup-load-name",
-      "status": "missing",
+      "status": "reproduced",
       "group": "text",
       "screen": "0x1F",
       "gesture": "key",
       "addr": "0x004BA9C8",
       "what": "FIELD 3 OF 7 -- the front end's own load box, g_setupPage == 3. The same field as 0x004BA9C8/saveload-name with the same limits and the same destination buffer (DAT_004EA130, eight characters, kind 1), reached by FUN_00432CC8's hotspot 2, which also picks the extension by game mode: .sav single player, .svb multiplayer client, .sva multiplayer host.",
-      "note": "Missing because our SetupPage::Load is still a shell that draws three empty recesses -- it has no file list and no field. The screen 0x35/0x36 version of the same box is built.",
-      "evidence": "V"
+      "note": "The screen 0x35 box at FUN_004148E4's origin (0x60, 10): SaveLoadScreen::front_end, routed by setup/ui/load_page.rs. Same eight-character departure as saveload-name.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/setup/ui/load_page.rs"
     },
     {
       "id": "0x004BA9C8/setup-name",

@@ -13,13 +13,13 @@ use crate::shell::{self, font, Pen};
 /// `node tools/oracle/kinds.js` files `FUN_004342F3`, `SaveLoad_Cancel` and
 /// `SaveLoad_Scroll` under `widget 4`, read out of `+0x0F` of `0x004DDD78` …
 /// `0x004DDDC0`. `[V]`
-pub(super) fn widgets() -> [Widget; 4] {
+pub(super) fn widgets(shift: (i32, i32)) -> [Widget; 4] {
     const SCROLL: crate::press::Kind = crate::arm!("0x00434346/saveload-scroll", Repeat);
     [
-        Widget::new(widget_rect(CONFIRM), crate::arm!("0x004342F3/saveload-confirm", Repeat)),
-        Widget::new(widget_rect(CANCEL), crate::arm!("0x00434308/saveload-cancel", Repeat)),
-        Widget::new(widget_rect(SCROLL_UP), SCROLL),
-        Widget::new(widget_rect(SCROLL_DOWN), SCROLL),
+        Widget::new(widget_rect(CONFIRM, shift), crate::arm!("0x004342F3/saveload-confirm", Repeat)),
+        Widget::new(widget_rect(CANCEL, shift), crate::arm!("0x00434308/saveload-cancel", Repeat)),
+        Widget::new(widget_rect(SCROLL_UP, shift), SCROLL),
+        Widget::new(widget_rect(SCROLL_DOWN, shift), SCROLL),
     ]
 }
 

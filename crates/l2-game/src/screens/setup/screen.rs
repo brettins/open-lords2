@@ -98,6 +98,8 @@ pub struct SetupScreen {
     /// which five.
     pub(crate) press: crate::press::Press,
     pub(crate) prefs_read: bool,
+    /// Page 3's box, `FUN_004148E4` + `SaveLoad_DrawStatus` at (0x60, 10). [V]
+    pub(crate) load: Option<crate::screens::saveload::SaveLoadScreen>,
 }
 
 impl SetupScreen {

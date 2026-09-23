@@ -61,7 +61,7 @@ mod tests {
             assert!(y + h <= box_r.y + box_r.h, "inset ({x}, {y}) is {} tall", y + h);
         }
         for w in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN] {
-            let r = widget_rect(w);
+            let r = widget_rect(w, (0, 0));
             assert!(
                 r.x >= box_r.x
                     && r.y >= box_r.y
@@ -77,7 +77,7 @@ mod tests {
     #[test]
     fn the_confirm_and_cancel_buttons_do_not_overlap_anything_clickable() {
         for w in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN] {
-            let r = widget_rect(w);
+            let r = widget_rect(w, (0, 0));
             for i in 0..PAGE {
                 let row = SaveLoadScreen::row_rect(i);
                 let overlaps = r.x < row.x + row.w
@@ -112,6 +112,18 @@ mod tests {
         s.top = 0;
         s.scroll(SCROLL_STEP as i32);
         assert_eq!(s.top, 0);
+    }
+
+    /// FUN_004148E4 / Widget_Draw(0x60, 10, g_saveLoadWidgets, 4), 004b0000.c:7067:
+    /// ablate `s.shift = ..` in `front_end` and it fails.
+    #[test]
+    fn the_front_end_box_sits_at_0x60_10() {
+        let s = SaveLoadScreen::front_end();
+        let r = s.row(0);
+        assert_eq!((r.x, r.y), (0x60 + 0x20, 10 + 0x6C), "SaveLoad_DrawStatus local_14/local_18");
+        let cancel = widgets(s.shift)[1].rect;
+        assert_eq!((cancel.x, cancel.y), (0x60 + 352, 10 + 64));
+        assert!(!SaveLoadScreen::new(Mode::Load).is_front_end());
     }
 }
 
