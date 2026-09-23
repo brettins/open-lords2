@@ -117,7 +117,7 @@ impl Encode for LiveBattle {
         for g in &self.groups {
             out.option(g.as_ref(), |c, picked| c.seq(picked, |c, i| c.len32(*i)));
         }
-        out.bool(self.charged);
+        out.u8(self.charged);
         out.bool(self.sallied);
         out.len32(self.current_unit);
         out.u32(self.outcome_ticks);
@@ -168,7 +168,7 @@ impl Decode for LiveBattle {
             pointer,
             pointer_in,
             groups,
-            charged: input.bool()?,
+            charged: input.u8()?,
             sallied: input.bool()?,
             current_unit: input.len32()?,
             outcome_ticks: input.u32()?,

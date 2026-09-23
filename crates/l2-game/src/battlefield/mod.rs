@@ -315,8 +315,9 @@ pub struct LiveBattle {
     pub pointer_in: bool,
     /// `DAT_00553400`: nine saved selections, each a list of figure indices.
     pub groups: [Option<Vec<usize>>; GROUPS],
-    /// `DAT_0055322C` — the charge button fires once per battle.
-    pub charged: bool,
+    /// `DAT_0055322C`, one per process, so one bit per realm here: `Battle_ChargeButton`
+    /// 0x0043BD02 fires once per battle for its `g_localPlayer`, never for another seat.
+    pub charged: u8,
     /// `DAT_0052AF9C` — the sally likewise.
     pub sallied: bool,
     /// `DAT_0053E984`, the unit the player's selection currently *is*.

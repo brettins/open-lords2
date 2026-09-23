@@ -38,7 +38,7 @@ impl LiveBattle {
             pointer: (VIEW.w / 2, VIEW.y + VIEW.h / 2),
             pointer_in: false,
             groups: Default::default(),
-            charged: false,
+            charged: 0,
             sallied: false,
             current_unit: 0,
             outcome_ticks: 0,
@@ -373,11 +373,15 @@ impl LiveBattle {
     }
 
     /// `FUN_0043BD02` (`0x0043BD02`) → `FUN_0047A76D` (`0x0047A76D`) — **the
-    /// charge**, and it is available exactly once in a battle.
+    /// charge**, and it is available exactly once in a battle to each realm.
     ///
     /// // arm: 0x0043BD02/charge left-press
+    pub fn has_charged(&self, realm: u8) -> bool {
+        self.charged & (1 << realm) != 0
+    }
+
     pub fn press_charge(&mut self) -> bool {
-        if self.choice_owner == 0 || self.charged {
+        if self.choice_owner == 0 || self.has_charged(self.owner) {
             return false;
         }
         self.act(BattleOp::Charge);

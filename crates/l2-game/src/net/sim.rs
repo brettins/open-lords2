@@ -111,7 +111,7 @@ fn encode_battle(b: &crate::battlefield::LiveBattle, out: &mut Canonical) {
     out.u8(b.choice_owner);
     out.bool(b.paused);
     out.bool(b.mode == crate::battlefield::Mode::Outcome);
-    out.bool(b.charged);
+    out.u8(b.charged);
     out.bool(b.sallied);
     out.u32(b.outcome_ticks);
     out.bool(b.skirmish);
