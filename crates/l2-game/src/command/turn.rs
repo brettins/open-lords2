@@ -57,8 +57,7 @@ impl Order for TakeTheField {
 impl Order for FinishBattle {
     type Reply = TurnStep;
     fn run(self, game: &mut Game) -> TurnStep {
-        let owner = game.battle.as_ref().map(|b| (b.owner, b.owner));
-        if !concerns(game, owner) {
+        if !concerns(game, super::battle::battle_sides(game)) {
             return TurnStep::Stuck;
         }
         turn::finish_battle(game)

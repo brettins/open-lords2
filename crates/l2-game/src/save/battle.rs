@@ -178,6 +178,8 @@ impl Decode for LiveBattle {
             scroll_wait: input.u32()?,
             redraw: input.bool()?,
             cries: input.seq(Cry::decode)?,
+            deferred: false,
+            outbox: Vec::new(),
         })
     }
 }

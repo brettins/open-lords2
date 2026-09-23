@@ -95,7 +95,14 @@ pub(crate) fn question_for(
     // > describing: a defect nobody could get to is a defect nobody finds.
     //
     // > `docs/decisions.md` `C80`.
-    let me = game.player;
+    // Seated, `net::frame` asks this on every peer: from the choosing seat, not
+    // this peer's, or the world's question differs (`docs/netcode.md` §6). `[I]` ours.
+    let seated = |r: u8| game.seats.iter().any(|&(_, realm)| realm == r);
+    let me = match game.seated() {
+        true if seated(attacker_owner) => attacker_owner,
+        true => defender_owner,
+        false => game.player,
+    };
     let mut choice_owner = 0u8;
     if me == attacker_owner {
         choice_owner = 1;

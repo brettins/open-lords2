@@ -1,6 +1,7 @@
 //! The one command list every state-changing player action goes through.
 //! `docs/netcode.md` §2, §5 step 1; the codec is D-10.
 
+mod battle;
 mod codec;
 mod orders;
 mod run;
@@ -10,6 +11,7 @@ mod tests;
 
 pub use orders::*;
 pub use run::Castled;
+pub(crate) use battle::battle_sides;
 pub(crate) use turn::time_up;
 
 use crate::game::Game;
@@ -90,6 +92,7 @@ commands! {
     27 TakeTheField,
     28 FinishBattle,
     29 DismissReport,
+    30 BattleOrder,
 }
 
 /// The slot this machine issues from. `[I]` one seat until the lobby's
@@ -121,8 +124,16 @@ impl Game {
     }
 
     /// Single player applies at once; the reply is what the screen reads.
+    /// In a network game the order waits for its tick (`docs/netcode.md` §4)
+    /// and the screen reads what it would do now, run on a copy.
     pub fn issue<O: Order>(&mut self, order: O) -> O::Reply {
-        order.run(self)
+        if !self.net.lockstep {
+            return order.run(self);
+        }
+        self.net.outbox.push(order.clone().into());
+        let mut scratch = self.clone();
+        scratch.net.lockstep = false;
+        order.run(&mut scratch)
     }
 }
 

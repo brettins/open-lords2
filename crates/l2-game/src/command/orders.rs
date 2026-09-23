@@ -67,4 +67,5 @@ orders! {
     TakeTheField {}
     FinishBattle {}
     DismissReport {}
+    BattleOrder { op: crate::battlefield::BattleOp }
 }

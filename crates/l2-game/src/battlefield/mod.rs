@@ -339,6 +339,10 @@ pub struct LiveBattle {
     pub scroll_wait: u32,
     pub redraw: bool,
     pub cries: Vec<Cry>,
+    /// not-encoded: a network game's per-seat flag; clicks queue in `outbox` for their tick.
+    pub deferred: bool,
+    /// not-encoded: this seat's clicks awaiting their tick; the commands carry them.
+    pub outbox: Vec<BattleOp>,
 }
 
 /// `g_optScrollSpeed`'s default, written by the options-defaults routine at

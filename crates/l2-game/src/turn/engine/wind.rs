@@ -16,6 +16,21 @@ pub enum Wound {
     Idle { stepped: usize },
 }
 
+/// [`wind`] for a seat whose world a lockstep session winds: what the screen
+/// shows, no step taken. `docs/netcode.md` §5.
+pub fn observe(game: &mut Game) -> Wound {
+    if let Some(done) = game.net.done.take() {
+        return Wound::Stepped(TurnStep::Done(done));
+    }
+    if pending_question(game).is_some() {
+        return Wound::Asking;
+    }
+    if pending_report(game).is_some() {
+        return Wound::Reporting;
+    }
+    Wound::Idle { stepped: 0 }
+}
+
 pub fn wind(game: &mut Game) -> Wound {
     if game.turn_clock.end_turn_pending() && !turn_in_flight(game) {
         game.turn_clock.take_end_turn();
