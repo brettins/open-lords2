@@ -9,6 +9,7 @@
 
 mod siege_battle_tests;
 pub use siege_battle_tests::*;
+mod confirm_fold;
 
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key, Rect};

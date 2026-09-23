@@ -79,14 +79,8 @@ impl Screen for BattleResultScreen {
             (r.attacker_men.1, r.defender_men.1),
         );
 
-        let drawn = ctx
-            .assets
-            .chrome
-            .as_ref()
-            .is_some_and(|c| c.draw_system(canvas, system::OK, OK.0, OK.1));
-        if !drawn {
-            crate::widget::button(canvas, &ctx.assets.ink, ok_rect(), "OK", false);
-        }
+        // Screen_BattleResult 0x00422FF1: `Ui_OkButton(400, 400, 0)`.
+        p.ok_button(canvas, OK.0, OK.1, 0);
     }
 }
 

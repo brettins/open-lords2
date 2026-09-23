@@ -6,6 +6,8 @@ mod drawing;
 pub use drawing::*;
 mod helpers;
 pub use helpers::*;
+mod outcome;
+use outcome::draw_outcome;
 
 use super::*;
 

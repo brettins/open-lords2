@@ -24,10 +24,6 @@ impl Screen for BattlefieldScreen {
         ScreenId::Battlefield
     }
 
-    fn take_clicks(&mut self) -> u8 {
-        self.press.take_clicks()
-    }
-
     fn title(&self, ctx: &Ctx) -> String {
         match ctx.game.battle.as_ref().map(|b| b.mode) {
             Some(Mode::Outcome) => "The battle is over".into(),
@@ -64,14 +60,6 @@ impl Screen for BattlefieldScreen {
         if ctx.game.battle.is_none() {
             return Transition::Pop;
         }
-        if self.confirm.is_some() {
-            let fired = self.press.event(&CONFIRM_WIDGETS, event);
-            if fired.is_some() || self.press.busy() {
-                self.redraw = true;
-            }
-            return Transition::Stay;
-        }
-
         let mode = ctx.game.battle.as_ref().map(|b| b.mode).unwrap_or(Mode::Field);
         match event {
             Event::Pointer { x, y } => {
@@ -201,11 +189,10 @@ impl Screen for BattlefieldScreen {
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.redraw |= self.note_ground(ctx);
         self.banner.tick();
-        if let Some(widget) = self.press.tick().next() {
-            return self.answer_confirm(ctx, widget == 0);
-        }
-        if self.confirm.is_some() && self.press.any_pressed() {
+        // Battle_GiveUp 0x0043BE65, reached from the confirm box's yes (`ConfirmScreen`).
+        if ctx.game.battle.as_ref().is_some_and(|b| b.autocalc) {
             self.redraw = true;
+            return self.settle(ctx);
         }
         // `Smk_OnFinished`'s one battle line: `if (g_screenId == 0x2B)
         // DAT_00568470 = 0x1389;` — 5001, one past the banner's wait. The film
@@ -270,7 +257,7 @@ impl Screen for BattlefieldScreen {
     }
 
     fn take_redraw(&mut self) -> bool {
-        std::mem::take(&mut self.redraw) | self.press.take_redraw()
+        std::mem::take(&mut self.redraw)
     }
 
     fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
@@ -376,92 +363,7 @@ impl Screen for BattlefieldScreen {
             let s = if s.is_empty() { "PAUSED".to_string() } else { s };
             p.heading(canvas, 0x10E, 0x1AE, &s, font::TEXT);
         }
-
-        // `Screen_BattleOutcome` (`0x00423241`), the un-animated arm:
-        //
-        // ```text
-        //   FUN_004093E0(0x10, 0x90, 0x1C, 0x0A)      the window, border set 1
-        //   Ui_OkButton(0x1A0, 0x100, 0)
-        //   Eng_DrawString(0x52, pair*2,     0x30, 0xA8, heading)
-        //   FUN_0040328E (0x52, pair*2 + 1,  0x30, 0xE0, 0x180, 100, …)
-        // ```
-        //
-        // ```text
-        //   FUN_0047703A(); FUN_004B1310();             the field dimmed
-        //   FUN_004093E0(0x10, 0x30, 0x1C, 0x16)        a taller window
-        //   Ui_DrawInsetRect(0x27, 0x48, 0x192, 0xC2)   the film's well
-        //   Ui_OkButton(0x1A0, 0x160, 0)
-        //   Eng_DrawString(0x52, pair*2,     0x30, 0x138, heading)
-        //   FUN_0040328E (0x52, pair*2 + 1,  0x30, 0x158, 0x180, 100, 0x20, 0x1A0, …)
-        // ```
-        //
-        // `FUN_0047703A` is unread, and `FUN_0040328E`'s last two numbers here
-        // differ from every other call of it and are not modelled.
-        let animated = ctx.game.prefs.animations && live.choice_owner != 0;
-        if live.mode == Mode::Outcome && animated {
-            let pair = outcome_banner(ctx.game, live);
-            let palette = ctx
-                .assets
-                .shell
-                .palette(l2_view::scene::TILE_PALETTE)
-                .unwrap_or(&ctx.assets.palette);
-            canvas.remap(&l2_view::canvas::shade_table(palette));
-            p.window(canvas, 0x10, 0x30, 0x1C, 0x16, BOX_SET);
-            crate::shell::inset_rect(canvas, 0x27, 0x48, 0x192, 0xC2);
-            p.ok_button(canvas, 0x1A0, 0x160, 0);
-            let head = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();
-            let body = ctx.assets.shell.text(GROUP_BANNER, pair * 2 + 1).to_string();
-            p.heading(canvas, 0x30, 0x138, &head, font::TEXT);
-            p.body_wrapped(canvas, 0x30, 0x158, 0x180, &body, font::TEXT);
-        } else if live.mode == Mode::Outcome {
-            let pair = outcome_banner(ctx.game, live);
-            let head = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();
-            let body = ctx.assets.shell.text(GROUP_BANNER, pair * 2 + 1).to_string();
-            p.window(canvas, OUTCOME_BOX.x, OUTCOME_BOX.y, OUTCOME_COLS, OUTCOME_ROWS, BOX_SET);
-            p.ok_button(canvas, OUTCOME_OK.0, OUTCOME_OK.1, 0);
-            let head = if head.is_empty() { "THE BATTLE IS OVER.".into() } else { head };
-            p.heading(canvas, OUTCOME_HEAD.0, OUTCOME_HEAD.1, &head, font::TEXT);
-            if !body.is_empty() {
-                p.body_wrapped(canvas, OUTCOME_BODY.0, OUTCOME_BODY.1, OUTCOME_BODY.2, &body, font::TEXT);
-            }
-        }
-
-        // `Screen_ConfirmBox` (`0x0040CCFA`) is three statements and the first
-        // is the ground: `FUN_004093E0(g_confirmX − 0x10, g_confirmY − 0x10,
-        // 0xE, 8)` — the shared box in **border set 1**, not a plate of ours.
-        if let Some(prompt) = self.confirm {
-            p.window(canvas, CONFIRM_BOX.x, CONFIRM_BOX.y, CONFIRM_COLS, CONFIRM_ROWS, BOX_SET);
-            let s = ctx.assets.shell.text(GROUP_CONFIRM, prompt).to_string();
-            let s = if s.is_empty() { ours_confirm(prompt).to_string() } else { s };
-            p.body(canvas, 0xA0 + 0x10, 0xA0 + 0x10, &s, font::TEXT);
-            // `g_confirmWidgets` (`0x004DD310`) carries frames **29 and 31** —
-            // a mailed hand thumb up and thumb down. This drew `system::OK` and
-            // `system::OK + 2`, which are the close corner and its neighbour:
-            //
-            // **And the pressed picture is `base + 1`.** `Widget_Draw`
-            // (`0x0040CFD2`) is
-            // `if (kind == 4 || kind == 5) { frame = rec[0x04]; if (rec[0x0D])
-            // frame = rec[0x04] + 1; }` — a *sprite index*, not a colour
-            // effect — and it then marks the rectangle with
-// `Gfx_MarkWidgetUrgent` so the
-            // depressed picture appears on the same frame as the press. This is
-            // the only place in this engine that draws one.
-            for (i, (r, frame, label)) in
-                [(CONFIRM_YES, CONFIRM_YES_FRAME, "YES"), (CONFIRM_NO, CONFIRM_NO_FRAME, "NO")]
-                    .into_iter()
-                    .enumerate()
-            {
-                let frame = if self.press.is_pressed(i) { frame + 1 } else { frame };
-                let drawn = ctx
-                    .assets
-                    .chrome
-                    .as_ref()
-                    .is_some_and(|c| c.draw_system(canvas, frame, r.x, r.y));
-                if !drawn {
-                    crate::widget::button(canvas, ink, r, label, false);
-                }
-            }
-        }
+        draw_outcome(&p, canvas, ctx, live);
 
         // **`Screen_DrawMenuBar` (`0x00419C78`), and it is the last thing
         // painted.** `Battle_Frame` (`0x004B99C0`) runs it *after* `Screen_Draw`

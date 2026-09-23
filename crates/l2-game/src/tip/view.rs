@@ -79,7 +79,8 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::Ratings
         | S::Rank
         | S::Info(_)
-        | S::Confirm(_) => None,
+        | S::Confirm(_)
+        | S::Slider(_) => None,
     }
 }
 

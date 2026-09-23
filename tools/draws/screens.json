@@ -1463,7 +1463,7 @@
     "name": "The confirmation box",
     "painter": "Screen_ConfirmBox",
     "addr": "0x0040CCFA",
-    "module": null,
+    "module": "confirm.rs",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x1E arm: Screen_ConfirmBox(); Widget_Draw(g_confirmX, g_confirmY, &g_confirmWidgets, 2) - THE PAINTER HAS NO Screen_Draw ARM AT ALL and runs from the widget pass every frame"
@@ -1477,9 +1477,7 @@
       "original": 2,
       "ours": 0
     },
-    "missing": [
-      "the whole screen - it is not built"
-    ],
+    "missing": [],
     "invented": [],
     "literals_ours": [],
     "excluded": "nothing",
@@ -1511,7 +1509,7 @@
       }
     ],
     "notes": "ONE DIALOG FOR FIFTEEN QUESTIONS, and the fifteen are enumerated: 0 'Exit the game?', 1 'Start a new game?', 2 'Overwrite File?', 3 'Create this army?', 4 'Slaughter villagers?', 5 'Combine armies?', 6 'Disband army?', 7 'Garrison castle?', 8 'Besiege castle?', 9 'Autocalc battle?', 10 'Destroy field?', 11 'Surrender castle?', 12 'Retreat from field?', 13 'Lift the siege?', 14 'Quit? (no destination).'. THIRTEEN are reachable: Ui_OpenConfirm's thirteen literal call sites cover 0, 1 and 4..14, so INDEX 2 AND INDEX 3 ARE DRAWN BY NOTHING - the same shape as L2.eng 31/21 'Morale'. THE DIALOG MOVES (g_confirmX/g_confirmY) BUT NEVER DOES: every one of the thirteen call sites passes (0xA0, 0xA0). Answering yes to index 0 does not quit - FUN_0043441C sets g_screenId = 0x45, the Lords of Magic advertisement, and Screen_FrameInput's 0x45 arm quits on the next click.",
-    "unexercised": "not built, so nothing",
+    "unexercised": "screens/confirm.rs opens prompts 0, 1, 9, 11, 12; the campaign map's prompts are still its own inline copy (screens/map/paint/units/drawing.rs)",
     "roots": [
       "Screen_ConfirmBox"
     ]
@@ -1521,7 +1519,7 @@
     "name": "The value spinner",
     "painter": "Screen_SliderBox",
     "addr": "0x0040CD58",
-    "module": null,
+    "module": "slider.rs",
     "reachable": true,
     "also_drawn_by": [
       "Screen_DrawWidgets 0x21 arm: Screen_SliderBox(); Widget_Draw(g_sliderX, g_sliderY, &g_sliderWidgets, 2) - again NO Screen_Draw ARM"
@@ -1535,9 +1533,7 @@
       "original": 2,
       "ours": 0
     },
-    "missing": [
-      "the whole screen - it is not built"
-    ],
+    "missing": [],
     "invented": [],
     "literals_ours": [],
     "excluded": "nothing",
@@ -1560,7 +1556,7 @@
       }
     ],
     "notes": "Group 12 has six strings: index 0 'Click Right to Exit' is the footer every frame, and 1..5 are the prompts. ONLY TWO OF THE FIVE ARE REACHABLE - Ui_OpenSlider's live call sites are Menu_GameSpeed (prompt 1) and Menu_ScrollSpeed (prompt 2), both passing (0xA0, 0xA0), step 10, max 100, min 0, format 1. Prompts 3, 4 and 5 belong to Screen_SoundLevels_Dead. Three format arms: 1 divides by ten and appends DAT_004D2778, 2 appends DAT_004D277C, else DAT_004D2780; only format 1 is ever passed, so two of the three Ui_DrawNumber sites are unreachable.",
-    "unexercised": "not built, so nothing",
+    "unexercised": "screens/slider.rs draws the format-1 arm only, the one either live opener passes; DAT_0056D8B8 = 10 before the value well is not modelled",
     "roots": [
       "Screen_SliderBox"
     ]
@@ -2150,7 +2146,7 @@
     "name": "The battle outcome banner",
     "painter": "Screen_BattleOutcome",
     "addr": "0x00423241",
-    "module": null,
+    "module": "battlefield/view/outcome.rs",
     "reachable": true,
     "also_drawn_by": [
       "NOTHING. Screen_DrawWidgets has no 0x2B arm."
@@ -2158,9 +2154,7 @@
     "original": 13,
     "ours": 0,
     "literals_ours": [],
-    "missing": [
-      "the whole screen — it is not built. screens/battle.rs prints the group 82 heading under 0x13's own so the outcome is not silently lost, and says so."
-    ],
+    "missing": [],
     "invented": [],
     "excluded": "the campaign-map repaint beneath the panel (Screen_DrawCampaign, Screen_DrawMenuBar, Screen_DrawEndTurn); Widget_Draw itself, whose records are counted in the \"widgets\" field; the blitters (Blit_Unclipped/ClippedLeft/ClippedRight) and with them EVERY Sprite_WGenSprite call, because that wrapper reaches no other leaf and so is invisible to the counter — see notes; the .256 palette read beside a backdrop, which moves no pixels. Plus FUN_004B1310, whatever plays inside the animated branch inset: the recess is counted, its contents are not.",
     "eng": {
@@ -2192,7 +2186,7 @@
       }
     ],
     "notes": "THE SEVEN OUTCOMES, SETTLED. Battle_SelectOutcomeBanner (0x00478419) writes g_battleOutcome and only ever writes 0..5 — `siege ? (localWon ? (Awon ? 2 : 4) : (Awon ? 5 : 3)) : (localWon ? 0 : 1)` — so six pairs come from the outcome and THE SEVENTH, 12/13 \"The conflict is over.\", is not an outcome value at all: it is the g_battleChoiceOwner == 0 branch, a battle between two other realms. All seven are reachable. docs/battle.md does not name them and that is a documentation gap: they are 0/1 won, 2/3 lost, 4/5 siege won, 6/7 siege lost, 8/9 siege lifted, 10/11 castle lost, 12/13 bystander. THE THREE Ui_OkButton CALLS ARE ONE PER BRANCH, NOT THREE BUTTONS, and the branches are mutually exclusive, so exactly one runs per paint. That matters because Ui_OkButton stashes only the last call's position into DAT_0055CE78/DAT_0057C8A0 for FUN_0040E7E4 to hit-test: a painter drawing three of them in sequence would leave only the third clickable. This one never does. Only two coordinates exist between the three calls — (416, 256) for the short window and (416, 352) for the tall animated one. Ten call sites; AT MOST FOUR RUN IN A FRAME. The animated branch is gated on g_optAnimations and draws a taller window, a 402 x 194 Ui_DrawInsetRect recess at (39, 72) for a video, and its text 168 pixels lower. AND THE THREE OK CORNERS ARE ALL DECORATIVE. Ui_OkButtonClicked (the reader of the DAT_0055CE78/DAT_0057C8A0 stash) is called from exactly one function, Screen_FrameInput, at twenty sites — and NOT ONE OF THEM IS IN THE 0x2B ARM. That arm is three lines: else if (g_screenId == 0x2B) { if (g_mouseRightReleased != 0) { DAT_00568470 = 0x1389; goto epilogue; } }. So the only way off this screen is a RIGHT-CLICK, exactly as on 0x2E, and the picture in the corner is an instruction rather than a target. That also disposes of the concern that a painter drawing three Ui_OkButtons leaves only the third clickable: none of them is, and in any case the three sit in mutually exclusive branches so only one is ever drawn.",
-    "unexercised": "Not built, so nothing. And nothing could exercise it: no fixture produces a battle outcome, and g_optAnimations has no counterpart in this tree.",
+    "unexercised": "Drawn over the battlefield by screens/battlefield/view/outcome.rs, all three arms. FUN_0047703A and FUN_0040328E's 0x20, 0x1A0 in the animated arm are not modelled.",
     "roots": [
       "Screen_BattleOutcome"
     ],

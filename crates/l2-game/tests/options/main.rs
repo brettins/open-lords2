@@ -3,6 +3,7 @@ mod widget_tests;
 pub use widget_tests::*;
 mod page_quirks;
 pub use page_quirks::*;
+mod slider_tests;
 
 use l2_game::game::{Assets, Prefs, PRESENTATION};
 use l2_game::input::{Event, Key};

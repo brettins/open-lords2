@@ -529,8 +529,44 @@
       "gesture": "left-press",
       "addr": "0x0040DECA",
       "what": "L2.eng 2.4 and 2.5: Menu_GameSpeed passes &g_optGameSpeed and Menu_ScrollSpeed passes &g_optScrollSpeed to the value spinner, screen 0x21 -- the screen that prints L2.eng group 12 index 0, 'Click Right to Exit'.",
-      "note": "Menu_ScrollSpeed is the row that proves the whole table was read rather than assembled: g_optScrollSpeed was named months earlier for unrelated reasons and the caption above it turns out to be 'Scroll Speed'. The items dispatch; screen 0x21 is not built, so both say so.",
+      "note": "Menu_ScrollSpeed is the row that proves the whole table was read rather than assembled: g_optScrollSpeed was named months earlier for unrelated reasons and the caption above it turns out to be 'Scroll Speed'. Both items open screen 0x21, crates/l2-game/src/screens/slider.rs.",
       "ours": "crates/l2-game/src/screens/menubar/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/slider-arrows",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x21",
+      "gesture": "left-press-repeat",
+      "addr": "0x004BA9C8",
+      "what": "Screen_HandleInput's 0x21 arm: Widget_Test(g_sliderX, g_sliderY, &g_sliderWidgets, 2). g_sliderWidgets (0x004DDBE0): frame 35 at (32, 28) -> Ui_SliderUp (0x00434E9E, `if (*v < max) *v += step`), frame 37 at (64, 28) -> Ui_SliderDown (0x00434EC9, `if (min < *v) *v -= step`), both kind 4.",
+      "note": "Read with widgets.js widgets 4ddbe0 2.",
+      "ours": "crates/l2-game/src/screens/slider.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/slider-ok",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x21",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's 0x21 arm, when the right button was not released: `if (Ui_OkButtonClicked()) { g_redrawRequest = 2; g_screenId = g_sliderPrevScreen; }` - the corner Ui_OkButton(x + 0xB8, y + 0x38) on the left release.",
+      "note": "00420000.c:7641-7653.",
+      "ours": "crates/l2-game/src/screens/slider.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/slider-right-exit",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x21",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's 0x21 arm: `if (g_mouseRightReleased) { g_redrawRequest = 2; g_screenId = g_sliderPrevScreen; }` - L2.eng 12/0, 'Click Right to Exit'.",
+      "note": "00420000.c:7641-7653.",
+      "ours": "crates/l2-game/src/screens/slider.rs",
       "evidence": "V"
     },
     {
