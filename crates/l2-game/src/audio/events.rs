@@ -20,11 +20,9 @@ use wav::Sound;
 /// and `g_messageTimer` counts **down** from [`crate::message::TIMER_START`]
 /// (2000), one per tick. `[V]`.
 ///
-/// `Msg_DrawWindow` delegates them to `Msg_DrawDiplomacy` (`0x00475E07`) and
-/// `Msg_DrawBeyondLetter` (`0x00476488`), which carry a voice call of their own
-/// on their own schedule. Reading those two is a separate job and inventing a
-/// tick for them would be worse than the silence. `docs/audio-triggers.md`
-/// records them as unread.
+/// Categories 0x0C and 0x14 go to `Msg_DrawDiplomacy` (`0x00475E07`) and
+/// `Msg_DrawBeyondLetter` (`0x00476488`), neither of which calls
+/// `Msg_PlayVoice`: `None`. `[V]` 00470000.c:2264..2420.
 pub fn voice_tick(category: u8) -> Option<i32> {
     use crate::message::category as c;
     Some(match category {
@@ -54,11 +52,42 @@ pub(super) fn open_fanfare(category: u8, group: u16) -> Option<&'static str> {
     use crate::message::category as c;
     match category {
         c::NOTICE if (0x72..=0x7E).contains(&group) => Some(names::fanfare::CAPTURED),
-        c::LETTER | c::PAY_PROMPT | c::ALLIANCE_PROMPT | c::CAPTURE => {
+        // sfx: Msg_DrawDiplomacy#1,Msg_DrawBeyondLetter#1 -- each arm's `timer == 2000`
+        // `Sound_PlayFile(ff_msg.wav, 1, 0)`, 00470000.c:2290, :2385. `[V]`
+        c::LETTER | c::PAY_PROMPT | c::ALLIANCE_PROMPT | c::CAPTURE | c::DIPLOMACY | c::BEYOND => {
             Some(names::fanfare::MESSAGE)
         }
         _ => None,
     }
+}
+
+/// `FUN_004B3B92` (`0x004B3B92`)'s table at `0x004E2470`, `[lord - 1]`, read
+/// out of the image. Index 4 names a file the install lacks. `[V]`
+pub const LORD_STING: [&str; 5] =
+    ["S246_02.wav", "S246_04.wav", "S246_03.wav", "S246_01.wav", "S000_00.wav"];
+
+/// `FUN_004B3B92(g_realms[g_messageFrom].lord - 1)`, `Sound_StopOneShot` first.
+/// `Msg_DrawWindow` (`0x0047309E`) calls it at `g_messageTimer == 0x776` in
+/// categories 1, 0x0A, 0x0B, and at 2000 in 0x0E's unanimated arm when the
+/// group is 0xC2. `[V]` decomp 00470000.c:1703, :1844, :1885, :2046.
+pub fn lord_sting(record: &crate::message::Record, timer: i32, lord: u8, animations: bool) -> Option<&'static str> {
+    use crate::message::category as c;
+    let due = match record.category {
+        c::LETTER | c::PAY_PROMPT | c::ALLIANCE_PROMPT => timer == 0x776,
+        c::ENDING => !animations && timer == crate::message::TIMER_START && record.group == 0xC2,
+        _ => false,
+    };
+    if !due {
+        return None;
+    }
+    LORD_STING.get((lord as usize).checked_sub(1)?).copied()
+}
+
+/// `Battle_ReturnToCampaign` (`0x004AB383`)'s two `Sound_PlayFile(ff_lose.wav, 0, 0)`:
+/// the local player owns the side that did **not** lose. `[V]` 004a0000.c:4716..4771.
+pub fn after_battle(attacker_won: bool, attacker: u8, defender: u8, player: u8) -> Option<&'static str> {
+    let winner = if attacker_won { attacker } else { defender };
+    (winner == player).then_some(names::fanfare::AFTER_BATTLE)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

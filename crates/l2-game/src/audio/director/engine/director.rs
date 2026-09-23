@@ -428,6 +428,21 @@ impl Director {
             self.spoken = Some(game.spoken.0);
         }
 
+        // `Battle_ReturnToCampaign` (`0x004AB383`): `if (loser == A && B.owner ==
+        // g_localPlayer)`, and the mirror, `Sound_PlayFile(ff_lose.wav, 0, 0)`.
+        // `[V]` 004a0000.c:4716..4771. Heard at `battle::record`, one per frame.
+        // sfx: Battle_ReturnToCampaign#1,Battle_ReturnToCampaign#2
+        let reports = game.turn.as_ref().map_or(&[][..], |p| p.battle_reports());
+        if reports.len() > self.battles {
+            if let Some(r) = reports.last() {
+                let (a, d) = (r.attacker_owner, r.defender_owner);
+                if let Some(name) = after_battle(r.verdict.attacker_won, a, d, game.player) {
+                    audio.play_file(name, false);
+                }
+            }
+        }
+        self.battles = reports.len();
+
         self.hear_the_march(audio, game);
 
         self.hear_the_wreck(audio, game);
@@ -455,6 +470,11 @@ impl Director {
                     audio.play_file(fanfare, true);
                 }
             }
+            // sfx: FUN_004b3b92#1
+            let lord = game.kingdom.realms.get(record.from as usize).map_or(0, |r| r.lord);
+            if let Some(sting) = lord_sting(record, timer, lord, game.prefs.animations) {
+                audio.stop_and_play_file(sting, true);
+            }
             // Two it does not answer are `#16` and `#21`, the **animated**
             // capture and ending branches: those save the group and variant,
             // dismiss the message, play a Smacker film and speak afterwards
@@ -468,6 +488,7 @@ impl Director {
             // asserted by name in `tests/tips.rs`.
             //
             // sfx: Msg_DrawWindow#2,Msg_DrawWindow#3,Msg_DrawWindow#4,Msg_DrawWindow#5,Msg_DrawWindow#7,Msg_DrawWindow#8,Msg_DrawWindow#9,Msg_DrawWindow#10,Msg_DrawWindow#12,Msg_DrawWindow#14,Msg_DrawWindow#18,Msg_DrawWindow#22,Msg_DrawWindow#23,Msg_DrawWindow#24
+            // arm: 0x004B35C1/message-voice draw
             if voice_tick(record.category) == Some(timer) {
                 // All three of its bands are `Sound_StopOneShot();
                 // Sound_PlayFile(name, 1, 0)`, so this cuts off whatever the

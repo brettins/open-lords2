@@ -93,6 +93,7 @@ pub struct Director {
     /// `FUN_004B3994`'s edge. `None` until the first tick.
     nobles_spoken: Option<u32>,
     spoken: Option<u32>,
+    battles: usize,
     tiles: Vec<Option<(l2_kingdom::UnitKind, (u8, u8))>>,
     terrain: Vec<u8>,
     clicks: u32,

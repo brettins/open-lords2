@@ -160,10 +160,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_ff_lose_wav_004de8f8,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battle verdict. Both arms play ff_lose.wav to the side that did NOT lose, so this needs to know who won; the BattleReport travels inside turn::TurnStep::Report and is never parked on the Game, so Director cannot see it. See audio::names::fanfare::AFTER_BATTLE."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "ff_lose.wav",
+      "note": "audio::after_battle, heard by Director::listen when turn::battle::record files a report (TurnProgress::battle_reports grows). Effects switch, drop-if-busy, when the local player owns the side that did not lose: loser == A plays to B.owner, loser == B to A.owner."
     },
     {
       "id": "Battle_ReturnToCampaign#2",
@@ -171,10 +171,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_ff_lose_wav_004de904,0,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "The battle verdict. Both arms play ff_lose.wav to the side that did NOT lose, so this needs to know who won; the BattleReport travels inside turn::TurnStep::Report and is never parked on the Game, so Director cannot see it. See audio::names::fanfare::AFTER_BATTLE."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "ff_lose.wav",
+      "note": "As #1, the loser == B arm."
     },
     {
       "id": "Battle_Start#1",
@@ -754,10 +754,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_S246_02_wav_004e2470 + param_1 * 0x10,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "BLOCKED on the schedule, not on the data. The letter's lord sting, S246_02.wav + lord * 0x10, 90 ticks into a category-1 window. Msg_DrawWindow's category-1 branch carries WHICH lord and our message record has it (Record::from); what it does not have is a second schedule inside the one voice tick -- voice_tick answers with at most one line per window and this one has to sound alongside the window's own ff_msg.wav. Unblocks when voice_tick returns a list rather than an Option."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "S246_02/04/03/01 by lord - 1 (table 0x004E2470)",
+      "note": "audio::lord_sting, from Director::listen. Msg_DrawWindow calls FUN_004B3B92(g_realms[g_messageFrom].lord - 1) at g_messageTimer == 0x776 in categories 1, 0x0A and 0x0B (90 ticks after the fanfare, 110 before the voice at 0x708), and at 2000 in the unanimated arm of category 0x0E when the group is 0xC2. It stops the one-shot first. The ticks differ from the voice ticks, so no second schedule was needed. tests/audio_wiring letter_sting.rs."
     },
     {
       "id": "Game_NewGame#1",
@@ -930,10 +930,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_ff_msg_wav_004d7080,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Message categories 0x0C and 0x14, which Msg_DrawWindow delegates to painters of their own. Neither is built and neither has been read, so the tick each one plays on is unknown - recorded as unread rather than invented."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "ff_msg.wav",
+      "note": "Read: the same timer-2000 fanfare as Msg_DrawDiplomacy and no voice. open_fanfare. No Msg_Enqueue in the image posts category 0x14, so nothing reaches it; the sound is wired for the record that can hold it."
     },
     {
       "id": "Msg_DrawDiplomacy#1",
@@ -941,10 +941,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_ff_msg_wav_004d7074,1,0",
-      "status": "blocked",
-      "ours": null,
-      "sound": null,
-      "note": "Message categories 0x0C and 0x14, which Msg_DrawWindow delegates to painters of their own. Neither is built and neither has been read, so the tick each one plays on is unknown - recorded as unread rather than invented."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/events.rs",
+      "sound": "ff_msg.wav",
+      "note": "Read: g_messageTimer == 2000, Sound_PlayFile(ff_msg.wav, 1, 0), and no Msg_PlayVoice or sting anywhere in the painter, so voice_tick is None for 0x0C. open_fanfare. Posted only by NetCmd_ReadDiploLetter (0x00445960) and NetCmd_ReadDiploFormAlliance (0x004456C1): a letter from a human rival."
     },
     {
       "id": "Msg_DrawWindow#1",

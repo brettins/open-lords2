@@ -144,6 +144,8 @@ fn run_handler(
         AiStep::Diplomacy => {
             letters.extend(kingdom.run_ai_inbox(realm));
         }
+        // `AI_Diplomacy` (`0x004A0C1D`): `Msg_Enqueue` of 0xB5 (grudge break)
+        // and 0xB4 (alliance offer), decomp 004a0000.c:408, :431.
         AiStep::ConsiderWar => {
             letters.extend(kingdom.run_ai_diplomacy(realm));
         }
@@ -180,8 +182,20 @@ fn run_handler(
             kingdom.run_ai_move_armies(realm);
         }
         AiStep::ChooseIndustry => kingdom.run_ai_industry(realm),
+        // `AI_Taunt` (`0x004A13A6`): `Msg_Enqueue(realm, to, 0xC1|0xC0, variant,
+        // '', 0, 0, 0)`, decomp 004a0000.c:502, :521.
         AiStep::Taunt => {
-            kingdom.run_ai_taunt(realm);
+            letters.extend(kingdom.run_ai_taunt(realm).into_iter().map(|t| {
+                l2_kingdom::diplomacy::Letter {
+                    from: t.from,
+                    to: t.to,
+                    group: t.group,
+                    variant: t.variant,
+                    category: l2_kingdom::diplomacy::category::LETTER,
+                    county: 0,
+                    payload: 0,
+                }
+            }));
         }
         AiStep::UpdateTotals => update_totals(kingdom, realm),
         AiStep::Nothing => {}

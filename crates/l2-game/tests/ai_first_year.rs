@@ -142,3 +142,32 @@ fn a_letter_to_a_lord_is_answered_on_his_next_turn() {
         "`Diplo_AnswerInbox` clears the inbox and the six mail flags every turn"
     );
 }
+
+/// `AI_Taunt` (`0x004A13A6`) stage 0 at a timer of 7: `Msg_Enqueue(realm, human,
+/// 0xC1, …, '\x01', …)`, decomp 004a0000.c:502. Ablate: drop the
+/// `letters.extend` in `ai_part.rs`'s `AiStep::Taunt` arm.
+#[test]
+fn a_winning_lord_taunts_the_person() {
+    let mut game = l2_game::game::Game::new(0x7A);
+    for realm in 1..=2usize {
+        let r = &mut game.kingdom.realms[realm];
+        r.in_play = true;
+        r.strength = 3;
+    }
+    game.kingdom.realms[1].is_human = true;
+    let r = &mut game.kingdom.realms[2];
+    r.rank = 1;
+    r.share_of_map_pct = 40;
+    r.taunt_timer = 7;
+    r.lord = 1;
+    r.ai_step = l2_kingdom::ai::AiStep::Taunt.counter();
+    let mut granted = true;
+    let mut letters = Vec::new();
+    l2_game::turn::drive_ai(&mut game.kingdom, &mut granted, &mut letters);
+    let taunt = letters
+        .iter()
+        .find(|l| l.group == 0xC1)
+        .expect("`AI_Taunt`'s group-193 letter reached no ring");
+    assert_eq!((taunt.from, taunt.to, taunt.category), (2, 1, 1));
+    assert_eq!(taunt.variant, 0, "lord 1 * 4 + rotation 0 - 4");
+}
