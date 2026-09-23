@@ -50,6 +50,7 @@ fn samples() -> Vec<GameCommand> {
         FinishBattle {}.into(),
         DismissReport {}.into(),
         BattleOrder { op: BattleOp::Formation { unit: 7, formation: Formation::Column } }.into(),
+        SendLetter { to: 2, kind: 1, gold: -1, county: 9, text: "Thou art; a knave".into() }.into(),
     ]
 }
 

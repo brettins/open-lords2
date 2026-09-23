@@ -12,6 +12,7 @@ mod lobby_ux;
 mod loopback;
 mod seat_view;
 mod live_siege;
+mod letter;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;

@@ -135,6 +135,17 @@ impl ComposeScreen {
         }
         let gold = if self.kind == Kind::Gift { self.gold } else { 0 };
         let me = ctx.game.player;
+        let human = ctx.game.kingdom.realms.get(usize::from(self.target)).is_some_and(|r| r.is_human);
+        if ctx.game.net.lockstep && human {
+            // `Diplo_SendClicked` (`0x00436408`): `Net_SendCommand(0x49, 0)` to a human lord,
+            // the draft copied into the slot for kinds 1..=4 only. [V]
+            let kept = ctx.game.messages.letters.get(usize::from(me)).cloned().unwrap_or_default();
+            let text = if draft_slot(self.kind).is_some() { self.draft() } else { kept };
+            let (to, kind, county) = (self.target, self.kind.byte(), self.county);
+            ctx.issue(crate::command::SendLetter { to, kind, gold, county, text });
+            self.sent = Some(Ok(self.kind));
+            return Transition::Pop;
+        }
         ctx.game.kingdom.post_letter(me, self.target, self.kind, gold, self.county);
         self.sent = Some(Ok(self.kind));
         Transition::Pop

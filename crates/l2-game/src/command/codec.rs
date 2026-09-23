@@ -82,6 +82,16 @@ impl<T: Wire + Copy + Default, const N: usize> Wire for [T; N] {
     }
 }
 
+/// CNEW-letter-in-command: a letter's text, length-prefixed UTF-8.
+impl Wire for String {
+    fn put(&self, out: &mut Canonical) {
+        out.str(self);
+    }
+    fn get(input: &mut Reader<'_>) -> Result<Self, CodecError> {
+        Ok(input.str()?.to_string())
+    }
+}
+
 /// An enum as its index in a fixed table.
 fn indexed<T: Copy + PartialEq>(
     all: &[T],

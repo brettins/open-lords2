@@ -98,8 +98,12 @@ crates/l2-game/tests/long_game/scenarios.rs install 1
 crates/l2-game/tests/long_game/scenarios.rs other 1
 crates/l2-game/tests/merchant/merchant_ui.rs england 3
 crates/l2-game/tests/merchant/trade_actions.rs england 4
+crates/l2-game/tests/messages/county_portrait.rs install 1
+crates/l2-game/tests/messages/diplomatic_letter.rs install 2
+crates/l2-game/tests/messages/ending_face.rs install 3
 crates/l2-game/tests/messages/help_window.rs install 1
 crates/l2-game/tests/messages/painting_and_layout.rs install 5
+crates/l2-game/tests/messages/posting_and_sync.rs install 1
 crates/l2-game/tests/military/battle_part/hires_and_sieges.rs fixture 1
 crates/l2-game/tests/minimap/overlays.rs england 3
 crates/l2-game/tests/minimap/ui.rs england 3
@@ -108,6 +112,7 @@ crates/l2-game/tests/movies/playback/input_and_drawing.rs install 3
 crates/l2-game/tests/movies/playback/timing_and_sound.rs install 4
 crates/l2-game/tests/movies/triggers/gameplay.rs install 3
 crates/l2-game/tests/movies/triggers/validation.rs install 1
+crates/l2-game/tests/net_game/letter.rs other 1
 crates/l2-game/tests/net_game/live_desync.rs other 1
 crates/l2-game/tests/net_game/live_drop.rs install 1
 crates/l2-game/tests/net_game/live_drop.rs other 2

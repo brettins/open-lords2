@@ -95,6 +95,7 @@ commands! {
     28 FinishBattle,
     29 DismissReport,
     30 BattleOrder,
+    31 SendLetter,
 }
 
 /// The slot this machine issues from. `[I]` one seat until the lobby's
@@ -110,6 +111,11 @@ impl Game {
             return (slot == local()).then_some(self.player);
         }
         self.seats.iter().find(|(s, _)| *s == slot).map(|&(_, realm)| realm)
+    }
+
+    /// `g_localPlayer` while `apply` has `player` set to the issuer.
+    pub fn local_realm(&self) -> u8 {
+        self.net.me.and_then(|s| self.realm_of(s)).unwrap_or(self.player)
     }
 
     /// More than one person plays this world: an End Turn is one seat's.

@@ -268,6 +268,7 @@ impl Screen for MessageScreen {
             Shape::Garrison => draw_garrison(&pen, ctx, canvas, &record, frame),
             Shape::Event => draw_event(&pen, ctx, canvas, &record, frame),
             Shape::Capture => draw_capture(&pen, ctx, canvas, &record, frame),
+            Shape::DiplomaticLetter => draw_diplomacy(&pen, ctx, canvas, &record, frame),
             // `Msg_DrawWindow`'s category-0x13 arm; `Menu_HelpHowDoI`
             // (`0x0043480C`) and its four siblings post the records.
             Shape::Help => draw_help(&pen, ctx, canvas, &record, frame),

@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 114 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 117 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,20 +23,20 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **94 %**. It was 59 % when this audit first counted (71), and most of the climb
+That is **97 %**. It was 59 % when this audit first counted (71), and most of the climb
 was draws built and never credited, not new work.
 
-Seven are missing, and six of them are multiplayer UI:
+Four are missing, and three of them are the multiplayer chat banner:
 
 | area | live | ours | missing | which hiding place |
 |---|---:|---:|---:|---|
 | `Sprite_TopIt`'s tile overlays | 18 | 18 | 0 | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 31 | 0 | a variable widget count |
-| drawn from `Battle_Frame`, not from a painter | 16 | 10 | **6** | outside the painter |
+| drawn from `Battle_Frame`, not from a painter | 16 | 13 | **3** | outside the painter |
 | everything else | 56 | 55 | 1 | — |
 
-The six are the chat banner, the network-wait glyph and the heartbeat (§5.6), which belong
-to `docs/netcode.md`'s design and not to the original's. The one is `FUN_00405602`'s zoom-1
+The three are the chat banner (§5.6), which is not ours: `docs/netcode.md` has no chat.
+The wait glyph and the heartbeat are drawn since 2026-09-23 (`net/status.rs`). The one is `FUN_00405602`'s zoom-1
 fill, unreachable (§2 note ¹).
 
 **2026-09-23 re-read.** 71 → 92: thirteen were built and never credited (`Sprite_TopIt`'s
@@ -109,9 +109,9 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `Screen_DrawEndTurn` | `0x0041A734` | the End Turn strip | live | 2 | 2 |
 | `FUN_0040C725` | `0x0040C725` | an open drop-down | live | 4 | 4 |
 | `FUN_00420316` | `0x00420316` | the multiplayer chat banner | live | 3 | 0 |
-| `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 0 |
+| `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 1 |
 | `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 2 |
-| `FUN_0041A844` | `0x0041A844` | the multiplayer heartbeat | live | 2 | 0 |
+| `FUN_0041A844` | `0x0041A844` | the multiplayer heartbeat | live | 2 | 2 |
 | **`ToolTip_Draw`** | `0x00476E95` | **the tooltip** | live | 4 | 4 |
 | `FUN_00408C50` | `0x00408C50` | two per-tile debug numbers | debug | 2 | 0 |
 | `FUN_004248A3` | `0x004248A3` | a four-number debug box | debug | 5 | 0 |
@@ -517,9 +517,9 @@ frame function, which is `docs/draws.md` §3's first hiding place.
 | what | function | draws |
 |---|---|---|
 | **the turn timer** | `FUN_0041A639` | `Misc_cty` frame `0x60` at **(404, 430)** plus the seconds left, `' '` + digits + `" "`, **centred** in 50 pixels from (424, 442), when `g_battlePhase == 0 && 0 < DAT_005440C8 && (DAT_0055403C < 1 \|\| aiStep == 999) && 0 < g_optTimeLimit && DAT_004D2E80[g_screenId] == 0` — **reproduced**, `crate::turn_clock` |
-| **the multiplayer chat banner** | `FUN_00420316` | a shaded 480 × 32 plate at (0, 24) and two lines in the two realms' own colours, on a countdown that ends by forcing a full map redraw |
-| **the network-wait glyph** | `FUN_0042476B(10, 0x1E)` | `Panels.pl8` frame **`0x105`** — the file's one 48 × 48 glyph — at (10, 30) while a peer is behind, for at most 1,600 ms |
-| **the heartbeat** | `FUN_0041A844` | a 8 × 3 filled bar at (2, 476) and a 10 × 5 outline at (1, 475), recoloured every twelve frames from the tick counter; multiplayer-only, **unported** |
+| **the multiplayer chat banner** | `FUN_00420316` | a shaded 480 × 32 plate at (0, 24) and two lines in the two realms' own colours, on a countdown that ends by forcing a full map redraw — **not ours**: our network game has no chat (`docs/netcode.md`), and a chat is a protocol message plus a text-entry arm, not cheap |
+| **the network-wait glyph** | `FUN_0042476B(10, 0x1E)` | `Panels.pl8` frame **`0x105`** — the file's one 48 × 48 glyph — at (10, 30) while a peer is behind, for at most 1,600 ms, outside a battle — **reproduced** as our stall indicator, `net/status.rs` `wait_glyph`; in a battle, where it draws nothing, our wait box stays, and the 1,600 ms cap is not ours (the glyph lasts the stall) |
+| **the heartbeat** | `FUN_0041A844` | a 8 × 3 filled bar at (2, 476) and a 10 × 5 outline at (1, 475), recoloured every twelve frames: `0xFA` when Gtime (`DAT_0057C998`) moved, else `0xF9`, rim `0x3F`; multiplayer-only — **reproduced**, `net/status.rs` `Beat`, Gtime read as the lockstep tick [I] |
 
 The turn timer sits **inside the map viewport**, 74 pixels left of the sidebar, which is the
 only thing on this screen that does.
@@ -894,7 +894,7 @@ wants is two bytes, which is the same shape as the mercenary marker's one;
   draws nothing. Not observable because there is nothing to observe; `docs/bugs.md`;
 * **a garrison whose shield differs from the county's** — the case §4's missing guard is
   about;
-* **the multiplayer four** (chat, heartbeat, wait glyph, turn timer) — need a second peer;
+* **the multiplayer four** (chat, heartbeat, wait glyph, turn timer) — need a second peer; the glyph and heartbeat are read from the decomp only [D];
 * **fog of war** — needs `g_optExploration` set at new-game time;
 891: * **the far-zoom caption** — reachable.
 

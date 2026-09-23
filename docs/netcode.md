@@ -679,6 +679,19 @@ The turn layer needs no per-frame anything. Its shape:
 Latency is irrelevant here: one round trip per turn, against a turn that takes a
 human minutes.
 
+### A letter between seats (CNEW-letter-in-command)
+
+A letter to a human lord is `GameCommand::SendLetter`, its text in the command.
+Every peer applies it and stores the text in its `MessageQueue.letters[from]`;
+only the addressee's ring takes the `0x0C` record, since `enqueue` refuses a
+record whose `to` is not the local seat. The original does the same with net
+command `0x49`: `NetCmd_WriteDiploLetter` (`0x004458E5`) sends the 0xCA-byte slot,
+`NetCmd_ReadDiploLetter` (`0x00445960`) writes it on every peer, and `Msg_Enqueue`
+(`0x00472BC5`) rings `g_localPlayer == to` only. The text is presentation: the
+queue is per seat and outside the digest, so a text a peer never shows cannot
+diverge a world. Carrying it in the command rather than a side channel keeps one
+ordered stream and makes a recorded game replay the letters.
+
 ### The phase machine is part of the contract
 
 Turn resolution must be an explicit, ordered sequence of phases, not "whatever

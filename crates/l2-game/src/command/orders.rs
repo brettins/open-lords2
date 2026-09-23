@@ -68,4 +68,5 @@ orders! {
     FinishBattle {}
     DismissReport {}
     BattleOrder { op: crate::battlefield::BattleOp }
+    SendLetter { to: u8, kind: u8, gold: i32, county: u8, text: String }
 }
