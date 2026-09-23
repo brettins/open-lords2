@@ -5,6 +5,7 @@ pub use industry_and_labor::*;
 mod tax_and_happiness;
 pub use tax_and_happiness::*;
 mod forecasts_and_events;
+mod advanced_forecast;
 pub use forecasts_and_events::*;
 
 use super::*;

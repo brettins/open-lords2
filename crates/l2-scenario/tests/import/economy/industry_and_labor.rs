@@ -209,7 +209,7 @@ fn every_saved_industry_forecast_is_what_its_own_records_workers_make() {
     for f in l2_testkit::saves!() {
         let s = &f.save;
         // Advanced Farming is on in advfarm-*.sav (2026-09-17): the flat 80 below is
-        // not that rule; row advfarm-differential finds it.
+        // not that rule; advanced_forecast.rs holds it.
         if s.globals().unwrap().opt_advanced_farming != 0 {
             continue;
         }
