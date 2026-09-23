@@ -39,7 +39,7 @@
 //! `g_optionsMagic`, and a file without it is discarded the way
 //! `Options_Validate` discards one.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::game::Prefs;
 use crate::setup::{option, SetupOptions};
@@ -72,6 +72,7 @@ const KEYS: &[(&str, &str)] = &[
     // [D] ours: `Prefs::debug_overlay` has no original. Nothing in the image
     // draws it, so nothing in the image persists it.
     ("DebugOverlay", "ours"),
+    ("FullScreen", "g_optFullScreen 0x0053F228"),
 ];
 
 /// `g_diploLetterDraft` (`0x0053F2B8`): four buffers of 200 bytes.
@@ -173,6 +174,7 @@ fn value_of(p: &Prefs, key: &str) -> i32 {
         "ScrollSpeed" => p.scroll_speed,
         "GameSpeed" => p.game_speed,
         "DebugOverlay" => i32::from(p.debug_overlay),
+        "FullScreen" => i32::from(p.full_screen),
         _ => 0,
     }
 }
@@ -188,6 +190,7 @@ fn set(p: &mut Prefs, key: &str, v: i32) {
         "ScrollSpeed" => p.scroll_speed = clamp_speed(v),
         "GameSpeed" => p.game_speed = clamp_speed(v),
         "DebugOverlay" => p.debug_overlay = v != 0,
+        "FullScreen" => p.full_screen = v != 0,
         _ => {
             if let Some((_, i)) = SETUP_KEYS.iter().find(|(k, _)| *k == key) {
                 p.kept.setup.set(*i, v.max(0) as usize);
@@ -244,13 +247,41 @@ pub fn load() -> Prefs {
     }
 }
 
-/// `Options_Save`, called once after the event loop ends.
+/// `Options_Save`. [D] ours: called whenever the block changes, not once after
+/// the loop (`0x0040EBFE`), so a crash keeps the session's settings. C???.
 pub fn save(p: &Prefs) -> Result<PathBuf, crate::saves::Error> {
+    write(p, remembered_install().as_deref())
+}
+
+/// [D] ours, no `g_options` field: where the install was found. `crate::install`.
+pub const INSTALL_KEY: &str = "InstallDir";
+
+pub fn remembered_install() -> Option<PathBuf> {
+    install_in(&std::fs::read_to_string(path()?).ok()?)
+}
+
+fn install_in(text: &str) -> Option<PathBuf> {
+    text.lines()
+        .filter_map(|l| l.split_once('='))
+        .find(|(k, _)| k.trim() == INSTALL_KEY)
+        .map(|(_, v)| PathBuf::from(v.trim()))
+        .filter(|p| !p.as_os_str().is_empty())
+}
+
+pub fn remember_install(p: &Prefs, dir: &Path) -> Result<PathBuf, crate::saves::Error> {
+    write(p, Some(dir))
+}
+
+fn write(p: &Prefs, install: Option<&Path>) -> Result<PathBuf, crate::saves::Error> {
     let path = path().ok_or(crate::saves::Error::NoDirectory)?;
     let dir = path.parent().expect("path joins a directory").to_path_buf();
     std::fs::create_dir_all(&dir)
         .map_err(|e| crate::saves::Error::Io { path: dir, detail: e.to_string() })?;
-    std::fs::write(&path, encode(p))
+    let mut text = encode(p);
+    if let Some(d) = install {
+        text.push_str(&format!("{INSTALL_KEY}={}\n", d.display()));
+    }
+    std::fs::write(&path, text)
         .map_err(|e| crate::saves::Error::Io { path: path.clone(), detail: e.to_string() })?;
     Ok(path)
 }
@@ -267,6 +298,7 @@ mod tests {
             scroll_speed: 30,
             game_speed: 40,
             debug_overlay: true,
+            full_screen: false,
             kept: Kept {
                 player_name: PlayerName::new("Ed; the Bold"),
                 setup: {
@@ -344,6 +376,26 @@ mod tests {
         assert_eq!(load(), flipped());
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(load(), Prefs::default(), "a missing file leaves the defaults");
+    }
+
+    #[test]
+    fn full_screen_is_the_default_and_windowed_is_remembered() {
+        assert!(Prefs::default().full_screen, "Display_Init 0x0042E5C0 forces g_optFullScreen = 1");
+        let text = encode(&Prefs { full_screen: false, ..Prefs::default() });
+        assert!(!decode(&text).full_screen, "the windowed choice came back full screen");
+    }
+
+    #[test]
+    fn the_install_path_survives_a_settings_save() {
+        let dir = std::env::temp_dir().join(format!("l2-prefs-install-{}", std::process::id()));
+        let _scope = crate::saves::scoped_dir(&dir);
+        let game = PathBuf::from(r"D:\Play\Lords; II");
+        remember_install(&Prefs::default(), &game).unwrap();
+        assert_eq!(remembered_install(), Some(game.clone()));
+        save(&flipped()).unwrap();
+        assert_eq!(remembered_install(), Some(game), "save dropped the remembered install");
+        assert_eq!(load(), flipped(), "the install line disturbed the settings");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// The shipped `L2.INI`, which is `Ini_ReadConfig`'s input and not a

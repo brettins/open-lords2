@@ -3974,6 +3974,17 @@
       "what": "Escape leaves the idle village and cancels a drag in progress; Enter leaves.",
       "why": "No key reaches any of the village's three screen ids in the original.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
+    },
+    {
+      "id": "ours/windowed-toggle",
+      "status": "invention",
+      "removed": false,
+      "group": "campaign-map",
+      "screen": "every screen",
+      "gesture": "key",
+      "what": "Alt+Enter switches between borderless full screen (the default) and a window, and Prefs::full_screen (FullScreen= in prefs.ini) remembers it. F5's snap acts only in the window.",
+      "why": "Kept by decision C???. Display_Init 0x0042E5C0 forces g_optFullScreen = 1 on any desktop that is not 8bpp, and Opt_ToggleFullScreen 0x00434B10 then refuses (message 0x104), so on a modern desktop the original cannot be windowed; that refusal stays ours too (0x00434B10/opt-full-screen). Alt+Enter collides with nothing [I]: Windows delivers it as WM_SYSKEYDOWN, and App_WndProc 0x004B29BE's VK_RETURN arm is in its WM_KEYDOWN switch.",
+      "ours": "crates/l2-game/src/app.rs"
     }
   ]
 }

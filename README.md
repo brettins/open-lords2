@@ -50,6 +50,14 @@ does, and where it disagrees with us it is right. Of its
 <!--fig:binary-functions-->2,452<!--/fig--> functions we have named
 **<!--fig:functions-->1,333<!--/fig-->**, and **<!--fig:tests-->3,043<!--/fig--> tests pass**.
 
+## Playing
+
+`powershell -File tools/run/package.ps1` builds a release and writes
+`dist/open-lords2-<commit>.zip`: the executable, LICENSE, NOTICE and
+[`tools/run/README-player.txt`](tools/run/README-player.txt), which says where the game
+looks for the install, where saves and crash logs go, and the keys. No game file is ever
+in it (`crates/l2-testkit/tests/package_contents.rs`).
+
 ## Contributing
 
 Developers start at [CLAUDE.md](CLAUDE.md), the index to `docs/`. The most valuable thing

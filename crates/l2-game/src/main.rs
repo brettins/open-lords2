@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! The rule here was `next_tick = Instant::now() + TICK` read *after* the wait,
 //! which carried every overshoot forward and made a 16 ms tick 16.4 ms of wall
 //! clock — two percent slow, compounding, and audible the moment a film's sound
@@ -5,9 +6,10 @@
 //! by tick count. `docs/decisions.md` C193.
 
 mod app;
+mod launch;
+mod os;
 pub use app::*;
 
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -51,6 +53,9 @@ struct App {
     /// same latch and its digit arm dispatches on it: with Control, store a
     /// battle control group; without, recall one.
     ctrl: bool,
+    alt: bool,
+    /// What `prefs.ini` last held; `persist_prefs` writes on a difference.
+    saved_prefs: l2_game::game::Prefs,
     last_press: Option<(Instant, (i32, i32))>,
     /// **`DAT_004EABC2`'s left bit**
     /// derives from it. In the library so a test can drive it without a window;
@@ -90,6 +95,7 @@ impl App {
         let ctx = Ctx { game, assets };
         machine.draw(&ctx, canvas);
         let title = machine.title(&ctx);
+        l2_game::crash::note_screen(&format!("{:?}", machine.top_id()));
         if let Some(w) = window {
             w.set_title(&title);
         }
@@ -239,7 +245,8 @@ impl ApplicationHandler for App {
         }
         let attrs = Window::default_attributes()
             .with_title("Lords of the Realm II")
-            .with_inner_size(winit::dpi::LogicalSize::new(CANVAS_W as f64, CANVAS_H as f64));
+            .with_inner_size(winit::dpi::LogicalSize::new(CANVAS_W as f64, CANVAS_H as f64))
+            .with_fullscreen(self.fullscreen());
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         let size = window.inner_size();
         let surface =
@@ -276,6 +283,7 @@ impl ApplicationHandler for App {
             }
             self.tick();
         }
+        self.persist_prefs();
 
         if self.machine.take_dirty() {
             self.redraw();
@@ -300,10 +308,15 @@ impl ApplicationHandler for App {
             WindowEvent::RedrawRequested => self.present(),
             WindowEvent::ModifiersChanged(mods) => {
                 self.ctrl = mods.state().control_key();
+                self.alt = mods.state().alt_key();
             }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
-                    self.snap_to_whole_scale();
+                    if !self.game.prefs.full_screen {
+                        self.snap_to_whole_scale();
+                    }
+                } else if self.alt && event.logical_key == WinitKey::Named(NamedKey::Enter) {
+                    self.toggle_full_screen();
                 } else {
                     if let Some(key) = translate(&event.logical_key, self.ctrl) {
                         self.deliver(GameEvent::KeyDown(key));
@@ -374,27 +387,24 @@ impl ApplicationHandler for App {
             }
             _ => {}
         }
+        self.persist_prefs();
         if self.machine.should_quit() {
             event_loop.exit();
         }
     }
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args: Vec<String> = std::env::args().skip(1).collect();
-    let mut dir: Option<PathBuf> = None;
-    let mut mods: Option<PathBuf> = None;
-    let mut sound = true;
-    let mut it = args.iter();
-    while let Some(a) = it.next() {
-        match a.as_str() {
-            "--mods" => mods = Some(PathBuf::from(it.next().unwrap_or_else(|| usage()))),
-            "--no-sound" => sound = false,
-            "-h" | "--help" => usage(),
-            other => dir = Some(PathBuf::from(other)),
-        }
+fn main() {
+    launch::panic_hook();
+    if let Err(e) = run() {
+        launch::fatal(&e.to_string());
     }
-    let Some(dir) = dir else { usage() };
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let launch::Args { dir, mods, sound } = launch::args();
+    let prefs = l2_game::prefs::load();
+    let dir = launch::install_dir(dir, &prefs);
 
     let mut builder = Platform::builder().base(&dir);
     if let Some(m) = &mods {
@@ -426,7 +436,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `App_WinMain`'s `Options_Load()` (`00400000.c:8221`), after `L2.eng` and
     // before `App_InitWindow`: `Options_Load` `0x004AE1B8`. `l2_game::prefs`.
     let mut game = game;
-    game.prefs = l2_game::prefs::load();
+    game.prefs = prefs;
     println!(
         "{} counties, {} owned by realm {}, {} {} - a NEW world; the front end starts the real one",
         game.kingdom.county_count,
@@ -462,6 +472,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         ticker: l2_game::clock::Ticker::new(),
         last_cursor: (0, 0),
         ctrl: false,
+        alt: false,
+        saved_prefs: prefs,
         last_press: None,
         left: l2_game::input::LeftButton::new(),
         pointer: l2_game::cursor::Pointer::Arrow,
