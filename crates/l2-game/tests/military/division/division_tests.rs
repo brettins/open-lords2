@@ -95,7 +95,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
 }
 
 #[test]
-fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
+fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_and_the_screen_closes() {
     let (mut g, a, mut m) = on_the_map();
     let (here, _) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
@@ -107,7 +107,8 @@ fn a_split_that_would_leave_fewer_than_fifty_a_side_is_refused_on_the_screen() {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
-    assert_eq!(m.top_id(), Some(ScreenId::Divide(id)), "the screen stays up");
+    // Army_SplitConfirm 00430000.c:4318 closes on every path; 0x94 is queued.
+    assert_ne!(m.top_id(), Some(ScreenId::Divide(id)), "the screen closes");
     assert_eq!(g.kingdom.campaign.units.len(), 1, "and nothing was split");
 }
 

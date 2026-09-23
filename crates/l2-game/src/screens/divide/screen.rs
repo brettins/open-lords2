@@ -160,7 +160,8 @@ impl DivideScreen {
                     SplitRefusal::GarrisonFull(n) => format!("ONLY {n} WOULD FIT"),
                     SplitRefusal::NowhereToStand => "NOWHERE NEARBY TO STAND".into(),
                 };
-                Transition::Stay
+                // Army_SplitConfirm 0x00437AFB 00430000.c:4318 `g_screenId = 0` first: every path closes.
+                Transition::Pop
             }
         }
     }

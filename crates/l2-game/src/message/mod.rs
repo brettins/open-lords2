@@ -132,7 +132,7 @@ pub mod group {
     pub const GARRISON_FULL: u16 = 0x11A;
 }
 
-/// `Msg_Enqueue(0, g_localPlayer, group, 0, '\0', '\0', '\0', 0)`.
+/// Msg_Enqueue 0x00472BC5: `Msg_Enqueue(0, g_localPlayer, group, 0, '\0', '\0', '\0', 0)`.
 pub fn tell_player(game: &mut crate::Game, group: u16) {
     let player = game.player;
     game.messages.enqueue(Record { to: player, group, ..Default::default() }, player);

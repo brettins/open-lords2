@@ -103,7 +103,7 @@ impl ArmouryScreen {
             }
             Err(no) => {
                 self.outcome = Raised::Refused(no);
-                // `Army_RaiseConfirm` `00430000.c:3120`, `:3123`, `:3128`; `g_screenId = 0` `:3134` closes on all three.
+                // `Army_RaiseConfirm` 0x00435B4D `00430000.c:3120`, `:3123`, `:3128`; `g_screenId = 0` `:3134` closes on all three.
                 use crate::message::group;
                 let g = match no {
                     LevyRefusal::NoMen => group::ZERO_MEN,

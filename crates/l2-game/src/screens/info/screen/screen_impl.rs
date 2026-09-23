@@ -222,9 +222,11 @@ impl Screen for InfoScreen {
                             self.status = format!("{men} MEN WENT HOME TO {name}");
                             Transition::Pop
                         }
-                        Err(_) => {
-                            // `Panel_DisbandButton` `00430000.c:4084`.
-                            crate::message::tell_player(ctx.game, crate::message::group::CANNOT_DISBAND);
+                        Err(no) => {
+                            // Panel_DisbandButton 00430000.c:4076-4084: 0x91 only when neither county is the owner's.
+                            if no == l2_kingdom::divide::DisbandRefusal::NowhereToGo {
+                                crate::message::tell_player(ctx.game, crate::message::group::CANNOT_DISBAND);
+                            }
                             Transition::Pop
                         }
                     },

@@ -87,6 +87,7 @@ impl CastleScreen {
                 let group = match why {
                     CastleRefusal::AlreadyBuilt => Some(crate::message::group::CASTLE_ALREADY),
                     CastleRefusal::Downgrade => Some(crate::message::group::CASTLE_STRONGER),
+                    // [D] CastleBuild_Confirm 0x00436B59 has two guards; an unknown type is our input check.
                     CastleRefusal::NoSuchType => None,
                 };
                 if let Some(group) = group {
