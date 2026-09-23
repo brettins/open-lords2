@@ -106,6 +106,7 @@ pub struct Battlefield {
     /// `Order_ToRallyWaypoint` (`0x0048BAC4`). **[V]**
     pub rally: [[[(u8, u8); 3]; 2]; 2],
     /// Entries of the two tables this builder did not write; not saved.
+    /// not-encoded: build-time only; keep_unwritten consumes it before the battle runs.
     pub unwritten: MarkerMask,
 }
 
