@@ -100,7 +100,7 @@ impl BattleRunner {
         let mpf_a = side_scale(army_a.men(), class);
         let mpf_b = side_scale(army_b.men(), class);
         let mut field = field;
-        // Battlefield_BuildRandom 00470000.c:4672-4727 and BuildFromSkr :4944-4982 write them.
+        // Battlefield_BuildRandom 0x0047AAA3 00470000.c:4672-4727 and BuildFromSkr :4944-4982 write them.
         field.keep_unwritten(session.markers);
         let mut runner = BattleRunner::empty(field, seed);
         let prev = (session.lane, session.rally);
