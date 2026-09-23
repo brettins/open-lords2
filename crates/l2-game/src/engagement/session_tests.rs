@@ -70,7 +70,8 @@ fn a_new_game_and_a_skirmish_carry_the_selectors_and_the_battle_county() {
     let mut fresh = crate::Game::new(2);
     crate::setup::carry_battle_markers(&mut fresh, (Default::default(), (3, 1), 17));
     let s = crate::setup::skirmish_session(&fresh);
-    assert_eq!((s.lane, s.rally), (3, 1));
+    // Game_NewGame 00490000.c:3362 zeroes the lane; the rally group survives.
+    assert_eq!((s.lane, s.rally), (0, 1));
     assert_eq!(fresh.kingdom.campaign.battle_county, 17);
 }
 
