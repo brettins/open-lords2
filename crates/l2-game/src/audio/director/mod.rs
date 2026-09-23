@@ -51,6 +51,7 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
         };
         return Scene::Battle(kind);
     }
+    // Battle_CheckOutcome 0x00477DFC skirmish arm and the 0x2E arm: no Music call.
     if matches!(machine.top_id(), Some(ScreenId::Ratings | ScreenId::Rank)) {
         return Scene::Sheet;
     }
@@ -60,6 +61,7 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
             machine.top_id(),
             Some(ScreenId::Setup(P::Skirmish | P::SkirmishMulti | P::SkirmishFile))
         ) {
+            // FUN_00433155 0x00433155: setup3.wav on the skirmish pages.
             return Scene::Skirmish;
         }
         return Scene::FrontEnd;

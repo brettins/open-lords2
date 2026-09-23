@@ -23,6 +23,5 @@
     { "file": "crates/l2-game/src/screens/setup/ui/skirmish_counts.rs", "line": 154, "address": "0x0043D7A7", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/screens/setup/ui/skirmish_table.rs", "line": 64, "address": "0x0043DBAC", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/screens/setup/ui/skirmish_table.rs", "line": 86, "address": "0x0043DBAC", "verdict": "match", "note": "" },
-    { "file": "crates/l2-game/src/screens/setup/ui/skirmish_file.rs", "line": 24, "address": "0x004DDDD8", "verdict": "match", "note": "" },
-    { "file": "crates/l2-game/src/screens/setup/ui/skirmish_file.rs", "line": 56, "address": "0x00434308", "verdict": "mismatch", "note": "page 13 leaves only on right-release anywhere or Ui_OkButtonClicked (00420000.c:7473-7482); a left click off the rows and off OK does nothing" }
+    { "file": "crates/l2-game/src/screens/setup/ui/skirmish_file.rs", "line": 24, "address": "0x004DDDD8", "verdict": "match", "note": "" }
   ] }

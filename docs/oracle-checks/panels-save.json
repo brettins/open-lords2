@@ -1,0 +1,13 @@
+{ "reviewed": "e5930b0e535cf324a45ac5524227dd927f92a442",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/setup/settings.rs", "line": 278, "address": "0x0049C995", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/methods.rs", "line": 102, "address": "0x004AD9F0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/saveload/mod.rs", "line": 231, "address": "0x004AD9F0", "verdict": "departure", "note": "[D] 400 iterations scaled to 3 ticks" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/screen_impl.rs", "line": 45, "address": "0x004AD9F0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/screen_impl.rs", "line": 43, "address": "0x004AD9F0", "verdict": "mismatch", "note": "redraw set on the latched arm too; g_redrawRequest = 2 (:5765) is only in the unlatched arm" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/methods.rs", "line": 172, "address": "0x004AD9F0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/methods.rs", "line": 192, "address": "0x004AD9F0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/saveload/screen/methods.rs", "line": 206, "address": "0x004AD9F0", "verdict": "mismatch", "note": "is_valid_name guard skips the write; the save arm :5755-5760 calls Save_Write with no name test" },
+    { "file": "crates/l2-game/src/screens/merchant/trade_part/trade_screen.rs", "line": 385, "address": "0x0041635F", "verdict": "match", "note": "" }
+  ] }

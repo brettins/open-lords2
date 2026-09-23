@@ -188,7 +188,7 @@ impl Audio {
                 Some(Music::Setup)
             }
             // FUN_00433155 (setup OK, DAT_0055302c == 3), FUN_00497a34 (DAT_0057A0F0 == 1),
-            // Screen_FrameInput 0x2F (`00420000.c:7512`, `:7516`); each then opens page 0xB/0xC.
+            // Screen_FrameInput 0x0042FF10, 0x2F (`00420000.c:7512`, `:7516`); each then opens page 0xB/0xC.
             //
             // sfx: FUN_00433155#1,FUN_00497a34#1,Screen_FrameInput#1,Screen_FrameInput#2
             Scene::Skirmish => Some(Music::Setup3),

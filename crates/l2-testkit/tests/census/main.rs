@@ -94,6 +94,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/audio_wiring/audio_controls_and_feedback/one_shot_stops.rs", "install", 5),
     ("crates/l2-game/tests/audio_wiring/audio_controls_and_feedback/sound_settings_and_ui.rs", "install", 3),
     ("crates/l2-game/tests/audio_wiring/audio_controls_and_feedback/speech_and_panels.rs", "install", 5),
+    ("crates/l2-game/tests/audio_wiring/ui_and_speech/letter_sting.rs", "install", 2),
     ("crates/l2-game/tests/audio_wiring/ui_and_speech/title_and_speech.rs", "install", 3),
     ("crates/l2-game/tests/audio_wiring/ui_and_speech/voice_and_audio_metrics.rs", "install", 4),
     ("crates/l2-game/tests/battle_picture/band.rs", "install", 2),
@@ -156,7 +157,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/newgame/campaign.rs", "other", 3),
     ("crates/l2-game/tests/newgame/heraldry.rs", "other", 4),
     ("crates/l2-game/tests/newgame/quaintville.rs", "other", 1),
-    ("crates/l2-game/tests/newgame/realm_fields.rs", "other", 2),
+    ("crates/l2-game/tests/newgame/realm_fields.rs", "other", 3),
     ("crates/l2-game/tests/newgame/start_game.rs", "install", 2),
     ("crates/l2-game/tests/newgame/start_game.rs", "other", 3),
     ("crates/l2-game/tests/overlay_palette/overlay_palette.rs", "install", 2),
@@ -193,7 +194,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/march_tests.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/interaction_tests/chrome_tests.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/interaction_tests/selection_and_click_tests.rs", "england", 4),
-    ("crates/l2-game/tests/screens_map/interaction_tests/town_and_mine_tests.rs", "england", 3),
+    ("crates/l2-game/tests/screens_map/interaction_tests/town_and_mine_tests.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/interaction_tests/view_and_navigation_tests.rs", "england", 2),
     ("crates/l2-game/tests/screens_map/structures_tests/castles.rs", "england", 3),
     ("crates/l2-game/tests/screens_map/structures_tests/minimap_and_seasons.rs", "england", 4),
@@ -217,7 +218,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/setup/setup_tests.rs", "england", 7),
     ("crates/l2-game/tests/setup/setup_tests.rs", "install", 1),
     ("crates/l2-game/tests/setup/skirmish_draw_tests.rs", "england", 9),
-    ("crates/l2-game/tests/setup/skirmish_file_tests.rs", "england", 3),
+    ("crates/l2-game/tests/setup/skirmish_file_tests.rs", "england", 4),
     ("crates/l2-game/tests/setup/skirmish_tests.rs", "england", 12),
     ("crates/l2-game/tests/setup/title_tests/build_stamp_tests.rs", "england", 2),
     ("crates/l2-game/tests/setup/title_tests/clock_tests.rs", "england", 6),
@@ -295,7 +296,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 660;
+pub(crate) const GATED_TOTAL: usize = 665;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

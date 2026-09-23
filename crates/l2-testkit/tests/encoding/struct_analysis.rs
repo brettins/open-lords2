@@ -94,6 +94,7 @@ fn is_word(b: u8) -> bool {
 
 const UNVERIFIABLE: &[&str] = &[
     "Fixed (l2-net)",
+    "GameCommand (l2-game)",
     "Message (l2-net)",
     "Mismatch (l2-net)",
     "Order (l2-net)",

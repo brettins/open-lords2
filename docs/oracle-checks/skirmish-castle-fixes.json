@@ -1,0 +1,19 @@
+{ "reviewed": "d210dc9fc4e80f3573d1e1bc33bc8170f9fd9877",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/audio/director/mod.rs", "line": 55, "address": "0x00477DFC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/audio/director/mod.rs", "line": 63, "address": "0x00433155", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/audio/director/mod.rs", "line": 162, "address": "0x0043D649", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/audio/engine/engine.rs", "line": 194, "address": "0x00497A34", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/audio/engine/engine.rs", "line": 194, "address": "0x0042FF10", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/ratings/end.rs", "line": 74, "address": "0x0042C64F", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/ratings/score_dat.rs", "line": 16, "address": "0x0042D216", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/ratings/score_dat.rs", "line": 20, "address": "0x0042D216", "verdict": "departure", "note": "[D] file beside the saves, not the install (rule 2)" },
+    { "file": "crates/l2-game/src/screens/ratings/score_dat.rs", "line": 65, "address": "0x0042D216", "verdict": "mismatch", "note": "clamps a negative rank to 0; the original reads DAT_0053E9E0 raw, no test" },
+    { "file": "crates/l2-game/src/screens/ratings/score_dat.rs", "line": 78, "address": "0x0042D216", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/ratings/score_dat.rs", "line": 91, "address": "0x0042D2DC", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/ratings/score_dat.rs", "line": 99, "address": "0x0042C64F", "verdict": "mismatch", "note": "with no path, the read is skipped and rank/battles/total are kept; the original's failed open zeroes them before FUN_0042CC4A" },
+    { "file": "crates/l2-game/src/screens/ratings/rank.rs", "line": 142, "address": "0x00421D09", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/setup/ui/screen.rs", "line": 105, "address": "0x0042FF10", "verdict": "mismatch", "note": "returns to fixed page Skirmish; the original returns to DAT_00553E5C, the page FUN_0043DDF4 opened 0xD from" },
+    { "file": "crates/l2-kingdom/src/map/castle.rs", "line": 72, "address": "0x0046AC22", "verdict": "match", "note": "" }
+  ] }
