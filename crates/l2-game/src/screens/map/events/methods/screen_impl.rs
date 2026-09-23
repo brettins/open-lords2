@@ -506,7 +506,7 @@ impl Screen for MapScreen {
     /// Everything here used to sit in [`MapScreen::update`], which the machine
     /// runs for the top screen only —
     /// menu stopped the campaign dead underneath it. `Battle_Frame`
-    /// (`0x004B99C0`) has no screen test on this call at all; see
+    /// (`0x004B99C0`) gates it by FUN_004BB978's screen table, not the top screen; see
     /// [`Screen::wind_turn`] and [`crate::screen::Machine::wind_turn`].
     fn wind_turn(&mut self, ctx: &mut Ctx) -> Transition {
         if self.fading.is_some() {

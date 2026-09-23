@@ -98,18 +98,11 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
     assert_eq!(stepped.kingdom.season, at_once.kingdom.season);
 }
 
-/// `Battle_Frame` (`0x004B99C0`) ends its inner loop with
-///
-/// ```c
-/// if ((g_battlePhase == 0) && (ticksDue != 0)) { FUN_0040490d(); Turn_Tick(); Units_Tick(); }
-/// ```
-///
-/// and there is **no `g_screenId` test on it** — `[V]`, read whole. The message
-/// scroll is not a screen in the original at all (`g_messageGroup`, painted
-/// over whatever `g_screenId` is)
-/// treating the campaign map as the screen while a letter is up.
+/// FUN_004BB978 0x004BB978 `004b0000.c:7648`: `if (g_messageGroup != 0) { if (g_multiplayer == 0) return 0; …`
+/// — a letter open in single player withholds every tick. Ablation: `message_open` in
+/// `tick_gate::withheld`.
 #[test]
-fn a_letter_open_over_the_map_does_not_stop_the_turn() {
+fn a_letter_open_over_the_map_stops_the_turn() {
     use l2_game::message::{category, Record};
 
     let mut game = england!();
@@ -144,28 +137,21 @@ fn a_letter_open_over_the_map_does_not_stop_the_turn() {
     }
     assert_eq!(machine.top_id(), Some(ScreenId::Message), "the scroll is up");
 
-    let mut with_the_letter_up = 0;
     for _ in 0..GIVE_UP {
-        {
-            let mut ctx = Ctx { game: &mut game, assets: &assets };
-            machine.update(&mut ctx);
-        }
-        if machine.top_id() == Some(ScreenId::Message) {
-            with_the_letter_up += 1;
-        }
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
+    }
+    assert_eq!(machine.top_id(), Some(ScreenId::Message), "single player clamps the letter open");
+    assert_eq!(game.kingdom.turn_count, before, "the turn came round under an open letter");
+    l2_game::message::dismiss(&mut game);
+    for _ in 0..GIVE_UP {
         if game.kingdom.turn_count > before {
-            assert!(
-                with_the_letter_up > 20,
-                "the turn came round, but the scroll was up for only \
-                 {with_the_letter_up} of its frames — it closed, so nothing was tested",
-            );
             return;
         }
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        machine.update(&mut ctx);
     }
-    panic!(
-        "the turn never came round in {GIVE_UP} frames with a letter open over the map; \
-         the scroll was up for {with_the_letter_up} of them",
-    );
+    panic!("the turn never came round once the letter was dismissed");
 }
 
 /// **The pacing, heard.** One hoofbeat per tile per unit —

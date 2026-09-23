@@ -49,6 +49,10 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
         send(&mut machine, &mut game, &assets, Event::KeyDown(Key::Down));
     }
     send(&mut machine, &mut game, &assets, Event::KeyDown(Key::Enter));
+    assert_eq!(machine.top_id(), Some(ScreenId::Setup(SetupPage::Shield)));
+    let (x, y, _) = l2_game::screens::setup::SHIELD_BUTTONS[1];
+    let at = (x + 20, y + l2_game::screens::setup::ITEM_H / 2);
+    send(&mut machine, &mut game, &assets, Event::Click { x: at.0, y: at.1 });
     assert_eq!(machine.top_id(), Some(ScreenId::Setup(SetupPage::Custom)));
 
     tick!();

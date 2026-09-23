@@ -39,6 +39,10 @@ fn back_walks_the_page_graph_the_original_has() {
     m.handle(click(setup_item(0)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Options)));
     m.handle(click(setup_item(3)), &mut ctx);
+    // FUN_00432CC8 0x00432CC8 hotspot 3: page 4 first. Ablation: Options(3) straight to Custom.
+    assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Shield)));
+    let (x, y, _) = l2_game::screens::setup::SHIELD_BUTTONS[1];
+    m.handle(click((x + 20, y + l2_game::screens::setup::ITEM_H / 2)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Custom)));
     m.handle(click(custom_button(0)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Options)));
