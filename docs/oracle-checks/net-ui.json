@@ -14,7 +14,7 @@
     { "file": "crates/l2-game/src/screens/message/render.rs", "line": 141, "address": "0x00475E07", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/net/status.rs", "line": 14, "address": "0x0042476B", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/net/status.rs", "line": 67, "address": "0x0042476B", "verdict": "match",
-      "note": "fixed: our in-battle box is marked [D] with CNEW-battle-wait-box; the original draws nothing there." },
+      "note": "fixed: our in-battle box is marked [D] with C243; the original draws nothing there." },
     { "file": "crates/l2-game/src/net/status.rs", "line": 18, "address": "0x0041A844", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/net/status.rs", "line": 21, "address": "0x0041A844", "verdict": "match", "note": "" },
     { "file": "crates/l2-game/src/net/status.rs", "line": 35, "address": "0x0041A844", "verdict": "match", "note": "" },

@@ -204,7 +204,7 @@ via_game! {
 /// `g_diploLetter + from * 0xCA`, and `Msg_Enqueue` (`0x00472BC5`) rings only the
 /// addressee (`g_localPlayer == to`). Group `0xF5 + kind`, category `0x0C`;
 /// kind 0 carries the gold, kinds 5..=10 the county. [V] The text travels in the
-/// command (CNEW-letter-in-command).
+/// command (C244).
 impl Order for SendLetter {
     type Reply = ();
     fn run(self, game: &mut Game) {

@@ -1,4 +1,4 @@
-//! `docs/netcode.md` §5 *A letter between seats* (CNEW-letter-in-command): a
+//! `docs/netcode.md` §5 *A letter between seats* (C244): a
 //! compliment over real TCP on 127.0.0.1 rings the addressee only.
 
 use crate::live_tcp::pair;

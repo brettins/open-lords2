@@ -1,7 +1,7 @@
 //! A network game's notices, drawn over every screen: a peer is late
 //! (`docs/netcode.md` §4 *Stalling*), the game has stopped (§6), and the
 //! heartbeat. The stopped box and the in-battle wait box are ours [D]: `L2.eng`
-//! has no group for either (CNEW-battle-wait-box).
+//! has no group for either (C243).
 
 use crate::screen::Ctx;
 use crate::shell::{font, Pen};
@@ -63,7 +63,7 @@ pub fn draw(ctx: &Ctx, canvas: &mut Canvas) {
         // (`0x640 < now - DAT_00553C6C`) is not ours: `stalled` ends with the stall. [I]
         (None, true) if !in_battle => return wait_glyph(ctx, canvas),
         // [D] 0x0042476B draws nothing in battle; ours says the game is waiting
-        // (CNEW-battle-wait-box).
+        // (C243).
         (None, true) => vec!["WAITING FOR THE OTHER PLAYERS...".to_string()],
         (None, false) => return,
     };

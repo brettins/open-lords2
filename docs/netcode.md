@@ -679,7 +679,7 @@ The turn layer needs no per-frame anything. Its shape:
 Latency is irrelevant here: one round trip per turn, against a turn that takes a
 human minutes.
 
-### A letter between seats (CNEW-letter-in-command)
+### A letter between seats (C244)
 
 A letter to a human lord is `GameCommand::SendLetter`, its text in the command.
 Every peer applies it and stores the text in its `MessageQueue.letters[from]`;

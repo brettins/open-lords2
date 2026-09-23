@@ -82,7 +82,7 @@ impl<T: Wire + Copy + Default, const N: usize> Wire for [T; N] {
     }
 }
 
-/// CNEW-letter-in-command: a letter's text, length-prefixed UTF-8.
+/// C244: a letter's text, length-prefixed UTF-8.
 impl Wire for String {
     fn put(&self, out: &mut Canonical) {
         out.str(self);
