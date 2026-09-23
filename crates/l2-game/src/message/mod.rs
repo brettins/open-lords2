@@ -114,6 +114,8 @@ pub mod group {
     /// him finish. `[V]` on the branch; `[I]` on why, which is presumably that
     /// the line is short and self-contained.
     pub const FOILED_AGAIN: u16 = 0xC2;
+    /// `0x70` — `L2.eng` 112, *"No right of rule!!"*.
+    pub const NO_RIGHT_OF_RULE: u16 = 0x70;
 }
 
 /// The message categories, `Msg_Enqueue`'s `+0x11` byte, as `Msg_DrawWindow`

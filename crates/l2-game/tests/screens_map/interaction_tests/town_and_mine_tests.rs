@@ -156,3 +156,30 @@ fn every_painted_pixel_of_a_mine_reaches_the_industry_toggle() {
     );
 }
 
+
+/// `00430000.c:7729`: a settlement (flag `0x80`) in a county not yours is
+/// `Msg_Enqueue(0, g_localPlayer, 0x70, …)`. Ablation: drop the `else if` arm
+/// in `screen_impl.rs` and nothing is queued.
+#[test]
+fn a_settlement_in_a_county_not_yours_queues_no_right_of_rule() {
+    let (mut game, assets) = world!();
+    let ctx = Ctx { game: &mut game, assets: &assets };
+    let (county, tile) = ctx
+        .game
+        .kingdom
+        .county_ids()
+        .filter(|&id| !ctx.game.is_players(id as u8))
+        .find_map(|id| Some((id, *MapScreen::settlements_for_test(&ctx, id as u8).first()?)))
+        .expect("some foreign county has a settlement");
+    let (tx, ty) = l2_kingdom::map::coords(tile);
+    let mut screen = MapScreen::new();
+    screen.centre_on_tile(tx as usize, ty as usize);
+    draw(&mut screen, &mut game, &assets);
+    let (x, y) = campaign::tile_centre(screen.viewport(), screen.zoom(), tx as usize, ty as usize)
+        .expect("on screen");
+    let before = game.messages.queued();
+    send(&mut screen, &mut game, &assets, Event::Click { x, y });
+    let queued: Vec<u16> = game.messages.waiting().iter().map(|r| r.group).collect();
+    assert_eq!(game.messages.queued(), before + 1, "county {county}: {queued:?}");
+    assert_eq!(queued.last(), Some(&l2_game::message::group::NO_RIGHT_OF_RULE));
+}

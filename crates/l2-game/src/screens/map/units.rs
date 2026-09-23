@@ -1,6 +1,25 @@
 use super::*;
 
 impl MapScreen {
+    /// `Msg_Enqueue(0, g_localPlayer, 0x70, 0, 0, 0, 0, 0)` — `00430000.c:7729`
+    /// (a settlement) and `:7744` (a merchant), in a county not yours.
+    ///
+    /// // arm: 0x0043CE1A/foreign-county-refusal left-release
+    pub(super) fn no_right_of_rule(ctx: &mut Ctx) {
+        let player = ctx.game.player;
+        let record = crate::message::Record {
+            to: player,
+            from: 0,
+            group: crate::message::group::NO_RIGHT_OF_RULE,
+            variant: 0,
+            category: 0,
+            county: 0,
+            spare: 0,
+            payload: 0,
+        };
+        ctx.game.messages.enqueue(record, player);
+    }
+
     pub fn pick_tile(&self, x: i32, y: i32) -> Option<(u8, u8)> {
         if !self.map_clip().contains(x, y) {
             return None;
@@ -217,7 +236,7 @@ impl MapScreen {
     pub(super) fn click_merchant(&mut self, ctx: &mut Ctx, unit: usize) -> Transition {
         let county = ctx.game.kingdom.campaign.units.get(unit).map_or(0, |u| u.county);
         if !ctx.game.is_players(county) {
-            self.status = "THAT MERCHANT IS NOT IN ONE OF YOUR COUNTIES".into();
+            Self::no_right_of_rule(ctx);
             return Transition::Stay;
         }
         let Some(&town) = Self::town(ctx, county).first() else {
