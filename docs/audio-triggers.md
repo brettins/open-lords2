@@ -236,7 +236,7 @@ no rate limit — and we add none.
 | `Missile_Step#1` | a catapult shot counted against a wall | `0xF` `cathit` |
 | `BattleMan_FireMissile#1`, `#2` | a crossbow / a bow looses | 9 `crossbow` · 7 `bowmen1` |
 | `BattleMan_StateEngineFire#1` | a catapult fires | `0xE` `catfire` |
-| `FUN_0049694f#1` | `Wall_Smash` | `bathit2.wav`, the one-shot buffer |
+| `Wall_Smash#1` | `Wall_Smash` | `bathit2.wav`, the one-shot buffer |
 | `BattleMan_BurnTick#1`, `#2` | a figure's last man dies in fire, side 0 / side 4 | `0xB` `deadguy2` · `0xC` `deadguy3` |
 | `Missile_Step#2` | a catapult shot reaches a wall four or more high and is **not** counted | `0x10` `catmiss` |
 | `FUN_0047a814#1` | a pot of boiling oil is poured | 3 `pouroil` |

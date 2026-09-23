@@ -72,7 +72,12 @@ function scan() {
     const lines = fs.readFileSync(path.join(DECOMP, f), 'utf8').split(/\r?\n/);
     let fn = null;
     let addr = null;
+    let inBlock = false;
     lines.forEach((line, i) => {
+      // The regenerated corpus heads each function with a /* [verified] ... */
+      // note, whose continuation lines quote calls: Blacksmith_SetWeaponType#2.
+      if (inBlock) { if (line.includes('*/')) inBlock = false; return; }
+      if (/^\s*\/\*/.test(line) && !line.includes('*/')) { inBlock = true; return; }
       const h = line.match(/^\/\/ ==== ([0-9a-f]{8})\s+(\S+)/);
       if (h) {
         addr = '0x' + h[1].toUpperCase();
@@ -145,6 +150,13 @@ if (process.argv.includes('--check')) {
   const missing = [...here].filter((id) => !there.has(id));
   const extra = [...there].filter((id) => !here.has(id));
   let bad = 0;
+  // A rename in symbols.json moves an id and not its site: same addr, same ordinal.
+  const key = (id, addr) => `${addr}#${id.split('#')[1]}`;
+  for (const id of missing) {
+    const r = rows.find((x) => x.id === id);
+    const was = extra.find((e) => key(e, out.get(e).addr) === key(id, r.addr));
+    if (was) console.error(`renamed: ${was} is now ${id}`);
+  }
   if (missing.length) {
     console.error(`${missing.length} trigger site(s) in the corpus and not in docs/audio.json:`);
     for (const id of missing) {
