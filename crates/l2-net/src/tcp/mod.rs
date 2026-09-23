@@ -1,13 +1,11 @@
 
 mod transport;
-pub use transport::*;
+use transport::*;
 
-use std::collections::VecDeque;
-use std::io::{ErrorKind, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream, ToSocketAddrs};
-use std::time::Duration;
+use std::io::ErrorKind;
+use std::net::TcpListener;
 
-use crate::transport::{frame, FrameReader, PeerId, Transport, TransportError};
+use crate::transport::{PeerId, TransportError};
 
 const READ_BUDGET: usize = 256 * 1024;
 

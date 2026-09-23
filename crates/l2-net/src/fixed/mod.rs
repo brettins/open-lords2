@@ -1,6 +1,5 @@
 
 mod methods;
-pub use methods::*;
 
 use core::fmt;
 use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};

@@ -1,12 +1,8 @@
 
 mod canonical;
-pub use canonical::*;
 mod reader;
-pub use reader::*;
 mod impls;
-pub use impls::*;
 
-use crate::fixed::Fixed;
 use crate::hash::XxHash64;
 
 pub const CHECKSUM_SEED: u64 = 0;
