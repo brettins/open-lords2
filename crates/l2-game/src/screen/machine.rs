@@ -173,8 +173,10 @@ impl Machine {
         // A network game's clock is `net::frame`'s, on the session's tick.
         if !ctx.game.net.lockstep {
             self.run_turn_clock(ctx);
-        } else if crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen) {
-            self.dirty = true;
+        } else {
+            // Screen_FrameInput 0x0042FF10 force_close, per seat off the shared clock [I]
+            self.dirty |= crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen);
+            self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);
         }
         if self.join_battle(ctx) || self.wind_turn(ctx) {
             self.run_tooltips(ctx);
@@ -438,19 +440,7 @@ impl Machine {
         // up closed nothing at all.
         //
         // arm: 0x0042FF10/force-close-on-turn-end timer
-        if ctx.game.turn_clock.force_close() {
-            let in_battle = ctx.game.battle.is_some();
-            while let Some(top) = self.stack.last() {
-                let id = top.id();
-                if id == ScreenId::BattleResult
-                    || !crate::turn_clock::closed_by_turn_end(id, in_battle)
-                {
-                    break;
-                }
-                self.stack.pop();
-                self.dirty = true;
-            }
-        }
+        self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);
         if crate::turn_clock::shown(ctx.game) != before {
             self.dirty = true;
         }

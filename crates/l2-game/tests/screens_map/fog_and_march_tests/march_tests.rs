@@ -280,7 +280,6 @@ fn a_unit_walking_into_the_dark_is_hidden_for_its_whole_crossing_and_one_walking
 
 /// `Map_DrawPathMarker` (`0x004081A6`):
 #[test]
-#[ignore = "arrow-key scroll removed (App_WndProc 0x004B29BE); the edge_step port diverges the Machine map from the ruler - to fix"]
 fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_of_reach_are_grey() {
     use l2_kingdom::map::{coords, flags, index, MAP_TILES};
     use l2_kingdom::{Unit, UnitKind};
@@ -346,9 +345,9 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     army.owner_is_human = true;
     let army = game.kingdom.campaign.units.spawn(army).expect("a free unit slot");
 
-    let mut m = Machine::new(ScreenId::Campaign);
+    // The map screen alone: a Machine winds the turn on update (Battle_Frame 0x004B99C0) and a
+    // BattlePrompt covered its map mid-scroll [V] measured.
     let mut ruler = MapScreen::new();
-    draw_stack(&mut m, &mut game, &assets);
     draw(&mut ruler, &mut game, &assets);
     let want = campaign::Viewport::centred_on_tile(town.0 as usize, town.1 as usize, ruler.zoom());
     for _ in 0..200 {
@@ -364,25 +363,26 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
         } else {
             break;
         };
-        edge_step(Some(&mut m), &mut ruler, &mut game, &assets, key);
+        edge_step(None, &mut ruler, &mut game, &assets, key);
         if ruler.viewport() == v {
             break;
         }
     }
+    let (vp, zm) = (ruler.viewport(), *ruler.zoom());
     let centre = |t: (u8, u8)| {
-        campaign::tile_centre(ruler.viewport(), ruler.zoom(), t.0 as usize, t.1 as usize)
+        campaign::tile_centre(vp, &zm, t.0 as usize, t.1 as usize)
             .unwrap_or_else(|| panic!("{t:?} is in view"))
     };
     let (ax, ay) = centre(stand);
     let (hx, hy) = centre(town);
-    send_stack(&mut m, &mut game, &assets, Event::Click { x: ax, y: ay });
-    send_stack(&mut m, &mut game, &assets, Event::Pointer { x: hx, y: hy });
+    send(&mut ruler, &mut game, &assets, Event::Click { x: ax, y: ay });
+    send(&mut ruler, &mut game, &assets, Event::Pointer { x: hx, y: hy });
 
     let sheet = assets.map.flag_sheet(&campaign::NEAR).expect("Flags1a.pl8");
     let ball = |n: usize| sheet.frame(n).unwrap_or_else(|| panic!("Flags1a.pl8 frame {n:#x}"));
     let at = |t: (u8, u8)| {
         let (row, col) = campaign::tile_to_cell(t.0 as usize, t.1 as usize);
-        let (x, y) = campaign::cell_to_screen(ruler.viewport(), ruler.zoom(), row, col);
+        let (x, y) = campaign::cell_to_screen(vp, &zm, row, col);
         (x + 20, y + 6)
     };
     const GREY: usize = 0x38;
@@ -400,7 +400,7 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     let visible: Vec<((u8, u8), i32)> = steps.iter().copied().filter(|&(t, _)| clear(t)).collect();
     assert!(!visible.is_empty(), "at least one step's ball is clear of the army's figure: {steps:?}");
 
-    let canvas = draw_stack(&mut m, &mut game, &assets);
+    let canvas = draw(&mut ruler, &mut game, &assets);
     assert!(ink_at(&canvas, &ball(GOLD), at(town)), "the enemy town {town:?} ends the route in frame 0x4E, at (+0x14, +6)");
     assert!(!ink_at(&canvas, &ball(GREY), at(town)), "and not in the grey ball");
     for &(t, c) in &visible {
@@ -409,7 +409,7 @@ fn a_march_hovered_onto_an_enemy_town_ends_in_the_gold_ball_and_only_steps_out_o
     }
 
     game.kingdom.campaign.units.get_mut(army).expect("the army").moves_used = 15;
-    let canvas = draw_stack(&mut m, &mut game, &assets);
+    let canvas = draw(&mut ruler, &mut game, &assets);
     for &(t, c) in &visible {
         assert!(ink_at(&canvas, &ball(GREY), at(t)), "with no moves left the step at {t:?}, cost {c}, is grey");
     }

@@ -57,7 +57,6 @@ fn ball_is_drawn(canvas: &Canvas, art: &l2_formats::pl8::DecodedFrame, at: (i32,
 /// `Event::Pointer` ever follows the click. The pre-click assertion is the
 /// negative control: the same tile is bare while no army is selected.
 #[test]
-#[ignore = "arrow-key scroll removed (App_WndProc 0x004B29BE); the edge_step port diverges the Machine map from the ruler - to fix"]
 fn a_still_pointer_over_an_enemy_town_gets_its_gold_ball_on_the_frame_after_the_army_is_picked() {
     use l2_kingdom::map::{coords, flags, index, MAP_TILES};
     use l2_kingdom::{Unit, UnitKind};
@@ -118,9 +117,9 @@ fn a_still_pointer_over_an_enemy_town_gets_its_gold_ball_on_the_frame_after_the_
     army.owner_is_human = true;
     game.kingdom.campaign.units.spawn(army).expect("a free unit slot");
 
-    let mut m = Machine::new(ScreenId::Campaign);
+    // The map screen alone: a Machine winds the turn on update (Battle_Frame 0x004B99C0) and a
+    // BattlePrompt covered its map mid-scroll [V] measured.
     let mut ruler = MapScreen::new();
-    draw_stack(&mut m, &mut game, &assets);
     draw(&mut ruler, &mut game, &assets);
     let want = campaign::Viewport::centred_on_tile(town.0 as usize, town.1 as usize, ruler.zoom());
     for _ in 0..200 {
@@ -136,27 +135,28 @@ fn a_still_pointer_over_an_enemy_town_gets_its_gold_ball_on_the_frame_after_the_
         } else {
             break;
         };
-        edge_step(Some(&mut m), &mut ruler, &mut game, &assets, key);
+        edge_step(None, &mut ruler, &mut game, &assets, key);
         if ruler.viewport() == v {
             break;
         }
     }
+    let (vp, zm) = (ruler.viewport(), *ruler.zoom());
     let centre = |t: (u8, u8)| {
-        campaign::tile_centre(ruler.viewport(), ruler.zoom(), t.0 as usize, t.1 as usize)
+        campaign::tile_centre(vp, &zm, t.0 as usize, t.1 as usize)
             .unwrap_or_else(|| panic!("{t:?} is in view"))
     };
     let sheet = assets.map.flag_sheet(&campaign::NEAR).expect("Flags1a.pl8");
     let gold = sheet.frame(0x4E).expect("Flags1a.pl8 frame 0x4e");
     let at = |t: (u8, u8)| {
         let (row, col) = campaign::tile_to_cell(t.0 as usize, t.1 as usize);
-        let (x, y) = campaign::cell_to_screen(ruler.viewport(), ruler.zoom(), row, col);
+        let (x, y) = campaign::cell_to_screen(vp, &zm, row, col);
         (x + 20, y + 6)
     };
 
     // The pointer comes to rest on the town first, and never moves again.
     let (hx, hy) = centre(town);
-    send_stack(&mut m, &mut game, &assets, Event::Pointer { x: hx, y: hy });
-    let canvas = draw_stack(&mut m, &mut game, &assets);
+    send(&mut ruler, &mut game, &assets, Event::Pointer { x: hx, y: hy });
+    let canvas = draw(&mut ruler, &mut game, &assets);
     assert!(
         !ball_is_drawn(&canvas, &gold, at(town)),
         "with no army selected the town {town:?} carries no marker"
@@ -165,14 +165,14 @@ fn a_still_pointer_over_an_enemy_town_gets_its_gold_ball_on_the_frame_after_the_
     // `Map_BeginMoveSelection` (`0x0043723A`), and not one `Event::Pointer`
     // after it.
     let (ax, ay) = centre(stand);
-    send_stack(&mut m, &mut game, &assets, Event::Click { x: ax, y: ay });
-    let canvas = draw_stack(&mut m, &mut game, &assets);
+    send(&mut ruler, &mut game, &assets, Event::Click { x: ax, y: ay });
+    let canvas = draw(&mut ruler, &mut game, &assets);
     assert!(
         ball_is_drawn(&canvas, &gold, at(town)),
         "the next frame paints frame 0x4E on {town:?} at (+0x14, +6) with the pointer never moving"
     );
 
     // And it stays there: `Path_MarkPreviewTiles` re-marks every frame.
-    let canvas = draw_stack(&mut m, &mut game, &assets);
+    let canvas = draw(&mut ruler, &mut game, &assets);
     assert!(ball_is_drawn(&canvas, &gold, at(town)), "and on every frame after it");
 }
