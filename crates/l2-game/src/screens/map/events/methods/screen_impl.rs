@@ -453,7 +453,7 @@ impl Screen for MapScreen {
             let read = Ctx { game: ctx.game, assets: ctx.assets };
             self.begin_move_selection(&read, unit);
         }
-        // Ui_OpenConfirm(5, 0xA0, 0xA0, MoveOrder_ConfirmCombine) `004a0000.c:3861`: screen 0x1E.
+        // C226: Map_ConfirmMoveOrder 0x004A9252 Ui_OpenConfirm(5, 0xA0, 0xA0, MoveOrder_ConfirmCombine) `004a0000.c:3861`: screen 0x1E.
         if ctx.game.combine_ask.is_some() {
             return Transition::Push(ScreenId::Confirm(confirm::Ask::Combine));
         }

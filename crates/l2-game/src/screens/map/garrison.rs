@@ -9,6 +9,7 @@ use crate::screens::confirm::Ask;
 
 /// Map_HoverUnitTarget: `flags & 0x80 && content > 0x14 && county.owner == unit.owner`
 /// (`004a0000.c:3759`); all prompts cleared when the moves left fall short (`:3778`).
+/// Map_HoverUnitTarget 0x004A8E0B: flags&0x80, content>0x14, owner, moves left.
 pub(crate) fn garrison_ask(ctx: &Ctx, unit: usize, dest: (u8, u8), dist: usize) -> Option<Ask> {
     let u = ctx.game.kingdom.campaign.units.get(unit)?;
     let m = &ctx.game.kingdom.campaign.map;
