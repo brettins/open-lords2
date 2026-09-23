@@ -1,0 +1,20 @@
+{ "reviewed": "2e1d0b15afa2779de2fc996a80483ee4dd498f57",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/game/mod.rs", "line": 188, "address": "0x0042E5C0", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 75, "address": "0x0053F228", "verdict": "match",
+      "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 251, "address": "0x0040EBFE", "verdict": "departure",
+      "note": "[D] save-on-change; Options_Save's one call is FUN_0049767d at LAB_0040ebfe after the loop, as cited; decision number is still C???" },
+    { "file": "crates/l2-game/src/app.rs", "line": 61, "address": "0x0040EBFE", "verdict": "departure",
+      "note": "[D] persist_prefs on change; C??? placeholder, no C-number assigned" },
+    { "file": "crates/l2-game/src/app.rs", "line": 78, "address": "0x004B29BE", "verdict": "departure",
+      "note": "ours Alt+Enter; App_WndProc also has a WM_SYSKEYUP (0x105) case 0xd that is an empty break (004b0000.c:2083), so no collision" },
+    { "file": "crates/l2-game/src/app.rs", "line": 72, "address": "0x0042E5C0", "verdict": "departure",
+      "note": "[D] borderless instead of exclusive 640x480x8 SetDisplayMode (00420000.c:6030); labelled via Prefs field" },
+    { "file": "crates/l2-game/src/install.rs", "line": 2, "address": "0x0040ECC4", "verdict": "mismatch",
+      "note": "Ini_ReadConfig does not read only WindowsDir=: it then reads sierra.ini for CDRomDrives=, CDROM=, SoundChannels=, PhysicalMem=, VideoSpeed=, CPU= (00400000.c:8367-8410)" },
+    { "file": "crates/l2-game/src/crash.rs", "line": 2, "address": "0x0042E5C0", "verdict": "departure",
+      "note": "[D] crash log ours; Display_Init's Log_Write calls are start-up diagnostics as cited" }
+  ] }

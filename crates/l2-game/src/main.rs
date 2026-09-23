@@ -312,6 +312,7 @@ impl ApplicationHandler for App {
             }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
+                    // App_WndProc 0x004B29BE case 0x74: `if (g_optFullScreen == 0)`.
                     if !self.game.prefs.full_screen {
                         self.snap_to_whole_scale();
                     }

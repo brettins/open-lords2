@@ -1,6 +1,6 @@
 //! Where the player's copy of the original is. [D] ours: `Lords2.exe` runs from
 //! its own directory and never looks for one (`Ini_ReadConfig` `0x0040ECC4`
-//! reads only `WindowsDir=`).
+//! reads sierra.ini for the CD drive and hardware keys, 00400000.c:8352-8410, never an install path).
 
 use std::path::{Path, PathBuf};
 

@@ -1,4 +1,4 @@
-//! Finding the install and failing where a player can see it. [D] ours, C???:
+//! Finding the install and failing where a player can see it. [D] ours, C238:
 //! a release build has no console (`windows_subsystem`), so stderr alone is lost.
 
 use std::path::PathBuf;

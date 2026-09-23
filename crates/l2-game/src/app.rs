@@ -58,7 +58,7 @@ pub(crate) fn usage() -> ! {
 }
 
 impl super::App {
-    /// [D] ours, C???: `Options_Save` on change, not only at exit (`0x0040EBFE`).
+    /// [D] ours, C238: `Options_Save` on change, not only at exit (`0x0040EBFE`).
     pub(super) fn persist_prefs(&mut self) {
         if self.game.prefs == self.saved_prefs {
             return;
@@ -75,6 +75,7 @@ impl super::App {
         self.game.prefs.full_screen.then_some(winit::window::Fullscreen::Borderless(None))
     }
 
+    // C238; App_WndProc 0x004B29BE WM_SYSKEYUP case 0xd is an empty break (004b0000.c:2083).
     // arm: ours/windowed-toggle key
     pub(super) fn toggle_full_screen(&mut self) {
         self.game.prefs.full_screen = !self.game.prefs.full_screen;

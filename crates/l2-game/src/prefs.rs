@@ -248,7 +248,7 @@ pub fn load() -> Prefs {
 }
 
 /// `Options_Save`. [D] ours: called whenever the block changes, not once after
-/// the loop (`0x0040EBFE`), so a crash keeps the session's settings. C???.
+/// the loop (`0x0040EBFE`), so a crash keeps the session's settings. C238.
 pub fn save(p: &Prefs) -> Result<PathBuf, crate::saves::Error> {
     write(p, remembered_install().as_deref())
 }

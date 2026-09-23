@@ -165,7 +165,7 @@ pub struct Prefs {
     /// this crate — the table above.
     pub debug_overlay: bool,
     /// `g_optFullScreen` (`0x0053F228`). `Display_Init` (`0x0042E5C0`) forces 1
-    /// on any desktop that is not 8bpp. Our windowed mode is [D], C???.
+    /// on any desktop that is not 8bpp. Our windowed mode is [D], C238.
     pub full_screen: bool,
     /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
     pub kept: crate::prefs::Kept,
