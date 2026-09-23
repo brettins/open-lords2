@@ -74,7 +74,7 @@ impl Scenario {
             }
             realm.in_play = true;
             realm.strength = 1;
-            realm.is_human = id == setup.local_player as usize;
+            realm.is_human = id == setup.local_player as usize || setup.humans[id] != 0;
             realm.lord = assigned.lord[id];
             let Some(&county) = seats.get(id - 1) else { continue };
             let Some(c) = counties.get_mut(county as usize).and_then(|c| c.as_mut()) else {

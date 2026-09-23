@@ -199,6 +199,9 @@ pub struct NewGame {
     /// which is what everything that *draws* reads. `FUN_00432FAB`
     /// (`0x00432FAB`) writes both from the clicked shield and `FUN_004978AD`
     pub shield: u8,
+    /// The other people's shields by realm, 0 for a lord. `docs/netcode.md`
+    /// D-3b; `Realms_AssignLords` (`0x0049CAAA`) marks every human's taken.
+    pub humans: [u8; l2_kingdom::realm::MAX_REALMS],
     /// **Which realm gets which start county is rolled**, and this is the
     /// roll. `docs/environment.md` records it as an observed fact — two
     /// independently created England turn-one saves disagree about it, so the
@@ -220,6 +223,7 @@ impl Default for NewGame {
             // `FUN_004978AD`'s seed: shield 1, red. A default game is the one
             // §7a's first row describes.
             shield: 1,
+            humans: [0; l2_kingdom::realm::MAX_REALMS],
             seed: 0,
         }
     }
