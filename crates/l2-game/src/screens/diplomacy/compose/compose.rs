@@ -166,6 +166,7 @@ impl Screen for ComposeScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         // arm: 0x0042FF10/compose-letter-text type
+        // arm: 0x004BA9C8/diplo-letter key
         //
         // `Screen_HandleInput`'s `0x1A` arm, the `else if (g_diploKind < 5)`
         // rung: `Widget_Test(0x004DDA30, 2)` first, and **only when it

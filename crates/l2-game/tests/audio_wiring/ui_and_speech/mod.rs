@@ -3,6 +3,7 @@
 mod title_and_speech;
 pub use title_and_speech::*;
 mod voice_and_audio_metrics;
+mod letter_sting;
 pub use voice_and_audio_metrics::*;
 
 use super::*;

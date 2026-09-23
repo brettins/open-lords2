@@ -3250,14 +3250,15 @@
     },
     {
       "id": "0x004B35C1/message-voice",
-      "status": "missing",
+      "status": "reproduced",
       "group": "messages",
       "screen": "every",
       "gesture": "draw",
       "addr": "0x004B35C1",
-      "what": "Msg_PlayVoice(group, variant) on the frame the timer hits a per-category value: 0x7C6 for most, 0x776 for a plain notice and a lord's letter, 0x708 for the two prompts, 0x76C for an ending, 0x5A for a tip. Groups 170..197 index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10 into Kt/Bn/Ct/Bp <group>_<1..4>.wav; everything else has one file.",
-      "note": "Missing because audio is another branch's. The trigger timers are the interesting half and are recorded in crates/l2-game/src/message/mod.rs so that branch does not have to re-read the function: they are five different values in one function and they are what makes a lord speak AFTER his letter has been on screen for a moment rather than as it opens.",
-      "evidence": "V"
+      "what": "Msg_PlayVoice(group, variant) on the frame the timer hits a per-category value: 0x7C6 for most, 0x776 for a plain notice and a capture, 0x708 for a lord's letter and the two prompts, 0x76C for an ending, 0x5A for a tip. A letter's 0x776 is its lord sting, FUN_004B3B92, not the voice. Groups 170..197 index g_msgVoiceLord by (group - 170) * 0x100 + variant * 0x10 into Kt/Bn/Ct/Bp <group>_<1..4>.wav; everything else has one file.",
+      "note": "audio::voice_tick is the ladder and Director::listen plays names::message_voice on that tick; audio.json Msg_DrawWindow#2..#24 carry the fourteen sites. The what above had the letter at 0x776, which is the sting; decomp 00470000.c:1703..1707.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/audio/director/engine/director.rs"
     },
     {
       "id": "0x004B743B/film-skip-leave-game",
@@ -3319,14 +3320,15 @@
     },
     {
       "id": "0x004BA9C8/diplo-letter",
-      "status": "missing",
+      "status": "reproduced",
       "group": "text",
       "screen": "0x1A",
       "gesture": "key",
       "addr": "0x004BA9C8",
       "what": "FIELD 4 OF 7 -- THE LETTER YOU WRITE TO ANOTHER LORD, and the longest field in the game: `g_editActive = 1; Edit_RecomputeLength(); Edit_Commit(&g_diploLetterDraft + (g_diploKind * 5 - 5) * 0x28, 199);`. Two hundred characters, and the PIXEL limit is passed as 10000, which is fifteen screens wide and therefore no limit at all -- the only field in the game with none.\n\nOne arm, four buffers: g_diploKind 1..4 each index their own 200-byte slot at 0x0053F2B8, 0x0053F380, 0x0053F448 and 0x0053F510, and Diplo_OpenCompliment and its three neighbours each Edit_Begin their own. Counted as ONE arm because it is one guard and one computed destination.",
-      "note": "The diplomacy agent's screen. Recorded here because the enumeration found it, and it is the field most likely to be missed by someone building screen 0x1A from the painters -- the letter has no plate of its own.",
-      "evidence": "V"
+      "note": "The same field as 0x0042FF10/compose-letter-text: ComposeScreen's TextField, 200 characters, harvested at 199 (LETTER_COMMIT) into the kind's draft. tests/diplomacy letters.rs the_field_holds_two_hundred_characters_and_the_send_keeps_one_less.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screens/diplomacy/compose/compose.rs"
     },
     {
       "id": "0x004BA9C8/mp-custom-name",
