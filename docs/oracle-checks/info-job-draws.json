@@ -1,0 +1,10 @@
+{ "reviewed": "2b825e42dba9114306537cb00f40d9cb6396d8a1",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 290,
+      "address": "0x0041B19D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 293,
+      "address": "0x0041B19D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/job/blacksmith_part.rs", "line": 222,
+      "address": "0x00413155", "verdict": "match", "note": "" }
+  ] }
