@@ -1,14 +1,3 @@
-#![allow(unused_imports)]
-use super::*;
-use super::world::*;
-use super::handlers::*;
-use crate::figure::{Figure, State};
-use crate::troop::Troop;
-use crate::unit::{chebyshev, pct_of, Units, MAX_UNITS, REFORM_INTERVAL};
-use l2_net::Pcg32;
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::figure::{SIDE_A, SIDE_B};
     use crate::unit::CATEGORY_OF_TROOP;
@@ -789,5 +778,3 @@ mod tests {
         }
         assert_ne!(a.ai.rng, Ai::new(0x5EED).rng, "the generator never advanced");
     }
-}
-
