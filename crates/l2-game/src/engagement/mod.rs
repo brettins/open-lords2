@@ -117,6 +117,14 @@ pub struct SiegePhase {
     round: usize,
 }
 
+impl SiegePhase {
+    pub fn encode(&self, out: &mut l2_net::Canonical) {
+        out.len32(self.cursor.at);
+        out.u32(self.cursor.count);
+        out.len32(self.round);
+    }
+}
+
 /// The eleven-column order is shared: `docs/battle.md` §4.1 has the campaign
 /// record, `TROOPS*.ENG` and the `.skr` army record all agreeing on
 /// peasant, crossbowman, maceman, swordsman, pikeman, archer, knight — which is

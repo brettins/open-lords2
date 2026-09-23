@@ -46,6 +46,64 @@ mod tests {
         assert!(!realm_turn_ended(&game, 2), "an AI still stepping has not finished");
         assert!(realm_turn_ended(&game, 3), "an AI parked on 999 has");
     }
+
+    fn asked(men: i32) -> Game {
+        let mut game = Game::new(5);
+        game.kingdom.set_county_count(3);
+        game.player = 1;
+        let mut army = |owner: u8, x: u8| {
+            let mut u = l2_kingdom::unit::Unit::new(l2_kingdom::UnitKind::Army, owner, x, 5);
+            u.men = 50;
+            u.troops[0] = 50;
+            game.kingdom.campaign.units.spawn(u).unwrap()
+        };
+        let (attacker, defender) = (army(1, 5), army(2, 6));
+        let q = Question {
+            attacker,
+            defender,
+            county: 1,
+            is_siege: false,
+            attacker_owner: 1,
+            defender_owner: 2,
+            attacker_men: men,
+            defender_men: 80,
+            attacker_roster: [0; l2_kingdom::unit::TROOP_TYPES],
+            defender_roster: [0; l2_kingdom::unit::TROOP_TYPES],
+            choice_owner: 1,
+            castle_level: None,
+        };
+        suspend_on(&mut game, q);
+        game
+    }
+
+    fn digest(game: &Game) -> u64 {
+        let mut c = l2_net::Canonical::hashing();
+        crate::net::encode_state(game, &mut c);
+        c.finish().hash
+    }
+
+    /// Ablation: `debug(c, q)` in `encode_progress` back to four fields.
+    #[test]
+    fn the_digest_sees_the_whole_turn_in_flight() {
+        assert_ne!(digest(&asked(100)), digest(&asked(101)), "the question's men");
+        let (mut a, b) = (asked(100), asked(100));
+        let e = Encounter { mover: 3, occupant: 4, county: 1 };
+        a.turn.as_mut().unwrap().pending_battles.push(e);
+        assert_ne!(digest(&a), digest(&b), "a battle waiting its turn");
+    }
+
+    /// Ablation: the bystander guard in `take_the_field`.
+    #[test]
+    fn a_bystander_seat_cannot_take_the_field() {
+        let mut game = asked(100);
+        let seats = [(l2_net::PlayerSlot::new(0), 1), (l2_net::PlayerSlot::new(1), 3)];
+        game.seats = seats.to_vec();
+        let order = crate::command::TakeTheField {}.into();
+        game.apply(l2_net::PlayerSlot::new(1), &order);
+        assert!(game.battle.is_none(), "realm 3 is neither side of 1 against 2");
+        game.apply(l2_net::PlayerSlot::new(0), &order);
+        assert_eq!(game.battle.as_ref().map(|b| b.owner), Some(1), "realm 1 fights as itself");
+    }
 }
 
 

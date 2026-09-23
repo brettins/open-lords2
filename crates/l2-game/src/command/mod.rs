@@ -10,6 +10,7 @@ mod tests;
 
 pub use orders::*;
 pub use run::Castled;
+pub(crate) use turn::time_up;
 
 use crate::game::Game;
 use crate::screen::Ctx;
@@ -98,9 +99,17 @@ pub fn local() -> PlayerSlot {
 }
 
 impl Game {
-    /// `[I]` only the local seat maps to a realm until seats exist.
+    /// The seat table from `lobby::Start`; single player seats slot 0 alone.
     pub fn realm_of(&self, slot: PlayerSlot) -> Option<u8> {
-        (slot == local()).then_some(self.player)
+        if self.seats.is_empty() {
+            return (slot == local()).then_some(self.player);
+        }
+        self.seats.iter().find(|(s, _)| *s == slot).map(|&(_, realm)| realm)
+    }
+
+    /// More than one person plays this world: an End Turn is one seat's.
+    pub fn seated(&self) -> bool {
+        self.seats.len() > 1
     }
 
     /// Commands from an unseated slot are dropped.
