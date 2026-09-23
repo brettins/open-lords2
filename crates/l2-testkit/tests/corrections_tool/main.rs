@@ -11,7 +11,6 @@
 //! Every test states the ablation that turns it red; they were run, not assumed.
 
 mod corrections_tool_tests;
-pub use corrections_tool_tests::*;
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
