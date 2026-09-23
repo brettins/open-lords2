@@ -19,6 +19,7 @@ impl Machine {
             tool_tips_seen: None,
             autosave: false,
             tip_seat: None,
+            clock_seen: None,
         }
     }
 
@@ -172,6 +173,8 @@ impl Machine {
         // A network game's clock is `net::frame`'s, on the session's tick.
         if !ctx.game.net.lockstep {
             self.run_turn_clock(ctx);
+        } else if crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen) {
+            self.dirty = true;
         }
         if self.join_battle(ctx) || self.wind_turn(ctx) {
             self.run_tooltips(ctx);

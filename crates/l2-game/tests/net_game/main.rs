@@ -10,6 +10,7 @@ mod live_desync;
 mod live_drop;
 mod lobby_ux;
 mod loopback;
+mod seat_view;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;
