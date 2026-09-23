@@ -91,15 +91,15 @@ impl BattleRunner {
         session: Session,
         prep: impl FnOnce(&mut BattleRunner),
     ) -> Self {
-        let total = army_a.men() + army_b.men();
-        let class = MEN_PER_FIGURE_TABLE[size_class(total)];
+        let sized = battle_size_class(&army_a, &army_b);
+        let class = MEN_PER_FIGURE_TABLE[sized];
         let mpf_a = side_scale(army_a.men(), class);
         let mpf_b = side_scale(army_b.men(), class);
         let mut runner = BattleRunner::empty(field, seed);
         let prev = (session.lane, session.rally);
         runner.ai = Ai::new_for_battle(seed, session.multiplayer, prev);
         runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
-        runner.size_class = size_class(total) as u8;
+        runner.size_class = sized as u8;
         if let Some(level) = castle_level {
             runner.siege = crate::siege::SiegeState::castle(level);
             runner.ai.is_siege = true;
