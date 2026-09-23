@@ -219,7 +219,7 @@
     "front-end-pages": {
       "what": "The MOUSE on setup screen 0x1F -- the page graph, and which button starts which kind of game",
       "complete": false,
-      "note": "Opened because the campaign started on the wrong map for a merge and nothing could have caught it: the front end's thirteen pages had no arm records at all, only the `front-end-keys` group beside them, which is about keys we invented. The three here are the ones the campaign start needed -- 0x00433461 sets the flag, 0x00432B05 clears it, 0x00433155 branches on it. The remaining page arms (FUN_00432CC8's five, FUN_004335F0's four, FUN_0043338E, FUN_00433551, the map list and the twelve drop-downs) are NOT enumerated, which is why `complete` is false. docs/decisions.md C117."
+      "note": "Opened because the campaign started on the wrong map for a merge and nothing could have caught it: the front end's thirteen pages had no arm records at all, only the `front-end-keys` group beside them, which is about keys we invented. The three here are the ones the campaign start needed -- 0x00433461 sets the flag, 0x00432B05 clears it, 0x00433155 branches on it. The remaining page arms (FUN_004335F0's four, FUN_0043338E, FUN_00433551, the map list and the twelve drop-downs) are NOT enumerated, which is why `complete` is false. docs/decisions.md C117."
     },
     "armoury": {
       "what": "g_screenId 0x0A the armoury and 0x0D one weapon's rack",
@@ -1395,6 +1395,61 @@
       "what": "Arriving at page 4 SEEDS the field with the name you already have: EVERY arm that writes g_setupPage = 4 runs `Edit_Begin(&g_options, 0x10, 0xC0, 0); Edit_RecomputeLength();` immediately after -- FUN_00432B05's hotspot 2, FUN_00432CC8's hotspots 3 and 5, AND Setup_ChooseCampaign (0x00433461), which is page 5.",
       "note": "CORRECTED, and the correction is an absence that was never looked for. This record used to end 'AND THE ASYMMETRY IS REAL: arriving at page 4 from page 5 or page 6 does NOT re-seed, because those arms set the page and nothing else', and crates/l2-game/src/screens/setup/mod.rs repeated it in SetupScreen::go's doc comment. Setup_ChooseCampaign's THIRD STATEMENT is that very Edit_Begin call. There are four writers of page 4 and all four re-seed; the claimed asymmetry does not exist. The code was already right -- go() re-seeds on every arrival -- so nothing behaved differently and only the sentence was wrong, which is why it survived. docs/decisions.md C117.",
       "ours": "crates/l2-game/src/screens/setup/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432CC8/back",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x00432CC8",
+      "what": "Setup page 2, record 0x004DCC08 of the five at 0x004DCBA8 (stride 24, kind 1, rect (224,235)-(416,259)), hotspot id 4. FUN_00432CC8 00430000.c:604-661: g_setupPage = 1, DAT_0057D320 = 0: back to the title page.",
+      "ours": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432CC8/campaign",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x00432CC8",
+      "what": "Setup page 2, record 0x004DCBA8 of the five at 0x004DCBA8 (stride 24, kind 1, rect (224,91)-(416,115)), hotspot id 1. FUN_00432CC8 00430000.c:604-661: g_setupPage = 5: the campaign choice.",
+      "ours": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432CC8/custom",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x00432CC8",
+      "what": "Setup page 2, record 0x004DCBF0 of the five at 0x004DCBA8 (stride 24, kind 1, rect (224,199)-(416,223)), hotspot id 3. FUN_00432CC8 00430000.c:604-661: g_setupPage = 4, Edit_Begin, s011_02.wav, DAT_0055302C = 2, DAT_0057D320 = 0: the name/shield page first; FUN_00433155 sends its Continue to page 7.",
+      "ours": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432CC8/load",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x00432CC8",
+      "what": "Setup page 2, record 0x004DCBC0 of the five at 0x004DCBA8 (stride 24, kind 1, rect (224,127)-(416,151)), hotspot id 2. FUN_00432CC8 00430000.c:604-661: Files_Enumerate of the save pattern, DAT_00553E5C = g_setupPage, g_setupPage = 3, DAT_0057D320 = 1: the load box.",
+      "ours": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x00432CC8/skirmish",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press",
+      "addr": "0x00432CC8",
+      "what": "Setup page 2, record 0x004DCBD8 of the five at 0x004DCBA8 (stride 24, kind 1, rect (224,163)-(416,187)), hotspot id 5. FUN_00432CC8 00430000.c:604-661: g_setupPage = 4, Edit_Begin(&g_options, 0x10, 0xC0, 0), Sound_StopOneShot + Sound_PlayFile(s011_02.wav), DAT_0055302C = 3, DAT_0057D320 = 0: the name/shield page first; FUN_00433155 :794 sends its Continue to page 0xC.",
+      "ours": "crates/l2-game/src/screens/setup/ui/render/render.rs",
       "evidence": "V"
     },
     {

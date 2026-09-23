@@ -692,6 +692,12 @@ fn no_record_slot_is_silenced() {
 
 const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[
     (
+        "Campaign",
+        "battle_county",
+        "g_battleCounty, a process global every campaign battle rewrites before it reads \
+         it; only a skirmish reads it stale (Battlefield_BuildCastle 0x0047C4BA:5344)",
+    ),
+    (
         "Kingdom",
         "tables",
         "the ruleset is fingerprinted into the header rather than written into the \

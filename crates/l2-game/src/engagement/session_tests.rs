@@ -59,6 +59,43 @@ fn the_campaign_keeps_the_last_open_fields_marker_tables() {
 fn a_new_game_and_a_skirmish_read_the_last_battles_marker_tables() {
     let markers = ([[(9, 70); 4], [(40, 5); 4]], [[[(12, 34); 3]; 2], [[(56, 78); 3]; 2]]);
     let mut fresh = crate::Game::new(2);
-    crate::setup::carry_battle_markers(&mut fresh, markers);
+    crate::setup::carry_battle_markers(&mut fresh, (markers, (0, 0), 0));
     assert_eq!(crate::setup::skirmish_session(&fresh).markers, markers);
+}
+
+/// `Battle_Start` 00470000.c:3104-3118 steps the selectors from process globals, and
+/// `g_battleCounty` is one too. Ablation: drop `lane, rally` from `skirmish_session`.
+#[test]
+fn a_new_game_and_a_skirmish_carry_the_selectors_and_the_battle_county() {
+    let mut fresh = crate::Game::new(2);
+    crate::setup::carry_battle_markers(&mut fresh, (Default::default(), (3, 1), 17));
+    let s = crate::setup::skirmish_session(&fresh);
+    assert_eq!((s.lane, s.rally), (3, 1));
+    assert_eq!(fresh.kingdom.campaign.battle_county, 17);
+}
+
+/// Siege_RestoreCastleDamage 0x004787A4: `castleDegraded != 2` leaves the fresh scores, 2
+/// restores the county's. Ablation: `Some(SiegeScars::default())` on the else arm.
+#[test]
+fn a_first_assault_keeps_the_fresh_scores_and_a_repeat_takes_the_countys() {
+    let (mut k, a, d) = two_armies();
+    let mut r = begin_fight_in(&mut k, a, d, Some(0), 7, false).unwrap();
+    let fresh = r.castle_damage();
+    assert!(fresh.approach_score != 0 || fresh.ramparts_breached != 0, "{fresh:?}");
+    k.counties[5].siege_scars.approach_score = 9;
+    restore_last_siege(&mut k, 5, &mut r);
+    assert_eq!(r.castle_damage(), fresh);
+    assert_eq!(k.counties[5].siege_scars.approach_score, 0, "the else arm zeroes the county's");
+    k.counties[5].castle_degraded = l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED;
+    k.counties[5].siege_scars.approach_score = 9;
+    restore_last_siege(&mut k, 5, &mut r);
+    assert_eq!(r.castle_damage().approach_score, 9);
+}
+
+/// Every campaign battle writes `g_battleCounty`. Ablation: drop the write in `resolve_battle`.
+#[test]
+fn a_campaign_battle_leaves_its_county_for_the_next_skirmish() {
+    let (mut k, a, d) = two_armies();
+    resolve(&mut k, Attack::Battle { attacker: a, defender: d }, 12, Answer::TakeTheField, 7);
+    assert_eq!(k.campaign.battle_county, 12);
 }

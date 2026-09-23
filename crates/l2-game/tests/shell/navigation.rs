@@ -48,6 +48,12 @@ fn back_walks_the_page_graph_the_original_has() {
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Options)));
     m.handle(click(setup_item(4)), &mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Title)));
+    m.handle(click(setup_item(0)), &mut ctx);
+    m.handle(click(setup_item(2)), &mut ctx);
+    // FUN_00432CC8 hotspot 5: page 4, then 0xC. Ablation: Options(2) straight to Skirmish.
+    assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Shield)));
+    m.handle(click((x + 20, y + l2_game::screens::setup::ITEM_H / 2)), &mut ctx);
+    assert_eq!(m.top_id(), Some(ScreenId::Setup(SetupPage::Skirmish)));
 }
 
 #[test]

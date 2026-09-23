@@ -75,12 +75,13 @@ pub fn record_castle_damage(county: &mut County, castle_level: u8, scars: SiegeS
 /// if (county.castleDegraded == 2) { the six globals = county[+0x1E4 .. +0x1F1]; }
 /// else                            { county[+0x1E4 .. +0x1F1] = 0; }
 /// ```
-pub fn scars_for_assault(county: &mut County) -> SiegeScars {
+/// `None` on the else arm: the six globals keep what `Battle_Start` wrote (00470000.c:3610-3628) [V].
+pub fn scars_for_assault(county: &mut County) -> Option<SiegeScars> {
     if county.castle_degraded == CASTLE_DEGRADED_DAMAGED {
-        county.siege_scars
+        Some(county.siege_scars)
     } else {
         county.siege_scars = SiegeScars::default();
-        SiegeScars::default()
+        None
     }
 }
 

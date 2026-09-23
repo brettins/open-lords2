@@ -64,6 +64,8 @@ pub struct SetupScreen {
     /// person had arrived — so *Play Now!* built England instead of
     /// Quaintville. `docs/decisions.md` C117.
     pub(crate) campaign: bool,
+    /// `DAT_0055302C == 3`: FUN_00432CC8 0x00432CC8 hotspot 5 opened page 4. [V]
+    pub(crate) via_skirmish: bool,
     /// Arrived by *Multiple players*: *Start* opens the lobby. [D] ours.
     pub(crate) network: bool,
     /// **A `Save_RotateAndWrite` is owed** — `Game_NewGame`'s own call to it

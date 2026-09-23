@@ -285,11 +285,23 @@ pub fn carry_chosen_gold(game: &mut Game, before: i32, chosen: i32) {
 /// `DAT_00544050`/`DAT_00544070`/`g_rallyWaypoints`/`DAT_00522D60` are `.bss`, zeroed once per
 /// process [V]: `Game_NewGame` 0x00497CED does not clear them, so a new game reads the last
 /// battle's, campaign or skirmish.
-pub fn carry_battle_markers(game: &mut Game, before: l2_kingdom::kingdom::BattleMarkers) {
-    game.kingdom.campaign.battle_markers = before;
+/// So are `g_battleApproachLane`/`g_battleRallyGroup` (00470000.c:3104-3118) and `g_battleCounty`.
+pub fn carry_battle_markers(game: &mut Game, before: BattleProcess) {
+    let c = &mut game.kingdom.campaign;
+    (c.battle_markers, c.battle_selectors, c.battle_county) = before;
 }
 
-/// A skirmish's `Battle_Start` 0x004778A0 reads the same process tables.
+/// The battle globals no new game clears: markers, (lane, rally), `g_battleCounty`.
+pub type BattleProcess = (l2_kingdom::kingdom::BattleMarkers, (u8, u8), u8);
+
+pub fn battle_process(game: &Game) -> BattleProcess {
+    let c = &game.kingdom.campaign;
+    (c.battle_markers, c.battle_selectors, c.battle_county)
+}
+
+/// A skirmish's `Battle_Start` 0x004778A0 reads the same process tables and selectors.
 pub fn skirmish_session(game: &Game) -> l2_sim::Session {
-    l2_sim::Session { markers: game.kingdom.campaign.battle_markers, ..l2_sim::Session::default() }
+    let c = &game.kingdom.campaign;
+    let (lane, rally) = (usize::from(c.battle_selectors.0), usize::from(c.battle_selectors.1));
+    l2_sim::Session { markers: c.battle_markers, lane, rally, ..l2_sim::Session::default() }
 }
