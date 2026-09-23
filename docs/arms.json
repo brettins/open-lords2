@@ -1645,13 +1645,14 @@
     },
     {
       "id": "0x00434942/opt-game-help-contents",
-      "status": "missing",
+      "status": "reproduced",
       "group": "options-panels",
       "screen": "0x31",
       "gesture": "left-press-delayed",
       "addr": "0x00434942",
       "what": "Help options row 3, 'Start game help': record 2 (0x004DDD18) at (288, 252), kind 5. Twenty frames after the press, WinHelpA(hwnd, 'l2help.hlp', HELP_CONTENTS, 1).",
-      "note": "Missing, and knowingly: a Windows 3.1 help file through an API that has not shipped since Vista. Ours draws the row dimmed; its widget still goes down, clicks and counts the twenty ticks, and then nothing happens.",
+      "note": "[D] CNEW-help-viewer: the viewer is Windows' WinHelp; ours pushes ScreenId::Help, our own window reading L2help.hlp (contents, jump hotspots, |CONTEXT, Back, OK).",
+      "ours": "crates/l2-game/src/screens/help/mod.rs",
       "evidence": "V"
     },
     {

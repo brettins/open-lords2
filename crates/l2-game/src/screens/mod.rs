@@ -56,6 +56,7 @@ pub mod county;
 pub mod court;
 pub mod diplomacy;
 pub mod divide;
+pub mod help;
 pub mod index;
 pub mod info;
 pub mod job;

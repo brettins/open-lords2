@@ -149,6 +149,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::Message
         | S::Tip
         | S::Options(_)
+        | S::Help
         | S::Battlefield
         | S::MenuBar(_)
         | S::About
