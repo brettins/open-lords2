@@ -34,12 +34,16 @@ pub fn checksum(kingdom: &Kingdom) -> u64 {
     Canonical::hash_of(kingdom)
 }
 
+/// The oldest version this build reads. [D] ours, CNEW-save-compat: raised to `VERSION` unless the
+/// change is a pure addition with defaults and the previous release's reader is kept.
+pub const MIN_READABLE: u32 = VERSION;
+
 pub fn decode(bytes: &[u8], tables: Tables) -> Result<Kingdom, LoadError> {
     if bytes.len() < HEADER_LEN + 8 || bytes[..8] != MAGIC {
         return Err(LoadError::NotASave);
     }
     let version = u32::from_le_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]);
-    if version != VERSION {
+    if !(MIN_READABLE..=VERSION).contains(&version) {
         return Err(LoadError::UnsupportedVersion { found: version, supported: VERSION });
     }
     let mut fingerprint = [0u8; 8];

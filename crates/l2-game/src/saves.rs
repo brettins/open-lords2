@@ -40,6 +40,20 @@ impl core::fmt::Display for Error {
 
 impl std::error::Error for Error {}
 
+impl Error {
+    /// `(found, expected)` when either layer refused the file on its format version. CNEW-save-compat
+    pub fn version_mismatch(&self) -> Option<(u32, u32)> {
+        let Error::Load { detail, .. } = self else { return None };
+        match detail {
+            LoadError::UnsupportedVersion { found, supported } => Some((*found, *supported)),
+            LoadError::Kingdom(l2_kingdom::save::LoadError::UnsupportedVersion { found, supported }) => {
+                Some((*found, *supported))
+            }
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entry {
     pub name: String,

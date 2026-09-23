@@ -19,6 +19,10 @@ pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 
 pub const VERSION: u32 = 8;
 
+/// The oldest version this build reads. [D] ours, CNEW-save-compat: raised to `VERSION` unless the
+/// change is a pure addition with defaults and the previous release's reader is kept.
+pub const MIN_READABLE: u32 = VERSION;
+
 pub const HEADER_LEN: usize = 8 + 4 + 4 + 4;
 
 pub const EXTENSION: &str = "l2sav";
@@ -104,7 +108,7 @@ pub fn peek(bytes: &[u8]) -> Result<Header, LoadError> {
         u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]) as usize
     };
     let version = word(8) as u32;
-    if version != VERSION {
+    if !(MIN_READABLE..=VERSION).contains(&version) {
         return Err(LoadError::UnsupportedVersion { found: version, supported: VERSION });
     }
     let prefix_len = word(12);
