@@ -35,6 +35,32 @@ impl Screen for SetupScreen {
     }
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
+        self.read_prefs(ctx);
+        let t = self.update_page(ctx);
+        self.keep_prefs(ctx);
+        t
+    }
+
+    fn take_redraw(&mut self) -> bool {
+        let pulse = self.press.take_redraw();
+        core::mem::take(&mut self.clock_redraw) || pulse
+    }
+
+    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+        self.read_prefs(ctx);
+        let t = self.handle_page(event, ctx);
+        self.keep_prefs(ctx);
+        t
+    }
+
+    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+        self.read_prefs(ctx);
+        self.draw_page(ctx, canvas);
+    }
+}
+
+impl SetupScreen {
+    fn update_page(&mut self, ctx: &mut Ctx) -> Transition {
         if !self.map_read {
             self.read_map(ctx);
         }
@@ -60,12 +86,7 @@ impl Screen for SetupScreen {
         self.tick_held(ctx)
     }
 
-    fn take_redraw(&mut self) -> bool {
-        let pulse = self.press.take_redraw();
-        core::mem::take(&mut self.clock_redraw) || pulse
-    }
-
-    fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
+    fn handle_page(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         let n = self.count().max(1);
         // `Screen_HandleInput`'s page-4 arm is the one that sets `g_editActive`
         // (`0x005AEB78`), and that flag is what decides whether a keystroke
@@ -159,7 +180,7 @@ impl Screen for SetupScreen {
         Transition::Stay
     }
 
-    fn draw(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
+    fn draw_page(&mut self, ctx: &Ctx, canvas: &mut Canvas) {
         let a = &ctx.assets.shell;
         // **[D]** The front end's own text flags. `DAT_005AEA40` is set around
         // every menu item, button caption and body line and cleared for the

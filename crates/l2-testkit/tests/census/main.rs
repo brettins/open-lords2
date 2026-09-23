@@ -63,7 +63,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/save_england_turn1/main.rs", "england", 1),
     ("crates/l2-formats/tests/save_england_turn1/merchants.rs", "england", 2),
     ("crates/l2-game/src/audio/mod.rs", "install", 1),
-    ("crates/l2-game/src/prefs.rs", "install", 1),
+    ("crates/l2-game/src/prefs.rs", "install", 2),
     ("crates/l2-game/src/screens/menubar/tests_part.rs", "install", 2),
     ("crates/l2-game/tests/ai_first_year.rs", "england", 3),
     ("crates/l2-game/tests/ai_war/simulation.rs", "england", 2),
@@ -132,7 +132,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "england", 2),
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "executable", 1),
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "fixture", 3),
-    ("crates/l2-game/tests/job_bodies/job_popups/smithy_efficiency.rs", "england", 1),
     ("crates/l2-game/tests/job_bodies/tile_panel.rs", "england", 3),
     ("crates/l2-game/tests/labour_move/drag_and_drop_tests.rs", "england", 4),
     ("crates/l2-game/tests/labour_move/game_flow_tests.rs", "england", 1),
@@ -153,7 +152,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/movies/playback/input_and_drawing.rs", "install", 3),
     ("crates/l2-game/tests/movies/playback/timing_and_sound.rs", "install", 4),
     ("crates/l2-game/tests/movies/triggers/validation.rs", "install", 1),
-    ("crates/l2-game/tests/net_game/main.rs", "england", 3),
     ("crates/l2-game/tests/newgame/army_size.rs", "other", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "install", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "other", 3),
@@ -191,7 +189,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_info/field_panel/labels_and_views.rs", "england", 4),
     ("crates/l2-game/tests/screens_info/field_panel/labels_and_views.rs", "executable", 1),
     ("crates/l2-game/tests/screens_info/tile_panel_part.rs", "england", 5),
-    ("crates/l2-game/tests/screens_info/unit_insets.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/fog_tests.rs", "england", 3),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/hover_frame_tests.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/march_tests.rs", "england", 4),
@@ -199,9 +196,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_map/interaction_tests/selection_and_click_tests.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/interaction_tests/town_and_mine_tests.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/interaction_tests/view_and_navigation_tests.rs", "england", 2),
-    ("crates/l2-game/tests/screens_map/structures_tests/banners.rs", "england", 2),
     ("crates/l2-game/tests/screens_map/structures_tests/castles.rs", "england", 3),
-    ("crates/l2-game/tests/screens_map/structures_tests/damage.rs", "england", 2),
     ("crates/l2-game/tests/screens_map/structures_tests/minimap_and_seasons.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/view_tests/view_tests.rs", "england", 6),
     ("crates/l2-game/tests/screens_menubar/menu_bar.rs", "england", 5),
@@ -301,7 +296,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 674;
+pub(crate) const GATED_TOTAL: usize = 666;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

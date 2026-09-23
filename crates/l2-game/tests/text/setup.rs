@@ -33,7 +33,11 @@ fn a_short_name_leaves_the_tail_of_the_old_one_until_delete_or_insert() {
         press(&mut m, &mut game, &assets, Key::Delete);
     }
     assert_eq!(field_of(&m), "Ed", "VK_DELETE clears the tail");
+    let m = name_page(&mut game, &assets);
+    assert_eq!(field_of(&m), "Ed", "Edit_Begin(&g_options, ...) reopens on the edited name");
+    assert_eq!(game.prefs.kept.player_name.as_str(), "Ed", "Options_Save writes g_options+0x00");
 
+    let (mut game, assets) = bare();
     let mut m = name_page(&mut game, &assets);
     press(&mut m, &mut game, &assets, Key::Insert);
     type_into(&mut m, &mut game, &assets, "Ed");
@@ -127,3 +131,16 @@ fn start_puts_the_typed_name_into_the_realm() {
 }
 
 
+
+/// `g_setupOpt*` (`0x0053F288`) lives in `g_options`: a new setup screen opens
+/// on the last choices, and `Setup_DefaultOptions` runs only on *Defaults*.
+#[test]
+fn the_custom_page_opens_on_the_last_choices() {
+    let (mut game, assets) = bare();
+    game.prefs.kept.setup.set(l2_game::setup::option::CROWNS, 4);
+    let mut m = SetupScreen::new(SetupPage::Custom);
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    m.update(&mut ctx);
+    assert_eq!(ctx.game.prefs.kept.setup.get(l2_game::setup::option::CROWNS), 4, "seeded, then kept");
+    assert_eq!(m.options().get(l2_game::setup::option::CROWNS), 4, "the page reads the block");
+}

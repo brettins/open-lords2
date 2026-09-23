@@ -31,6 +31,22 @@ fn a_letter_opens_on_its_default_and_the_first_key_types_over_it() {
     assert!(draft.ends_with("teach me more."), "{draft}");
 }
 
+/// `g_diploLetterDraft` is edited in place and sits inside `g_options`, so the
+/// next letter of that kind opens on what was typed.
+#[test]
+fn a_typed_draft_is_kept_for_the_next_letter() {
+    let (mut game, assets) = world();
+    let mut screen = diplomacy::ComposeScreen::new(2, Kind::Insult.byte());
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    screen.handle(Event::Text('Z'), &mut ctx);
+    screen.update(&mut ctx);
+    let mut again = diplomacy::ComposeScreen::new(3, Kind::Insult.byte());
+    again.handle(Event::KeyDown(l2_game::input::Key::Home), &mut ctx);
+    assert!(again.draft().starts_with("Zou are ugly"), "{}", again.draft());
+    let other = ctx.game.prefs.kept.letters[0];
+    assert!(other.is_none(), "the compliment's draft is still L2.eng's");
+}
+
 #[test]
 fn the_four_letter_kinds_open_on_four_different_drafts() {
     let (mut game, assets) = world();

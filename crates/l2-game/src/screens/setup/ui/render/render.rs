@@ -35,6 +35,7 @@ impl SetupScreen {
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
+            prefs_read: false,
             skirmish: Default::default(),
             troops: Default::default(),
             troops_file: None,

@@ -139,7 +139,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::RaiseArmy(_)
         | S::Armoury(_)
         | S::Rack(..)
-        | S::Divide(_)
+        | S::Divide(_) | S::DivideCastle(..)
         | S::Merchant(_)
         | S::Trade(..)
         | S::BattlePrompt
