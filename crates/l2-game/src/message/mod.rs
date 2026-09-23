@@ -396,6 +396,9 @@ pub struct MessageQueue {
     open: Option<Record>,
     /// `g_messageTimer`.
     timer: i32,
+    /// `g_diploLetter + realm * 0xCA`: the free-text body a lord last wrote this seat,
+    /// by sender realm. Per seat, as the ring is.
+    pub letters: Vec<String>,
 }
 
 impl Default for MessageQueue {

@@ -25,6 +25,7 @@ impl MessageQueue {
             pending: false,
             open: None,
             timer: 0,
+            letters: Vec::new(),
         }
     }
 

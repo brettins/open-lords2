@@ -104,6 +104,46 @@ pub(super) fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &R
     pen.body_wrapped(canvas, f.x + 0x20, f.y + 0x40, f.w - 0x40, &words, font::TEXT);
 }
 
+/// `Msg_DrawDiplomacy` (`0x00475E07`) and, for category `0x14`, `Msg_DrawBeyondLetter`
+/// (`0x00476488`): the literal "Beyond" for the name, arms 1 and 2 only. [V]
+/// `FUN_00410C71(county, x + 0x100, y + 0x40)` in arms 5..10 is not drawn. [D]
+pub(super) fn draw_diplomacy(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
+    let beyond = record.category == category::BEYOND;
+    draw_portrait(pen, ctx, canvas, record.from, f);
+    let from = ctx.assets.shell.text(message::GROUP_FROM, 0).to_string();
+    let x = pen.heading(canvas, f.x + 0x6C, f.y + 0x20, &from, font::TEXT);
+    let name = if beyond { "Beyond".to_string() } else { lord_name(ctx, record.from) };
+    pen.heading(canvas, x, f.y + 0x20, &name, font::TEXT);
+    let g = usize::from(record.group);
+    let line = |i| ctx.assets.shell.text(g, i).to_string();
+    pen.body(canvas, f.x + 0x6C, f.y + 0x40, &line(0), font::TEXT);
+    let arm = g.wrapping_sub(0xF5);
+    let letter = ctx.game.messages.letters.get(usize::from(record.from)).cloned().unwrap_or_default();
+    let free_text = |canvas: &mut Canvas, top: i32| {
+        pen.inset(canvas, Rect::new(f.x + 0x20, f.y + top, f.w - 0x40, 0x5A));
+        pen.body_wrapped(canvas, f.x + 0x28, f.y + top + 4, f.w - 0x50, &letter, font::TEXT);
+    };
+    match arm {
+        1 | 2 => free_text(canvas, 0x68),
+        _ if beyond => {}
+        0 => {
+            let x = pen.body(canvas, f.x + 0x20, f.y + 0x68, &line(1), font::TEXT);
+            pen.count(canvas, x, f.y + 0x68, i32::from(record.variant), 0, font::TEXT);
+        }
+        3 => {
+            pen.body(canvas, f.x + 0xA0, f.y + 0x68, &line(1), font::TEXT);
+            free_text(canvas, 0x88);
+        }
+        5..=10 => {
+            pen.body(canvas, f.x + 0x20, f.y + 0x68, &line(1), font::TEXT);
+            pen.body(canvas, f.x + 0x20, f.y + 0x78, &county_name(ctx, record.county), font::TEXT);
+        }
+        _ => {
+            pen.body(canvas, f.x + 0x20, f.y + 0x68, &line(1), font::TEXT);
+        }
+    }
+}
+
 pub(super) fn draw_letter(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     draw_portrait(pen, ctx, canvas, record.from, f);
     let from = ctx.assets.shell.text(message::GROUP_FROM, 0).to_string();
