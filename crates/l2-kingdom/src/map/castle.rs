@@ -28,6 +28,18 @@ pub fn castle_tile(map: &CampaignMap, county: u8) -> Option<usize> {
     castle_tiles(map, county).first().copied()
 }
 
+/// `Map_StampBlock(frame, 2, county.castleTile, …)` — the corner [`castle_tile`]
+/// returns and the three tiles of its 2×2, the offsets [`BLOCK_QUADRANTS_2`]
+/// indexes. `Castle_StampTile` (`0x0046826C`) writes the whole block, not every
+/// castle-terrain tile of the county.
+pub fn castle_plot_tiles(map: &CampaignMap, county: u8) -> Vec<usize> {
+    let Some(corner) = castle_tile(map, county) else { return Vec::new() };
+    [0usize, 1, MAP_DIM, MAP_DIM + 1]
+        .into_iter()
+        .filter_map(|o| corner.checked_add(o).filter(|t| *t < MAP_TILES))
+        .collect()
+}
+
 pub const CASTLE_BANK_BYTE: u8 = 0x11;
 
 /// **What a castle looks like** — `Castle_StampTile` (`0x0046826C`), which is
@@ -54,7 +66,7 @@ pub const CASTLE_HALF_PERCENT: u8 = 0x32;
 
 pub fn stamp_castle_terrain(map: &mut CampaignMap, county: u8, castle_type: u8) -> usize {
     let Some(t) = terrain::CASTLE_PLOT.checked_add(castle_type.min(5)) else { return 0 };
-    let tiles = castle_tiles(map, county);
+    let tiles = castle_plot_tiles(map, county);
     for i in &tiles {
         map.terrain[*i] = t;
     }

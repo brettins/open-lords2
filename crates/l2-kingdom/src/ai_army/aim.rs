@@ -45,12 +45,13 @@ impl Aim {
     }
 }
 
-/// The fallback differs from the original in one place and it is stated: for
-/// [`Aim::Castle`] the original falls back to the county's stored castle tile
-/// (`+0x74`/`+0x75`, `County_FindCastleTile`'s output), which this crate does
-/// not carry. The anchor is used instead. `[I]`, and it only fires when the
-/// county has no castle tile on the map at all — in which case the stored pair
-/// would be stale.
+/// `Ai_FindCastleBuildingTile` (`0x004A65A3`) falls back to the county's stored
+/// castle tile — `+0x74`/`+0x75`, `County_FindCastleTile`'s corner, which is
+/// [`crate::map::castle_tile`] and exists whether or not a castle stands on it.
+/// The county anchor is the last resort and it is the wrong tile: the anchor
+/// carries [`flags::CASTLE`], the county *town*, and `movement::step` ends a
+/// move on it without entering it — so an army aimed there re-aims at the same
+/// tile every turn and never moves again.
 pub fn aim_tile(
     map: &CampaignMap,
     counties: &[County; MAX_COUNTIES],
@@ -77,6 +78,10 @@ pub fn aim_tile(
                 found = Some((x, y));
             }
         }
+    }
+    if found.is_none() && aim == Aim::Castle {
+        found = crate::map::castle_tile(map, county)
+            .map(|i| ((i % MAP_DIM) as u8, (i / MAP_DIM) as u8));
     }
     found.unwrap_or_else(|| {
         counties
