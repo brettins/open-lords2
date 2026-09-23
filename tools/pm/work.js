@@ -835,13 +835,16 @@ function inventories(base) {
     };
   });
 
-  attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census/main.rs' }, () => {
-    const text = src.read('crates/l2-testkit/tests/census/main.rs');
-    const m = text.match(/const GATED_TOTAL: usize = (\d+);/);
-    if (!m) throw new Error(`GATED_TOTAL is not in census.rs in ${src.where}`);
-    const files = new Set([...text.matchAll(/^\s*\("(crates\/[^"]+)",/gm)].map((x) => x[1]));
+  attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census/gated.txt' }, () => {
+    const rows = src
+      .read('crates/l2-testkit/tests/census/gated.txt')
+      .split('\n')
+      .map((l) => l.trim().split(/\s+/))
+      .filter((f) => f.length === 3 && /^\d+$/.test(f[2]));
+    if (!rows.length) throw new Error(`the census record gated.txt has no rows in ${src.where}`);
+    const files = new Set(rows.map((f) => f[0]));
     return {
-      head: m[1],
+      head: String(rows.reduce((s, f) => s + Number(f[2]), 0)),
       unit: 'tests that do not exist without a copy of the game',
       second: [`across ${files.size} test files; a clone without the game, and CI, run none of them`],
     };
