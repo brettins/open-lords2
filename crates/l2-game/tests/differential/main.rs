@@ -105,13 +105,11 @@
 //! the death rate, and we compared the ladder's unscaled rate
 //! (`docs/decisions.md` C170).
 
-use l2_formats::save::{
-    County as SavedCounty, DiploPair, Globals, Realm as SavedRealm, Save,
-};
-use l2_game::game::Game;
-use l2_kingdom::county::County;
-use l2_kingdom::realm::{Pair as OurPair, Realm};
-use l2_kingdom::tables::Tables;
+mod chain;
+mod compare;
+mod fields;
+
+use compare::{clock, run, Row};
 
 struct FixturePair {
     label: &'static str,
@@ -145,326 +143,6 @@ const SAME_TURN_TRIPLES: &[[&str; 3]] = &[
     ["battle-before.sav", "battle-during.sav", "battle-after.sav"],
     ["siege-lastturn.sav", "siege-sieging.sav", "siege-aftersie.sav"],
 ];
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-enum Kind {
-    Simulated,
-    PlayerInput,
-    Unsimulated,
-    Excluded(&'static str),
-}
-
-impl Kind {
-    fn tag(self) -> &'static str {
-        match self {
-            Kind::Simulated => "simulated",
-            Kind::PlayerInput => "player-input",
-            Kind::Unsimulated => "unsimulated",
-            Kind::Excluded(_) => "excluded",
-        }
-    }
-
-    fn compared(self) -> bool {
-        !matches!(self, Kind::Excluded(_))
-    }
-}
-
-struct CountyField {
-    path: &'static str,
-    kind: Kind,
-    ours: fn(&County) -> i64,
-    theirs: fn(&SavedCounty) -> i64,
-}
-
-struct RealmField {
-    path: &'static str,
-    kind: Kind,
-    ours: fn(&Realm) -> i64,
-    theirs: fn(&SavedRealm) -> i64,
-}
-
-struct PairField {
-    path: &'static str,
-    kind: Kind,
-    ours: fn(&OurPair) -> i64,
-    theirs: fn(&DiploPair) -> i64,
-}
-
-struct GlobalField {
-    path: &'static str,
-    kind: Kind,
-    ours: fn(&Game) -> i64,
-    theirs: fn(&Globals) -> i64,
-}
-
-#[rustfmt::skip]
-const COUNTY_FIELDS: &[CountyField] = &[
-    CountyField { path: "county.owner", kind: Kind::Simulated, ours: |c| c.owner as i64, theirs: |c| c.owner as i64 },
-    CountyField { path: "county.happiness", kind: Kind::Simulated, ours: |c| c.happiness as i64, theirs: |c| c.happiness as i64 },
-    CountyField { path: "county.happiness_last", kind: Kind::Simulated, ours: |c| c.happiness_last as i64, theirs: |c| c.happiness_last as i64 },
-    CountyField { path: "county.d_hap_tax", kind: Kind::Simulated, ours: |c| c.d_hap_tax as i64, theirs: |c| c.d_hap_tax as i64 },
-    CountyField { path: "county.d_hap_health", kind: Kind::Simulated, ours: |c| c.d_hap_health as i64, theirs: |c| c.d_hap_health as i64 },
-    CountyField { path: "county.d_hap_ration", kind: Kind::Simulated, ours: |c| c.d_hap_ration as i64, theirs: |c| c.d_hap_ration as i64 },
-    CountyField { path: "county.shown_tax", kind: Kind::Simulated, ours: |c| c.shown_tax as i64, theirs: |c| c.shown_tax as i64 },
-    CountyField { path: "county.shown_ration", kind: Kind::Simulated, ours: |c| c.shown_ration as i64, theirs: |c| c.shown_ration as i64 },
-    CountyField { path: "county.shown_health", kind: Kind::Simulated, ours: |c| c.shown_health as i64, theirs: |c| c.shown_health as i64 },
-    CountyField { path: "county.shown_army", kind: Kind::Simulated, ours: |c| c.shown_army as i64, theirs: |c| c.shown_army as i64 },
-    CountyField { path: "county.shown_events", kind: Kind::Simulated, ours: |c| c.shown_events as i64, theirs: |c| c.shown_events as i64 },
-    // `+0x18` and `+0x1C` are a running mean and its accumulator over the
-    // **whole game**, and `l2-scenario` seeds both from the current happiness
-    // because the save stores no sample count to resume from. A pair twelve
-    // turns in therefore cannot agree, and the divergence would say nothing
-    // about the rule.
-    CountyField { path: "county.happiness_avg", kind: Kind::Excluded("a running mean over the whole game; the save stores no sample count, so the import restarts it"), ours: |c| c.happiness_avg as i64, theirs: |c| c.happiness_avg as i64 },
-    CountyField { path: "county.happiness_sum", kind: Kind::Excluded("the accumulator behind happiness_avg, restarted by the import for the same reason"), ours: |c| c.happiness_sum as i64, theirs: |c| c.happiness_sum as i64 },
-    CountyField { path: "county.health_meter", kind: Kind::Simulated, ours: |c| c.health_meter as i64, theirs: |c| c.health_meter as i64 },
-    CountyField { path: "county.health_band", kind: Kind::Simulated, ours: |c| c.health_band as i64, theirs: |c| c.health_band as i64 },
-    CountyField { path: "county.unrest", kind: Kind::Simulated, ours: |c| c.unrest as i64, theirs: |c| c.unrest as i64 },
-    CountyField { path: "county.population", kind: Kind::Simulated, ours: |c| c.population as i64, theirs: |c| c.population as i64 },
-    CountyField { path: "county.pop_last", kind: Kind::Simulated, ours: |c| c.pop_last as i64, theirs: |c| c.pop_last as i64 },
-    CountyField { path: "county.births", kind: Kind::Simulated, ours: |c| c.births as i64, theirs: |c| c.births as i64 },
-    CountyField { path: "county.deaths", kind: Kind::Simulated, ours: |c| c.deaths as i64, theirs: |c| c.deaths as i64 },
-    CountyField { path: "county.emigrants", kind: Kind::Simulated, ours: |c| c.emigrants as i64, theirs: |c| c.emigrants as i64 },
-    CountyField { path: "county.immigrants", kind: Kind::Simulated, ours: |c| c.immigrants as i64, theirs: |c| c.immigrants as i64 },
-    CountyField { path: "county.pop_band", kind: Kind::Simulated, ours: |c| c.pop_band as i64, theirs: |c| c.pop_band as i64 },
-    CountyField { path: "county.neighbour_count", kind: Kind::Simulated, ours: |c| c.neighbour_count as i64, theirs: |c| c.neighbour_count as i64 },
-    CountyField { path: "county.anchor_x", kind: Kind::Simulated, ours: |c| c.anchor_x as i64, theirs: |c| c.anchor_x as i64 },
-    CountyField { path: "county.anchor_y", kind: Kind::Simulated, ours: |c| c.anchor_y as i64, theirs: |c| c.anchor_y as i64 },
-    CountyField { path: "county.tax_rate", kind: Kind::PlayerInput, ours: |c| c.tax_rate as i64, theirs: |c| c.tax_rate as i64 },
-    CountyField { path: "county.tax_collected", kind: Kind::Simulated, ours: |c| c.tax_collected as i64, theirs: |c| c.tax_collected as i64 },
-    CountyField { path: "county.ration_wanted", kind: Kind::PlayerInput, ours: |c| c.ration_wanted as i64, theirs: |c| c.ration_wanted as i64 },
-    CountyField { path: "county.ration_split", kind: Kind::PlayerInput, ours: |c| c.ration_split as i64, theirs: |c| c.ration_split as i64 },
-    CountyField { path: "county.ration_achieved", kind: Kind::Simulated, ours: |c| c.ration_achieved as i64, theirs: |c| c.ration_achieved as i64 },
-    CountyField { path: "county.grain_eaten", kind: Kind::Simulated, ours: |c| c.grain_eaten as i64, theirs: |c| c.grain_eaten as i64 },
-    CountyField { path: "county.herd_eaten", kind: Kind::Simulated, ours: |c| c.herd_eaten as i64, theirs: |c| c.herd_eaten as i64 },
-    CountyField { path: "county.grain_available", kind: Kind::Simulated, ours: |c| c.grain_available as i64, theirs: |c| c.grain_available as i64 },
-    CountyField { path: "county.herd_available", kind: Kind::Simulated, ours: |c| c.herd_available as i64, theirs: |c| c.herd_available as i64 },
-    CountyField { path: "county.grain", kind: Kind::Simulated, ours: |c| c.grain as i64, theirs: |c| c.grain as i64 },
-    CountyField { path: "county.herd", kind: Kind::Simulated, ours: |c| c.herd as i64, theirs: |c| c.herd as i64 },
-    CountyField { path: "county.fields_fallow", kind: Kind::Simulated, ours: |c| c.fields_fallow as i64, theirs: |c| c.fields_fallow as i64 },
-    CountyField { path: "county.fields_cattle", kind: Kind::Simulated, ours: |c| c.fields_cattle as i64, theirs: |c| c.fields_cattle as i64 },
-    CountyField { path: "county.fields_grain", kind: Kind::Simulated, ours: |c| c.fields_grain as i64, theirs: |c| c.fields_grain as i64 },
-    CountyField { path: "county.fertility", kind: Kind::Simulated, ours: |c| c.fertility as i64, theirs: |c| c.fertility as i64 },
-    CountyField { path: "county.castle_type", kind: Kind::Simulated, ours: |c| c.castle_type as i64, theirs: |c| c.castle_type as i64 },
-    CountyField { path: "county.castle_building", kind: Kind::PlayerInput, ours: |c| c.castle_building as i64, theirs: |c| c.castle_building as i64 },
-    CountyField { path: "county.weather", kind: Kind::Excluded("Weather_UpdateAll's band is drawn from the original's two 31-bit LFSRs, whose state Save_Write does not store"), ours: |c| c.weather.index() as i64, theirs: |c| c.weather as i64 },
-    CountyField { path: "county.dryness", kind: Kind::Excluded("the dryness accumulator the band comes from, moved by the same unreproducible jitter"), ours: |c| c.dryness as i64, theirs: |c| c.dryness as i64 },
-];
-
-#[rustfmt::skip]
-const REALM_FIELDS: &[RealmField] = &[
-    RealmField { path: "realm.strength", kind: Kind::Simulated, ours: |r| r.strength as i64, theirs: |r| r.strength as i64 },
-    RealmField { path: "realm.is_human", kind: Kind::Simulated, ours: |r| r.is_human as i64, theirs: |r| r.is_human as i64 },
-    RealmField { path: "realm.lord", kind: Kind::Simulated, ours: |r| r.lord as i64, theirs: |r| r.lord as i64 },
-    RealmField { path: "realm.shield_index", kind: Kind::Simulated, ours: |r| r.shield_index as i64, theirs: |r| r.shield_index as i64 },
-    RealmField { path: "realm.tax_hap_empire", kind: Kind::Simulated, ours: |r| r.tax_hap_empire as i64, theirs: |r| r.tax_hap_empire as i64 },
-    RealmField { path: "realm.county_count", kind: Kind::Simulated, ours: |r| r.county_count as i64, theirs: |r| r.county_count as i64 },
-    RealmField { path: "realm.rank", kind: Kind::Simulated, ours: |r| r.rank as i64, theirs: |r| r.rank as i64 },
-    RealmField { path: "realm.score", kind: Kind::Simulated, ours: |r| r.score as i64, theirs: |r| r.score as i64 },
-    RealmField { path: "realm.wages", kind: Kind::Simulated, ours: |r| r.wages as i64, theirs: |r| r.wages as i64 },
-    RealmField { path: "realm.gold", kind: Kind::Simulated, ours: |r| r.gold as i64, theirs: |r| r.gold as i64 },
-    RealmField { path: "realm.iron", kind: Kind::Simulated, ours: |r| r.iron as i64, theirs: |r| r.iron as i64 },
-    RealmField { path: "realm.stone", kind: Kind::Simulated, ours: |r| r.stone as i64, theirs: |r| r.stone as i64 },
-    RealmField { path: "realm.wood", kind: Kind::Simulated, ours: |r| r.wood as i64, theirs: |r| r.wood as i64 },
-    RealmField { path: "realm.weapons.0", kind: Kind::PlayerInput, ours: |r| r.weapons[0] as i64, theirs: |r| r.weapons[0] as i64 },
-    RealmField { path: "realm.weapons.1", kind: Kind::PlayerInput, ours: |r| r.weapons[1] as i64, theirs: |r| r.weapons[1] as i64 },
-    RealmField { path: "realm.weapons.2", kind: Kind::PlayerInput, ours: |r| r.weapons[2] as i64, theirs: |r| r.weapons[2] as i64 },
-    RealmField { path: "realm.weapons.3", kind: Kind::PlayerInput, ours: |r| r.weapons[3] as i64, theirs: |r| r.weapons[3] as i64 },
-    RealmField { path: "realm.weapons.4", kind: Kind::PlayerInput, ours: |r| r.weapons[4] as i64, theirs: |r| r.weapons[4] as i64 },
-    RealmField { path: "realm.weapons.5", kind: Kind::PlayerInput, ours: |r| r.weapons[5] as i64, theirs: |r| r.weapons[5] as i64 },
-    // `+0x00` is the AI turn cursor and the save catches it wherever the AI
-    // happened to be when the rotation ran. Our machine is between turns when
-    // `end_turn` returns, so the two are not sampled at the same instant and
-    // the comparison would measure the sampling point.
-    RealmField { path: "realm.ai_step", kind: Kind::Excluded("the AI turn cursor, sampled at a different instant: Save_RotateAndWrite runs inside phase 7 and our end_turn returns between turns"), ours: |r| r.ai_step as i64, theirs: |r| r.ai_step as i64 },
-];
-
-/// Realm `+0x84 + other * 0x10` — one realm's view of another. Nine fields,
-/// and they move every turn: the standing heals by one a season, the warning
-/// ladder climbs, the grudge accumulates while allied.
-#[rustfmt::skip]
-const PAIR_FIELDS: &[PairField] = &[
-    PairField { path: "pair.standing", kind: Kind::Simulated, ours: |p| p.standing as i64, theirs: |p| p.standing as i64 },
-    PairField { path: "pair.allied", kind: Kind::Simulated, ours: |p| p.allied as i64, theirs: |p| p.allied as i64 },
-    PairField { path: "pair.grudge", kind: Kind::Simulated, ours: |p| p.grudge as i64, theirs: |p| p.grudge as i64 },
-    PairField { path: "pair.warnings_sent", kind: Kind::Simulated, ours: |p| p.warnings_sent as i64, theirs: |p| p.warnings_sent as i64 },
-    PairField { path: "pair.at_war", kind: Kind::Simulated, ours: |p| p.at_war as i64, theirs: |p| p.at_war as i64 },
-    PairField { path: "pair.compliments_from", kind: Kind::Simulated, ours: |p| p.compliments_from as i64, theirs: |p| p.compliments_from as i64 },
-    PairField { path: "pair.best_gift", kind: Kind::Simulated, ours: |p| p.best_gift as i64, theirs: |p| p.best_gift as i64 },
-    PairField { path: "pair.has_mail", kind: Kind::Simulated, ours: |p| p.has_mail as i64, theirs: |p| p.has_mail as i64 },
-    PairField { path: "pair.help_price_multiple", kind: Kind::Simulated, ours: |p| p.help_price_multiple as i64, theirs: |p| p.help_price_multiple as i64 },
-];
-
-#[rustfmt::skip]
-const GLOBAL_FIELDS: &[GlobalField] = &[
-    GlobalField { path: "global.county_count", kind: Kind::Simulated, ours: |g| g.kingdom.county_count as i64, theirs: |g| g.county_count as i64 },
-    GlobalField { path: "global.local_player", kind: Kind::Simulated, ours: |g| g.player as i64, theirs: |g| g.local_player as i64 },
-    GlobalField { path: "global.season", kind: Kind::Simulated, ours: |g| g.kingdom.season as i64, theirs: |g| g.season as i64 },
-    GlobalField { path: "global.season_next", kind: Kind::Simulated, ours: |g| g.kingdom.season_next as i64, theirs: |g| g.season_next as i64 },
-    GlobalField { path: "global.year", kind: Kind::Simulated, ours: |g| g.kingdom.year as i64, theirs: |g| g.year as i64 },
-    GlobalField { path: "global.turn_count", kind: Kind::Simulated, ours: |g| g.kingdom.turn_count as i64, theirs: |g| g.turn_count as i64 },
-    GlobalField { path: "global.merchant_count", kind: Kind::Simulated, ours: merchant_count, theirs: |g| g.merchant_count as i64 },
-    GlobalField { path: "global.opt_difficulty", kind: Kind::Simulated, ours: |g| g.kingdom.options.difficulty as i64, theirs: |g| g.opt_difficulty as i64 },
-    GlobalField { path: "global.opt_advanced_farming", kind: Kind::Simulated, ours: |g| g.kingdom.options.advanced_farming as i64, theirs: |g| (g.opt_advanced_farming != 0) as i64 },
-    GlobalField { path: "global.opt_armies_eat", kind: Kind::Simulated, ours: |g| g.kingdom.options.armies_eat as i64, theirs: |g| (g.opt_armies_eat != 0) as i64 },
-    GlobalField { path: "global.opt_exploration", kind: Kind::Simulated, ours: |g| g.kingdom.options.exploration as i64, theirs: |g| (g.opt_exploration != 0) as i64 },
-    GlobalField { path: "global.opt_time_limit", kind: Kind::Simulated, ours: |g| g.kingdom.options.time_limit as i64, theirs: |g| g.opt_time_limit as i64 },
-    // `g_optAiLords` (`0x0053F268`) is stored by `Save_Write` and read by
-    // `l2_formats::save::Globals`; `l2_scenario::Scenario::from_save` does not
-    // carry it into `Options` and nothing after a load reads it. `grep -rn
-    // ai_lords crates/` finds it in the save reader, in `l2_game::setup` (which
-    // *starts* a game) and nowhere on the load path.
-    GlobalField { path: "global.ai_lords", kind: Kind::Unsimulated, ours: |_| 0, theirs: |g| g.ai_lords as i64 },
-    GlobalField { path: "global.turn_phase", kind: Kind::Excluded("Turn_Tick's phase at the instant the autosave was written, which is inside phase 7; our end_turn returns between turns"), ours: |g| g.kingdom.turn.phase.index() as i64, theirs: |g| g.turn_phase as i64 },
-    GlobalField { path: "global.turn_phase_step", kind: Kind::Excluded("the step counter inside that phase, for the same reason"), ours: |g| g.kingdom.turn.step as i64, theirs: |g| g.turn_phase_step as i64 },
-    GlobalField { path: "global.weather_county", kind: Kind::Excluded("the county Weather_UpdateAll drew for the local swing, from the LFSR stream we do not reproduce"), ours: |g| g.kingdom.weather_county as i64, theirs: |g| g.weather_county as i64 },
-];
-
-fn merchant_count(g: &Game) -> i64 {
-    g.kingdom
-        .campaign
-        .units
-        .iter()
-        .filter(|(_, u)| u.kind == l2_kingdom::unit::UnitKind::Merchant)
-        .count() as i64
-}
-
-
-struct Row {
-    pair: &'static str,
-    path: &'static str,
-    record: String,
-    kind: Kind,
-    was: i64,
-    theirs: i64,
-    ours: i64,
-}
-
-impl Row {
-    fn delta(&self) -> i64 {
-        self.ours - self.theirs
-    }
-
-    fn moved(&self) -> bool {
-        self.was != self.theirs
-    }
-}
-
-struct PairReport {
-    compared: usize,
-    agree: usize,
-    moved: usize,
-    moved_agree: usize,
-    diverged: Vec<Row>,
-}
-
-fn clock(save: &Save) -> (i32, i32, i32) {
-    let g = save.globals().expect("the globals block");
-    (g.turn_count, g.season, g.year)
-}
-
-fn run(pair: &FixturePair) -> Result<PairReport, String> {
-    let before = l2_testkit::fixture_save(pair.before)?;
-    let after = l2_testkit::fixture_save(pair.after)?;
-
-    let mut game = l2_game::scenario::from_save(&before, Tables::DEFAULT)
-        .map_err(|e| format!("{} does not import: {e:?}", pair.before))?;
-    l2_game::turn::end_turn(&mut game)
-        .ok_or_else(|| format!("the turn machine did not come round on {}", pair.before))?;
-
-    let mut r = PairReport { compared: 0, agree: 0, moved: 0, moved_agree: 0, diverged: Vec::new() };
-    let mut note = |kind: Kind, path: &'static str, record: String, was: i64, theirs: i64, ours: i64| {
-        if !kind.compared() {
-            return;
-        }
-        let row = Row { pair: pair.label, path, record, kind, was, theirs, ours };
-        r.compared += 1;
-        let agrees = row.ours == row.theirs;
-        if agrees {
-            r.agree += 1;
-        }
-        if row.moved() {
-            r.moved += 1;
-            if agrees {
-                r.moved_agree += 1;
-            }
-        }
-        if !agrees {
-            r.diverged.push(row);
-        }
-    };
-
-    let was_counties = before.counties().map_err(|e| e.to_string())?;
-    let counties = after.counties().map_err(|e| e.to_string())?;
-    let county_count = after.globals().map_err(|e| e.to_string())?.county_count as usize;
-    for id in 1..=county_count.min(l2_kingdom::county::MAX_COUNTY_ID as usize) {
-        for f in COUNTY_FIELDS {
-            note(
-                f.kind,
-                f.path,
-                format!("county {id}"),
-                (f.theirs)(&was_counties[id]),
-                (f.theirs)(&counties[id]),
-                (f.ours)(&game.kingdom.counties[id]),
-            );
-        }
-    }
-
-    let was_realms = before.realms().map_err(|e| e.to_string())?;
-    let realms = after.realms().map_err(|e| e.to_string())?;
-    // **Realms 3, 4 and 5 are out of play in all five pairs**, so nothing here
-    // ever farmed or compared them: measured off this test's own printout,
-    // which names realms 1 and 2 and no other. A ledger row claiming AI realm 3
-    // never plants where the original does cannot be seen from here, and the
-    // behaviour behind it is not a defect: realm 3's lord is 2, whose style
-    // byte is 1 — `Ai_FarmStyleGrazing` (`0x004A42E3`), which clears grain in
-    // every season. `county.fields_grain` is compared and agrees everywhere.
-    for (id, theirs) in realms.iter().enumerate() {
-        if !theirs.in_play() {
-            continue;
-        }
-        for f in REALM_FIELDS {
-            note(
-                f.kind,
-                f.path,
-                format!("realm {id}"),
-                (f.theirs)(&was_realms[id]),
-                (f.theirs)(theirs),
-                (f.ours)(&game.kingdom.realms[id]),
-            );
-        }
-        for (other, them) in realms.iter().enumerate() {
-            if other == id || !them.in_play() {
-                continue;
-            }
-            for f in PAIR_FIELDS {
-                note(
-                    f.kind,
-                    f.path,
-                    format!("realm {id}->{other}"),
-                    (f.theirs)(&was_realms[id].pairs[other]),
-                    (f.theirs)(&theirs.pairs[other]),
-                    (f.ours)(&game.kingdom.realms[id].pairs[other]),
-                );
-            }
-        }
-    }
-
-    let was_globals = before.globals().map_err(|e| e.to_string())?;
-    let globals = after.globals().map_err(|e| e.to_string())?;
-    for f in GLOBAL_FIELDS {
-        note(
-            f.kind,
-            f.path,
-            "-".to_string(),
-            (f.theirs)(&was_globals),
-            (f.theirs)(&globals),
-            (f.ours)(&game),
-        );
-    }
-
-    Ok(r)
-}
 
 
 /// A line here is a statement that *this many records of this pair disagree on
@@ -546,6 +224,9 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 ///
 /// # `advfarm 3->4`, the first pair played with *Advanced Farming* on
 ///
+/// `county.crop.1` (`+0x244`, row weather-draw-not-in-save) is the eighth: county
+/// 2, 316 against our 474, through `grain_weather_change` — the same draw.
+///
 /// It arrives at 226 of 233, and the seven are one cause. Six are
 /// `county.herd`/`county.herd_available` on counties 1, 2 and 3, each +5, and
 /// each is that county's `herd_weather_change` (`+0x270`): our weather byte
@@ -571,6 +252,7 @@ fn run(pair: &FixturePair) -> Result<PairReport, String> {
 /// pair that runs them.
 #[rustfmt::skip]
 const BASELINE: &[(&str, &str, usize)] = &[
+    ("advfarm 3->4", "county.crop.1", 1),
     ("advfarm 3->4", "county.herd", 3),
     ("advfarm 3->4", "county.herd_available", 3),
     ("advfarm 3->4", "global.ai_lords", 1),
@@ -581,11 +263,11 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "realm.gold", 1),
 ];
 
-const COMPARED_TOTAL: usize = 1165;
+const COMPARED_TOTAL: usize = 1185;
 
-const AGREE_TOTAL: usize = 1153;
+const AGREE_TOTAL: usize = 1172;
 
-const MOVED_TOTAL: usize = 351;
+const MOVED_TOTAL: usize = 352;
 
 const MOVED_AGREE_TOTAL: usize = 344;
 
@@ -703,7 +385,7 @@ fn one_end_turn_of_ours_against_one_end_turn_of_the_originals() {
             if row.moved() {
                 e.1 += 1;
             }
-            *found.entry((row.pair, row.path)).or_default() += 1;
+            *found.entry((row.pair.as_str(), row.path)).or_default() += 1;
             eprintln!(
                 "  {:<12} {:<26} {:<14} was {:>8}   original {:>8}   ours {:>8}   delta {:>+9}{}",
                 row.kind.tag(),
@@ -743,7 +425,7 @@ fn one_end_turn_of_ours_against_one_end_turn_of_the_originals() {
             "the divergence baseline has moved.\n\n\
              This is a measuring instrument. Do NOT weaken a comparison or exclude a field to \
              make it green: if the change improved agreement, say so by moving the numbers up. \
-             Replace BASELINE in crates/l2-game/tests/differential.rs with:\n\n\
+             Replace BASELINE in crates/l2-game/tests/differential/main.rs with:\n\n\
              const BASELINE: &[(&str, &str, usize)] = &[\n{block}];\n\n\
              and set COMPARED_TOTAL = {compared_total}, AGREE_TOTAL = {agree_total}, \
              MOVED_TOTAL = {moved_total}, MOVED_AGREE_TOTAL = {moved_agree_total}."
