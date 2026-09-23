@@ -49,7 +49,7 @@ impl Screen for BattleResultScreen {
         if !dismiss {
             return Transition::Stay;
         }
-        match turn::dismiss_report(ctx.game) {
+        match ctx.issue(crate::command::DismissReport {}) {
             TurnStep::Ask(_) => Transition::Replace(ScreenId::BattlePrompt),
             TurnStep::Report(_) => Transition::Stay,
             TurnStep::Running | TurnStep::Done(_) | TurnStep::Stuck => Transition::Pop,

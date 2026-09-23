@@ -115,6 +115,7 @@ const FIELD_TYPES: [FieldType; 5] = [
     FieldType::Pasture,
     FieldType::Reclaiming,
 ];
+const ANSWERS: [super::Answer; 2] = [super::Answer::TakeTheField, super::Answer::Decline];
 const MAP_TOGGLES: [MapToggle; 5] = [
     MapToggle::Industry(Commodity::Wood),
     MapToggle::Industry(Commodity::Iron),
@@ -131,6 +132,7 @@ table! {
     l2_kingdom::unit::TroopType => ALL_TROOP_TYPES, "troop type";
     Quirk => *Quirk::ALL, "quirk";
     super::GameOption => super::GAME_OPTIONS, "game option";
+    super::Answer => ANSWERS, "battle answer";
 }
 
 impl Wire for BasketSlot {
