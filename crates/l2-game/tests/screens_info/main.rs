@@ -8,6 +8,7 @@ mod field_panel;
 pub use field_panel::*;
 mod tile_panel_part;
 pub use tile_panel_part::*;
+mod unit_insets;
 
 use common::*;
 

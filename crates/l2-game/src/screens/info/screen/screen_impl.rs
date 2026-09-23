@@ -282,6 +282,18 @@ impl Screen for InfoScreen {
                     _ if u.owner == ctx.game.player => OWN_ARMY,
                     _ => ENEMY_ARMY,
                 };
+                // UnitPanel_Draw 0x0041B19D, after Ui_OkButton: kinds 3 and 2
+                // `Ui_DrawInsetRect(0x20, R*0x10+0x38, 400, (0x18-R)*0x10)`, kind 4
+                // `Ui_DrawInsetRect(0x20, R*0x10+0x50, 400, (0x16-R)*0x10)`. [V]
+                match u.kind {
+                    UnitKind::Merchant | UnitKind::PeasantMob => {
+                        pen.inset(canvas, Rect::new(0x20, l.y(0x38), 400, (0x18 - l.row) * 16));
+                    }
+                    UnitKind::Transport => {
+                        pen.inset(canvas, Rect::new(0x20, l.y(0x50), 400, (0x16 - l.row) * 16));
+                    }
+                    _ => {}
+                }
                 icon(frame, canvas);
                 // ```c
                 // if (local_20 == 2) {                                /* transport */
