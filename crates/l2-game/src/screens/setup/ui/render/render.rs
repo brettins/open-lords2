@@ -577,7 +577,7 @@ impl SetupScreen {
                 // them here (`crate::prefs`).
                 let prefs = ctx.game.prefs;
                 let before = ctx.game.chosen_gold;
-                let markers = ctx.game.kingdom.campaign.battle_markers;
+                let markers = crate::setup::battle_process(ctx.game);
                 *ctx.game = game;
                 crate::setup::carry_battle_markers(ctx.game, markers);
                 ctx.game.tips = tips;

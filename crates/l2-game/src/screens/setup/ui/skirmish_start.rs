@@ -158,10 +158,18 @@ impl SetupScreen {
                 session,
             ),
         };
-        // Battle_Start 0x004778A0: the tables stay as this battle left them.
-        ctx.game.kingdom.campaign.battle_markers = runner.session().markers;
+        // Battle_Start 0x004778A0: the tables and selectors stay as this battle left them.
+        let s = runner.session();
+        ctx.game.kingdom.campaign.battle_selectors = (s.lane as u8, s.rally as u8);
+        ctx.game.kingdom.campaign.battle_markers = s.markers;
         // `DAT_0057A0F0`: Battle_CheckOutcome's failed-assault arm reads `0x004D4A58`.
         runner.mark_skirmish();
+        if level.is_some() {
+            // Battlefield_BuildCastle 0x0047C4BA:5344, after the skirmish seeds; the county is
+            // the last campaign battle's.
+            let county = ctx.game.kingdom.campaign.battle_county;
+            crate::engagement::restore_last_siege(&mut ctx.game.kingdom, county, &mut runner);
+        }
         // `FUN_0042C5AD` (`0x0042C5AD`), the statement before `Battle_Start`
         // in `FUN_0043D5B7`: the two musters are copied into the records the
         // ratings sheet reads as *Before*.

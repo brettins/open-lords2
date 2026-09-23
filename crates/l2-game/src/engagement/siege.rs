@@ -101,6 +101,15 @@ pub(super) fn to_scars(d: l2_sim::CastleDamage) -> l2_kingdom::siege::SiegeScars
     }
 }
 
+/// Siege_RestoreCastleDamage 0x004787A4, last but one in Battlefield_BuildCastle 0x0047C4BA
+/// (00470000.c:5344): `g_counties[g_battleCounty]`'s scars, only when `castleDegraded == 2` [V].
+pub fn restore_last_siege(kingdom: &mut Kingdom, county: u8, runner: &mut BattleRunner) {
+    let Some(c) = kingdom.counties.get_mut(county as usize) else { return };
+    if let Some(scars) = l2_kingdom::siege::scars_for_assault(c) {
+        runner.restore_castle_damage(from_scars(scars));
+    }
+}
+
 pub(super) fn from_scars(s: l2_kingdom::siege::SiegeScars) -> l2_sim::CastleDamage {
     l2_sim::CastleDamage {
         moat_filled: s.moat_filled,

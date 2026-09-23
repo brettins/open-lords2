@@ -109,10 +109,7 @@ pub fn begin_fight_in(
 // `deploy_siege`.
     if castle_level.is_some() {
         let besieged = kingdom.campaign.units.get(attacker)?.besieging_county;
-        if let Some(c) = kingdom.counties.get_mut(besieged as usize) {
-            let scars = l2_kingdom::siege::scars_for_assault(c);
-            runner.restore_castle_damage(from_scars(scars));
-        }
+        restore_last_siege(kingdom, besieged, &mut runner);
     }
 
     Some(runner)
