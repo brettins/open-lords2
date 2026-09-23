@@ -1,9 +1,3 @@
-#[cfg(test)]
-use super::*;
-
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::ai::Action;
 
@@ -767,5 +761,3 @@ mod tests {
         assert_eq!(full, 50);
         assert_eq!(hurt, 25, "half at the bottom band");
     }
-}
-
