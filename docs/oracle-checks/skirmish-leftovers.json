@@ -1,0 +1,76 @@
+{
+  "reviewed": "956eaae616ca4ece2b2d8ed4fbf24a3e29809ad0",
+  "date": "2026-09-23",
+  "behaviours": [
+    {
+      "file": "crates/l2-game/src/engagement/siege.rs",
+      "line": 106,
+      "address": "0x004787A4",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/siege/assault.rs",
+      "line": 79,
+      "address": "0x004787A4",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "line": 328,
+      "address": "0x00432B05",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "line": 354,
+      "address": "0x00432CC8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "line": 533,
+      "address": "0x00433155",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+      "line": 163,
+      "address": "0x004778A0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/skirmish_start.rs",
+      "line": 171,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 291,
+      "address": "0x00497CED",
+      "verdict": "mismatch",
+      "note": "Game_NewGame 00490000.c:3362 sets g_battleApproachLane = 0; we carry the lane across a new game"
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 306,
+      "address": "0x004778A0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/kingdom/mod.rs",
+      "line": 170,
+      "address": "0x004A6C68",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

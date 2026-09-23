@@ -285,10 +285,12 @@ pub fn carry_chosen_gold(game: &mut Game, before: i32, chosen: i32) {
 /// `DAT_00544050`/`DAT_00544070`/`g_rallyWaypoints`/`DAT_00522D60` are `.bss`, zeroed once per
 /// process [V]: `Game_NewGame` 0x00497CED does not clear them, so a new game reads the last
 /// battle's, campaign or skirmish.
-/// So are `g_battleApproachLane`/`g_battleRallyGroup` (00470000.c:3104-3118) and `g_battleCounty`.
+/// So are `g_battleRallyGroup` (00470000.c:3104-3118) and `g_battleCounty`; `g_battleApproachLane`
+/// is not: Game_NewGame 00490000.c:3362 sets it to 0 (and FUN_00497500 :3029).
 pub fn carry_battle_markers(game: &mut Game, before: BattleProcess) {
     let c = &mut game.kingdom.campaign;
     (c.battle_markers, c.battle_selectors, c.battle_county) = before;
+    c.battle_selectors.0 = 0;
 }
 
 /// The battle globals no new game clears: markers, (lane, rally), `g_battleCounty`.

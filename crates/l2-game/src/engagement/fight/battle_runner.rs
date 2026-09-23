@@ -24,7 +24,7 @@ pub(crate) fn resolve_battle(
     seed: u64,
     fought: Option<BattleRunner>,
 ) -> Option<BattleReport> {
-    // g_battleCounty: Battle_BeginFromCampaign 004a0000.c:2973, Siege_LaunchAssault :3621 [I] same county.
+    // g_battleCounty: Battle_BeginFromCampaign 0x004A7158 004a0000.c:2973, Siege_LaunchAssault :3621 [I] same county.
     kingdom.campaign.battle_county = county;
     let before = |k: &Kingdom, id: usize| k.campaign.units.get(id).map_or(0, |u| u.men);
     let (attacker_before, defender_before) = (before(kingdom, attacker), before(kingdom, defender));

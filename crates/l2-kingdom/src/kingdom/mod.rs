@@ -164,7 +164,7 @@ pub struct Campaign {
     /// field left them; a castle field has no writer and reads these. `.bss`, so 0 at start.
     /// [D] saved and hashed, which the original's save is not: a loaded or lockstep game reads them.
     pub battle_markers: BattleMarkers,
-    /// `g_battleCounty`, `.bss`: FUN_004A6C68 (004a0000.c:2865), Battle_BeginFromCampaign (:2973),
+    /// `g_battleCounty`, `.bss`: FUN_004A6C68 0x004A6C68 (004a0000.c:2865), Battle_BeginFromCampaign (:2973),
     /// Siege_LaunchAssault (:3621) and 00430000.c:4173 write it; the skirmish path does not [V].
     /// [D] not saved or hashed: the original's save does not hold it [I].
     pub battle_county: u8,
