@@ -1559,14 +1559,14 @@ frame = facing * N + pose
   pose N-1              standing
   pose 10 … 12          drawing a bow          (crossbowmen and archers only)
 
-8 * N + 0 … 5           collapsing, six frames
-8 * N + 6 …             dying: 4 half-facings of 3 frames
+8 * N + 0 … 5           dying: six collapse frames; the corpse holds the last
+8 * N + 6 …             shovelling (filling the moat): 4 half-facings of 3 frames
 ```
 
 **Corrected: walking and striking were the wrong way round here**, and §13.8's
 `+0x18` / `+0x19` row carried the same swap. §14.5 gives the evidence.
 
-| troop | N | standing pose | strike cycle | strike frames | collapse base | dying base |
+| troop | N | standing pose | strike cycle | strike frames | dying base | shovel base |
 |---|---:|---:|---|---|---:|---:|
 | peasants | 10 | 9 | `0,0,1,1,2,2,1,1,0,0` | 6 … 8 | 80 | 86 |
 | crossbowmen | 13 | 9 | `0,0,1,1,2,2,1,1,0,0` | 6 … 8 | 104 | 110 |
@@ -1577,11 +1577,19 @@ frame = facing * N + pose
 
 from `Anim_WalkA2` (`0x00486D83`, walking), `Anim_StrikeA2` (`0x00486249`,
 striking and standing), `Anim_StandA2` (`0x004872AE`, standing with the fidget),
-`Anim_CollapseA2` (`0x00487CE4`), `Anim_DyingA2` (`0x00487908`) and
+`Anim_CollapseA2` (`0x00487CE4`, dying), `Anim_DyingA2` (`0x00487908`, shovelling,
+named before its caller was read) and
 `Anim_DrawBowA2` (`0x0048804A`), which all write the frame index to figure
 `+0x10`. Strike cycles are `g_strikeCycleMace` (`0x004D9A00`), `g_strikeCycleBow`
 (`0x004D9A28`) and `g_strikeCyclePike` (`0x004D9A50`), stepped every fourth tick
-of a forty-tick loop; dying is `base + (facing & 6) / 2 * 3 + phase / 32`.
+of a forty-tick loop; shovelling is `base + (facing & 6) / 2 * 3 + phase / 32`.
+
+**[V]** `Anim_DyingA2`'s only caller is `BattleMan_StateFillMoat` (`0x00483FE1`,
+state 9), so `8N+6` is a living man's band. The corpse (`BattleMan_StateDead`
+`0x004830E9`) plays only `Anim_CollapseA2`'s six frames at `8N+0`. Knights:
+`Anim_CollapseA2` (decomp 3103-3109) draws the standing pose; `Anim_DyingA2`
+(3004-3006) returns with the frame untouched. The old "dying" label drew every
+corpse from the shovel band.
 
 **The layout closes with nothing spare.** Peasants: 0–5 walk, 6–8 strike (the
 cycle's maximum is 2), 9 stand — ten. Macemen: 0–5, 6–10 (maximum 4), 11 —
@@ -1593,7 +1601,7 @@ round leaves the `+ 10` with nowhere to point.
 
 **Why this is more than a decompiler reading.** Every one of the **36** shipped
 `a2` sheets — six colours by six troop types — has exactly
-`8 * N + 18` frames, and in all four handler groups the dying base is exactly
+`8 * N + 18` frames, and in all four handler groups the shovel base is exactly
 `8 * N + 6`. Getting N wrong for any troop breaks both identities at once. The
 corpus check is `crates/l2-view/tests/install/main.rs`.
 
@@ -1711,7 +1719,7 @@ New, and not in section 2 or section 3:
 |---|---|---|
 | figure `+0x00` | [V] | pointer to this figure's sprite sheet, set by `0x00480F8B` |
 | figure `+0x04` | [V] | pointer to the horse sheet, knights only |
-| figure `+0x0E` | [V] | **animation phase**. Counts up and wraps at a bound the state handler chooses: `0x27` walking, `0x17` attacking, `0x5F` dying |
+| figure `+0x0E` | [V] | **animation phase**. Counts up and wraps at a bound the state handler chooses: `0x27` walking, `0x17` attacking, `0x5F` shovelling (`Anim_DyingA2`) |
 | figure `+0x10` | [V] | **sprite frame index**, what the renderer draws |
 | figure `+0x11` | [V] | horse frame index, knights only |
 | figure `+0x19` | [V] | a **second** facing byte. `+0x18` drives the sub-cell offset and the **walk** frame; `+0x19` drives the **strike** frame and is the column of the knight table. `+0x0D` is a copy of it, written at the end of every animation handler. **Corrected:** this row used to attach `+0x18` to the attack and `+0x19` to the walk, |
@@ -2178,7 +2186,7 @@ anchored outside the binary, in the shipped art:**
   61, `A3*_cros` 77, `A3*_mace` 69, `A3*_swor` 69, `A3*_pike` 53, `A3*_arch` 77.
   Those are exactly the six frames-per-facing the `a3` handlers use.
 * `Anim_DyingA3`'s bases are `8 * N + 1`, and `13 − 1 = 12` = four half-facings
-  of three dying frames, the same twelve as `a2`.
+  of three shovelling frames, the same twelve as `a2`.
 * `Anim_CollapseA3`'s bases are `8 * N + 0` and it plays **one** frame, not the
   six `a2` plays — which is all the remaining space allows.
 * `Anim_StrikeA3` writes `horseFrame = dirc` where `a2` writes `dirc * 6`.
