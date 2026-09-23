@@ -13,16 +13,20 @@ pub(crate) struct Args {
     pub dir: Option<PathBuf>,
     pub mods: Option<PathBuf>,
     pub sound: bool,
+    pub verify: Option<PathBuf>,
 }
 
 pub(crate) fn args() -> Args {
-    let mut a = Args { dir: None, mods: None, sound: true };
+    let mut a = Args { dir: None, mods: None, sound: true, verify: None };
     let argv: Vec<String> = std::env::args().skip(1).collect();
     let mut it = argv.iter();
     while let Some(s) = it.next() {
         match s.as_str() {
             "--mods" => a.mods = Some(PathBuf::from(it.next().unwrap_or_else(|| crate::usage()))),
             "--no-sound" => a.sound = false,
+            "--verify-replay" => {
+                a.verify = Some(PathBuf::from(it.next().unwrap_or_else(|| crate::usage())))
+            }
             "-h" | "--help" => crate::usage(),
             other => a.dir = Some(PathBuf::from(other)),
         }

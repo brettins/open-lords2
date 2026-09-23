@@ -228,8 +228,12 @@ impl App {
             self.machine.mark_dirty();
             // `[I]` the replay's seed; the world carries its own from `Start`.
             let seed = self.game.turns_played as u64;
-            let transport = self.net.take().map(|d| d.into_transport());
+            let transport = self.net.take().and_then(|d| d.into_transport());
             self.live = transport.and_then(|t| l2_game::net::Live::new(t, &mut self.game, seed));
+            let home = l2_game::net::replay::home();
+            if let (Some(live), Some(dir)) = (self.live.as_mut(), home) {
+                live.record_to(dir);
+            }
         }
     }
 
@@ -403,17 +407,15 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let launch::Args { dir, mods, sound } = launch::args();
+    let launch::Args { dir, mods, sound, verify } = launch::args();
     let prefs = l2_game::prefs::load();
     let dir = launch::install_dir(dir, &prefs);
-
-    let mut builder = Platform::builder().base(&dir);
-    if let Some(m) = &mods {
-        let found = l2_mods::discover(m)?;
-        let ids: Vec<String> = found.iter().map(|f| f.id.clone()).collect();
-        builder = builder.mods_dir(m).enable(ids);
+    if let Some(path) = verify {
+        // [D] headless: a replay panic goes to stderr, not the crash box, C240.
+        drop(std::panic::take_hook());
+        app::verify_replay(dir, mods, path);
     }
-    let platform = builder.build()?;
+    let platform = app::platform(&dir, mods.as_deref())?;
     for m in &platform.load_order {
         println!("mod: {} {}", m.id, m.version);
     }

@@ -155,6 +155,8 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/movies/playback/timing_and_sound.rs", "install", 4),
     ("crates/l2-game/tests/movies/triggers/validation.rs", "install", 1),
     ("crates/l2-game/tests/net_game/live_desync.rs", "other", 1),
+    ("crates/l2-game/tests/net_game/live_drop.rs", "install", 1),
+    ("crates/l2-game/tests/net_game/live_drop.rs", "other", 2),
     ("crates/l2-game/tests/net_game/live_tcp.rs", "other", 1),
     ("crates/l2-game/tests/net_game/lobby_tcp.rs", "install", 2),
     ("crates/l2-game/tests/net_game/main.rs", "england", 3),
@@ -212,6 +214,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_map/structures_tests/damage.rs", "england", 2),
     ("crates/l2-game/tests/screens_map/structures_tests/minimap_and_seasons.rs", "england", 4),
     ("crates/l2-game/tests/screens_map/view_tests/view_tests.rs", "england", 6),
+    ("crates/l2-game/tests/screens_menubar/dropdown_shot.rs", "england", 1),
     ("crates/l2-game/tests/screens_menubar/menu_bar.rs", "england", 5),
     ("crates/l2-game/tests/screens_menubar/turn_timer.rs", "england", 2),
     ("crates/l2-game/tests/screens_menubar/turn_timer.rs", "executable", 1),
@@ -309,7 +312,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 689;
+pub(crate) const GATED_TOTAL: usize = 693;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

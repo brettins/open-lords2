@@ -8,7 +8,8 @@ use l2_net::{PlayerSlot, Roster, Start};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {
-    Host { port: u16 },
+    /// The app binds every interface; a test binds 127.0.0.1 (`net_game` `loopback`).
+    Host { addr: std::net::SocketAddr },
     Join { address: String },
     Ready(bool),
     Start,
@@ -20,6 +21,8 @@ pub enum Phase {
     #[default]
     Idle,
     Lobby,
+    /// A join's connect is running off the UI thread, to this address.
+    Connecting(String),
     /// Why the host, the socket or the build said no; the lobby screen shows it.
     Failed(String),
     Started,
@@ -41,6 +44,10 @@ pub struct Link {
     pub roster: Roster,
     pub me: Option<PlayerSlot>,
     pub hosting: bool,
+    /// Where the others reach this host, for the lobby screen.
+    pub reach: Vec<std::net::SocketAddr>,
+    /// What a replay rebuilds the world from.
+    pub origin: Option<Box<super::replay::Origin>>,
     /// A lockstep session runs this world: `Game::issue` queues into `outbox`.
     pub lockstep: bool,
     pub outbox: Vec<crate::command::GameCommand>,
@@ -58,6 +65,13 @@ impl Link {
     }
 }
 
+impl Request {
+    /// What the lobby screen's *Host* binds: every interface, so the LAN reaches it.
+    pub fn every_interface(port: u16) -> std::net::SocketAddr {
+        (std::net::Ipv4Addr::UNSPECIFIED, port).into()
+    }
+}
+
 /// The app loop's half, run between ticks. Returns the new world on `Start`,
 /// carrying the link across; the caller swaps it in.
 pub fn service(
@@ -70,7 +84,9 @@ pub fn service(
     let built = driver.as_ref()?.build(assets, &start, tables);
     match built {
         Ok(mut world) => {
-            world.net = Link { phase: Phase::Started, requests: Vec::new(), ..game.net.clone() };
+            let quirks = game.kingdom.options.quirks;
+            let origin = Some(Box::new(super::replay::Origin { start, quirks }));
+            world.net = Link { phase: Phase::Started, requests: Vec::new(), origin, ..game.net.clone() };
             world.prefs = game.prefs;
             world.tips = game.tips;
             Some(world)
@@ -95,20 +111,24 @@ pub fn lobby(
     let quirks = game.kingdom.options.quirks;
     for request in std::mem::take(&mut link.requests) {
         let result = match (request, driver.as_mut(), link.identity.clone()) {
-            (Request::Host { port }, None, Some(id)) => {
+            (Request::Host { addr }, None, Some(id)) => {
                 let settings = id.setup.settings(1, quirks);
                 // `[I]` the host's seed, drawn as `new_game_seed` draws one.
                 let seed = crate::scenario::new_game_seed(wall_clock, None);
                 let hello = super::hello(&settings, &tables, seed, PlayerSlot::new(0));
                 let gold = game.chosen_gold;
-                Driver::host(("0.0.0.0", port), hello, &id.name, id.shield, &id.setup, gold, quirks)
+                Driver::host(addr, hello, &id.name, id.shield, &id.setup, gold, quirks)
                     .map(|d| *driver = Some(d))
             }
             (Request::Join { address }, None, Some(id)) => {
                 let settings = id.setup.settings(1, quirks);
                 // `[I]` a joiner asks for slot 0 and the host reseats it (`on_join`).
                 let hello = super::hello(&settings, &tables, 0, PlayerSlot::new(0));
-                Driver::join(&address, hello, &id.name, id.shield, quirks).map(|d| *driver = Some(d))
+                let joined = Driver::join(&address, hello, &id.name, id.shield, quirks);
+                joined.map(|d| {
+                    *driver = Some(d);
+                    link.phase = Phase::Connecting(address);
+                })
             }
             (Request::Ready(r), Some(d), _) => d.set_ready(r),
             (Request::Start, Some(d), _) => d.start().map(|_| ()),
@@ -133,13 +153,14 @@ pub fn lobby(
             return None;
         }
     };
-    if link.phase == Phase::Started {
+    if link.phase == Phase::Started || d.is_connecting() {
         return None;
     }
     link.phase = Phase::Lobby;
     link.roster = d.roster().clone();
     link.me = d.me();
     link.hosting = d.lobby().role() == l2_net::Role::Host;
+    link.reach = d.reach().to_vec();
     // The host's own `start` is not echoed back to it.
     started.or_else(|| d.lobby().started().cloned().filter(|_| link.hosting))
 }

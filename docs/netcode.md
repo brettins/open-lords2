@@ -1154,6 +1154,20 @@ have enabled.
   simulation.
 - **No matchmaking or lobby service.** The original had one; it is dead (Appendix
   A), which is a reasonably strong argument about the lifespan of such things.
+- **No in-session AI takeover of a dropped seat** (C240). A seat whose
+  connection closes, or that is silent for sixty seconds (`net::TIMEOUT`), halts the
+  session: survivors would have to agree on the tick the seat stopped, and with three
+  or more peers each may have heard a different last packet. Instead each survivor's
+  frozen world gives the absent realms to the AI (`is_human = false`, which
+  `ai::steps` skips) and names the leaver; saving it goes on as a single-player game.
+
+### Recorded games (net-replay-hardening)
+
+Every network game the app plays is written to `<data dir>/replays/net-<seed>-slot<n>.l2nr`
+on halt and on exit: `Start`, the lobby's quirks, the seat, the tables hash and the
+session's `Replay`. `l2-game <install> --verify-replay <file>` rebuilds the world from
+`Start` in a fresh process and checks every tick's hash; exit 0 is bit-exact
+(`net_game` `a_recorded_network_game_replays_bit_exact_in_a_fresh_process`).
 
 ---
 

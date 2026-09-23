@@ -34,7 +34,9 @@ fn run(mut game: Game, tables: Tables, port: Option<mpsc::Sender<u16>>) -> Resul
             return Err(why.clone());
         }
         if let (Some(tx), Some(d)) = (&port, &driver) {
-            tx.send(d.local_addr().unwrap().port()).unwrap();
+            let bound = d.local_addr().unwrap();
+            assert!(bound.ip().is_loopback(), "the test host bound {bound}");
+            tx.send(bound.port()).unwrap();
             port = None;
         }
         let link = &mut game.net;
@@ -53,7 +55,7 @@ fn run(mut game: Game, tables: Tables, port: Option<mpsc::Sender<u16>>) -> Resul
 
 fn two_peers(client_tables: Tables) -> (Result<Game, String>, Result<Game, String>) {
     let (tx, rx) = mpsc::channel();
-    let host = seat("Richard", 4, Request::Host { port: 0 });
+    let host = seat("Richard", 4, Request::Host { addr: crate::loopback::ANY_PORT });
     let host = std::thread::spawn(move || run(host, Tables::DEFAULT, Some(tx)));
     let Ok(port) = rx.recv_timeout(PATIENCE) else {
         return (host.join().unwrap(), Err("the host never listened".into()));

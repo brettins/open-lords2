@@ -68,4 +68,25 @@ fn a_peer_that_connects_late_still_reaches_the_same_checksums() {
     assert_eq!(a.hashes[..40], expected[0][..40]);
 }
 
+/// net-live-leftovers: a stranger was accepted after Start. Ablation: the body
+/// of `TcpTransport::stop_listening`.
+#[test]
+fn a_host_that_stopped_listening_takes_no_stranger_and_keeps_its_peer() {
+    let (mut listener, addr) = host();
+    let _seated = TcpTransport::connect(addr, PeerId(0)).expect("the seated peer");
+    let until = deadline();
+    while listener.peers().is_empty() {
+        let _ = listener.poll();
+        assert!(Instant::now() < until, "the seated peer was never accepted");
+        breathe();
+    }
+    listener.stop_listening();
+    let stranger = TcpStream::connect_timeout(&addr, Duration::from_secs(2));
+    for _ in 0..50 {
+        let _ = listener.poll();
+        breathe();
+    }
+    assert_eq!(listener.peers(), vec![PeerId(0)], "the stranger was taken in");
+    assert!(stranger.is_err(), "the closed port still answered");
+}
 

@@ -302,7 +302,11 @@ the arms file as each group is enumerated into it. Quote whichever you like, but
 
 ---
 
-## 0.1 Multiplayer is excluded, deliberately and not by omission
+## 0.1 Multiplayer is in scope, with our own design — not the original's
+
+**Updated 2026-09-23:** the player put multiplayer in scope. It is built to `docs/netcode.md`
+(lockstep over TCP, our lobby, recorded replays, C240), never to the original's
+DirectPlay layer. What follows still holds for *how*: the original is no authority there.
 
 The original's multiplayer sync is **the reason for this rewrite** — it is the defect being
 replaced, not a model. So "1:1 with the original" explicitly does not extend to it: `docs/netcode.md`'s

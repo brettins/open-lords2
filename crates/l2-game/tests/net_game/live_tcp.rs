@@ -29,7 +29,7 @@ pub struct Peer {
     pub fought: u32,
 }
 
-fn connect() -> (TcpTransport, TcpTransport) {
+pub fn connect() -> (TcpTransport, TcpTransport) {
     let mut host = TcpTransport::listen("127.0.0.1:0").expect("a port");
     let addr = host.local_addr().expect("bound");
     let client = TcpTransport::connect_timeout(addr, PeerId(0), Duration::from_secs(3)).unwrap();
