@@ -52,7 +52,32 @@ impl BattleRunner {
         castle_level: Option<u8>,
         tables: Option<&crate::CastleTables>,
     ) -> Self {
-        Self::deploy_prepared(field, seed, army_a, army_b, castle_level, tables, |_| {})
+        let session = Session::default();
+        Self::deploy_prepared(field, seed, army_a, army_b, castle_level, tables, session, |_| {})
+    }
+
+    /// Any of the three fields, opened from the last battle's [`Session`].
+    #[allow(clippy::too_many_arguments)]
+    pub fn deploy_in_session(
+        field: Battlefield,
+        tables: Option<&crate::CastleTables>,
+        seed: u64,
+        army_a: Muster,
+        army_b: Muster,
+        castle_level: Option<u8>,
+        session: Session,
+    ) -> Self {
+        Self::deploy_prepared(field, seed, army_a, army_b, castle_level, tables, session, |_| {})
+    }
+
+    /// What `Battle_Start` (`0x004778A0`) left in `g_battleApproachLane` and
+    /// `g_battleRallyGroup`.
+    pub fn session(&self) -> Session {
+        Session {
+            multiplayer: self.ai.multiplayer,
+            lane: self.ai.approach_lane,
+            rally: self.ai.rally_group,
+        }
     }
 
     /// `prep` runs on the built field before either side is raised.
@@ -63,6 +88,7 @@ impl BattleRunner {
         army_b: Muster,
         castle_level: Option<u8>,
         tables: Option<&crate::CastleTables>,
+        session: Session,
         prep: impl FnOnce(&mut BattleRunner),
     ) -> Self {
         let total = army_a.men() + army_b.men();
@@ -70,6 +96,8 @@ impl BattleRunner {
         let mpf_a = side_scale(army_a.men(), class);
         let mpf_b = side_scale(army_b.men(), class);
         let mut runner = BattleRunner::empty(field, seed);
+        let prev = (session.lane, session.rally);
+        runner.ai = Ai::new_for_battle(seed, session.multiplayer, prev);
         runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
         runner.size_class = size_class(total) as u8;
         if let Some(level) = castle_level {

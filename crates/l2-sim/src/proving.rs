@@ -91,6 +91,7 @@ pub fn deploy() -> BattleRunner {
         Muster { troops: &GARRISON, owner: 2, human: true, mercenaries: None },
         Some(LEVEL),
         None,
+        Default::default(),
         |r| r.ai_field.wall_slot[1][0] = (POT_AT.0 as i16, POT_AT.1 as i16),
     )
 }

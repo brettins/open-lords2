@@ -35,6 +35,7 @@ pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
 /// `g_uiHotspotId == 1`, which calls `Battle_Start` (`0x004778A0`).
 pub fn take_the_field(game: &mut Game) -> bool {
     let Some(q) = pending_question(game) else { return false };
+    let multiplayer = game.multiplayer;
     let seed = if q.is_siege {
         siege_seed(&game.kingdom)
     } else {
@@ -44,7 +45,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
         )
     };
     let Some(runner) =
-        engagement::begin_fight(&mut game.kingdom, q.attacker, q.defender, q.castle_level, seed)
+        engagement::begin_fight_in(&mut game.kingdom, q.attacker, q.defender, q.castle_level, seed, multiplayer)
     else {
         return false;
     };

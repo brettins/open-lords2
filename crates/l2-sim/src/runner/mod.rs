@@ -206,6 +206,15 @@ pub struct Muster<'a> {
     pub mercenaries: Option<(Troop, u32)>,
 }
 
+/// `g_multiplayer`, `g_battleApproachLane` (`0x0056D6B0`) and
+/// `g_battleRallyGroup`: what one `Battle_Start` (`0x004778A0`) reads of the last.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Session {
+    pub multiplayer: bool,
+    pub lane: usize,
+    pub rally: usize,
+}
+
 /// `g_menPerFigureTable` (`0x004D9658`) — men one drawn figure stands for, by
 /// battlefield size class. **[V]** `docs/battle.md` §5.1.
 pub const MEN_PER_FIGURE_TABLE: [u32; 9] = [4, 8, 16, 32, 64, 128, 256, 512, 1024];

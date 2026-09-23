@@ -23,6 +23,19 @@ pub fn begin_fight(
     castle_level: Option<u8>,
     seed: u64,
 ) -> Option<BattleRunner> {
+    begin_fight_in(kingdom, attacker, defender, castle_level, seed, false)
+}
+
+/// `multiplayer` is `g_multiplayer`, which picks `Battle_Start`'s arm for the
+/// two selectors.
+pub fn begin_fight_in(
+    kingdom: &mut Kingdom,
+    attacker: usize,
+    defender: usize,
+    castle_level: Option<u8>,
+    seed: u64,
+    multiplayer: bool,
+) -> Option<BattleRunner> {
     let (a_extra, d_extra) = match castle_level {
         Some(level) => (
             l2_kingdom::siege::prepare_besieger(kingdom.campaign.units.get(attacker)?),
@@ -54,6 +67,8 @@ pub fn begin_fight(
     let (a_band, d_band) = (band_of(kingdom, attacker), band_of(kingdom, defender));
     let a = Muster { troops: &a_troops, owner: a_owner, human: a_human, mercenaries: a_band };
     let d = Muster { troops: &d_troops, owner: d_owner, human: d_human, mercenaries: d_band };
+    let (lane, rally) = kingdom.campaign.battle_selectors;
+    let session = l2_sim::Session { multiplayer, lane: lane as usize, rally: rally as usize };
     let mut runner = match castle_level {
         // **`Battlefield_BuildCastle` (`0x0047C4BA`), from the layout file the
         // player's own install ships.** `crate::castle` holds the two 6,400-byte
@@ -63,15 +78,12 @@ pub fn begin_fight(
             Some(sheet) => {
                 let field = l2_sim::castle::build(level, sheet);
                 let tables = l2_sim::castle::tables(sheet);
-                BattleRunner::deploy_siege_on_sheet(field, &tables, seed, a, d, level)
+                BattleRunner::deploy_in_session(field, Some(&tables), seed, a, d, Some(level), session)
             }
-            None => BattleRunner::deploy_siege(
-                l2_sim::siege::our_castle(level),
-                seed,
-                a,
-                d,
-                level,
-            ),
+            None => {
+                let field = l2_sim::siege::our_castle(level);
+                BattleRunner::deploy_in_session(field, None, seed, a, d, Some(level), session)
+            }
         },
         // **The open field.** `Battle_Start` (`0x004778A0`) calls
         // `Battlefield_BuildRandom` (`0x0047AAA3`) here, which reads one
@@ -79,8 +91,15 @@ pub fn begin_fight(
         // `l2_sim::terrain::build_field`. `crate::batfield` is the process
         // global the original reads it out of, and it falls back to
         // [`blank_field`] on a checkout with no install.
-        None => BattleRunner::deploy_muster(crate::batfield::field_frame(frame, seed), seed, a, d),
+        None => {
+            let field = crate::batfield::field_frame(frame, seed);
+            BattleRunner::deploy_in_session(field, None, seed, a, d, None, session)
+        }
     };
+    // `Battle_Start` `00470000.c:3059-3072` writes the pair at the start, so an
+    // autocalc or a retreat after it still leaves them stepped.
+    let s = runner.session();
+    kingdom.campaign.battle_selectors = (s.lane as u8, s.rally as u8);
 
     // **What the last siege on this castle left.** `FUN_004787A4` is the last
     // statement but one of `Battlefield_BuildCastle`, so it runs *after* the
