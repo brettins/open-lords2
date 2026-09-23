@@ -164,6 +164,8 @@ pub struct Prefs {
     /// A preference, so never in the save, never in the digest and never below
     /// this crate — the table above.
     pub debug_overlay: bool,
+    /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
+    pub kept: crate::prefs::Kept,
 }
 
 impl Default for Prefs {
@@ -180,6 +182,7 @@ impl Default for Prefs {
             game_speed: 90,
             // Ours, and off: see the field.
             debug_overlay: false,
+            kept: crate::prefs::Kept::default(),
         }
     }
 }
@@ -622,6 +625,10 @@ pub struct Game {
     ///
     /// not-encoded: a property of the session, not of the world.
     pub multiplayer: bool,
+    /// Lobby slot → realm, from `lobby::Start`; empty in single player, where
+    /// slot 0 is [`Self::player`]. `docs/netcode.md` §5. Not in the save.
+    /// not-encoded: dealt from the lobby's Start on every peer; turn::wind's encode_progress hashes it.
+    pub seats: Vec<(l2_net::PlayerSlot, u8)>,
     /// **The turn timer** — `DAT_005440C8` and the three globals beside it. See
     /// [`crate::turn_clock`].
     ///

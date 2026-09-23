@@ -1,0 +1,153 @@
+{
+ "reviewed": "25fc4c05d19555b3bc0b64a4fd7ba8d975cc8205",
+ "date": "2026-09-23",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/screens/confirm.rs",
+   "line": 53,
+   "address": "0x0043BB68",
+   "verdict": "match",
+   "note": "FUN_0043BB68 is the prompt-12 retreat callback (00430000.c:6743), not surrender 10/11; FUN_0043BAF9 is surrender (6746). FIXED: comments swapped to FUN_0043BAF9 surrender 10/11 (:6746), FUN_0043BB68 retreat 10/12 (:6743)."
+  },
+  {
+   "file": "crates/l2-game/src/screens/confirm.rs",
+   "line": 55,
+   "address": "0x0043BAF9",
+   "verdict": "match",
+   "note": "FUN_0043BAF9 is the prompt-11 surrender callback (00430000.c:6746), not retreat 10/12. FIXED with line 53."
+  },
+  {
+   "file": "crates/l2-game/src/screens/confirm.rs",
+   "line": 119,
+   "address": "0x0043BAF9",
+   "verdict": "match",
+   "note": "Retreat/surrender yes sets DAT_005653F4 = 1 / 2 and DAT_00553ED8 = 1 before Battle_GiveUp; ours folds all three into confirm_autocalc with no [D]. FIXED: [V] DAT_005653F4 is read only by NetCmd_Write_3E as action 0x27 a1, which NetAct_GiveUpDeferred 0x0044829F ignores; Battle_GiveUp never reads it, so retreat and surrender end identically. DAT_00553ED8 is FUN_00423530 men-panel redraw count. Recorded at the site; no state kept."
+  },
+  {
+   "file": "crates/l2-game/src/screens/confirm.rs",
+   "line": 119,
+   "address": "0x0043BDCD",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/battlefield/view/screen/screen.rs",
+   "line": 193,
+   "address": "0x0043BE65",
+   "verdict": "departure",
+   "note": "[I] settles on the next battlefield frame rather than inside the callback; labelled in confirm.rs."
+  },
+  {
+   "file": "crates/l2-game/src/screens/battlefield/view/outcome.rs",
+   "line": 27,
+   "address": "0x00423241",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/battlefield/view/outcome.rs",
+   "line": 33,
+   "address": "0x00423241",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 17,
+   "address": "0x00434CBE",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 40,
+   "address": "0x00434CEE",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 19,
+   "address": "0x0040E7E4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 22,
+   "address": "0x004DDBE0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 72,
+   "address": "0x00434E9E",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 72,
+   "address": "0x00434EC9",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 97,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 103,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 145,
+   "address": "0x0040CD58",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/slider.rs",
+   "line": 159,
+   "address": "0x0040CD58",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 504,
+   "address": "0x004BBBE3",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/menubar/dropdown.rs",
+   "line": 57,
+   "address": "0x0040E761",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/battlefield/view/outcome.rs",
+   "line": 19,
+   "address": "0x00423241",
+   "verdict": "match",
+   "note": "neutral arm pair 6 = indices 0xC/0xD, 00420000.c:983-984; invented fallback heading removed."
+  },
+  {
+   "file": "crates/l2-game/src/screens/battle/result.rs",
+   "line": 82,
+   "address": "0x00422FF1",
+   "verdict": "match",
+   "note": "OK = (400,400), Ui_OkButton(400,400,0) 00420000.c:925."
+  }
+ ]
+}

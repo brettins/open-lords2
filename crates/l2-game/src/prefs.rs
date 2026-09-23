@@ -42,6 +42,8 @@
 use std::path::PathBuf;
 
 use crate::game::Prefs;
+use crate::setup::{option, SetupOptions};
+use crate::text::PlayerName;
 
 pub const FILE: &str = "prefs.ini";
 
@@ -72,6 +74,94 @@ const KEYS: &[(&str, &str)] = &[
     ("DebugOverlay", "ours"),
 ];
 
+/// `g_diploLetterDraft` (`0x0053F2B8`): four buffers of 200 bytes.
+pub const LETTER_BYTES: usize = 200;
+pub type Letter = [u8; LETTER_BYTES];
+
+/// The rest of `g_options` that has a reader in our game. [V] layout: the
+/// shipped `lords2.inf` (0x468 bytes) read against `Options_SetDefaults`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Kept {
+    /// `g_options+0x00`, 31 bytes, `Mem_CopyBytes(0x4DF17C, 0x53F1E0, 0x1F)`
+    /// ("Player1"); page 4 edits it in place, `Edit_Begin(&g_options, 0x10, 0xC0, 0)`.
+    pub player_name: PlayerName,
+    /// `g_setupOpt*` `+0xA8..+0xD4`. `Setup_DefaultOptions` (`0x004AE539`) has two
+    /// callers that matter: `Options_SetDefaults` and *Defaults*, `FUN_004335F0`
+    /// hotspot 3. [V]
+    pub setup: SetupOptions,
+    /// `g_diploLetterDraft` `+0xD8`. `None` is `Options_SetDefaults`' copy of
+    /// `L2.eng` group 226, `004a0000.c:6115-6129`.
+    pub letters: [Option<Letter>; 4],
+}
+
+impl Default for Kept {
+    fn default() -> Kept {
+        Kept {
+            player_name: PlayerName::new(crate::text::DEFAULT_PLAYER_NAME),
+            setup: SetupOptions::new(),
+            letters: [None; 4],
+        }
+    }
+}
+
+/// `g_setupOpt*` in block order, `0x0053F288` step 4, to the drop-down index.
+const SETUP_KEYS: [(&str, usize); 12] = [
+    ("SetupOptNobles", option::NOBLES),
+    ("SetupOptTimeLimit", option::TIME_LIMIT),
+    ("SetupOptDifficulty", option::DIFFICULTY),
+    ("SetupOptWeapons", option::WEAPONS),
+    ("SetupOptArmySize", option::ARMY_SIZE),
+    ("SetupOptAdvancedFarming", option::ADVANCED_FARMING),
+    ("SetupOptArmiesEat", option::ARMIES_EAT),
+    ("SetupOptExploration", option::EXPLORATION),
+    ("SetupOptCrowns", option::CROWNS),
+    ("SetupOptCountyStatus", option::COUNTY_STATUS),
+    ("SetupOptCastle", option::STARTING_CASTLE),
+    ("SetupOptFight", option::FIGHT),
+];
+
+pub fn letter(s: &str) -> Letter {
+    let mut out = [0u8; LETTER_BYTES];
+    let chars = s.chars().filter(|c| (0x20..0x100).contains(&(*c as u32)));
+    // 004b0000.c:7255 FUN_0040210c(draft, 199): at most 199, the 200th byte stays NUL.
+    // [D] characters below 0x20 are dropped, not cut at (Options_SetDefaults 004a0000.c:6121-6127).
+    for (slot, c) in out.iter_mut().take(LETTER_BYTES - 1).zip(chars) {
+        *slot = c as u8;
+    }
+    out
+}
+
+pub fn letter_text(l: &Letter) -> String {
+    l.iter().take_while(|b| **b != 0).map(|b| *b as char).collect()
+}
+
+fn encode_kept(k: &Kept, out: &mut String) {
+    for (key, i) in SETUP_KEYS {
+        out.push_str(&format!("{key}={}\n", k.setup.get(i)));
+    }
+    out.push_str(&format!("PlayerName={}\n", k.player_name.as_str()));
+    for (n, l) in k.letters.iter().enumerate() {
+        if let Some(l) = l {
+            out.push_str(&format!("LetterDraft{}={}\n", n + 1, letter_text(l)));
+        }
+    }
+}
+
+/// The text keys take the whole rest of the line: a name or a letter may hold `;`.
+fn set_text(k: &mut Kept, key: &str, value: &str) -> bool {
+    if key == "PlayerName" {
+        k.player_name = PlayerName::new(value);
+        return true;
+    }
+    let Some(n) = key.strip_prefix("LetterDraft").and_then(|n| n.parse::<usize>().ok()) else {
+        return false;
+    };
+    if let Some(slot) = n.checked_sub(1).and_then(|i| k.letters.get_mut(i)) {
+        *slot = Some(letter(value));
+    }
+    true
+}
+
 fn value_of(p: &Prefs, key: &str) -> i32 {
     match key {
         "Music" => i32::from(p.music),
@@ -98,7 +188,11 @@ fn set(p: &mut Prefs, key: &str, v: i32) {
         "ScrollSpeed" => p.scroll_speed = clamp_speed(v),
         "GameSpeed" => p.game_speed = clamp_speed(v),
         "DebugOverlay" => p.debug_overlay = v != 0,
-        _ => {}
+        _ => {
+            if let Some((_, i)) = SETUP_KEYS.iter().find(|(k, _)| *k == key) {
+                p.kept.setup.set(*i, v.max(0) as usize);
+            }
+        }
     }
 }
 
@@ -114,6 +208,7 @@ pub fn encode(p: &Prefs) -> String {
     for (key, origin) in KEYS {
         out.push_str(&format!("{key}={}\t; {origin}\n", value_of(p, key)));
     }
+    encode_kept(&p.kept, &mut out);
     out
 }
 
@@ -123,12 +218,12 @@ pub fn decode(text: &str) -> Prefs {
     let mut p = Prefs::default();
     let mut magic = None;
     for line in text.lines() {
-        let line = line.split(';').next().unwrap_or("").trim();
-        if line.is_empty() || line.starts_with('[') {
+        let Some((key, value)) = line.split_once('=') else { continue };
+        let key = key.trim();
+        if key.starts_with(['[', ';']) || set_text(&mut p.kept, key, value) {
             continue;
         }
-        let Some((key, value)) = line.split_once('=') else { continue };
-        let (key, value) = (key.trim(), value.trim());
+        let value = value.split(';').next().unwrap_or("").trim();
         let Ok(v) = value.parse::<i32>() else { continue };
         if key == "Magic" {
             magic = Some(v);
@@ -172,17 +267,47 @@ mod tests {
             scroll_speed: 30,
             game_speed: 40,
             debug_overlay: true,
+            kept: Kept {
+                player_name: PlayerName::new("Ed; the Bold"),
+                setup: {
+                    let mut s = SetupOptions::new();
+                    for (n, (_, i)) in SETUP_KEYS.iter().enumerate() {
+                        s.set(*i, n % 2);
+                    }
+                    s
+                },
+                letters: [None, Some(letter("Thou art; a knave")), None, Some(letter("x"))],
+            },
             ..Prefs::default()
         }
+    }
+
+    /// The shipped `lords2.inf`, 0x468 bytes, is the layout `Kept` cites.
+    #[test]
+    fn the_shipped_block_holds_the_fields_where_kept_says() {
+        let Some(dir) = l2_testkit::install_dir() else { l2_testkit::skip!("no game install") };
+        let Ok(b) = std::fs::read(dir.join("lords2.inf")) else { l2_testkit::skip!("no lords2.inf") };
+        assert_eq!(b.len(), 0x468, "Options_Save's __write length");
+        let dword = |o: usize| i32::from_le_bytes([b[o], b[o + 1], b[o + 2], b[o + 3]]);
+        assert_eq!(dword(0x24), MAGIC, "g_optionsMagic at +0x24");
+        for (n, (key, _)) in SETUP_KEYS.iter().enumerate() {
+            let at = 0xA8 + 4 * n;
+            assert!((0..=6).contains(&dword(at)), "{key} at +{at:#X} is a drop-down index");
+        }
+        let name = PlayerName::from_bytes(b[..crate::text::PLAYER_NAME_LEN].try_into().unwrap());
+        assert!(!name.is_empty(), "the player name at +0x00");
+        assert!(b[0xD8..0xD8 + 0x320].iter().any(|c| *c >= 0x20), "the letters at +0xD8");
     }
 
     #[test]
     fn every_field_we_carry_survives_the_round_trip() {
         let p = flipped();
         assert_eq!(decode(&encode(&p)), p);
-        for (key, _) in KEYS {
+        let keys = KEYS.iter().map(|(k, _)| *k).chain(SETUP_KEYS.iter().map(|(k, _)| *k));
+        for key in keys.chain(["PlayerName", "LetterDraft2", "LetterDraft4"]) {
             assert!(encode(&p).contains(&format!("\n{key}=")), "{key} is not written");
         }
+        assert!(!encode(&p).contains("LetterDraft1="), "an untouched draft stays L2.eng's");
     }
 
     #[test]

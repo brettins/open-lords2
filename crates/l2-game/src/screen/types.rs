@@ -20,6 +20,8 @@ pub enum ScreenId {
     /// the original it is `g_confirmCallback`, and two questions are two
     /// functions. See [`crate::screens::confirm`].
     Confirm(crate::screens::confirm::Ask),
+    /// `g_screenId` `0x21`, the value spinner. See [`crate::screens::slider`].
+    Slider(crate::screens::slider::Spin),
     Conquest,
     Diplomacy,
     DiploCompose(u8, u8),
@@ -34,6 +36,8 @@ pub enum ScreenId {
     /// sprite sheet, the noun and the basket slot.
     Rack(u8, u8),
     Divide(usize),
+    /// `g_screenId` `0x11` from `Msg_GarrisonSplitClicked` (`0x004376BB`): army, county, tile.
+    DivideCastle(usize, u8, (u8, u8)),
     /// `DAT_00553C64` is written on the map click and read only by this
     /// screen's plaque and by the panel's price arithmetic. See
     /// [`crate::screens::merchant`].
@@ -152,6 +156,7 @@ impl ScreenId {
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
             ScreenId::Confirm(ask) => Box::new(crate::screens::confirm::ConfirmScreen::new(ask)),
+            ScreenId::Slider(spin) => Box::new(crate::screens::slider::SliderScreen::new(spin)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),
             ScreenId::Diplomacy => {
                 Box::new(crate::screens::diplomacy::DiplomacyScreen::new())
@@ -176,6 +181,9 @@ impl ScreenId {
                 Box::new(crate::screens::armoury::RackScreen::new(county, troop))
             }
             ScreenId::Divide(unit) => Box::new(crate::screens::divide::DivideScreen::new(unit)),
+            ScreenId::DivideCastle(unit, county, tile) => {
+                Box::new(crate::screens::divide::DivideScreen::into_castle(unit, county, tile))
+            }
             ScreenId::Merchant(unit) => {
                 Box::new(crate::screens::merchant::MerchantScreen::new(unit))
             }

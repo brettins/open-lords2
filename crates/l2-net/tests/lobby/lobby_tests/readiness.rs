@@ -51,3 +51,23 @@ fn un_readying_takes_the_start_away_again() {
     assert!(t.host.start().is_err());
 }
 
+/// Ablation: `free_shield` returning `wanted` unchecked gives both seats 3.
+#[test]
+fn a_held_shield_goes_to_the_lowest_free_and_start_carries_both() {
+    let host = Lobby::host(hello(0), "Richard").unwrap().with_shield(3).with_unseated_gold(750);
+    let mut t = Table { host, clients: Vec::new() };
+    let mut client = Lobby::join(hello(1), "Matilda").unwrap().with_shield(3);
+    client.greet().unwrap();
+    let out = client.next_outgoing().unwrap();
+    t.host.receive(PeerId(1), out.message).unwrap();
+    t.clients.push((PeerId(1), client));
+    t.clients[0].1.set_ready(true).unwrap();
+    t.pump();
+    let start = t.host.start().unwrap();
+    let shields: Vec<u8> = start.roster.players.iter().map(|p| p.shield).collect();
+    assert_eq!(shields, vec![3, 1], "FUN_00432FAB: a held colour is not taken twice");
+    assert_eq!(start.unseated_gold, 750);
+    t.pump();
+    assert_eq!(t.client(0).started(), Some(&start));
+}
+

@@ -66,7 +66,7 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::Siege(_)
         | S::Armoury(_)
         | S::Rack(..)
-        | S::Divide(_)
+        | S::Divide(_) | S::DivideCastle(..)
         | S::Merchant(_)
         | S::Trade(..)
         | S::BattlePrompt
@@ -79,7 +79,8 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::Ratings
         | S::Rank
         | S::Info(_)
-        | S::Confirm(_) => None,
+        | S::Confirm(_)
+        | S::Slider(_) => None,
     }
 }
 

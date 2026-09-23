@@ -402,10 +402,10 @@
       "prim": "Sound_PlayFile",
       "class": "file",
       "arg": "s_s017_01_wav_004d5794,1,0",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "S017_01.wav from the move-order confirm’s split-into-a-castle path, which we do not have. The same sound as Panel_SplitButton#1, which is reproduced."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S017_01.wav",
+      "note": "Msg_GarrisonSplitClicked: the garrison prompt's thumb-up opens 0x11 as ScreenId::DivideCastle. Nothing raises the prompt yet: MoveOrder_ConfirmGarrison 0x004A9372 is not built."
     },
     {
       "id": "FUN_00438b02#1",
@@ -668,8 +668,8 @@
       "arg": "g_msgVoiceS010 + param_1 * 0x10,1,0",
       "status": "reproduced",
       "ours": "crates/l2-game/src/screens/confirm.rs",
-      "sound": "S010_01..16 by L2.eng group 10 index; the two prompts we open are 0 and 1",
-      "note": "Ui_OpenConfirm (0x0040E6F2) ends FUN_004B36C0(prompt), Sound_PlayFile(g_msgVoiceS010 + prompt * 0x10, 1, 0); g_msgVoiceS010 (0x004DF7B8) is char[16][16], S010_01..S010_16, read out of the image. Was blocked on there being no confirm screen to hang the line on -- ConfirmScreen is one, and its first update speaks through Game::spoken. Eleven of the thirteen Ui_OpenConfirm call sites are still not built, so eleven of the sixteen lines cannot be reached."
+      "sound": "S010_01..16 by L2.eng group 10 index; ConfirmScreen opens 0, 1, 9, 11 and 12",
+      "note": "Ui_OpenConfirm (0x0040E6F2) ends FUN_004B36C0(prompt), Sound_PlayFile(g_msgVoiceS010 + prompt * 0x10, 1, 0); g_msgVoiceS010 (0x004DF7B8) is char[16][16], S010_01..S010_16, read out of the image. ConfirmScreen's first update speaks through Game::spoken. Five of the thirteen call sites reach it: Menu_Quit, Menu_NewGame, and the battlefield's Battle_RetreatButton (11/12) and Battle_AutocalcButton (9), folded onto it from the battlefield's own inline box. The campaign map's inline box (screens/map/paint/units/drawing.rs) is still a second copy and does not speak."
     },
     {
       "id": "FUN_004b3714#1",

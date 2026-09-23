@@ -90,6 +90,14 @@ pub fn end_players_turn(game: &mut Game) {
     }
 }
 
+/// Every seated human has pressed End Turn: `aiStep == 999`, as `Turn_End` writes it.
+pub fn every_seat_ready(game: &Game) -> bool {
+    game.seats.iter().all(|&(_, realm)| {
+        let r = game.kingdom.realms.get(realm as usize);
+        r.is_none_or(|r| !r.in_play || !r.is_human || r.ai_step >= l2_kingdom::AI_STEP_DONE)
+    })
+}
+
 pub fn tick_ai_frame(game: &mut Game) {
     open_players_turn(game);
     let mut granted = game.ai_granted;

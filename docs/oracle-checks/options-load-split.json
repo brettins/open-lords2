@@ -1,0 +1,14 @@
+{ "reviewed": "2602d0f1f9f31bdc0eb37afddb0ac5c2f5309583",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/audio/director/engine/director.rs", "line": 282, "address": "0x004376BB", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/divide/screen.rs", "line": 105, "address": "0x004376BB", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/divide/screen.rs", "line": 134, "address": "0x00437AFB", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/mod.rs", "line": 338, "address": "0x004376BB", "verdict": "mismatch", "note": "payload is DAT_004EE898 = g_hoverTileOffset, a byte offset (y*64+x)*8; coords() takes a tile index, no /8" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 87, "address": "0x004AE310", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 91, "address": "0x004AE539", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 94, "address": "0x004AE310", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/prefs.rs", "line": 108, "address": "0x0053F288", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 76, "address": "0x0043618B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 233, "address": "0x0053F2B8", "verdict": "match", "note": "write-back is FUN_0040210c(draft + (kind-1)*200, 199): at most 199 chars and a NUL; letter() fills all 200" }
+  ] }

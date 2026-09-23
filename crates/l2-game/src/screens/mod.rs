@@ -50,6 +50,7 @@ pub mod battle;
 pub mod battlefield;
 pub mod castle;
 pub mod confirm;
+pub mod slider;
 pub mod conquest;
 pub mod county;
 pub mod court;

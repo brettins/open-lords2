@@ -500,6 +500,11 @@ impl Screen for MapScreen {
         // **`Map_ScrollThrottle` (`0x004BBBE3`)** — the map does not step on
         // every frame the pointer is at the edge. See
         // [`MapScreen::scroll_interval_ticks`].
+        // Map_ScrollThrottle 0x004BBBE3 reads g_optScrollSpeed, which screen 0x21 writes.
+        if ctx.game.prefs.scroll_speed != self.prefs_scroll {
+            self.prefs_scroll = ctx.game.prefs.scroll_speed;
+            self.set_scroll_speed(self.prefs_scroll);
+        }
         let every = self.scroll_interval_ticks();
         self.scroll_wait = self.scroll_wait.saturating_sub(1);
         // arm: 0x00432221/map-edge-scroll hover-at-edge

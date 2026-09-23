@@ -288,9 +288,10 @@ pub struct MapScreen {
     /// the options slider as 0 … 10; the shipped default is
     /// [`DEFAULT_SCROLL_SPEED`].
     ///
-    /// `Menu_ScrollSpeed` (`0x00434CEE`) is the control that sets it, the
-    /// options menu is not drawn yet, and this is the seam it will attach to.
+    /// `Menu_ScrollSpeed` (`0x00434CEE`) sets it through screen 0x21, which writes
+    /// `Prefs::scroll_speed`; `prefs_scroll` is the last value taken from there.
     scroll_speed: i32,
+    prefs_scroll: i32,
     scroll_wait: u32,
     press: Press,
 }

@@ -33,8 +33,15 @@ pub fn answer_battle(game: &mut Game, answer: Answer) -> TurnStep {
 
 /// **The player pressed the thumb up on screen `0x12`** — `FUN_0043B593` with
 /// `g_uiHotspotId == 1`, which calls `Battle_Start` (`0x004778A0`).
+/// `realm` is the issuing seat's (`Game::apply` swaps it into `player`); it
+/// is hashed as `LiveBattle::owner`, so a bystander seat or a second take is
+/// refused. `docs/netcode.md` §6.
 pub fn take_the_field(game: &mut Game) -> bool {
+    let realm = game.player;
     let Some(q) = pending_question(game) else { return false };
+    if game.battle.is_some() || (game.seated() && q.side_of(realm).is_none()) {
+        return false;
+    }
     let seed = if q.is_siege {
         siege_seed(&game.kingdom)
     } else {
@@ -54,7 +61,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
         q.defender,
         q.county,
         q.castle_level,
-        game.player,
+        realm,
         q.choice_owner,
     )));
     true

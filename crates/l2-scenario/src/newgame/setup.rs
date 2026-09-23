@@ -54,20 +54,25 @@ pub(crate) struct Assignment {
 pub(crate) fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
     let group = setup.slot & 3;
     let human = setup.local_player as usize;
-    let ai_lords = lords.saturating_sub(1);
-
     let mut a = Assignment { shield: [0; MAX_REALMS], lord: [0; MAX_REALMS] };
     let mut shield_taken = [false; 6];
     let mut lord_taken = [false; 8];
 
+    let mut people = setup.humans;
     if human >= 1 && human < MAX_REALMS {
-        a.shield[human] = setup.shield;
-        shield_taken[setup.shield as usize] = true;
+        people[human] = setup.shield;
     }
+    for (realm, &shield) in people.iter().enumerate().skip(1) {
+        if (1..=5).contains(&shield) {
+            a.shield[realm] = shield;
+            shield_taken[shield as usize] = true;
+        }
+    }
+    let ai_lords = lords.saturating_sub(people.iter().filter(|&&s| s != 0).count());
 
     let mut given = 0usize;
     for realm in 1..MAX_REALMS {
-        if realm == human || given >= ai_lords {
+        if people[realm] != 0 || given >= ai_lords {
             continue;
         }
         given += 1;

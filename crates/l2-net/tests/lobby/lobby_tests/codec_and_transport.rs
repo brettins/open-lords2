@@ -20,12 +20,14 @@ fn an_out_of_order_roster_is_rejected_by_the_decoder() {
                 name: "a".into(),
                 ready: true,
                 is_host: true,
+                shield: 1,
             },
             l2_net::Player {
                 slot: PlayerSlot::new(2),
                 name: "b".into(),
                 ready: true,
                 is_host: false,
+                shield: 2,
             },
         ],
     };
@@ -54,14 +56,15 @@ fn every_lobby_message_round_trips() {
             name: "Richard".into(),
             ready: true,
             is_host: true,
+            shield: 3,
         }],
     };
     let messages = vec![
-        Message::Join(l2_net::Join { hello: hello(2), name: "Matilda".into() }),
+        Message::Join(l2_net::Join { hello: hello(2), name: "Matilda".into(), shield: 4 }),
         Message::Ready(true),
         Message::Ready(false),
         Message::Roster(roster.clone()),
-        Message::Start(l2_net::Start { seed: SEED, roster }),
+        Message::Start(l2_net::Start { seed: SEED, roster, unseated_gold: -7 }),
         Message::Refused(vec![
             Mismatch::Protocol { ours: 1, theirs: 2 },
             Mismatch::Engine { ours: "a".into(), theirs: "b".into() },
