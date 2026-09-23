@@ -947,6 +947,16 @@ after the scores load is unchecked). Ours writes the spill as zeros and ignores 
 (`screens/ratings/score_dat.rs` `SPILL`) `[D]`: the file keeps the original's length, the
 text is not ours to carry.
 
+### B107 — Nudge the pointer off a tool tip and it comes straight back, with no rest
+
+`ToolTip_Draw` (`0x00476E95`) hides a shown tip through `FUN_004770B8`, which clears
+`tipId` on `g_mouseInputChanged` and **does not touch the rest stamp**; only
+`FUN_00477131`'s own change arm restamps. So once a tip has been up a second, a one-frame
+move hides it and the next still frame shows it again at the new pointer, with no
+1,000 ms rest. `[D]` on both functions; calling it a slip is `[I]`, from the waiting arm
+restamping where the hiding arm does not. Reproduced: `tooltip::Tooltips::frame`, tested
+by `tests/tooltips/behavior.rs` *"no rest after a one-tick nudge"*. Unswitchable.
+
 ## 2.11 The turn timer
 
 ### B99 — End a turn early and a slow turn can end the next one before you see it
