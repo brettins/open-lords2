@@ -10757,6 +10757,8 @@ settling against a real file before anything reads it.
 **C197 — the turn was a screen's job and it is the frame's,
 and the `else` branch nobody built gave away a county the original refuses.**
 
+> **Amended 2026-09-23 (agent/turn-gate-setup):** the claim below that the turn winds on under an open letter and a menu is wrong. The gate is not in `Battle_Frame` but in `FUN_004BB978` 0x004BB978 (`004b0000.c:7641`), which counts due ticks: none while `DAT_004E31B0[g_screenId] != 0` (0x12, 0x13, 0x1C, 0x1F, 0x21-0x28, 0x31-0x45) or, in single player, while `g_messageGroup != 0`. [V] `screen/tick_gate.rs`.
+
 Two defects the capture-letters branch found and left, and they are one entry because both
 were read out of the same two functions.
 
