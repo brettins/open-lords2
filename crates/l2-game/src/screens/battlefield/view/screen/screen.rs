@@ -309,24 +309,13 @@ impl Screen for BattlefieldScreen {
             None => draw_placeholder_field(canvas, live, ink),
         }
 
-        // The selection markers. The original draws a coloured tick over a
-        // picked man (`selctd seen`, figure `+0x0A`); ours is a box, and it is
-        // ours because that sprite has not been located.
-        let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
-        for f in live.runner.selected_fighters(live.owner) {
-            let fig = &live.runner.fighters[f];
-            let (sx, sy) = l2_view::scene::figure_origin(fig, cam);
-            if VIEW.contains(sx, sy) {
-                crate::widget::frame(canvas, Rect::new(sx, sy, TILE, TILE), ink.highlight);
-            }
-        }
+        draw_selection_markers(canvas, ctx.assets.chrome.as_ref(), live, ink);
 
         // **The rubber band, while one is being drawn** — `Battlefield_DrawBand`
         // (`0x0041298A`), the twin of the village's `Village_DrawBand`. Both
         // normalise the box against the live pointer and hand it to
         // `Ui_DrawRectOutline` (`0x00403CF4`) in colour `0x20`; this one clamps
-        // to x < `0x1E0` and y `0x18 … 0x1D8`. Ours is un-clamped and in our own
-        // ink, which is all that is left of the difference.
+        // to x < `0x1E0` and y `0x18 … 0x1D8`. Ours is un-clamped.
         if let Some(d) = live.drag {
             let r = Rect::new(
                 d.anchor_px.0.min(d.px.0),
@@ -334,7 +323,7 @@ impl Screen for BattlefieldScreen {
                 (d.px.0 - d.anchor_px.0).abs().max(1),
                 (d.px.1 - d.anchor_px.1).abs().max(1),
             );
-            crate::widget::frame(canvas, r, ink.highlight);
+            p.outline(canvas, r.x, r.y, r.w, r.h, BAND_INK);
         }
 
         draw_overview(canvas, &self.overview, live, ink, have_sheets);

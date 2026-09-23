@@ -199,6 +199,53 @@ pub(super) fn draw_banner_plates(
     true
 }
 
+/// `Battlefield_DrawBand` (`0x0041298A`): `Ui_DrawRectOutline(…, 0x20)`. [V]
+pub(super) const BAND_INK: u8 = 0x20;
+
+/// `FUN_004BE070`'s shift by `g_battleSizeClass`: `DAT_004D9680` (sign, 1 = left)
+/// and `DAT_004D96A8` (count), read from `Lords2.exe`. [V]
+const MARKER_LEFT: [bool; 10] = [true, true, true, false, false, false, false, false, false, false];
+const MARKER_SHIFT: [u32; 10] = [2, 1, 0, 1, 2, 3, 4, 5, 6, 0];
+
+/// `FUN_004BE070`: `Misc_bat.pl8` frame `men <</>> shift + 0x2E` at the figure's
+/// origin `+ 8`, `- 0xC` for troop < 7 or oil, else `- 0x20`, ram `+ 0x10`. [V]
+pub fn selection_marker(size_class: u8, men: u16, troop: usize) -> (usize, i32, i32) {
+    let c = usize::from(size_class).min(9);
+    let men = u32::from(men);
+    let bar = if MARKER_LEFT[c] { men << MARKER_SHIFT[c] } else { men >> MARKER_SHIFT[c] };
+    let dy = match troop {
+        0..=6 | 10 => -0xC,
+        9 => -0x20 + 0x10,
+        _ => -0x20,
+    };
+    (bar as usize + 0x2E, 8, dy)
+}
+
+/// `FUN_004BD233` walks the viewport's cells and marks each occupant whose
+/// `selectedSeen` holds the local realm's bit; ours walks `selected_fighters`. [I]
+pub(super) fn draw_selection_markers(
+    canvas: &mut Canvas,
+    chrome: Option<&l2_view::chrome::Chrome>,
+    live: &LiveBattle,
+    ink: &l2_view::Ink,
+) {
+    let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
+    let class = live.runner.size_class();
+    for f in live.runner.selected_fighters(live.owner) {
+        let fig = &live.runner.fighters[f];
+        let (sx, sy) = l2_view::scene::figure_origin(fig, cam);
+        if !VIEW.contains(sx, sy) {
+            continue;
+        }
+        let men = live.runner.sim.figures[fig.sim].men;
+        let (frame, dx, dy) = selection_marker(class, men, fig.troop.index());
+        let drawn = chrome.is_some_and(|c| c.draw_misc_bat(canvas, frame, sx + dx, sy + dy));
+        if !drawn {
+            crate::widget::frame(canvas, Rect::new(sx, sy, TILE, TILE), ink.highlight);
+        }
+    }
+}
+
 pub(super) fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let picked = live.runner.selected_fighters(live.owner);
     let layout = BannerLayout::for_count(picked.len());

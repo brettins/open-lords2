@@ -382,6 +382,11 @@ impl BattleRunner {
         self.men_per_figure[usize::from(side != SIDE_A)]
     }
 
+    /// `g_battleSizeClass`, read by the selection marker `FUN_004BE070`.
+    pub fn size_class(&self) -> u8 {
+        self.size_class
+    }
+
     /// **The casualty readback.** Living men of `side`, by
     /// [`Troop::index`] — the eleven counts a `g_units` record carries at
     /// `+0x16C`.

@@ -4,7 +4,17 @@ use l2_view::{Canvas, Ink};
 
 use crate::input::Rect;
 
+thread_local! {
+    static FRAMED: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Calls of [`frame`], so of `panel` and `button` too: `tests/placeholders` wants none.
+pub fn framed() -> usize {
+    FRAMED.with(std::cell::Cell::get)
+}
+
 pub fn frame(canvas: &mut Canvas, rect: Rect, colour: u8) {
+    FRAMED.with(|d| d.set(d.get() + 1));
     canvas.fill_rect(rect.x, rect.y, rect.w, 1, colour);
     canvas.fill_rect(rect.x, rect.y + rect.h - 1, rect.w, 1, colour);
     canvas.fill_rect(rect.x, rect.y, 1, rect.h, colour);
