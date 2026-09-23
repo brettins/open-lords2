@@ -1,8 +1,8 @@
 
 mod decoder;
-pub use decoder::*;
 
-use crate::{u16_at, u32_at, Error, Result};
+#[cfg(test)]
+use crate::Error;
 
 pub const HEADER_LEN: usize = 8;
 pub const FRAME_RECORD_LEN: usize = 16;
