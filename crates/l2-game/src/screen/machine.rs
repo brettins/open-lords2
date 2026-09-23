@@ -104,6 +104,10 @@ impl Machine {
             self.dirty = true;
             return;
         }
+        if let Event::KeyDown(k) = event {
+            let screen = self.top_screen_byte(ctx.game);
+            crate::debug_keys::key_down(ctx.game, k, screen);
+        }
         // `FUN_004B191E`'s `g_mouseInputChanged`: the position moved, or either
         // button went down or up. A key does not set it.
         match event {

@@ -262,6 +262,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         turns_played,
         campaign,
         prefs: crate::game::Prefs::default(),
+        debug_keys: Default::default(),
         presentation_quirks: crate::game::Quirks::default(),
         tips: crate::tip::Tips::new(),
         films: crate::movie::Reel::default(),

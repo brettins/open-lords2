@@ -481,6 +481,8 @@ pub struct Game {
     /// not-encoded: one person's preferences, not the world's state. A save
     /// that carried them would push them onto whoever loads it.
     pub prefs: Prefs,
+    /// not-encoded: see [`crate::debug_keys::DebugKeys`].
+    pub debug_keys: crate::debug_keys::DebugKeys,
     /// **The presentation quirks, as the person set them.**
     ///
     /// [`Assets::quirks`] is where the *drawing* code reads them, and it is a

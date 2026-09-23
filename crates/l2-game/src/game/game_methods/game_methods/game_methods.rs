@@ -40,6 +40,7 @@ impl Game {
             field_policy: crate::engagement::Answer::Decline,
             turn: None,
             prefs: Prefs::default(),
+            debug_keys: Default::default(),
             presentation_quirks: Quirks::default(),
             levy: LevyOrder::default(),
             battle: None,

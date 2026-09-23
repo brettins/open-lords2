@@ -150,7 +150,7 @@ pub(crate) fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ct
             if id == 0 || c.owner != game.player {
                 return None;
             }
-            let bands = c.minimap_bands();
+            let bands = c.minimap_bands_with(game.debug_keys.food_bands);
             Some(match screen.minimap_mode {
                 MinimapMode::Labour => bands.labour,
                 MinimapMode::Food => bands.food,

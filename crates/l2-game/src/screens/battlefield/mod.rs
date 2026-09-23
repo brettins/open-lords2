@@ -18,8 +18,8 @@
 //! | 11 | `Ctrl` + `1` … `9` store one | `FUN_0043C885` `0x0043C885` |
 //! | 12 | `H` forms a line | `FUN_0043C77A(0)` `0x0043C77A` |
 //! | 13 | `V` forms a column | `FUN_0043C77A(1)` |
-//! | 14 | `F2` cycles the debug panel | `0x004B29BE` — **not reproduced**, and gated on a debug flag |
-//! | 15 | the arrow keys walk the debug figure | `0x004B29BE` — **not reproduced** |
+//! | 14 | `F2` cycles the debug panel | `0x004B29BE` — [`crate::debug_keys`] |
+//! | 15 | the arrow keys walk the debug figure | `0x004B29BE` — [`crate::debug_keys`] |
 //! | 16 | a right release dismisses the message scroll | `FUN_0047685D` — not this screen's |
 //!
 //! | # | arm | the original |
