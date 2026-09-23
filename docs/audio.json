@@ -265,6 +265,17 @@
       "note": "A catapult fires: Sound_PlaySlot(0xE). [D] that our catapult’s loose is the same occasion - ours fires through the shared reload path, not the engine state’s 100-of-180 cadence. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
+      "id": "Blacksmith_SetWeaponType#1",
+      "addr": "0x0043A997",
+      "prim": "Sound_RestartSlot",
+      "class": "bank",
+      "arg": "8",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "stonecut.wav",
+      "note": "Slot 8 when the blacksmith's weapon type is set, gated on the county being the local player's -- the setter's sound, not the page's. Director::hear_the_smithy diffs County::weapon_type across the tick rather than taking a report, for hear_the_march's reason: a flag on Game would be in the save and in the lockstep digest, for a sound. The only other writer of weapon_type is AI_ChooseIndustry's rota, which never runs on a county the local player owns."
+    },
+    {
       "id": "CastleBuild_Confirm#1",
       "addr": "0x00436B59",
       "prim": "Music_StartCampaign",
@@ -397,17 +408,6 @@
       "note": "The four trade handlers share one guard - if (0 < qty && oldQty < 1) - so the line is the CROSSING from selling into buying, said once. Up and the ceiling button say S068_01, down and the floor button S068_02."
     },
     {
-      "id": "FUN_004376bb#1",
-      "addr": "0x004376BB",
-      "prim": "Sound_PlayFile",
-      "class": "file",
-      "arg": "s_s017_01_wav_004d5794,1,0",
-      "status": "reproduced",
-      "ours": "crates/l2-game/src/audio/mod.rs",
-      "sound": "S017_01.wav",
-      "note": "Msg_GarrisonSplitClicked: the garrison prompt's thumb-up opens 0x11 as ScreenId::DivideCastle. Nothing raises the prompt yet: MoveOrder_ConfirmGarrison 0x004A9372 is not built."
-    },
-    {
       "id": "FUN_00438b02#1",
       "addr": "0x00438B02",
       "prim": "Sound_RestartSlot",
@@ -461,17 +461,6 @@
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "fallow.wav",
       "note": "The field brush: fallow, abandon and start-reclaiming. Director::hear_the_brush remembers the tile the information panel is about and hears its terrain change, because the handler ends in g_screenId = 0 and a screen cannot reach Audio (netcode D-3). names::field_brush_slot is the ladder, taken over the recount ranges rather than the five brush values because Field_SetType’s Herd_UpdateCrowding regrades a fresh pasture. tests/audio_wiring.rs drives all four menu buttons through the panel."
-    },
-    {
-      "id": "FUN_0043a997#1",
-      "addr": "0x0043A997",
-      "prim": "Sound_RestartSlot",
-      "class": "bank",
-      "arg": "8",
-      "status": "reproduced",
-      "ours": "crates/l2-game/src/audio/mod.rs",
-      "sound": "stonecut.wav",
-      "note": "Slot 8 when the blacksmith's weapon type is set, gated on the county being the local player's -- the setter's sound, not the page's. Director::hear_the_smithy diffs County::weapon_type across the tick rather than taking a report, for hear_the_march's reason: a flag on Game would be in the save and in the lockstep digest, for a sound. The only other writer of weapon_type is AI_ChooseIndustry's rota, which never runs on a county the local player owns."
     },
     {
       "id": "FUN_00477c89#1",
@@ -538,17 +527,6 @@
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "siegedoc.wav",
       "note": "A siege tower docking. FUN_00491492 runs when a troop-8 engine's step is refused, and docks against ground exactly two high two cells ahead of one of its four orthogonal facings, starting from its polar facing: it destroys the tower, lays a 3x3 ramp (FUN_004921E5), adds 3 to the breach score and 4 to the approach score and plays FUN_004262cf(0x11). l2_sim::siege::tower_dock_site and lay_tower_ramp, BattleRunner::dock_tower; the occasion is l2_sim::cue's towers_docked."
-    },
-    {
-      "id": "FUN_0049694f#1",
-      "addr": "0x0049694F",
-      "prim": "Sound_PlayFile",
-      "class": "file",
-      "arg": "s_bathit2_wav_004d9f38,0,0",
-      "status": "reproduced",
-      "ours": "crates/l2-game/src/audio/mod.rs",
-      "sound": "bathit2.wav",
-      "note": "Wall_Smash opens with Sound_PlayFile(bathit2.wav, 0, 0), at both of BattleMan_StateAttackWall’s and BattleMan_StateRamGate’s thresholds - BattleRunner::strike_castle’s two breach arms. Through Audio::play_file, the one-shot buffer. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "FUN_004976a1#1",
@@ -714,17 +692,6 @@
       "ours": "crates/l2-game/src/screens/castle/mod.rs",
       "sound": "S071_02.wav",
       "note": "The castle chooser's five picture buttons speaking their own name, S071_02 + hotspot * 0x10, from CastleBuild_Select (0x00436B22)'s last statement. The selection is the screen's own field and gone by the next tick, so the screen reports the line on Game::spoken and Director::listen plays it -- the channel the other six screen-local Sound_PlayFile sites already use. Same five files as FUN_004b37bc#3, indexed by the button rather than by castleType - 1."
-    },
-    {
-      "id": "FUN_004b3994#1",
-      "addr": "0x004B3994",
-      "prim": "Sound_PlayFile",
-      "class": "file",
-      "arg": "s_S035_01_wav_004e2168 + param_1 * 0x10,1,0",
-      "status": "reproduced",
-      "ours": "crates/l2-game/src/audio/mod.rs",
-      "sound": "S035_01..07.wav",
-      "note": "The standings page (screen 0x20, crates/l2-game/src/screens/nobles/mod.rs) saying which of its seven categories is being looked at - the spoken half of L2.eng group 35, file named after group and index. TWO CALLERS, both passing DAT_0055CE7C and both unconditional: FUN_004351C4, the court button, and FUN_0043524E, one of the seven tabs. So the edge is a counter both call sites bump (Game::nobles_spoken) and not a diff on the category, which would swallow a tab pressed twice. The category is on the Game and not on the screen for exactly the reason the S071 row below is still blocked. TWO ENTRIES PAST WHAT IS REACHABLE: there are seven categories, so S035_08.wav - the line for \"undecided.\" - ships and is played by nothing, and the guard admits nine where the table at 0x004E2168 holds eight, so index 8 would read S075_01.wav out of the next table. Neither is reachable from either caller."
     },
     {
       "id": "FUN_004b39e8#1",
@@ -1211,6 +1178,17 @@
       "note": "audio::voice_tick is the whole countdown ladder; one call answers fourteen of the sixteen. #16 and #21 wait on video."
     },
     {
+      "id": "Msg_GarrisonSplitClicked#1",
+      "addr": "0x004376BB",
+      "prim": "Sound_PlayFile",
+      "class": "file",
+      "arg": "s_s017_01_wav_004d5794,1,0",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S017_01.wav",
+      "note": "Msg_GarrisonSplitClicked: the garrison prompt's thumb-up opens 0x11 as ScreenId::DivideCastle. Nothing raises the prompt yet: MoveOrder_ConfirmGarrison 0x004A9372 is not built."
+    },
+    {
       "id": "Opt_ToggleMusic#1",
       "addr": "0x004349A4",
       "prim": "Music_StartCampaign",
@@ -1420,6 +1398,17 @@
       "note": "A castle or capture or ending film ending with g_battlePhase 0. Over a battle Smk_OnFinished restarts nothing, and Audio::follow keeps the field silent until it is left."
     },
     {
+      "id": "Speech_PlayStandingsCategory#1",
+      "addr": "0x004B3994",
+      "prim": "Sound_PlayFile",
+      "class": "file",
+      "arg": "s_S035_01_wav_004e2168 + category * 0x10,1,0",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "S035_01..07.wav",
+      "note": "The standings page (screen 0x20, crates/l2-game/src/screens/nobles/mod.rs) saying which of its seven categories is being looked at - the spoken half of L2.eng group 35, file named after group and index. TWO CALLERS, both passing DAT_0055CE7C and both unconditional: FUN_004351C4, the court button, and FUN_0043524E, one of the seven tabs. So the edge is a counter both call sites bump (Game::nobles_spoken) and not a diff on the category, which would swallow a tab pressed twice. The category is on the Game and not on the screen for exactly the reason the S071 row below is still blocked. TWO ENTRIES PAST WHAT IS REACHABLE: there are seven categories, so S035_08.wav - the line for \"undecided.\" - ships and is played by nothing, and the guard admits nine where the table at 0x004E2168 holds eight, so index 8 would read S075_01.wav out of the next table. Neither is reachable from either caller."
+    },
+    {
       "id": "TileInfo_Draw#1",
       "addr": "0x0041C208",
       "prim": "Sound_RestartSlot",
@@ -1572,6 +1561,17 @@
       "ours": "crates/l2-game/src/audio/mod.rs",
       "sound": "dest_ind.wav",
       "note": "Director::hear_the_wreck. A wood site trampled to content 12."
+    },
+    {
+      "id": "Wall_Smash#1",
+      "addr": "0x0049694F",
+      "prim": "Sound_PlayFile",
+      "class": "file",
+      "arg": "s_bathit2_wav_004d9f38,0,0",
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/mod.rs",
+      "sound": "bathit2.wav",
+      "note": "Wall_Smash opens with Sound_PlayFile(bathit2.wav, 0, 0), at both of BattleMan_StateAttackWall’s and BattleMan_StateRamGate’s thresholds - BattleRunner::strike_castle’s two breach arms. Through Audio::play_file, the one-shot buffer. The occasion is recorded by l2-sim (l2_sim::cue) and the slot chosen by audio::battle_requests."
     },
     {
       "id": "Widget_Test#1",

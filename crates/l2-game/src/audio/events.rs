@@ -194,7 +194,7 @@ pub fn battle_requests(was: &l2_sim::Cues, now: &l2_sim::Cues) -> Vec<Request> {
 
     // **`Wall_Smash` (`FUN_0049694F`)**, whose first statement is
     // `Sound_PlayFile("bathit2.wav", 0, 0)`. `[V]`
-    // sfx: FUN_0049694f#1
+    // sfx: Wall_Smash#1
     ask(now.walls_smashed() != was.walls_smashed(), Request::File(names::battle::WALL_SMASH));
 
     // **`FUN_0047A814`, a pot of oil poured** — its last statement,
