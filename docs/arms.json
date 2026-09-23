@@ -174,7 +174,7 @@
     "front-end-keys": {
       "what": "The keyboard on setup screen 0x1F and the save/load box 0x35/0x36",
       "complete": true,
-      "note": "Recorded because enumerating the text fields meant reading these ladders anyway, and what it turned up is that THE FRONT END HAS NO KEYBOARD AT ALL in the original: not one of Screen_HandleInput's thirteen g_setupPage arms tests a key, and the window procedure has no g_screenId == 0x1F case. Every `ours/setup-*` and `ours/saveload-*` record below is therefore an invention, and they are KEPT rather than removed -- a menu a person cannot drive from the keyboard is worse, not more faithful. They are here so the count is honest, which is the whole point of the `invention` status."
+      "note": "Recorded because enumerating the text fields meant reading these ladders anyway, and what it turned up is that THE FRONT END HAS NO KEYBOARD AT ALL in the original: not one of Screen_HandleInput's thirteen g_setupPage arms tests a key, and the window procedure has no g_screenId == 0x1F case. Every `ours/setup-*` and `ours/saveload-*` record below is therefore an invention; the `ours/setup-*` ones are KEPT (the `ours/saveload-*` ones were removed 2026-09-23) rather than removed -- a menu a person cannot drive from the keyboard is worse, not more faithful. They are here so the count is honest, which is the whole point of the `invention` status."
     },
     "management-screens": {
       "what": "0x04 and the close arms of 0x08 .. 0x13",
@@ -3271,7 +3271,7 @@
       "addr": "0x004B29BE",
       "what": "App_WndProc's VK_ESCAPE case: `if (g_appPhase == 3) Menu_Quit(); else g_quitRequest = 1; return 0;`. g_appPhase is 1 through the start-up films and 2 on the front end, so Escape during the intro QUITS THE PROGRAM -- after setting DAT_004EABB4, which would otherwise have skipped the film.",
       "ours": "crates/l2-game/src/screen/machine.rs",
-      "note": "The g_appPhase == 3 half is built 2026-09-14: the map's Escape raises the exit box (screens/confirm.rs, Menu_Quit 0x004343F8); the front-end half (g_quitRequest = 1, quitting the program) is not. Filed here because a film is where a player meets it first, and not built because it is not a film arm: it is every front-end screen's Escape, and those carry inventions of their own (ours/setup-key-escape and its neighbours). Ours skips the film on Escape as on any key.",
+      "note": "The g_appPhase == 3 half is built 2026-09-14: Escape raises the exit box over every in-game screen, taken in Machine::handle (2026-09-23; screens/confirm.rs, Menu_Quit 0x004343F8); the front-end half (g_quitRequest = 1, quitting the program) is not. Filed here because a film is where a player meets it first, and not built because it is not a film arm: it is every front-end screen's Escape, and those carry inventions of their own (ours/setup-key-escape and its neighbours). Ours skips the film on Escape as on any key.",
       "evidence": "V"
     },
     {
@@ -3509,6 +3509,17 @@
       "ours": "crates/l2-game/src/screens/map/events/mod.rs"
     },
     {
+      "id": "ours/compose-enter-sends",
+      "status": "invention",
+      "removed": true,
+      "group": "diplomacy",
+      "screen": "0x1A",
+      "gesture": "key",
+      "what": "Enter sent the letter.",
+      "why": "Send is a kind 5 widget; no key reaches 0x1A.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Edit_Confirm's whole body is g_saveLoadConfirm = 100, read only by SaveLoad_Tick."
+    },
+    {
       "id": "ours/county-back-to-map-button",
       "status": "invention",
       "removed": true,
@@ -3521,14 +3532,15 @@
     {
       "id": "ours/county-panel-keyboard",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "county-panels",
       "screen": "0x14, 0x15, 0x16, 0x19",
       "gesture": "key",
       "what": "Up and Down cycle the four panels; Left and Right move the open panel's own value.",
-      "why": "The original has no keyboard route out of a panel, none between them, and none into them: the four are four screen ids with no ordering at all, and the only VK_ESCAPE handler in the binary quits the game. Kept because a keyboard player has nothing else; recorded so the count of 'things we do that the original does not' can be taken.",
+      "why": "The original has no keyboard route out of a panel, none between them, and none into them: the four are four screen ids with no ordering at all, and the only VK_ESCAPE handler in the binary quits the game.",
       "ours": "crates/l2-game/src/screens/county/mod.rs",
-      "removal_partial": "Escape and Enter closing the panel removed 2026-09-23: in a game Escape is App_WndProc 0x004B29BE Menu_Quit, the exit box."
+      "removal_partial": "Escape and Enter closing the panel removed 2026-09-23: in a game Escape is App_WndProc 0x004B29BE Menu_Quit, the exit box.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Nothing routes an arrow to 0x14..0x19."
     },
     {
       "id": "ours/court-keyboard-close",
@@ -3571,10 +3583,11 @@
       "screen": "0x11",
       "gesture": "left-press",
       "what": "A click on a row button moves TEN men. SplitScreen_ToParent moves exactly one.",
-      "note": "KEPT, and it is a behaviour rather than a widget, which is why it is a record and not a comment. The original's widget is kind 4 and repeats while held; our event loop does not deliver key or button repeat here. The mercenary row is the exception in both: hotspot 7 swaps the band whole, in the original's own function.",
-      "removed": false,
+      "note": "The original's widget is kind 4 and repeats while held; our event loop does not deliver key or button repeat here. The mercenary row is the exception in both: hotspot 7 swaps the band whole, in the original's own function.",
+      "removed": true,
       "ours": "crates/l2-game/src/screens/divide/mod.rs",
-      "evidence": "V"
+      "evidence": "V",
+      "removal": "Removed 2026-09-23: SplitScreen_ToParent 0x00437D65 / ToDaughter 0x00437E9E move one man per call (`+ -1` / `+ 1` on the column), and the widgets are kind 4, which Press::tick repeats while held, so a click moves one and a hold streams."
     },
     {
       "id": "ours/divide-disband-button",
@@ -3595,11 +3608,12 @@
       "screen": "0x11",
       "gesture": "key",
       "what": "Up and Down pick a row; Left and Right move one man; Enter splits.",
-      "note": "KEPT. Screen_HandleInput names no key on 0x11 and the window procedure has no 0x11 case, so the whole keyboard here is ours. The arrows are the only way to move ONE man now that a click moves ten. The D key, which disbanded, is gone with the button.",
-      "removed": false,
+      "note": "Screen_HandleInput names no key on 0x11 and the window procedure has no 0x11 case, so the whole keyboard here is ours. The arrows are the only way to move ONE man now that a click moves ten. The D key, which disbanded, is gone with the button.",
+      "removed": true,
       "ours": "crates/l2-game/src/screens/divide/mod.rs",
       "evidence": "V",
-      "removal_partial": "Escape leaving removed 2026-09-23: in a game Escape is App_WndProc 0x004B29BE Menu_Quit, the exit box."
+      "removal_partial": "Escape leaving removed 2026-09-23: in a game Escape is App_WndProc 0x004B29BE Menu_Quit, the exit box.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. So neither arrows nor Enter reach 0x11; a single man moves by a click now (ours/divide-click-moves-ten removed)."
     },
     {
       "id": "ours/divide-split-button",
@@ -3647,6 +3661,17 @@
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
+      "id": "ours/map-enter-opens-county",
+      "status": "invention",
+      "removed": true,
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "key",
+      "what": "Enter opened the selected county's tax panel.",
+      "why": "The panels open from the county strip (0x00438CEB); no key reaches them.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Edit_Confirm's whole body is g_saveLoadConfirm = 100, read only by SaveLoad_Tick."
+    },
+    {
       "id": "ours/map-selected-county-outline",
       "status": "invention",
       "removed": true,
@@ -3665,7 +3690,7 @@
       "screen": "every",
       "gesture": "key",
       "what": "Escape or Enter closes the message scroll.",
-      "why": "Msg_HandleInput tests no key, and the window procedure (0x004B29BE) has no arm that reaches the message system either -- its WM_KEYDOWN cases are the seven editing keys and the control-group digits. KEPT rather than removed, on the same argument as the front end's keyboard: a modal window a person cannot leave without a mouse is worse, not more faithful. Counted here so the number of inventions stays honest.",
+      "why": "Msg_HandleInput tests no key, and the window procedure (0x004B29BE) has no arm that reaches the message system either -- its WM_KEYDOWN cases are the seven editing keys and the control-group digits.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
@@ -3675,7 +3700,7 @@
       "screen": "0x31, 0x39, 0x42, 0x43, ours",
       "gesture": "key",
       "what": "Escape closes all five pages.",
-      "note": "KEPT. No key reaches 0x31, 0x39, 0x42 or 0x43 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Enter and Space do nothing, as they do nothing in the original.",
+      "note": "No key reaches 0x31, 0x39, 0x42 or 0x43 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Enter and Space do nothing, as they do nothing in the original.",
       "removed": true,
       "evidence": "V",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
@@ -3777,13 +3802,14 @@
     {
       "id": "ours/saveload-key-scroll",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "front-end-keys",
       "screen": "0x35",
       "gesture": "key",
       "what": "Up and Down scroll the file list by one row of three.",
-      "why": "The original scrolls that list from the two arrow widgets and from nothing else. KEPT because a thirty-name list with no keyboard is awkward; note that Left and Right, which this screen also spent on the list, have been GIVEN BACK -- they are Edit_Left and Edit_Right, and a screen that spent them on a list left a person unable to move the caret in the one place the game has one.",
-      "ours": "crates/l2-game/src/screens/saveload/mod.rs"
+      "why": "The original scrolls that list from the two arrow widgets and from nothing else. Left and Right, which this screen also spent on the list, have been GIVEN BACK -- they are Edit_Left and Edit_Right, and a screen that spent them on a list left a person unable to move the caret in the one place the game has one.",
+      "ours": "crates/l2-game/src/screens/saveload/mod.rs",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. The list scrolls from its two arrow widgets (0x00434346/saveload-scroll) only."
     },
     {
       "id": "ours/setup-key-activate",
@@ -3871,6 +3897,17 @@
       "what": "Escape leaves without sending.",
       "why": "The 0x18 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
+    },
+    {
+      "id": "ours/trade-enter-confirms",
+      "status": "invention",
+      "removed": true,
+      "group": "management-screens",
+      "screen": "0x0C",
+      "gesture": "key",
+      "what": "Enter agreed the trade.",
+      "why": "Agree is 0x00435286/trade-agree, a widget; no key reaches 0x0C.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Edit_Confirm's whole body is g_saveLoadConfirm = 100, read only by SaveLoad_Tick."
     },
     {
       "id": "ours/village-keyboard",

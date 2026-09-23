@@ -227,7 +227,6 @@ impl Screen for TradeScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             Event::RightClick { .. } => Transition::Pop,
-            Event::KeyDown(Key::Enter) => self.confirm(ctx),
             Event::KeyDown(Key::Up) => {
                 self.step(ctx, 1);
                 Transition::Stay
@@ -403,7 +402,7 @@ impl Screen for TradeScreen {
                 canvas,
                 PANEL.x,
                 PANEL.y + PANEL.h + 18,
-                "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL  ENTER AGREES - KEYS ARE OURS",
+                "UP/DOWN 1  LEFT/RIGHT 10  M MAX BUY  S SELL ALL - KEYS ARE OURS",
                 ink.dim,
             );
         }

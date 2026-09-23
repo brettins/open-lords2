@@ -45,7 +45,7 @@ fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
     tick(&mut m, &mut g, &a);
 
     let at = on(divide::parent_button(0));
-    for _ in 0..5 {
+    for _ in 0..55 {
         click(&mut m, &mut g, &a, at);
         send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
     }
@@ -57,7 +57,8 @@ fn a_double_click_on_a_divide_stepper_steps_once_more_and_does_not_hold() {
 
     assert_eq!(g.kingdom.campaign.units.len(), 2, "the split went through");
     let daughter = g.kingdom.campaign.units.iter().map(|(_, u)| u.men).min().unwrap();
-    assert_eq!(daughter, 60, "five presses and a double click, ten men each, and no repeat");
+    // Ablation: SplitScreen_ToParent 0x00437D65 moves one man per call; ten per press moves all 300.
+    assert_eq!(daughter, 56, "55 presses and a double click, one man each, and no repeat");
 }
 
 #[test]
@@ -69,7 +70,7 @@ fn the_division_screen_splits_an_army_in_two_and_both_halves_pay_five_moves() {
     press(&mut m, &mut g, &a, 'a');
     tick(&mut m, &mut g, &a);
 
-    for _ in 0..12 {
+    for _ in 0..120 {
         click(&mut m, &mut g, &a, on(divide::parent_button(0)));
     }
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
@@ -284,7 +285,7 @@ fn a_split_into_a_castle_may_send_fewer_than_fifty() {
     click(&mut m, &mut g, &a, at);
     send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
     press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
-    assert_eq!(g.kingdom.campaign.units.len(), 2, "ten men into the keep: no minimum");
+    assert_eq!(g.kingdom.campaign.units.len(), 2, "one man into the keep: no minimum");
     let daughter = g.kingdom.campaign.units.iter().map(|(_, u)| u.men).min().unwrap();
-    assert_eq!(daughter, 10);
+    assert_eq!(daughter, 1);
 }

@@ -296,7 +296,6 @@ mod g73 {
     pub const IMMIGRANTS: Line = line(GROUP, 6, "TOTAL IMMIGRANTS");
     pub const THIS: Line = line(GROUP, 7, "THIS SEASON");
     pub const GREATEST: Line = line(GROUP, 8, "GREATEST POPULATION");
-    #[allow(dead_code, reason = "named because it is not drawn; the graph has no peak here")]
     pub const PEOPLE: Line = line(GROUP, 9, "PEOPLE.");
     pub const NO_EMIGRATION: Line = line(GROUP, 10, "NO EMIGRATION.");
     pub const NO_IMMIGRATION: Line = line(GROUP, 11, "NO IMMIGRATION.");

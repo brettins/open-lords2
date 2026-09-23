@@ -68,7 +68,6 @@ fn another_realms_county_can_be_looked_at_and_not_ordered() {
     assert!(find_body(&canvas, &assets, "REALM 5", realm5).is_none(), "and not a name of ours");
     assert!(find_body(&canvas, &assets, "693", STRIP_INK).is_none(), "no numbers at all");
 
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
     let up = Panel::Tax.increase_button().expect("the arrows are still drawn");
     send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
     assert_eq!(game.kingdom.counties[1].tax_rate, 0, "no order lands on another realm's county");

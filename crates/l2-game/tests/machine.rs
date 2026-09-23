@@ -34,6 +34,12 @@ fn send(machine: &mut Machine, game: &mut Game, assets: &Assets, event: Event) {
     machine.handle(event, &mut ctx);
 }
 
+fn press(machine: &mut Machine, game: &mut Game, assets: &Assets, r: l2_game::input::Rect) {
+    let (x, y) = (r.centre_x(), r.y + 4);
+    send(machine, game, assets, Event::Click { x, y });
+    send(machine, game, assets, Event::Release { x, y });
+}
+
 fn tick(machine: &mut Machine, game: &mut Game, assets: &Assets) {
     let mut ctx = Ctx { game, assets };
     machine.update(&mut ctx);
@@ -151,8 +157,10 @@ fn only_the_top_screen_is_offered_input() {
     let after_map = game.kingdom.turn_count;
     assert!(after_map > before, "the map screen ends the turn on E");
 
+    // VK_RETURN is Edit_Confirm + FUN_0043600C (0x004B29BE); it opens no panel.
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Enter));
-    assert_eq!(m.top_id(), Some(ScreenId::County(1, Panel::Tax)));
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "ablation: ours/map-enter-opens-county");
+    m.push(ScreenId::County(1, Panel::Tax));
     send(&mut m, &mut game, &assets, Event::KeyDown(Key::Char('E')));
     for _ in 0..64 {
         tick(&mut m, &mut game, &assets);
@@ -168,14 +176,18 @@ fn the_county_panel_sets_the_tax_rate_of_the_players_county_and_not_of_another()
     let (mut game, assets) = world();
     game.selected = 1;
     let mut m = Machine::new(ScreenId::County(1, Panel::Tax));
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
+    let (up, down) = (Panel::Tax.increase_button().unwrap(), Panel::Tax.decrease_button().unwrap());
+    press(&mut m, &mut game, &assets, up);
+    press(&mut m, &mut game, &assets, up);
     assert_eq!(game.kingdom.counties[1].tax_rate, 2);
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Left));
+    press(&mut m, &mut game, &assets, down);
     assert_eq!(game.kingdom.counties[1].tax_rate, 1);
+    // App_WndProc 0x004B29BE routes no arrow key to a panel.
+    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
+    assert_eq!(game.kingdom.counties[1].tax_rate, 1, "ablation: ours/county-panel-keyboard");
 
     let mut m = Machine::new(ScreenId::County(2, Panel::Tax));
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
+    press(&mut m, &mut game, &assets, up);
     assert_eq!(game.kingdom.counties[2].tax_rate, 0);
 }
 
@@ -183,14 +195,14 @@ fn the_county_panel_sets_the_tax_rate_of_the_players_county_and_not_of_another()
 fn the_county_panels_second_row_sets_the_ration_level() {
     let (mut game, assets) = world();
     game.kingdom.counties[1].ration_wanted = 3;
-    let mut m = Machine::new(ScreenId::County(1, Panel::Tax));
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Down)); // to the ration row
-    send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
+    let mut m = Machine::new(ScreenId::County(1, Panel::Ration));
+    let up = Panel::Ration.increase_button().unwrap();
+    press(&mut m, &mut game, &assets, up);
     assert_eq!(game.kingdom.counties[1].ration_wanted, 4);
     assert_eq!(game.kingdom.counties[1].tax_rate, 0, "the tax row must not have moved");
 
     for _ in 0..5 {
-        send(&mut m, &mut game, &assets, Event::KeyDown(Key::Right));
+        press(&mut m, &mut game, &assets, up);
     }
     assert_eq!(game.kingdom.counties[1].ration_wanted, 5);
 }
