@@ -146,8 +146,6 @@ use crate::turn::{self, Question, TurnStep};
 pub const GROUP_PROMPT: usize = 80;
 /// `L2.eng` group 81 — the result's.
 pub const GROUP_RESULT: usize = 81;
-/// `L2.eng` group 82 — the seven outcome heading/body pairs.
-pub const GROUP_BANNER: usize = 82;
 /// `L2.eng` group 99 — one string, `"The people."`, quotes included, which the
 /// original draws in place of a lord's name for an ownerless army.
 pub const GROUP_OWNERLESS: usize = 99;
