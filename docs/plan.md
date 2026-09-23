@@ -177,8 +177,8 @@ countable: `docs/arms.json` is the inventory of the original's input
 
    **The campaign map**, the screen a player spends most of a session looking at, makes
    **<!--fig:map-draws-->139<!--/fig--> draw calls, of which <!--fig:map-draws-live-->121<!--/fig-->
-   are live. We make <!--fig:map-draws-ours-->114<!--/fig--> of them:
-   <!--fig:map-draws-pct-->94<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
+   are live. We make <!--fig:map-draws-ours-->117<!--/fig--> of them:
+   <!--fig:map-draws-pct-->97<!--/fig-->%.** `docs/draws-map.md`, via `tools/draws/mapdraws.js`.
 
    **The other <!--fig:draws-screens-->52<!--/fig--> screens** make
    <!--fig:draws-original-->1,080<!--/fig--> draw calls and we make
@@ -199,7 +199,7 @@ figure that answers row 2 for pictures, not gestures; the one nobody had.
 
    200: **And the half a call count cannot see.** Of our marks on those 51 screens,
    <!--fig:draws-real-->732<!--/fig--> go through the game's own artwork and
-   <!--fig:draws-placeholder-->71<!--/fig--> are our 5 × 7 debug font and our own rectangles
+   <!--fig:draws-placeholder-->72<!--/fig--> are our 5 × 7 debug font and our own rectangles
    — <!--fig:draws-real-pct-->91<!--/fig-->% real — with
    <!--fig:draws-literals-->15<!--/fig--> English captions written in our own source where the
    original fetches an `L2.eng` string. Six modules drew **nothing at all** through the game's
@@ -800,8 +800,8 @@ arms enumeration is the evidence that the technique works. Doing both at once wo
 half-inventories and no finished one.
 
 **The naming campaign is in flight and is not on the critical path.**
-<!--fig:functions-->1,340<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig-->
-(<!--fig:functions-pct-->55<!--/fig-->%) are named. Most of the rest is CRT, allocator, string and
+<!--fig:functions-->1,464<!--/fig--> of <!--fig:binary-functions-->2,452<!--/fig-->
+(<!--fig:functions-pct-->60<!--/fig-->%) are named. Most of the rest is CRT, allocator, string and
 DirectDraw glue, and naming it is not the goal — but under 1:1 the fraction matters more than it
 did, because an unnamed function is a behaviour nobody has looked for, and every miss this month
 was exactly that.
@@ -952,7 +952,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->3,143<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->3,176<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
@@ -1061,9 +1061,9 @@ settle in one sentence, as in C21 and C22. Ask before writing it down.
   every unit type shares, and England's fourteen counties are **one connected component** —
   checked by reading the neighbour lists out of the fixture and walking them, which no existing
   test does. Nothing on the map needs a boat to be reached.
-* **Naming more of the binary for its own sake.** <!--fig:functions-->1,340<!--/fig--> of
+* **Naming more of the binary for its own sake.** <!--fig:functions-->1,464<!--/fig--> of
   <!--fig:binary-functions-->2,452<!--/fig--> functions are named, about
-  <!--fig:functions-pct-->55<!--/fig-->%. The review measured that *"the rest is mostly CRT and
+  <!--fig:functions-pct-->60<!--/fig-->%. The review measured that *"the rest is mostly CRT and
   glue"* is **false** — 418 unnamed functions touch `g_counties`, `g_units` or `g_tiles` — and
 the conclusion survives: we are inventing our interface.
   cloning the original's. Name what a plan item needs, when it needs it.
