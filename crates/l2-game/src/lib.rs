@@ -21,6 +21,7 @@ pub mod game;
 pub mod input;
 pub mod message;
 pub mod movie;
+pub mod net;
 pub mod prefs;
 pub mod press;
 pub mod save;
