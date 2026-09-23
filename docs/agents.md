@@ -110,7 +110,9 @@ having several agents edit the shared one.
 
 ## Briefing an agent
 
-Include, every time:
+`node tools/pm/work.js --brief id,id [--branch agent/x] [--budget n]` prints the brief: the
+standard preamble (`tools/pm/preamble.md`) and the rows in the order given. Edit the preamble
+there, not in a brief. Include, every time:
 
 - The paths and how to run things (or point at `docs/environment.md`)
 - **What is already established**, so they don't re-derive it

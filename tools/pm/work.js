@@ -7,6 +7,7 @@
 //   node tools/pm/work.js --status            the derived view, as text
 //   node tools/pm/work.js --html <path>       the player's page: the game's features, then the work
 //   node tools/pm/work.js --html-detail <path>  every row with its git facts, for agents
+//   node tools/pm/work.js --brief id,id [--branch b] [--budget n]  an agent brief (brief.js)
 //   ...                        --file <path>  read another ledger file
 //   ...                        --features <path>  read another feature list
 //   ...                        --ref <ref>    compare and count against <ref> (default main)
@@ -114,6 +115,8 @@
 // is a merge commit, which that rule reads correctly. A fast-forward merge would
 // read as "no commits yet", and a squash or cherry-pick would read as unmerged;
 // if the integrator ever merges that way, this rule has to change with it.
+// A tip the branch's reflog shows was set by creation or reset, not a commit,
+// is also fresh: that is a branch cut from a since-merged branch.
 
 const fs = require('fs');
 const path = require('path');
@@ -572,6 +575,15 @@ function gitFacts(rows, base) {
       .filter(Boolean),
   );
 
+  // Row work-js-fresh-branch-false-merge: a branch cut from another branch and
+  // never committed to has that branch's tip, merged or not. The reflog entry
+  // that set the tip says whose it is: `branch:` or `reset:` is not own work.
+  const unworked = (b, sha) => {
+    const log = git(['reflog', 'show', '--format=%H%x09%gs', `refs/heads/${b}`]);
+    const hit = (log || '').split('\n').find((l) => l.startsWith(sha));
+    return !!hit && /^(branch|reset):/i.test(hit.split('\t')[1] || '');
+  };
+
   const cache = new Map();
   const facts = (b) => {
     if (cache.has(b)) return cache.get(b);
@@ -583,13 +595,14 @@ function gitFacts(rows, base) {
       const ahead = inBase ? 0 : Number(git(['rev-list', '--count', `${base.sha}..refs/heads/${b}`]));
       const last = ahead ? git(['log', '-1', '--format=%cI%x09%s', `${base.sha}..refs/heads/${b}`]) : null;
       const [date, subject] = last ? last.split('\t') : [null, null];
+      const fresh = inBase && (firstParent.has(sha) || unworked(b, sha));
       f = {
         branch: b,
         exists: true,
         sha,
         ahead,
-        merged: inBase && !firstParent.has(sha),
-        fresh: inBase && firstParent.has(sha),
+        merged: inBase && !fresh,
+        fresh,
         handoff: git(['cat-file', '-e', `refs/heads/${b}:HANDOFF.md`]) !== null,
         date,
         subject,
@@ -835,13 +848,16 @@ function inventories(base) {
     };
   });
 
-  attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census/main.rs' }, () => {
-    const text = src.read('crates/l2-testkit/tests/census/main.rs');
-    const m = text.match(/const GATED_TOTAL: usize = (\d+);/);
-    if (!m) throw new Error(`GATED_TOTAL is not in census.rs in ${src.where}`);
-    const files = new Set([...text.matchAll(/^\s*\("(crates\/[^"]+)",/gm)].map((x) => x[1]));
+  attempt({ track: 'instruments', system: 'tests', name: 'Install-gated tests', source: 'crates/l2-testkit/tests/census/gated.txt' }, () => {
+    const rows = src
+      .read('crates/l2-testkit/tests/census/gated.txt')
+      .split('\n')
+      .map((l) => l.trim().split(/\s+/))
+      .filter((f) => f.length === 3 && /^\d+$/.test(f[2]));
+    if (!rows.length) throw new Error(`the census record gated.txt has no rows in ${src.where}`);
+    const files = new Set(rows.map((f) => f[0]));
     return {
-      head: m[1],
+      head: String(rows.reduce((s, f) => s + Number(f[2]), 0)),
       unit: 'tests that do not exist without a copy of the game',
       second: [`across ${files.size} test files; a clone without the game, and CI, run none of them`],
     };
@@ -1688,8 +1704,24 @@ function htmlDetail(m) {
 
 function main() {
   const pages = ['--html', '--html-detail'];
+  if (has('--brief')) {
+    const { j, problems } = load();
+    if (!j) {
+      for (const p of problems) console.error(`work: ${p.id}: ${p.msg}`);
+      process.exit(1);
+    }
+    try {
+      const ids = (opt('--brief') || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (!ids.length) throw new Error('--brief needs row ids: --brief id,id');
+      process.stdout.write(require('./brief').brief(j.items || [], ids, { branch: opt('--branch'), budget: opt('--budget') }));
+    } catch (e) {
+      console.error(`work: ${e.message}`);
+      process.exit(1);
+    }
+    return;
+  }
   if (!has('--check') && !has('--status') && !pages.some(has)) {
-    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path> | --html-detail <path>   [--file <ledger>] [--features <list>] [--ref <ref>]');
+    console.error('usage: node tools/pm/work.js --check [--schema] | --status | --html <path> | --html-detail <path> | --brief id,id [--branch b] [--budget n]   [--file <ledger>] [--features <list>] [--ref <ref>]');
     process.exit(2);
   }
   for (const p of pages) {

@@ -4,6 +4,8 @@ mod schema;
 pub use schema::*;
 mod view;
 pub use view::*;
+mod branches;
+mod brief;
 
 use super::*;
 

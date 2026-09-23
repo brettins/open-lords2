@@ -102,3 +102,9 @@ docs/work.json       merge=l2json
 # FILE_POLICY in merge-json.js now states that layout, `--check` holds the file to
 # it, and the driver refuses any merge that would change it.
 docs/stored-fields.json merge=l2json
+#
+# The gate census record, one `file gate count` line per entry, sorted. `union`
+# is built into git (no driver to register): two branches adding gated tests
+# merge with no conflict and no edit. A line both sides changed comes out twice,
+# and the census refuses the duplicate and prints the true record.
+crates/l2-testkit/tests/census/gated.txt merge=union

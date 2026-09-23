@@ -4,6 +4,7 @@ mod validation_tests;
 pub use validation_tests::*;
 mod assignment_tests;
 pub use assignment_tests::*;
+mod git_tests;
 
 use super::*;
 
