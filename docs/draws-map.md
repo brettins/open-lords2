@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 92 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 114 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -23,34 +23,30 @@ draw*, not *at the original's coordinates*. §5a has the measurement that forced
 distinction: of the eighteen draws read back line-by-line against their call sites, **three
 were four pixels wrong** and every test in the tree passed.
 
-That is **59 %** — 54 % until C189 drew the far-zoom box's four words, 57 % until the
-besieger's camp mark.
-`docs/arms.json` holds **25** input arms for the same two screen ids (`0x00` and `0x10`) and
-marks **20** of them reproduced — **80 %**. So on the screen a player spends most of the game
-looking at:
+That is **94 %**. It was 59 % when this audit first counted (71), and most of the climb
+was draws built and never credited, not new work.
 
-> **We answer four gestures in five and we draw three pictures in five.**
-
-That gap is the whole argument for this audit existing. It is not visible from the input
-side, it is not visible from any test, and it is the shape both of the player's reports —
-*"I see placeholder shit everywhere"* and *"why do the pastures not have cows in them?"* —
-were about. Neither of those is an arm.
-
-The misses are not evenly spread. Three areas hold 42 of the 50, and each is one of
-`docs/draws.md` §3's three hiding places:
+Seven are missing, and six of them are multiplayer UI:
 
 | area | live | ours | missing | which hiding place |
 |---|---:|---:|---:|---|
 | `Sprite_TopIt`'s tile overlays | 18 | 18 | 0 | a ladder whose arms nobody enumerated |
-| the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
-| drawn from `Battle_Frame`, not from a painter | 16 | 9 | **7** | outside the painter |
+| the sidebar's produce and industry rows | 31 | 31 | 0 | a variable widget count |
+| drawn from `Battle_Frame`, not from a painter | 16 | 10 | **6** | outside the painter |
 | everything else | 56 | 55 | 1 | — |
+
+The six are the chat banner, the network-wait glyph and the heartbeat (§5.6), which belong
+to `docs/netcode.md`'s design and not to the original's. The one is `FUN_00405602`'s zoom-1
+fill, unreachable (§2 note ¹).
 
 **2026-09-23 re-read.** 71 → 92: thirteen were built and never credited (`Sprite_TopIt`'s
 eight industry frame writes and both herd arms; the path ball's `0x4E`; three menu-bar draws);
 eight are new (the damage animation, arms 3 and 5c; both `Map_DrawArmies` banners; the menu
-bar's bevel). **Unsettled:** §2's strip-row column sums to 27 of 31; the row above says 10.
-The prose below the table still reads as of 71.
+bar's bevel). 92 → 114: the sidebar row said 10 and §2 said 27; both were stale. Read
+painter by painter against `rows.rs`, all 31 are drawn — the seven `Ui_DrawDelta`s (§5.5)
+and the reclamation row's second figure had landed without the tally moving. The drop-down's
+fourth draw, the picked caption, was drawn embossed; `FUN_0040C725` draws it inside
+`DAT_005AEA40 = 1`, flat, and now so do we.
 
 ---
 
@@ -100,9 +96,9 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `Map_DrawArmies` | `0x00408438` | a unit, and its banner | live | 3 | 3 |
 | `Screen_DrawMenuBar` | `0x00419C78` | the 640 × 24 bar | live | 8 | 8 |
 | `CountyStrip_Draw` | `0x0040F7D3` | the county strip | live | 18 | 18 |
-| `FUN_004100AF` | `0x004100AF` | strip row: cattle | live | 5 | 4 |
-| `FUN_0041023A` | `0x0041023A` | strip row: grain | live | 5 | 4 |
-| `FUN_004103C5` | `0x004103C5` | strip row: reclamation | live | 4 | 2 |
+| `FUN_004100AF` | `0x004100AF` | strip row: cattle | live | 5 | 5 |
+| `FUN_0041023A` | `0x0041023A` | strip row: grain | live | 5 | 5 |
+| `FUN_004103C5` | `0x004103C5` | strip row: reclamation | live | 4 | 4 |
 | `FUN_00410502` | `0x00410502` | strip row: iron² | live | 2 | 2 |
 | `FUN_00410598` | `0x00410598` | strip row: stone² | live | 2 | 2 |
 | `FUN_0041062E` | `0x0041062E` | strip row: wood² | live | 2 | 2 |
@@ -111,7 +107,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `Minimap_Draw` | `0x00410AA9` | the minimap plate | live | 6 | 6 |
 | `Minimap_DrawOverlay` | `0x00410CBD` | its county tint | live | 1 | 1 |
 | `Screen_DrawEndTurn` | `0x0041A734` | the End Turn strip | live | 2 | 2 |
-| `FUN_0040C725` | `0x0040C725` | an open drop-down | live | 4 | 3 |
+| `FUN_0040C725` | `0x0040C725` | an open drop-down | live | 4 | 4 |
 | `FUN_00420316` | `0x00420316` | the multiplayer chat banner | live | 3 | 0 |
 | `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 0 |
 | `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 2 |
