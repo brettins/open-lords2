@@ -244,7 +244,7 @@ is a real behaviour."*
 | **B10** | **Any ale at all buys the full five happiness in a village under ten people.** `Ale_Apply` (`0x00428C42`) walks rungs of `crowns >= rung × (population / 10)`; below ten people the step is 0, so `crowns >= 5 × 0` is true at the top rung. | [D] | `happiness.rs:136`, and the test at `:404` |
 | ~~**B11**~~ | ~~The ale allowance is never reset.~~ **RETRACTED — this was not a bug and the "[V]" was wrong.** `Happiness_UpdateAll` (`0x0044BAEA`) zeroes `+0x219` every season for every county, in the same run of statements that clears `shownAle`. The claim rested on a search for writers *in the ale code*; the writer is in the happiness code, one line from a field the same paragraph described. `Readme.txt`'s *"Ale Limitations"* had said the benefit was per season in English. | the reset is quoted in `decisions.md` C53 | `happiness.rs::update` clears it; `trade.rs`, and the seasonal test in `crates/l2-game/tests/merchant/main.rs` |
 | **B11a** | **An unowned county trading on its own account is checked for neither stock nor gold.** Both guards in `Merchant_Trade` are inside `if (realm != 0)`, so a county with no lord can sell grain it does not have and buy with a purse it has already emptied. `Ai_BuyGood` reaches this path for every unowned county on the map; its own purse test is all that stands in front of it, and it is applied before the lot size falls. `Ration_Apply` (`0x0044DF5F`) reads `grain` and `herd` and writes `grainAvailable`, `herdAvailable`, `rationAchieved`, `grainEaten`, `herdEaten` and `dHapRation`; it contains no store subtraction. The store is left negative, and the county has been paid for sacks. `docs/decisions.md` C149. | [V] — both guards read, and `Ration_Apply` re-read at the moment of writing | `trade.rs::trade` reproduces both missing guards; `an_unowned_county_trades_out_of_its_purse_and_is_never_refused` now asserts the store ends at −10 |
-| **B12** | **Turning castle building on removes its labour share.** `Industry_ToggleFromMap` reads `local_c = (castleSwitch != 0)` **before** flipping the switch and passes that stale value to the share toggle, so the share moves the wrong way on every click. | [D] | `industry.rs:757` |
+| ~~**B12**~~ | ~~Turning castle building on removes its labour share.~~ **RETRACTED — misread.** `Industry_ToggleFromMap` (`0x0043D309`) calls `Labour_ToggleIndustryShare(county,3,local_c)` with the pre-flip value, flips `+0x1B0`, then **recomputes** `local_c = (+0x1B0 != 0)` and falls through to the common `Labour_ToggleIndustryShare(county,local_8,local_c)` with `local_8 = 3`. The toggle is a guarded setter (it acts only when share `== 0` and `on == 1`, or share `!= 0` and `on == 0`), so the first call is a no-op when share and switch agree and the second lands the share on the new state. | [D] — both calls and the guard read 2026-09-23 | **ours is wrong**: `industry/ui.rs::toggle_from_map` makes one call with the pre-flip value under `CastleSwitchMovesShareBackwards`; the faithful order is two calls, stale then fresh |
 | **B13** | **The levy slider lies about what it took.** `Levy_SetPercent` (`0x00435EBC`) walks the requested percentage down until the county can afford it, but `pct` is a by-value parameter, so `g_levyPercent` is never written back: the slider can read 80 % while the county gives up 59 %. | [D] | `levy.rs:215` returns it as `settled` |
 | **B14** | **A realm one crown short of its wage bill pays nothing and loses nothing.** The `else` branch of `Wages_PayAll` is the only place the treasury is debited. And the bankruptcy escalation counter at `+0x158` **wraps to 0 after stage 5** instead of saturating, so a realm that never pays loses its armies once every six seasons, not permanently. | [V] | `industry.rs` (`BankruptcyAction`), `kingdom.md` §7.4 |
 | **B15** | **The migration inflow list is written with no `break`**, so a county's sixteen `inflowSources` bytes hold one repeated value instead of a list, and the population panel's *"arrive from"* line names the wrong county. | [D] | `population.rs:124` — *"This reproduces a documented bug."* |
@@ -1501,7 +1501,7 @@ value:
 
 That leaves a group of roughly a dozen worth exposing, all of them things a player could
 notice: **B1** harvest weather, **B2** the event deck's parity, **B3** the weapon slot,
-**B4** the empire tax byte, **B10**/**B11** ale, **B12** the castle switch, **B13** the levy
+**B4** the empire tax byte, **B10**/**B11** ale, **B13** the levy
 slider, **B14** the free wage bill, **B27** the AI ration ladder, **B25**/**B26** the AI's
 castle ladder, **B42**/**B43** the merchant and mercenary walks, **B51**–**B54** the victory
 oddities.
@@ -1532,7 +1532,7 @@ instinct.
    default is permanent.
 
 4. **The counter-argument, stated honestly.** Some of these are not interesting defects, just
-   annoying: B13's lying levy slider and B12's inverted castle switch are interface faults
+   annoying: B13's lying levy slider is an interface fault
    nobody has ever enjoyed, and a new player meeting them will file bugs against us. The honest
    answer is that the group exists so they can be turned off in one click, and that
    the *documented* default is worth more than the *pleasant* one. If any entry is ever
