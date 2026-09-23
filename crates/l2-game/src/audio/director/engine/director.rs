@@ -443,13 +443,13 @@ impl Director {
         // g_localPlayer)`, and the mirror, `Sound_PlayFile(ff_lose.wav, 0, 0)`.
         // `[V]` 004a0000.c:4716..4771. Heard at `battle::record`, one per frame.
         // sfx: Battle_ReturnToCampaign#1,Battle_ReturnToCampaign#2
+        // Once per battle, the busy buffer dropping the rest; an idle battle with no turn is
+        // Settlement::Silently (settlement.rs:20, neither side human), never the local player's. [V]
         let reports = game.turn.as_ref().map_or(&[][..], |p| p.battle_reports());
-        if reports.len() > self.battles {
-            if let Some(r) = reports.last() {
-                let (a, d) = (r.attacker_owner, r.defender_owner);
-                if let Some(name) = after_battle(r.verdict.attacker_won, a, d, game.player) {
-                    audio.play_file(name, false);
-                }
+        for r in reports.get(self.battles..).unwrap_or_default() {
+            let (a, d) = (r.attacker_owner, r.defender_owner);
+            if let Some(name) = after_battle(r.verdict.attacker_won, a, d, game.player) {
+                audio.play_file(name, false);
             }
         }
         self.battles = reports.len();
