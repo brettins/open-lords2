@@ -30,13 +30,40 @@ impl NetGame {
 pub fn frame(game: &mut Game) {
     let clock = crate::turn_clock::Frame::of(game);
     let _ = game.turn_clock.tick(clock);
-    if game.battle.is_some() {
+    // `Battle_Frame`'s `g_battlePhase == 2` arm: the battle's passes, not the turn's.
+    if let Some(b) = game.battle.as_deref_mut() {
+        b.tick();
         return;
     }
-    if turn::wind(game) == turn::Wound::EndTurnDue {
+    let step = match turn::wind(game) {
         // The clock ends every seat's turn; an `EndTurn` would end only this peer's.
-        let _ = command::time_up(game);
+        turn::Wound::EndTurnDue => command::time_up(game),
+        turn::Wound::Stepped(step) => step,
+        _ => return,
+    };
+    if let turn::TurnStep::Done(outcome) = step {
+        game.net.done = Some(outcome);
     }
+}
+
+/// [`NetGame::step`] on any holder of the world.
+pub fn step_game(game: &mut Game, malformed: &mut u32, commands: &[Command]) {
+    let mut ordered = commands.to_vec();
+    order_commands(&mut ordered);
+    for c in &ordered {
+        match decode_all::<GameCommand>(&c.payload) {
+            Ok(cmd) => game.apply(c.slot, &cmd),
+            Err(_) => *malformed += 1,
+        }
+    }
+    frame(game);
+}
+
+pub fn encode_net(game: &Game, malformed: u32, out: &mut Canonical) {
+    encode_state(game, out);
+    out.section("net");
+    out.u32(malformed);
+    out.end_section();
 }
 
 /// Everything two peers must agree on. Not the seat's view: `selected`,
@@ -56,28 +83,39 @@ pub fn encode_state(game: &Game, out: &mut Canonical) {
     out.end_section();
     turn::encode_progress(game, out);
     out.section("live-battle");
-    out.option(game.battle.as_deref(), |c, b| b.encode(c));
+    out.option(game.battle.as_deref(), |c, b| encode_battle(b, c));
     out.end_section();
     game.kingdom.encode(out);
 }
 
 impl Simulation for NetGame {
     fn step(&mut self, _tick: Tick, commands: &[Command]) {
-        let mut ordered = commands.to_vec();
-        order_commands(&mut ordered);
-        for c in &ordered {
-            match decode_all::<GameCommand>(&c.payload) {
-                Ok(cmd) => self.game.apply(c.slot, &cmd),
-                Err(_) => self.malformed += 1,
-            }
-        }
-        frame(&mut self.game);
+        step_game(&mut self.game, &mut self.malformed, commands);
     }
 
     fn encode_state(&self, out: &mut Canonical) {
-        encode_state(&self.game, out);
-        out.section("net");
-        out.u32(self.malformed);
-        out.end_section();
+        encode_net(&self.game, self.malformed, out);
     }
+}
+
+/// The battle both peers share. Out, per seat: `owner`, `cam`, `drag`, `hover`,
+/// `pointer`, `groups`, `current_unit`, `scroll_wait`, `redraw`, `cries`, and
+/// `mode` short of the outcome (C210's polarity).
+fn encode_battle(b: &crate::battlefield::LiveBattle, out: &mut Canonical) {
+    b.runner.encode(out);
+    out.section("live-battle");
+    out.len32(b.attacker);
+    out.len32(b.defender);
+    out.u8(b.county);
+    out.option(b.castle_level.as_ref(), |c, v| c.u8(*v));
+    out.u8(b.choice_owner);
+    out.bool(b.paused);
+    out.bool(b.mode == crate::battlefield::Mode::Outcome);
+    out.bool(b.charged);
+    out.bool(b.sallied);
+    out.u32(b.outcome_ticks);
+    out.bool(b.skirmish);
+    out.option(b.conclusion.as_ref(), |c, v| v.encode(c));
+    out.bool(b.autocalc);
+    out.end_section();
 }

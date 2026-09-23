@@ -209,7 +209,10 @@ impl Screen for BattlefieldScreen {
             live.skip_outcome();
         }
         live.edge_scroll(speed);
-        live.tick();
+        // In a network game `net::frame` steps the battle on its tick.
+        if !live.deferred {
+            live.tick();
+        }
         let done = live.mode == Mode::Outcome && live.outcome_ticks > battlefield::OUTCOME_FRAMES;
         {
             let ctx = Ctx { game: &mut *ctx.game, assets: ctx.assets };

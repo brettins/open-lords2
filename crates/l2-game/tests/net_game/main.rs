@@ -5,6 +5,8 @@ mod script;
 mod lobby_tcp;
 mod seats;
 mod two_seats;
+mod live_tcp;
+mod live_desync;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;

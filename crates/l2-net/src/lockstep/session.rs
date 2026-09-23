@@ -117,6 +117,25 @@ impl Session {
         }
     }
 
+    /// A peer's halt. The desync it names is recorded from our own history, so
+    /// this peer writes its half of the dump too. `docs/netcode.md` §6.
+    pub fn halted_by_peer(&mut self, from: PlayerSlot, reason: HaltReason) {
+        if let HaltReason::Desync { tick } = reason {
+            if let (None, Some(ours)) = (&self.divergence, self.history.hash_at(tick)) {
+                let theirs = self.claims.get(&(tick.0, from.index())).copied().unwrap_or(0);
+                self.divergence = Some(Divergence {
+                    tick,
+                    peer: from,
+                    ours,
+                    theirs,
+                    last_agreed: self.last_agreed,
+                    sections: self.history.get(tick).map(|d| d.sections.clone()).unwrap_or_default(),
+                });
+            }
+        }
+        self.halt(reason);
+    }
+
     pub fn issue(&mut self, payload: Vec<u8>) {
         self.staged.push(payload);
     }

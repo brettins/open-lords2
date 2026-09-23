@@ -2,6 +2,8 @@
 
 mod methods;
 pub use methods::*;
+mod ops;
+pub use ops::*;
 
 use super::*;
 use super::view::*;

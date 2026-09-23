@@ -339,6 +339,9 @@ pub struct LiveBattle {
     pub scroll_wait: u32,
     pub redraw: bool,
     pub cries: Vec<Cry>,
+    /// A network game's: clicks queue in `outbox` for their tick. Not saved, not hashed.
+    pub deferred: bool,
+    pub outbox: Vec<BattleOp>,
 }
 
 /// `g_optScrollSpeed`'s default, written by the options-defaults routine at
