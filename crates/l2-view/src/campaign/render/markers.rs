@@ -156,6 +156,32 @@ pub fn herd_sprite(terrain: u8, phase: u8) -> Option<(usize, (i32, i32))> {
     }
 }
 
+/// `Sprite_TopIt` (`0x004071A0`): `DAT_005C9288 = DAT_0053E9A4 + 0x28`, five sites.
+pub const DAMAGE_FIRST_FRAME: usize = 0x28;
+/// `FUN_00451F1A`: `if (0xF < DAT_0053E9A4) DAT_0053E9A4 = 0`.
+pub const DAMAGE_FRAMES: u8 = 16;
+/// `local_30 = 0xC; local_34 = -0xE;` at all five sites, no zoom test.
+pub const DAMAGE_AT: (i32, i32) = (0x0C, -0x0E);
+
+/// **`Sprite_TopIt`'s damage animation** — a burnt dwelling (arm 3, plane 0
+/// `0x10`, `content == 0x13`) or a wrecked industry shut three seasons or more
+/// (arm 5c, `disabledSeasons >= 3`). Both arms open `if (g_mapZoom == 2) return`.
+pub fn draw_damage(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    counter: u8,
+    clip: Clip,
+) -> bool {
+    if zoom.id == 2 {
+        return false;
+    }
+    let frame = DAMAGE_FIRST_FRAME + (counter % DAMAGE_FRAMES) as usize;
+    blit_over_tile(canvas, assets, view, zoom, tile, frame, DAMAGE_AT, clip)
+}
+
 /// The original's `param_1` — `if (param_1 == 1) dx -= g_mapTileHalfStep` — is
 /// **not** reproduced, and its absence is the point. `FUN_00405FAC` walks an
 /// offset row with `g_drawX` starting at `g_mapViewX` unshifted and adds the

@@ -38,6 +38,35 @@ pub fn draw_unit(
     true
 }
 
+/// `Map_DrawArmies` (`0x00408438`): `kind == 1 && shield != 0` flies
+/// `shield * 8 - 8 + DAT_0057D390` at `(+0x12, −0x15)`, far `(+0x18, −0x15)`.
+pub const ARMY_BANNER_AT: [(i32, i32); 2] = [(0x12, -0x15), (0x18, -0x15)];
+/// `kind == 2` (the peasant mob) flies `DAT_0057D390 + 0x79` at `(+0x12, −0x12)`,
+/// far `(+4, −4)`. draws-map.md §5.3, C88.
+pub const MOB_BANNER_AT: [(i32, i32); 2] = [(0x12, -0x12), (4, -4)];
+pub const MOB_BANNER_FIRST_FRAME: usize = 0x79;
+
+/// **`Map_DrawArmies`' second blit** — a `g_flagsSheet` frame at `at[zoom]` from
+/// the figure's own top-left (`g_drawX - w/2`, `g_drawY - h`), after the figure.
+#[allow(clippy::too_many_arguments)]
+pub fn draw_unit_banner(
+    canvas: &mut Canvas,
+    assets: &MapAssets,
+    view: Viewport,
+    zoom: &Zoom,
+    tile: (usize, usize),
+    sprite: UnitSprite,
+    frame: usize,
+    at: [(i32, i32); 2],
+    clip: Clip,
+) -> bool {
+    let Some((x, y, _)) = unit_sprite_rect(assets, view, zoom, tile, sprite) else { return false };
+    let Some(banner) = assets.flag_sheet(zoom).and_then(|s| s.frame(frame)) else { return false };
+    let (dx, dy) = if zoom.id == 2 { at[1] } else { at[0] };
+    canvas.blit_clipped(&banner, x + dx, y + dy, clip);
+    true
+}
+
 /// The same arithmetic, factored out so that a **hit test** can ask where the
 /// figure is. A
 /// sprite is anchored on the tile's bottom vertex and is taller than the tile,

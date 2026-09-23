@@ -711,6 +711,7 @@ impl Screen for MapScreen {
         // over — merging the passes means the county loop
         // becoming one, which is a bigger change than the defect.
         draw_herds(self, canvas, ctx, clip);
+        draw_damage(self, canvas, ctx, clip);
         draw_flags(self, canvas, ctx, clip);
         draw_path_preview(self, canvas, ctx, clip);
         draw_units(self, canvas, ctx, clip);

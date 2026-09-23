@@ -762,7 +762,11 @@ of a half-offset row, which lands that one column's figures two pixels left of e
 column's. Ours places every cell by `cell_to_screen`.
 
 County **borders are in the tile data**, not an overlay: `maps-layers.md` §2.1 — plane-0
-bit `0x02` switches the tile to the `roads` bank's boundary frames.
+bit `0x02` switches the tile to the `roads` bank's boundary frames. **The "orange lines
+around counties" a player reported are these**: `Roads2a.pl8` frames 38/39 carry palette
+`185` = (150, 97, 32) and trace every county at the far zoom; `Map_DrawTile` (`0x004063C1`)
+blits the stored bank/frame with no test but fog. Not the C132 outline. **[V]** pixels and
+call; **[I]** that the original's screen looks the same.
 outline pass, and the yellow "selected county" outline our engine draws is ours.
 
 The **walk table's** direction is `unitFacing − mapRotation` mod 8 (`FUN_00408438`), which

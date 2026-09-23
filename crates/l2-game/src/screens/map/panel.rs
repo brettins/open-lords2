@@ -14,6 +14,7 @@ impl MapScreen {
             industry_slot: None,
             industry_tick: 0,
             industry_gate_ms: 0,
+            damage_counter: 0,
             minimap: None,
             minimap_slot: None,
             focus: Focus::None,

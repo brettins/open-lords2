@@ -78,6 +78,7 @@ for (const f of fs.readdirSync(DIR).filter(f => f.endsWith('.c'))) {
     if (prev) prev.text = text.slice(prev.end, m.index);
     prev = { addr: m[1], name: m[2], bytes: +m[3], end: re.lastIndex };
     bodies.set(m[2], prev);
+    bodies.set('FUN_' + m[1], prev); // a renamed FUN_ still resolves by address
   }
   if (prev) prev.text = text.slice(prev.end);
 }
@@ -94,7 +95,7 @@ const LEAF = [
   'Ui_HistoryGraph',
   'FUN_004025d7',   // a string, left-aligned, from a char*
   'FUN_0040328e',   // a wrapped L2.eng paragraph
-  'FUN_00403cf4',   // a rectangle outline
+  'FUN_00403cf4', 'Ui_DrawRectOutline', // a rectangle outline
   'FUN_0040437d',   // a filled rectangle
   'FUN_00409346',   // a framed box with a picture
   'FUN_00409429',   // a framed box, no interior
@@ -185,13 +186,13 @@ const sites = process.argv.includes('--sites');
 let total = 0, live = 0, debug = 0, dead = 0;
 const rows = [];
 for (const [name, what, status] of TREE) {
-  const b = bodies.get(name);
+  const b = bodies.get(name) || bodies.get('FUN_' + name.slice(4).toLowerCase());
   if (!b) { console.error(`MISSING ${name}`); continue; }
   let n = 0;
   const found = [];
   for (const line of b.text.split('\n')) {
     for (const p of LEAF) {
-      const re = new RegExp('\\b' + p + '\\s*\\(');
+      const re = new RegExp('\\b' + p + '\\s*\\(', 'i');
       if (re.test(line)) { n++; found.push(p + '  ' + line.trim().slice(0, 90)); break; }
     }
   }
