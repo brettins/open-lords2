@@ -455,23 +455,11 @@ original fetches an `L2.eng` string. **56** things the original draws are enumer
 missing and **37** are things we draw that it does not — the figure nobody had
 of 1:1 that an omission audit cannot see.
 
-The screens that are worst, in order:
-
-| screen | original | ours | what it is |
-|---|---:|---:|---|
-| `0x2B` battle outcome | 13 | 0 | the banner after **every** battle, seven outcomes, not built |
-| `0x21` the value spinner | 8 | 0 | reachable from Options ▸ Game Speed and ▸ Scroll Speed, both dead ends |
-| `0x20` the standings | 11 | 0 | a four-line bar per realm; the seven scoring rules are undocumented |
-| `0x2F` rank sheet | 9 | 0 | one full-screen picture plus nine draws; needs `score.dat` |
-| `0x1E` the confirm box | 2 | 0 | **one dialog for fifteen questions** |
-| `0x0F` the job popup | 114 | 8 | nine jobs; the single largest gap in the audit |
-| `0x04` map information | 174 | 24 | eleven layouts behind a right-click |
-
-**`0x0F` and `0x04` are between them a third of everything missing**, and both are the same
-shape: one screen id with a ladder of layouts behind it, of which we draw one or two.
-
-Two of the seven are **cheap and disproportionate**: `0x1E` is two draw calls and it is the
-game's only yes/no dialog — fifteen questions route through it — and `0x21` is eight.
+The worst-screens table that stood here was hand-counted and went stale (it had `0x04` at
+24 of 174 when the tool said 68). **Per-screen counts come from
+`node tools/draws/screendraws.js`** (orig, ours, missing, ratio per screen id); read them
+there, not from a copy. The shape it found still holds: `0x0F` (the job popup) and `0x04`
+(map information) are one screen id each with a ladder of layouts behind it.
 
 ## 12. `L2.eng` 31/21 *"Morale"* — the pilot was right
 
