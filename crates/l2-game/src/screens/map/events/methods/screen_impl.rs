@@ -711,6 +711,7 @@ impl Screen for MapScreen {
         // over — merging the passes means the county loop
         // becoming one, which is a bigger change than the defect.
         draw_herds(self, canvas, ctx, clip);
+        // Map_DrawFrame 00400000.c:2830: the Sprite_TopIt pass (FUN_00405602) before the armies (FUN_00405487).
         draw_damage(self, canvas, ctx, clip);
         draw_flags(self, canvas, ctx, clip);
         draw_path_preview(self, canvas, ctx, clip);

@@ -158,7 +158,7 @@ pub fn herd_sprite(terrain: u8, phase: u8) -> Option<(usize, (i32, i32))> {
 
 /// `Sprite_TopIt` (`0x004071A0`): `DAT_005C9288 = DAT_0053E9A4 + 0x28`, five sites.
 pub const DAMAGE_FIRST_FRAME: usize = 0x28;
-/// `FUN_00451F1A`: `if (0xF < DAT_0053E9A4) DAT_0053E9A4 = 0`.
+/// `FUN_00451F1A` (`0x00451F1A`): `if (0xF < DAT_0053E9A4) DAT_0053E9A4 = 0`.
 pub const DAMAGE_FRAMES: u8 = 16;
 /// `local_30 = 0xC; local_34 = -0xE;` at all five sites, no zoom test.
 pub const DAMAGE_AT: (i32, i32) = (0x0C, -0x0E);

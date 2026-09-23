@@ -1,0 +1,17 @@
+{ "reviewed": "ae0954384c029018597278953dea43906d9440bf",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/map/paint/ui.rs", "line": 67, "address": "0x00419C78", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/paint/units/drawing.rs", "line": 58, "address": "0x00408438", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/paint/units/drawing.rs", "line": 63, "address": "0x00408438", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/units.rs", "line": 43, "address": "0x00408438", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/units.rs", "line": 46, "address": "0x00408438", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/units.rs", "line": 65, "address": "0x00408438", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/paint/units/drawing.rs", "line": 252, "address": "0x004071A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/paint/units/drawing.rs", "line": 262, "address": "0x004071A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/markers.rs", "line": 160, "address": "0x004071A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/markers.rs", "line": 164, "address": "0x004071A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/markers.rs", "line": 178, "address": "0x004071A0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-view/src/campaign/render/markers.rs", "line": 162, "address": "0x00451F1A", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/terrain.rs", "line": 303, "address": "0x00451F1A", "verdict": "match", "note": "" }
+  ] }

@@ -263,6 +263,7 @@ pub(crate) fn damage_tiles(screen: &MapScreen, ctx: &Ctx) -> Vec<usize> {
             out.push(site.tile);
         }
     }
+    // Sprite_TopIt 0x004071A0 (00400000.c:4009): `g_optExploration == 1 && (bank & 0x20) == 0` hides it.
     out.retain(|&t| !ctx.game.hides_tile(t));
     out
 }
