@@ -2,7 +2,7 @@
 //! frames (D-5). `docs/netcode.md` §4 (input delay, stalling), §6 (halt, dump),
 //! §8 *A dropped seat* (C240).
 
-use super::replay::{self, Origin, Record};
+use super::replay::{self, Origin, Recording};
 use super::sim::{encode_net, step_game};
 use crate::command::GameCommand;
 use crate::game::Game;
@@ -88,10 +88,10 @@ impl Live {
     }
 
     /// `None` for a world not built from `Start`, which no replay can rebuild.
-    pub fn record(&self) -> Option<Record> {
+    pub fn record(&self) -> Option<Recording> {
         let (origin, me, tables) = self.origin.clone()?;
         let replay = self.session.replay()?.clone();
-        Some(Record { origin, me, tables, replay })
+        Some(Recording { origin, me, tables, replay })
     }
 
     pub fn write_replay(&mut self) -> Option<std::io::Result<PathBuf>> {

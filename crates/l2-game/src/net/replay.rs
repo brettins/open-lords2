@@ -20,7 +20,7 @@ pub struct Origin {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Record {
+pub struct Recording {
     pub origin: Origin,
     pub me: PlayerSlot,
     /// `Canonical::hash_of(&Tables)`: a replay under another mod set is refused.
@@ -28,7 +28,7 @@ pub struct Record {
     pub replay: Replay,
 }
 
-impl Encode for Record {
+impl Encode for Recording {
     fn encode(&self, out: &mut Canonical) {
         out.raw(&MAGIC);
         out.u16(VERSION);
@@ -40,7 +40,7 @@ impl Encode for Record {
     }
 }
 
-impl Decode for Record {
+impl Decode for Recording {
     fn decode(input: &mut Reader<'_>) -> Result<Self, CodecError> {
         let at = input.position();
         if input.raw(4)? != MAGIC || input.u16()? != VERSION {
@@ -53,7 +53,7 @@ impl Decode for Record {
             .ok_or(CodecError::BadTag { tag: 0, expected: "player slot", at })?;
         let tables = input.u64()?;
         let replay = Replay::decode(input)?;
-        Ok(Record { origin: Origin { start, quirks }, me, tables, replay })
+        Ok(Recording { origin: Origin { start, quirks }, me, tables, replay })
     }
 }
 
@@ -62,11 +62,11 @@ pub fn home() -> Option<PathBuf> {
     Some(crate::saves::dir()?.parent()?.join("replays"))
 }
 
-pub fn file_name(record: &Record) -> String {
+pub fn file_name(record: &Recording) -> String {
     format!("net-{:016x}-slot{}.l2nr", record.origin.start.seed, record.me.index())
 }
 
-pub fn write(dir: &Path, record: &Record) -> std::io::Result<PathBuf> {
+pub fn write(dir: &Path, record: &Recording) -> std::io::Result<PathBuf> {
     std::fs::create_dir_all(dir)?;
     let path = dir.join(file_name(record));
     std::fs::write(&path, Canonical::bytes_of(record))?;
@@ -74,7 +74,7 @@ pub fn write(dir: &Path, record: &Record) -> std::io::Result<PathBuf> {
 }
 
 /// The world a peer played, as `net::service` then `Live::new` left it.
-pub fn rebuild(assets: &Assets, record: &Record, tables: Tables) -> Result<Game, String> {
+pub fn rebuild(assets: &Assets, record: &Recording, tables: Tables) -> Result<Game, String> {
     let Origin { start, quirks } = &record.origin;
     let mut game = new_game(assets, start, record.me, *quirks, tables).map_err(|e| e.to_string())?;
     game.net.me = Some(record.me);
@@ -85,7 +85,7 @@ pub fn rebuild(assets: &Assets, record: &Record, tables: Tables) -> Result<Game,
 /// `--verify-replay`: `Ok` names the last tick that matched.
 pub fn verify_file(assets: &Assets, path: &Path, tables: Tables) -> Result<String, String> {
     let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
-    let record = decode_all::<Record>(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
+    let record = decode_all::<Recording>(&bytes).map_err(|e| format!("{}: {e}", path.display()))?;
     if record.tables != Canonical::hash_of(&tables) {
         return Err("the replay was recorded under another mod set".into());
     }
