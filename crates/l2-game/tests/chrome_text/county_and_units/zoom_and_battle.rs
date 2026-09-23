@@ -44,7 +44,7 @@ fn the_far_zoom_box_carries_the_map_name_the_year_and_the_instruction() {
     let mut screen = MapScreen::new();
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        screen.handle(Event::KeyDown(Key::Char('Z')), &mut ctx);
+        screen.handle(l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click(), &mut ctx);
     }
     let canvas = draw(&mut screen, &mut game, &assets);
 

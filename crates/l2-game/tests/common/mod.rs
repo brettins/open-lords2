@@ -46,6 +46,37 @@ pub fn send<S: Screen>(screen: &mut S, game: &mut Game, assets: &Assets, e: Even
     screen.handle(e, &mut ctx)
 }
 
+/// One Map_ScrollStep (0x00431F59) at the edge: the map has no scroll keys
+/// (App_WndProc 0x004B29BE), so tests put the pointer on the outermost pixel.
+pub fn edge_step(
+    mut m: Option<&mut Machine>,
+    map: &mut MapScreen,
+    game: &mut Game,
+    assets: &Assets,
+    at: (i32, i32),
+) {
+    let e = Event::Pointer { x: at.0, y: at.1 };
+    if let Some(m) = m.as_deref_mut() {
+        send_stack(m, game, assets, e);
+    }
+    send(map, game, assets, e);
+    let v = map.viewport();
+    for _ in 0..8 {
+        let mut ctx = Ctx { game: &mut *game, assets };
+        if let Some(m) = m.as_deref_mut() {
+            m.update(&mut ctx);
+        }
+        map.update(&mut ctx);
+        if map.viewport() != v {
+            break;
+        }
+    }
+    if let Some(m) = m.as_deref_mut() {
+        send_stack(m, game, assets, Event::PointerLeft);
+    }
+    send(map, game, assets, Event::PointerLeft);
+}
+
 pub fn send_stack(m: &mut Machine, game: &mut Game, assets: &Assets, e: Event) {
     let mut ctx = Ctx { game, assets };
     m.handle(e, &mut ctx);

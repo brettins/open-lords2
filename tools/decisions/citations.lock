@@ -1312,6 +1312,7 @@ tools/decisions/corrections.js	C61	e5d541a4153c	60611046b40d
 tools/decisions/corrections.js	C63	091d3c64bd97	34cab2e30849
 tools/draws/drawcoords.js	C140	eb0f9be0e4be	e3a1ede42a95
 tools/draws/screendraws.js	C141	50900f3e613b	1325997b4aaa
+tools/draws/screens.json	C206	366f9f73eaf2	ec1965fdc6d6
 tools/draws/screens.json	C21	1b3896f6390a	f7bf296341ff
 tools/draws/screens.json	C21	82b3cfecbdee	f7bf296341ff
 tools/oracle/anchor.js	C3	64f970433d76	35bf3a86555f

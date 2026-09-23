@@ -301,7 +301,7 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
     // returns having drawn nothing. `docs/bugs.md`.
     let mut far = MapScreen::new();
     draw(&mut far, &mut game, &assets);
-    send(&mut far, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+    send(&mut far, &mut game, &assets, l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click());
     assert_eq!(far.zoom().id, campaign::FAR.id, "Z is the zoom toggle");
     let zoomed = draw(&mut far, &mut game, &assets);
     if let Some(far_mark) =

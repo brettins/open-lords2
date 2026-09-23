@@ -40,7 +40,14 @@ pub(crate) fn click(m: &mut Machine, g: &mut Game, a: &Assets, at: (i32, i32)) {
 }
 
 fn press(m: &mut Machine, g: &mut Game, a: &Assets, c: char) {
-    send(m, g, a, Event::KeyDown(Key::letter(c)));
+    // The map has no letter keys (App_WndProc 0x004B29BE); these are its clicks.
+    let e = match c.to_ascii_lowercase() {
+        'e' => l2_game::screens::map::END_TURN_BUTTON.click(),
+        'z' => l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click(),
+        'r' => l2_game::screens::map::SIDEBAR_BUTTONS[0].rect().click(),
+        _ => Event::KeyDown(Key::letter(c)),
+    };
+    send(m, g, a, e);
 }
 
 fn on(r: Rect) -> (i32, i32) {

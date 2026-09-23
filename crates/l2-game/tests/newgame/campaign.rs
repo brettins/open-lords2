@@ -153,3 +153,36 @@ fn continue_without_a_campaign_opens_the_custom_page() {
 }
 
 
+
+/// Screen_FrameInput 0x0042FF10, 00420000.c:7525-7527: a release on screen 0x1C
+/// is Setup_StartGame on the row Campaign_EnterConquest loaded.
+#[test]
+fn a_release_on_the_conquest_screen_starts_the_campaigns_next_map() {
+    use l2_game::screens::conquest::ConquestScreen;
+    let assets = assets!();
+    let mut game = Game::new(scenario::SEED);
+    walk_to_campaign(&assets, &mut game, false);
+    game.campaign.map = 1;
+    game.kingdom.realms[game.player as usize].shield_index = 3;
+    let mut s = ConquestScreen::new();
+    let t = s.handle(Event::Release { x: 0, y: 0 }, &mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(t, Transition::Replace(ScreenId::Campaign));
+    assert_eq!(game.map_slot, 12, "row 1 of g_campaignTableA is scenario 12");
+    assert_eq!(game.campaign.map, 1, "Setup_StartGame keeps g_campaignMap");
+    assert!(s.take_autosave(), "Game_NewGame's Save_RotateAndWrite 0x00497E2B");
+    assert_eq!(game.realm_colour[game.player as usize], 3, "the realm's shield carries");
+}
+
+/// Choosing a campaign writes g_campaignTrack/g_campaignMap at once:
+/// Setup_ChooseCampaign 0x00433461, 00430000.c:892-897.
+#[test]
+fn choosing_the_second_campaign_is_remembered_before_any_game() {
+    let assets = assets!();
+    let mut game = Game::new(scenario::SEED);
+    let mut screen = SetupScreen::new(SetupPage::Campaign);
+    screen.update(&mut Ctx { game: &mut game, assets: &assets });
+    use l2_game::screens::setup::{ITEM_H, PAIR_W, PAIR_X, PAIR_Y};
+    click(&mut screen, &mut game, &assets, PAIR_X[1] + PAIR_W / 2, PAIR_Y + ITEM_H / 2);
+    assert_eq!(game.prefs.kept.campaign_map, 2);
+    assert_eq!(game.prefs.kept.campaign_track, l2_game::victory::Track::Second);
+}

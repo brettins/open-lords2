@@ -705,6 +705,30 @@
       "ours": "crates/l2-game/src/screens/diplomacy/mod.rs"
     },
     {
+      "id": "0x0042FF10/conquest-next-left",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1C",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "SCREEN 0x1C, ANY LEFT RELEASE -- Screen_FrameInput 00420000.c:7520-7534. DAT_0055302C == 2 drops to screen 0 at once; otherwise a release with g_campaignMap < 8 is Setup_StartGame on the row Campaign_EnterConquest loaded, and at 8 g_screenId = 0 (the title) with DAT_005C9274 = 1.",
+      "note": "Ours cycled the three outcomes on a left press until 2026-09-23. The DAT_0055302C == 2 limb is not modelled [I]: ours has no mode 2 in single player.",
+      "ours": "crates/l2-game/src/screens/conquest.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/conquest-next-right",
+      "status": "reproduced",
+      "group": "front-end",
+      "screen": "0x1C",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "SCREEN 0x1C, ANY RIGHT RELEASE -- Screen_FrameInput 00420000.c:7520-7534. DAT_0055302C == 2 drops to screen 0 at once; otherwise a release with g_campaignMap < 8 is Setup_StartGame on the row Campaign_EnterConquest loaded, and at 8 g_screenId = 0 (the title) with DAT_005C9274 = 1.",
+      "note": "Ours cycled the three outcomes on a left press until 2026-09-23. The DAT_0055302C == 2 limb is not modelled [I]: ours has no mode 2 in single player.",
+      "ours": "crates/l2-game/src/screens/conquest.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x0042FF10/court-ok",
       "status": "reproduced",
       "group": "panels",
@@ -1621,13 +1645,14 @@
     },
     {
       "id": "0x00434942/opt-game-help-contents",
-      "status": "missing",
+      "status": "reproduced",
       "group": "options-panels",
       "screen": "0x31",
       "gesture": "left-press-delayed",
       "addr": "0x00434942",
       "what": "Help options row 3, 'Start game help': record 2 (0x004DDD18) at (288, 252), kind 5. Twenty frames after the press, WinHelpA(hwnd, 'l2help.hlp', HELP_CONTENTS, 1).",
-      "note": "Missing, and knowingly: a Windows 3.1 help file through an API that has not shipped since Vista. Ours draws the row dimmed; its widget still goes down, clicks and counts the twenty ticks, and then nothing happens.",
+      "note": "[D] C241: the viewer is Windows' WinHelp; ours pushes ScreenId::Help, our own window reading L2help.hlp (contents, jump hotspots, |CONTEXT, Back, OK).",
+      "ours": "crates/l2-game/src/screens/help/mod.rs",
       "evidence": "V"
     },
     {
@@ -3553,6 +3578,17 @@
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
+      "id": "ours/armoury-enter",
+      "status": "invention",
+      "removed": true,
+      "group": "armoury",
+      "screen": "0x0A",
+      "gesture": "key",
+      "what": "Enter confirmed the armoury.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call."
+    },
+    {
       "id": "ours/brush-popup-on-the-map",
       "status": "invention",
       "removed": true,
@@ -3574,6 +3610,17 @@
       "what": "Enter sent the letter.",
       "why": "Send is a kind 5 widget; no key reaches 0x1A.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Edit_Confirm's whole body is g_saveLoadConfirm = 100, read only by SaveLoad_Tick."
+    },
+    {
+      "id": "ours/conquest-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "front-end",
+      "screen": "0x1C",
+      "gesture": "key",
+      "what": "Any key, and Left/Up backwards, cycled the conquest screen outcome.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. The screen 0x1C arm in Screen_FrameInput reads g_mouseLeftReleased/g_mouseRightReleased only."
     },
     {
       "id": "ours/county-back-to-map-button",
@@ -3717,6 +3764,17 @@
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
+      "id": "ours/map-arrow-scroll",
+      "status": "invention",
+      "removed": true,
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "key",
+      "what": "The arrow keys scrolled the campaign map one step.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. Scrolling is Map_ScrollStep 0x00431F59 from Map_EdgeScroll (pointer on the outermost pixel), which we reproduce."
+    },
+    {
       "id": "ours/map-enter-opens-county",
       "status": "invention",
       "removed": true,
@@ -3726,6 +3784,17 @@
       "what": "Enter opened the selected county's tax panel.",
       "why": "The panels open from the county strip (0x00438CEB); no key reaches them.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Edit_Confirm's whole body is g_saveLoadConfirm = 100, read only by SaveLoad_Tick."
+    },
+    {
+      "id": "ours/map-letter-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "campaign-map",
+      "screen": "0x00",
+      "gesture": "key",
+      "what": "Letter keys on the campaign map: V village, R raise army, A divide, N next army, I index, S save, L load, Z zoom, E and Space end turn.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. Each has its click in the original, which we have: the sidebar (Sidebar_Button 0x0043AE30), the town click (Map_Click 0x0043CE1A), the unit panel, the File menu, the minimap zoom button (Minimap_ModeButton 0x0043AB76) and End Turn (0x0043AC23)."
     },
     {
       "id": "ours/map-selected-county-outline",
@@ -3812,6 +3881,28 @@
       "gesture": "right-release",
       "what": "A right release on the take-the-field prompt ran Battle_Decline. Screen 0x12's arm has no right-button test of any kind.",
       "why": "'Right click exits' generalised from the screens where it is true. C61 found it by enumeration and this is its removal."
+    },
+    {
+      "id": "ours/rack-arrow-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "armoury",
+      "screen": "0x0D",
+      "gesture": "key",
+      "what": "Right equipped one man, Left unequipped one.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call."
+    },
+    {
+      "id": "ours/raise-army-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "armoury",
+      "screen": "0x17",
+      "gesture": "key",
+      "what": "Enter opened the armoury, Left/Right stepped the levy percent, H toggled hiring.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. H is Battle_FormationKey only in battle. The slider and buttons remain."
     },
     {
       "id": "ours/ratings-keyboard-close",
@@ -3907,7 +3998,7 @@
       "group": "front-end-keys",
       "screen": "0x1F",
       "gesture": "key",
-      "what": "I opens crate::screens::index, our own list of every screen.",
+      "what": "Ctrl+D opens crate::screens::index, our own developer list of every screen. Was the letter I until 2026-09-23; moved so the front end answers no plain key the original lacks (App_WndProc 0x004B29BE has no 0x1F case, C74).",
       "why": "A development affordance, and index is marked as ours already. NARROWED by the name field: on page 4 the letter I is the letter I.",
       "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
@@ -3964,6 +4055,17 @@
       "what": "Enter agreed the trade.",
       "why": "Agree is 0x00435286/trade-agree, a widget; no key reaches 0x0C.",
       "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE's WM_KEYDOWN switch has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right (text caret) and VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C (chat toggle, multiplayer only). No GetAsyncKeyState/GetKeyState import is called anywhere. Edit_Confirm's whole body is g_saveLoadConfirm = 100, read only by SaveLoad_Tick."
+    },
+    {
+      "id": "ours/trade-keys",
+      "status": "invention",
+      "removed": true,
+      "group": "management-screens",
+      "screen": "0x0C",
+      "gesture": "key",
+      "what": "Up/Down stepped the quantity by 1, Left/Right by 10, M and S jumped to the limits.",
+      "why": "No WndProc route.",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE WM_KEYDOWN has no VK_UP/VK_DOWN case; VK_LEFT/VK_RIGHT step g_debugSelectedMan and call Edit_Left/Edit_Right; VK_RETURN is Edit_Confirm 0x00401C5B + FUN_0043600C. WM_CHAR (0x102) is Battle_FormationKey (H/V, g_battlePhase == 2 only) then Edit_TypeChar 0x00401A20, a text-field filter: no screen reads a letter. No GetAsyncKeyState/GetKeyState call. The spinner and limit buttons (trade_widgets) remain."
     },
     {
       "id": "ours/village-keyboard",

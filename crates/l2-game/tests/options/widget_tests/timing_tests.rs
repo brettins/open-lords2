@@ -74,7 +74,9 @@ fn every_row_goes_down_on_the_press_and_acts_twenty_ticks_later() {
                 screen.update(&mut ctx)
             };
             assert!(screen.pressed_rows().is_empty(), "{page:?} {:?}: up again on the twentieth", row.setting);
-            if row.supported() {
+            if row.setting == Setting::StartGameHelp {
+                assert_eq!(last, Transition::Push(ScreenId::Help), "the button acts on the twentieth tick");
+            } else if row.supported() {
                 assert_ne!(
                     value(row.setting, &mut game, &assets),
                     before,

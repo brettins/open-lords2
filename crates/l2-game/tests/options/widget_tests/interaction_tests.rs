@@ -27,13 +27,15 @@ fn each_widget_toggles_its_own_row_and_only_its_own() {
             let t = press_and_wait(&mut screen, &mut game, &assets, x, y);
             let leaves = row.setting == Setting::FullScreen;
             assert_eq!(t == Transition::Pop, leaves, "{page:?} {:?} answered {t:?}", row.setting);
+            let button = row.setting == Setting::StartGameHelp;
+            assert_eq!(t == Transition::Push(ScreenId::Help), button, "{page:?} {:?} answered {t:?}", row.setting);
 
             let after: Vec<bool> =
                 page.rows().iter().map(|r| value(r.setting, &mut game, &assets)).collect();
 
             for (i, r) in page.rows().iter().enumerate() {
                 if r.setting == row.setting {
-                    if row.supported() {
+                    if row.supported() && !button {
                         assert_ne!(before[i], after[i], "{page:?} {:?} did not move", r.setting);
                     } else {
                         assert_eq!(before[i], after[i], "{page:?} {:?} is not ours to honour", r.setting);

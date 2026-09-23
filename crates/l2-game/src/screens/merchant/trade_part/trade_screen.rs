@@ -227,30 +227,7 @@ impl Screen for TradeScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
             Event::RightClick { .. } => Transition::Pop,
-            Event::KeyDown(Key::Up) => {
-                self.step(ctx, 1);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Down) => {
-                self.step(ctx, -1);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Right) => {
-                self.step(ctx, 10);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Left) => {
-                self.step(ctx, -10);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Char('M')) => {
-                self.jump_to_limit(ctx, true);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Char('S')) => {
-                self.jump_to_limit(ctx, false);
-                Transition::Stay
-            }
+            // App_WndProc 0x004B29BE routes no arrow/Enter/letter to this screen [V].
             Event::Click { .. } | Event::DoubleClick { .. } => {
                 let table = trade_widgets(self.qty != 0);
                 if let Some(i) = self.press.event(&table, event) {

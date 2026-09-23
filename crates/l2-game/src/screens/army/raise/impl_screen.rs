@@ -62,7 +62,6 @@ impl Screen for RaiseArmyScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        let offer = self.offer(&Ctx { game: ctx.game, assets: ctx.assets }) != 0;
         match event {
             // `Levy_Seed` (`0x004AA90A`) zeroes the eight basket slots, fills
             // their available counts from the realm's weapon stocks and puts the
@@ -79,23 +78,7 @@ impl Screen for RaiseArmyScreen {
                 }
                 self.open_armoury(ctx)
             }
-            Event::KeyDown(Key::Enter) => self.open_armoury(ctx),
-            Event::KeyDown(Key::Left) => {
-                let p = ctx.game.levy.percent - 1;
-                ctx.game.set_levy_percent(p);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Right) => {
-                let p = ctx.game.levy.percent + 1;
-                ctx.game.set_levy_percent(p);
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Char('H')) => {
-                if offer {
-                    ctx.game.levy.hire = !ctx.game.levy.hire;
-                }
-                Transition::Stay
-            }
+            // App_WndProc 0x004B29BE routes no arrow/Enter/letter to this screen [V].
             // arm: 0x00435CEF/levy-slider-step left-press
             Event::Click { x, y } => {
                 self.left_down = true;

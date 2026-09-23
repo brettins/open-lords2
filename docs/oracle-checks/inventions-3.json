@@ -1,0 +1,97 @@
+{
+  "reviewed": "5730a40b59a7d5772f54e3bc3d15362d274bcedf",
+  "date": "2026-09-23",
+  "behaviours": [
+    {
+      "file": "crates/l2-game/src/audio/director/mod.rs",
+      "line": 73,
+      "address": "0x0041E1DD",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/prefs.rs",
+      "line": 97,
+      "address": "0x0041E1DD",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/message/queue/actions.rs",
+      "line": 26,
+      "address": "0x00497879",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/camera.rs",
+      "line": 153,
+      "address": "0x00497879",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+      "line": 390,
+      "address": "0x00433461",
+      "verdict": "match",
+      "note": "inventions-4: Setup_ChooseCampaign writes both at the hotspot press, before any game; cites function+address. Test choosing_the_second_campaign_is_remembered_before_any_game."
+    },
+    {
+      "file": "crates/l2-game/src/screens/conquest.rs",
+      "line": 253,
+      "address": "0x00497879",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/conquest.rs",
+      "line": 170,
+      "address": "0x004B29BE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/armoury/screen/armoury.rs",
+      "line": 137,
+      "address": "0x004B29BE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/armoury/screen/rack.rs",
+      "line": 83,
+      "address": "0x004B29BE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/army/raise/impl_screen.rs",
+      "line": 81,
+      "address": "0x004B29BE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+      "line": 47,
+      "address": "0x004B29BE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/merchant/trade_part/trade_screen.rs",
+      "line": 230,
+      "address": "0x004B29BE",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/nobles/view.rs",
+      "line": 96,
+      "address": "0x0041593B",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

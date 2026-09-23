@@ -23,6 +23,7 @@ pub fn dismiss(game: &mut Game) -> Dismissal {
     if outcome.is_over() {
         // `Campaign_EnterConquest` (`0x00497879`), then `g_screenId = 0x1C`.
         game.campaign.enter_conquest_screen();
+        game.prefs.kept.remember(&game.campaign);
         return Dismissal::GameOver(outcome);
     }
     Dismissal::Closed

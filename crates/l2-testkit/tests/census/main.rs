@@ -52,7 +52,7 @@ impl Gate {
 const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/battle_fixtures.rs", "fixture", 3),
     ("crates/l2-formats/tests/corpus.rs", "install", 5),
-    ("crates/l2-formats/tests/hlp.rs", "install", 1),
+    ("crates/l2-formats/tests/hlp.rs", "install", 2),
     ("crates/l2-formats/tests/maps.rs", "install", 6),
     ("crates/l2-formats/tests/save/realms_and_counties/county_records.rs", "saves", 3),
     ("crates/l2-formats/tests/save/realms_and_counties/realms_and_map.rs", "saves", 6),
@@ -124,6 +124,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/field_terrain.rs", "install", 1),
     ("crates/l2-game/tests/ground/army_and_confirm.rs", "install", 2),
     ("crates/l2-game/tests/ground/diplomacy_part.rs", "install", 5),
+    ("crates/l2-game/tests/help_viewer.rs", "install", 2),
     ("crates/l2-game/tests/industry/visual_effects.rs", "england", 3),
     ("crates/l2-game/tests/industry/wheel_rates.rs", "england", 2),
     ("crates/l2-game/tests/job_bodies/events_and_letters.rs", "england", 2),
@@ -167,7 +168,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/net_game/two_seats.rs", "install", 1),
     ("crates/l2-game/tests/newgame/army_size.rs", "other", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "install", 1),
-    ("crates/l2-game/tests/newgame/campaign.rs", "other", 3),
+    ("crates/l2-game/tests/newgame/campaign.rs", "other", 5),
     ("crates/l2-game/tests/newgame/heraldry.rs", "other", 4),
     ("crates/l2-game/tests/newgame/load_page.rs", "other", 2),
     ("crates/l2-game/tests/newgame/quaintville.rs", "other", 1),
@@ -314,7 +315,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 697;
+pub(crate) const GATED_TOTAL: usize = 702;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

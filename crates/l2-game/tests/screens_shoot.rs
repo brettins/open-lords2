@@ -98,7 +98,7 @@ fn shoot() {
     let mut screen = MapScreen::new();
     for (name, zoomed) in [("near", false), ("far", true)] {
         if zoomed {
-            send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Char('Z')));
+            send(&mut screen, &mut game, &assets, l2_game::screens::map::MINIMAP_MODE_BUTTONS[3].click());
         }
         let canvas = draw(&mut screen, &mut game, &assets);
         save_png(&canvas, &assets, &format!("campaign_{name}"));
