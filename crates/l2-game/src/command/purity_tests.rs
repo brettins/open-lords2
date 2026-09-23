@@ -123,7 +123,7 @@ const ALLOWED: &[Allowed] = &[
         why: "a skirmish is local, started from setup/",
     },
     Allowed {
-        file: "screen/machine.rs",
+        file: "screen/machine/frame.rs",
         pattern: "turn_clock.tick(",
         gate: "",
         back: 0,
