@@ -178,6 +178,8 @@ impl MapScreen {
         // `FUN_004B0CB4(_, 0, _)` back up. See [`l2_view::fade`] and
         // [`Fading`].
         self.fading = Some(Fading { phase: 0, status, over });
+        // FUN_0043AD25 00430000.c:6185 `g_screenId = 0` ends move mode 0x10; the unit stays selected [V]
+        self.move_order = None;
         self.scrolled = true;
         Transition::Stay
     }

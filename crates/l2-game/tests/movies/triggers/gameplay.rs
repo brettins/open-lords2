@@ -166,3 +166,66 @@ fn a_decided_battle_plays_the_film_for_its_outcome_in_rotation() {
     assert_eq!(m.top_id(), Some(ScreenId::Battlefield));
 }
 
+
+/// FUN_0043AD25 0x0043AD25, Turn_Tick phase 7: `g_screenId == 0x22` -> `Smk_Skip()`,
+/// then `g_screenId = 0`. Ablate the stack cut in `Machine::wind_turn` and the film stays.
+#[test]
+fn a_film_still_playing_when_a_network_season_turns_is_skipped() {
+    let (_p, a) = install!();
+    let mut g = realms();
+    g.multiplayer = true;
+    ai_turns_over(&mut g);
+    g.issue(l2_game::command::EndTurn {});
+    let mut m = Machine::new(ScreenId::Campaign);
+    m.push(ScreenId::Movie(Film::Credits));
+    let before = g.kingdom.turn_count;
+    for _ in 0..2_000 {
+        tick(&mut m, &mut g, &a);
+        if g.kingdom.turn_count > before {
+            break;
+        }
+    }
+    assert!(g.kingdom.turn_count > before, "the season turns under the film");
+    assert_eq!(m.ids(), vec![ScreenId::Campaign]);
+    assert_eq!(g.films.finished, Some(Film::Credits), "Smk_Skip runs Smk_OnFinished");
+}
+
+fn season_turns_under(a: &Assets, multiplayer: bool, open: &[ScreenId]) -> (Machine, Game) {
+    let mut g = realms();
+    g.multiplayer = multiplayer;
+    ai_turns_over(&mut g);
+    g.issue(l2_game::command::EndTurn {});
+    let mut m = Machine::new(ScreenId::Campaign);
+    for id in open {
+        m.push(*id);
+    }
+    let before = g.kingdom.turn_count;
+    for _ in 0..2_000 {
+        tick(&mut m, &mut g, &a);
+        if g.kingdom.turn_count > before {
+            break;
+        }
+    }
+    assert!(g.kingdom.turn_count > before, "the season turns under {open:?}");
+    (m, g)
+}
+
+/// FUN_0043AD25 00430000.c:6185 `g_screenId = 0` under any screen. 0x2E has
+/// DAT_004E31B0 0 and is not in Screen_FrameInput's turn-end closes: only the season
+/// turn takes it down. Ablate the retain in `Machine::wind_turn` and it stays.
+#[test]
+fn the_season_turn_returns_a_single_player_to_the_map() {
+    let (_p, a) = install!();
+    let (m, _g) = season_turns_under(&a, false, &[ScreenId::Ratings]);
+    assert_eq!(m.ids(), vec![ScreenId::Campaign]);
+}
+
+/// 0x31 help (DAT_004E31B0 1) is out of single-player reach; a network season turns
+/// under it and FUN_0043AD25 closes it too.
+#[test]
+fn the_season_turn_returns_a_network_seat_to_the_map() {
+    use l2_game::screens::options::Page;
+    let (_p, a) = install!();
+    let (m, _g) = season_turns_under(&a, true, &[ScreenId::Ratings, ScreenId::Options(Page::Help)]);
+    assert_eq!(m.ids(), vec![ScreenId::Campaign]);
+}

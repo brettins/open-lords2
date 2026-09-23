@@ -1,6 +1,7 @@
 
 pub mod battles;
 pub mod cursors;
+pub mod hlp;
 pub mod maps;
 pub mod palette;
 pub mod pl8;

@@ -2407,14 +2407,15 @@
     },
     {
       "id": "0x0043AD25/film-skip-season-end",
-      "status": "missing",
+      "status": "reproduced",
       "group": "films",
       "screen": "0x22",
       "gesture": "frame",
       "addr": "0x0043AD25",
       "what": "FUN_0043AD25, which Turn_Tick's phase 7 runs before Season_Advance: on screen 0x22 it calls Smk_Skip, reloads the county art and draws screen 0. A capture film still playing when the season turns is cut off.",
-      "note": "Unreachable in ours rather than unbuilt: only the top screen is stepped, so a film on top pauses the turn and the season cannot turn under it. That is a divergence of its own -- the original's turn runs on while a capture film plays -- and it is the same one every message window already has here.",
-      "evidence": "V"
+      "note": "DAT_004E31B0[0x22] is 1, so FUN_004BB978 withholds the original's turn under a film in both modes. Ours winds a network turn under any screen (tick_gate [D] netcode), and Machine::wind_turn cuts the film, and closes every screen above the map (g_screenId = 0), when the season fade begins.",
+      "evidence": "V",
+      "ours": "crates/l2-game/src/screen/machine.rs"
     },
     {
       "id": "0x0043AE30/sidebar-castle",

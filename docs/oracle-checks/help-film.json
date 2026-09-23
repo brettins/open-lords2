@@ -1,0 +1,34 @@
+{
+  "reviewed": "27d9ad4961407630c4a46ec8764ebba770befae3",
+  "date": "2026-09-23",
+  "behaviours": [
+    {
+      "file": "crates/l2-game/src/screen/machine.rs",
+      "line": 256,
+      "address": "0x0043AD25",
+      "verdict": "match",
+      "note": "skip fires when the fade starts, after Season_Advance; Turn_Tick phase 7 runs FUN_0043AD25 before Season_Advance (00490000.c:4716-4718); fixed: [D] after Season_Advance in the same phase-7 frame, before any screen its step pushes; the stack is presentation (season-closes)"
+    },
+    {
+      "file": "crates/l2-game/src/screen/machine.rs",
+      "line": 259,
+      "address": "0x0042DF30",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screen/tick_gate.rs",
+      "line": 40,
+      "address": "0x0043AD25",
+      "verdict": "match",
+      "note": "g_screenId = 0 is unconditional in the original (00430000.c:6185); ours truncates the stack only when a film is above the campaign; fixed: general close now: season_keeps + retain in Machine::wind_turn, every screen but the scroll and tip host (season-closes)"
+    },
+    {
+      "file": "crates/l2-game/src/screen/tick_gate.rs",
+      "line": 39,
+      "address": "0x004BB978",
+      "verdict": "match",
+      "note": "[V] claim wrong: table byte 1 returns 0 in multiplayer too; only byte 2 is single-player-only, so the network reach comes from our netcode [D], not the original; fixed: relabelled [D] netcode (season-closes)"
+    }
+  ]
+}

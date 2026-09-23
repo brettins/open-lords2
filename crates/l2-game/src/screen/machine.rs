@@ -252,6 +252,23 @@ impl Machine {
             return false;
         };
         let t = self.stack[depth].wind_turn(ctx);
+        // arm: 0x0043AD25/film-skip-season-end frame
+        if !fading && self.stack[depth].fade().is_some() {
+            if let Some(film) = tick_gate::season_skips_film(&self.ids(), depth) {
+                // Smk_Skip 0x0042DF30 -> Smk_OnFinished
+                ctx.game.films.finished = Some(film);
+            }
+            // FUN_0043AD25 00430000.c:6185 `g_screenId = 0;` under every screen [V]. [D] after
+            // Season_Advance, not before (00490000.c:4716): the stack is presentation and
+            // closes the frame phase 7 runs, before any screen that step pushes [I].
+            let mut at = 0;
+            let before = self.stack.len();
+            self.stack.retain(|s| {
+                at += 1;
+                at <= depth + 1 || tick_gate::season_keeps(s.id())
+            });
+            self.dirty |= self.stack.len() != before;
+        }
         if self.stack[depth].take_redraw() {
             self.dirty = true;
         }
