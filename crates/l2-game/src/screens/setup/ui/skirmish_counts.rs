@@ -106,7 +106,7 @@ impl Skirmish {
             if self.kind != 2 {
                 return false;
             }
-            if self.local_attacks != (slot == 10) {
+            if self.local_defends != (slot == 10) {
                 return false;
             }
             if counts[slot] > 8 {

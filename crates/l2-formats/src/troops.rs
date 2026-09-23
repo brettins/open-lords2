@@ -54,9 +54,9 @@ pub struct Troops {
 /// Which of the three files `Troops_Load` opens (`00420000.c:4349-4369`), and
 /// the two globals are traced: `g_multiplayer` first, then
 /// `DAT_0053EF5C == g_localPlayer` — whether the local player is the
-/// **attacker**. `docs/formats/eng.md` §3.3 had this open.
-pub fn file_for(multiplayer: bool, local_attacks: bool) -> &'static str {
-    match (multiplayer, local_attacks) {
+/// **defender** (11/0x17). `docs/formats/eng.md` §3.3 had this open.
+pub fn file_for(multiplayer: bool, local_defends: bool) -> &'static str {
+    match (multiplayer, local_defends) {
         (true, _) => "TROOPS.ENG",
         (false, true) => "TROOPS2.ENG",
         (false, false) => "TROOPS3.ENG",

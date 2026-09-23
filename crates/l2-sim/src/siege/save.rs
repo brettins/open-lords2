@@ -20,6 +20,7 @@ impl Encode for SiegeState {
         out.bool(self.drawbridge_down);
         out.u16(self.moat_filled);
         out.u16(self.wall_damage);
+        out.bool(self.skirmish);
         out.end_section();
     }
 }
@@ -37,6 +38,7 @@ impl Decode for SiegeState {
             drawbridge_down: input.bool()?,
             moat_filled: input.u16()?,
             wall_damage: input.u16()?,
+            skirmish: input.bool()?,
         })
     }
 }

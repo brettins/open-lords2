@@ -155,8 +155,8 @@ impl ShellAssets {
     /// The table `Troops_Load` (`00420000.c:4349-4369`) would have parsed:
     /// `TROOPS.ENG` in multiplayer, else `TROOPS2.ENG` when the local player
     /// attacks and `TROOPS3.ENG` when he does not.
-    pub fn troops(&self, multiplayer: bool, local_attacks: bool) -> Option<&l2_formats::Troops> {
-        self.troops.get(&key(l2_formats::troops::file_for(multiplayer, local_attacks)))
+    pub fn troops(&self, multiplayer: bool, local_defends: bool) -> Option<&l2_formats::Troops> {
+        self.troops.get(&key(l2_formats::troops::file_for(multiplayer, local_defends)))
     }
 
     /// One `.skr` by the name page 13 lists, parsed — `DAT_0053F5FC` as

@@ -111,7 +111,7 @@ impl SetupScreen {
         }
         // `g_realms[DAT_0053EF5C].shieldIndex + 0x12` at `:362` — the marker
         // that says which of the two stacks is attacking.
-        let attacker = if s.realm1_attacks() { 1 } else { 2 };
+        let attacker = if s.realm1_defends() { 1 } else { 2 };
         self.shield_frame(ctx, canvas, pen, attacker, 0x12, 0x114, 0x1AF);
     }
 

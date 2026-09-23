@@ -331,7 +331,7 @@ impl BattleRunner {
             // break-in arm in the same frame, and its `g_battleLoser` stands.
             if self.ai.breach_score == 0
                 && self.ai.siege_engine_count == 0
-                && self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL
+                && self.siege.failed_assault_ends()
             {
                 return Some(Conclusion { winner: SIDE_A, cause: End::AssaultFailed });
             }
@@ -345,7 +345,7 @@ impl BattleRunner {
 
     fn assault_repulsed(&mut self) {
         if !self.siege.is_siege
-            || self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL
+            || self.siege.failed_assault_ends()
             || self.ai.breach_score != 0
             || self.ai.siege_engine_count != 0
         {

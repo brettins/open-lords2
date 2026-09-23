@@ -626,6 +626,7 @@ impl Simulation for RunnerNetBattle {
         out.u8(s.drawbridge_down as u8);
         out.u16(s.moat_filled);
         out.u16(s.wall_damage);
+        out.u8(s.skirmish as u8);
         let mut fold: u64 = 0xcbf2_9ce4_8422_2325;
         for c in &self.runner.field.cells {
             for b in [c.terrain, c.flags, c.gfx, c.elevation, c.surface] {
