@@ -283,7 +283,7 @@ pub struct SuppliesScreen {
 /// **`g_sendSuppliesWidgets` (`0x004DD568`) as a table, with the kind byte each
 /// record carries**, in the order `Screen_DrawWidgets` walks it.
 ///
-/// Six kind-**4** spinners — the three rows' minus and plus, which therefore
+/// Four kind-**4** spinners — the two rows' minus and plus, which therefore
 /// auto-repeat — then the two kind-**5** thumbs at `0x004DD538`. Both kinds were
 /// already the words `docs/arms.json` filed these four arms under; what was
 /// missing was any code that behaved like them. `docs/decisions.md`
