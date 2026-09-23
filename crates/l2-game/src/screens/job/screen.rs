@@ -88,17 +88,12 @@ impl Screen for JobScreen {
             // else                    Net_SendCommand(0x21, 0);
             // ```
             //
-            // The multiplayer arm sends the *command* and lets the handler at
-            // `0x00447E5B` run `FUN_0043A997(g_selectedCounty, DAT_005530B8)` on
-            // every machine — which is this crate's lockstep model already, so
-            // the branch is one call here and the `Kingdom` method is the
-            // command. `docs/netcode.md`.
-            //
             // arm: 0x004BA9C8/blacksmith-weapon-choice left-press
             Event::Click { x, y } if self.job == BLACKSMITH => {
                 match weapon_at(x, y) {
                     Some(w) => {
-                        ctx.game.kingdom.set_weapon_type(self.county as usize, w);
+                        let county = self.county as usize;
+                        ctx.issue(crate::command::SetWeaponType { county, weapon: w });
                         // `FUN_0043A997` repaints the page through
                         // `Panel_JobBlacksmith` (`0x00413155`), whose last
                         // statement is `Gfx_MarkAllDirty()`.

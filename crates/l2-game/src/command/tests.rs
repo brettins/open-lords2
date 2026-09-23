@@ -51,6 +51,11 @@ fn samples() -> Vec<GameCommand> {
         DismissReport {}.into(),
         BattleOrder { op: BattleOp::Formation { unit: 7, formation: Formation::Column } }.into(),
         SendLetter { to: 2, kind: 1, gold: -1, county: 9, text: "Thou art; a knave".into() }.into(),
+        PostLetter { to: 4, kind: 0, gold: 70_000, county: 3 }.into(),
+        GiftReply { from: 3, gold: 301 }.into(),
+        EndAllianceReply { with: 5 }.into(),
+        SetWeaponType { county: 6, weapon: 4 }.into(),
+        SetIndustryShare { county: 7, share: 55 }.into(),
     ]
 }
 
@@ -177,6 +182,12 @@ const FORBIDDEN: &[&str] = &[
     "kingdom.paint_field(",
     "kingdom.toggle_industry(",
     "kingdom.toggle_army_foraging(",
+    "kingdom.post_letter(",
+    "kingdom.set_weapon_type(",
+    "kingdom.set_industry_share(",
+    "kingdom.offend(",
+    "break_alliance(",
+    "gift_reply(",
     "trade::trade(",
     "form_alliance(",
     "pay_for_help(",

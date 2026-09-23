@@ -146,7 +146,8 @@ impl ComposeScreen {
             self.sent = Some(Ok(self.kind));
             return Transition::Pop;
         }
-        ctx.game.kingdom.post_letter(me, self.target, self.kind, gold, self.county);
+        let (to, kind, county) = (self.target, self.kind.byte(), self.county);
+        ctx.issue(crate::command::PostLetter { to, kind, gold, county });
         self.sent = Some(Ok(self.kind));
         Transition::Pop
     }

@@ -327,7 +327,8 @@ pub fn system_voice(group: u16) -> Option<String> {
 /// **Silence is the common case.** 109 groups of the
 /// hundreds `L2.eng` holds have a system clip; a group outside all three bands
 /// is a message the narrator does not read, and `None` is that.
-pub fn message_voice(group: u16, variant: u8) -> Option<String> {
+pub fn message_voice(group: u16, variant: i32) -> Option<String> {
+    let variant = u8::try_from(variant).unwrap_or(u8::MAX);
     lord_voice(group, variant).or_else(|| system_voice(group))
 }
 

@@ -23,7 +23,8 @@ pub struct Record {
     pub to: u8,
     pub from: u8,
     pub group: u16,
-    pub variant: u8,
+    /// `+0x0C`, an int: a gift's gold rides here (`NetCmd_ReadDiploLetter` `0x00445960`). [V]
+    pub variant: i32,
     pub category: u8,
     pub county: u8,
     /// `+0x13`. **Not spare at all** in categories `0x00` and `0x01`: a non-zero
@@ -86,7 +87,7 @@ impl From<Letter> for Record {
             to: l.to,
             from: l.from,
             group: l.group,
-            variant: l.variant,
+            variant: l.variant.into(),
             category: l.category,
             county: l.county,
             spare: 0,
@@ -101,7 +102,7 @@ impl From<Ending> for Record {
             to: e.to,
             from: e.from,
             group: e.group,
-            variant: e.variant,
+            variant: e.variant.into(),
             category: e.category,
             county: 0,
             spare: 0,
@@ -117,7 +118,7 @@ impl Record {
             from: self.from,
             to: self.to,
             category: self.category,
-            variant: self.variant,
+            variant: self.variant as u8,
         }
     }
 }

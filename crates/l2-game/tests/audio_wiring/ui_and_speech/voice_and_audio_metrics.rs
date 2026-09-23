@@ -139,7 +139,7 @@ fn the_voice_class_is_84_percent_of_the_games_audio() {
     // the count came out one short — which is the check working.
     const TIP_GROUPS: std::ops::RangeInclusive<u16> = 200..=218;
     for group in (100..=300u16).filter(|g| !TIP_GROUPS.contains(g)) {
-        for variant in 0..16u8 {
+        for variant in 0..16i32 {
             if let Some(name) = l2_game::audio::names::message_voice(group, variant) {
                 audio.stop_and_play_file(&name, true);
             }

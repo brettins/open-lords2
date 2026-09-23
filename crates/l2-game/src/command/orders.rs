@@ -69,4 +69,9 @@ orders! {
     DismissReport {}
     BattleOrder { op: crate::battlefield::BattleOp }
     SendLetter { to: u8, kind: u8, gold: i32, county: u8, text: String }
+    PostLetter { to: u8, kind: u8, gold: i32, county: u8 }
+    GiftReply { from: u8, gold: i32 }
+    EndAllianceReply { with: u8 }
+    SetWeaponType { county: usize, weapon: usize }
+    SetIndustryShare { county: usize, share: i32 }
 }

@@ -250,7 +250,7 @@ impl Film {
     pub fn voice(&self) -> Option<(u16, u8)> {
         match self {
             Film::Capture { record, .. } | Film::Ending { record, .. } => {
-                Some((record.group, record.variant))
+                Some((record.group, record.variant as u8))
             }
             _ => None,
         }

@@ -38,6 +38,20 @@ pub fn post(
     realms[to_i].gold += gold;
 }
 
+/// `NetAct_DiploReply` (`0x00448339`), action 0x2B of opcode 0x4A: a human lord's
+/// gift lands only if the sender still holds it, and `+0x8C + from * 0x10` is
+/// overwritten, not maxed. [V]
+pub fn gift_reply(realms: &mut [Realm], to: u8, from: u8, gold: i32) -> bool {
+    let (to, from) = (to as usize, from as usize);
+    if to >= realms.len() || from >= realms.len() || gold > realms[from].gold {
+        return false;
+    }
+    realms[to].gold += gold;
+    realms[from].gold -= gold;
+    realms[to].pair_mut(from as u8).best_gift = gold;
+    true
+}
+
 /// **AI turn step 1** — `Diplo_AnswerInbox` (`0x004A277D`).
 ///
 /// Because a human realm's AI turn is skipped entirely (`realm +0x05`), a
@@ -86,6 +100,24 @@ pub fn answer_inbox(
 /// `g_realmsActive` (`0x00554004`) as *"realms still in play"*.
 pub fn realms_active(realms: &[Realm]) -> usize {
     realms.iter().skip(1).take(MAX_REALMS - 1).filter(|r| r.strength != 0).count()
+}
+
+#[cfg(test)]
+mod gift_reply_tests {
+    use super::*;
+
+    /// Ablation: `gold > realms[from].gold` or `best_gift = gold` in `gift_reply`.
+    #[test]
+    fn a_seats_gift_lands_only_while_the_sender_holds_it() {
+        let mut realms = vec![Realm::new(); MAX_REALMS];
+        (realms[1].gold, realms[2].gold) = (300, 0);
+        realms[2].pair_mut(1).best_gift = 900;
+        assert!(gift_reply(&mut realms, 2, 1, 300));
+        assert_eq!((realms[1].gold, realms[2].gold), (0, 300));
+        assert_eq!(realms[2].pair(1).best_gift, 300, "`+0x8C + from * 0x10` = gold, not max");
+        assert!(!gift_reply(&mut realms, 2, 1, 1), "spent since sending");
+        assert_eq!((realms[1].gold, realms[2].gold), (0, 300));
+    }
 }
 
 

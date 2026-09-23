@@ -109,7 +109,7 @@ impl MapScreen {
             return;
         };
         let next = split_from_click(x, current);
-        if next != current && ctx.game.kingdom.set_industry_share(id, next) {
+        if next != current && ctx.issue(crate::command::SetIndustryShare { county: id, share: next }) {
             self.status = format!("INDUSTRY {next}% FARM {}%", 100 - next);
         }
     }
