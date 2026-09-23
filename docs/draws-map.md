@@ -15,7 +15,7 @@ node tools/draws/mapdraws.js --sites   # every call site, one line each
 ## 0. The headline
 
 > **The campaign map makes 139 draw calls. 121 of them are live, 10 are behind debug
-> switches and 8 are dead code. We reproduce 71 of the 121, and we make about 29 draws the
+> switches and 8 are dead code. We reproduce 92 of the 121, and we make about 29 draws the
 > original does not.**
 
 **Read `reproduced` as coverage and not as fidelity** — it means *we make a corresponding
@@ -41,10 +41,16 @@ The misses are not evenly spread. Three areas hold 42 of the 50, and each is one
 
 | area | live | ours | missing | which hiding place |
 |---|---:|---:|---:|---|
-| `Sprite_TopIt`'s tile overlays | 18 | 4 | **14** | a ladder whose arms nobody enumerated |
+| `Sprite_TopIt`'s tile overlays | 18 | 18 | 0 | a ladder whose arms nobody enumerated |
 | the sidebar's produce and industry rows | 31 | 10 | **21** | a variable widget count |
 | drawn from `Battle_Frame`, not from a painter | 16 | 9 | **7** | outside the painter |
-| everything else | 56 | 48 | 8 | — |
+| everything else | 56 | 55 | 1 | — |
+
+**2026-09-23 re-read.** 71 → 92: thirteen were built and never credited (`Sprite_TopIt`'s
+eight industry frame writes and both herd arms; the path ball's `0x4E`; three menu-bar draws);
+eight are new (the damage animation, arms 3 and 5c; both `Map_DrawArmies` banners; the menu
+bar's bevel). **Unsettled:** §2's strip-row column sums to 27 of 31; the row above says 10.
+The prose below the table still reads as of 71.
 
 ---
 
@@ -88,11 +94,11 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0042A8D1` | `0x0042A8D1` | surround, left half | live | 1 | 1 |
 | `FUN_0042A9AB` | `0x0042A9AB` | surround, right half | live | 1 | 1 |
 | `FUN_00405602` | `0x00405602` | a zoom-1 edge fill | live¹ | 1 | 0 |
-| **`Sprite_TopIt`** | `0x004071A0` | **six tile overlays** | live | **18** | **4** |
+| **`Sprite_TopIt`** | `0x004071A0` | **six tile overlays** | live | **18** | **18** |
 | `FUN_00407F82` | `0x00407F82` | the besieger's banner and its count | live | 2 | 2 |
-| `Map_DrawPathMarker` | `0x004081A6` | a path ball | live | 2 | 1 |
-| `Map_DrawArmies` | `0x00408438` | a unit, and its banner | live | 3 | 1 |
-| `Screen_DrawMenuBar` | `0x00419C78` | the 640 × 24 bar | live | 8 | 4 |
+| `Map_DrawPathMarker` | `0x004081A6` | a path ball | live | 2 | 2 |
+| `Map_DrawArmies` | `0x00408438` | a unit, and its banner | live | 3 | 3 |
+| `Screen_DrawMenuBar` | `0x00419C78` | the 640 × 24 bar | live | 8 | 8 |
 | `CountyStrip_Draw` | `0x0040F7D3` | the county strip | live | 18 | 18 |
 | `FUN_004100AF` | `0x004100AF` | strip row: cattle | live | 5 | 4 |
 | `FUN_0041023A` | `0x0041023A` | strip row: grain | live | 5 | 4 |
@@ -110,7 +116,7 @@ dispatcher sets; **dead** = no caller, or an unreachable zoom.
 | `FUN_0042476B` | `0x0042476B` | the network-wait glyph | live | 1 | 0 |
 | `FUN_0041A639` | `0x0041A639` | the turn timer | live | 2 | 2 |
 | `FUN_0041A844` | `0x0041A844` | the multiplayer heartbeat | live | 2 | 0 |
-| **`FUN_00476E95`** | `0x00476E95` | **the tooltip** | live | 4 | 4 |
+| **`ToolTip_Draw`** | `0x00476E95` | **the tooltip** | live | 4 | 4 |
 | `FUN_00408C50` | `0x00408C50` | two per-tile debug numbers | debug | 2 | 0 |
 | `FUN_004248A3` | `0x004248A3` | a four-number debug box | debug | 5 | 0 |
 | `FUN_004247F5` | `0x004247F5` | `DUMB VIEW ON` | debug | 3 | 0 |
