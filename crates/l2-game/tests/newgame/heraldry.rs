@@ -25,6 +25,7 @@ fn walk_taking(assets: &Assets, game: &mut Game, shield: u8) -> (SetupScreen, Tr
     let mut screen = SetupScreen::new(SetupPage::Title);
     let r = item_rect(1);
     click(&mut screen, game, assets, r.x + 20, r.y + r.h / 2);
+    screen.set_network(false);
     assert_eq!(screen.page(), SetupPage::Shield, "the title menu did not open page 4");
 
     // The shield itself. `FUN_0041F1DD` lays the five out at
@@ -182,6 +183,7 @@ fn re_picking_the_same_shield_changes_nothing() {
     let mut screen = SetupScreen::new(SetupPage::Title);
     let r = item_rect(1);
     click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
+    screen.set_network(false);
 
     assert_eq!(screen.shield(), 1, "page 4 opens on red");
     let (x, y) = (SHIELD_X + 2 * SHIELD_STEP + SHIELD_W / 2, SHIELD_Y + SHIELD_H / 2);
