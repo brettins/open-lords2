@@ -67,17 +67,9 @@
 //! this screen: the frame loop paints both every frame whatever the screen id
 //! is, and a battle is the one thing that stops them.
 //!
-//! Two of the five buttons open `Ui_OpenConfirm` (`0x0040E6F2`), which is screen
-//! `0x1E`, a screen this tree does not have. The prompt indices are the
-//! original's — `L2.eng` group 10, index 12 *"Retreat from field?"*, 11
-//! *"Surrender castle?"*, 9 *"Autocalc battle?"* — and so is the geometry, a
-//! 14 × 8 cell box at `(g_confirmX − 16, g_confirmY − 16)` with the thumbs at
-//! `+ (64, 46)` and `+ (112, 50)`. **What is ours is that it is drawn by this
-//! screen instead of by `Screen_ConfirmBox` on a screen of its own** — and that
-//! is now the only thing left that is: the ground is `Screen_ConfirmBox`'s own
-//! `FUN_004093E0(…, 0xE, 8)` in border set 1, and
-//! the two pictures are `g_confirmWidgets`' frames 29 and 31
-//! close corner and its neighbour.
+//! Two of the five buttons open `Ui_OpenConfirm` (`0x0040E6F2`), screen `0x1E`:
+//! [`crate::screens::confirm`], prompts 10/12, 10/11, 10/9. `Battle_Frame`
+//! 0x004B99C0 steps the men while `g_screenId < 0x2B`, so the fight runs under it.
 //!
 //! `Screen_BattleOutcome` (`0x00423241`) has three arms. The short window is
 //! the one with animations off. The animated arm — `g_optAnimations` set and
@@ -101,8 +93,9 @@ use crate::battlefield::{
     VIEW_ROWS,
 };
 use crate::input::{Event, Key, Rect};
-use crate::press::{Press, Widget};
+use crate::press::Widget;
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
+use crate::screens::confirm::Ask;
 use crate::screens::menubar;
 use crate::shell::{font, Pen};
 use crate::turn::{self, TurnStep};
@@ -153,9 +146,6 @@ pub const OUTCOME_HEAD: (i32, i32) = (0x30, 0xA8);
 pub const OUTCOME_BODY: (i32, i32, i32) = (0x30, 0xE0, 0x180);
 
 pub struct BattlefieldScreen {
-    /// The open yes/no box's `L2.eng` group 10 prompt index, if one is up.
-    confirm: Option<usize>,
-    press: Press,
     redraw: bool,
     outcome_seen: bool,
     overview: Overview,
@@ -174,8 +164,6 @@ pub struct BattlefieldScreen {
 impl BattlefieldScreen {
     pub fn new() -> BattlefieldScreen {
         BattlefieldScreen {
-            confirm: None,
-            press: Press::new(),
             redraw: true,
             outcome_seen: false,
             overview: Overview::new(),
@@ -251,7 +239,12 @@ impl BattlefieldScreen {
             Button::Pause => {
                 live.press_pause();
             }
-            Button::Retreat => self.confirm = live.press_retreat(),
+            // Ui_OpenConfirm 0x0040E6F2 is screen 0x1E, the one `ConfirmScreen`.
+            Button::Retreat => {
+                if let Some(p) = live.press_retreat() {
+                    return Transition::Push(ScreenId::Confirm(Ask::battle(p)));
+                }
+            }
             Button::Sally => {
                 let _ = is_siege;
                 let _ = live.press_sally(garrison_is_local);
@@ -259,22 +252,14 @@ impl BattlefieldScreen {
             Button::Charge => {
                 live.press_charge();
             }
-            Button::Autocalc => self.confirm = live.press_autocalc(),
+            Button::Autocalc => {
+                if let Some(p) = live.press_autocalc() {
+                    return Transition::Push(ScreenId::Confirm(Ask::battle(p)));
+                }
+            }
         }
         self.redraw = true;
         Transition::Stay
-    }
-
-    fn answer_confirm(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
-        self.confirm = None;
-        self.redraw = true;
-        if !yes {
-            return Transition::Stay;
-        }
-        if let Some(live) = BattlefieldScreen::live(ctx) {
-            live.confirm_autocalc();
-        }
-        self.settle(ctx)
     }
 
     fn settle(&mut self, ctx: &mut Ctx) -> Transition {
@@ -324,18 +309,10 @@ impl Default for BattlefieldScreen {
     }
 }
 
-/// `L2.eng` group 10's three battle prompts, for an install without it.
-fn ours_confirm(prompt: usize) -> &'static str {
-    match prompt {
-        9 => "AUTOCALC BATTLE?",
-        11 => "SURRENDER CASTLE?",
-        _ => "RETREAT FROM FIELD?",
-    }
-}
-
 /// **`Battle_SelectOutcomeBanner` (`0x00478419`)** — which of group 82's pairs,
 /// and so which row of [`crate::movie::BATTLE_FILMS`].
 fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
+    // Screen_BattleOutcome 0x00423241, `00420000.c:983-984`: owner 0 draws 0xC/0xD.
     if live.choice_owner == 0 {
         return 6;
     }

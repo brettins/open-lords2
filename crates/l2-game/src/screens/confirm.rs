@@ -48,6 +48,12 @@ pub enum Ask {
     Quit,
     /// `Menu_NewGame` → `FUN_00433DEB`.
     NewGame,
+    /// `Battle_AutocalcButton` 0x0043BD67 → `FUN_0043BDCD`, 10/9.
+    Autocalc,
+    /// `Battle_RetreatButton` 0x0043BA29 on a siege → `FUN_0043BAF9`, 10/11 (`00430000.c:6746`).
+    Surrender,
+    /// `Battle_RetreatButton` 0x0043BA29 → `FUN_0043BB68`, 10/12 (`00430000.c:6743`).
+    Retreat,
 }
 
 impl Ask {
@@ -56,6 +62,18 @@ impl Ask {
         match self {
             Ask::Quit => QUIT_PROMPT,
             Ask::NewGame => NEW_GAME_PROMPT,
+            Ask::Autocalc => 9,
+            Ask::Surrender => 11,
+            Ask::Retreat => 12,
+        }
+    }
+
+    /// The battle's three, by the index its buttons pass `Ui_OpenConfirm`.
+    pub fn battle(prompt: usize) -> Ask {
+        match prompt {
+            9 => Ask::Autocalc,
+            11 => Ask::Surrender,
+            _ => Ask::Retreat,
         }
     }
 
@@ -66,6 +84,9 @@ impl Ask {
         match self {
             Ask::Quit => "Exit the game?",
             Ask::NewGame => "Start a new game?",
+            Ask::Autocalc => "Autocalc battle?",
+            Ask::Surrender => "Surrender castle?",
+            Ask::Retreat => "Retreat from field?",
         }
     }
 }
@@ -87,12 +108,24 @@ impl ConfirmScreen {
     /// `Ui_ConfirmClicked` (`0x00434E1F`) is `g_confirmAnswer = g_uiHotspotId;
     /// (*g_confirmCallback)();` — index 0 is the thumb up, index 1 the thumb
     /// down.
-    fn answer(&mut self, yes: bool) -> Transition {
+    fn answer(&mut self, ctx: &mut Ctx, yes: bool) -> Transition {
         if !yes {
             return Transition::Pop;
         }
         match self.ask {
             Ask::Quit => Transition::Quit,
+            // FUN_0043BAF9 / FUN_0043BB68 / FUN_0043BDCD: `g_screenId = g_screenIdSaved;`, then on
+            // yes `Battle_GiveUp` 0x0043BE65. [I] ours settles on the battlefield's next frame.
+            // [V] Retreat/surrender's yes also writes `DAT_005653F4 = 1`/`2` (00430000.c:6783/6762):
+            // xref touches finds it read only by NetCmd_Write_3E, as action 0x27's argument, which
+            // NetAct_GiveUpDeferred 0x0044829F ignores; Battle_GiveUp does not read it. Not kept.
+            // `DAT_00553ED8 = 1` on either answer is FUN_00423530's men-panel redraw count.
+            Ask::Autocalc | Ask::Surrender | Ask::Retreat => {
+                if let Some(live) = ctx.game.battle.as_deref_mut() {
+                    live.confirm_autocalc();
+                }
+                Transition::Pop
+            }
             // **Inferred.** `FUN_00433DEB`'s single-player yes is
             // `DAT_005C9274 = 1; DAT_005AEB8C = 0; FUN_004B11CE();` — the game
             // is torn down and the front end comes back. `FUN_004B11CE` is not
@@ -140,7 +173,7 @@ impl Screen for ConfirmScreen {
         }
         if let Some(widget) = self.press.tick().next() {
             self.redraw = true;
-            return self.answer(widget == 0);
+            return self.answer(ctx, widget == 0);
         }
         Transition::Stay
     }

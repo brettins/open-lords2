@@ -53,10 +53,8 @@ impl DropdownScreen {
             // arm: 0x0040DECA/options-and-help-pages left-press
             Item::Options(page) => Transition::Replace(ScreenId::Options(page)),
             // arm: 0x0040DECA/options-sliders left-press
-            Item::Slider(what) => {
-                self.status = format!("{what} IS ON THE ADVANCED PAGE - NO SPINNER (SCREEN 0x21)");
-                Transition::Stay
-            }
+            // Menu_GameSpeed 0x00434CBE / Menu_ScrollSpeed 0x00434CEE → Ui_OpenSlider, screen 0x21.
+            Item::Slider(spin) => Transition::Replace(ScreenId::Slider(spin)),
             // `Menu_HelpHowDoI` (`0x0043480C`) and its four siblings, read
             // whole: `Msg_Enqueue(0, g_localPlayer, 0x123, 0, 0x13, 0, 0, 0);
             // g_screenId = g_menuPrevScreen;`. Five consecutive ids, 0x123 …

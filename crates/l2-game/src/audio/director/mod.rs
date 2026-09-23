@@ -124,7 +124,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
     use crate::screen::ScreenId as S;
     match id {
         S::Setup(_) | S::Menu | S::Index => true,
-        S::Confirm(_) => false,
+        S::Confirm(_) | S::Slider(_) => false,
         S::Movie(film) => film.is_front_end(),
         S::Campaign
         | S::County(..)
