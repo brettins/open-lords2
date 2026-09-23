@@ -1,14 +1,57 @@
 {
   "generated_by": "node tools/draws/drawcoords.js --write",
   "totals": {
-    "compared": 142,
-    "exact": 142,
-    "original_points": 492,
-    "original_blind": 529,
-    "our_points": 172,
-    "our_blind": 422,
-    "original_only": 350,
-    "ours_only": 30
+    "compared": 151,
+    "exact": 149,
+    "original_points": 553,
+    "original_blind": 479,
+    "our_points": 193,
+    "our_blind": 489,
+    "original_only": 402,
+    "ours_only": 42
   },
-  "near_misses": []
+  "near_misses": [
+    {
+      "module": "setup",
+      "kind": "point",
+      "d": 10,
+      "original": {
+        "name": "FUN_00409346",
+        "from": "FUN_0041ea14",
+        "x": 160,
+        "y": 10,
+        "w": null
+      },
+      "ours": {
+        "name": "blit",
+        "file": "setup/ui/input.rs",
+        "line": 203,
+        "x": 160,
+        "y": 0,
+        "w": null
+      },
+      "reason": null
+    },
+    {
+      "module": "county",
+      "kind": "point",
+      "d": 2,
+      "original": {
+        "name": "Ui_HistoryGraph",
+        "from": "Panel_Population",
+        "x": 32,
+        "y": 84,
+        "w": null
+      },
+      "ours": {
+        "name": "blit",
+        "file": "county/draw/screen/graph.rs",
+        "line": 63,
+        "x": 33,
+        "y": 85,
+        "w": null
+      },
+      "reason": null
+    }
+  ]
 }

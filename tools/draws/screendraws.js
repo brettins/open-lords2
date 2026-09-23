@@ -738,7 +738,7 @@ function allModules() {
     .map(e => e.name);
 }
 module.exports = {
-  originalSites, ourSites, ourKinds, allModules, marksOn, moduleMarks, moduleFiles, inventory, OURS, LEAF,
+  originalSites, ourSites, ourKinds, allModules, marksOn, moduleMarks, lookup, moduleFiles, inventory, OURS, LEAF,
   balanced, splitArgs, corpusLoaded: () => byName.size > 0,
 };
 
