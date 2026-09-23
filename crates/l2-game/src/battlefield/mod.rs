@@ -318,7 +318,8 @@ pub struct LiveBattle {
     /// `DAT_0055322C`, one per process, so one bit per realm here: `Battle_ChargeButton`
     /// 0x0043BD02 fires once per battle for its `g_localPlayer`, never for another seat.
     pub charged: u8,
-    /// `DAT_0052AF9C` — the sally likewise.
+    /// `DAT_0052AF9C`, one for the field [V]: `Battle_GateButton` 0x0043BBE7 sends 0x45 and
+    /// every peer's `NetAct_Gate` 0x0044828F runs `Siege_LowerDrawbridge` 0x00496B9F, which sets it.
     pub sallied: bool,
     /// `DAT_0053E984`, the unit the player's selection currently *is*.
     pub current_unit: usize,
