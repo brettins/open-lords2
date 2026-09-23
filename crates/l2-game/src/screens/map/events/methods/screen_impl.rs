@@ -384,7 +384,7 @@ impl Screen for MapScreen {
                             let terrain = ctx.game.kingdom.campaign.map.terrain[tile];
                             match industry::map_toggle_for_graphic(terrain) {
                                 Some(what) => {
-                                    let on = ctx.game.kingdom.toggle_industry(county as usize, what);
+                                    let on = ctx.issue(crate::command::ToggleIndustry { county: county as usize, what });
                                     let player = ctx.game.player;
                                     ctx.game.messages.enqueue(
                                         crate::message::Record {

@@ -299,17 +299,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
         Prompt::PayForHelp => {
             message::dismiss(ctx.game);
             if yes {
-                let me = ctx.game.player;
-                let ally = ctx.game.kingdom.realms[me as usize].ally;
-                let county = ctx.game.kingdom.diplomacy.help_county;
-                let price = ctx.game.kingdom.diplomacy.help_price;
-                l2_kingdom::diplomacy::pay_for_help(
-                    &mut ctx.game.kingdom.realms,
-                    ally,
-                    me,
-                    county,
-                    price,
-                );
+                ctx.issue(crate::command::PayForHelp {});
             }
             Transition::Pop
         }
@@ -318,8 +308,7 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
             let offerer = ctx.game.messages.open().map_or(0, |r| r.from);
             message::dismiss(ctx.game);
             if yes && offerer != 0 {
-                let me = ctx.game.player;
-                l2_kingdom::diplomacy::form_alliance(&mut ctx.game.kingdom.realms, me, offerer);
+                ctx.issue(crate::command::FormAlliance { offerer });
             }
             Transition::Pop
         }

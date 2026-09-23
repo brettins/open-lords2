@@ -156,15 +156,14 @@ impl TradeScreen {
     pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         let q = self.quote(&Ctx { game: ctx.game, assets: ctx.assets });
         let county = self.county(&Ctx { game: ctx.game, assets: ctx.assets });
-        let order = Order {
+        let order = crate::command::Trade {
             qty: self.qty,
             good: self.good,
             buy_price: q.buy,
             sell_price: q.sell,
-            realm: ctx.game.player as usize,
             county,
         };
-        match l2_kingdom::trade::trade(&mut ctx.game.kingdom, order) {
+        match ctx.issue(order) {
             Ok(r) if self.qty == 0 => {
                 let _ = r;
                 Transition::Pop

@@ -80,27 +80,25 @@ impl CastleScreen {
 
     pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         let want = self.castle_type(ctx);
-        let t = ctx.game.kingdom.tables;
-        let county = &mut ctx.game.kingdom.counties[self.county as usize];
-        if let Some(why) = industry::castle_refusal(&t, county, want) {
-            self.choice = CastleChoice::Refused(why);
-            self.message = Some(match why {
-                // `L2.eng` 147/1 and 290/1, the two the original sends.
-                CastleRefusal::AlreadyBuilt => {
-                    "THE CASTLE IN THIS COUNTY IS ALREADY OF THE TYPE YOU PROPOSE"
-                }
-                CastleRefusal::Downgrade => {
-                    "YOUR CURRENT CASTLE IS STRONGER THAN THE ONE YOU PROPOSE, MY LORD"
-                }
-                CastleRefusal::NoSuchType => "THERE IS NO SUCH CASTLE",
-            });
-            return Transition::Pop;
+        let order = crate::command::OrderCastle { county: self.county, castle: want };
+        match ctx.issue(order) {
+            crate::command::Castled::Refused(why) => {
+                self.choice = CastleChoice::Refused(why);
+                self.message = Some(match why {
+                    // `L2.eng` 147/1 and 290/1, the two the original sends.
+                    CastleRefusal::AlreadyBuilt => {
+                        "THE CASTLE IN THIS COUNTY IS ALREADY OF THE TYPE YOU PROPOSE"
+                    }
+                    CastleRefusal::Downgrade => {
+                        "YOUR CURRENT CASTLE IS STRONGER THAN THE ONE YOU PROPOSE, MY LORD"
+                    }
+                    CastleRefusal::NoSuchType => "THERE IS NO SUCH CASTLE",
+                });
+                return Transition::Pop;
+            }
+            crate::command::Castled::Ownerless => return Transition::Pop,
+            crate::command::Castled::Ordered => {}
         }
-        let owner = county.owner as usize;
-        let l2_kingdom::Kingdom { counties, realms, campaign, .. } = &mut ctx.game.kingdom;
-        let Some(realm) = realms.get_mut(owner) else { return Transition::Pop };
-        industry::order_castle(&t, &mut counties[self.county as usize], realm, want);
-        l2_kingdom::map::stamp_castle_terrain(&mut campaign.map, self.county, want);
         self.choice = CastleChoice::Ordered(want);
         self.message = Some("CONSTRUCTION BEGINS");
         if ctx.game.prefs.animations {

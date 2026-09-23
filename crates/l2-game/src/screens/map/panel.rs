@@ -59,8 +59,7 @@ impl MapScreen {
             self.status = "THE ARMY STANDS".into();
             return Transition::Stay;
         }
-        let units = &mut ctx.game.kingdom.campaign.units;
-        self.status = match l2_kingdom::unit::combine(units, occupant, mover) {
+        self.status = match ctx.issue(crate::command::CombineArmies { occupant, mover }) {
             Ok(men) => format!("COMBINED - {men} MEN"),
             // `L2.eng` 274, the original's own refusal for the cap.
             Err(l2_kingdom::unit::CombineRefusal::TooMany) => {

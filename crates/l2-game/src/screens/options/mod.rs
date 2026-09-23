@@ -209,7 +209,7 @@ pub fn quirk_reproduced(row: QuirkRow, game: &crate::Game) -> bool {
 
 pub fn set_quirk(row: QuirkRow, reproduced: bool, game: &mut crate::Game) {
     match row.home {
-        Home::Behavioural(q) => game.kingdom.options.quirks.set_reproduced(q, reproduced),
+        Home::Behavioural(q) => game.issue(crate::command::SetQuirk { quirk: q, reproduced }),
         Home::Presentation(field) => game.presentation_quirks.set_fixed(field, !reproduced),
     }
 }

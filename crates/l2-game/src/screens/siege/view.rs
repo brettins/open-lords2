@@ -51,13 +51,12 @@ impl SiegeScreen {
     /// Order one more of an engine, or one fewer — `0x0043B681` and
     /// `0x0043B741`, both of which end in `0x0043B7C4`.
     pub fn order(&mut self, ctx: &mut Ctx, engine: Engine, delta: i16) -> bool {
-        siege::order_engine(&mut ctx.game.kingdom.campaign.units, self.unit, engine, delta)
+        ctx.issue(crate::command::OrderEngine { unit: self.unit, engine, delta })
     }
 
     /// *"Lift siege"*, `L2.eng` 83/6.
     fn lift(&mut self, ctx: &mut Ctx) -> Transition {
-        let l2_kingdom::Kingdom { counties, campaign, .. } = &mut ctx.game.kingdom;
-        siege::break_siege(counties, &mut campaign.units, self.unit);
+        ctx.issue(crate::command::LiftSiege { unit: self.unit });
         self.choice = SiegeChoice::Lift;
         Transition::Pop
     }

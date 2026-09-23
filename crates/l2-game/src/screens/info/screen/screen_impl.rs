@@ -132,7 +132,7 @@ impl Screen for InfoScreen {
                             0x13 => l2_kingdom::field::FieldType::Pasture,
                             _ => l2_kingdom::field::FieldType::Reclaiming,
                         };
-                        let _ = ctx.game.kingdom.paint_field(county, tile, kind);
+                        let _ = ctx.issue(crate::command::PaintField { county, tile, kind });
                     }
                     return Transition::Pop;
                 }
@@ -191,7 +191,7 @@ impl Screen for InfoScreen {
                     // when the castle is besieged — `Battle_BeginFromCampaign`
                     // (`0x004A7158`), staged by `Game::leave_castle`; the
                     // prompt comes up on the map behind this pop.
-                    (0, true) => match ctx.game.leave_castle(id) {
+                    (0, true) => match ctx.issue(crate::command::LeaveCastle { unit: id }) {
                         LeftCastle::Marched { tile, .. } => {
                             self.status = format!("MARCHED OUT TO {},{}", tile.0, tile.1);
                             Transition::Pop
@@ -218,7 +218,7 @@ impl Screen for InfoScreen {
                     // status line of ours.
                     //
                     // arm: 0x00437002/info-disband left-press
-                    (1, _) => match ctx.game.disband_army(id) {
+                    (1, _) => match ctx.issue(crate::command::DisbandArmy { army: id }) {
                         Ok((county, men)) => {
                             let name = super::super::super::county::county_name(&*ctx, county);
                             self.status = format!("{men} MEN WENT HOME TO {name}");

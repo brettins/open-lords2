@@ -89,7 +89,13 @@ impl ArmouryScreen {
         let affordable = band != 0
             && ctx.game.gold() >= l2_kingdom::mercenary::ROSTER[band as usize].price;
         let hire = (levy.hire && affordable).then_some(band);
-        match ctx.game.raise_army(self.county, &levy.basket, levy.happiness_cost, hire) {
+        let order = crate::command::RaiseArmy {
+            county: self.county,
+            basket: levy.basket,
+            happiness_cost: levy.happiness_cost,
+            hire,
+        };
+        match ctx.issue(order) {
             Ok(id) => {
                 self.outcome = Raised::Army(id);
                 ctx.game.levy = crate::game::LevyOrder { percent: levy.percent, ..Default::default() };

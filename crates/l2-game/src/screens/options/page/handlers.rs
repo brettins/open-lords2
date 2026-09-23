@@ -136,12 +136,13 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
         let read = Ctx { game: ctx.game, assets: ctx.assets };
         value(setting, &read)
     };
-    let o = &mut ctx.game.kingdom.options;
+    use crate::command::{GameOption, ToggleOption};
+    let rule = |option| ToggleOption { option };
     match setting {
-        Setting::AdvancedFarming => o.advanced_farming = !on,
-        Setting::ArmyForaging => ctx.game.kingdom.toggle_army_foraging(),
-        Setting::Exploration => o.exploration = !on,
-        Setting::FightHumansOnly => o.fight_humans_only_byte = u8::from(on),
+        Setting::AdvancedFarming => ctx.issue(rule(GameOption::AdvancedFarming)),
+        Setting::ArmyForaging => ctx.issue(rule(GameOption::ArmyForaging)),
+        Setting::Exploration => ctx.issue(rule(GameOption::Exploration)),
+        Setting::FightHumansOnly => ctx.issue(rule(GameOption::FightHumansOnly)),
         Setting::Music => ctx.game.prefs.music = !on,
         Setting::SoundEffects => ctx.game.prefs.effects = !on,
         Setting::Speech => ctx.game.prefs.speech = !on,

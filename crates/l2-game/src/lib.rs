@@ -14,6 +14,7 @@ pub mod battlefield;
 pub mod build_id;
 pub mod castle;
 pub mod clock;
+pub mod command;
 pub mod cursor;
 pub mod engagement;
 pub mod game;

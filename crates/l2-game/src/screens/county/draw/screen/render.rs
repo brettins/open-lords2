@@ -59,11 +59,11 @@ impl CountyScreen {
         match self.panel {
             Panel::Tax => {
                 let next = (c.tax_rate + step).clamp(0, MAX_TAX_RATE);
-                ctx.game.set_tax_rate(id, next);
+                ctx.issue(crate::command::SetTaxRate { county: id, rate: next });
             }
             Panel::Ration => {
                 let next = (c.ration_wanted + step).clamp(0, RATION_LEVEL_COUNT as i32 - 1);
-                ctx.game.set_ration(id, next);
+                ctx.issue(crate::command::SetRation { county: id, level: next });
             }
             Panel::Population | Panel::Happiness => {}
         }
@@ -93,7 +93,7 @@ impl CountyScreen {
         };
         let next = next.clamp(0, MAX_RATION_SPLIT);
         if next != current {
-            ctx.game.set_ration_split(self.county, next, sweep);
+            ctx.issue(crate::command::SetRationSplit { county: self.county, split: next, sweep });
         }
         true
     }

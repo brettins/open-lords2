@@ -78,29 +78,9 @@ impl SuppliesScreen {
         // `FUN_0043B145` — `Transport_Spawn`, then the source county's ration,
         // labour, crowding and estimate passes. The second of the original's
         // two identical passes is not reproduced: nothing between them moves.
-        let k = &mut ctx.game.kingdom;
-        let owner = k.counties[self.from as usize].owner;
-        let sent = l2_kingdom::supply::spawn(
-            &k.campaign.map,
-            &mut k.counties,
-            &mut k.campaign.units,
-            owner,
-            self.from,
-            self.to,
-            grain,
-            cattle,
-        );
-        self.outcome = match sent {
-            l2_kingdom::supply::Sent::Unit(_) => {
-                let tables = k.tables;
-                let Kingdom { counties, campaign, .. } = k;
-                l2_kingdom::field::herd_update_crowding(
-                    &tables,
-                    &mut counties[self.from as usize],
-                    &mut campaign.map,
-                );
-                Dispatch::Sent(grain, cattle)
-            }
+        let order = crate::command::SendSupplies { from: self.from, to: self.to, grain, cattle };
+        self.outcome = match ctx.issue(order) {
+            l2_kingdom::supply::Sent::Unit(_) => Dispatch::Sent(grain, cattle),
             l2_kingdom::supply::Sent::Nowhere => Dispatch::Nowhere,
         };
         Transition::Pop

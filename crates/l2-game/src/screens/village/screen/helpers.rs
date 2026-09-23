@@ -215,7 +215,7 @@ impl VillageScreen {
         let slots = Self::slots(c);
         let (from, to) = (slots[self.drag_cluster - 1], slots[target - 1]);
         let icons = self.drag_count;
-        let moved = ctx.game.move_labour(self.county, from, to, icons);
+        let moved = ctx.issue(crate::command::MoveLabour { county: self.county, from, to, icons });
         self.clear_drag();
         self.status = if moved > 0 {
             format!("{moved} TO {}", JOB_NAMES[to].to_uppercase())
@@ -262,9 +262,9 @@ impl VillageScreen {
     /// The double click, once a cluster is known — `FUN_00439EDB`.
     pub(super) fn balance(&mut self, ctx: &mut Ctx, cluster: usize) {
         let moved = if cluster == vill::IDLE_CLUSTER {
-            ctx.game.balance_all_labour(self.county)
+            ctx.issue(crate::command::BalanceAllLabour { county: self.county })
         } else {
-            ctx.game.balance_labour(self.county, cluster, true)
+            ctx.issue(crate::command::BalanceLabour { county: self.county, cluster, fill: true })
         };
         self.status = if moved > 0 { format!("{moved} REASSIGNED") } else { "NOTHING TO DO".into() };
     }
