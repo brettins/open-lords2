@@ -194,6 +194,15 @@ function firstDifference(a, b) {
 // There is one implementation of the key rule and this is how a test reaches it
 // -- a Rust test that reimplemented KEY_FIELDS would be a second copy that can
 // drift from the first, which is the failure this whole file is about.
+// `--format <file>...`: rewrite each file in the layout its policy writes.
+if (process.argv[2] === '--format') {
+  for (const f of process.argv.slice(3)) {
+    const rel = require('path').relative(process.cwd(), f).replace(/\\/g, '/');
+    fs.writeFileSync(f, serialize(JSON.parse(fs.readFileSync(f, 'utf8')), FILE_POLICY[rel] || {}));
+  }
+  process.exit(0);
+}
+
 if (process.argv[2] === '--check') {
   const files = process.argv.slice(3);
   if (!files.length) {
