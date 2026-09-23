@@ -389,7 +389,7 @@ mod tests {
     fn the_install_path_survives_a_settings_save() {
         let dir = std::env::temp_dir().join(format!("l2-prefs-install-{}", std::process::id()));
         let _scope = crate::saves::scoped_dir(&dir);
-        let game = PathBuf::from(r"D:\Games\Lords; II");
+        let game = PathBuf::from(r"D:\Play\Lords; II");
         remember_install(&Prefs::default(), &game).unwrap();
         assert_eq!(remembered_install(), Some(game.clone()));
         save(&flipped()).unwrap();

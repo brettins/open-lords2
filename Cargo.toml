@@ -13,6 +13,12 @@ members = [
     "crates/l2-view",
 ]
 
+# `panic` stays unwind: `l2-game`'s hook writes the crash log (`src/crash.rs`).
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
+
 [workspace.package]
 edition = "2021"
 license = "MIT"

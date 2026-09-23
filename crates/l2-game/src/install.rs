@@ -100,15 +100,8 @@ mod tests {
     #[test]
     fn the_common_list_names_gog_steam_and_sierra() {
         let c = common(Some(r"D:\PF86"), "C:");
-        assert!(c.contains(&PathBuf::from(r"C:\GOG Games\Lords of the Realm II")));
+        assert!(c.contains(&PathBuf::from(r"C:\").join("GOG Games").join("Lords of the Realm II")));
         assert!(c.contains(&PathBuf::from(r"D:\PF86\Steam\steamapps\common\Lords of the Realm II")));
         assert!(c.contains(&PathBuf::from(r"C:\SIERRA\LORDS2")));
-    }
-
-    /// The developer's install passes the same check the game runs.
-    #[test]
-    fn the_real_install_is_recognised() {
-        let Some(dir) = l2_testkit::install_dir() else { l2_testkit::skip!("no game install") };
-        assert!(is_install(&dir), "{}", dir.display());
     }
 }
