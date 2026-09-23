@@ -116,6 +116,10 @@ pub mod group {
     pub const FOILED_AGAIN: u16 = 0xC2;
     /// `0x70` — `L2.eng` 112, *"No right of rule!!"*.
     pub const NO_RIGHT_OF_RULE: u16 = 0x70;
+    /// `0x93` — `L2.eng` 147; `CastleBuild_Confirm` 0x00436B59, same type.
+    pub const CASTLE_ALREADY: u16 = 0x93;
+    /// `0x122` — `L2.eng` 290; `CastleBuild_Confirm` 0x00436B59, smaller type.
+    pub const CASTLE_STRONGER: u16 = 0x122;
 }
 
 /// The message categories, `Msg_Enqueue`'s `+0x11` byte, as `Msg_DrawWindow`
