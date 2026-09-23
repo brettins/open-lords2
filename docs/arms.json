@@ -534,42 +534,6 @@
       "evidence": "V"
     },
     {
-      "id": "0x004BA9C8/slider-arrows",
-      "status": "reproduced",
-      "group": "menu-bar",
-      "screen": "0x21",
-      "gesture": "left-press-repeat",
-      "addr": "0x004BA9C8",
-      "what": "Screen_HandleInput's 0x21 arm: Widget_Test(g_sliderX, g_sliderY, &g_sliderWidgets, 2). g_sliderWidgets (0x004DDBE0): frame 35 at (32, 28) -> Ui_SliderUp (0x00434E9E, `if (*v < max) *v += step`), frame 37 at (64, 28) -> Ui_SliderDown (0x00434EC9, `if (min < *v) *v -= step`), both kind 4.",
-      "note": "Read with widgets.js widgets 4ddbe0 2.",
-      "ours": "crates/l2-game/src/screens/slider.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0042FF10/slider-ok",
-      "status": "reproduced",
-      "group": "menu-bar",
-      "screen": "0x21",
-      "gesture": "left-release",
-      "addr": "0x0042FF10",
-      "what": "Screen_FrameInput's 0x21 arm, when the right button was not released: `if (Ui_OkButtonClicked()) { g_redrawRequest = 2; g_screenId = g_sliderPrevScreen; }` - the corner Ui_OkButton(x + 0xB8, y + 0x38) on the left release.",
-      "note": "00420000.c:7641-7653.",
-      "ours": "crates/l2-game/src/screens/slider.rs",
-      "evidence": "V"
-    },
-    {
-      "id": "0x0042FF10/slider-right-exit",
-      "status": "reproduced",
-      "group": "menu-bar",
-      "screen": "0x21",
-      "gesture": "right-release",
-      "addr": "0x0042FF10",
-      "what": "Screen_FrameInput's 0x21 arm: `if (g_mouseRightReleased) { g_redrawRequest = 2; g_screenId = g_sliderPrevScreen; }` - L2.eng 12/0, 'Click Right to Exit'.",
-      "note": "00420000.c:7641-7653.",
-      "ours": "crates/l2-game/src/screens/slider.rs",
-      "evidence": "V"
-    },
-    {
       "id": "0x0040DF62/close-on-miss",
       "status": "reproduced",
       "group": "menu-bar",
@@ -1223,6 +1187,30 @@
       "addr": "0x0042FF10",
       "what": "A right release sets DAT_00568470 = 0x1389 -- 5001, one past the limit Battle_CheckOutcome counts it up to -- so it SKIPS the outcome banner rather than dismissing it. The whole of 0x2B's arm.",
       "ours": "crates/l2-game/src/battlefield/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/slider-ok",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x21",
+      "gesture": "left-release",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's 0x21 arm, when the right button was not released: `if (Ui_OkButtonClicked()) { g_redrawRequest = 2; g_screenId = g_sliderPrevScreen; }` - the corner Ui_OkButton(x + 0xB8, y + 0x38) on the left release.",
+      "note": "00420000.c:7641-7653.",
+      "ours": "crates/l2-game/src/screens/slider.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x0042FF10/slider-right-exit",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x21",
+      "gesture": "right-release",
+      "addr": "0x0042FF10",
+      "what": "Screen_FrameInput's 0x21 arm: `if (g_mouseRightReleased) { g_redrawRequest = 2; g_screenId = g_sliderPrevScreen; }` - L2.eng 12/0, 'Click Right to Exit'.",
+      "note": "00420000.c:7641-7653.",
+      "ours": "crates/l2-game/src/screens/slider.rs",
       "evidence": "V"
     },
     {
@@ -3459,6 +3447,18 @@
       "what": "FIELD 1 OF 7 -- THE LORD'S NAME. Screen_HandleInput's g_setupPage == 4 arm: `g_editActive = 1; Edit_RecomputeLength(); Chat_Timeout(); if (g_messageGroup == 0 && DAT_0055CD78 == 0) Edit_Commit(&g_options, 0x1F);`. The commit runs EVERY FRAME the page is up rather than on a button, and the two guards are a message box and an open drop-down over the page.\n\nThe limits are Edit_Begin's: SIXTEEN characters, 192 pixels, kind 0. The destination is g_options + 0 (0x0053F1E0), the persisted settings block, whose name field is 31 bytes and defaults to 'Player1' -- so the commit width (31) and the edit width (16) are different numbers and the smaller one is what a person meets.",
       "note": "This is the field a player reported missing: 'I can't type my name in the start menu?'",
       "ours": "crates/l2-game/src/screens/setup/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004BA9C8/slider-arrows",
+      "status": "reproduced",
+      "group": "menu-bar",
+      "screen": "0x21",
+      "gesture": "left-press-repeat",
+      "addr": "0x004BA9C8",
+      "what": "Screen_HandleInput's 0x21 arm: Widget_Test(g_sliderX, g_sliderY, &g_sliderWidgets, 2). g_sliderWidgets (0x004DDBE0): frame 35 at (32, 28) -> Ui_SliderUp (0x00434E9E, `if (*v < max) *v += step`), frame 37 at (64, 28) -> Ui_SliderDown (0x00434EC9, `if (min < *v) *v -= step`), both kind 4.",
+      "note": "Read with widgets.js widgets 4ddbe0 2.",
+      "ours": "crates/l2-game/src/screens/slider.rs",
       "evidence": "V"
     },
     {
