@@ -113,28 +113,28 @@ impl MapScreen {
         // `Turn_End` (`0x0043AC23`): 999 into the person's own `aiStep`, which
         // is the last thing phase 4's wait needs once the AI realms have taken
         // their steps on the frames before this one.
-        turn::end_players_turn(ctx.game);
-        let step = turn::begin_turn(ctx.game);
+        let step = ctx.issue(crate::command::EndTurn {});
         self.status = "ENDING THE TURN...".into();
         self.scrolled = true;
         let before = self.gold_at_turn_start;
         self.settle_turn(ctx, step, before)
     }
 
-    pub(super) fn resume_turn(&mut self, ctx: &mut Ctx) -> Transition {
-        if !turn::turn_in_flight(ctx.game) {
-            return Transition::Stay;
+    pub(super) fn wind(&mut self, ctx: &mut Ctx) -> Transition {
+        match turn::wind(ctx.game) {
+            turn::Wound::EndTurnDue => self.end_turn(ctx),
+            turn::Wound::Asking => Transition::Push(ScreenId::BattlePrompt),
+            turn::Wound::Reporting => Transition::Push(ScreenId::BattleResult),
+            turn::Wound::Stepped(step) => {
+                self.scrolled = true;
+                let before = self.gold_at_turn_start;
+                self.settle_turn(ctx, step, before)
+            }
+            turn::Wound::Idle { stepped } => {
+                self.scrolled |= stepped > 0;
+                Transition::Stay
+            }
         }
-        if turn::pending_question(ctx.game).is_some() {
-            return Transition::Push(ScreenId::BattlePrompt);
-        }
-        if turn::pending_report(ctx.game).is_some() {
-            return Transition::Push(ScreenId::BattleResult);
-        }
-        self.scrolled = true;
-        let step = turn::tick_turn(ctx.game);
-        let before = self.gold_at_turn_start;
-        self.settle_turn(ctx, step, before)
     }
 
     pub(super) fn settle_turn(&mut self, ctx: &mut Ctx, step: turn::TurnStep, before: i32) -> Transition {

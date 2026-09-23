@@ -44,6 +44,11 @@ fn samples() -> Vec<GameCommand> {
         BalanceAllLabour { county: 33 }.into(),
         PaintField { county: 5, tile: 9000, kind: FieldType::Reclaiming }.into(),
         ToggleIndustry { county: 5, what: MapToggle::Industry(Commodity::Stone) }.into(),
+        EndTurn {}.into(),
+        AnswerBattle { answer: Answer::Decline }.into(),
+        TakeTheField {}.into(),
+        FinishBattle {}.into(),
+        DismissReport {}.into(),
     ]
 }
 
@@ -73,6 +78,7 @@ fn every_value_of_every_enum_field_round_trips() {
         OrderEngine { unit: 1, engine, delta: 1 }.into()
     }));
     all.push(ToggleIndustry { county: 1, what: MapToggle::Castle }.into());
+    all.push(AnswerBattle { answer: Answer::TakeTheField }.into());
     all.push(SplitArmy { army: 1, basket: SplitBasket::default(), into: SplitInto::Field }.into());
     for cmd in all {
         let back: GameCommand = decode_all(&Canonical::bytes_of(&cmd)).expect("decodes");
@@ -154,6 +160,13 @@ const FORBIDDEN: &[&str] = &[
     "order_castle(",
     "stamp_castle_terrain(",
     "quirks.set_reproduced(",
+    "turn::end_players_turn(",
+    "turn::begin_turn(",
+    "turn::end_turn(",
+    "turn::answer_battle(",
+    "turn::take_the_field(",
+    "turn::finish_battle(",
+    "turn::dismiss_report(",
 ];
 
 fn assigns_kingdom(line: &str) -> bool {

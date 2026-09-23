@@ -7,6 +7,7 @@ use l2_kingdom::industry::MapToggle;
 use l2_kingdom::levy::LevyBasket;
 use l2_kingdom::siege::Engine;
 use l2_kingdom::trade::Good;
+pub use crate::engagement::Answer;
 use l2_net::{Canonical, CodecError, Quirk, Reader};
 
 /// The four options that change the rules; the rest are prefs.
@@ -61,4 +62,9 @@ orders! {
     BalanceAllLabour { county: u8 }
     PaintField { county: usize, tile: usize, kind: FieldType }
     ToggleIndustry { county: usize, what: MapToggle }
+    EndTurn {}
+    AnswerBattle { answer: Answer }
+    TakeTheField {}
+    FinishBattle {}
+    DismissReport {}
 }
