@@ -161,10 +161,13 @@ pub fn frame_of(record: &Record) -> Option<Frame> {
     Some(f)
 }
 
-/// `DAT_004D6F30` by `group - 0xF5`, eight bytes a row, both in 16-px rows (Lords2.exe
-/// read 2026-09-23). `Msg_DrawDiplomacy` (`0x00475E07`): `FUN_004093E0(0x10, y, 0x1C, h)`. [V]
-pub const DIPLOMATIC_ROWS: [(i32, i32); 11] =
-    [(8, 11), (8, 16), (8, 16), (8, 18), (8, 9), (8, 14), (8, 14), (8, 14), (8, 14), (8, 14), (8, 14)];
+/// `DAT_004D6F30` by `group - 0xF5`, eight bytes a row, both in 16-px rows: groups
+/// 0xF5..=0x102, 14 rows (Lords2.exe read 2026-09-23; the 15th is not a row).
+/// `Msg_DrawDiplomacy` (`0x00475E07`): `FUN_004093E0(0x10, y, 0x1C, h)`. [V]
+pub const DIPLOMATIC_ROWS: [(i32, i32); 14] = [
+    (8, 11), (8, 16), (8, 16), (8, 18), (8, 9), (8, 14), (8, 14),
+    (8, 14), (8, 14), (8, 14), (8, 14), (8, 14), (8, 14), (8, 14),
+];
 
 pub fn diplomatic_frame(group: u16) -> Option<Frame> {
     let &(y, h) = DIPLOMATIC_ROWS.get(usize::from(group).checked_sub(0xF5)?)?;

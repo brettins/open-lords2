@@ -106,7 +106,7 @@ pub(super) fn draw_capture(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &R
 
 /// `Msg_DrawDiplomacy` (`0x00475E07`) and, for category `0x14`, `Msg_DrawBeyondLetter`
 /// (`0x00476488`): the literal "Beyond" for the name, arms 1 and 2 only. [V]
-/// `FUN_00410C71(county, x + 0x100, y + 0x40)` in arms 5..10 is not drawn. [D]
+/// `FUN_00410C71` (`0x00410C71`) `(county, x + 0x100, y + 0x40)` in arms 5..10 is not drawn. [D]
 pub(super) fn draw_diplomacy(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: &Record, f: message::Frame) {
     let beyond = record.category == category::BEYOND;
     draw_portrait(pen, ctx, canvas, record.from, f);
@@ -138,6 +138,7 @@ pub(super) fn draw_diplomacy(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: 
             pen.body(canvas, f.x + 0x20, f.y + 0x68, &line(1), font::TEXT);
             pen.body(canvas, f.x + 0x20, f.y + 0x78, &county_name(ctx, record.county), font::TEXT);
         }
+        // Arm 4 and the final `else` (00470000.c:2359), which draws groups 0x100..=0x102. [V]
         _ => {
             pen.body(canvas, f.x + 0x20, f.y + 0x68, &line(1), font::TEXT);
         }

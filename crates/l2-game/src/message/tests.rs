@@ -224,7 +224,7 @@ mod tests {
         assert!(frame_of(&Record { group: 1, category: 0x15, ..Record::default() }).is_none());
     }
 
-    /// Ablation: the `DIPLOMACY | BEYOND` arm of `frame_of`, or `y << 4`.
+    /// Ablation: the `DIPLOMACY | BEYOND` arm of `frame_of`, `y << 4`, or rows 11..=13.
     #[test]
     fn a_diplomatic_letter_takes_its_window_from_the_group_table() {
         let at = |category, group| frame_of(&Record { group, category, ..Record::default() });
@@ -232,7 +232,9 @@ mod tests {
         assert_eq!((f.x, f.y, f.w, f.h), (0x10, 0x80, 0x1C0, 18 * 16));
         let f = at(category::BEYOND, 0xF6).expect("a communication from Beyond");
         assert_eq!((f.y, f.h), (0x80, 16 * 16));
-        assert!(at(category::DIPLOMACY, 0x100).is_none(), "past the eleven rows");
+        let g101 = at(category::DIPLOMACY, 0x101).expect("0x0C at 00440000.c:3816");
+        assert_eq!((g101.y, g101.h), (0x80, 14 * 16));
+        assert!(at(category::DIPLOMACY, 0x102).is_some() && at(category::DIPLOMACY, 0x103).is_none());
         assert_eq!(f.ok_button(), (0x10 + 0x1C0 - 0x30, 0x80 + 0x100 - 0x30));
     }
 }

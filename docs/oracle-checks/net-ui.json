@@ -1,0 +1,23 @@
+{ "reviewed": "54c8ba32cdbe77ef5d27cb857f279a67281b6ca6",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/message/layout.rs", "line": 167, "address": "0x00475E07", "verdict": "match",
+      "note": "fixed: DIPLOMATIC_ROWS has DAT_004D6F30's 14 rows (re-read from Lords2.exe); groups 0x100..=0x102 draw through the final else (render.rs:141)." },
+    { "file": "crates/l2-game/src/message/layout.rs", "line": 169, "address": "0x00475E07", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 115, "address": "0x00476488", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 119, "address": "0x00475E07", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 127, "address": "0x00475E07", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 129, "address": "0x00475E07", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 133, "address": "0x00475E07", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 137, "address": "0x00475E07", "verdict": "departure",
+      "note": "FUN_00410C71 county picture not drawn, labelled [D]." },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 141, "address": "0x00475E07", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/net/status.rs", "line": 14, "address": "0x0042476B", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/net/status.rs", "line": 67, "address": "0x0042476B", "verdict": "match",
+      "note": "fixed: our in-battle box is marked [D] with CNEW-battle-wait-box; the original draws nothing there." },
+    { "file": "crates/l2-game/src/net/status.rs", "line": 18, "address": "0x0041A844", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/net/status.rs", "line": 21, "address": "0x0041A844", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/net/status.rs", "line": 35, "address": "0x0041A844", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/net/status.rs", "line": 52, "address": "0x0041A844", "verdict": "match",
+      "note": "fixed: drawn only on the resample frame (Beat::drawn, status.rs:39); g_appPhase == 3 read as lockstep [I]." }
+  ] }

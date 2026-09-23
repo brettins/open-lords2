@@ -1,7 +1,7 @@
 //! A network game's notices, drawn over every screen: a peer is late
 //! (`docs/netcode.md` §4 *Stalling*), the game has stopped (§6), and the
-//! heartbeat. The stopped box and the in-battle wait box are ours: `L2.eng`
-//! has no group for either, as it has none for the lobby.
+//! heartbeat. The stopped box and the in-battle wait box are ours [D]: `L2.eng`
+//! has no group for either (CNEW-battle-wait-box).
 
 use crate::screen::Ctx;
 use crate::shell::{font, Pen};
@@ -9,11 +9,11 @@ use l2_view::Canvas;
 
 const BOX: (i32, i32, i32) = (160, 200, 20);
 
-/// `FUN_0042476B(10, 0x1E)` from `Battle_Frame` (`004b0000.c:6786`):
+/// `FUN_0042476B` (`0x0042476B`, 00420000.c:1396) `(10, 0x1E)` from `Battle_Frame` (`004b0000.c:6786`):
 /// `Pl8_DrawFrame(&g_panelsSheet, 0x105, 10, 30)`. [V]
 pub const WAIT_GLYPH: (usize, i32, i32) = (0x105, 10, 30);
 
-/// `FUN_0041A844`: `FUN_0040437D(2, 0x1DC, 8, 3, c)` then
+/// `FUN_0041A844` (`0x0041A844`, 00410000.c:3868): `FUN_0040437D(2, 0x1DC, 8, 3, c)` then
 /// `Ui_DrawRectOutline(1, 0x1DB, 10, 5, 0x3F)`. [V]
 pub const HEART_BAR: (i32, i32, i32, i32) = (2, 476, 8, 3);
 pub const HEART_RIM: (i32, i32, i32, i32, u8) = (1, 475, 10, 5, 0x3F);
@@ -28,13 +28,16 @@ pub struct Beat {
     count: u8,
     seen: u32,
     pub live: bool,
+    /// This frame resampled: the only frame `0x0041A844` draws on. [V]
+    pub drawn: bool,
 }
 
 impl Beat {
     /// One frame: `DAT_004E59A0 = '\f'` resamples every twelfth. [V]
     pub fn frame(&mut self, gtime: u32) {
         self.count = self.count.saturating_sub(1);
-        if self.count == 0 {
+        self.drawn = self.count == 0;
+        if self.drawn {
             self.live = self.seen < gtime;
             self.count = 12;
             self.seen = gtime;
@@ -44,7 +47,9 @@ impl Beat {
 
 pub fn draw(ctx: &Ctx, canvas: &mut Canvas) {
     let link = &ctx.game.net;
-    if link.lockstep {
+    // `g_multiplayer != 0 && g_appPhase == 3` (00410000.c:3873): `lockstep` is set
+    // once a session runs a world. [I]
+    if link.lockstep && link.beat.drawn {
         heartbeat(ctx, canvas);
     }
     let in_battle = ctx.game.battle.is_some();
@@ -57,6 +62,8 @@ pub fn draw(ctx: &Ctx, canvas: &mut Canvas) {
         // `FUN_0042476B`'s `g_battlePhase == 0` guard. [V] Its 1,600 ms expiry
         // (`0x640 < now - DAT_00553C6C`) is not ours: `stalled` ends with the stall. [I]
         (None, true) if !in_battle => return wait_glyph(ctx, canvas),
+        // [D] 0x0042476B draws nothing in battle; ours says the game is waiting
+        // (CNEW-battle-wait-box).
         (None, true) => vec!["WAITING FOR THE OTHER PLAYERS...".to_string()],
         (None, false) => return,
     };
@@ -137,7 +144,7 @@ mod tests {
         assert!(!b.live, "twelve frames on, Gtime stood still");
     }
 
-    /// Ablation: `if link.lockstep` in `draw`, or `HEART_LIVE` for `HEART_IDLE`.
+    /// Ablation: `link.lockstep` or `link.beat.drawn` in `draw`, or `HEART_LIVE` for `HEART_IDLE`.
     #[test]
     fn the_heartbeat_is_drawn_bottom_left_in_a_lockstep_game_only() {
         let mut game = Game::new(1);
@@ -147,6 +154,8 @@ mod tests {
         let c = drawn(&mut game);
         assert_eq!((c.at(2, 476), c.at(9, 478)), (HEART_LIVE, HEART_LIVE));
         assert_eq!((c.at(1, 475), c.at(10, 479)), (0x3F, 0x3F), "the rim");
+        game.net.beat.frame(1);
+        assert_eq!(drawn(&mut game).at(2, 476), 0, "drawn on the resample frame only");
     }
 
     /// Ablation: the `!in_battle` arm; the glyph gives way to our box in a battle.

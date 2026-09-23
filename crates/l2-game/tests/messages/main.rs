@@ -120,6 +120,7 @@ mod battle_drain;
 mod help_window;
 mod county_portrait;
 mod ending_face;
+mod diplomatic_letter;
 
 fn painting(g: &mut Game, a: &Assets, m: &mut Machine) -> l2_view::Canvas {
     let mut canvas = l2_view::Canvas::screen();
