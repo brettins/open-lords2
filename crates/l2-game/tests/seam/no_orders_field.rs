@@ -90,3 +90,34 @@ fn on_the_frame_and_lane_the_save_dealt_the_defence_keeps_its_sixty() {
         assert_eq!(f.defender.1, 60, "the save leaves the defence 60 of its 129");
     }
 }
+
+/// `BattleUnit_OrderToEnemyEnd` (`0x0048B9C1`) and `Order_ToRallyWaypoint`
+/// (`0x0048BAC4`) read tables `Battlefield_BuildRandom` fills from frame 17's
+/// marker blocks (00470000.c:4661-4688). Ablation: `build_field`'s 0x28 arm
+/// removed fails the `DAT_00544050` line.
+#[test]
+fn every_lane_on_the_saves_frame_leaves_the_defence_its_sixty() {
+    let start: Save = l2_testkit::fixture!("noorders-start.sav");
+    let Some(dir) = l2_testkit::install_dir() else {
+        println!("SKIP every_lane_on_the_saves_frame: no LORDS2_DIR");
+        return;
+    };
+    let Ok(bytes) = std::fs::read(dir.join(FieldSheets::FILE)) else {
+        println!("SKIP every_lane_on_the_saves_frame: no batfield.pl8");
+        return;
+    };
+    let sheets = FieldSheets::parse(&bytes).expect("batfield.pl8 parses");
+    let f = build_field(sheets.get(17).unwrap(), 1);
+    assert_eq!(f.enemy_end[0], [(59, 43), (65, 43), (18, 23), (34, 37)], "DAT_00544050");
+    assert_eq!(f.rally[1][1], [(67, 5), (65, 2), (72, 4)], "DAT_00522D78");
+
+    let mut lanes = std::collections::BTreeSet::new();
+    for i in 0..8u64 {
+        let seed = l2_sim::runner::DEFAULT_SEED.wrapping_add(i.wrapping_mul(0x9E37_79B9));
+        lanes.insert(l2_sim::ai::Ai::new(seed).approach_lane);
+        let field = build_field(sheets.get(17).unwrap(), seed as u32);
+        let fight = fight_unordered(&start, seed, Some(field));
+        assert_eq!(fight.defender.1, 60, "seed {i}: the save leaves the defence 60 of its 129");
+    }
+    assert_eq!(lanes.into_iter().collect::<Vec<_>>(), vec![0, 1, 3], "three lanes dealt");
+}

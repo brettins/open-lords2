@@ -132,33 +132,48 @@ pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
         };
     }
 
-    // Pass 2 - the markers. A marker is the pair (x, y) and (x, y+1) holding
-    // the same id; the cell at (x+2, y) is `0x40 + slot`, clamped to 0 ..= 11,
-    // and the slot's position is (x + 2, y). A pair whose south cell is a
-    // rally half instead is one of four rally arrays we do not carry
-    // (`0x00544050`, `0x00544070`, `0x00522D30`, `0x00522D60` — nothing in
-    // this crate reads a rally waypoint yet); its block is still erased.
+    // Pass 2 - Battlefield_BuildRandom 00470000.c:4646-4731. North cell 0x14
+    // or 0x1E names the side; the south cell names the block. Every
+    // position is (x + 2, y).
     let mut deploy_side0 = [(0u8, 0u8); 12];
     let mut deploy_side4 = [(0u8, 0u8); 12];
-    let mut home_side0 = (0u8, 0u8);
-    let mut home_side4 = (0u8, 0u8);
+    let mut home = [(0u8, 0u8); 2];
+    let mut enemy_end = [[None; 4]; 2];
+    let mut rally = [[[None; 3]; 2]; 2];
+    let at = |cells: &[Cell], j: usize| cells.get(j).map_or(0, |c| c.terrain);
     for y in 0..DIM {
         for x in 0..DIM {
             let i = y * DIM + x;
             let north = cells[i].terrain;
-            let (slots, home) = match north {
-                field_id::MARKER_SIDE0 => (&mut deploy_side0, &mut home_side0),
-                field_id::MARKER_SIDE4 => (&mut deploy_side4, &mut home_side4),
+            let (side, slots) = match north {
+                field_id::MARKER_SIDE0 => (0, &mut deploy_side0),
+                field_id::MARKER_SIDE4 => (1, &mut deploy_side4),
                 _ => continue,
             };
-            let south = if y + 1 < DIM { cells[i + DIM].terrain } else { 0 };
+            let pos = ((x + 2).min(DIM - 1) as u8, y as u8);
+            let south = at(&cells, i + DIM);
             if south == north {
-                let slot = (i32::from(cells.get(i + 2).map_or(0, |c| c.terrain)) - 0x40)
-                    .clamp(0, 11) as usize;
-                slots[slot] = ((x + 2).min(DIM - 1) as u8, y as u8);
-                *home = (x as u8, y as u8);
+                // :4649-4659 - deployment slot `(x+2, y) - 0x40`, clamped.
+                let slot = (i32::from(at(&cells, i + 2)) - 0x40).clamp(0, 11) as usize;
+                slots[slot] = pos;
+                home[side] = (x as u8, y as u8);
                 erase(&mut cells, x, y, 6, 2);
-            } else if south == field_id::RALLY_WEST || south == field_id::RALLY_EAST {
+            } else if south == field_id::RALLY_WEST {
+                // :4661-4675 - enemy-end slot: which of (x+1..x+3, y+1) is 0x29.
+                let slot = (1..4)
+                    .find(|&d| at(&cells, i + DIM + d) == field_id::RALLY_EAST)
+                    .unwrap_or(0);
+                enemy_end[side][slot] = Some(pos);
+                erase(&mut cells, x, y, 4, 2);
+            } else if south == field_id::RALLY_EAST {
+                // :4676-4688 - rally group (x+1, y+1) == 0x28; index 0x41 -> 0, 0x42 -> 2, else 1.
+                let group = usize::from(at(&cells, i + DIM + 1) == field_id::RALLY_WEST);
+                let index = match at(&cells, i + 1) {
+                    0x41 => 0,
+                    0x42 => 2,
+                    _ => 1,
+                };
+                rally[side][group][index] = Some(pos);
                 erase(&mut cells, x, y, 4, 2);
             }
         }
@@ -168,7 +183,25 @@ pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
     graphics_pass(&mut cells, &terrain, seed, false);
     bridge_pass(&mut cells);
 
-    Battlefield { cells, deploy_side0, deploy_side4, home_side0, home_side4 }
+    // [D] The original leaves an unwritten entry at the last battle's value;
+    // ours falls back to BuildFromSkr's marker tile.
+    let (home_side0, home_side4) = (home[0], home[1]);
+    let (mut end_default, mut rally_default) = tables_at_homes(home_side0, home_side4);
+    for (got, dflt) in enemy_end.iter().flatten().zip(end_default.iter_mut().flatten()) {
+        *dflt = got.unwrap_or(*dflt);
+    }
+    for (got, dflt) in rally.iter().flatten().flatten().zip(rally_default.iter_mut().flatten().flatten()) {
+        *dflt = got.unwrap_or(*dflt);
+    }
+    Battlefield {
+        cells,
+        deploy_side0,
+        deploy_side4,
+        home_side0,
+        home_side4,
+        enemy_end: end_default,
+        rally: rally_default,
+    }
 }
 
 /// `FUN_0047D79C(1, cols, rows)` — write open ground over the marker's block,

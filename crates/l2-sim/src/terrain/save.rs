@@ -51,6 +51,12 @@ impl Encode for Battlefield {
         put_pairs(out, &self.deploy_side0);
         put_pairs(out, &self.deploy_side4);
         put_pairs(out, &[self.home_side0, self.home_side4]);
+        for side in &self.enemy_end {
+            put_pairs(out, side);
+        }
+        for group in self.rally.iter().flatten() {
+            put_pairs(out, group);
+        }
         out.end_section();
     }
 }
@@ -69,12 +75,19 @@ impl Decode for Battlefield {
         let deploy_side0 = get_pairs::<12>(input)?;
         let deploy_side4 = get_pairs::<12>(input)?;
         let homes = get_pairs::<2>(input)?;
+        let enemy_end = [get_pairs::<4>(input)?, get_pairs::<4>(input)?];
+        let mut rally = [[[(0, 0); 3]; 2]; 2];
+        for group in rally.iter_mut().flatten() {
+            *group = get_pairs::<3>(input)?;
+        }
         Ok(Battlefield {
             cells,
             deploy_side0,
             deploy_side4,
             home_side0: homes[0],
             home_side4: homes[1],
+            enemy_end,
+            rally,
         })
     }
 }
