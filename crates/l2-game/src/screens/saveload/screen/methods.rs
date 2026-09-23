@@ -181,7 +181,7 @@ impl SaveLoadScreen {
                         // `Options_SetDefaults` (004a0000.c:6090) and `Opt_ToggleTipScreens`
                         // `0x00434787` (00430000.c:1716), neither in a load.
                         let prefs = ctx.game.prefs;
-                        // [I] whether g_saveBlocks holds 0x0053F278; carried as per run.
+                        // FUN_0049C995 0x0049C995 :5760. [I] whether g_saveBlocks holds 0x0053F278.
                         let chosen = ctx.game.chosen_gold;
                         *ctx.game = game;
                         ctx.game.tips = tips;
@@ -203,6 +203,7 @@ impl SaveLoadScreen {
                 // SaveLoad_Tick 0x004AD9F0 :5756-5760: `g_screenId = g_screenIdSaved;
                 // DAT_00591548 = Save_Write(..)`; Menu_SaveGame 0x00433F49 clears that latch
                 // before anything reads it, so a failed write closes the box and says nothing. [V]
+                // [D] Save_Write takes any name; ours refuses one that is not a safe file name.
                 if saves::is_valid_name(&name) {
                     let _ = saves::write(&name, ctx.game);
                 }

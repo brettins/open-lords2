@@ -35,17 +35,13 @@ impl Screen for SaveLoadScreen {
         if self.working > 0 {
             self.working -= 1;
             if self.working == 0 {
-                // `g_redrawRequest = 2`, the statement after `SaveLoad_Tick`'s
-                // three `g_screenId` arms (`0x004AD9F0`). Without it a
-                // `Transition::Stay` marks nothing dirty and the box keeps the
-                // frame the count ran under — group 40 index 3, *"Saving game.
-                // Please wait."* — so a refused save reads as a hang.
-                self.redraw = true;
                 // SaveLoad_Tick 0x004AD9F0 :5767-5768: `else { DAT_00591548 = 0; }`. [V]
                 if core::mem::take(&mut self.latched) {
                     self.status = Status::Idle;
                     return Transition::Stay;
                 }
+                // SaveLoad_Tick 0x004AD9F0 :5765 `g_redrawRequest = 2`, the unlatched arm only. [V]
+                self.redraw = true;
                 return self.confirm(ctx);
             }
         }

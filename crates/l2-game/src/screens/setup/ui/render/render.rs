@@ -557,6 +557,7 @@ impl SetupScreen {
                 *ctx.game = game;
                 ctx.game.tips = tips;
                 ctx.game.prefs = prefs;
+                // FUN_0049C995 0x0049C995 :5760-5763.
                 crate::setup::carry_chosen_gold(ctx.game, before, settings.gold);
                 self.failure = None;
             }
