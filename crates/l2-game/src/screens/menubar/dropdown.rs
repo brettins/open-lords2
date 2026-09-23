@@ -159,11 +159,13 @@ impl Screen for DropdownScreen {
             assets: &ctx.assets.shell,
             ink,
             chrome: ctx.assets.chrome.as_ref(),
-            // `FUN_0040C725` touches neither `DAT_005AEA40` nor `DAT_0058FE2C`
-            // around the captions, so this is the ordinary embossed body pen.
+            // `FUN_0040C725`'s else arm: `Eng_DrawString(…, &g_fontBody, 0x3f)`, embossed.
             shadow: Some(font::SHADOW),
             caps: None,
         };
+        // `FUN_0040C725`'s picked arm: `DAT_005aea40 = 1; FUN_004b414a(…);
+        // Eng_DrawString(…, 0x18); DAT_005aea40 = 0;` — flat. [V]
+        let flat = crate::shell::Pen { shadow: None, ..pen };
 
         // `FUN_00409429(x, y + 0x12, 0x0C, (count * 0x15) / 16 + 2)` — the
         // original's own plate. It used to be a `widget::panel` of ours, on the
@@ -190,7 +192,7 @@ impl Screen for DropdownScreen {
                 );
             }
             let caption = item_text(ctx, self.menu, i);
-            let colour = if picked { PICKED_INK } else { font::TEXT };
+            let (pen, colour) = if picked { (&flat, PICKED_INK) } else { (&pen, font::TEXT) };
             pen.body(
                 canvas,
                 plate.x + CAPTION_DX,
