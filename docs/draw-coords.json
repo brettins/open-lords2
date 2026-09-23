@@ -5,10 +5,10 @@
     "exact": 142,
     "original_points": 492,
     "original_blind": 529,
-    "our_points": 175,
-    "our_blind": 417,
+    "our_points": 172,
+    "our_blind": 420,
     "original_only": 350,
-    "ours_only": 33
+    "ours_only": 30
   },
   "near_misses": []
 }
