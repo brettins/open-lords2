@@ -110,6 +110,8 @@ pub const SHEETS: &[&str] = &[
     // left there. `Smithy.pl8` is one frame of 480 x 400; `Hearth.pl8` is 17 —
     // eleven 69 x 52 fire frames and six hearths, one per weapon.
     "Smithy.pl8",
+    // Ui_HistoryGraph 0x004156A7: File_ReadChunk("graphs.pl8", ...)
+    "Graphs.pl8",
     "Hearth.pl8",
     "Iconvill.pl8",
 ];

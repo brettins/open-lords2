@@ -36,8 +36,10 @@ fn setting_the_tax_rate_changes_the_county_and_the_picture() {
     let mut screen = CountyScreen::new(8, Panel::Tax);
     let before = draw(&mut screen, &mut game, &assets);
 
+    let up = Panel::Tax.increase_button().unwrap();
     for _ in 0..7 {
-        send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
+        send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
+        send(&mut screen, &mut game, &assets, Event::Release { x: up.centre_x(), y: up.y + 4 });
     }
     assert_eq!(game.kingdom.counties[8].tax_rate, 7);
 
@@ -46,9 +48,9 @@ fn setting_the_tax_rate_changes_the_county_and_the_picture() {
     assert!(find_body(&after, &assets, "7%", font::TEXT).is_some());
     assert!(find_body(&after, &assets, "0%", font::TEXT).is_none());
 
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Down));
-    assert_eq!(screen.panel(), Panel::Ration);
-    send(&mut screen, &mut game, &assets, Event::KeyDown(Key::Right));
+    screen.open(Panel::Ration);
+    let up = Panel::Ration.increase_button().unwrap();
+    send(&mut screen, &mut game, &assets, Event::Click { x: up.centre_x(), y: up.y + 4 });
     assert_eq!(game.kingdom.counties[8].tax_rate, 7);
     assert_eq!(game.kingdom.counties[8].ration_wanted, 4);
 }

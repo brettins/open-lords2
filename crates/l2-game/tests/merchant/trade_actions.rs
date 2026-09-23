@@ -106,7 +106,8 @@ fn ale_gives_five_happiness_a_season_and_no_more_until_the_season_turns() {
     let mut panel = TradeScreen::new(merchant, Good::Ale.id() as u8);
     let max = ceiling_button();
     send(&mut panel, &mut game, &assets, Event::Click { x: max.x + 2, y: max.y + 2 });
-    let t = send(&mut panel, &mut game, &assets, Event::KeyDown(Key::Enter));
+    let ok = confirm_button();
+    let t = send(&mut panel, &mut game, &assets, Event::Click { x: ok.x + 2, y: ok.y + 2 });
     assert_eq!(t, Transition::Pop);
     let after = game.kingdom.counties[county as usize].happiness;
     assert_eq!(after - before, 5, "the whole treasury of ale is worth five, and no more");
@@ -115,7 +116,7 @@ fn ale_gives_five_happiness_a_season_and_no_more_until_the_season_turns() {
     game.kingdom.realms[game.player as usize].gold = 1000;
     let mut panel = TradeScreen::new(merchant, Good::Ale.id() as u8);
     send(&mut panel, &mut game, &assets, Event::Click { x: max.x + 2, y: max.y + 2 });
-    send(&mut panel, &mut game, &assets, Event::KeyDown(Key::Enter));
+    send(&mut panel, &mut game, &assets, Event::Click { x: ok.x + 2, y: ok.y + 2 });
     assert_eq!(
         game.kingdom.counties[county as usize].happiness,
         after,

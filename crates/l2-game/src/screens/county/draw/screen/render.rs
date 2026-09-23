@@ -126,9 +126,14 @@ impl CountyScreen {
                 let x = pen.heading(canvas, 20, 56, &line_text(ctx, g73::TITLE), font::TEXT);
                 pen.heading(canvas, x + 2, 56, &county_name(ctx, self.county), font::TEXT);
 
-                self.draw_graph_stub(ctx, canvas, "POPULATION");
+                // value = Ui_HistoryGraph(0x20, 0x54, 0)
+                let peak = super::graph::draw(&pen, ctx, canvas, self.county as usize, 0);
 
-                pen.body(canvas, 176, 240, &line_text(ctx, g73::GREATEST), font::TEXT);
+                // Eng_DrawString(0x49, 8, 0xB0, 0xF0); Ui_DrawNumber(value, '@', "", pen + 0xB0, 0xF0);
+                // Eng_DrawString(0x49, 9, pen + 0xB0, 0xF0)
+                let x = pen.body(canvas, 176, 240, &line_text(ctx, g73::GREATEST), font::TEXT);
+                let x = pen.number_in(crate::shell::Face::Body, canvas, x, 240, peak, '@', "", font::TEXT);
+                pen.body(canvas, x, 240, &line_text(ctx, g73::PEOPLE), font::TEXT);
 
                 heading_row(&pen, canvas, 266, &line_text(ctx, g73::LAST), c.pop_last);
                 let rows: [(i32, Line, i32); 3] = [
@@ -159,7 +164,8 @@ impl CountyScreen {
                 let x = pen.heading(canvas, 20, 56, &line_text(ctx, g85::TITLE), font::TEXT);
                 pen.heading(canvas, x + 2, 56, &county_name(ctx, self.county), font::TEXT);
 
-                self.draw_graph_stub(ctx, canvas, "HAPPINESS");
+                // Ui_HistoryGraph(0x20, 0x54, 1), its return value unused
+                super::graph::draw(&pen, ctx, canvas, self.county as usize, 1);
 
                 let x = pen.body(canvas, 176, 241, &line_text(ctx, g85::AVERAGE), font::TEXT);
                 let x = pen.body(canvas, x, 241, &c.happiness_avg.to_string(), font::TEXT);
@@ -373,18 +379,6 @@ impl CountyScreen {
         let knob_x = SLIDER_KNOB_ORIGIN + split.clamp(0, MAX_RATION_SPLIT);
         if !pen.system_frame(canvas, system::SLIDER_KNOB, knob_x, SLIDER_KNOB_Y) {
             canvas.fill_rect(knob_x, SLIDER_KNOB_Y, system::SLIDER_KNOB_W, 32, ink.highlight);
-        }
-    }
-
-    fn draw_graph_stub(&self, ctx: &Ctx, canvas: &mut Canvas, what: &str) {
-        let ink = &ctx.assets.ink;
-        let Some(r) = self.panel.graph_rect() else { return };
-        canvas.fill_rect(r.x, r.y, r.w, r.h, ink.background);
-        self.pen(ctx).inset(canvas, r);
-        let mid = r.y + r.h / 2;
-        if ctx.game.prefs.debug_overlay {
-            text::draw_centred(canvas, r.centre_x(), mid - 10, &format!("{what} HISTORY"), ink.dim);
-            text::draw_centred(canvas, r.centre_x(), mid + 2, "NOT SIMULATED", ink.bad);
         }
     }
 }

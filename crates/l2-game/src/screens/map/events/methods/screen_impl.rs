@@ -44,14 +44,6 @@ impl Screen for MapScreen {
             // *is* File > Quit, which is `Ui_OpenConfirm(0, …)`, and not a way
             // out on its own. Ours used to pop straight off the map.
             // Taken in Machine::handle for every in-game screen.
-            Event::KeyDown(Key::Enter) => {
-                if ctx.game.selected != 0 {
-                    return Transition::Push(ScreenId::County(
-                        ctx.game.selected,
-                        county::Panel::Tax,
-                    ));
-                }
-            }
             Event::KeyDown(Key::Up) => {
                 self.scroll(Dir::N);
             }

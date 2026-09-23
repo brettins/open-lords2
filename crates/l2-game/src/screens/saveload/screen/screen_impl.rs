@@ -82,15 +82,6 @@ impl Screen for SaveLoadScreen {
                 self.begin(ctx);
                 Transition::Stay
             }
-            // arm: ours/saveload-key-scroll key
-            Event::KeyDown(Key::Up) => {
-                self.scroll(-(SCROLL_STEP as i32));
-                Transition::Stay
-            }
-            Event::KeyDown(Key::Down) => {
-                self.scroll(SCROLL_STEP as i32);
-                Transition::Stay
-            }
             Event::Click { x, y } | Event::DoubleClick { x, y } => {
                 if let Some(i) = self.press.event(&widgets(), event) {
                     return self.fire(ctx, i);
