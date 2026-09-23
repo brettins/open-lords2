@@ -41,6 +41,15 @@ pub struct Link {
     pub roster: Roster,
     pub me: Option<PlayerSlot>,
     pub hosting: bool,
+    /// A lockstep session runs this world: `Game::issue` queues into `outbox`.
+    pub lockstep: bool,
+    pub outbox: Vec<crate::command::GameCommand>,
+    /// A peer's packet is overdue past `STALL_GRACE`.
+    pub stalled: bool,
+    /// Why the session stopped, for the dialog.
+    pub halted: Option<String>,
+    /// The season `net::frame` finished, for the campaign screen to show.
+    pub done: Option<Box<crate::turn::TurnOutcome>>,
 }
 
 impl Link {

@@ -121,7 +121,9 @@ impl MapScreen {
     }
 
     pub(super) fn wind(&mut self, ctx: &mut Ctx) -> Transition {
-        match turn::wind(ctx.game) {
+        // A network game's world winds in `net::frame`; the screen only watches.
+        let wound = if ctx.game.net.lockstep { turn::observe(ctx.game) } else { turn::wind(ctx.game) };
+        match wound {
             turn::Wound::EndTurnDue => self.end_turn(ctx),
             turn::Wound::Asking => Transition::Push(ScreenId::BattlePrompt),
             turn::Wound::Reporting => Transition::Push(ScreenId::BattleResult),

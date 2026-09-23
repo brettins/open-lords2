@@ -49,8 +49,36 @@ fn samples() -> Vec<GameCommand> {
         TakeTheField {}.into(),
         FinishBattle {}.into(),
         DismissReport {}.into(),
+        BattleOrder { op: BattleOp::Formation { unit: 7, formation: Formation::Column } }.into(),
     ]
 }
+
+#[test]
+fn every_battle_order_round_trips() {
+    use BattleOp::*;
+    let ops = [
+        Pick { lo: (1, 2), hi: (200, 3), commit: true },
+        Drop { figure: 300 },
+        Clear,
+        Recall { figures: vec![4, 70_000] },
+        Order { cell: (9, 8), target: Some(12), woodland: true },
+        Order { cell: (0, 0), target: None, woodland: false },
+        Formation { unit: 1, formation: l2_sim::runner::Formation::Line },
+        Pause,
+        Charge,
+        Sally,
+        Autocalc,
+        SkipOutcome,
+    ];
+    for op in ops {
+        let cmd: GameCommand = super::BattleOrder { op }.into();
+        let bytes = Canonical::bytes_of(&cmd);
+        assert_eq!(decode_all::<GameCommand>(&bytes).expect("decodes"), cmd);
+    }
+}
+
+use crate::battlefield::BattleOp;
+use l2_sim::runner::Formation;
 
 #[test]
 fn every_variant_round_trips_byte_identically() {

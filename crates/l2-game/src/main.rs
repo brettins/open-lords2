@@ -67,6 +67,8 @@ struct App {
     cursor_scale: u32,
     /// The lobby's sockets; `l2_game::net::service` pumps them between ticks (D-5).
     net: Option<l2_game::net::Driver>,
+    /// The lockstep session after `Start`, pumped before each tick (D-5).
+    live: Option<l2_game::net::Live>,
 }
 
 impl App {
@@ -218,6 +220,10 @@ impl App {
         if let Some(world) = l2_game::net::service(&mut self.net, game, &self.assets, tables) {
             self.game = world;
             self.machine.mark_dirty();
+            // `[I]` the replay's seed; the world carries its own from `Start`.
+            let seed = self.game.turns_played as u64;
+            let transport = self.net.take().map(|d| d.into_transport());
+            self.live = transport.and_then(|t| l2_game::net::Live::new(t, &mut self.game, seed));
         }
     }
 
@@ -261,6 +267,13 @@ impl ApplicationHandler for App {
         }
 
         for _ in 0..owed {
+            if let Some(live) = &mut self.live {
+                let before = (self.game.net.stalled, self.game.net.halted.is_some());
+                live.pump(&mut self.game);
+                if before != (self.game.net.stalled, self.game.net.halted.is_some()) {
+                    self.machine.mark_dirty();
+                }
+            }
             self.tick();
         }
 
@@ -465,6 +478,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         cursors: Vec::new(),
         cursor_scale: 0,
         net: None,
+        live: None,
     };
 
     let event_loop = EventLoop::new()?;

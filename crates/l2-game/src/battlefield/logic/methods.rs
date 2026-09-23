@@ -48,6 +48,8 @@ impl LiveBattle {
             scroll_wait: 0,
             redraw: true,
             cries: Vec::new(),
+            deferred: false,
+            outbox: Vec::new(),
         }
     }
 
@@ -306,7 +308,7 @@ impl LiveBattle {
         if self.choice_owner == 0 {
             return false;
         }
-        self.paused = !self.paused;
+        self.act(BattleOp::Pause);
         self.redraw = true;
         true
     }
@@ -363,10 +365,9 @@ impl LiveBattle {
         if self.sallied {
             return Err(0x9D);
         }
-        if !self.runner.lower_drawbridge() {
+        if !self.act(BattleOp::Sally) {
             return Err(0x6F);
         }
-        self.sallied = true;
         self.redraw = true;
         Ok(())
     }
@@ -379,8 +380,7 @@ impl LiveBattle {
         if self.choice_owner == 0 || self.charged {
             return false;
         }
-        self.charged = true;
-        self.runner.charge_all(self.owner);
+        self.act(BattleOp::Charge);
         self.redraw = true;
         true
     }
@@ -401,7 +401,7 @@ impl LiveBattle {
     /// campaign. Declining a battle and giving up on one you are watching are
     /// the same code.
     pub fn confirm_autocalc(&mut self) {
-        self.autocalc = true;
+        self.act(BattleOp::Autocalc);
     }
 
 
@@ -456,7 +456,7 @@ impl LiveBattle {
         }
         let (a, b) = (d.anchor_px, d.px);
         let (lo, hi) = self.box_corners(a, b);
-        self.runner.pick_box(self.owner, lo, hi, false);
+        self.act(BattleOp::Pick { lo, hi, commit: false });
         self.redraw = true;
         true
     }
@@ -513,7 +513,7 @@ impl LiveBattle {
                     return true;
                 }
                 let (lo, hi) = self.box_corners(d.anchor_px, (x, y));
-                self.runner.pick_box(self.owner, lo, hi, true);
+                self.act(BattleOp::Pick { lo, hi, commit: true });
                 false
             }
             DragKind::Pick => {
@@ -522,12 +522,11 @@ impl LiveBattle {
                 let a = (d.anchor_px.0 - 8, d.anchor_px.1 - 8);
                 let b = (x + 8, y + 8);
                 let (lo, hi) = self.box_corners(a, b);
-                self.runner.pick_box(self.owner, lo, hi, true);
+                self.act(BattleOp::Pick { lo, hi, commit: true });
                 true
             }
             DragKind::Nothing => return false,
         };
-        self.current_unit = self.runner.regroup_selection(self.owner);
         // **The men answer.** Both committing arms call `Sound_PlayTroopCry(0)`
         // after the commit, so the troop is the new selection's. The box arm
         // guards it on `DAT_00553078 != 0` — something is held — and the pick
@@ -583,12 +582,7 @@ impl LiveBattle {
         let cell = self.cell_at(x, y);
         let target = self.hover.enemy;
         let woodland = self.hover.woodland;
-        let ok = self.runner.order_selected(self.owner, cell.0, cell.1, target, woodland);
-        if ok {
-            self.current_unit = self.runner.regroup_selection(self.owner);
-            self.redraw = true;
-        }
-        ok
+        self.act(BattleOp::Order { cell, target, woodland })
     }
 
     /// `FUN_0043C2A9` (`0x0043C2A9`), the left half: **a click on a banner drops
@@ -603,9 +597,7 @@ impl LiveBattle {
                 break;
             }
             if layout.rect(slot).contains(x, y) {
-                self.runner.deselect_figure(fig);
-                self.current_unit = self.runner.regroup_selection(self.owner);
-                self.redraw = true;
+                self.act(BattleOp::Drop { figure: fig });
                 return true;
             }
         }
@@ -622,9 +614,7 @@ impl LiveBattle {
         if x >= 0x1E1 && (0x18..=0xB7).contains(&y) {
             return false;
         }
-        self.runner.clear_selection(self.owner);
-        self.current_unit = 0;
-        self.redraw = true;
+        self.act(BattleOp::Clear);
         true
     }
 
@@ -643,8 +633,10 @@ impl LiveBattle {
             && !self.oil_selected()
             && !self.paused;
         if orderable {
-            self.runner.order_selected(self.owner, cell.0, cell.1, None, false);
-            self.current_unit = self.runner.regroup_selection(self.owner);
+            let order = BattleOp::Order { cell, target: None, woodland: false };
+            if !self.act(order) {
+                self.current_unit = 0;
+            }
         } else {
             self.look_at(cell);
         }
@@ -670,11 +662,7 @@ impl LiveBattle {
     pub fn recall_group(&mut self, digit: u8) -> bool {
         let Some(slot) = group_slot(digit) else { return false };
         let Some(members) = self.groups[slot].clone() else { return false };
-        self.runner.clear_selection(self.owner);
-        for f in &members {
-            self.runner.select_figure(*f, self.owner);
-        }
-        self.current_unit = self.runner.regroup_selection(self.owner);
+        self.act(BattleOp::Recall { figures: members });
         if let Some(&first) = self.runner.selected_fighters(self.owner).first() {
             let f = &self.runner.fighters[first];
             self.look_at((f.x, f.y));
@@ -711,7 +699,7 @@ impl LiveBattle {
         if self.current_unit == 0 {
             return false;
         }
-        self.runner.order_formation(self.current_unit, formation);
+        self.act(BattleOp::Formation { unit: self.current_unit, formation });
         self.redraw = true;
         true
     }
@@ -734,7 +722,7 @@ impl LiveBattle {
         if self.mode != Mode::Outcome {
             return false;
         }
-        self.outcome_ticks = OUTCOME_FRAMES + 1;
+        self.act(BattleOp::SkipOutcome);
         true
     }
 

@@ -87,7 +87,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/audio_screens/audio_behavior.rs", "install", 1),
     ("crates/l2-game/tests/audio_screens/screens/panels_and_sites.rs", "install", 3),
     ("crates/l2-game/tests/audio_screens/screens/standings_and_popups.rs", "install", 2),
-    ("crates/l2-game/tests/audio_screens/screens/title_and_screens.rs", "install", 4),
+    ("crates/l2-game/tests/audio_screens/screens/title_and_screens.rs", "install", 3),
     ("crates/l2-game/tests/audio_wiring/audio_controls_and_feedback/battle_prompt_fanfare.rs", "install", 1),
     ("crates/l2-game/tests/audio_wiring/audio_controls_and_feedback/map_and_castle_feedback.rs", "install", 3),
     ("crates/l2-game/tests/audio_wiring/audio_controls_and_feedback/mercenary_offer_voice.rs", "install", 4),
@@ -118,8 +118,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/chrome_text/top_bar.rs", "england", 5),
     ("crates/l2-game/tests/cursor.rs", "england", 3),
     ("crates/l2-game/tests/cursor.rs", "install", 1),
-    ("crates/l2-game/tests/differential/chain.rs", "fixture", 2),
-    ("crates/l2-game/tests/differential/main.rs", "fixture", 3),
+    ("crates/l2-game/tests/differential.rs", "fixture", 3),
     ("crates/l2-game/tests/field_terrain.rs", "install", 1),
     ("crates/l2-game/tests/ground/army_and_confirm.rs", "install", 2),
     ("crates/l2-game/tests/ground/diplomacy_part.rs", "install", 5),
@@ -154,6 +153,8 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/movies/playback/input_and_drawing.rs", "install", 3),
     ("crates/l2-game/tests/movies/playback/timing_and_sound.rs", "install", 4),
     ("crates/l2-game/tests/movies/triggers/validation.rs", "install", 1),
+    ("crates/l2-game/tests/net_game/live_desync.rs", "other", 1),
+    ("crates/l2-game/tests/net_game/live_tcp.rs", "other", 1),
     ("crates/l2-game/tests/net_game/lobby_tcp.rs", "install", 2),
     ("crates/l2-game/tests/net_game/main.rs", "england", 3),
     ("crates/l2-game/tests/net_game/seats.rs", "install", 1),
@@ -163,7 +164,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/newgame/campaign.rs", "install", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "other", 3),
     ("crates/l2-game/tests/newgame/heraldry.rs", "other", 4),
-    ("crates/l2-game/tests/newgame/load_page.rs", "other", 2),
     ("crates/l2-game/tests/newgame/quaintville.rs", "other", 1),
     ("crates/l2-game/tests/newgame/realm_fields.rs", "other", 3),
     ("crates/l2-game/tests/newgame/start_game.rs", "install", 2),
@@ -223,7 +223,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/seam/battle.rs", "fixture", 2),
     ("crates/l2-game/tests/seam/conquest_part.rs", "fixture", 1),
     ("crates/l2-game/tests/seam/no_orders.rs", "fixture", 1),
-    ("crates/l2-game/tests/seam/no_orders_field.rs", "fixture", 2),
+    ("crates/l2-game/tests/seam/no_orders_field.rs", "fixture", 1),
     ("crates/l2-game/tests/seam/realm.rs", "fixture", 1),
     ("crates/l2-game/tests/setup/held_tests.rs", "england", 6),
     ("crates/l2-game/tests/setup/setup_tests.rs", "england", 7),
@@ -307,7 +307,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 687;
+pub(crate) const GATED_TOTAL: usize = 683;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),
