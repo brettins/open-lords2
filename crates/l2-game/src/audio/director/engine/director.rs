@@ -446,6 +446,7 @@ impl Director {
         // Once per battle, the busy buffer dropping the rest; an idle battle with no turn is
         // Settlement::Silently (settlement.rs:20, neither side human), never the local player's. [V]
         let reports = game.turn.as_ref().map_or(&[][..], |p| p.battle_reports());
+        // Battle_ReturnToCampaign 0x004AB383: one verdict per settled battle. [V]
         for r in reports.get(self.battles..).unwrap_or_default() {
             let (a, d) = (r.attacker_owner, r.defender_owner);
             if let Some(name) = after_battle(r.verdict.attacker_won, a, d, game.player) {

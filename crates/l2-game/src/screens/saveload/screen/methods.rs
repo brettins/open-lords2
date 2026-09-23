@@ -41,6 +41,11 @@ impl SaveLoadScreen {
         s
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_entries(&mut self, entries: Vec<Entry>) {
+        self.entries = entries;
+    }
+
     pub fn is_front_end(&self) -> bool {
         self.shift != (0, 0)
     }
@@ -190,7 +195,8 @@ impl SaveLoadScreen {
                     return Transition::Pop;
                 };
                 // FUN_004AD9F0 :5712 `g_screenId == 0x1F`: Save_Read, then Setup_StartGame.
-                // [I] a failed read on the front end keeps the box up with 40/4.
+                // [D] :5717-5736 starts the game whatever Save_Read returned; starting over a
+                // half-read world is not safe, so a failed read keeps the box up with 40/4.
                 let front = self.is_front_end();
                 let tables = ctx.game.kingdom.tables;
                 match saves::read_path(&self.entries[i].path, tables) {
