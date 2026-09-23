@@ -218,7 +218,8 @@ pub(super) fn blacksmith(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, c: &County, 
     );
     if ctx.game.kingdom.options.advanced_farming {
         let x = say(pen, ctx, canvas, INDUSTRY_GROUP, 4, x, SMITHY_ROW_WORKERS);
-        let efficiency = i32::from(c.industry[Commodity::Weapons.index()].efficiency);
+        // Panel_JobBlacksmith 0x00413155: `(int)(char)industry[2].efficiency`. [V]
+        let efficiency = i32::from(c.industry[Commodity::Weapons.index()].efficiency as u8 as i8);
         let x =
             pen.number_in(face, canvas, x, SMITHY_ROW_WORKERS, efficiency, '@', "%", BODY_INK);
         say(pen, ctx, canvas, INDUSTRY_GROUP, 5, x, SMITHY_ROW_WORKERS);

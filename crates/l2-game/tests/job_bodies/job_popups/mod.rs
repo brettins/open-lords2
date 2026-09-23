@@ -6,6 +6,7 @@ mod grain_and_cattle;
 pub use grain_and_cattle::*;
 mod industry_and_building;
 pub use industry_and_building::*;
+mod smithy_efficiency;
 
 use super::*;
 use super::events_and_letters::*;
