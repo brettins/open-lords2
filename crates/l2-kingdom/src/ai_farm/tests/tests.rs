@@ -1,8 +1,3 @@
-#[cfg(test)]
-use super::*;
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::field::terrain;
     use crate::map::CampaignMap;
@@ -917,5 +912,3 @@ mod tests {
         assert_eq!(grow(10, 5, 2, 5), 2, "two fields is the floor");
         assert_eq!(grow(10, 50, 3, 5), 3, "a herd of ten or more keeps its fields");
     }
-}
-
