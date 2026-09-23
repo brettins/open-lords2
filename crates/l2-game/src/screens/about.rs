@@ -90,8 +90,6 @@ impl Screen for AboutScreen {
             Event::Click { x, y } if OK.contains(x, y) => Transition::Pop,
             // arm: 0x0042FF10/about-right right-release
             Event::RightClick { .. } => Transition::Pop,
-            // arm: ours/about-keyboard-close key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             _ => Transition::Stay,
         }
     }

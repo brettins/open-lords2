@@ -190,8 +190,6 @@ impl Screen for MessageScreen {
                 }
                 Transition::Pass
             }
-            // arm: ours/message-keyboard-dismiss key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => leave(ctx),
             // The five `Widget_Test` tables are kind 4, whose guard is
             // `g_mouseLeftPressed || g_mouseLeftDoubleClick`, and a hit returns
             // 1 and swallows the frame. The 48 × 48 corner opens

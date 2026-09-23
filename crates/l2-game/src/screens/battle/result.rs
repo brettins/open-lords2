@@ -66,10 +66,7 @@ impl Screen for BattleResultScreen {
         let s = if s.is_empty() { "THE BATTLE IS DECIDED.".to_string() } else { s };
         p.heading(canvas, HEADING.0, HEADING.1, &s, font::TEXT);
 
-        let pair = r.outcome(ctx.game.player).pair();
-        let banner = ctx.assets.shell.text(GROUP_BANNER, pair * 2).to_string();
-        let banner = if banner.is_empty() { ours_banner(r.outcome(ctx.game.player)) } else { banner };
-        p.body(canvas, PARAGRAPH.0, PARAGRAPH.1, &banner, font::HIGHLIGHT);
+        // [V] Screen_BattleResult 0x00422FF1 draws no group 82 string; that is 0x2B's.
 
         draw_roster(
             ctx,

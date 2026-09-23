@@ -145,11 +145,6 @@ impl Screen for CastleScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Escape) => {
-                self.choice = CastleChoice::Cancelled;
-                Transition::Pop
-            }
-            Event::KeyDown(Key::Enter) => self.confirm(ctx),
             Event::DoubleClick { .. } => {
                 let fired = self.press.event(&widgets(), event);
                 debug_assert!(fired.is_none(), "both castle-build widgets are kind 5");

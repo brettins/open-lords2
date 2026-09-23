@@ -133,8 +133,6 @@ impl Screen for OptionsScreen {
             //
             // arm: 0x0042FF10/options-right-close right-release
             Event::RightClick { .. } => Transition::Pop,
-            // arm: ours/options-keyboard-close key
-            Event::KeyDown(Key::Escape) => Transition::Pop,
 
             Event::Pointer { x, y } => {
                 if self.page.is_ours() {

@@ -74,8 +74,6 @@ impl Screen for JobScreen {
             //
             // arm: 0x0042FF10/job-popup-closes right-release
             Event::RightClick { .. } => Transition::Pop,
-            // arm: ours/job-popup-keyboard key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             Event::Click { x, y } if JobScreen::ok_button(self.job).contains(x, y) => {
                 Transition::Pop
             }

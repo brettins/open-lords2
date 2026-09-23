@@ -167,7 +167,6 @@ impl Screen for ConquestScreen {
 
     fn handle(&mut self, event: Event, _ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Escape) => Transition::Pop,
             Event::KeyDown(Key::Left) | Event::KeyDown(Key::Up) => {
                 self.outcome = self.outcome.next().next();
                 Transition::Stay

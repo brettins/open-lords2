@@ -20,7 +20,7 @@ fn the_sidebar_castle_button_opens_the_chooser_for_your_own_county() {
     click(&mut m, &mut g, &a, on(castle_button()));
     assert_eq!(m.top_id(), Some(ScreenId::Castle(1)), "the chooser opened on county 1");
 
-    send(&mut m, &mut g, &a, Event::KeyDown(Key::Escape));
+    let (mut g, a, mut m) = on_the_map();
     g.selected = 2;
     click(&mut m, &mut g, &a, on(castle_button()));
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "county 2 is not yours");

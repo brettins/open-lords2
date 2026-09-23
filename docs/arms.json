@@ -3270,7 +3270,7 @@
       "gesture": "key",
       "addr": "0x004B29BE",
       "what": "App_WndProc's VK_ESCAPE case: `if (g_appPhase == 3) Menu_Quit(); else g_quitRequest = 1; return 0;`. g_appPhase is 1 through the start-up films and 2 on the front end, so Escape during the intro QUITS THE PROGRAM -- after setting DAT_004EABB4, which would otherwise have skipped the film.",
-      "ours": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+      "ours": "crates/l2-game/src/screen/machine.rs",
       "note": "The g_appPhase == 3 half is built 2026-09-14: the map's Escape raises the exit box (screens/confirm.rs, Menu_Quit 0x004343F8); the front-end half (g_quitRequest = 1, quitting the program) is not. Filed here because a film is where a player meets it first, and not built because it is not a film arm: it is every front-end screen's Escape, and those carry inventions of their own (ours/setup-key-escape and its neighbours). Ours skips the film on Escape as on any key.",
       "evidence": "V"
     },
@@ -3487,13 +3487,13 @@
     {
       "id": "ours/about-keyboard-close",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "panels",
       "screen": "0x25",
       "gesture": "key",
       "what": "Escape and Enter close the box.",
       "why": "The 0x25 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/about.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/brush-popup-on-the-map",
@@ -3524,20 +3524,21 @@
       "group": "county-panels",
       "screen": "0x14, 0x15, 0x16, 0x19",
       "gesture": "key",
-      "what": "Escape and Enter close a panel; Up and Down cycle the four panels; Left and Right move the open panel's own value.",
+      "what": "Up and Down cycle the four panels; Left and Right move the open panel's own value.",
       "why": "The original has no keyboard route out of a panel, none between them, and none into them: the four are four screen ids with no ordering at all, and the only VK_ESCAPE handler in the binary quits the game. Kept because a keyboard player has nothing else; recorded so the count of 'things we do that the original does not' can be taken.",
-      "ours": "crates/l2-game/src/screens/county/mod.rs"
+      "ours": "crates/l2-game/src/screens/county/mod.rs",
+      "removal_partial": "Escape and Enter closing the panel removed 2026-09-23: in a game Escape is App_WndProc 0x004B29BE Menu_Quit, the exit box."
     },
     {
       "id": "ours/court-keyboard-close",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "panels",
       "screen": "0x09",
       "gesture": "key",
       "what": "Escape and Enter close the court.",
       "why": "The 0x09 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/court.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/debug-overlay-toggle",
@@ -3592,11 +3593,12 @@
       "group": "army-division",
       "screen": "0x11",
       "gesture": "key",
-      "what": "Escape leaves; Up and Down pick a row; Left and Right move one man; Enter splits.",
+      "what": "Up and Down pick a row; Left and Right move one man; Enter splits.",
       "note": "KEPT. Screen_HandleInput names no key on 0x11 and the window procedure has no 0x11 case, so the whole keyboard here is ours. The arrows are the only way to move ONE man now that a click moves ten. The D key, which disbanded, is gone with the button.",
       "removed": false,
       "ours": "crates/l2-game/src/screens/divide/mod.rs",
-      "evidence": "V"
+      "evidence": "V",
+      "removal_partial": "Escape leaving removed 2026-09-23: in a game Escape is App_WndProc 0x004B29BE Menu_Quit, the exit box."
     },
     {
       "id": "ours/divide-split-button",
@@ -3613,35 +3615,35 @@
     {
       "id": "ours/dropdown-escape-closes",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "menu-bar",
       "screen": "0x32",
       "gesture": "key",
       "what": "Escape closes an open drop-down.",
       "why": "No key reaches screen 0x32 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Kept because a menu that can only be dismissed with the mouse traps a keyboard player, and counted here rather than left as a comment admitting a choice.",
-      "ours": "crates/l2-game/src/screens/menubar/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/info-keyboard-close",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "panels",
       "screen": "0x04",
       "gesture": "key",
       "what": "Escape and Enter close the panel.",
       "why": "The 0x04 arm has no keyboard test at all. Kept rather than removed because the demo index is reachable by keyboard and a screen with no key exit is a screen a keyboard user cannot leave; it is listed here so the count is honest.",
-      "ours": "crates/l2-game/src/screens/info/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/job-popup-keyboard",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "village",
       "screen": "0x0F",
       "gesture": "key",
       "what": "Escape and Enter close the job popup.",
       "why": "0x0F's arm reads Ui_OkButtonClicked and the right-release flag and no key.",
-      "ours": "crates/l2-game/src/screens/job/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/map-selected-county-outline",
@@ -3657,13 +3659,13 @@
     {
       "id": "ours/message-keyboard-dismiss",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "messages",
       "screen": "every",
       "gesture": "key",
       "what": "Escape or Enter closes the message scroll.",
       "why": "Msg_HandleInput tests no key, and the window procedure (0x004B29BE) has no arm that reaches the message system either -- its WM_KEYDOWN cases are the seven editing keys and the control-group digits. KEPT rather than removed, on the same argument as the front end's keyboard: a modal window a person cannot leave without a mouse is worse, not more faithful. Counted here so the number of inventions stays honest.",
-      "ours": "crates/l2-game/src/screens/message/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/options-keyboard-close",
@@ -3673,9 +3675,9 @@
       "gesture": "key",
       "what": "Escape closes all five pages.",
       "note": "KEPT. No key reaches 0x31, 0x39, 0x42 or 0x43 in the original: the window procedure's Escape arm is Menu_Quit or the main-loop exit flag. Enter and Space do nothing, as they do nothing in the original.",
-      "removed": false,
-      "ours": "crates/l2-game/src/screens/options/mod.rs",
-      "evidence": "V"
+      "removed": true,
+      "evidence": "V",
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/options-quirks-page",
@@ -3732,13 +3734,13 @@
     {
       "id": "ours/ratings-keyboard-close",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "panels",
       "screen": "0x2E",
       "gesture": "key",
       "what": "Escape and Enter leave the ratings screen.",
       "why": "The 0x2E arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/ratings/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/report-escape-or-enter-dismisses",
@@ -3763,13 +3765,13 @@
     {
       "id": "ours/saveload-key-escape",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "front-end-keys",
       "screen": "0x35",
       "gesture": "key",
       "what": "Escape closes the save/load box.",
       "why": "SaveLoad_Cancel (0x00434308) is the cross widget and nothing reaches it from the keyboard.",
-      "ours": "crates/l2-game/src/screens/saveload/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/saveload-key-scroll",
@@ -3850,35 +3852,35 @@
     {
       "id": "ours/standings-keyboard-close",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "standings",
       "screen": "0x20",
       "gesture": "key",
       "what": "Escape and Enter close the page.",
       "why": "The 0x20 arm has no keyboard test at all. Same reason as ours/about-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/nobles/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/supplies-keyboard-close",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "panels",
       "screen": "0x18",
       "gesture": "key",
       "what": "Escape leaves without sending.",
       "why": "The 0x18 arm has no keyboard test. Same reason as ours/info-keyboard-close.",
-      "ours": "crates/l2-game/src/screens/supplies/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     },
     {
       "id": "ours/village-keyboard",
       "status": "invention",
-      "removed": false,
+      "removed": true,
       "group": "village",
       "screen": "0x02, 0x05, 0x06",
       "gesture": "key",
       "what": "Escape leaves the idle village and cancels a drag in progress; Enter leaves.",
       "why": "No key reaches any of the village's three screen ids in the original.",
-      "ours": "crates/l2-game/src/screens/village/mod.rs"
+      "removal": "Removed 2026-09-23: App_WndProc 0x004B29BE case 0x1b is ungated by g_screenId -- `if (g_appPhase == 3) Menu_Quit();` -- so in a game Escape raises the exit box (Ui_OpenConfirm(0), screen 0x1E) over this screen and closes nothing; ours closed it, shadowing that arm. The Enter arm is Edit_Confirm 0x00401C5B + FUN_0043600C, a text-field commit, and closes nothing either. Escape is now taken in Machine::handle (0x004B29BE/escape-quits-outside-the-game)."
     }
   ]
 }

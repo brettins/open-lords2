@@ -32,7 +32,7 @@ fn the_close_button_answers_the_release_and_not_the_press() {
 }
 
 #[test]
-fn the_panel_closes_three_ways_and_only_three() {
+fn the_panel_closes_two_ways_and_escape_is_not_one() {
     for page in Page::ALL {
         let (mut game, assets) = world();
         let mut screen = OptionsScreen::new(page);
@@ -42,8 +42,8 @@ fn the_panel_closes_three_ways_and_only_three() {
         assert_eq!(screen.handle(Event::Release { x, y }, &mut ctx), Transition::Pop, "{page:?} button");
         assert_eq!(
             screen.handle(Event::KeyDown(Key::Escape), &mut ctx),
-            Transition::Pop,
-            "{page:?} escape"
+            Transition::Stay,
+            "{page:?} escape: App_WndProc 0x004B29BE Menu_Quit, not this panel"
         );
         assert_eq!(
             screen.handle(Event::RightClick { x: 1, y: 1 }, &mut ctx),

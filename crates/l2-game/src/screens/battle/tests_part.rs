@@ -42,7 +42,6 @@ mod tests {
             assert!(got.pair() * 2 + 1 < 14);
         }
         assert_eq!(pairs.len(), 7, "all seven, and no two the same");
-        assert!(ours_banner(Outcome::Bystander).contains("CONFLICT"));
     }
 
     #[test]

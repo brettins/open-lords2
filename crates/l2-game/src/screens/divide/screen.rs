@@ -216,7 +216,6 @@ impl Screen for DivideScreen {
             // arm: 0x0042FF10/back-one-rather-than-to-the-map right-release
             Event::RightClick { .. } => Transition::Pop,
             // arm: ours/divide-keyboard key
-            Event::KeyDown(Key::Escape) => Transition::Pop,
             Event::KeyDown(Key::Up) => {
                 self.row = self.row.saturating_sub(1);
                 Transition::Stay
