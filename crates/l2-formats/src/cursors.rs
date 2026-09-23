@@ -184,7 +184,10 @@ fn decode(id: u16, b: &[u8]) -> Result<Picture, CursorError> {
         return Err(CursorError::Depth(bpp));
     }
     let palette = head + header;
-    let colours = 1usize << bpp;
+    // BITMAPINFOHEADER +0x20 biClrUsed: 0 means the full 1 << bpp.
+    let used = u32le(b, head + 32).ok_or(CursorError::Truncated)? as usize;
+    let colours = if used == 0 { 1usize << bpp } else { used };
+    let mask = ((1u16 << bpp) - 1) as u8;
     let xor = palette + colours * 4;
     let xor_stride = (w * bpp as usize).div_ceil(32) * 4;
     let and_stride = w.div_ceil(32) * 4;
@@ -201,23 +204,24 @@ fn decode(id: u16, b: &[u8]) -> Result<Picture, CursorError> {
             let index = {
                 let bit = x * bpp as usize;
                 let byte = *b.get(xor + row * xor_stride + bit / 8).ok_or(CursorError::Truncated)?;
-                (byte >> (8 - bpp as usize - bit % 8) & (colours as u8 - 1)) as usize
+                (byte >> (8 - bpp as usize - bit % 8) & mask) as usize
             };
             let c = palette + index * 4;
+            let bgr = b.get(c..c + 3).ok_or(CursorError::Truncated)?;
             let px = (y * w + x) * 4;
-            // [D] AND 1 with XOR 1 is the inverting pixel, which no display server
-            // outside Windows can draw: we make it the ink colour, black.
-            if !opaque {
-                if index != 0 {
-                    rgba[px..px + 4].copy_from_slice(&[0, 0, 0, 255]);
-                }
+            // Windows draws (screen AND mask) XOR colour: AND 1 with black is
+            // transparent, AND 1 with any other colour XORs the screen with it.
+            // [D] a hardware RGBA cursor cannot read the screen; the XOR colour is
+            // drawn opaque, which is that inversion over black (0 ^ c = c).
+            if !opaque && bgr == [0, 0, 0] {
                 continue;
             }
-            rgba[px] = *b.get(c + 2).ok_or(CursorError::Truncated)?;
-            rgba[px + 1] = *b.get(c + 1).ok_or(CursorError::Truncated)?;
-            rgba[px + 2] = *b.get(c).ok_or(CursorError::Truncated)?;
-            rgba[px + 3] = 255;
+            rgba[px..px + 4].copy_from_slice(&[bgr[2], bgr[1], bgr[0], 255]);
         }
     }
     Ok(Picture { id, width: w as u16, height: h as u16, hot_x, hot_y, rgba })
 }
+
+#[cfg(test)]
+#[path = "cursors_tests.rs"]
+mod tests;
