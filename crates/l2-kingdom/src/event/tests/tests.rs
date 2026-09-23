@@ -1,14 +1,3 @@
-#![allow(unused_imports)]
-use super::*;
-use super::deck::*;
-use super::effects::*;
-use crate::county::County;
-use crate::report::Message;
-use crate::tables::{Season, Tables};
-use l2_net::{Pcg32, Quirk, Quirks};
-
-#[cfg(test)]
-mod tests {
     use super::*;
 
     const Q: Quirks = Quirks::FAITHFUL;
@@ -438,5 +427,3 @@ mod tests {
         assert_eq!(EventKind::from_id(0), None);
         assert_eq!(EventKind::from_id(0x8F), None, "the gap between the two runs");
     }
-}
-
