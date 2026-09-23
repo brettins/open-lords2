@@ -213,10 +213,14 @@ impl Machine {
         let byte = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message).and_then(|s| {
             s.mode_screen_id().or_else(|| crate::turn_clock::screen_byte(s.id()))
         });
-        if tick_gate::withheld(byte, ctx.game.messages.is_open(), ctx.game.multiplayer) {
+        let withheld = tick_gate::withheld(byte, ctx.game.messages.is_open(), ctx.game.multiplayer);
+        // Battle_Frame 004b0000.c:6711 Season_FinishFade() sits after the tick loop: the fade
+        // finishes whatever FUN_004BB978 returns.
+        let fading = self.stack.iter().any(|s| s.id() == ScreenId::Campaign && s.fade().is_some());
+        if withheld && !fading {
             return false;
         }
-        if ctx.game.battle.is_some() || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield) {
+        if !withheld && (ctx.game.battle.is_some() || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield)) {
             // arm: 0x004B99C0/frame-winds-the-battle frame
             if let Some(depth) = self.stack.iter().position(|s| s.id() == ScreenId::Battlefield) {
                 if depth + 1 < self.stack.len() {
