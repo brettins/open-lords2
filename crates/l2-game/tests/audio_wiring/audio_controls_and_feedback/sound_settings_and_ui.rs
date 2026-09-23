@@ -23,7 +23,7 @@ fn turning_music_off_on_the_sounds_page_stops_the_music() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     macro_rules! listen {
         () => {
             director.listen(&mut audio, &machine, &game)
@@ -64,7 +64,7 @@ fn a_widget_press_is_heard_once_and_a_hotspot_press_is_not() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let assets = Assets::placeholder();
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     let mut opened = 0;
     for b in l2_game::screens::map::SIDEBAR_BUTTONS {
@@ -144,7 +144,7 @@ fn escape_speaks_the_exit_prompt() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let assets = Assets::placeholder();
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let mut game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);

@@ -36,7 +36,7 @@ fn the_field_brush_sounds_what_it_paints() {
     ];
     for (bx, field_menu, from, want) in arms {
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         let mut game = world();
         let tile = {
             let map = &mut game.kingdom.campaign.map;
@@ -99,7 +99,7 @@ fn picking_a_castle_picture_speaks_that_castles_name() {
 
     for level in 0..5usize {
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         let mut game = world();
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
@@ -144,7 +144,7 @@ fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
     let arms: [(u8, bool, bool); 2] = [(2, true, true), (1, false, false)];
     for (county_owner, burns, sounds) in arms {
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         let mut game = world();
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
@@ -194,7 +194,7 @@ fn wrecking_a_dwelling_sounds_and_an_ordinary_tile_change_does_not() {
     }
 
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let mut game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);

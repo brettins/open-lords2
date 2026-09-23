@@ -118,6 +118,8 @@ pub struct Director {
     cues: Option<l2_sim::Cues>,
     cries_heard: usize,
     troop_cries: TroopCries,
+    /// `DAT_0055CE90` cleared: set only by FUN_00497500 at start-up.
+    welcomed: bool,
 }
 
 fn before_the_campaign(id: crate::screen::ScreenId) -> bool {

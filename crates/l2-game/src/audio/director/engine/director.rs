@@ -17,6 +17,11 @@ impl Director {
         Director::default()
     }
 
+    /// A session whose FUN_00497A34 :3289 welcome has already been spoken.
+    pub fn welcomed() -> Director {
+        Director { welcomed: true, ..Director::default() }
+    }
+
     pub fn listen(
         &mut self,
         audio: &mut Audio,
@@ -86,6 +91,13 @@ impl Director {
         audio.follow(scene(machine, game));
 
         let now = machine.ids();
+        // FUN_00497A34 :3288-3290 `if (DAT_0055ce90) { Sound_PlayFile(s011_01, 1, 0);
+        // DAT_0055ce90 = 0; }`; App_IdleFrame reaches it at boot after the intro. [V]
+        // sfx: FUN_00497a34#3
+        if !self.welcomed && now.iter().any(|id| matches!(id, ScreenId::Setup(_))) {
+            self.welcomed = true;
+            audio.play_file(names::speech::WELCOME, true);
+        }
         let opened = |want: &dyn Fn(&ScreenId) -> bool| {
             now.iter().any(|id| want(id)) && !self.stack.iter().any(|id| want(id))
         };

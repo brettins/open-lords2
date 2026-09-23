@@ -63,6 +63,8 @@ pub mod speech {
     /// `Setup_ChooseCampaign` (`0x00433461`), and `FUN_00432B05` after a
     /// successful `Net_JoinGame`.
     pub const CHOOSE_YOUR_SHIELD: &str = "S011_02.wav";
+    /// FUN_00497A34 :3288, once a session on the front end.
+    pub const WELCOME: &str = "S011_01.wav";
     /// `Panel_SplitButton` (`0x004378B3`), on the branch that opens the
     /// division screen. The refusal branch — an army that has already moved —
     /// is silent and raises message `0x95` instead.

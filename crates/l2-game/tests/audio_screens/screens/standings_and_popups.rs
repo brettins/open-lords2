@@ -30,7 +30,7 @@ fn the_standings_page_speaks_its_category_every_time_it_is_asked() {
     let mut game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &machine, &game);
 
     // The button, which is `FUN_004351C4`: the page opens on category 0 and
@@ -87,7 +87,7 @@ fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
         let mut game = world();
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         listen(&mut director, &mut audio, &machine, &game);
 
         machine.push(ScreenId::SaveLoad(mode));
@@ -102,7 +102,7 @@ fn the_save_box_and_the_trade_spinner_speak_what_their_handlers_decided() {
     game.kingdom.realms[1].gold = 10_000;
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &machine, &game);
 
     machine.push(ScreenId::Trade(0, l2_kingdom::trade::Good::Grain as u8));

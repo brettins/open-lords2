@@ -69,7 +69,7 @@ fn a_tip_reads_its_first_line_and_then_its_takes_a_second_apart() {
     let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
     let (mut g, a, mut m) = campaign();
     let mut sound = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let mut buf = vec![0f32; 706 * 2];
 
     let names = ["s200_01.wav", "s200_02.wav", "s200_03.wav"];
@@ -137,7 +137,7 @@ fn a_troop_cry_holds_back_a_tips_next_take_as_the_narrator_does() {
     let run = |cry_on: Option<usize>| -> (Option<usize>, Option<usize>) {
         let (mut g, a, mut m) = campaign();
         let mut sound = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         let mut buf = vec![0f32; 706 * 2];
         let mut cry_last = None;
         for t in 1..=8000 {

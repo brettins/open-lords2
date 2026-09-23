@@ -38,7 +38,7 @@ fn the_ration_panel_speaks_when_the_county_lives_on_dairy() {
 
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &machine, &game);
 
     machine.push(ScreenId::County(1, Panel::Ration));
@@ -51,7 +51,7 @@ fn the_ration_panel_speaks_when_the_county_lives_on_dairy() {
     assert!(!audio.heard().contains(&"s021_02.wav"), "and not the complaint");
 
     let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     game.kingdom.counties[1].ration_achieved = 0;
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
@@ -89,7 +89,7 @@ fn right_clicking_a_resource_site_plays_its_work() {
 
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         listen(&mut director, &mut audio, &machine, &game);
 
         machine.push(ScreenId::Info(Target::Tile(tile)));
@@ -108,7 +108,7 @@ fn right_clicking_a_resource_site_plays_its_work() {
     game.kingdom.campaign.map.flags[tile] &= !l2_kingdom::map::flags::SETTLEMENT;
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &machine, &game);
     machine.push(ScreenId::Info(Target::Tile(tile)));
     listen(&mut director, &mut audio, &machine, &game);
@@ -137,7 +137,7 @@ fn the_job_popup_opens_with_the_sound_of_the_job() {
         let game = world();
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         listen(&mut director, &mut audio, &machine, &game);
 
         machine.push(ScreenId::Job(1, job));

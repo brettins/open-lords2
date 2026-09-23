@@ -184,7 +184,7 @@ fn a_merchant_crossing_a_tile_is_audible() {
     let mut game = england!();
     let mut machine = Machine::new(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
