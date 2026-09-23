@@ -126,7 +126,7 @@ impl CountyScreen {
                 let x = pen.heading(canvas, 20, 56, &line_text(ctx, g73::TITLE), font::TEXT);
                 pen.heading(canvas, x + 2, 56, &county_name(ctx, self.county), font::TEXT);
 
-                // value = Ui_HistoryGraph(0x20, 0x54, 0)
+                // Panel_Population 0x004110B1 00410000.c:414-421: value = Ui_HistoryGraph(0x20, 0x54, 0)
                 let peak = super::graph::draw(&pen, ctx, canvas, self.county as usize, 0);
 
                 // Eng_DrawString(0x49, 8, 0xB0, 0xF0); Ui_DrawNumber(value, '@', "", pen + 0xB0, 0xF0);
