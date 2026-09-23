@@ -71,6 +71,7 @@ pub(super) fn encode_prefix(game: &Game, out: &mut Canonical) {
     out.u8(c.ranking.trailer);
     out.u8(c.ranking.opponents_remaining);
     out.u8(c.ranking.realms_in_play);
+    out.u8(game.game_type as u8);
 
     encode_messages(out, game);
 
@@ -218,6 +219,9 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         Some(report) => Some(report?),
     };
     let campaign = decode_campaign(input)?;
+    let type_byte = input.u8()?;
+    let game_type = crate::victory::GameType::from_value(type_byte)
+        .ok_or_else(|| bad_count(input, type_byte as usize, "game type"))?;
     let messages = decode_messages(input)?;
     let battle = input
         .option(crate::battlefield::LiveBattle::decode)?
@@ -228,6 +232,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         battle_master: crate::screens::ratings::BattleMaster::default(),
         messages,
         multiplayer: false,
+        game_type,
         seats: Vec::new(),
         ai_granted: false,
         player,

@@ -1,0 +1,48 @@
+{
+ "reviewed": "5dc1cb637a0e61cab749ff2370003717e836fb7b",
+ "date": "2026-09-23",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/screens/conquest.rs",
+   "line": 188,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/conquest.rs",
+   "line": 146,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": "Fixed on agent/conquest-guard: Game.game_type carries DAT_0055302C (save block 197); ConquestScreen::update leaves for the title when it is Custom (2), before any click."
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 521,
+   "address": "0x004329EC",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render.rs",
+   "line": 389,
+   "address": "0x00433461",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/conquest.rs",
+   "line": 146,
+   "address": "0x004329EC",
+   "verdict": "[D]",
+   "note": "Shield and prefs rebuilt from the Game: ours has no surviving setup globals."
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/screen.rs",
+   "line": 144,
+   "address": "0x004B29BE",
+   "verdict": "[D]",
+   "note": "CNEW-dev-index."
+  }
+ ]
+}

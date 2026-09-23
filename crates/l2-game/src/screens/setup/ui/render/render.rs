@@ -577,6 +577,12 @@ impl SetupScreen {
                 return Transition::Stay;
             }
         }
+        // DAT_0055302C: 1 from Setup_ChooseCampaign 0x00433461, else 2 (FUN_00432CC8 :646). [V]
+        ctx.game.game_type = if campaign.is_some() {
+            crate::victory::GameType::Campaign
+        } else {
+            crate::victory::GameType::Custom
+        };
         if let Some(c) = campaign {
             ctx.game.campaign = c;
         }

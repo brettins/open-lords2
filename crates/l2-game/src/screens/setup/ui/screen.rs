@@ -139,7 +139,7 @@ impl SetupScreen {
             Event::KeyDown(Key::Down) => self.selected = (self.selected + 1) % n,
             // arm: ours/setup-key-activate key
             Event::KeyDown(Key::Enter) | Event::KeyDown(Key::Space) => return self.activate(ctx),
-            // [D] developer page, not the original's; Ctrl+D so no letter is taken.
+            // [D] developer page, not the original's: CNEW-dev-index.
             // arm: ours/setup-key-index key
             Event::KeyDown(Key::CtrlChar('D')) => return Transition::Push(ScreenId::Index),
             // arm: ours/setup-key-escape key
