@@ -168,7 +168,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/net_game/two_seats.rs", "install", 1),
     ("crates/l2-game/tests/newgame/army_size.rs", "other", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "install", 1),
-    ("crates/l2-game/tests/newgame/campaign.rs", "other", 5),
+    ("crates/l2-game/tests/newgame/campaign.rs", "other", 6),
     ("crates/l2-game/tests/newgame/heraldry.rs", "other", 4),
     ("crates/l2-game/tests/newgame/load_page.rs", "other", 2),
     ("crates/l2-game/tests/newgame/quaintville.rs", "other", 1),

@@ -457,6 +457,8 @@ pub struct Game {
     /// counter, which is exactly the line between "the world" and "the session
     /// playing through it". See [`crate::victory`].
     pub campaign: crate::victory::Campaign,
+    /// `DAT_0055302C`, saved (block 197). [`crate::victory::GameType`].
+    pub game_type: crate::victory::GameType,
     /// **What to answer *"Will you take the field?"* when nobody is asked.**
     ///
     /// [`crate::turn::end_turn`] is the headless door and cannot raise a screen,

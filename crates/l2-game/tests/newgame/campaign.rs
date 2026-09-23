@@ -173,6 +173,29 @@ fn a_release_on_the_conquest_screen_starts_the_campaigns_next_map() {
     assert_eq!(game.realm_colour[game.player as usize], 3, "the realm's shield carries");
 }
 
+/// Screen_FrameInput 0x0042FF10, 00420000.c:7521-7523: `DAT_0055302c == 2` (custom)
+/// leaves screen 0x1C on the frame; a campaign (1) waits for the release.
+#[test]
+fn a_custom_games_conquest_screen_leaves_at_once_and_a_campaigns_waits() {
+    use l2_game::screens::conquest::ConquestScreen;
+    use l2_game::victory::GameType;
+    let assets = assets!();
+    let mut game = Game::new(scenario::SEED);
+    let mut setup = super::open(&assets, &mut game);
+    super::press_start(&mut setup, &mut game, &assets);
+    assert_eq!(game.game_type, GameType::Custom, "FUN_00432CC8 :646");
+    let mut s = ConquestScreen::new();
+    let t = s.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(t, Transition::Replace(ScreenId::Setup(SetupPage::Title)));
+
+    let mut game = Game::new(scenario::SEED);
+    walk_to_campaign(&assets, &mut game, false);
+    assert_eq!(game.game_type, GameType::Campaign, "Setup_ChooseCampaign :891");
+    let mut s = ConquestScreen::new();
+    let t = s.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(t, Transition::Stay, "a campaign waits for the release");
+}
+
 /// Choosing a campaign writes g_campaignTrack/g_campaignMap at once:
 /// Setup_ChooseCampaign 0x00433461, 00430000.c:892-897.
 #[test]
