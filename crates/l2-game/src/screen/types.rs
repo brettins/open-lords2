@@ -34,6 +34,8 @@ pub enum ScreenId {
     /// sprite sheet, the noun and the basket slot.
     Rack(u8, u8),
     Divide(usize),
+    /// `g_screenId` `0x11` from `Msg_GarrisonSplitClicked` (`0x004376BB`): army, county, tile.
+    DivideCastle(usize, u8, (u8, u8)),
     /// `DAT_00553C64` is written on the map click and read only by this
     /// screen's plaque and by the panel's price arithmetic. See
     /// [`crate::screens::merchant`].
@@ -176,6 +178,9 @@ impl ScreenId {
                 Box::new(crate::screens::armoury::RackScreen::new(county, troop))
             }
             ScreenId::Divide(unit) => Box::new(crate::screens::divide::DivideScreen::new(unit)),
+            ScreenId::DivideCastle(unit, county, tile) => {
+                Box::new(crate::screens::divide::DivideScreen::into_castle(unit, county, tile))
+            }
             ScreenId::Merchant(unit) => {
                 Box::new(crate::screens::merchant::MerchantScreen::new(unit))
             }

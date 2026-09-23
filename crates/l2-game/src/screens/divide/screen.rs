@@ -22,6 +22,9 @@ pub enum Divided {
 pub struct DivideScreen {
     /// `DAT_00553074` — the army being divided.
     unit: usize,
+    /// `DAT_0053F080` / `DAT_00568D98`: 0 from `Panel_SplitButton`, the
+    /// castle county and tile from `Msg_GarrisonSplitClicked` (`0x004376BB`).
+    into: SplitInto,
     basket: SplitBasket,
     pub(super) row: usize,
     pub outcome: Divided,
@@ -41,6 +44,7 @@ impl DivideScreen {
     pub fn new(unit: usize) -> DivideScreen {
         DivideScreen {
             unit,
+            into: SplitInto::Field,
             basket: SplitBasket::default(),
             row: 0,
             outcome: Divided::None,
@@ -50,8 +54,16 @@ impl DivideScreen {
         }
     }
 
+    pub fn into_castle(unit: usize, county: u8, tile: (u8, u8)) -> DivideScreen {
+        DivideScreen { into: SplitInto::Castle { county, tile }, ..DivideScreen::new(unit) }
+    }
+
     pub fn unit(&self) -> usize {
         self.unit
+    }
+
+    pub fn into(&self) -> SplitInto {
+        self.into
     }
 
     pub(crate) fn fire(&mut self, ctx: &mut Ctx, widget: usize) -> Transition {
@@ -87,8 +99,10 @@ impl DivideScreen {
             return;
         };
         self.basket = SplitBasket::seed(unit);
-        // The Readme's rule, and message 0x95 = group 149 in the original.
-        self.status = if unit.moves_used >= 1 {
+        // The Readme's rule, and message 0x95 = group 149 in the original;
+        // `Msg_GarrisonSplitClicked` seeds without that test.
+        let castle = matches!(self.into, SplitInto::Castle { .. });
+        self.status = if unit.moves_used >= 1 && !castle {
             "THIS ARMY HAS ALREADY MARCHED THIS SEASON".into()
         } else {
             format!("{} MEN. MOVE THEM RIGHT TO SPLIT THEM OFF", unit.men)
@@ -114,10 +128,10 @@ impl DivideScreen {
         }
     }
 
-    /// `FUN_00437AFB` with no destination county — the plain field split.
+    /// `Army_SplitConfirm` (`0x00437AFB`): `Army_Split(g_localPlayer, DAT_00553074,
+    /// DAT_0053F080, DAT_00568D98)`, the destination being [`DivideScreen::into`].
     fn split(&mut self, ctx: &mut Ctx) -> Transition {
-        let order =
-            crate::command::SplitArmy { army: self.unit, basket: self.basket, into: SplitInto::Field };
+        let order = crate::command::SplitArmy { army: self.unit, basket: self.basket, into: self.into };
         match ctx.issue(order) {
             Ok(id) => {
                 self.outcome = Divided::Split(id);
@@ -157,7 +171,10 @@ pub(crate) fn arrows(pen: &Pen, canvas: &mut Canvas, row: usize, press: &Press) 
 
 impl Screen for DivideScreen {
     fn id(&self) -> ScreenId {
-        ScreenId::Divide(self.unit)
+        match self.into {
+            SplitInto::Field => ScreenId::Divide(self.unit),
+            SplitInto::Castle { county, tile } => ScreenId::DivideCastle(self.unit, county, tile),
+        }
     }
 
     fn take_clicks(&mut self) -> u8 {

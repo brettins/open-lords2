@@ -328,13 +328,15 @@ fn answer(ctx: &mut Ctx, prompt: Prompt, yes: bool) -> Transition {
             if !yes {
                 return Transition::Pass;
             }
-            let unit = ctx.game.messages.open().map_or(0, |r| r.variant as usize);
+            // `DAT_00553F5C`, `DAT_0055CD54`, `DAT_00553F0C`: the variant, the
+            // county byte and the payload `g_hoverTileOffset` (`004a0000.c:3913`).
+            let open = ctx.game.messages.open().map(|r| (r.variant as usize, r.county, r.payload));
+            let (unit, county, tile) = open.unwrap_or((0, 0, 0));
             message::dismiss(ctx.game);
             if unit != 0 && ctx.game.kingdom.campaign.units.get(unit).is_some() {
-                // `g_screenId = 0x11` — and `DivideScreen` seeds its own basket
-                // from the army the first time it is drawn, which is
-                // `FUN_004378B3`'s seeding that `FUN_004376BB` duplicates.
-                return Transition::Replace(ScreenId::Divide(unit));
+                // `g_screenId = 0x11`, seeded as `Panel_SplitButton` seeds.
+                let tile = l2_kingdom::map::coords(tile.max(0) as usize);
+                return Transition::Replace(ScreenId::DivideCastle(unit, county, tile));
             }
             Transition::Pop
         }

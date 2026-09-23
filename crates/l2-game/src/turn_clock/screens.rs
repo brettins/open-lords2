@@ -46,7 +46,7 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Trade(..) => 0x0C,
         ScreenId::Rack(..) => 0x0D,
         ScreenId::Job(..) => 0x0F,
-        ScreenId::Divide(_) => 0x11,
+        ScreenId::Divide(_) | ScreenId::DivideCastle(..) => 0x11,
         ScreenId::BattlePrompt => 0x12,
         ScreenId::BattleResult => 0x13,
         ScreenId::County(_, Panel::Population) => 0x14,

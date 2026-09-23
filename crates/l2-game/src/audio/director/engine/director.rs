@@ -275,12 +275,11 @@ impl Director {
                 audio.play_file(name, true);
             }
         }
-        // `Panel_SplitButton` (`0x004378B3`), and `FUN_004376BB` is the same
-        // sound from the move-order confirm's split-into-a-castle path, which
-        // we do not have. Both open `g_screenId` `0x11`.
+        // `Panel_SplitButton` (`0x004378B3`) and `Msg_GarrisonSplitClicked`
+        // (`0x004376BB`), both `Sound_PlayFile("S017_01.wav", 1, 0)` as they open 0x11.
         //
-        // sfx: Panel_SplitButton#1
-        if opened(&|id| matches!(id, ScreenId::Divide(_))) {
+        // sfx: Panel_SplitButton#1,FUN_004376bb#1
+        if opened(&|id| matches!(id, ScreenId::Divide(_) | ScreenId::DivideCastle(..))) {
             audio.play_file(names::speech::SPLIT_ARMY, true);
         }
         // **`Panel_JobDetail` (`0x00412B33`) — the village's work.** The job

@@ -254,3 +254,33 @@ fn the_levy_window_lifts_off_the_armoury_and_leaves_the_room_behind() {
 }
 
 
+
+/// `Msg_GarrisonSplitClicked` (`0x004376BB`) opens 0x11 with `DAT_0053F080`
+/// set, and `Army_SplitConfirm` (`0x00437AFB`) then drops the 50-man minimum.
+#[test]
+fn a_split_into_a_castle_may_send_fewer_than_fifty() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, _) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+    g.kingdom.counties[1].owner = 1;
+    g.kingdom.counties[1].castle_type = 3;
+    // `Msg_Enqueue(0, to, 0xA6, g_selectedUnit, 0x11, county, 0, g_hoverTileOffset)`.
+    let mut rec = l2_game::message::Record::default();
+    (rec.group, rec.category, rec.to) = (166, l2_game::message::category::GARRISON_PROMPT, g.player);
+    (rec.variant, rec.county) = (id as _, 1);
+    rec.payload = (here.1 as usize * MAP_DIM + here.0 as usize) as i32;
+    assert!(g.messages.enqueue(rec, g.player));
+    tick(&mut m, &mut g, &a);
+    let [yes, _] = l2_game::message::Prompt::Garrison.widgets();
+    let side = l2_game::message::Prompt::SIDE;
+    click(&mut m, &mut g, &a, (yes.0 + side / 2, yes.1 + side / 2));
+    assert_eq!(m.top_id(), Some(ScreenId::DivideCastle(id, 1, here)), "DAT_0053F080, DAT_00568D98");
+    tick(&mut m, &mut g, &a);
+    let at = on(divide::parent_button(0));
+    click(&mut m, &mut g, &a, at);
+    send(&mut m, &mut g, &a, Event::Release { x: at.0, y: at.1 });
+    press_and_wait(&mut m, &mut g, &a, on(divide::SPLIT_TICK));
+    assert_eq!(g.kingdom.campaign.units.len(), 2, "ten men into the keep: no minimum");
+    let daughter = g.kingdom.campaign.units.iter().map(|(_, u)| u.men).min().unwrap();
+    assert_eq!(daughter, 10);
+}

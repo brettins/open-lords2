@@ -54,6 +54,8 @@ fn four_screens_speak_as_they_open() {
         (ScreenId::Setup(SetupPage::Shield), names::speech::CHOOSE_YOUR_SHIELD),
         (ScreenId::Supplies(1), names::speech::SUPPLIES),
         (ScreenId::Divide(1), names::speech::SPLIT_ARMY),
+        // Msg_GarrisonSplitClicked 0x004376BB
+        (ScreenId::DivideCastle(1, 1, (1, 1)), names::speech::SPLIT_ARMY),
     ] {
         let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
         let game = world();
