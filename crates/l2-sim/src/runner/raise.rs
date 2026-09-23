@@ -61,6 +61,7 @@ impl BattleRunner {
                     (x, y) = table[0];
                 }
                 *oil = if *oil + 1 > 8 { 0 } else { *oil + 1 };
+                // [D] Deploy_SlotForUnitSiege 0x004816F9 :512-513 copies 0x00554200 unchecked; ours indexes the grid.
                 let c = |v: i16| v.clamp(0, DIM as i16 - 1) as u8;
                 return (c(x), c(y));
             }

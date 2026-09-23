@@ -157,7 +157,7 @@ pub struct Campaign {
     pub field_playlist: crate::field_playlist::FieldPlaylist,
     pub explored: crate::explore::Explored,
     /// `g_battleApproachLane` (`0x0056D6B0`) and `g_battleRallyGroup`, as the
-    /// last `Battle_Start` (`0x004778A0`, `00470000.c:3059-3072`) left them;
+    /// last `Battle_Start` (`0x004778A0`, `00470000.c:3104-3118`) left them;
     /// its multiplayer arm steps them from here. `.bss`, so 0 at start.
     pub battle_selectors: (u8, u8),
 }

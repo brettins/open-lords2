@@ -15,7 +15,7 @@ fn two_armies() -> (Kingdom, usize, usize) {
     (k, ai, di)
 }
 
-/// `Battle_Start` (`0x004778A0`, `00470000.c:3059-3072`), multiplayer arm: the
+/// `Battle_Start` (`0x004778A0`, `00470000.c:3104-3118`), multiplayer arm: the
 /// lane steps 0..3 and the group 0..1 from the last battle's, which the
 /// campaign carries. Ablation: drop the write-back in `begin_fight_in` and the
 /// second battle opens at (1, 1) again.

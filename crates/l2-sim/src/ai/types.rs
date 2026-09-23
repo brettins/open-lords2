@@ -251,7 +251,7 @@ impl Ai {
     /// next `Battle_Start` reads; `l2_kingdom`'s `Campaign::battle_selectors`
     /// carries them between battles.
     pub fn new_for_battle(seed: u64, multiplayer: bool, prev: (usize, usize)) -> Self {
-        // `Battle_Start` (`0x004778A0`, 00470000.c:3059-3072):
+        // `Battle_Start` (`0x004778A0`, 00470000.c:3104-3118):
         //   if (g_multiplayer == 0) {
         //     FUN_00404b2c();
         //     g_battleApproachLane = DAT_005c9a84 & 3;
