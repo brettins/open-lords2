@@ -7,7 +7,6 @@ pub use grid::*;
 mod search_part;
 pub use search_part::*;
 mod tests_part;
-pub use tests_part::*;
 
 pub const DIM: usize = 80;
 pub const CELLS: usize = DIM * DIM;

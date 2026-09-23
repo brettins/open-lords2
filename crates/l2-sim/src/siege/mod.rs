@@ -57,7 +57,6 @@ pub use moat::*;
 mod siegetower;
 pub use siegetower::*;
 
-use crate::terrain::{Battlefield, Cell, DIM};
 
 /// Cell flag `0x20` — **a castle wall**. `Cell_TryEnter` returns 5 for it
 /// against a non-zero side and 1 (pass) for side 0, so the garrison walks
