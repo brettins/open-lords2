@@ -123,6 +123,7 @@ impl Live {
             self.exchange();
         }
         game.net.stalled = self.stalled >= STALL_GRACE;
+        game.net.beat.frame(self.session.tick().0);
         if let Some(reason) = self.session.halt_reason().cloned() {
             self.report(game, reason);
         }

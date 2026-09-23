@@ -57,6 +57,8 @@ pub struct Link {
     pub halted: Option<String>,
     /// The season `net::frame` finished, for the campaign screen to show.
     pub done: Option<Box<crate::turn::TurnOutcome>>,
+    /// `FUN_0041A844`'s heartbeat, per seat.
+    pub beat: super::status::Beat,
 }
 
 impl Link {
