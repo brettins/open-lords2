@@ -31,35 +31,35 @@ fn read_mercenaries(
     county_count: usize,
     units: &[(usize, Unit)],
 ) -> Result<MercenaryBands, ImportError> {
-    let in_play = save.i32_at(MERCENARY_BANDS_IN_PLAY)?;
+    let in_play = save.mercenary_bands_in_play()?;
     if !(0..=MERCENARY_BANDS as i32).contains(&in_play) {
         return Err(ImportError::MercenaryBandCount(in_play));
     }
     let mut bands = MercenaryBands::none();
     bands.set_in_play(in_play as usize);
     for band in 1..=in_play as usize {
-        let at = MERCENARY_BANDS_VA + band as u32 * MERCENARY_BAND_STRIDE;
+        let f = save.mercenary_band(band)?;
         let rules = &ROSTER[band];
         let constants = [
-            ("start county", save.u8_at(at + 0x02)? as i32, rules.start_county as i32),
-            ("troop type", save.u8_at(at + 0x05)? as i32, rules.troop.index() as i32),
-            ("reload", save.i8_at(at + 0x07)? as i32, rules.period as i32),
-            ("men", save.i32_at(at + 0x08)?, rules.men),
-            ("price", save.i32_at(at + 0x0C)?, rules.price),
-            ("listed wage", save.i32_at(at + 0x10)?, rules.listed_wage),
+            ("start county", f.start_county as i32, rules.start_county as i32),
+            ("troop type", f.troop as i32, rules.troop.index() as i32),
+            ("reload", f.reload as i32, rules.period as i32),
+            ("men", f.men, rules.men),
+            ("price", f.price, rules.price),
+            ("listed wage", f.listed_wage, rules.listed_wage),
         ];
         for (field, file, roster) in constants {
             if file != roster {
                 return Err(ImportError::MercenaryRoster { band, field, file, roster });
             }
         }
-        let hired_by = save.i16_at(at)?;
+        let hired_by = f.hired_by;
         let b = Band {
             hired_by: hired_by as u16,
-            offered_in: save.u8_at(at + 0x03)?,
-            next_county: save.u8_at(at + 0x04)?,
-            countdown: save.i8_at(at + 0x06)?,
-            reload: save.i8_at(at + 0x07)?,
+            offered_in: f.offered_in,
+            next_county: f.next_county,
+            countdown: f.countdown,
+            reload: f.reload,
         };
         if b.offered_in as usize > county_count {
             return Err(ImportError::MercenaryState {
@@ -227,7 +227,7 @@ impl Scenario {
                 }
                 neighbours.push(id);
             }
-            let at = |offset: u32| COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + offset;
+            let s = &c.stored;
             counties[c.index] = Some(CountyState {
                 owner: c.owner,
                 population: c.population,
@@ -239,9 +239,9 @@ impl Scenario {
                 shown_health: c.shown_health as i32,
                 shown_events: c.shown_events as i32,
                 d_hap_ration: c.d_hap_ration as i32,
-                d_hap_health: county_i8(save, c.index, D_HAP_HEALTH)?,
-                d_hap_tax_local: county_i8(save, c.index, D_HAP_TAX_LOCAL)?,
-                tax_shown: county_i32(save, c.index, TAX_SHOWN)?,
+                d_hap_health: c.d_hap_health as i32,
+                d_hap_tax_local: s.d_hap_tax_local as i32,
+                tax_shown: s.tax_shown,
                 health_meter: c.health_meter as i32,
                 health_band: c.health_band.max(0) as u8,
                 unrest: c.unrest,
@@ -261,10 +261,8 @@ impl Scenario {
                 herd_eaten: c.herd_eaten,
                 castle_type: c.castle_type,
                 castle_building: c.castle_building,
-                castle_switch: save
-                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + CASTLE_SWITCH)?
-                    != 0,
-                industry: read_industry(save, c.index)?,
+                castle_switch: s.castle_switch != 0,
+                industry: read_industry(s),
                 fields_fallow: c.fields_fallow as i32,
                 fields_cattle: c.fields_cattle as i32,
                 fields_grain: c.fields_grain as i32,
@@ -273,168 +271,127 @@ impl Scenario {
                 dryness: c.dryness as i32,
                 grain: c.grain,
                 herd: c.herd,
-                labour: read_labour(save, c.index, 0)?,
-                labour_wanted: read_labour(save, c.index, 4)?,
-                labour_useful: read_labour(save, c.index, 8)?,
-                labour_share: {
-                    let base = COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + LABOUR_SHARE_BASE;
-                    let mut shares = [0i32; JOB_COUNT - 1];
-                    for (job, share) in shares.iter_mut().enumerate() {
-                        *share = save.i32_at(base + job as u32 * 4)?;
-                    }
-                    shares
-                },
-                industry_share: save
-                    .i8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + INDUSTRY_SHARE)?
-                    as i32,
-                field_tiles: read_field_tiles(save, c.index)?,
-                farm_style: save
-                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + FARM_STYLE)?,
-                purse: save.i32_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + PURSE)?,
-                merchant_count: save
-                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_COUNT)?
-                    as i32,
-                merchant_unit: save
-                    .u8_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_UNIT)?,
-                merchant_visits: save
-                    .i32_at(COUNTY_BASE + (c.index * COUNTY_STRIDE) as u32 + MERCHANT_VISITS)?,
+                labour: s.labour[0],
+                labour_wanted: s.labour[1],
+                labour_useful: s.labour[2],
+                labour_share: s.labour_share,
+                industry_share: s.industry_share as i32,
+                field_tiles: read_field_tiles(s),
+                farm_style: s.farm_style,
+                purse: s.purse,
+                merchant_count: s.merchant_count as i32,
+                merchant_unit: s.merchant_unit,
+                merchant_visits: s.merchant_visits,
 
                 // C161. `docs/stored-fields.json` says what each is.
-                herd_change_expected: save.i32_at(at(stored::HERD_CHANGE_EXPECTED))?,
-                herd_births_expected: save.i32_at(at(stored::HERD_BIRTHS_EXPECTED))?,
-                herd_deaths_expected: save.i32_at(at(stored::HERD_DEATHS_EXPECTED))?,
-                grain_weather_change: save.i32_at(at(stored::GRAIN_WEATHER_CHANGE))?,
-                grain_event_change: save.i32_at(at(stored::GRAIN_EVENT_CHANGE))?,
-                herd_weather_change: save.i32_at(at(stored::HERD_WEATHER_CHANGE))?,
-                herd_event_change: save.i32_at(at(stored::HERD_EVENT_CHANGE))?,
-                grain_change_expected: save.i32_at(at(stored::GRAIN_CHANGE_EXPECTED))?,
-                grain_sown_expected: save.i32_at(at(stored::GRAIN_SOWN_EXPECTED))?,
-                grain_grown_expected: save.i32_at(at(stored::GRAIN_GROWN_EXPECTED))?,
-                reclaim_fields_finishing: save.i32_at(at(stored::RECLAIM_FIELDS_FINISHING))?,
-                reclaim_seasons_to_next: save.i32_at(at(stored::RECLAIM_SEASONS_TO_NEXT))?,
-                happiness_avg: save.i8_at(at(stored::HAPPINESS_AVG))? as i32,
-                happiness_sum: save.i32_at(at(stored::HAPPINESS_SUM))?,
-                d_hap_tax: save.i8_at(at(stored::D_HAP_TAX))? as i32,
-                shown_army: save.i8_at(at(stored::SHOWN_ARMY))? as i32,
-                tax_hap_other: save.i8_at(at(stored::TAX_HAP_OTHER))? as i32,
-                shown_ale: save.i32_at(at(stored::SHOWN_ALE))?,
-                ale_happiness_given: save.u8_at(at(stored::ALE_HAPPINESS_GIVEN))? as i32,
-                unrest_warned: save.u8_at(at(stored::UNREST_WARNED))? != 0,
-                pop_change_pct: save.i32_at(at(stored::POP_CHANGE_PCT))?,
-                army: save.i32_at(at(stored::POP_ARMY))?,
-                largest_inflow: save.i32_at(at(stored::LARGEST_INFLOW))?,
-                inflow_sources: {
-                    let mut ids = [0u8; l2_kingdom::county::MAX_INFLOW_SOURCES];
-                    for (slot, id) in ids.iter_mut().enumerate() {
-                        *id = save.u8_at(at(stored::INFLOW_SOURCES + slot as u32))?;
-                    }
-                    ids
-                },
-                emigrant_destination: save.u8_at(at(stored::EMIGRANT_DESTINATION))?,
-                largest_inflow_source: save.u8_at(at(stored::LARGEST_INFLOW_SOURCE))?,
-                change_reason: save.u8_at(at(stored::CHANGE_REASON))?,
-                event_fired: save.u8_at(at(stored::EVENT_FIRED))? != 0,
-                event_id: save.u16_at(at(stored::EVENT_ID))?,
-                event_population_pct: save.i8_at(at(stored::EVENT_POPULATION_PCT))? as i32,
-                event_population_swing: save.i32_at(at(stored::EVENT_POPULATION_SWING))?,
-                event_grain_pct: save.i8_at(at(stored::EVENT_GRAIN_PCT))? as i32,
-                event_herd_pct: save.i8_at(at(stored::EVENT_HERD_PCT))? as i32,
-                tax_suppressed: save.u8_at(at(stored::TAX_SUPPRESSED))? != 0,
-                field_progress: {
-                    let mut progress = [0u16; MAX_FIELDS];
-                    for (slot, p) in progress.iter_mut().enumerate() {
-                        *p = save.u16_at(at(stored::FIELD_PROGRESS + slot as u32 * 2))?;
-                    }
-                    progress
-                },
-                friendly_troops: save.i32_at(at(stored::FRIENDLY_TROOPS))?,
-                enemy_troops: save.i32_at(at(stored::ENEMY_TROOPS))?,
-                levy_surcharge: save.i32_at(at(stored::LEVY_SURCHARGE))?,
-                castle_degraded: save.u8_at(at(stored::CASTLE_DEGRADED))?,
-                castle_ruined: save.u8_at(at(stored::CASTLE_RUINED))? != 0,
-                castle_level_left: save.u8_at(at(stored::CASTLE_LEVEL_LEFT))?,
-                castle_percent: save.u8_at(at(stored::CASTLE_PERCENT))?,
-                castle_work_left: save.i32_at(at(stored::CASTLE_WORK_LEFT))?,
-                castle_work_total: save.i32_at(at(stored::CASTLE_WORK_TOTAL))?,
-                castle_stone_owed: save.i32_at(at(stored::CASTLE_STONE_OWED))?,
-                castle_stone_total: save.i32_at(at(stored::CASTLE_STONE_TOTAL))?,
-                castle_wood_owed: save.i32_at(at(stored::CASTLE_WOOD_OWED))?,
-                castle_wood_total: save.i32_at(at(stored::CASTLE_WOOD_TOTAL))?,
+                herd_change_expected: s.herd_change_expected,
+                herd_births_expected: s.herd_births_expected,
+                herd_deaths_expected: s.herd_deaths_expected,
+                grain_weather_change: s.grain_weather_change,
+                grain_event_change: s.grain_event_change,
+                herd_weather_change: s.herd_weather_change,
+                herd_event_change: s.herd_event_change,
+                grain_change_expected: s.grain_change_expected,
+                grain_sown_expected: s.grain_sown_expected,
+                grain_grown_expected: s.grain_grown_expected,
+                reclaim_fields_finishing: s.reclaim_fields_finishing,
+                reclaim_seasons_to_next: s.reclaim_seasons_to_next,
+                happiness_avg: c.happiness_avg as i32,
+                happiness_sum: c.happiness_sum,
+                d_hap_tax: c.d_hap_tax as i32,
+                shown_army: c.shown_army as i32,
+                tax_hap_other: s.tax_hap_other as i32,
+                shown_ale: s.shown_ale,
+                ale_happiness_given: s.ale_happiness_given as i32,
+                unrest_warned: s.unrest_warned != 0,
+                pop_change_pct: s.pop_change_pct,
+                army: s.army,
+                largest_inflow: s.largest_inflow,
+                inflow_sources: s.inflow_sources,
+                emigrant_destination: s.emigrant_destination,
+                largest_inflow_source: s.largest_inflow_source,
+                change_reason: s.change_reason,
+                event_fired: s.event_fired != 0,
+                event_id: s.event_id,
+                event_population_pct: s.event_population_pct as i32,
+                event_population_swing: s.event_population_swing,
+                event_grain_pct: s.event_grain_pct as i32,
+                event_herd_pct: s.event_herd_pct as i32,
+                tax_suppressed: s.tax_suppressed != 0,
+                field_progress: s.field_progress,
+                friendly_troops: s.friendly_troops,
+                enemy_troops: s.enemy_troops,
+                levy_surcharge: s.levy_surcharge,
+                castle_degraded: s.castle_degraded,
+                castle_ruined: s.castle_ruined != 0,
+                castle_level_left: s.castle_level_left,
+                castle_percent: s.castle_percent,
+                castle_work_left: s.castle_work_left,
+                castle_work_total: s.castle_work_total,
+                castle_stone_owed: s.castle_stone_owed,
+                castle_stone_total: s.castle_stone_total,
+                castle_wood_owed: s.castle_wood_owed,
+                castle_wood_total: s.castle_wood_total,
                 siege_scars: l2_kingdom::siege::SiegeScars {
-                    moat_filled: save.u16_at(at(stored::SIEGE_MOAT_FILLED))?,
-                    wall_damage: save.u16_at(at(stored::SIEGE_WALL_DAMAGE))?,
-                    breach_score: save.i32_at(at(stored::SIEGE_BREACH_SCORE))?,
-                    approach_score: save.i32_at(at(stored::SIEGE_APPROACH_SCORE))?,
-                    ramparts_breached: save.u8_at(at(stored::SIEGE_RAMPARTS_BREACHED))?,
-                    gate_open: save.u8_at(at(stored::SIEGE_GATE_OPEN))? != 0,
+                    moat_filled: s.siege_moat_filled,
+                    wall_damage: s.siege_wall_damage,
+                    breach_score: s.siege_breach_score,
+                    approach_score: s.siege_approach_score,
+                    ramparts_breached: s.siege_ramparts_breached,
+                    gate_open: s.siege_gate_open != 0,
                 },
-                crop: [
-                    save.i32_at(at(stored::CROP))?,
-                    save.i32_at(at(stored::CROP + 4))?,
-                    save.i32_at(at(stored::CROP + 8))?,
-                ],
-                pasture_cursor: save.u8_at(at(stored::PASTURE_CURSOR))?,
-                blight_cursor: save.u8_at(at(stored::BLIGHT_CURSOR))?,
-                fields_grain_sown: save.u8_at(at(stored::FIELDS_GRAIN_SOWN))? as i32,
-                fields_grain_standing: save.u8_at(at(stored::FIELDS_GRAIN_STANDING))? as i32,
-                sow_shortfall: save.u8_at(at(stored::SOW_SHORTFALL))? != 0,
-                weapon_type: save.u8_at(at(stored::WEAPON_TYPE))? as usize,
-                mercenary_offer: save.u8_at(at(stored::MERCENARY_OFFER))?,
+                crop: c.crop,
+                pasture_cursor: s.pasture_cursor,
+                blight_cursor: s.blight_cursor,
+                fields_grain_sown: s.fields_grain_sown as i32,
+                fields_grain_standing: s.fields_grain_standing as i32,
+                sow_shortfall: s.sow_shortfall != 0,
+                weapon_type: s.weapon_type as usize,
+                mercenary_offer: s.mercenary_offer,
             });
         }
 
         let mut realms = Vec::with_capacity(MAX_REALMS);
         for r in save.realms()?.iter() {
-            let at = |offset: u32| REALM_BASE + (r.index * REALM_STRIDE) as u32 + offset;
+            let s = &r.stored;
             realms.push(RealmState {
-                ai_step: save.i32_at(at(0x000))?,
-                tax_hap_empire: save.i8_at(at(0x028))?,
-                peak_counties: save.u8_at(at(0x02A))?,
-                population_total: save.i32_at(at(0x010))?,
-                population_mean: save.i32_at(at(0x014))?,
-                population_last: save.i32_at(at(0x018))?,
-                mean_happiness: save.u8_at(at(0x00C))? as i32,
-                mean_health: save.u8_at(at(0x058))? as i32,
-                share_of_map_pct: save.u8_at(at(0x060))? as i32,
-                army_count: save.u8_at(at(0x02C))?,
-                total_men: save.i32_at(at(0x054))?,
-                castle_count: save.u8_at(at(0x04C))? as i32,
-                offer_pending: save.u8_at(at(0x01C))? != 0,
-                ally_candidate: save.u8_at(at(0x080))?,
-                ally: save.u8_at(at(0x081))?,
-                target_county: save.u8_at(at(0x0E8))?,
-                taunt_timer: save.u8_at(at(0x0E9))?,
-                taunt_stage: save.u8_at(at(0x0EA))?,
-                war_target: save.u8_at(at(0x0EB))?,
-                offer_timer: save.i8_at(at(0x0EC))?,
-                crowned_once: save.u8_at(at(0x0ED))? != 0,
-                weapon_rota: save.i32_at(at(0x06C))?,
-                voice_rotation: save.u8_at(at(0x159))?,
-                muster_county: save.u8_at(at(0x0E5))?,
-                raid_county: save.u8_at(at(0x0E6))?,
-                muster_timer: save.u8_at(at(0x045))?,
-                threat_realm: save.u8_at(at(0x048))?,
-                attack_county: save.u8_at(at(0x04B))?,
-                raid_timer: save.u8_at(at(0x15A))?,
-                want: [
-                    save.i32_at(at(0x070))?,
-                    save.i32_at(at(0x074))?,
-                    save.i32_at(at(0x078))?,
-                    save.i32_at(at(0x07C))?,
-                ],
-                bankrupt_stage: save.u8_at(at(0x158))?,
-                trade_spent_a: save.i32_at(at(0x104))?,
-                trade_spent_b: save.i32_at(at(0x108))?,
-                trade_received_a: save.i32_at(at(0x10C))?,
-                trade_received_b: save.i32_at(at(0x110))?,
-                army_names: {
-                    let mut row = [0u8; l2_kingdom::unit::ARMY_NAME_SLOTS];
-                    for (slot, n) in row.iter_mut().enumerate() {
-                        *n = save.u8_at(at(stored::REALM_ARMY_NAMES + slot as u32))?;
-                    }
-                    row
-                },
-                tax_ledger: [save.i32_at(at(0x0F4))?, save.i32_at(at(0x0F8))?],
+                ai_step: r.ai_step,
+                tax_hap_empire: r.tax_hap_empire,
+                peak_counties: s.peak_counties,
+                population_total: s.population_total,
+                population_mean: s.population_mean,
+                population_last: s.population_last,
+                mean_happiness: s.mean_happiness as i32,
+                mean_health: s.mean_health as i32,
+                share_of_map_pct: s.share_of_map_pct as i32,
+                army_count: s.army_count,
+                total_men: s.total_men,
+                castle_count: s.castle_count as i32,
+                offer_pending: s.offer_pending != 0,
+                ally_candidate: s.ally_candidate,
+                ally: s.ally,
+                target_county: s.target_county,
+                taunt_timer: s.taunt_timer,
+                taunt_stage: s.taunt_stage,
+                war_target: s.war_target,
+                offer_timer: s.offer_timer,
+                crowned_once: s.crowned_once != 0,
+                weapon_rota: s.weapon_rota,
+                voice_rotation: s.voice_rotation,
+                muster_county: s.muster_county,
+                raid_county: s.raid_county,
+                muster_timer: s.muster_timer,
+                threat_realm: s.threat_realm,
+                attack_county: s.attack_county,
+                raid_timer: s.raid_timer,
+                want: s.want,
+                bankrupt_stage: s.bankrupt_stage,
+                trade_spent_a: s.trade_spent_a,
+                trade_spent_b: s.trade_spent_b,
+                trade_received_a: s.trade_received_a,
+                trade_received_b: s.trade_received_b,
+                army_names: s.army_names,
+                tax_ledger: s.tax_ledger,
                 // The 96 bytes at `+0x84` that nothing read until C83.
                 pairs: {
                     let mut p = [l2_kingdom::realm::Pair::default(); l2_kingdom::realm::MAX_REALMS];

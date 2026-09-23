@@ -10,6 +10,10 @@ mod save;
 
 mod types;
 pub use types::*;
+mod county_stored;
+pub use county_stored::*;
+mod realm_stored;
+pub use realm_stored::*;
 
 /// Where the block table lives, and how the game walks it. **[V]** — read out
 /// of `Save_Write`'s own loop.
