@@ -492,7 +492,7 @@ seen one fail.
 
 ### How to ablate wrongly
 
-The practice above is cheap and it is **not automatic**. Five ways it goes wrong, all of them
+The practice above is cheap and it is **not automatic**. Six ways it goes wrong, all of them
 454: observed here,
 
 **One: compute the probe from the constant you are ablating.** A test asserted that the pasture
@@ -537,6 +537,12 @@ inside the visible canvas, and is ablated by moving it ten pixels down.
 
 > **"Is it drawn" and "can it be seen" are different claims, and only one of them is what
 > anybody wanted.**
+
+**Six: restore the file with a tool that keeps its old timestamp.** `Copy-Item` (and
+`cp -p`, and a backup copied back) restores the modification time too; cargo sees nothing
+newer than the build and runs the *ablated* binary, green or red for the wrong reason. The
+swing agent caught one of its own runs this way. Restore with `git checkout -- <file>`,
+or edit the file back, and check the build line says `Compiling` for your crate.
 
 Each of those three checks was true of what it measured. That is the pattern this whole document
 keeps circling, and one small feature has now demonstrated it three times: **the question is never

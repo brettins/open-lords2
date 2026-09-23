@@ -182,6 +182,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B68", Unswitchable("the rule, not a defect: see docs/rules.md")),
     ("B105", Unswitchable("the block's whole statement about an absent castle; a corrected pair is a different screen")),
     ("B106", Unswitchable("ours writes zeros where the original spills 80 bytes of score.dat into the battles text; there is no faithful arm to switch on")),
+    ("B107", Unswitchable("a tip's timing, never a number in the world; the no-rest return is the only arm ours has")),
     ("B99", Unwired("crates/l2-game/src/turn_clock/mod.rs")),
     ("B69", Unwired("l2_kingdom::siege, the repair bill material")),
     ("B70", Unwired("l2_kingdom::ai_army::pick_threat")),
