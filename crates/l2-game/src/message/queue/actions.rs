@@ -91,7 +91,7 @@ pub fn post_event(game: &mut Game) -> bool {
     let county = game.selected as usize;
     let player = game.player;
     let Some(&posted) = game.event_posted.get(county) else { return false };
-    let Some(c) = game.kingdom.counties.get_mut(county) else { return false };
+    let Some(c) = game.kingdom.counties.get(county) else { return false };
     if !c.event_fired || posted {
         return false;
     }

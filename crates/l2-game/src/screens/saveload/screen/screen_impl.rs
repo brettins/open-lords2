@@ -188,6 +188,11 @@ impl SaveLoadScreen {
                     text::draw(canvas, status_at.0, status_at.1 + 12 * i as i32, line, ink.bad);
                 }
             }
+            Status::NetworkGame => {
+                for (i, line) in NETWORK_LINES.iter().enumerate() {
+                    text::draw(canvas, status_at.0, status_at.1 + 12 * i as i32, line, ink.bad);
+                }
+            }
             Status::Failed(detail) => {
                 pen.eng(canvas, GROUP, ERROR_INDEX, status_at.0, status_at.1, font::TEXT);
                 if ctx.game.prefs.debug_overlay {

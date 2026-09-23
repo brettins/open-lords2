@@ -179,9 +179,14 @@ impl SaveLoadScreen {
     /// The load or the save itself — what `SaveLoad_Tick` does when
     /// `DAT_0057D3C4` reaches zero. Everything that can go wrong comes back as
     /// a [`Status`] and the screen stays open; only success closes it.
-    pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
             Mode::Load => {
+                // [D] CNEW-net-local: the swap below would change one peer's world only.
+                if ctx.game.net.lockstep {
+                    self.status = Status::NetworkGame;
+                    return Transition::Stay;
+                }
                 // **The path comes from the edit buffer, not from the
                 // highlighted row.** `SaveLoad_Tick` (`0x004AD9F0`) is
                 // `Str_Copy(0x4EA130, 0x4EAD60, 0xC); Path_AddExtension(…)` —

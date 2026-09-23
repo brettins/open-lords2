@@ -114,6 +114,25 @@ mod tests {
         assert_eq!(s.top, 0);
     }
 
+    /// CNEW-net-local. Ablation: the `net.lockstep` gate in `confirm`'s Load arm.
+    #[test]
+    fn a_network_game_refuses_to_load_and_keeps_its_world() {
+        let dir = std::env::temp_dir().join(format!("l2-netload-{}", std::process::id()));
+        let _scope = saves::scoped_dir(&dir);
+        saves::write("other", &crate::Game::new(1)).expect("write a save");
+        let assets = crate::game::Assets::placeholder();
+        let load = |lockstep: bool| {
+            let mut game = crate::Game::new(7);
+            game.net.lockstep = lockstep;
+            let mut s = SaveLoadScreen::new(Mode::Load);
+            let t = s.confirm(&mut Ctx { game: &mut game, assets: &assets });
+            (t, s.status().clone(), game.net.lockstep)
+        };
+        assert_eq!(load(true), (Transition::Stay, Status::NetworkGame, true), "the world was swapped");
+        assert_ne!(load(false).1, Status::NetworkGame, "single player loads as before");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// FUN_004148E4 / Widget_Draw(0x60, 10, g_saveLoadWidgets, 4), 004b0000.c:7067:
     /// ablate `s.shift = ..` in `front_end` and it fails.
     #[test]

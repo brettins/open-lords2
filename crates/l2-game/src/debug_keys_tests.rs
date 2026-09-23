@@ -64,3 +64,14 @@ fn the_food_debug_branch_bands_by_ration_achieved() {
     assert_eq!(bands, [1, 2, 3, 4, 5, 5]);
     assert_eq!(c.minimap_bands().food, 6);
 }
+
+/// CNEW-net-local. Ablation: `!game.net.lockstep` on F4.
+#[test]
+fn f4_changes_nothing_in_a_network_game() {
+    let mut g = game();
+    g.debug_keys.debug = true;
+    g.net.lockstep = true;
+    let pop = g.kingdom.counties[3].population;
+    key_down(&mut g, Key::F4, None);
+    assert_eq!(g.kingdom.counties[3].population, pop);
+}

@@ -10,6 +10,8 @@ mod turn;
 mod tests;
 #[cfg(test)]
 mod seat_tests;
+#[cfg(test)]
+mod purity_tests;
 
 pub use orders::*;
 pub use run::Castled;

@@ -239,5 +239,7 @@ pub enum Status {
     Failed(String),
     /// [D] ours, C239: a save of another format version, in place of 40/4.
     Mismatch { found: u32, expected: u32 },
+    /// [D] CNEW-net-local: Load refused in a network game.
+    NetworkGame,
 }
 

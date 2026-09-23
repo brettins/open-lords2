@@ -263,6 +263,8 @@ impl BattlefieldScreen {
         // `Battle_ReturnToCampaign` and goes to `0x2E`. `screens/ratings/end.rs`.
         if ctx.game.battle.as_ref().is_some_and(|b| b.skirmish) {
             let live = ctx.game.battle.take().expect("tested above");
+            // CNEW-net-local: a skirmish starts from setup/, local and never deferred.
+            debug_assert!(!live.deferred && !ctx.game.net.lockstep, "a skirmish in a network game");
             let side = ctx.game.battle_master.local_side();
             let other = if side == l2_sim::SIDE_A { l2_sim::SIDE_B } else { l2_sim::SIDE_A };
             let ending = crate::screens::ratings::ending_of(live.conclusion, side);
@@ -325,3 +327,28 @@ fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
     }
 }
 
+
+/// CNEW-net-local. Ablation: the `debug_assert!` in `settle`'s skirmish arm.
+#[cfg(test)]
+#[test]
+#[should_panic(expected = "a skirmish in a network game")]
+fn a_skirmish_never_settles_under_lockstep() {
+    use crate::screen::Screen;
+    use l2_sim::{runner::Army, Troop};
+    let field = l2_sim::terrain::build(&vec![0u8; l2_sim::terrain::CELLS], 1);
+    let a = [(Troop::Peasants, 20u16)];
+    let runner = l2_sim::runner::BattleRunner::deploy_armies(
+        field,
+        0x5EED,
+        Army { troops: &a, owner: 2, human: true },
+        Army { troops: &a, owner: 1, human: true },
+    );
+    let mut b = crate::battlefield::LiveBattle::new(runner, 0, 0, 0, None, 1, 1);
+    (b.skirmish, b.autocalc) = (true, true);
+    let mut game = crate::Game::new(1);
+    game.battle = Some(Box::new(b));
+    game.net.lockstep = true;
+    let assets = crate::game::Assets::placeholder();
+    let mut s = BattlefieldScreen::new();
+    s.update(&mut Ctx { game: &mut game, assets: &assets });
+}
