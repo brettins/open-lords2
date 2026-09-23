@@ -80,7 +80,7 @@ const litNum = s => {
 // ---- who is unnamed --------------------------------------------------------
 
 const symbols = JSON.parse(fs.readFileSync(path.join(ROOT, 'docs', 'symbols.json'), 'utf8'));
-const namedAddrs = new Set(symbols.functions.map(f => f.addr.toUpperCase()));
+const namedAddrs = new Set(symbols.functions.map(f => hex(parseInt(f.addr, 16))));
 const globalAddr = new Map(symbols.globals.map(g => [g.name, parseInt(g.addr, 16)]));
 
 // xref.js's index is its own output; build it if this checkout has none.

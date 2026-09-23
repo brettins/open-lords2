@@ -14,13 +14,13 @@
   "",
   "Regenerate: node tools/oracle/leads.js. It is derived, so edit the script, never this."
  ],
- "generated": "2026-09-13T05:18:16.235Z",
+ "generated": "2026-09-23T22:28:07.722Z",
  "counts": {
-  "unnamed": 1235,
-  "emitted": 289,
-  "omitted": 946,
-  "high": 8,
-  "medium": 280,
+  "unnamed": 738,
+  "emitted": 222,
+  "omitted": 516,
+  "high": 0,
+  "medium": 221,
   "low": 1
  },
  "leads": [
@@ -310,21 +310,6 @@
    ]
   },
   {
-   "addr": "0x00407F82",
-   "corpus": "FUN_00407f82",
-   "bytes": 548,
-   "suggested": "Sprite_TopIt_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Sprite_TopIt_helper1",
-     "detail": "called by Sprite_TopIt and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x00408F1A",
    "corpus": "FUN_00408f1a",
    "bytes": 149,
@@ -350,51 +335,6 @@
      "kind": "sole-named-caller",
      "confidence": "medium",
      "suggests": "Screen_FrameInput_helper1",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0040C725",
-   "corpus": "FUN_0040c725",
-   "bytes": 428,
-   "suggested": "Battle_Frame_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper2",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0040CF09",
-   "corpus": "FUN_0040cf09",
-   "bytes": 83,
-   "suggested": "ClickContinue_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "ClickContinue_Draw",
-     "detail": "the only consumer of L2.eng group 13, label \"Click to Continue\""
-    }
-   ]
-  },
-  {
-   "addr": "0x0040DD92",
-   "corpus": "FUN_0040dd92",
-   "bytes": 312,
-   "suggested": "Screen_FrameInput_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper2",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
     }
    ]
@@ -430,9 +370,9 @@
    ]
   },
   {
-   "addr": "0x0040FEC1",
-   "corpus": "FUN_0040fec1",
-   "bytes": 494,
+   "addr": "0x0041023A",
+   "corpus": "FUN_0041023a",
+   "bytes": 395,
    "suggested": "CountyStrip_Draw_helper1",
    "confidence": "medium",
    "evidence": [
@@ -445,9 +385,9 @@
    ]
   },
   {
-   "addr": "0x004100AF",
-   "corpus": "FUN_004100af",
-   "bytes": 395,
+   "addr": "0x004103C5",
+   "corpus": "FUN_004103c5",
+   "bytes": 317,
    "suggested": "CountyStrip_Draw_helper2",
    "confidence": "medium",
    "evidence": [
@@ -460,9 +400,9 @@
    ]
   },
   {
-   "addr": "0x0041023A",
-   "corpus": "FUN_0041023a",
-   "bytes": 395,
+   "addr": "0x00410502",
+   "corpus": "FUN_00410502",
+   "bytes": 150,
    "suggested": "CountyStrip_Draw_helper3",
    "confidence": "medium",
    "evidence": [
@@ -475,9 +415,9 @@
    ]
   },
   {
-   "addr": "0x004103C5",
-   "corpus": "FUN_004103c5",
-   "bytes": 317,
+   "addr": "0x00410598",
+   "corpus": "FUN_00410598",
+   "bytes": 150,
    "suggested": "CountyStrip_Draw_helper4",
    "confidence": "medium",
    "evidence": [
@@ -485,66 +425,6 @@
      "kind": "sole-named-caller",
      "confidence": "medium",
      "suggests": "CountyStrip_Draw_helper4",
-     "detail": "called by CountyStrip_Draw and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00410502",
-   "corpus": "FUN_00410502",
-   "bytes": 150,
-   "suggested": "CountyStrip_Draw_helper5",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "CountyStrip_Draw_helper5",
-     "detail": "called by CountyStrip_Draw and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00410598",
-   "corpus": "FUN_00410598",
-   "bytes": 150,
-   "suggested": "CountyStrip_Draw_helper6",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "CountyStrip_Draw_helper6",
-     "detail": "called by CountyStrip_Draw and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0041062E",
-   "corpus": "FUN_0041062e",
-   "bytes": 150,
-   "suggested": "CountyStrip_Draw_helper7",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "CountyStrip_Draw_helper7",
-     "detail": "called by CountyStrip_Draw and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004106C4",
-   "corpus": "FUN_004106c4",
-   "bytes": 269,
-   "suggested": "CountyStrip_Draw_helper8",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "CountyStrip_Draw_helper8",
      "detail": "called by CountyStrip_Draw and by nothing else in the corpus"
     }
    ]
@@ -568,74 +448,14 @@
    "addr": "0x00410F4B",
    "corpus": "FUN_00410f4b",
    "bytes": 358,
-   "suggested": "Battle_Frame_helper3",
+   "suggested": "Battle_Frame_helper2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper3",
+     "suggests": "Battle_Frame_helper2",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00412795",
-   "corpus": "FUN_00412795",
-   "bytes": 501,
-   "suggested": "Battle_Frame_helper4",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper4",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0041298A",
-   "corpus": "FUN_0041298a",
-   "bytes": 425,
-   "suggested": "Battle_Frame_helper5",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper5",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00413526",
-   "corpus": "FUN_00413526",
-   "bytes": 106,
-   "suggested": "Screen_DrawWidgets_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_DrawWidgets_helper1",
-     "detail": "called by Screen_DrawWidgets and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00414220",
-   "corpus": "FUN_00414220",
-   "bytes": 31,
-   "suggested": "Panel_JobDetail_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Panel_JobDetail_helper1",
-     "detail": "called by Panel_JobDetail and by nothing else in the corpus"
     }
    ]
   },
@@ -643,13 +463,13 @@
    "addr": "0x0041423F",
    "corpus": "FUN_0041423f",
    "bytes": 11,
-   "suggested": "Battle_Frame_helper6",
+   "suggested": "Battle_Frame_helper3",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper6",
+     "suggests": "Battle_Frame_helper3",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -673,86 +493,14 @@
    "addr": "0x0041438C",
    "corpus": "FUN_0041438c",
    "bytes": 446,
-   "suggested": "Screen_FrameInput_helper3",
+   "suggested": "Screen_FrameInput_helper2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper3",
+     "suggests": "Screen_FrameInput_helper2",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00414790",
-   "corpus": "FUN_00414790",
-   "bytes": 137,
-   "suggested": "ExitTheGame_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "ExitTheGame_Draw",
-     "detail": "the only consumer of L2.eng group 48, label \"Exit the game?\""
-    }
-   ]
-  },
-  {
-   "addr": "0x00415BDC",
-   "corpus": "FUN_00415bdc",
-   "bytes": 614,
-   "suggested": "Screen_GreatestNoble_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_GreatestNoble_helper1",
-     "detail": "called by Screen_GreatestNoble and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0041A166",
-   "corpus": "FUN_0041a166",
-   "bytes": 1090,
-   "suggested": "EnglishNotTranslate_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "EnglishNotTranslate_Draw",
-     "detail": "the only consumer of L2.eng group 300, label \"English - DO NOT TRANSLATE THIS!!!!\""
-    },
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "Eng_Draw",
-     "detail": "the only consumer of L2.eng group 301, label \"1268 AD\""
-    },
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Smk_PlayLoop_helper1",
-     "detail": "called by Smk_PlayLoop and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0041A639",
-   "corpus": "FUN_0041a639",
-   "bytes": 251,
-   "suggested": "Battle_Frame_helper7",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper7",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
   },
@@ -760,13 +508,13 @@
    "addr": "0x0041A844",
    "corpus": "FUN_0041a844",
    "bytes": 188,
-   "suggested": "Battle_Frame_helper8",
+   "suggested": "Battle_Frame_helper4",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper8",
+     "suggests": "Battle_Frame_helper4",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -775,29 +523,14 @@
    "addr": "0x0041AEA2",
    "corpus": "FUN_0041aea2",
    "bytes": 369,
-   "suggested": "Screen_DrawWidgets_helper2",
+   "suggested": "Screen_DrawWidgets_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_DrawWidgets_helper2",
+     "suggests": "Screen_DrawWidgets_helper1",
      "detail": "called by Screen_DrawWidgets and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0041E962",
-   "corpus": "FUN_0041e962",
-   "bytes": 178,
-   "suggested": "LowMemory_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "LowMemory_Draw",
-     "detail": "the only consumer of L2.eng group 297, label \"Low memory\""
     }
    ]
   },
@@ -805,29 +538,14 @@
    "addr": "0x0041F15A",
    "corpus": "FUN_0041f15a",
    "bytes": 131,
-   "suggested": "Battle_Frame_helper9",
+   "suggested": "Battle_Frame_helper5",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper9",
+     "suggests": "Battle_Frame_helper5",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0041F86D",
-   "corpus": "FUN_0041f86d",
-   "bytes": 286,
-   "suggested": "AdvancedFarming_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "AdvancedFarming_Draw",
-     "detail": "the only consumer of L2.eng group 102, label \"Advanced Farming\""
     }
    ]
   },
@@ -835,13 +553,13 @@
    "addr": "0x00420316",
    "corpus": "FUN_00420316",
    "bytes": 274,
-   "suggested": "Battle_Frame_helper10",
+   "suggested": "Battle_Frame_helper6",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper10",
+     "suggests": "Battle_Frame_helper6",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -865,6 +583,66 @@
    "addr": "0x00423739",
    "corpus": "FUN_00423739",
    "bytes": 383,
+   "suggested": "Battle_Frame_helper7",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_Frame_helper7",
+     "detail": "called by Battle_Frame and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x0042476B",
+   "corpus": "FUN_0042476b",
+   "bytes": 138,
+   "suggested": "Battle_Frame_helper8",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_Frame_helper8",
+     "detail": "called by Battle_Frame and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004247F5",
+   "corpus": "FUN_004247f5",
+   "bytes": 174,
+   "suggested": "Battle_Frame_helper9",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_Frame_helper9",
+     "detail": "called by Battle_Frame and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004248A3",
+   "corpus": "FUN_004248a3",
+   "bytes": 239,
+   "suggested": "Battle_Frame_helper10",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_Frame_helper10",
+     "detail": "called by Battle_Frame and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x00425314",
+   "corpus": "FUN_00425314",
+   "bytes": 371,
    "suggested": "Battle_Frame_helper11",
    "confidence": "medium",
    "evidence": [
@@ -877,97 +655,16 @@
    ]
   },
   {
-   "addr": "0x00423B4F",
-   "corpus": "FUN_00423b4f",
-   "bytes": 85,
-   "suggested": "BattlePaused_Draw",
-   "confidence": "high",
+   "addr": "0x00425487",
+   "corpus": "FUN_00425487",
+   "bytes": 437,
+   "suggested": "Battle_Frame_helper12",
+   "confidence": "medium",
    "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "BattlePaused_Draw",
-     "detail": "the only consumer of L2.eng group 32, label \"Battle Paused\""
-    },
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
      "suggests": "Battle_Frame_helper12",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0042476B",
-   "corpus": "FUN_0042476b",
-   "bytes": 138,
-   "suggested": "Battle_Frame_helper13",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper13",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004247F5",
-   "corpus": "FUN_004247f5",
-   "bytes": 174,
-   "suggested": "Battle_Frame_helper14",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper14",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004248A3",
-   "corpus": "FUN_004248a3",
-   "bytes": 239,
-   "suggested": "Battle_Frame_helper15",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper15",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00425314",
-   "corpus": "FUN_00425314",
-   "bytes": 371,
-   "suggested": "Battle_Frame_helper16",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper16",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00425487",
-   "corpus": "FUN_00425487",
-   "bytes": 437,
-   "suggested": "Battle_Frame_helper17",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper17",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -984,27 +681,6 @@
      "confidence": "medium",
      "suggests": "Sync_DrawRecordDigests_helper1",
      "detail": "called by Sync_DrawRecordDigests and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00425A6A",
-   "corpus": "FUN_00425a6a",
-   "bytes": 158,
-   "suggested": "SmackFileTesting_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "SmackFileTesting_Draw",
-     "detail": "the only consumer of L2.eng group 89, label \"Smack file testing\""
-    },
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_Draw_helper1",
-     "detail": "called by Screen_Draw and by nothing else in the corpus"
     }
    ]
   },
@@ -1057,13 +733,13 @@
    "addr": "0x0042A15F",
    "corpus": "FUN_0042a15f",
    "bytes": 206,
-   "suggested": "Battle_Frame_helper18",
+   "suggested": "Battle_Frame_helper13",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper18",
+     "suggests": "Battle_Frame_helper13",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -1099,51 +775,6 @@
    ]
   },
   {
-   "addr": "0x0042AA90",
-   "corpus": "FUN_0042aa90",
-   "bytes": 133,
-   "suggested": "Skirmish_Setup_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Skirmish_Setup_helper2",
-     "detail": "called by Skirmish_Setup and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0042D179",
-   "corpus": "FUN_0042d179",
-   "bytes": 157,
-   "suggested": "App_WinMain_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "App_WinMain_helper2",
-     "detail": "called by App_WinMain and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004323FE",
-   "corpus": "FUN_004323fe",
-   "bytes": 64,
-   "suggested": "Screen_FrameInput_helper4",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper4",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x00432746",
    "corpus": "FUN_00432746",
    "bytes": 69,
@@ -1162,13 +793,13 @@
    "addr": "0x00432893",
    "corpus": "FUN_00432893",
    "bytes": 154,
-   "suggested": "Screen_FrameInput_helper5",
+   "suggested": "Screen_FrameInput_helper3",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper5",
+     "suggests": "Screen_FrameInput_helper3",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
     }
    ]
@@ -1185,48 +816,6 @@
      "confidence": "medium",
      "suggests": "ArmyDivision_Held1",
      "detail": "handler of the widget 4 record at 0x4dd5f8, slot 27 of the table at 0x4dd388 that Screen_HandleInput tests under g_screenId == 0x11 (Screen_ArmyDivision); table membership and screen id are INFERRED"
-    }
-   ]
-  },
-  {
-   "addr": "0x00432B05",
-   "corpus": "FUN_00432b05",
-   "bytes": 451,
-   "suggested": "Screen1F_Press1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "Screen1F_Press1",
-     "detail": "handler of the hotspot 1 record at 0x4dcb48, slot 1 of the table at 0x4dcb48 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
-    },
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "Screen1F_Release2",
-     "detail": "handler of the hotspot 3 record at 0x4dcb78, slot 3 of the table at 0x4dcb48 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
-    },
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper2",
-     "detail": "called by Screen_HandleInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00432CC8",
-   "corpus": "FUN_00432cc8",
-   "bytes": 526,
-   "suggested": "Screen1F_Press3",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "Screen1F_Press3",
-     "detail": "handler of the hotspot 1 record at 0x4dcba8, slot 1 of the table at 0x4dcba8 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
     }
    ]
   },
@@ -1249,13 +838,13 @@
    "addr": "0x00433155",
    "corpus": "FUN_00433155",
    "bytes": 569,
-   "suggested": "Screen1F_Press4",
+   "suggested": "Screen1F_Press1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen1F_Press4",
+     "suggests": "Screen1F_Press1",
      "detail": "handler of the hotspot 1 record at 0x4dcc98, slot 6 of the table at 0x4dcc20 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
     }
    ]
@@ -1264,14 +853,29 @@
    "addr": "0x0043338E",
    "corpus": "FUN_0043338e",
    "bytes": 195,
-   "suggested": "Screen1F_Press5",
+   "suggested": "Screen1F_Press2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen1F_Press5",
+     "suggests": "Screen1F_Press2",
      "detail": "handler of the hotspot 1 record at 0x4dccc8, slot 1 of the table at 0x4dccc8 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
+    }
+   ]
+  },
+  {
+   "addr": "0x00433551",
+   "corpus": "FUN_00433551",
+   "bytes": 159,
+   "suggested": "NetCmd_Read_54_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "NetCmd_Read_54_helper1",
+     "detail": "called by NetCmd_Read_54 and by nothing else in the corpus"
     }
    ]
   },
@@ -1279,13 +883,13 @@
    "addr": "0x004335F0",
    "corpus": "FUN_004335f0",
    "bytes": 452,
-   "suggested": "Screen1F_Press6",
+   "suggested": "Screen1F_Press3",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen1F_Press6",
+     "suggests": "Screen1F_Press3",
      "detail": "handler of the hotspot 1 record at 0x4dcd28, slot 1 of the table at 0x4dcd28 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
     }
    ]
@@ -1294,13 +898,13 @@
    "addr": "0x004337B4",
    "corpus": "FUN_004337b4",
    "bytes": 337,
-   "suggested": "Screen1F_Repeat7",
+   "suggested": "Screen1F_Repeat4",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen1F_Repeat7",
+     "suggests": "Screen1F_Repeat4",
      "detail": "handler of the hotspot 2 record at 0x4dcd88, slot 1 of the table at 0x4dcd88 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
     }
    ]
@@ -1309,13 +913,13 @@
    "addr": "0x00433905",
    "corpus": "FUN_00433905",
    "bytes": 147,
-   "suggested": "Screen1F_Press8",
+   "suggested": "Screen1F_Press5",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen1F_Press8",
+     "suggests": "Screen1F_Press5",
      "detail": "handler of the hotspot 1 record at 0x4dcdb8, slot 3 of the table at 0x4dcd88 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
     }
    ]
@@ -1324,13 +928,13 @@
    "addr": "0x00433998",
    "corpus": "FUN_00433998",
    "bytes": 139,
-   "suggested": "Screen1F_Press9",
+   "suggested": "Screen1F_Press6",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen1F_Press9",
+     "suggests": "Screen1F_Press6",
      "detail": "handler of the hotspot 1 record at 0x4dce30, slot 1 of the table at 0x4dce30 that Screen_HandleInput tests under g_screenId == 0x1f (@0041e7e1); table membership and screen id are INFERRED"
     }
    ]
@@ -1339,14 +943,29 @@
    "addr": "0x00433A23",
    "corpus": "FUN_00433a23",
    "bytes": 77,
-   "suggested": "Screen_HandleInput_helper3",
+   "suggested": "Screen_HandleInput_helper2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper3",
+     "suggests": "Screen_HandleInput_helper2",
      "detail": "called by Screen_HandleInput and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x00433A70",
+   "corpus": "FUN_00433a70",
+   "bytes": 251,
+   "suggested": "CustomGame_DrawOptions_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "CustomGame_DrawOptions_helper1",
+     "detail": "called by CustomGame_DrawOptions and by nothing else in the corpus"
     }
    ]
   },
@@ -1354,13 +973,13 @@
    "addr": "0x00433CE4",
    "corpus": "FUN_00433ce4",
    "bytes": 217,
-   "suggested": "Screen_HandleInput_helper4",
+   "suggested": "Screen_HandleInput_helper3",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper4",
+     "suggests": "Screen_HandleInput_helper3",
      "detail": "called by Screen_HandleInput and by nothing else in the corpus"
     }
    ]
@@ -1384,28 +1003,13 @@
    "addr": "0x0043400B",
    "corpus": "FUN_0043400b",
    "bytes": 361,
-   "suggested": "Screen_FrameInput_helper6",
+   "suggested": "Screen_FrameInput_helper4",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper6",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00434174",
-   "corpus": "FUN_00434174",
-   "bytes": 383,
-   "suggested": "Screen_FrameInput_helper7",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper7",
+     "suggests": "Screen_FrameInput_helper4",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
     }
    ]
@@ -1600,14 +1204,14 @@
    "addr": "0x00434EF9",
    "corpus": "FUN_00434ef9",
    "bytes": 90,
-   "suggested": "Screen44_Held1",
+   "suggested": "SmkTest_Held1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen44_Held1",
-     "detail": "handler of the widget 4 record at 0x4ddfa0, slot 1 of the table at 0x4ddfa0 that Screen_HandleInput tests under g_screenId == 0x44 (@00425a6a); table membership and screen id are INFERRED"
+     "suggests": "SmkTest_Held1",
+     "detail": "handler of the widget 4 record at 0x4ddfa0, slot 1 of the table at 0x4ddfa0 that Screen_HandleInput tests under g_screenId == 0x44 (SmkTest_Draw); table membership and screen id are INFERRED"
     }
    ]
   },
@@ -1615,14 +1219,14 @@
    "addr": "0x00434F53",
    "corpus": "FUN_00434f53",
    "bytes": 51,
-   "suggested": "Screen44_Button2",
+   "suggested": "SmkTest_Button2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "Screen44_Button2",
-     "detail": "handler of the widget 5 record at 0x4ddfd0, slot 3 of the table at 0x4ddfa0 that Screen_HandleInput tests under g_screenId == 0x44 (@00425a6a); table membership and screen id are INFERRED"
+     "suggests": "SmkTest_Button2",
+     "detail": "handler of the widget 5 record at 0x4ddfd0, slot 3 of the table at 0x4ddfa0 that Screen_HandleInput tests under g_screenId == 0x44 (SmkTest_Draw); table membership and screen id are INFERRED"
     }
    ]
   },
@@ -1645,13 +1249,13 @@
    "addr": "0x00435286",
    "corpus": "FUN_00435286",
    "bytes": 108,
-   "suggested": "DiploDialog_Held5",
+   "suggested": "DiploDialog_Held1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "DiploDialog_Held5",
+     "suggests": "DiploDialog_Held1",
      "detail": "handler of the widget 4 record at 0x4dd898, slot 5 of the table at 0x4dd838 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
     }
    ]
@@ -1660,13 +1264,13 @@
    "addr": "0x004352F2",
    "corpus": "FUN_004352f2",
    "bytes": 28,
-   "suggested": "DiploDialog_Held6",
+   "suggested": "DiploDialog_Held2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "input-record-handler",
      "confidence": "medium",
-     "suggests": "DiploDialog_Held6",
+     "suggests": "DiploDialog_Held2",
      "detail": "handler of the widget 4 record at 0x4dd8b0, slot 6 of the table at 0x4dd838 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
     }
    ]
@@ -1683,66 +1287,6 @@
      "confidence": "medium",
      "suggests": "Merchant_StallHit_helper1",
      "detail": "called by Merchant_StallHit and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00435339",
-   "corpus": "FUN_00435339",
-   "bytes": 260,
-   "suggested": "DiploDialog_Held1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "DiploDialog_Held1",
-     "detail": "handler of the widget 4 record at 0x4dd838, slot 1 of the table at 0x4dd838 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
-    }
-   ]
-  },
-  {
-   "addr": "0x0043543D",
-   "corpus": "FUN_0043543d",
-   "bytes": 260,
-   "suggested": "DiploDialog_Held2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "DiploDialog_Held2",
-     "detail": "handler of the widget 4 record at 0x4dd850, slot 2 of the table at 0x4dd838 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
-    }
-   ]
-  },
-  {
-   "addr": "0x00435541",
-   "corpus": "FUN_00435541",
-   "bytes": 154,
-   "suggested": "DiploDialog_Held4",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "DiploDialog_Held4",
-     "detail": "handler of the widget 4 record at 0x4dd880, slot 4 of the table at 0x4dd838 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
-    }
-   ]
-  },
-  {
-   "addr": "0x004355DB",
-   "corpus": "FUN_004355db",
-   "bytes": 152,
-   "suggested": "DiploDialog_Held3",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "DiploDialog_Held3",
-     "detail": "handler of the widget 4 record at 0x4dd868, slot 3 of the table at 0x4dd838 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
     }
    ]
   },
@@ -1777,104 +1321,17 @@
    ]
   },
   {
-   "addr": "0x00436372",
-   "corpus": "FUN_00436372",
-   "bytes": 150,
-   "suggested": "DiploDialog_Held7",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "input-record-handler",
-     "confidence": "medium",
-     "suggests": "DiploDialog_Held7",
-     "detail": "handler of the widget 4 record at 0x4dd9d0, slot 1 of the table at 0x4dd9d0 that Screen_HandleInput tests under g_screenId == 0x1a (Screen_DiploDialog); table membership and screen id are INFERRED"
-    },
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Levy_EquipOne_helper1",
-     "detail": "called by Levy_EquipOne and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004369BD",
-   "corpus": "FUN_004369bd",
-   "bytes": 203,
-   "suggested": "Screen_HandleInput_helper5",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper5",
-     "detail": "called by Screen_HandleInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x00437002",
    "corpus": "FUN_00437002",
    "bytes": 261,
-   "suggested": "Screen_FrameInput_helper8",
+   "suggested": "Screen_FrameInput_helper5",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper8",
+     "suggests": "Screen_FrameInput_helper5",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00438990",
-   "corpus": "FUN_00438990",
-   "bytes": 257,
-   "suggested": "Screen_FrameInput_helper9",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper9",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00438A91",
-   "corpus": "FUN_00438a91",
-   "bytes": 59,
-   "suggested": "Screen_FrameInput_helper10",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper10",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00439CC2",
-   "corpus": "FUN_00439cc2",
-   "bytes": 302,
-   "suggested": "Labour_Move_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Labour_Move_helper1",
-     "detail": "called by Labour_Move and by nothing else in the corpus"
-    },
-    {
-     "kind": "stride-and-caller",
-     "confidence": "low",
-     "suggests": "Labour_Move_CountyHelper",
-     "detail": "indexes the county×1 record stride and Labour_Move is its only named caller"
     }
    ]
   },
@@ -1942,13 +1399,13 @@
    "addr": "0x0043B412",
    "corpus": "FUN_0043b412",
    "bytes": 185,
-   "suggested": "Screen_FrameInput_helper11",
+   "suggested": "Screen_FrameInput_helper6",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper11",
+     "suggests": "Screen_FrameInput_helper6",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
     }
    ]
@@ -1957,13 +1414,13 @@
    "addr": "0x0043B4CB",
    "corpus": "FUN_0043b4cb",
    "bytes": 200,
-   "suggested": "Screen_FrameInput_helper12",
+   "suggested": "Screen_FrameInput_helper7",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper12",
+     "suggests": "Screen_FrameInput_helper7",
      "detail": "called by Screen_FrameInput and by nothing else in the corpus"
     }
    ]
@@ -2014,17 +1471,17 @@
    ]
   },
   {
-   "addr": "0x0043CAF4",
-   "corpus": "FUN_0043caf4",
-   "bytes": 354,
-   "suggested": "Screen_FrameInput_helper13",
+   "addr": "0x0043D929",
+   "corpus": "FUN_0043d929",
+   "bytes": 164,
+   "suggested": "NetCmd_Read_53_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper13",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
+     "suggests": "NetCmd_Read_53_helper1",
+     "detail": "called by NetCmd_Read_53 and by nothing else in the corpus"
     }
    ]
   },
@@ -2044,53 +1501,32 @@
    ]
   },
   {
-   "addr": "0x004472CE",
-   "corpus": "FUN_004472ce",
-   "bytes": 1046,
-   "suggested": "Battle_Frame_helper19",
+   "addr": "0x0043FA1D",
+   "corpus": "FUN_0043fa1d",
+   "bytes": 89,
+   "suggested": "NetCmd_ReadStateResend_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper19",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
+     "suggests": "NetCmd_ReadStateResend_helper1",
+     "detail": "called by NetCmd_ReadStateResend and by nothing else in the corpus"
     }
    ]
   },
   {
-   "addr": "0x00448339",
-   "corpus": "FUN_00448339",
-   "bytes": 152,
-   "suggested": "Net_DiploPost_helper1",
+   "addr": "0x00447026",
+   "corpus": "FUN_00447026",
+   "bytes": 158,
+   "suggested": "NetJournal_Schedule_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Net_DiploPost_helper1",
-     "detail": "called by Net_DiploPost and by nothing else in the corpus"
-    },
-    {
-     "kind": "stride-and-caller",
-     "confidence": "low",
-     "suggests": "Net_DiploPost_RealmHelper",
-     "detail": "indexes the realm×1 record stride and Net_DiploPost is its only named caller"
-    }
-   ]
-  },
-  {
-   "addr": "0x00448D7E",
-   "corpus": "FUN_00448d7e",
-   "bytes": 148,
-   "suggested": "Battle_Frame_helper20",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper20",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
+     "suggests": "NetJournal_Schedule_helper1",
+     "detail": "called by NetJournal_Schedule and by nothing else in the corpus"
     }
    ]
   },
@@ -2467,21 +1903,6 @@
    ]
   },
   {
-   "addr": "0x00449D6E",
-   "corpus": "FUN_00449d6e",
-   "bytes": 354,
-   "suggested": "Weather_UpdateAll_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Weather_UpdateAll_helper1",
-     "detail": "called by Weather_UpdateAll and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x0044BA35",
    "corpus": "FUN_0044ba35",
    "bytes": 181,
@@ -2493,21 +1914,6 @@
      "confidence": "medium",
      "suggests": "Tax_RecomputePreview_helper1",
      "detail": "called by Tax_RecomputePreview and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0044CF6F",
-   "corpus": "FUN_0044cf6f",
-   "bytes": 114,
-   "suggested": "Grain_SeasonTick_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Grain_SeasonTick_helper1",
-     "detail": "called by Grain_SeasonTick and by nothing else in the corpus"
     }
    ]
   },
@@ -2560,254 +1966,14 @@
    "addr": "0x00451F1A",
    "corpus": "FUN_00451f1a",
    "bytes": 81,
-   "suggested": "Battle_Frame_helper21",
+   "suggested": "Battle_Frame_helper14",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper21",
+     "suggests": "Battle_Frame_helper14",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00453E71",
-   "corpus": "FUN_00453e71",
-   "bytes": 8339,
-   "suggested": "Map_DrawTileApex_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper1",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00455F04",
-   "corpus": "FUN_00455f04",
-   "bytes": 4308,
-   "suggested": "Map_DrawTileApex_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper2",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00456FD8",
-   "corpus": "FUN_00456fd8",
-   "bytes": 4305,
-   "suggested": "Map_DrawTileApex_helper3",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper3",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004580A9",
-   "corpus": "FUN_004580a9",
-   "bytes": 4527,
-   "suggested": "Map_DrawTileApex_helper4",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper4",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00459258",
-   "corpus": "FUN_00459258",
-   "bytes": 4377,
-   "suggested": "Map_DrawTileApex_helper5",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper5",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00460501",
-   "corpus": "FUN_00460501",
-   "bytes": 668,
-   "suggested": "Map_DrawSurroundTile_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawSurroundTile_helper1",
-     "detail": "called by Map_DrawSurroundTile and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00460A1C",
-   "corpus": "FUN_00460a1c",
-   "bytes": 2003,
-   "suggested": "Map_DrawTileApex_helper6",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper6",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004611EF",
-   "corpus": "FUN_004611ef",
-   "bytes": 1076,
-   "suggested": "Map_DrawTileApex_helper7",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper7",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00461623",
-   "corpus": "FUN_00461623",
-   "bytes": 1073,
-   "suggested": "Map_DrawTileApex_helper8",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper8",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00461A54",
-   "corpus": "FUN_00461a54",
-   "bytes": 1191,
-   "suggested": "Map_DrawTileApex_helper9",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper9",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00461EFB",
-   "corpus": "FUN_00461efb",
-   "bytes": 1145,
-   "suggested": "Map_DrawTileApex_helper10",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper10",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00463CBE",
-   "corpus": "FUN_00463cbe",
-   "bytes": 467,
-   "suggested": "Map_DrawTileApex_helper11",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper11",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00463E91",
-   "corpus": "FUN_00463e91",
-   "bytes": 276,
-   "suggested": "Map_DrawTileApex_helper12",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper12",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00463FA5",
-   "corpus": "FUN_00463fa5",
-   "bytes": 273,
-   "suggested": "Map_DrawTileApex_helper13",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper13",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004640B6",
-   "corpus": "FUN_004640b6",
-   "bytes": 339,
-   "suggested": "Map_DrawTileApex_helper14",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper14",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00464209",
-   "corpus": "FUN_00464209",
-   "bytes": 345,
-   "suggested": "Map_DrawTileApex_helper15",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_DrawTileApex_helper15",
-     "detail": "called by Map_DrawTileApex and by nothing else in the corpus"
     }
    ]
   },
@@ -2848,17 +2014,32 @@
    ]
   },
   {
-   "addr": "0x0046942C",
-   "corpus": "FUN_0046942c",
-   "bytes": 147,
-   "suggested": "Weather_UpdateAll_helper2",
+   "addr": "0x004692A7",
+   "corpus": "FUN_004692a7",
+   "bytes": 201,
+   "suggested": "NetCmd_Write_50_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Weather_UpdateAll_helper2",
-     "detail": "called by Weather_UpdateAll and by nothing else in the corpus"
+     "suggests": "NetCmd_Write_50_helper1",
+     "detail": "called by NetCmd_Write_50 and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x00469370",
+   "corpus": "FUN_00469370",
+   "bytes": 188,
+   "suggested": "NetCmd_Read_50_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "NetCmd_Read_50_helper1",
+     "detail": "called by NetCmd_Read_50 and by nothing else in the corpus"
     }
    ]
   },
@@ -2874,36 +2055,6 @@
      "confidence": "medium",
      "suggests": "County_EnsurePasture_helper1",
      "detail": "called by County_EnsurePasture and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0046965A",
-   "corpus": "FUN_0046965a",
-   "bytes": 371,
-   "suggested": "County_EnsurePasture_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "County_EnsurePasture_helper2",
-     "detail": "called by County_EnsurePasture and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00469A9C",
-   "corpus": "FUN_00469a9c",
-   "bytes": 176,
-   "suggested": "Weather_UpdateAll_helper3",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Weather_UpdateAll_helper3",
-     "detail": "called by Weather_UpdateAll and by nothing else in the corpus"
     }
    ]
   },
@@ -2941,13 +2092,13 @@
    "addr": "0x0046D2A3",
    "corpus": "FUN_0046d2a3",
    "bytes": 301,
-   "suggested": "Battle_Frame_helper22",
+   "suggested": "Battle_Frame_helper15",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper22",
+     "suggests": "Battle_Frame_helper15",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -2970,21 +2121,6 @@
      "confidence": "low",
      "suggests": "Terrain_Set_CountyHelper",
      "detail": "indexes the county×1 record stride and Terrain_Set is its only named caller"
-    }
-   ]
-  },
-  {
-   "addr": "0x0046DF51",
-   "corpus": "FUN_0046df51",
-   "bytes": 132,
-   "suggested": "Map_InitScenario_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_InitScenario_helper1",
-     "detail": "called by Map_InitScenario and by nothing else in the corpus"
     }
    ]
   },
@@ -3067,13 +2203,13 @@
    "addr": "0x00472A31",
    "corpus": "FUN_00472a31",
    "bytes": 152,
-   "suggested": "Battle_Frame_helper23",
+   "suggested": "Battle_Frame_helper16",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper23",
+     "suggests": "Battle_Frame_helper16",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -3094,113 +2230,17 @@
    ]
   },
   {
-   "addr": "0x00475B41",
-   "corpus": "FUN_00475b41",
-   "bytes": 562,
-   "suggested": "Msg_DrawWindow_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Msg_DrawWindow_helper1",
-     "detail": "called by Msg_DrawWindow and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00476710",
-   "corpus": "FUN_00476710",
-   "bytes": 88,
-   "suggested": "Map_Click_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Map_Click_helper1",
-     "detail": "called by Map_Click and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0047685D",
-   "corpus": "FUN_0047685d",
-   "bytes": 512,
-   "suggested": "Screen_FrameInput_helper14",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_FrameInput_helper14",
-     "detail": "called by Screen_FrameInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00476E21",
-   "corpus": "FUN_00476e21",
-   "bytes": 116,
-   "suggested": "Msg_Dismiss_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Msg_Dismiss_helper1",
-     "detail": "called by Msg_Dismiss and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00476E95",
-   "corpus": "FUN_00476e95",
-   "bytes": 421,
-   "suggested": "NullToolTip_Draw",
-   "confidence": "high",
-   "evidence": [
-    {
-     "kind": "eng-sole-consumer",
-     "confidence": "high",
-     "suggests": "NullToolTip_Draw",
-     "detail": "the only consumer of L2.eng group 220, label \"Null tool tip\""
-    },
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper24",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x004782C5",
    "corpus": "FUN_004782c5",
    "bytes": 340,
-   "suggested": "Battle_Frame_helper25",
+   "suggested": "Battle_Frame_helper17",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper25",
+     "suggests": "Battle_Frame_helper17",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004787A4",
-   "corpus": "FUN_004787a4",
-   "bytes": 290,
-   "suggested": "Battlefield_BuildCastle_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper1",
-     "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
     }
    ]
   },
@@ -3208,13 +2248,13 @@
    "addr": "0x00478952",
    "corpus": "FUN_00478952",
    "bytes": 53,
-   "suggested": "Battle_Frame_helper26",
+   "suggested": "Battle_Frame_helper18",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper26",
+     "suggests": "Battle_Frame_helper18",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -3235,17 +2275,47 @@
    ]
   },
   {
-   "addr": "0x0047CEC1",
-   "corpus": "FUN_0047cec1",
-   "bytes": 1459,
-   "suggested": "Battlefield_BuildCastle_helper2",
+   "addr": "0x00479558",
+   "corpus": "FUN_00479558",
+   "bytes": 480,
+   "suggested": "NetCmd_Write_41_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper2",
-     "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
+     "suggests": "NetCmd_Write_41_helper1",
+     "detail": "called by NetCmd_Write_41 and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x00479738",
+   "corpus": "FUN_00479738",
+   "bytes": 522,
+   "suggested": "NetCmd_Read_41_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "NetCmd_Read_41_helper1",
+     "detail": "called by NetCmd_Read_41 and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x00479E0C",
+   "corpus": "FUN_00479e0c",
+   "bytes": 132,
+   "suggested": "NetAct_BattleUnitOrder_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "NetAct_BattleUnitOrder_helper1",
+     "detail": "called by NetAct_BattleUnitOrder and by nothing else in the corpus"
     }
    ]
   },
@@ -3268,89 +2338,35 @@
    "addr": "0x0047DC9C",
    "corpus": "FUN_0047dc9c",
    "bytes": 50,
-   "suggested": "Battlefield_BuildCastle_helper3",
+   "suggested": "Battlefield_BuildCastle_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper3",
+     "suggests": "Battlefield_BuildCastle_helper1",
      "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
     }
    ]
   },
   {
-   "addr": "0x0047DCCE",
-   "corpus": "FUN_0047dcce",
-   "bytes": 184,
-   "suggested": "Battlefield_BuildCastle_helper4",
+   "addr": "0x0047F937",
+   "corpus": "FUN_0047f937",
+   "bytes": 714,
+   "suggested": "NetCmd_Read_33_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper4",
-     "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0047DD86",
-   "corpus": "FUN_0047dd86",
-   "bytes": 602,
-   "suggested": "BattleMan_StateFillMoat_helper1",
-   "confidence": "medium",
-   "evidence": [
+     "suggests": "NetCmd_Read_33_helper1",
+     "detail": "called by NetCmd_Read_33 and by nothing else in the corpus"
+    },
     {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "BattleMan_StateFillMoat_helper1",
-     "detail": "called by BattleMan_StateFillMoat and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0047DFE0",
-   "corpus": "FUN_0047dfe0",
-   "bytes": 508,
-   "suggested": "Missile_Step_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Missile_Step_helper1",
-     "detail": "called by Missile_Step and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0047E1DC",
-   "corpus": "FUN_0047e1dc",
-   "bytes": 84,
-   "suggested": "Battlefield_BuildCastle_helper5",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper5",
-     "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0047E230",
-   "corpus": "FUN_0047e230",
-   "bytes": 51,
-   "suggested": "Battlefield_BuildCastle_helper6",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper6",
-     "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
+     "kind": "stride-and-caller",
+     "confidence": "low",
+     "suggests": "NetCmd_Read_33_UnitHelper",
+     "detail": "indexes the unit×8 record stride and NetCmd_Read_33 is its only named caller"
     }
    ]
   },
@@ -3373,13 +2389,13 @@
    "addr": "0x00482111",
    "corpus": "FUN_00482111",
    "bytes": 476,
-   "suggested": "Battle_Frame_helper27",
+   "suggested": "Battle_Frame_helper19",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper27",
+     "suggests": "Battle_Frame_helper19",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -3388,13 +2404,13 @@
    "addr": "0x004859E5",
    "corpus": "FUN_004859e5",
    "bytes": 354,
-   "suggested": "Battle_Frame_helper28",
+   "suggested": "Battle_Frame_helper20",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper28",
+     "suggests": "Battle_Frame_helper20",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -3403,21 +2419,21 @@
    "addr": "0x0048EEFD",
    "corpus": "FUN_0048eefd",
    "bytes": 72,
-   "suggested": "Battlefield_BuildCastle_helper7",
+   "suggested": "Battlefield_BuildCastle_helper2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battlefield_BuildCastle_helper7",
+     "suggests": "Battlefield_BuildCastle_helper2",
      "detail": "called by Battlefield_BuildCastle and by nothing else in the corpus"
     }
    ]
   },
   {
-   "addr": "0x004904EC",
-   "corpus": "FUN_004904ec",
-   "bytes": 298,
+   "addr": "0x004912EC",
+   "corpus": "FUN_004912ec",
+   "bytes": 422,
    "suggested": "BattleMan_Step_helper1",
    "confidence": "medium",
    "evidence": [
@@ -3430,61 +2446,16 @@
    ]
   },
   {
-   "addr": "0x004912EC",
-   "corpus": "FUN_004912ec",
-   "bytes": 422,
-   "suggested": "BattleMan_Step_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "BattleMan_Step_helper2",
-     "detail": "called by BattleMan_Step and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00491492",
-   "corpus": "FUN_00491492",
-   "bytes": 838,
-   "suggested": "BattleMan_Step_helper3",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "BattleMan_Step_helper3",
-     "detail": "called by BattleMan_Step and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x00491B1F",
-   "corpus": "FUN_00491b1f",
-   "bytes": 969,
-   "suggested": "BattleMan_Step_helper4",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "BattleMan_Step_helper4",
-     "detail": "called by BattleMan_Step and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x004926FB",
    "corpus": "FUN_004926fb",
    "bytes": 255,
-   "suggested": "BattleMan_StateFillMoat_helper2",
+   "suggested": "BattleMan_StateFillMoat_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "BattleMan_StateFillMoat_helper2",
+     "suggests": "BattleMan_StateFillMoat_helper1",
      "detail": "called by BattleMan_StateFillMoat and by nothing else in the corpus"
     }
    ]
@@ -3493,13 +2464,13 @@
    "addr": "0x004927FA",
    "corpus": "FUN_004927fa",
    "bytes": 169,
-   "suggested": "BattleMan_StateFillMoat_helper3",
+   "suggested": "BattleMan_StateFillMoat_helper2",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "BattleMan_StateFillMoat_helper3",
+     "suggests": "BattleMan_StateFillMoat_helper2",
      "detail": "called by BattleMan_StateFillMoat and by nothing else in the corpus"
     }
    ]
@@ -3523,14 +2494,44 @@
    "addr": "0x00494265",
    "corpus": "FUN_00494265",
    "bytes": 821,
-   "suggested": "Missile_Step_helper2",
+   "suggested": "Missile_Step_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Missile_Step_helper2",
+     "suggests": "Missile_Step_helper1",
      "detail": "called by Missile_Step and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x0049719E",
+   "corpus": "FUN_0049719e",
+   "bytes": 169,
+   "suggested": "Battlefield_ClassifyField_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battlefield_ClassifyField_helper1",
+     "detail": "called by Battlefield_ClassifyField and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x00497247",
+   "corpus": "FUN_00497247",
+   "bytes": 178,
+   "suggested": "Battlefield_ClassifyBailey_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battlefield_ClassifyBailey_helper1",
+     "detail": "called by Battlefield_ClassifyBailey and by nothing else in the corpus"
     }
    ]
   },
@@ -3538,6 +2539,21 @@
    "addr": "0x00497500",
    "corpus": "FUN_00497500",
    "bytes": 211,
+   "suggested": "App_WinMain_helper2",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "App_WinMain_helper2",
+     "detail": "called by App_WinMain and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004975D3",
+   "corpus": "FUN_004975d3",
+   "bytes": 170,
    "suggested": "App_WinMain_helper3",
    "confidence": "medium",
    "evidence": [
@@ -3550,9 +2566,9 @@
    ]
   },
   {
-   "addr": "0x004975D3",
-   "corpus": "FUN_004975d3",
-   "bytes": 170,
+   "addr": "0x0049767D",
+   "corpus": "FUN_0049767d",
+   "bytes": 36,
    "suggested": "App_WinMain_helper4",
    "confidence": "medium",
    "evidence": [
@@ -3565,31 +2581,16 @@
    ]
   },
   {
-   "addr": "0x0049767D",
-   "corpus": "FUN_0049767d",
-   "bytes": 36,
-   "suggested": "App_WinMain_helper5",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "App_WinMain_helper5",
-     "detail": "called by App_WinMain and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x00498458",
    "corpus": "FUN_00498458",
    "bytes": 132,
-   "suggested": "Battle_Frame_helper29",
+   "suggested": "Battle_Frame_helper21",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper29",
+     "suggests": "Battle_Frame_helper21",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -3606,21 +2607,6 @@
      "confidence": "medium",
      "suggests": "Village_Draw_helper1",
      "detail": "called by Village_Draw and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x0049A3E6",
-   "corpus": "FUN_0049a3e6",
-   "bytes": 109,
-   "suggested": "Battle_Frame_helper30",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Battle_Frame_helper30",
-     "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
   },
@@ -3643,13 +2629,13 @@
    "addr": "0x0049B8B0",
    "corpus": "FUN_0049b8b0",
    "bytes": 195,
-   "suggested": "Battle_Frame_helper31",
+   "suggested": "Battle_Frame_helper22",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper31",
+     "suggests": "Battle_Frame_helper22",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -3685,17 +2671,17 @@
    ]
   },
   {
-   "addr": "0x0049DF48",
-   "corpus": "FUN_0049df48",
-   "bytes": 126,
-   "suggested": "Battle_ReturnToCampaign_helper1",
+   "addr": "0x0049CA60",
+   "corpus": "FUN_0049ca60",
+   "bytes": 74,
+   "suggested": "NetCmd_ReadPlayerName_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_ReturnToCampaign_helper1",
-     "detail": "called by Battle_ReturnToCampaign and by nothing else in the corpus"
+     "suggests": "NetCmd_ReadPlayerName_helper1",
+     "detail": "called by NetCmd_ReadPlayerName and by nothing else in the corpus"
     }
    ]
   },
@@ -3832,61 +2818,16 @@
    ]
   },
   {
-   "addr": "0x004A6C68",
-   "corpus": "FUN_004a6c68",
-   "bytes": 1264,
-   "suggested": "Unit_Step_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Unit_Step_helper1",
-     "detail": "called by Unit_Step and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004AABD8",
-   "corpus": "FUN_004aabd8",
-   "bytes": 303,
-   "suggested": "Armoury_ClickRack_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Armoury_ClickRack_helper1",
-     "detail": "called by Armoury_ClickRack and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004ABD0F",
-   "corpus": "FUN_004abd0f",
-   "bytes": 616,
-   "suggested": "PeasantMob_Tick_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "PeasantMob_Tick_helper1",
-     "detail": "called by PeasantMob_Tick and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
    "addr": "0x004AD426",
    "corpus": "FUN_004ad426",
    "bytes": 111,
-   "suggested": "Battle_ReturnToCampaign_helper2",
+   "suggested": "Battle_ReturnToCampaign_helper1",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_ReturnToCampaign_helper2",
+     "suggests": "Battle_ReturnToCampaign_helper1",
      "detail": "called by Battle_ReturnToCampaign and by nothing else in the corpus"
     }
    ]
@@ -3895,13 +2836,13 @@
    "addr": "0x004AD9F0",
    "corpus": "FUN_004ad9f0",
    "bytes": 774,
-   "suggested": "Screen_HandleInput_helper6",
+   "suggested": "Screen_HandleInput_helper4",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper6",
+     "suggests": "Screen_HandleInput_helper4",
      "detail": "called by Screen_HandleInput and by nothing else in the corpus"
     }
    ]
@@ -3952,6 +2893,21 @@
    ]
   },
   {
+   "addr": "0x004AEA70",
+   "corpus": "FUN_004aea70",
+   "bytes": 506,
+   "suggested": "Siege_RestoreCastleDamage_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Siege_RestoreCastleDamage_helper1",
+     "detail": "called by Siege_RestoreCastleDamage and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
    "addr": "0x004AEE3E",
    "corpus": "FUN_004aee3e",
    "bytes": 320,
@@ -3985,13 +2941,13 @@
    "addr": "0x004B0E03",
    "corpus": "FUN_004b0e03",
    "bytes": 875,
-   "suggested": "Battle_Frame_helper32",
+   "suggested": "Battle_Frame_helper23",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper32",
+     "suggests": "Battle_Frame_helper23",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -4000,13 +2956,13 @@
    "addr": "0x004B12FB",
    "corpus": "FUN_004b12fb",
    "bytes": 21,
-   "suggested": "Battle_Frame_helper33",
+   "suggested": "Battle_Frame_helper24",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper33",
+     "suggests": "Battle_Frame_helper24",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -4030,59 +2986,14 @@
    "addr": "0x004B20ED",
    "corpus": "FUN_004b20ed",
    "bytes": 68,
-   "suggested": "Battle_Frame_helper34",
+   "suggested": "Battle_Frame_helper25",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper34",
+     "suggests": "Battle_Frame_helper25",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004B3571",
-   "corpus": "FUN_004b3571",
-   "bytes": 80,
-   "suggested": "App_WinMain_helper6",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "App_WinMain_helper6",
-     "detail": "called by App_WinMain and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004B36C0",
-   "corpus": "FUN_004b36c0",
-   "bytes": 84,
-   "suggested": "Ui_OpenConfirm_helper1",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Ui_OpenConfirm_helper1",
-     "detail": "called by Ui_OpenConfirm and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004B3714",
-   "corpus": "FUN_004b3714",
-   "bytes": 84,
-   "suggested": "Sidebar_Button_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Sidebar_Button_helper2",
-     "detail": "called by Sidebar_Button and by nothing else in the corpus"
     }
    ]
   },
@@ -4113,36 +3024,6 @@
      "confidence": "medium",
      "suggests": "CastleBuild_Select_helper1",
      "detail": "called by CastleBuild_Select and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004B3ACD",
-   "corpus": "FUN_004b3acd",
-   "bytes": 197,
-   "suggested": "Msg_DrawWindow_helper2",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Msg_DrawWindow_helper2",
-     "detail": "called by Msg_DrawWindow and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004B3B92",
-   "corpus": "FUN_004b3b92",
-   "bytes": 89,
-   "suggested": "Msg_DrawWindow_helper3",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Msg_DrawWindow_helper3",
-     "detail": "called by Msg_DrawWindow and by nothing else in the corpus"
     }
    ]
   },
@@ -4188,6 +3069,21 @@
      "confidence": "medium",
      "suggests": "Glyph_Draw_helper3",
      "detail": "called by Glyph_Draw and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004B49B7",
+   "corpus": "FUN_004b49b7",
+   "bytes": 64,
+   "suggested": "Overview_DrawRows_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Overview_DrawRows_helper1",
+     "detail": "called by Overview_DrawRows and by nothing else in the corpus"
     }
    ]
   },
@@ -4270,13 +3166,13 @@
    "addr": "0x004BB978",
    "corpus": "FUN_004bb978",
    "bytes": 614,
-   "suggested": "Battle_Frame_helper35",
+   "suggested": "Battle_Frame_helper26",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper35",
+     "suggests": "Battle_Frame_helper26",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -4285,13 +3181,13 @@
    "addr": "0x004BBE51",
    "corpus": "FUN_004bbe51",
    "bytes": 86,
-   "suggested": "Screen_HandleInput_helper7",
+   "suggested": "Screen_HandleInput_helper5",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper7",
+     "suggests": "Screen_HandleInput_helper5",
      "detail": "called by Screen_HandleInput and by nothing else in the corpus"
     }
    ]
@@ -4300,28 +3196,13 @@
    "addr": "0x004BBF89",
    "corpus": "FUN_004bbf89",
    "bytes": 73,
-   "suggested": "Screen_HandleInput_helper8",
+   "suggested": "Screen_HandleInput_helper6",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper8",
-     "detail": "called by Screen_HandleInput and by nothing else in the corpus"
-    }
-   ]
-  },
-  {
-   "addr": "0x004BBFD2",
-   "corpus": "FUN_004bbfd2",
-   "bytes": 73,
-   "suggested": "Screen_HandleInput_helper9",
-   "confidence": "medium",
-   "evidence": [
-    {
-     "kind": "sole-named-caller",
-     "confidence": "medium",
-     "suggests": "Screen_HandleInput_helper9",
+     "suggests": "Screen_HandleInput_helper6",
      "detail": "called by Screen_HandleInput and by nothing else in the corpus"
     }
    ]
@@ -4330,13 +3211,13 @@
    "addr": "0x004BC142",
    "corpus": "FUN_004bc142",
    "bytes": 143,
-   "suggested": "Battle_Frame_helper36",
+   "suggested": "Battle_Frame_helper27",
    "confidence": "medium",
    "evidence": [
     {
      "kind": "sole-named-caller",
      "confidence": "medium",
-     "suggests": "Battle_Frame_helper36",
+     "suggests": "Battle_Frame_helper27",
      "detail": "called by Battle_Frame and by nothing else in the corpus"
     }
    ]
@@ -4413,6 +3294,66 @@
      "confidence": "medium",
      "suggests": "BattleMen_SelectInBox_helper4",
      "detail": "called by BattleMen_SelectInBox and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004BC505",
+   "corpus": "FUN_004bc505",
+   "bytes": 21,
+   "suggested": "Battlefield_DrawBand_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battlefield_DrawBand_helper1",
+     "detail": "called by Battlefield_DrawBand and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004BD938",
+   "corpus": "FUN_004bd938",
+   "bytes": 346,
+   "suggested": "Battle_DrawFiguresAndOverlay_helper1",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_DrawFiguresAndOverlay_helper1",
+     "detail": "called by Battle_DrawFiguresAndOverlay and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004BDA92",
+   "corpus": "FUN_004bda92",
+   "bytes": 259,
+   "suggested": "Battle_DrawFiguresAndOverlay_helper2",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_DrawFiguresAndOverlay_helper2",
+     "detail": "called by Battle_DrawFiguresAndOverlay and by nothing else in the corpus"
+    }
+   ]
+  },
+  {
+   "addr": "0x004BDB95",
+   "corpus": "FUN_004bdb95",
+   "bytes": 156,
+   "suggested": "Battle_DrawFiguresAndOverlay_helper3",
+   "confidence": "medium",
+   "evidence": [
+    {
+     "kind": "sole-named-caller",
+     "confidence": "medium",
+     "suggests": "Battle_DrawFiguresAndOverlay_helper3",
+     "detail": "called by Battle_DrawFiguresAndOverlay and by nothing else in the corpus"
     }
    ]
   },
