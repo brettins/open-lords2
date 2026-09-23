@@ -278,6 +278,25 @@ impl BattlefieldScreen {
     }
 
     fn settle(&mut self, ctx: &mut Ctx) -> Transition {
+        // `Battle_CheckOutcome` (`0x00477DFC`, `00470000.c:3452-3469`) tests
+        // `DAT_0057A0F0` before anything else: a skirmish skips
+        // `Battle_ReturnToCampaign` and goes to `0x2E`. `screens/ratings/end.rs`.
+        if ctx.game.battle.as_ref().is_some_and(|b| b.skirmish) {
+            let live = ctx.game.battle.take().expect("tested above");
+            let side = ctx.game.battle_master.local_side();
+            let other = if side == l2_sim::SIDE_A { l2_sim::SIDE_B } else { l2_sim::SIDE_A };
+            let ending = crate::screens::ratings::ending_of(live.conclusion, side);
+            let (mine, theirs) = (live.runner.survivors(side), live.runner.survivors(other));
+            ctx.game.battle_master.finish(mine, theirs, ending);
+            let (a, b) = crate::screens::ratings::score(&ctx.game.battle_master.last);
+            let realms = ctx.game.battle_master.last.realms;
+            let name = |r: u8| {
+                ctx.game.player_names.get(r as usize).map_or(String::new(), |n| n.as_str().into())
+            };
+            let (mine_name, foe_name) = (name(realms.0), name(realms.1));
+            ctx.game.battle_master.record(&mine_name, &foe_name, a, b);
+            return Transition::Replace(ScreenId::Ratings);
+        }
         match turn::finish_battle(ctx.game) {
             TurnStep::Report(_) => Transition::Replace(ScreenId::BattleResult),
             TurnStep::Ask(_) => Transition::Replace(ScreenId::BattlePrompt),

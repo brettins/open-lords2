@@ -168,80 +168,11 @@ impl SetupScreen {
                     ));
                 }
             }
-            SetupPage::SkirmishFile => {
-                // **`FUN_00434174`** tests the pointer itself, not a widget
-                // record: `0x80 ≤ x ≤ 0x1DF` and `0xB0 ≤ y ≤ 0x14F`, ten rows
-                // of sixteen. The row is `DAT_004EA1A0 + (y - 0xB0) / 16`
-                // (`00430000.c:1358`) — the scroll base, not the slot.
-                //
-                // Everything outside the ten rows is `SaveLoad_Cancel`
-                // (`0x00434308`), the *OK* cross, which is the page's one way
-                // back.
-                for r in 0..10 {
-                    v.push((
-                        Rect::new(0x80, 0xB0 + r as i32 * 0x10, 0x160, 0x10),
-                        Action::Skirmish(SkirmishArm::File(r)),
-                    ));
-                }
-                v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
-            }
+            SetupPage::SkirmishFile => self.skirmish_file_arms(&mut v),
             SetupPage::NoCd | SetupPage::Load => {
                 v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
             }
-            SetupPage::Skirmish | SetupPage::SkirmishMulti => {
-                // The widget table at `0x004DCF68`, in its order and with its
-                // own rectangles — `node tools/oracle/widgets.js widgets
-                // 4dcf68 22`. The three buttons are `FUN_0043D649` (*Back*),
-                // `FUN_0043DA9E` (*Cust.*) and `FUN_0043D5B7` (*Go*), and the
-                // painter's caption boxes are not what is clickable.
-                for (i, x) in [461, 519, 577].iter().enumerate() {
-                    v.push((Rect::new(*x, 422, 56, 52), Action::Item(i)));
-                }
-                // Page 11 is the multiplayer skirmish and keeps only those
-                // three. Its own arms — the lobby list and `FUN_0043DBAC`'s
-                // 0…4 difficulty cycle, which is the other difficulty arm —
-                // are **out of scope**, `docs/plan.md` 0.1 *Multiplayer is
-                // excluded, deliberately and not by omission*. Uncited on
-                // purpose: the widget table is read, the arms are not ported.
-                if self.page == SetupPage::SkirmishMulti {
-                    return v;
-                }
-                for r in 0..ROWS_SHOWN {
-                    let y = 185 + r as i32 * 16;
-                    v.push((
-                        Rect::new(468, y, 133, 15),
-                        Action::Skirmish(SkirmishArm::Row(r)),
-                    ));
-                }
-                for (y, d) in [(181, -1), (266, 1)] {
-                    v.push((
-                        Rect::new(604, y, 20, 20),
-                        Action::Skirmish(SkirmishArm::Scroll(d)),
-                    ));
-                }
-                for x in [11, 278] {
-                    v.push((
-                        Rect::new(x, 259, 158, 45),
-                        Action::Skirmish(SkirmishArm::Sides),
-                    ));
-                }
-                for (kind, y) in [(2usize, 291), (0, 322), (1, 353), (3, 384)] {
-                    v.push((
-                        Rect::new(463, y, 30, 30),
-                        Action::Skirmish(SkirmishArm::Kind(kind)),
-                    ));
-                }
-                v.push((
-                    Rect::new(495, 384, 141, 30),
-                    Action::Skirmish(SkirmishArm::OpenFiles),
-                ));
-                for (i, x) in [20, 275].iter().enumerate() {
-                    v.push((
-                        Rect::new(*x, 350, 160, 125),
-                        Action::Skirmish(SkirmishArm::Handicap(i + 1)),
-                    ));
-                }
-            }
+            SetupPage::Skirmish | SetupPage::SkirmishMulti => self.skirmish_arms(&mut v),
         }
         v
     }
@@ -334,6 +265,9 @@ impl SetupScreen {
                 self.skirmish.pick_row(r);
             }
             SkirmishArm::Scroll(d) => self.skirmish.scroll(d),
+            SkirmishArm::FileScroll(d) => self.scroll_skirmish_files(d),
+            SkirmishArm::Count(col, row) => self.custom_count(col, row),
+            SkirmishArm::Cycle(realm) => self.skirmish.cycle_difficulty(realm),
             SkirmishArm::Kind(k) => self.skirmish.choose_kind(k),
             // `00430000.c:8120-8126` — the move of `DAT_0053EF5C` and then
             // `Troops_Load`, which is the whole point of the arm: the table

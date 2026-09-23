@@ -48,11 +48,15 @@ impl SetupScreen {
     /// back to 0 outright when the list is shorter than ten names. The
     /// half-page clamp is the original's, `docs/screens-county.md`.
     ///
-    /// Public because page 13's arrow widget record is not in the table we
-    /// have read: `node tools/oracle/widgets.js` names the two arrows of the
-    /// *save/load* box (`0x004DDDA8` and `0x004DDDC0`, list 1) and we could
-    /// not find the skirmish box's pair, so nothing on the page reaches this
-    /// yet. Finding the record is the open part.
+    /// The record is `g_skirmishFileWidgets` (`0x004DDDD8`), two kind-4
+    /// widgets at (480, 256) and (480, 288) — see
+    /// [`super::skirmish_file::FILE_SCROLL`], which reaches this.
+    /// `DAT_004EA1A0` — the row `FUN_00414E06` and `FUN_00434174` both count
+    /// from.
+    pub fn skirmish_file_top(&self) -> usize {
+        self.skirmish_file_top
+    }
+
     pub fn scroll_skirmish_files(&mut self, delta: i32) {
         let count = self.skirmish_files.len() as i32;
         let mut top = (self.skirmish_file_top as i32 + delta).max(0);
@@ -146,6 +150,18 @@ impl SetupScreen {
                 def,
             ),
         };
+        // `FUN_0042C5AD` (`0x0042C5AD`), the statement before `Battle_Start`
+        // in `FUN_0043D5B7`: the two musters are copied into the records the
+        // ratings sheet reads as *Before*.
+        let local_side =
+            if self.skirmish.local_attacks { l2_sim::SIDE_A } else { l2_sim::SIDE_B };
+        ctx.game.battle_master.seed_defaults(&ctx.assets.shell);
+        ctx.game.battle_master.begin(
+            (local, foe),
+            local_side,
+            mine.counts,
+            theirs.counts,
+        );
         let mut battle = crate::battlefield::LiveBattle::new(
             runner,
             att_slot,

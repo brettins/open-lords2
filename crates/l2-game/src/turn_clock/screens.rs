@@ -67,6 +67,7 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Tip => 0x27,
         ScreenId::Battlefield => 0x29,
         ScreenId::Ratings => 0x2E,
+        ScreenId::Rank => 0x2F,
         ScreenId::Options(Page::Help) => 0x31,
         ScreenId::MenuBar(_) => 0x32,
         ScreenId::SaveLoad(mode) => mode.screen_id(),

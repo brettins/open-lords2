@@ -63,7 +63,6 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-formats/tests/save_england_turn1/main.rs", "england", 1),
     ("crates/l2-formats/tests/save_england_turn1/merchants.rs", "england", 2),
     ("crates/l2-game/src/audio/mod.rs", "install", 1),
-    ("crates/l2-game/src/prefs.rs", "install", 1),
     ("crates/l2-game/src/screens/menubar/tests_part.rs", "install", 2),
     ("crates/l2-game/tests/ai_war/simulation.rs", "england", 2),
     ("crates/l2-game/tests/armoury/animation/rendering.rs", "england", 3),
@@ -168,7 +167,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/scenario/save_loading.rs", "england", 1),
     ("crates/l2-game/tests/scenario/save_loading.rs", "fixture", 1),
     ("crates/l2-game/tests/scenario/turn_execution.rs", "england", 5),
-    ("crates/l2-game/tests/screens_battle.rs", "england", 2),
+    ("crates/l2-game/tests/screens_battle.rs", "england", 4),
     ("crates/l2-game/tests/screens_county/drawing_and_emboss/county_name_tests.rs", "england", 3),
     ("crates/l2-game/tests/screens_county/drawing_and_emboss/panel_tests.rs", "england", 3),
     ("crates/l2-game/tests/screens_county/layout_and_labels/labels.rs", "england", 3),
@@ -214,6 +213,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/setup/held_tests.rs", "england", 6),
     ("crates/l2-game/tests/setup/setup_tests.rs", "england", 7),
     ("crates/l2-game/tests/setup/setup_tests.rs", "install", 1),
+    ("crates/l2-game/tests/setup/skirmish_file_tests.rs", "england", 3),
     ("crates/l2-game/tests/setup/skirmish_draw_tests.rs", "england", 9),
     ("crates/l2-game/tests/setup/skirmish_tests.rs", "england", 12),
     ("crates/l2-game/tests/setup/title_tests/build_stamp_tests.rs", "england", 2),
@@ -292,7 +292,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 648;
+pub(crate) const GATED_TOTAL: usize = 652;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

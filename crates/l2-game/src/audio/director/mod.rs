@@ -141,6 +141,7 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::Nobles
         | S::Supplies(_)
         | S::Ratings
+        | S::Rank
         | S::Info(_) => false,
     }
 }

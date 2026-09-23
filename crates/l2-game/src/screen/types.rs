@@ -62,6 +62,10 @@ pub enum ScreenId {
     Nobles,
     Supplies(u8),
     Ratings,
+    /// `g_screenId` `0x2F` — the skirmish masters' table. Reached only from
+    /// `0x2E` (`00420000.c:7500-7508`) and left only to setup page 12
+    /// (`FUN_0042B780`). See [`crate::screens::ratings::RankScreen`].
+    Rank,
     /// The target is part of the identity because the original keeps it in
     /// `g_pickedTileUnit` and `DAT_0056795C` and picks the painter from them;
     /// a value that had to guess would be a value that guessed. See
@@ -200,6 +204,7 @@ impl ScreenId {
                 Box::new(crate::screens::supplies::SuppliesScreen::new(to))
             }
             ScreenId::Ratings => Box::new(crate::screens::ratings::RatingsScreen::new()),
+            ScreenId::Rank => Box::new(crate::screens::ratings::RankScreen::new()),
             ScreenId::Info(target) => Box::new(crate::screens::info::InfoScreen::new(target)),
             ScreenId::Message => Box::new(crate::screens::message::MessageScreen::new()),
             ScreenId::Tip => Box::new(crate::screens::tip::TipScreen::new()),
