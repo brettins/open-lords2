@@ -104,3 +104,35 @@ fn the_siege_slots_follow_the_troop_type() {
     let pots: Vec<(u8, u8)> = (0..4).map(|_| r.deploy_slot_siege(Troop::Oil, &mut oil)).collect();
     assert_eq!(pots, vec![(10, 20), (11, 20), (10, 20), (11, 20)]);
 }
+
+fn in_session(field: crate::terrain::Battlefield, level: Option<u8>, session: Session) -> BattleRunner {
+    let a = [(Troop::Swordsmen, 200u32)];
+    let b = [(Troop::Archers, 200u32)];
+    let a = Muster { troops: &a, owner: 1, human: false, mercenaries: None };
+    let b = Muster { troops: &b, owner: 2, human: true, mercenaries: None };
+    BattleRunner::deploy_in_session(field, None, DEFAULT_SEED, a, b, level, session)
+}
+
+/// Battlefield_BuildCastle 0x0047C4BA writes no DAT_00544050/g_rallyWaypoints: the siege
+/// orders to the last field's. Ablation: drop the castle arm in `deploy_prepared`.
+#[test]
+fn a_castle_field_orders_to_the_last_open_fields_marker_tables() {
+    let markers = ([[(11, 12); 4], [(13, 14); 4]], [[[(21, 22); 3]; 2], [[(23, 24); 3]; 2]]);
+    let session = Session { markers, ..Session::default() };
+    let r = in_session(crate::siege::our_castle(2), Some(2), session);
+    assert_eq!(r.ai_field.enemy_end[1][3], (13, 14), "DAT_00544070");
+    assert_eq!(r.ai_field.rally[0][1][2], (21, 22), "g_rallyWaypoints");
+    assert_eq!(r.session().markers, markers);
+    let first = in_session(crate::siege::our_castle(2), Some(2), Session::default());
+    assert_eq!(first.session().markers, Default::default(), ".bss at process start");
+}
+
+/// An open field's own tables replace the carried ones. Ablation: carry them on the field too.
+#[test]
+fn an_open_field_hands_on_its_own_marker_tables() {
+    let markers = ([[(11, 12); 4], [(13, 14); 4]], [[[(21, 22); 3]; 2], [[(23, 24); 3]; 2]]);
+    let field = crate::siege::our_castle(2);
+    let own = (field.enemy_end, field.rally);
+    let r = in_session(field, None, Session { markers, ..Session::default() });
+    assert_eq!(r.session().markers, own);
+}

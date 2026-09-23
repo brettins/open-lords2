@@ -160,7 +160,13 @@ pub struct Campaign {
     /// last `Battle_Start` (`0x004778A0`, `00470000.c:3104-3118`) left them;
     /// its multiplayer arm steps them from here. `.bss`, so 0 at start.
     pub battle_selectors: (u8, u8),
+    /// `DAT_00544050`/`DAT_00544070` and `g_rallyWaypoints`/`DAT_00522D60` as the last open
+    /// field left them; a castle field has no writer and reads these. `.bss`, so 0 at start.
+    pub battle_markers: BattleMarkers,
 }
+
+/// `[side][slot]` enemy ends, `[side][group][index]` rally waypoints: `l2_sim::terrain::MarkerTables`.
+pub type BattleMarkers = ([[(u8, u8); 4]; 2], [[[(u8, u8); 3]; 2]; 2]);
 
 impl Default for Campaign {
     fn default() -> Self {
@@ -185,6 +191,7 @@ impl Campaign {
             // after the planes are loaded.
             explored: crate::explore::Explored::new(),
             battle_selectors: (0, 0),
+            battle_markers: Default::default(),
         }
     }
 }

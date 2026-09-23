@@ -117,11 +117,6 @@ pub fn tables_at_homes(home_side0: (u8, u8), home_side4: (u8, u8)) -> MarkerTabl
 }
 
 impl Battlefield {
-    pub fn with_home_tables(mut self) -> Self {
-        (self.enemy_end, self.rally) = tables_at_homes(self.home_side0, self.home_side4);
-        self
-    }
-
     #[inline]
     pub fn at(&self, x: usize, y: usize) -> Cell {
         self.cells[y * DIM + x]

@@ -213,6 +213,9 @@ pub struct Session {
     pub multiplayer: bool,
     pub lane: usize,
     pub rally: usize,
+    /// `DAT_00544050`/`DAT_00544070` and `g_rallyWaypoints` (`0x00522D30`)/`DAT_00522D60`,
+    /// `.bss` so zero at process start **[V]**; a castle field reads the last field's.
+    pub markers: crate::terrain::MarkerTables,
 }
 
 /// `g_menPerFigureTable` (`0x004D9658`) — men one drawn figure stands for, by
