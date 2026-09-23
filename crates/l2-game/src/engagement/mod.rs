@@ -28,6 +28,8 @@ mod tests;
 pub use tests::*;
 #[cfg(test)]
 mod band_tests;
+#[cfg(test)]
+mod session_tests;
 
 use l2_kingdom::battle::{self, Aftermath, Settlement, Verdict};
 use l2_kingdom::conquest::Attack;

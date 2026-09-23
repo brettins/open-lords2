@@ -42,6 +42,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
     if game.battle.is_some() || (game.seated() && q.side_of(realm).is_none()) {
         return false;
     }
+    let multiplayer = game.multiplayer;
     let seed = if q.is_siege {
         siege_seed(&game.kingdom)
     } else {
@@ -51,7 +52,7 @@ pub fn take_the_field(game: &mut Game) -> bool {
         )
     };
     let Some(runner) =
-        engagement::begin_fight(&mut game.kingdom, q.attacker, q.defender, q.castle_level, seed)
+        engagement::begin_fight_in(&mut game.kingdom, q.attacker, q.defender, q.castle_level, seed, multiplayer)
     else {
         return false;
     };

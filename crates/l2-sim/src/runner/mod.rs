@@ -32,6 +32,10 @@ mod simulation;
 mod raise;
 #[cfg(test)]
 mod band_tests;
+#[cfg(test)]
+mod siege_raise_tests;
+#[cfg(test)]
+mod conclusion_tests;
 pub use simulation::*;
 mod closing;
 pub use closing::*;
@@ -200,6 +204,15 @@ pub struct Muster<'a> {
     pub human: bool,
     /// `mercTroop`/`mercMen`, raised last and flagged — `Battle_RaiseSide` (`0x0047FEA7`).
     pub mercenaries: Option<(Troop, u32)>,
+}
+
+/// `g_multiplayer`, `g_battleApproachLane` (`0x0056D6B0`) and
+/// `g_battleRallyGroup`: what one `Battle_Start` (`0x004778A0`) reads of the last.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Session {
+    pub multiplayer: bool,
+    pub lane: usize,
+    pub rally: usize,
 }
 
 /// `g_menPerFigureTable` (`0x004D9658`) — men one drawn figure stands for, by

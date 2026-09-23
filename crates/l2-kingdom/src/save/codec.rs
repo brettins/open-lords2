@@ -222,6 +222,11 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
 
     out.section("explored");
     campaign.explored.encode(out);
+
+    // Version 32.
+    out.section("battle_selectors");
+    out.u8(campaign.battle_selectors.0);
+    out.u8(campaign.battle_selectors.1);
 }
 
 fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, LoadError> {
@@ -291,6 +296,7 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
 
     let seen = input.raw(crate::map::MAP_TILES)?;
     campaign.explored.copy_from_bytes(seen);
+    campaign.battle_selectors = (input.u8()?, input.u8()?);
     Ok(campaign)
 }
 

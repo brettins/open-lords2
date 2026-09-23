@@ -445,6 +445,8 @@ fn furnish_campaign(k: &mut Kingdom) {
     }
     k.campaign.explored.reveal_square(1, 12, 40, 6);
     k.campaign.explored.reveal_square(4, 16, 44, 3);
+    // `g_battleApproachLane` (`0x0056D6B0`) and `g_battleRallyGroup`, off zero.
+    k.campaign.battle_selectors = (3, 1);
 
     k.diplomacy.help_price = 3400;
     k.diplomacy.help_county = 9;
@@ -584,7 +586,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     //
     // +52 at version 31 for the field-battle playlist: `DAT_0057CAE0`'s 48
     // bytes and `DAT_005653F8`'s four, the pair `FUN_00444A2F` net-syncs.
-    assert_eq!(c.finish().len, 67_622, "the state encoding changed - bump VERSION?");
+    //
+    // +2 at version 32 for `g_battleApproachLane` and `g_battleRallyGroup`.
+    assert_eq!(c.finish().len, 67_624, "the state encoding changed - bump VERSION?");
 }
 
 /// The other half of the same property the census covers. A field can go

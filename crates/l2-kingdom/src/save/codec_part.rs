@@ -629,7 +629,14 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 31 with `VERSION` at 30 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 31;
+/// * 32 — **the battle selectors**, `g_battleApproachLane` (`0x0056D6B0`) and
+///   `g_battleRallyGroup`, which `Battle_Start` (`0x004778A0`) steps from their
+///   last values in a network game. 2 bytes. **Refusal**, under entry 16's
+///   rule: a defaulted load feeds the next battle's approach lane.
+///
+///   *Written as 32 with `VERSION` at 31 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 32;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;
