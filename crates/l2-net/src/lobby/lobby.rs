@@ -15,6 +15,7 @@ impl Lobby {
             name: name.clone(),
             ready: true,
             is_host: true,
+            shield: 1,
         });
         Ok(Lobby {
             role: Role::Host,
@@ -24,6 +25,8 @@ impl Lobby {
             seats: Vec::new(),
             outbox: Vec::new(),
             started: None,
+            shield: 1,
+            unseated_gold: 0,
         })
     }
 
@@ -37,7 +40,28 @@ impl Lobby {
             seats: Vec::new(),
             outbox: Vec::new(),
             started: None,
+            shield: 0,
+            unseated_gold: 0,
         })
+    }
+
+    /// The shield this seat asks for; a client's goes out with its `Join`.
+    pub fn with_shield(mut self, shield: u8) -> Lobby {
+        self.shield = shield;
+        if self.role == Role::Host {
+            let slot = self.identity.slot;
+            self.roster.players.retain(|p| p.slot != slot);
+            let shield = self.roster.free_shield(shield);
+            let me = Player { slot, name: self.name.clone(), ready: true, is_host: true, shield };
+            self.roster.insert_sorted(me);
+        }
+        self
+    }
+
+    /// What the host's own last game left in `g_startingGoldChosen`.
+    pub fn with_unseated_gold(mut self, gold: i32) -> Lobby {
+        self.unseated_gold = gold;
+        self
     }
 
     pub fn role(&self) -> Role {
@@ -65,6 +89,7 @@ impl Lobby {
             message: crate::packet::Message::Join(Join {
                 hello: self.identity.clone(),
                 name: self.name.clone(),
+                shield: self.shield,
             }),
         });
         Ok(())
@@ -112,7 +137,11 @@ impl Lobby {
         if !self.roster.all_ready() {
             return Err(LobbyError::WrongRole);
         }
-        let start = Start { seed: self.identity.seed, roster: self.roster.clone() };
+        let start = Start {
+            seed: self.identity.seed,
+            roster: self.roster.clone(),
+            unseated_gold: self.unseated_gold,
+        };
         self.started = Some(start.clone());
         self.outbox.push(Outgoing {
             to: None,
@@ -204,7 +233,8 @@ impl Lobby {
             }
         };
 
-        self.roster.insert_sorted(Player { slot, name, ready: false, is_host: false });
+        let shield = self.roster.free_shield(join.shield);
+        self.roster.insert_sorted(Player { slot, name, ready: false, is_host: false, shield });
         self.seats.push((peer, slot));
         self.broadcast_roster();
         Ok(LobbyEvent::Joined(slot))

@@ -72,6 +72,14 @@ fn the_human_takes_quaintvilles_western_start_three_games_in_four() {
 
     // The report itself: the seed *Start* used to pass forever.
     assert_eq!(human_county(&assets, SEED), east, "SEED is the one-in-four arm");
-    assert_eq!(new_game_seed(None), SEED, "no clock, so tests keep the fixed world");
-    assert_ne!(new_game_seed(Some(1)), new_game_seed(Some(2)), "a new game, a new deal");
+    assert_eq!(new_game_seed(None, None), SEED, "no clock, so tests keep the fixed world");
+    assert_ne!(new_game_seed(Some(1), None), new_game_seed(Some(2), None), "a new deal");
+}
+
+/// D-5. Ablation: `new_game_seed`'s `(Some(s), _) => s.seed` arm.
+#[test]
+fn a_network_game_deals_from_start_not_the_clock() {
+    let start = l2_net::Start { seed: 0x5EED, roster: Default::default(), unseated_gold: 0 };
+    assert_eq!(new_game_seed(Some(1), Some(&start)), 0x5EED);
+    assert_eq!(new_game_seed(Some(2), Some(&start)), 0x5EED);
 }

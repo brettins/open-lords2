@@ -54,10 +54,12 @@ pub const SEED: u64 = 0x0001_0D52;
 /// tests and the title-page world keep [`SEED`].
 ///
 /// [`Assets::wall_clock`]: crate::game::Assets::wall_clock
-pub fn new_game_seed(wall_clock: Option<i64>) -> u64 {
-    match wall_clock {
-        Some(t) => SEED ^ t as u64,
-        None => SEED,
+/// A network game's seed is `Start.seed` and the clock never reaches it (D-5).
+pub fn new_game_seed(wall_clock: Option<i64>, start: Option<&l2_net::Start>) -> u64 {
+    match (start, wall_clock) {
+        (Some(s), _) => s.seed,
+        (None, Some(t)) => SEED ^ t as u64,
+        (None, None) => SEED,
     }
 }
 
@@ -184,6 +186,34 @@ pub fn new_game(
     seed: u64,
     tables: Tables,
 ) -> Result<Game, Error> {
+    let mut people = [0; MAX_REALMS];
+    people[1] = shield;
+    build(assets, slot, settings, (human_players, &people, 1), seed, tables)
+}
+
+/// A world with several people in it: `people[realm]` is each one's shield,
+/// 0 for a lord, and `local` is this machine's realm. `docs/netcode.md` D-3b.
+pub fn new_seated_game(
+    assets: &crate::game::Assets,
+    slot: usize,
+    settings: &crate::setup::Settings,
+    people: &[u8; MAX_REALMS],
+    local: u8,
+    seed: u64,
+    tables: Tables,
+) -> Result<Game, Error> {
+    let humans = people.iter().filter(|&&s| s != 0).count();
+    build(assets, slot, settings, (humans, people, local), seed, tables)
+}
+
+fn build(
+    assets: &crate::game::Assets,
+    slot: usize,
+    settings: &crate::setup::Settings,
+    (human_players, people, local): (usize, &[u8; MAX_REALMS], u8),
+    seed: u64,
+    tables: Tables,
+) -> Result<Game, Error> {
     let map = assets.slot(slot).ok_or_else(|| Error::Missing {
         name: "L2_maps.dat".into(),
         detail: format!("has no slot {slot}"),
@@ -195,8 +225,9 @@ pub fn new_game(
         slot,
         options: settings.kingdom_options(),
         lords,
-        local_player: 1,
-        shield,
+        local_player: local,
+        shield: people.get(local as usize).copied().unwrap_or(0),
+        humans: *people,
         seed,
     };
     let scenario = Scenario::from_map(&map, &setup).map_err(Error::Map)?;

@@ -51,6 +51,7 @@ impl Game {
             tips: crate::tip::Tips::new(),
             chosen_gold: 0,
             multiplayer: false,
+            seats: Vec::new(),
             turn_clock: crate::turn_clock::TurnClock::default(),
             films: crate::movie::Reel::default(),
             unit_frames: UnitFrames::default(),

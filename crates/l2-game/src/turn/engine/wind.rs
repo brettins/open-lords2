@@ -35,9 +35,9 @@ pub fn wind(game: &mut Game) -> Wound {
     Wound::Idle { stepped: tick_units_only(game) }
 }
 
-/// `[I]` the turn's control word only: the siege cursor, tail contents and
-/// fought reports are not encoded; they reach the digest when they reach the
-/// kingdom.
+/// Every field of the turn in flight: the siege cursor, the tail's contacts and
+/// report, the fought reports and the unseen one decide what the next frames
+/// do. `docs/netcode.md` §6 *What we hash*.
 pub fn encode_progress(game: &Game, out: &mut Canonical) {
     out.section("turn");
     out.option(game.turn.as_ref(), |c, p| {
@@ -46,17 +46,20 @@ pub fn encode_progress(game: &Game, out: &mut Canonical) {
         c.len32(p.steps);
         c.bool(p.granted);
         c.u8(p.stage as u8);
-        c.option(p.question.as_ref(), |c, q| {
-            c.len32(q.attacker);
-            c.len32(q.defender);
-            c.u8(q.county);
-            c.u8(q.choice_owner);
-        });
-        c.bool(p.siege.is_some());
-        c.bool(p.pending_assault.is_some());
-        c.bool(p.tail.is_some());
-        c.len32(p.reports.len());
-        c.bool(p.unseen.is_some());
+        c.option(p.question.as_ref(), |c, q| debug(c, q));
+        c.seq(&p.contacts, debug);
+        c.seq(&p.pending_battles, debug);
+        c.option(p.siege.as_ref(), |c, s| s.encode(c));
+        c.option(p.pending_assault.as_ref(), debug);
+        c.option(p.tail.as_ref(), debug);
+        c.seq(&p.reports, debug);
+        c.option(p.unseen.as_ref(), debug);
     });
     out.end_section();
+}
+
+/// `[I]` derived `Debug` is every field in declaration order, and these types
+/// hold no map and no float (D-1, D-4); the digest is never decoded.
+fn debug<T: core::fmt::Debug>(out: &mut Canonical, value: &T) {
+    out.str(&format!("{value:?}"));
 }

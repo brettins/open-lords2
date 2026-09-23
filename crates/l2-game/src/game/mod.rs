@@ -622,6 +622,9 @@ pub struct Game {
     ///
     /// not-encoded: a property of the session, not of the world.
     pub multiplayer: bool,
+    /// Lobby slot → realm, from `lobby::Start`; empty in single player, where
+    /// slot 0 is [`Self::player`]. `docs/netcode.md` §5. Not in the save.
+    pub seats: Vec<(l2_net::PlayerSlot, u8)>,
     /// **The turn timer** — `DAT_005440C8` and the three globals beside it. See
     /// [`crate::turn_clock`].
     ///
