@@ -1,0 +1,14 @@
+{ "reviewed": "9c938252dda81d270a75e75b3fd49550a6939773",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/audio/names/audio_tables.rs", "line": 243, "address": "0x004B36C0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/confirm.rs", "line": 136, "address": "0x0040E6F2", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/confirm.rs", "line": 169, "address": "0x0040CCFA", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 166, "address": "0x00437002", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 395, "address": "0x0041B19D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 401, "address": "0x0041B19D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 413, "address": "0x0041B19D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 439, "address": "0x0041B19D", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 448, "address": "0x004224E7", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 463, "address": "0x004224E7", "verdict": "match", "note": "" }
+  ] }

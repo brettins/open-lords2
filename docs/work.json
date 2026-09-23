@@ -341,18 +341,6 @@
       "note": "a documented original bug that may be misdescribed"
     },
     {
-      "id": "skirmish-battles",
-      "title": "Skirmish: the setup page landed; the banner, battle names, custom musters, .skr parser and ratings screens are not built",
-      "track": "play",
-      "system": "battle",
-      "state": "queued-merge",
-      "branch": "agent/skirmish-ratings",
-      "depends_on": [],
-      "source": "feature checklist: missing",
-      "next": "oracle check at the next session start, then merge (3da4def3): the ratings screens 0x2E/0x2F, page 13's arrows (g_skirmishFileWidgets 0x004DDDD8), custom muster counts (DAT_004DE000, cap FUN_0042C4E2), page 12's two hotspot tables (0x004DCF50, 20 records). Left: score.dat I/O, Music_Play setup3.wav on leaving 0x2F (audio.json 1328/1339 blocked), the muster reset FUN_0043D903 with no widget record found; features.json third-mode then reads done",
-      "note": "the six unplayed films in third-battle-mode may belong here | minimap agent: Overview_SetSheets has a second caller, FUN_00498DCB, registering the same painter at (0x1D2, 0x0B) over the t2x* sheets with Misc_ske.PL8 beside it, from Skirmish_Setup and Screen_BattleMasterRatings. All seven files ship | scope, 2026-09-14: this row is single player and in scope. Setup page 12 (Skirmish_Setup 0x0042B7F7, Skirmish_FillArmies 0x0042BF46, page 13's file box), the battle with DAT_0057A0F0 set (C223: bat_win5 films) and the ratings screens 0x2E/0x2F (Screen_BattleMasterRatings 0x00421707, Screen_BattleMasterRank 0x00421D09) are all single-player; only pages 6, 8 and 11 are multiplayer (setup/mod.rs). The custom game (page 7) is built: CustomGame_DrawOptions 0x0041F86D and the twelve g_setupOpt* drop-downs"
-    },
-    {
       "id": "supplies-widgets-doc",
       "title": "supplies.rs widgets() doc still says six spinners over three rows; there are two rows",
       "track": "process",
@@ -823,30 +811,6 @@
       "note": "blocks the figures regeneration; hub figures come from work.js, unaffected"
     },
     {
-      "id": "ai-armies-idle",
-      "title": "The AI raises three armies and they sit; in the original the knight takes another county in the first year",
-      "track": "play",
-      "system": "ai",
-      "state": "queued-merge",
-      "branch": "agent/ai-first-year",
-      "depends_on": [],
-      "source": "player, 2026-09-18, on our build: \"the AI seems to have just made 3 armies and they're just sitting? IIRC the knight used to take another county in the first year\"; our autosaves of that game copied to E:/dev/lords2-fixtures/ours/ai-idle-lastturn.l2sav and ai-idle-old_turn.l2sav",
-      "next": "oracle check at the next session start, then merge. Found: Settings::apply_to stamped a starting castle into the record without the map tile (Game_SetupRealmsAndCounties 0x0049BD99 :5714 guards the stamp on castleType != 0), so Ai_FindCastleBuildingTile 0x004A65A3 found nothing, the levies aimed at the town and never entered, and step 7 kept raising more. Year one: the original does not attack in 1268 either (step 9 0x0049F977 needs population > 750 for the Knight); ours launches turn 13 on England",
-      "note": "player-visible, first year of a new game"
-    },
-    {
-      "id": "ai-lord-no-reply",
-      "title": "A message sent to the Knight gets no reply; the original's AI lord answers",
-      "track": "play",
-      "system": "ai",
-      "state": "queued-merge",
-      "branch": "agent/ai-first-year",
-      "depends_on": [],
-      "source": "player, 2026-09-18, on our build, same game as ai-armies-idle (fixtures E:/dev/lords2-fixtures/ours/ai-idle-*.l2sav)",
-      "next": "same branch: Diplo_AnswerInbox 0x004A277D composed the reply and ai_part.rs:124 discarded it (C113); letters now reach game.messages",
-      "note": "same first-year game as the idle armies; one agent can take both"
-    },
-    {
       "id": "options-block-unmapped",
       "title": "g_options is about 0x468 bytes and Options_Save writes it whole; ours persists nine fields",
       "track": "play",
@@ -869,42 +833,6 @@
       "source": "player, 2026-09-18, on our build (autosaves E:/dev/lords2-fixtures/ours/ai-idle-*.l2sav are the same game); L2.eng group 16 index 13, drawn by Screen_RaiseArmy, Screen_SplitArmyRows, UnitPanel_Draw (docs/formats/eng.md:645)",
       "next": "read the guard the original puts before that line (which unit field says mercenaries: the merc band +0x197 and the nationality) against ours; a loaded army with a merc band must not print it",
       "note": ""
-    },
-    {
-      "id": "army-report-text-placement",
-      "title": "The army report screen's text sits in the wrong places",
-      "track": "screens",
-      "system": "county-panels",
-      "state": "queued-merge",
-      "branch": "agent/screen-text-placement",
-      "depends_on": [],
-      "source": "player, 2026-09-18, on our build: \"weird text placement\"",
-      "next": "oracle check at the next session start, then merge (9c938252); UnitPanel_Draw 0x0041B19D: the troop grid pair-rows 0x1A apart (FUN_004224E7 mode 2), the men total, the three buttons a row too high in draw and hit-test, the inset rect, the merchant name, the transport shield",
-      "note": "docs/draw-coords.json holds 118 pairs; this screen may be among the 498 blind sites"
-    },
-    {
-      "id": "exit-game-text-placement",
-      "title": "The exit-game screen's text sits in the wrong places",
-      "track": "screens",
-      "system": "menus",
-      "state": "queued-merge",
-      "branch": "agent/screen-text-placement",
-      "depends_on": [],
-      "source": "player, 2026-09-18, on our build",
-      "next": "oracle check at the next session start, then merge (9c938252); Screen_ConfirmBox 0x0040CCFA: the box was exact, the prompt was upper-cased by ours and overran the box",
-      "note": ""
-    },
-    {
-      "id": "exit-confirm-voice-line",
-      "title": "Esc does not speak \"Exit the game, my lord?\"; the original's quit confirm does",
-      "track": "presentation",
-      "system": "audio",
-      "state": "queued-merge",
-      "branch": "agent/screen-text-placement",
-      "depends_on": [],
-      "source": "player, 2026-09-18, on our build",
-      "next": "oracle check at the next session start, then merge (9c938252); Ui_OpenConfirm's tail FUN_004B36C0 plays g_msgVoiceS010[prompt] (0x004DF7B8); eleven of thirteen Ui_OpenConfirm sites still unbuilt",
-      "note": "goes with exit-game-text-placement"
     },
     {
       "id": "ai-taunt-letters-dropped",
