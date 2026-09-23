@@ -58,6 +58,11 @@ impl TcpTransport {
         self.listener.as_ref().and_then(|l| l.local_addr().ok())
     }
 
+    /// Closes the port: later connects are refused, open peers stay.
+    pub fn stop_listening(&mut self) {
+        self.listener = None;
+    }
+
     pub fn peer_addr(&self, peer: PeerId) -> Option<SocketAddr> {
         self.conns.iter().find(|c| c.id == peer)?.stream.peer_addr().ok()
     }

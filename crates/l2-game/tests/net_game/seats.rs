@@ -85,7 +85,11 @@ pub fn two_worlds(assets: &mut Assets) -> (Game, Game) {
     let mut build = |start: &Start, me: u8, clock: i64| {
         assets.wall_clock = Some(clock);
         let slot = PlayerSlot::new(me);
-        net::new_game(assets, start, slot, Quirks::FAITHFUL, Tables::DEFAULT).expect("England builds")
+        let mut g = net::new_game(assets, start, slot, Quirks::FAITHFUL, Tables::DEFAULT)
+            .expect("England builds");
+        let origin = net::replay::Origin { start: start.clone(), quirks: Quirks::FAITHFUL };
+        g.net.origin = Some(Box::new(origin));
+        g
     };
     (build(&host, 0, 1_000), build(&client, 1, 9_999_999))
 }

@@ -25,6 +25,14 @@ A single-player game plays from the front end to victory or defeat:
 [`docs/status.html`](docs/status.html) grades every feature against the original, with the
 evidence for each.
 
+## Network play
+
+*Multiple players* opens the lobby. The host presses *Host a game* and the lobby shows the
+address others type (its LAN address and port 4712). Windows asks once whether to let the
+game through its firewall: allow it on private networks, or open TCP port 4712. A peer who
+leaves or goes silent stops the game with their name; save it to go on alone against the
+computer. Games are recorded under `%APPDATA%\open-lords2\replays`.
+
 ## What does not, yet
 
 - **Network play** — deterministic lockstep is built and tested; the lobby and game over a

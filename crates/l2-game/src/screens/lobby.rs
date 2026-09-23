@@ -21,7 +21,9 @@ const ITEM_W: i32 = 0x100;
 const ADDRESS_Y: i32 = 0x70;
 const ITEMS_Y: i32 = 0x90;
 const ROSTER_Y: i32 = 0x70;
-const MESSAGE_Y: i32 = 0x150;
+const MESSAGE_Y: i32 = 0x130;
+const MESSAGE_COLS: usize = 44;
+const LINE: i32 = 14;
 const ADDRESS_LEN: usize = 40;
 const ADDRESS_PX: i32 = 0x100;
 /// DAT_00553114's pick, as the setup pages paint it: 0xF9 over 0x3F.
@@ -53,6 +55,7 @@ impl LobbyScreen {
             Phase::Idle | Phase::Failed(_) => vec![Item::Host, Item::Join, Item::Leave],
             Phase::Lobby if link.hosting => vec![Item::Start, Item::Leave],
             Phase::Lobby => vec![Item::Ready, Item::Leave],
+            Phase::Connecting(_) => vec![Item::Leave],
             Phase::Started => Vec::new(),
         }
     }
@@ -74,7 +77,7 @@ impl LobbyScreen {
     pub fn press(&mut self, item: Item, ctx: &mut Ctx) -> Transition {
         let link = &mut ctx.game.net;
         let request = match item {
-            Item::Host => Request::Host { port: port_of(&self.address.text()) },
+            Item::Host => Request::Host { addr: Request::every_interface(port_of(&self.address.text())) },
             Item::Join => Request::Join { address: self.address.text() },
             Item::Ready => {
                 let me = link.me.and_then(|s| link.roster.get(s));
@@ -198,8 +201,27 @@ impl Screen for LobbyScreen {
             };
             pen.body(canvas, LEFT, Self::item_y(link, i), words, colour);
         }
-        if let Phase::Failed(why) = &link.phase {
-            pen.body(canvas, LEFT, MESSAGE_Y, why, font::TEXT);
+        for (i, line) in Self::message(link).iter().enumerate() {
+            pen.body(canvas, LEFT, MESSAGE_Y + LINE * i as i32, line, font::TEXT);
         }
+    }
+}
+
+impl LobbyScreen {
+    /// The lines under the items: why a join failed, where the host is reached.
+    pub fn message(link: &Link) -> Vec<String> {
+        let text = match &link.phase {
+            Phase::Failed(why) => why.clone(),
+            Phase::Connecting(to) => format!("Connecting to {to}..."),
+            Phase::Lobby if link.hosting => {
+                let at: Vec<String> = link.reach.iter().map(|a| a.to_string()).collect();
+                format!(
+                    "Others join at {}. If Windows asks, allow the game through its firewall.",
+                    at.join(" or ")
+                )
+            }
+            _ => return Vec::new(),
+        };
+        crate::net::wrap(&text, MESSAGE_COLS)
     }
 }

@@ -33,7 +33,7 @@ pub fn draw(ctx: &Ctx, canvas: &mut Canvas) {
     }
 }
 
-fn wrap(text: &str, width: usize) -> Vec<String> {
+pub fn wrap(text: &str, width: usize) -> Vec<String> {
     let mut out = vec![String::new()];
     for word in text.split_whitespace() {
         let last = out.last_mut().expect("one line");

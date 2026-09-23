@@ -222,8 +222,12 @@ impl App {
             self.machine.mark_dirty();
             // `[I]` the replay's seed; the world carries its own from `Start`.
             let seed = self.game.turns_played as u64;
-            let transport = self.net.take().map(|d| d.into_transport());
+            let transport = self.net.take().and_then(|d| d.into_transport());
             self.live = transport.and_then(|t| l2_game::net::Live::new(t, &mut self.game, seed));
+            let home = l2_game::net::replay::home();
+            if let (Some(live), Some(dir)) = (self.live.as_mut(), home) {
+                live.record_to(dir);
+            }
         }
     }
 
@@ -384,25 +388,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut dir: Option<PathBuf> = None;
     let mut mods: Option<PathBuf> = None;
-    let mut sound = true;
+    let (mut sound, mut verify) = (true, None);
     let mut it = args.iter();
     while let Some(a) = it.next() {
         match a.as_str() {
             "--mods" => mods = Some(PathBuf::from(it.next().unwrap_or_else(|| usage()))),
             "--no-sound" => sound = false,
+            "--verify-replay" => verify = Some(PathBuf::from(it.next().unwrap_or_else(|| usage()))),
             "-h" | "--help" => usage(),
             other => dir = Some(PathBuf::from(other)),
         }
     }
     let Some(dir) = dir else { usage() };
-
-    let mut builder = Platform::builder().base(&dir);
-    if let Some(m) = &mods {
-        let found = l2_mods::discover(m)?;
-        let ids: Vec<String> = found.iter().map(|f| f.id.clone()).collect();
-        builder = builder.mods_dir(m).enable(ids);
+    if let Some(path) = verify {
+        app::verify_replay(dir, mods, path);
     }
-    let platform = builder.build()?;
+    let platform = app::platform(&dir, mods.as_deref())?;
     for m in &platform.load_order {
         println!("mod: {} {}", m.id, m.version);
     }
