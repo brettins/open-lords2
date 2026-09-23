@@ -133,12 +133,8 @@ pub enum Quirk {
     /// buys with a purse it has already emptied.
     UnownedCountyTradesUnchecked = 5,
 
-    /// **B12** — turning castle building on removes its labour share.
-    ///
-    /// `Industry_ToggleFromMap` reads the switch **before** flipping it and
-    /// passes that stale value to the share toggle, so the share moves the
-    /// wrong way on every click.
-    CastleSwitchMovesShareBackwards = 6,
+    // Bit 6 retired, never reuse: B12 retracted, `Industry_ToggleFromMap`
+    // `0x0043D309` calls the guarded share setter again with the new switch.
 
     /// **B15** — the migration inflow list is written with no `break`,
     /// county's sixteen `inflowSources` bytes hold one repeated value and the
@@ -253,7 +249,7 @@ mod tests {
         assert_eq!(Quirk::EmpireTaxHappinessWraps.bit(), 3);
         assert_eq!(Quirk::AnyAleFillsATinyVillage.bit(), 4);
         assert_eq!(Quirk::UnownedCountyTradesUnchecked.bit(), 5);
-        assert_eq!(Quirk::CastleSwitchMovesShareBackwards.bit(), 6);
+        assert!(Quirk::ALL.iter().all(|q| q.bit() != 6), "bit 6 is B12's, retired");
         assert_eq!(Quirk::InflowListHasNoBreak.bit(), 7);
         assert_eq!(Quirk::ExtinctCountyRecordsNegativeDeaths.bit(), 8);
         assert_eq!(Quirk::AiUnrestDeadBand.bit(), 9);
@@ -268,8 +264,8 @@ mod tests {
     /// entry appears once, at its own bit, in bit order.
     #[test]
     fn all_is_every_quirk_once_in_bit_order() {
-        for (i, q) in Quirk::ALL.iter().enumerate() {
-            assert_eq!(q.bit() as usize, i, "{} is out of order", q.name());
+        for w in Quirk::ALL.windows(2) {
+            assert!(w[0].bit() < w[1].bit(), "{} is out of order", w[1].name());
         }
         let mut seen = 0u64;
         for q in Quirk::ALL {

@@ -8,7 +8,6 @@ use crate::math::pct;
 use crate::realm::Realm;
 use crate::report::Message;
 use crate::tables::{Commodity, Tables, RESOURCE_LIMIT_UNLIMITED, WEAPON_TYPE_COUNT};
-use l2_net::{Quirk, Quirks};
 
 
 pub fn map_toggle_for_graphic(graphic: u8) -> Option<MapToggle> {
@@ -36,11 +35,8 @@ pub fn map_toggle_for_graphic(graphic: u8) -> Option<MapToggle> {
 ///
 /// **`[D]`.** The enable byte is what [`crate::labour::ceilings`] already gates
 /// each mining job on, so switching one off empties that job on the next
-/// allocation — which is the point of the button. The castle arm reads its
-/// switch *before* flipping it, so the share is toggled to the state the switch
-/// was **leaving**, not the one it lands in; that is the original's order and
-/// it is kept.
-pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> bool {
+/// allocation — which is the point of the button.
+pub fn toggle_from_map(county: &mut County, what: MapToggle) -> bool {
     match what {
         MapToggle::Industry(c) => {
             let slot = c.index();
@@ -53,14 +49,13 @@ pub fn toggle_from_map(county: &mut County, what: MapToggle, quirks: Quirks) -> 
             county.industry[slot].enabled
         }
         MapToggle::Castle => {
-            let was = county.castle_switch;
-            let told = if quirks.reproduces(Quirk::CastleSwitchMovesShareBackwards) {
-                was
-            } else {
-                !was
-            };
-            crate::labour::toggle_industry_share(county, crate::tables::JOB_CASTLE_BUILDING, told);
-            county.castle_switch = !was;
+            // [V] 0x0043D309: `local_c = (+0x1B0 != 0); Labour_ToggleIndustryShare(county,3,local_c);`
+            // flip, then `local_c = (+0x1B0 != 0)` and the common call; the
+            // setter's guard at 0x004502CA makes the first a no-op in step. B12 retracted.
+            let job = crate::tables::JOB_CASTLE_BUILDING;
+            crate::labour::toggle_industry_share(county, job, county.castle_switch);
+            county.castle_switch = !county.castle_switch;
+            crate::labour::toggle_industry_share(county, job, county.castle_switch);
             county.castle_switch
         }
     }

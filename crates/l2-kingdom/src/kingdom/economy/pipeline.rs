@@ -153,9 +153,8 @@ impl Kingdom {
         if county == 0 || county > self.county_count {
             return false;
         }
-        let quirks = self.options.quirks;
         let armies_eat = self.options.armies_eat;
-        let on = crate::industry::toggle_from_map(&mut self.counties[county], what, quirks);
+        let on = crate::industry::toggle_from_map(&mut self.counties[county], what);
         self.refresh_estimates(county);
         crate::labour::allocate(&mut self.counties[county]);
         crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
