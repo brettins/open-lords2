@@ -125,11 +125,14 @@ fn the_map_opens_on_the_players_own_county_and_a_raised_army_is_in_shot() {
         .collect();
     assert!(!moved.is_empty(), "the army painted nothing at all");
     let frame = (53, 44);
+    // `Map_DrawArmies` (`0x00408438`) flies the banner at `(x0 + 0x12, y0 − 0x15)`
+    // from the figure's top-left; a Flags1a banner is 32 wide.
     for (x, y) in &moved {
         assert!(
-            (x - cx).abs() <= frame.0 / 2 + 2
+            *x >= cx - frame.0 / 2 - 2
+                && *x <= cx - frame.0 / 2 + 0x12 + 32 + 2
                 && *y <= cy + campaign::NEAR.tile_h / 2 + 1
-                && *y >= cy + campaign::NEAR.tile_h / 2 - frame.1 - 4,
+                && *y >= cy + campaign::NEAR.tile_h / 2 - frame.1 - 0x15 - 4,
             "the army's ink is at ({x}, {y}), nowhere near its tile ({cx}, {cy})",
         );
     }
