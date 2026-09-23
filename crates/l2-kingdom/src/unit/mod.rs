@@ -8,14 +8,11 @@
 //! walks all four.
 
 mod tests_part;
-pub use tests_part::*;
 
 mod army;
 pub use army::*;
 
-use crate::county::{County, MAX_COUNTIES};
-use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
+use crate::realm::MAX_REALMS;
 
 /// `[V]` — `g_saveBlocks` row 5 is 151 × 0x1A4 = 63,420 bytes.
 pub const MAX_UNITS: usize = 151;

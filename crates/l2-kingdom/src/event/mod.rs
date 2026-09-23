@@ -57,12 +57,7 @@ pub use deck::*;
 mod effects;
 pub use effects::*;
 mod tests;
-pub use tests::*;
 
-use crate::county::County;
-use crate::report::Message;
-use crate::tables::{Season, Tables};
-use l2_net::{Pcg32, Quirk, Quirks};
 
 /// *"No bull"* writes 99 into the herd modifier and the herd pass reads it as
 /// **"no growth at all this season"**. `[V]` —

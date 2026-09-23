@@ -1,6 +1,5 @@
 
 mod tests_part;
-pub use tests_part::*;
 
 /// The seven phases `Turn_Tick` (`0x0049A010`) dispatches on `g_turnPhase`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

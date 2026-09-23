@@ -24,12 +24,8 @@ pub use pathfinding::*;
 mod stepper;
 pub use stepper::*;
 mod tests_part;
-pub use tests_part::*;
 
-use crate::county::{County, MAX_COUNTIES};
-use crate::map::{coords, index, terrain, CampaignMap, CostMap, MAP_DIM, MAP_TILES};
-use crate::realm::{Realm, MAX_REALMS};
-use crate::unit::{UnitKind, Units, MAX_PATH};
+use crate::map::{coords, index};
 
 pub const FILL_NEIGHBOURS: [(i32, i32); 8] =
     [(0, -1), (1, 0), (0, 1), (-1, 0), (1, -1), (1, 1), (-1, 1), (-1, -1)];

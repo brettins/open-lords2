@@ -14,13 +14,15 @@ pub use allocation::*;
 mod shares;
 pub use shares::*;
 
+#[cfg(test)]
 use crate::county::County;
-use crate::math::pct;
 use crate::tables::{
-    Commodity, JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING, JOB_COUNT, JOB_FIELD_RECLAMATION,
-    JOB_GRAIN_FARMING, JOB_IDLE_TOWNSFOLK, JOB_IRON_MINING, JOB_STONE_QUARRYING, JOB_BLACKSMITH,
+    JOB_CASTLE_BUILDING, JOB_CATTLE_FARMING, JOB_FIELD_RECLAMATION,
+    JOB_GRAIN_FARMING, JOB_IRON_MINING, JOB_STONE_QUARRYING, JOB_BLACKSMITH,
     JOB_WOOD_CUTTING,
 };
+#[cfg(test)]
+use crate::tables::{Commodity, JOB_COUNT, JOB_IDLE_TOWNSFOLK};
 
 /// Where `Season_Advance` (`0x00448440`) calls `FUN_0044F699`, which is
 /// [`allocate`] for every county in index order.
