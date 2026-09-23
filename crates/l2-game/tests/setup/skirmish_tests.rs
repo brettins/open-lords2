@@ -138,7 +138,7 @@ fn go_raises_the_battlefield_with_the_two_armies_the_page_is_showing() {
     assert_eq!(t, Transition::Push(ScreenId::Battlefield), "FUN_0043D5B7 calls Battle_Start");
     let b = game.battle.as_ref().expect("the skirmish raised a battle");
     assert!(b.skirmish, "DAT_0057A0F0");
-    assert_eq!((b.attacker, b.defender), (2, 1), "the attacker is the player's record 2");
+    assert_eq!((b.attacker, b.defender), (1, 2), "Skirmish_Setup: g_battleArmyA = 1, g_battleArmyB = 2");
     assert!(b.castle_level.is_none(), "FUN_0042B9C4: category 0 is Battlefield_BuildRandom");
     let mut empty = SetupScreen::new(SetupPage::Skirmish);
     game.battle = None;
@@ -238,6 +238,13 @@ fn the_castle_category_raises_a_siege_of_the_chosen_row() {
     assert_eq!(t, Transition::Push(ScreenId::Battlefield));
     let b = game.battle.as_ref().expect("the skirmish raised a battle");
     assert_eq!(b.castle_level, Some(2), "`g_castleLevel = DAT_0056D590`, the row (`00470000.c:5060`)");
+    // `FUN_0042BA40` `00420000.c:4673-4675`: `DAT_0053EF5C == g_localPlayer`
+    // (the default) puts him in record 2, `g_battleArmyB`, which
+    // `Battle_InitArmies` raises as the garrison on side 0. Ablation: raise
+    // the local muster as army A in `go_skirmish` and side 4 is his.
+    let besiegers: Vec<_> = b.runner.sim.figures.iter().filter(|f| f.is_alive() && f.side == l2_sim::SIDE_B).collect();
+    assert!(!besiegers.is_empty());
+    assert!(besiegers.iter().all(|f| f.owner != game.player), "the local player holds the castle");
 }
 
 #[test]

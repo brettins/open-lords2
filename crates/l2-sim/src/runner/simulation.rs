@@ -299,13 +299,17 @@ impl BattleRunner {
             return Some(Conclusion { winner: SIDE_B, cause: End::Annihilation });
         }
         if self.siege.is_siege {
+            // `00470000.c:3344-3369`: the failed-assault arm runs after the
+            // break-in arm in the same frame, and its `g_battleLoser` stands.
+            if self.ai.breach_score == 0
+                && self.ai.siege_engine_count == 0
+                && self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL
+            {
+                return Some(Conclusion { winner: SIDE_A, cause: End::AssaultFailed });
+            }
+            // `:3344-3347`: `g_castleEntered` credits `g_battleArmyA`, side 4.
             if self.siege.broke_in {
                 return Some(Conclusion { winner: SIDE_B, cause: End::BrokeIn });
-            }
-            if self.ai.breach_score == 0 && self.ai.siege_engine_count == 0 {
-                if self.siege.castle_level >= ASSAULT_REPEATS_BELOW_LEVEL {
-                    return Some(Conclusion { winner: SIDE_A, cause: End::AssaultFailed });
-                }
             }
         }
         None

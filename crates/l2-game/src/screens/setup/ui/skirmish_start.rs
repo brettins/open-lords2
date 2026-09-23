@@ -102,14 +102,15 @@ impl SetupScreen {
         let foe = crate::screens::ratings::skirmish_opponent(local);
         let a = Muster { troops: &mine_t, owner: local, human: true, mercenaries: None };
         let b = Muster { troops: &theirs_t, owner: foe, human: false, mercenaries: None };
-        // `FUN_0042BA40` (`00420000.c:4665-4673`) puts the local player in
-        // `g_battleArmyB` when he attacks, so the attacking muster is his
-        // whenever `DAT_0053EF5C == g_localPlayer`.
-        let (att, def, att_slot, def_slot) = if self.skirmish.local_attacks {
-            (a, b, my_slot, their_slot)
-        } else {
-            (b, a, their_slot, my_slot)
-        };
+        // `Skirmish_Setup` (`00420000.c:4564-4565`): record 1 is
+        // `g_battleArmyA`, raised on side 4; record 2 `g_battleArmyB`, side 0
+        // and in a siege the garrison. `FUN_0042BA40` (`:4673-4691`) puts the
+        // local player in record 2 when `DAT_0053EF5C == g_localPlayer` — the
+        // *defender*: `FUN_004209C1` `:245-247` captions realm 1 11/0x17
+        // "Defender" then, and `FUN_0042C4E2` `:4826` lets him add only oil.
+        let (att, def) = if my_slot == 1 { (a, b) } else { (b, a) };
+        let (att_slot, def_slot) = (1, 2);
+        debug_assert_eq!(their_slot, 3 - my_slot);
         // **`FUN_0042B9C4` (`0x0042B9C4`, `00420000.c:4608-4619`)** — which
         // builder raises the field, by category: 0 and 1
         // `Battlefield_BuildRandom`, 2 `Battlefield_BuildCastle(DAT_0056D590)`
