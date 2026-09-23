@@ -137,6 +137,7 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
         home_side4: (0, 0),
         enemy_end: Default::default(),
         rally: Default::default(),
+        unwritten: crate::terrain::ALL_UNWRITTEN,
     };
     let t = tables(sheet);
     let clamp = |(x, y): (i16, i16)| {

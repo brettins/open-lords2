@@ -183,8 +183,11 @@ pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
     graphics_pass(&mut cells, &terrain, seed, false);
     bridge_pass(&mut cells);
 
-    // [D] The original leaves an unwritten entry at the last battle's value;
-    // ours falls back to BuildFromSkr's marker tile.
+    // :4661-4688 write only the markers the frame carries; the rest keep the session's.
+    let unwritten = (
+        enemy_end.map(|s| s.map(|e: Option<(u8, u8)>| e.is_none())),
+        rally.map(|s| s.map(|g| g.map(|e: Option<(u8, u8)>| e.is_none()))),
+    );
     let (home_side0, home_side4) = (home[0], home[1]);
     let (mut end_default, mut rally_default) = tables_at_homes(home_side0, home_side4);
     for (got, dflt) in enemy_end.iter().flatten().zip(end_default.iter_mut().flatten()) {
@@ -201,6 +204,7 @@ pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
         home_side4,
         enemy_end: end_default,
         rally: rally_default,
+        unwritten,
     }
 }
 

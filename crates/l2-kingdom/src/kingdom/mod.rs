@@ -162,6 +162,7 @@ pub struct Campaign {
     pub battle_selectors: (u8, u8),
     /// `DAT_00544050`/`DAT_00544070` and `g_rallyWaypoints`/`DAT_00522D60` as the last open
     /// field left them; a castle field has no writer and reads these. `.bss`, so 0 at start.
+    /// [D] saved and hashed, which the original's save is not: a loaded or lockstep game reads them.
     pub battle_markers: BattleMarkers,
 }
 

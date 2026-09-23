@@ -105,9 +105,14 @@ pub struct Battlefield {
     /// `g_rallyWaypoints` / `DAT_00522D60`, `[side][group][index]`, read by
     /// `Order_ToRallyWaypoint` (`0x0048BAC4`). **[V]**
     pub rally: [[[(u8, u8); 3]; 2]; 2],
+    /// Entries of the two tables this builder did not write; not saved.
+    pub unwritten: MarkerMask,
 }
 
 pub type MarkerTables = ([[(u8, u8); 4]; 2], [[[(u8, u8); 3]; 2]; 2]);
+pub type MarkerMask = ([[bool; 4]; 2], [[[bool; 3]; 2]; 2]);
+/// `Battlefield_BuildCastle` 0x0047C4BA writes neither table [V].
+pub const ALL_UNWRITTEN: MarkerMask = ([[true; 4]; 2], [[[true; 3]; 2]; 2]);
 
 /// `Battlefield_BuildFromSkr` 0x0047B8B2 00470000.c:4940-4951, :4971-4982: every
 /// enemy-end slot on the other side's marker tile, every rally waypoint on
@@ -117,6 +122,23 @@ pub fn tables_at_homes(home_side0: (u8, u8), home_side4: (u8, u8)) -> MarkerTabl
 }
 
 impl Battlefield {
+    /// The tables are `.bss` [V]: an entry the builder did not write keeps `prev`.
+    pub fn keep_unwritten(&mut self, prev: MarkerTables) {
+        let (ends, rally) = std::mem::take(&mut self.unwritten);
+        let e = self.enemy_end.iter_mut().flatten().zip(prev.0.iter().flatten());
+        for ((got, was), &u) in e.zip(ends.iter().flatten()) {
+            if u {
+                *got = *was;
+            }
+        }
+        let r = self.rally.iter_mut().flatten().flatten().zip(prev.1.iter().flatten().flatten());
+        for ((got, was), &u) in r.zip(rally.iter().flatten().flatten()) {
+            if u {
+                *got = *was;
+            }
+        }
+    }
+
     #[inline]
     pub fn at(&self, x: usize, y: usize) -> Cell {
         self.cells[y * DIM + x]

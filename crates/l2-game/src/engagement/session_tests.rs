@@ -52,3 +52,13 @@ fn the_campaign_keeps_the_last_open_fields_marker_tables() {
     assert_ne!(r.session().markers, Default::default());
     assert_eq!(k.campaign.battle_markers, r.session().markers);
 }
+
+/// The tables are `.bss`, zeroed once per process: a new game and a skirmish read the last
+/// battle's. Ablation: empty `carry_battle_markers`.
+#[test]
+fn a_new_game_and_a_skirmish_read_the_last_battles_marker_tables() {
+    let markers = ([[(9, 70); 4], [(40, 5); 4]], [[[(12, 34); 3]; 2], [[(56, 78); 3]; 2]]);
+    let mut fresh = crate::Game::new(2);
+    crate::setup::carry_battle_markers(&mut fresh, markers);
+    assert_eq!(crate::setup::skirmish_session(&fresh).markers, markers);
+}

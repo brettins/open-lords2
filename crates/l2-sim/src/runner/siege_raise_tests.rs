@@ -131,8 +131,27 @@ fn a_castle_field_orders_to_the_last_open_fields_marker_tables() {
 #[test]
 fn an_open_field_hands_on_its_own_marker_tables() {
     let markers = ([[(11, 12); 4], [(13, 14); 4]], [[[(21, 22); 3]; 2], [[(23, 24); 3]; 2]]);
-    let field = crate::siege::our_castle(2);
+    let mut field = crate::siege::our_castle(2);
+    field.unwritten = Default::default();
     let own = (field.enemy_end, field.rally);
     let r = in_session(field, None, Session { markers, ..Session::default() });
     assert_eq!(r.session().markers, own);
+}
+
+/// Battlefield_BuildCastle 0x0047C4BA 00470000.c:5166-5174, 5313-5316 under DAT_0057A0F0.
+/// Ablations: the `castle_layout_flag` line, the `APPROACH_RESET_SKIRMISH` arm.
+#[test]
+fn a_skirmish_castle_reads_its_layout_flag_and_approach_reset_by_row() {
+    for row in 0..6u8 {
+        let mut r = in_session(crate::siege::our_castle(row), Some(row), Session::default());
+        r.ai.approach_score = 0;
+        r.mark_skirmish();
+        assert_eq!(r.ai_field.castle_layout_flag, (1..=3).contains(&row), "0x004D4AD8 row {row}");
+        let want = if row == 3 { crate::siege::APPROACH_SCORE_START } else { 0 };
+        assert_eq!(r.ai.approach_score, want, "0x004D4A18 row {row}");
+        assert_eq!(r.ai.ramparts_breached, r.siege.ramparts_breached as i32);
+    }
+    let mut open = in_session(crate::siege::our_castle(1), None, Session::default());
+    open.mark_skirmish();
+    assert!(!open.ai_field.castle_layout_flag, "no castle, no flag");
 }
