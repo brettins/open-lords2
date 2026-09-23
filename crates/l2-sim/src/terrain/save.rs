@@ -88,6 +88,7 @@ impl Decode for Battlefield {
             home_side4: homes[1],
             enemy_end,
             rally,
+            unwritten: Default::default(),
         })
     }
 }

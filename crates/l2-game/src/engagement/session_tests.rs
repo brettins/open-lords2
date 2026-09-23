@@ -42,3 +42,23 @@ fn a_solo_game_keeps_the_draw() {
     assert_eq!(s.lane & 1, s.rally, "one value, masked twice");
     assert_eq!(k.campaign.battle_selectors, (s.lane as u8, s.rally as u8));
 }
+
+/// An open field's marker tables are what the campaign keeps for the next castle field.
+/// Ablation: drop the `battle_markers` write-back in `begin_fight_in`.
+#[test]
+fn the_campaign_keeps_the_last_open_fields_marker_tables() {
+    let (mut k, a, d) = two_armies();
+    let r = begin_fight(&mut k, a, d, None, 7).unwrap();
+    assert_ne!(r.session().markers, Default::default());
+    assert_eq!(k.campaign.battle_markers, r.session().markers);
+}
+
+/// The tables are `.bss`, zeroed once per process: a new game and a skirmish read the last
+/// battle's. Ablation: empty `carry_battle_markers`.
+#[test]
+fn a_new_game_and_a_skirmish_read_the_last_battles_marker_tables() {
+    let markers = ([[(9, 70); 4], [(40, 5); 4]], [[[(12, 34); 3]; 2], [[(56, 78); 3]; 2]]);
+    let mut fresh = crate::Game::new(2);
+    crate::setup::carry_battle_markers(&mut fresh, markers);
+    assert_eq!(crate::setup::skirmish_session(&fresh).markers, markers);
+}

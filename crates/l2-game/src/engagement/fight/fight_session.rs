@@ -68,7 +68,8 @@ pub fn begin_fight_in(
     let a = Muster { troops: &a_troops, owner: a_owner, human: a_human, mercenaries: a_band };
     let d = Muster { troops: &d_troops, owner: d_owner, human: d_human, mercenaries: d_band };
     let (lane, rally) = kingdom.campaign.battle_selectors;
-    let session = l2_sim::Session { multiplayer, lane: lane as usize, rally: rally as usize };
+    let markers = kingdom.campaign.battle_markers;
+    let session = l2_sim::Session { multiplayer, lane: lane as usize, rally: rally as usize, markers };
     let mut runner = match castle_level {
         // **`Battlefield_BuildCastle` (`0x0047C4BA`), from the layout file the
         // player's own install ships.** `crate::castle` holds the two 6,400-byte
@@ -100,6 +101,7 @@ pub fn begin_fight_in(
     // autocalc or a retreat after it still leaves them stepped.
     let s = runner.session();
     kingdom.campaign.battle_selectors = (s.lane as u8, s.rally as u8);
+    kingdom.campaign.battle_markers = s.markers;
 
     // **What the last siege on this castle left.** `FUN_004787A4` is the last
     // statement but one of `Battlefield_BuildCastle`, so it runs *after* the

@@ -227,6 +227,14 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.section("battle_selectors");
     out.u8(campaign.battle_selectors.0);
     out.u8(campaign.battle_selectors.1);
+
+    // Version 33.
+    out.section("battle_markers");
+    let (ends, rally) = &campaign.battle_markers;
+    for &(x, y) in ends.iter().flatten().chain(rally.iter().flatten().flatten()) {
+        out.u8(x);
+        out.u8(y);
+    }
 }
 
 fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, LoadError> {
@@ -297,6 +305,10 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
     let seen = input.raw(crate::map::MAP_TILES)?;
     campaign.explored.copy_from_bytes(seen);
     campaign.battle_selectors = (input.u8()?, input.u8()?);
+    let (ends, rally) = &mut campaign.battle_markers;
+    for at in ends.iter_mut().flatten().chain(rally.iter_mut().flatten().flatten()) {
+        *at = (input.u8()?, input.u8()?);
+    }
     Ok(campaign)
 }
 

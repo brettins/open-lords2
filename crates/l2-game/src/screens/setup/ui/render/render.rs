@@ -577,7 +577,9 @@ impl SetupScreen {
                 // them here (`crate::prefs`).
                 let prefs = ctx.game.prefs;
                 let before = ctx.game.chosen_gold;
+                let markers = ctx.game.kingdom.campaign.battle_markers;
                 *ctx.game = game;
+                crate::setup::carry_battle_markers(ctx.game, markers);
                 ctx.game.tips = tips;
                 ctx.game.prefs = prefs;
                 // FUN_0049C995 0x0049C995 :5760-5763.

@@ -56,6 +56,7 @@ pub fn new_game(
     // FUN_0049C995 0x0049C995 :5760-5763, from the host's process, not this one's.
     crate::setup::carry_chosen_gold(&mut game, start.unseated_gold, settings.gold);
     settings.apply_to(&mut game);
+    // [D] battle_markers start at 0, not this process's: peers must agree (docs/netcode.md).
     name_the_lords(&mut game, assets, start, &seats);
     game.last_report = Some(game.kingdom.start_new_game());
     game.seats = seats;

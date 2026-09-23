@@ -135,9 +135,8 @@ pub fn our_castle(level: u8) -> Battlefield {
         home_side4: (cx as u8, 64),
         enemy_end: Default::default(),
         rally: Default::default(),
-    }
-    // [D] see castle/builder.rs: the original keeps the last field battle's tables here.
-    .with_home_tables();
+        unwritten: crate::terrain::ALL_UNWRITTEN,
+    };
     for (slot, (dx, dy)) in crate::terrain::DEPLOY_OFFSETS.iter().enumerate() {
         let clamp = |v: i32| v.clamp(1, DIM as i32 - 2) as u8;
         let sx = (dx / 3).clamp(-half + 2, half - 2);
@@ -352,3 +351,29 @@ pub fn our_castle_ai_field(field: &Battlefield, level: u8) -> crate::AiField {
     f
 }
 
+
+/// `DAT_004D4AD8`, twenty int32s read from Lords2.exe: `DAT_00542CD4` for skirmish
+/// castle row `i` (00470000.c:5166-5168). **[V]**
+pub const LAYOUT_FLAG_SKIRMISH: [u8; 20] = [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+/// `DAT_004D4A18`, twenty int32s read from Lords2.exe: `DAT_0057CB48` for skirmish
+/// castle row `i` (00470000.c:5172-5174). **[V]**
+pub const APPROACH_RESET_SKIRMISH: [u8; 20] = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+impl crate::BattleRunner {
+    /// `DAT_0057A0F0 != 0` in `Battlefield_BuildCastle` 0x0047C4BA: the three per-row reads.
+    pub fn mark_skirmish(&mut self) {
+        self.siege.mark_skirmish();
+        if !self.siege.is_siege {
+            return;
+        }
+        // [I] a row past the tables' twenty reads as 0.
+        let row = usize::from(self.siege.castle_level);
+        self.ai.ramparts_breached = self.siege.ramparts_breached as i32;
+        self.ai_field.castle_layout_flag = LAYOUT_FLAG_SKIRMISH.get(row).is_some_and(|&v| v != 0);
+        // :5313-5316, after Battlefield_PlaceMoatCell 0x0047DCCE zeroed it on a moat.
+        if APPROACH_RESET_SKIRMISH.get(row).is_some_and(|&v| v != 0) {
+            self.ai.approach_score = APPROACH_SCORE_START;
+        }
+    }
+}

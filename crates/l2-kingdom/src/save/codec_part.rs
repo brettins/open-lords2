@@ -636,7 +636,14 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 32 with `VERSION` at 31 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 32;
+/// * 33 — **the battle marker tables**, `DAT_00544050`/`DAT_00544070` and
+///   `g_rallyWaypoints`/`DAT_00522D60`, which only an open field writes and a
+///   castle field reads as the last one left them. 40 bytes. **Refusal**, under
+///   entry 16's rule: a defaulted load feeds the next siege's orders.
+///
+///   *Written as 33 with `VERSION` at 32 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 33;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;

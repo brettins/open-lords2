@@ -99,7 +99,12 @@ fn marker_blocks_fill_the_enemy_end_and_rally_tables() {
     r[40 * DIM + 51] = 0x42;
     let f = build_field(&r, 3);
     assert_eq!(f.enemy_end[0][2], (42, 30), "DAT_00544050 slot 2");
-    assert_eq!(f.enemy_end[0][0], f.home_side4, "[D] unwritten slot: the marker tile");
+    assert!(!f.unwritten.0[0][2] && f.unwritten.0[0][0] && !f.unwritten.1[1][1][2]);
+    let mut kept = f.clone();
+    kept.keep_unwritten(([[(7, 8); 4]; 2], [[[(9, 10); 3]; 2]; 2]));
+    // Ablation: `unwritten` all false in build_field; the slot falls back to the home tile.
+    assert_eq!((kept.enemy_end[0][0], kept.rally[0][0][0]), ((7, 8), (9, 10)), ".bss: last battle's");
+    assert_eq!((kept.enemy_end[0][2], kept.rally[1][1][2]), ((42, 30), (52, 40)));
     assert_eq!(f.rally[1][1][2], (52, 40), "DAT_00522D60 + 0x18 + 2*8");
     assert_eq!(f.at(40, 30).terrain, id::OPEN, "FUN_0047D79C erases the block");
 

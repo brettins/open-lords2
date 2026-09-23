@@ -122,37 +122,45 @@ impl SetupScreen {
         // `Siege_LowerDrawbridge` (`0x00496B9F`) reads `DAT_004D4B18[row]` under the
         // skirmish flag, and nothing in the siege reads `DAT_0057C910`.
         let level = self.skirmish.castle_level();
+        let session = crate::setup::skirmish_session(ctx.game);
         let mut runner = match level {
             Some(level) => match crate::castle::sheet(level) {
-                Some(sheet) => BattleRunner::deploy_siege_on_sheet(
+                Some(sheet) => BattleRunner::deploy_in_session(
                     l2_sim::castle::build(level, sheet),
-                    &l2_sim::castle::tables(sheet),
+                    Some(&l2_sim::castle::tables(sheet)),
                     seed,
                     att,
                     def,
-                    level,
+                    Some(level),
+                    session,
                 ),
-                None => BattleRunner::deploy_siege(
+                None => BattleRunner::deploy_in_session(
                     l2_sim::siege::our_castle(level),
+                    None,
                     seed,
                     att,
                     def,
-                    level,
+                    Some(level),
+                    session,
                 ),
             },
             // Category 3 is `Battlefield_BuildFromSkr` (`0x0047B8B2`), which
             // `l2_sim::terrain::build` is; categories 0 and 1 are
             // `Battlefield_BuildRandom`'s skirmish branch, `batfiel2.pl8`
             // frame `DAT_0056D590` (+10 for category 1).
-            _ => BattleRunner::deploy_muster(
+            _ => BattleRunner::deploy_in_session(
                 self.skirmish_field(ctx, seed),
+                None,
                 seed,
                 att,
                 def,
+                None,
+                session,
             ),
         };
+        ctx.game.kingdom.campaign.battle_markers = runner.session().markers;
         // `DAT_0057A0F0`: Battle_CheckOutcome's failed-assault arm reads `0x004D4A58`.
-        runner.siege.skirmish = true;
+        runner.mark_skirmish();
         // `FUN_0042C5AD` (`0x0042C5AD`), the statement before `Battle_Start`
         // in `FUN_0043D5B7`: the two musters are copied into the records the
         // ratings sheet reads as *Before*.

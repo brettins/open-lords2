@@ -77,6 +77,10 @@ impl BattleRunner {
             multiplayer: self.ai.multiplayer,
             lane: self.ai.approach_lane,
             rally: self.ai.rally_group,
+            markers: (
+                self.ai_field.enemy_end.map(|s| s.map(narrow)),
+                self.ai_field.rally.map(|s| s.map(|g| g.map(narrow))),
+            ),
         }
     }
 
@@ -95,6 +99,9 @@ impl BattleRunner {
         let class = MEN_PER_FIGURE_TABLE[sized];
         let mpf_a = side_scale(army_a.men(), class);
         let mpf_b = side_scale(army_b.men(), class);
+        let mut field = field;
+        // Battlefield_BuildRandom 00470000.c:4672-4727 and BuildFromSkr :4944-4982 write them.
+        field.keep_unwritten(session.markers);
         let mut runner = BattleRunner::empty(field, seed);
         let prev = (session.lane, session.rally);
         runner.ai = Ai::new_for_battle(seed, session.multiplayer, prev);
@@ -594,4 +601,8 @@ impl BattleRunner {
         (footprint, cols)
     }
 
+}
+
+fn narrow((x, y): (i16, i16)) -> (u8, u8) {
+    (x as u8, y as u8)
 }
