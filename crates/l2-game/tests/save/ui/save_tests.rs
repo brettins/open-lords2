@@ -147,7 +147,7 @@ fn the_cancel_cross_closes_without_writing_anything() {
 }
 
 #[test]
-fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
+fn a_save_that_cannot_be_written_closes_the_box_and_says_nothing() {
     let own = Saves::new("refused-name");
     let (mut game, assets) = bare();
     let mut screen = SaveLoadScreen::new(Mode::Save);
@@ -155,9 +155,12 @@ fn a_save_name_the_file_system_would_choke_on_is_reported_and_not_written() {
     let mut t = l2_game::Screen::handle(&mut screen, Event::KeyDown(Key::Enter), &mut ctx);
     for _ in 0..l2_game::screens::saveload::WORK_FRAMES {
         t = l2_game::Screen::update(&mut screen, &mut ctx);
+        if t != l2_game::Transition::Stay {
+            break;
+        }
     }
-    assert_eq!(t, l2_game::Transition::Stay, "a refused save leaves the screen open");
-    assert!(matches!(screen.status(), Status::Failed(_)), "and it says so");
+    // SaveLoad_Tick 0x004AD9F0 :5756-5760; Menu_SaveGame 0x00433F49 clears the latch.
+    assert_eq!(t, l2_game::Transition::Pop, "a failed save closes the box");
     assert_eq!(own.files(), Vec::<String>::new(), "and nothing was written");
 }
 
@@ -210,17 +213,10 @@ fn a_save_from_the_menu_bar_over_the_campaign_map_finishes_and_closes() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "and the box is gone");
 }
 
-/// **`g_redrawRequest = 2`** — the statement after `SaveLoad_Tick`'s
-/// (`0x004AD9F0`) three `g_screenId` arms: the frame the count reaches zero is
-/// painted whatever the outcome. Ours returned `Transition::Stay` on every
-/// failure and marked nothing dirty, so the box kept the frame it had while
-/// `DAT_0057D3C4` ran — group 40 index 3, *"Saving game. Please wait."* — and a
-/// refused save read as a hang, box open, no file.
-///
-/// **Ablation, run:** delete `self.redraw = true` from `SaveLoadScreen::update`
-/// and *"the refusal is painted"* goes red.
+/// SaveLoad_Tick 0x004AD9F0 :5756-5760: a `Save_Write` that cannot open its file
+/// still closes the box; the latch it sets is cleared by Menu_SaveGame 0x00433F49.
 #[test]
-fn a_refused_save_paints_its_refusal_and_the_next_one_writes_and_closes() {
+fn a_save_the_disk_refuses_closes_the_box_and_writes_nothing() {
     use l2_game::screens::saveload::{CONFIRM, WORK_TICKS};
 
     let own = Saves::new("refused-then-written");
@@ -236,20 +232,12 @@ fn a_refused_save_paints_its_refusal_and_the_next_one_writes_and_closes() {
     {
         let _nowhere = saves::scoped_dir(plug.join("saves"));
         drive(&mut m, &mut game, &assets, &typed);
-        for _ in 1..WORK_TICKS {
+        for _ in 0..WORK_TICKS {
             let mut ctx = Ctx { game: &mut game, assets: &assets };
             m.update(&mut ctx);
         }
-        m.take_dirty();
-        let mut ctx = Ctx { game: &mut game, assets: &assets };
-        m.update(&mut ctx);
-        assert!(m.take_dirty(), "the refusal is painted");
     }
-    assert_eq!(m.top_id(), Some(ScreenId::SaveLoad(Mode::Save)), "a refused save stays open");
-
-    drive(&mut m, &mut game, &assets, &[click_widget(CONFIRM), release_widget(CONFIRM)]);
-    settle(&mut m, &mut game, &assets);
-    assert_eq!(own.files(), vec![file("refused")], "the same box writes once it can");
-    assert!(m.should_quit() || m.depth() == 0, "and closes, as SaveLoad_Tick's '6' arm does");
+    assert_ne!(m.top_id(), Some(ScreenId::SaveLoad(Mode::Save)), "a refused save closes the box");
+    assert_eq!(own.files(), Vec::<String>::new(), "and wrote nothing");
     let _ = std::fs::remove_file(&plug);
 }

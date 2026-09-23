@@ -226,6 +226,10 @@ pub const WORK_FRAMES: u8 = 0x96;
 /// wall time on our paced loop.
 pub const WORK_TICKS: u8 = 1;
 
+/// SaveLoad_Tick 0x004AD9F0 :5794 `DAT_0057d3c4 = 400`: the failure line's count. [D] 400
+/// loop iterations scaled as [`WORK_TICKS`] scales 0x96: 400 / 0x96 rounds to 3 ticks.
+pub const FAIL_TICKS: u8 = 3;
+
 /// omission: group 40's status strings are *"Loading game. Please wait."*,
 /// *"Saving game. Please wait."* and *"File error. Operation canceled."* — two
 /// progress messages and a failure.

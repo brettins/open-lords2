@@ -23,6 +23,7 @@ impl SaveLoadScreen {
             status: Status::Idle,
             press: Press::new(),
             working: 0,
+            latched: false,
             redraw: false,
         };
         if mode == Mode::Load {
@@ -94,6 +95,14 @@ impl SaveLoadScreen {
     pub(super) fn begin(&mut self, ctx: &mut Ctx) {
         self.working = WORK_TICKS;
         self.status = Status::Working;
+        // SaveLoad_Tick 0x004AD9F0 :5791-5794: `if (!FUN_004af767(path)) { DAT_00591548 = 1;
+        // DAT_0057d3c4 = 400; }` on the load box, before the sound. [V]
+        let name = self.name.text().trim().to_string();
+        if self.mode == Mode::Load && !self.entries.iter().any(|e| e.name == name) {
+            self.latched = true;
+            self.working = FAIL_TICKS;
+            self.status = Status::Failed(format!("{name:?} IS NOT A SAVED GAME"));
+        }
         let line = match self.mode {
             Mode::Save => crate::audio::names::speech::SAVE_GAME,
             Mode::Load => crate::audio::names::speech::LOAD_GAME,
@@ -157,13 +166,10 @@ impl SaveLoadScreen {
                 // puts a name into the buffer. So one road, and the mouse joins
                 // it upstream. Ours read `selected` and ignored what was typed.
                 let name = self.name.text().trim().to_string();
+                // SaveLoad_Tick 0x004AD9F0 :5746: `g_screenId = g_screenIdSaved` precedes
+                // `Save_Read`, so a load that fails closes the box silently. [V]
                 let Some(i) = self.entries.iter().position(|e| e.name == name) else {
-                    self.status = Status::Failed(if name.is_empty() {
-                        "NO SAVED GAME IS SELECTED".into()
-                    } else {
-                        format!("{name:?} IS NOT A SAVED GAME")
-                    });
-                    return Transition::Stay;
+                    return Transition::Pop;
                 };
                 let tables = ctx.game.kingdom.tables;
                 match saves::read_path(&self.entries[i].path, tables) {
@@ -180,10 +186,7 @@ impl SaveLoadScreen {
                         ctx.game.prefs = prefs;
                         self.landing(ctx)
                     }
-                    Err(e) => {
-                        self.status = Status::Failed(e.to_string().to_uppercase());
-                        Transition::Stay
-                    }
+                    Err(_) => Transition::Pop,
                 }
             }
             Mode::Save => {
@@ -194,17 +197,13 @@ impl SaveLoadScreen {
                 // dump, so the battle goes into it. `crate::save::battle` now
                 // writes it, and the refusal that stood here is gone.
                 let name = self.name.text().trim().to_string();
-                if !saves::is_valid_name(&name) {
-                    self.status = Status::Failed(format!("{name:?} IS NOT A SAVE NAME"));
-                    return Transition::Stay;
+                // SaveLoad_Tick 0x004AD9F0 :5756-5760: `g_screenId = g_screenIdSaved;
+                // DAT_00591548 = Save_Write(..)`; Menu_SaveGame 0x00433F49 clears that latch
+                // before anything reads it, so a failed write closes the box and says nothing. [V]
+                if saves::is_valid_name(&name) {
+                    let _ = saves::write(&name, ctx.game);
                 }
-                match saves::write(&name, ctx.game) {
-                    Ok(_) => Transition::Pop,
-                    Err(e) => {
-                        self.status = Status::Failed(e.to_string().to_uppercase());
-                        Transition::Stay
-                    }
-                }
+                Transition::Pop
             }
         }
     }

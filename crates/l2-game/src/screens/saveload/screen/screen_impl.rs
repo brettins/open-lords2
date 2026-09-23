@@ -41,6 +41,11 @@ impl Screen for SaveLoadScreen {
                 // frame the count ran under — group 40 index 3, *"Saving game.
                 // Please wait."* — so a refused save reads as a hang.
                 self.redraw = true;
+                // SaveLoad_Tick 0x004AD9F0 :5767-5768: `else { DAT_00591548 = 0; }`. [V]
+                if core::mem::take(&mut self.latched) {
+                    self.status = Status::Idle;
+                    return Transition::Stay;
+                }
                 return self.confirm(ctx);
             }
         }
