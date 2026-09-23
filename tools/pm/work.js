@@ -114,6 +114,8 @@
 // is a merge commit, which that rule reads correctly. A fast-forward merge would
 // read as "no commits yet", and a squash or cherry-pick would read as unmerged;
 // if the integrator ever merges that way, this rule has to change with it.
+// A tip the branch's reflog shows was set by creation or reset, not a commit,
+// is also fresh: that is a branch cut from a since-merged branch.
 
 const fs = require('fs');
 const path = require('path');
@@ -572,6 +574,15 @@ function gitFacts(rows, base) {
       .filter(Boolean),
   );
 
+  // Row work-js-fresh-branch-false-merge: a branch cut from another branch and
+  // never committed to has that branch's tip, merged or not. The reflog entry
+  // that set the tip says whose it is: `branch:` or `reset:` is not own work.
+  const unworked = (b, sha) => {
+    const log = git(['reflog', 'show', '--format=%H%x09%gs', `refs/heads/${b}`]);
+    const hit = (log || '').split('\n').find((l) => l.startsWith(sha));
+    return !!hit && /^(branch|reset):/i.test(hit.split('\t')[1] || '');
+  };
+
   const cache = new Map();
   const facts = (b) => {
     if (cache.has(b)) return cache.get(b);
@@ -583,13 +594,14 @@ function gitFacts(rows, base) {
       const ahead = inBase ? 0 : Number(git(['rev-list', '--count', `${base.sha}..refs/heads/${b}`]));
       const last = ahead ? git(['log', '-1', '--format=%cI%x09%s', `${base.sha}..refs/heads/${b}`]) : null;
       const [date, subject] = last ? last.split('\t') : [null, null];
+      const fresh = inBase && (firstParent.has(sha) || unworked(b, sha));
       f = {
         branch: b,
         exists: true,
         sha,
         ahead,
-        merged: inBase && !firstParent.has(sha),
-        fresh: inBase && firstParent.has(sha),
+        merged: inBase && !fresh,
+        fresh,
         handoff: git(['cat-file', '-e', `refs/heads/${b}:HANDOFF.md`]) !== null,
         date,
         subject,
