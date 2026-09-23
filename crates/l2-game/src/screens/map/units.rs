@@ -271,7 +271,7 @@ impl MapScreen {
         if let Some(ask) = super::garrison::pick(hover, unit, dest) {
             return Transition::Push(ScreenId::Confirm(ask));
         }
-        // `004a0000.c:3850` MoveOrder_Confirm with g_confirmAnswer = 1; C226 merge rung marches.
+        // Map_ConfirmMoveOrder 0x004A9252 `:3850` MoveOrder_Confirm; C226: the merge rung marches.
         if hover.merge == 0 && super::garrison::town_refusal(ctx, hover.town) {
             return Transition::Stay;
         }
