@@ -17,7 +17,12 @@ pub struct Player {
     pub name: String,
     pub ready: bool,
     pub is_host: bool,
+    /// The colour claimed on setup page 4, 1..=5; the host arbitrates it as
+    /// `FUN_00432FAB` (`0x00432FAB`) does its claim table. `docs/netcode.md` D-3b.
+    pub shield: u8,
 }
+
+pub const SHIELDS: u8 = 5;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Roster {
@@ -51,12 +56,25 @@ impl Roster {
             .partition_point(|p| p.slot.index() < player.slot.index());
         self.players.insert(at, player);
     }
+
+    /// `FUN_00432FAB` ignores a click on a colour somebody holds; a seat that
+    /// asked for a held or invalid one gets the lowest free. `[I]` the fallback.
+    fn free_shield(&self, wanted: u8) -> u8 {
+        let held = |s: u8| self.players.iter().any(|p| p.shield == s);
+        if (1..=SHIELDS).contains(&wanted) && !held(wanted) {
+            return wanted;
+        }
+        (1..=SHIELDS).find(|&s| !held(s)).unwrap_or(0)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Start {
     pub seed: u64,
     pub roster: Roster,
+    /// The host's `g_startingGoldChosen` from its last game: an unseated realm
+    /// keeps it (`FUN_0049C995`, `0x0049C995`), and it is process state.
+    pub unseated_gold: i32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -124,6 +142,8 @@ pub struct Lobby {
     seats: Vec<(PeerId, PlayerSlot)>,
     outbox: Vec<Outgoing>,
     started: Option<Start>,
+    shield: u8,
+    unseated_gold: i32,
 }
 
 fn check_name(name: String, roster: &Roster) -> Result<String, LobbyError> {

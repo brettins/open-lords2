@@ -10,18 +10,24 @@ use crate::transport::PeerId;
 pub struct Join {
     pub hello: Hello,
     pub name: String,
+    pub shield: u8,
 }
 
 impl Encode for Join {
     fn encode(&self, out: &mut Canonical) {
         self.hello.encode(out);
         out.str(&self.name);
+        out.u8(self.shield);
     }
 }
 
 impl Decode for Join {
     fn decode(input: &mut Reader<'_>) -> Result<Self, CodecError> {
-        Ok(Join { hello: Hello::decode(input)?, name: input.str()?.to_string() })
+        Ok(Join {
+            hello: Hello::decode(input)?,
+            name: input.str()?.to_string(),
+            shield: input.u8()?,
+        })
     }
 }
 
@@ -31,6 +37,7 @@ impl Encode for Player {
         out.str(&self.name);
         out.bool(self.ready);
         out.bool(self.is_host);
+        out.u8(self.shield);
     }
 }
 
@@ -44,6 +51,7 @@ impl Decode for Player {
             name: input.str()?.to_string(),
             ready: input.bool()?,
             is_host: input.bool()?,
+            shield: input.u8()?,
         })
     }
 }
@@ -72,12 +80,17 @@ impl Encode for Start {
     fn encode(&self, out: &mut Canonical) {
         out.u64(self.seed);
         self.roster.encode(out);
+        out.i32(self.unseated_gold);
     }
 }
 
 impl Decode for Start {
     fn decode(input: &mut Reader<'_>) -> Result<Self, CodecError> {
-        Ok(Start { seed: input.u64()?, roster: Roster::decode(input)? })
+        Ok(Start {
+            seed: input.u64()?,
+            roster: Roster::decode(input)?,
+            unseated_gold: input.i32()?,
+        })
     }
 }
 

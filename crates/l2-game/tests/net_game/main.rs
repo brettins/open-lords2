@@ -2,6 +2,8 @@
 //! identical, and a copy that is not is caught on the tick it stopped being.
 
 mod script;
+mod seats;
+mod two_seats;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;

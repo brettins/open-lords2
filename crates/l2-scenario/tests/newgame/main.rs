@@ -49,6 +49,7 @@ fn england_pair(save: &l2_formats::save::Save, maps: &[u8]) -> (Scenario, Scenar
         lords: 5,
         local_player: from_save.local_player,
         shield: from_save.realms[from_save.local_player as usize].shield_index,
+        humans: [0; l2_kingdom::realm::MAX_REALMS],
         seed: SEED,
         options: from_save.options,
     };

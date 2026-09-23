@@ -228,6 +228,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         battle_master: crate::screens::ratings::BattleMaster::default(),
         messages,
         multiplayer: false,
+        seats: Vec::new(),
         ai_granted: false,
         player,
         // This comment used to read *"The original saves from the campaign map
