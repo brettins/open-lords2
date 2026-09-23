@@ -435,6 +435,10 @@ impl Screen for MapScreen {
                                 ));
                             }
                         }
+                    } else if county != 0 && self.settlement_at(ctx, county, x, y).is_some() {
+                        // `(g_pickedTileFlags & 0x80)`, the owner test inside it.
+                        Self::no_right_of_rule(ctx);
+                        return Transition::Stay;
                     }
                     // A click that reaches here — plain ground, sea, a county
                     // that is not yours, your own county away from its town, its

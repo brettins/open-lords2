@@ -143,6 +143,9 @@ impl Screen for BattlefieldScreen {
                     self.redraw = true;
                     return Transition::Stay;
                 }
+                // Both ladders, `0x29` and `0x2A` (`00420000.c:7428`), run
+                // `Battle_OrderClicked` after `Battle_DragSelect`.
+                // arm: 0x0043C57D/order-during-drag left-release
                 self.redraw |= live.order_at(x, y);
                 Transition::Stay
             }

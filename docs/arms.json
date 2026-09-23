@@ -2005,13 +2005,14 @@
     },
     {
       "id": "0x004374C4/info-leave-castle",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x04",
       "gesture": "left-press",
       "addr": "0x004374C4",
       "what": "The GARRISONED table (0x004DC5A8) replaces the move button with FUN_004374C4: find a free tile near the castle with Map_FindFreeTileNear, move the army out, clear county.garrisonUnit and unit.garrisonCounty, and start a battle if the county was besieged - or Army_Destroy the army if no tile is free. Multiplayer command 0x36.",
-      "note": "Unnamed in docs/symbols.json and it is a real action. Army_LeaveCastle is earned. A sortie is the only way a garrison gets out.",
+      "note": "Was already built (Game::leave_castle over l2_kingdom::conquest::leave_castle, sortie staged) and unmarked. Unverified against FUN_00437535: its no-tile path is Army_Destroy alone, where ours also clears county.garrisonUnit and recounts first.",
+      "ours": "crates/l2-game/src/screens/info/screen/screen_impl.rs",
       "evidence": "V"
     },
     {
@@ -2609,12 +2610,14 @@
     },
     {
       "id": "0x0043C57D/order-during-drag",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x2A",
       "gesture": "left-release",
       "addr": "0x0043C57D",
       "what": "0x2A's ladder runs FUN_0043C57D as its second guard, so the order arm is live during a drag as well as on the field. In practice FUN_0043BF07 consumes the release first and this never fires; it is recorded because a change to the order of the two would make it fire, and because 'the same function on a second screen' is exactly what C61 found nobody counts.",
+      "ours": "crates/l2-game/src/screens/battlefield/view/screen/screen.rs",
+      "note": "It does fire: a click on empty ground is a press that opens 0x2A (FUN_0043BF07 arm 1) and a release its third case declines, so this guard, not 0x29's, gives the ordinary click-to-move. Ours runs one release arm for both modes, same order.",
       "evidence": "V"
     },
     {
@@ -2665,13 +2668,14 @@
     },
     {
       "id": "0x0043CE1A/foreign-county-refusal",
-      "status": "missing",
+      "status": "reproduced",
       "group": "campaign-map",
       "screen": "0x00",
       "gesture": "left-release",
       "addr": "0x0043CE1A",
       "what": "Msg_Enqueue(0, g_localPlayer, 0x70, 0, 0, 0, 0, 0) -- a message, in exactly TWO places and not in the others: clicking a SETTLEMENT (flag 0x80) in a county that is not yours, and clicking a MERCHANT standing in a county that is not yours. A foreign county's town (0x40) and farmland (0x20) fall out silently, because their arms carry the owner test INSIDE the flag branch rather than beside it.",
-      "note": "We answer both cases with a status line of ours (\"NOT YOUR UNIT\", \"THAT MERCHANT IS NOT IN ONE OF YOUR COUNTIES\") and enqueue nothing, so the player gets our words where the original draws L2.eng group 0x70 -- CLAUDE.md rule 6's shape. Filed missing rather than reproduced because the thing the original does here is put a message in the ring, which is observable state and not a caption.",
+      "note": "Both sites now enqueue L2.eng group 0x70 ('No right of rule!!') to the local player and our two status lines are gone. The settlement site is tested through a click; the merchant site shares the helper and is untested (no fixture puts a merchant in a foreign county on screen). A foreign town (0x40) and farmland (0x20) still fall out silently.",
+      "ours": "crates/l2-game/src/screens/map/units.rs",
       "evidence": "V"
     },
     {
@@ -3176,52 +3180,62 @@
     },
     {
       "id": "0x004B29BE/court-f2",
-      "status": "missing",
+      "status": "reproduced",
       "group": "panels",
       "screen": "0x09",
       "gesture": "key",
       "addr": "0x004B29BE",
       "what": "F2 toggles DAT_00553E60, and ONLY while g_screenId == 9. A keyboard arm in the window procedure that is gated on this one screen; what the flag does was not traced.",
+      "ours": "crates/l2-game/src/debug_keys.rs",
+      "note": "What the flag does is now traced: DAT_00553E60 is Minimap_ComputeBands' food debug branch (0x00451BBA), so F2 on the court makes the map's food overlay band ration achieved 0..3 as 1..4. l2_kingdom County::minimap_bands_with.",
       "evidence": "V"
     },
     {
       "id": "0x004B29BE/debug-add-hits",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "key",
       "addr": "0x004B29BE",
       "what": "F4 adds one hit to figures 1..20. A cheat, gated on DAT_0053F684 == 1.",
+      "ours": "crates/l2-game/src/debug_keys.rs",
+      "note": "Both branches: with g_battlePhase == 0 it adds one to g_counties[3].population instead. Dead in the shipped game (DAT_0053F684 is only ever zeroed).",
       "evidence": "V"
     },
     {
       "id": "0x004B29BE/debug-figure-step",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "key",
       "addr": "0x004B29BE",
       "what": "The left and right arrow keys step g_debugSelectedMan down and up through 0..80, which is the figure the debug panel prints. UNGATED -- the only one of the four that is.",
+      "ours": "crates/l2-game/src/debug_keys.rs",
+      "note": "The window procedure tests no screen for it; ours steps on every screen and does not consume the arrow. Nothing draws the number (BattleDebug_Panel is behind DAT_0055402C).",
       "evidence": "V"
     },
     {
       "id": "0x004B29BE/debug-panel-cycle",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "key",
       "addr": "0x004B29BE",
       "what": "F2 cycles DAT_00568960 through 0, 1, 2, which picks between BattleDebug_Panel and two other overlays. All three draw only when DAT_0055402C is set, which is F3, which is gated on the debug flag DAT_0053F684 -- so the developers' panel is off in a shipped game and F2 alone cannot turn it on.",
+      "ours": "crates/l2-game/src/debug_keys.rs",
+      "note": "Ungated on the screen too. The three overlays it picks between are not built; unobservable in a shipped game, whose F3 is dead.",
       "evidence": "V"
     },
     {
       "id": "0x004B29BE/debug-panel-toggle",
-      "status": "missing",
+      "status": "reproduced",
       "group": "battlefield",
       "screen": "0x29",
       "gesture": "key",
       "addr": "0x004B29BE",
       "what": "F3 toggles DAT_0055402C, which is what makes the three battle overlays draw at all. Gated on DAT_0053F684 == 1.",
+      "ours": "crates/l2-game/src/debug_keys.rs",
+      "note": "DAT_0053F684's only writes are = 0 (0x0040EB.., 0x00497500), so this is dead in the shipped game and ours is gated on DebugKeys::debug, which nothing sets.",
       "evidence": "V"
     },
     {

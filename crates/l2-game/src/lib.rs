@@ -16,6 +16,7 @@ pub mod castle;
 pub mod clock;
 pub mod command;
 pub mod cursor;
+pub mod debug_keys;
 pub mod engagement;
 pub mod game;
 pub mod input;

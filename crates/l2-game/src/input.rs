@@ -53,6 +53,10 @@ pub enum Key {
     /// `VK_DELETE` — `Edit_Delete` (`0x00401C93` → `0x00401DC8`). The tail
     /// shifts left over the caret.
     Delete,
+    /// `VK_F2` .. `VK_F4` — [`crate::debug_keys`].
+    F2,
+    F3,
+    F4,
     Char(char),
 /// A separate variant, because in the original
     /// it is a separate *dispatch*, not a qualifier: the window procedure

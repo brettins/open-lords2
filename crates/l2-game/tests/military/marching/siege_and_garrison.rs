@@ -100,3 +100,26 @@ fn a_garrison_that_marches_out_onto_its_besieger_raises_the_battle_prompt() {
     );
 }
 
+/// `0x004DC5A8` record 0 is `Army_LeaveCastle` (`0x004374C4`) where the field
+/// table has the move button. Ablation: make the `(0, true)` arm in the info
+/// panel's button match `(9, true)` and the garrison stays in.
+#[test]
+fn the_garrisoned_panels_first_button_marches_the_garrison_out() {
+    let (mut g, a, mut m) = on_the_map();
+    let (keep, _) = adjacent_pair(|x| x < 30);
+    g.kingdom.counties[1].castle_type = 2;
+    let garrison = army_at(&mut g, 1, 1, 200, keep);
+    g.kingdom.campaign.units.get_mut(garrison).unwrap().garrison_county = 1;
+    g.kingdom.counties[1].garrison_unit = garrison;
+
+    m.push(ScreenId::Info(info::Target::Unit(garrison)));
+    click(&mut m, &mut g, &a, info_button(0));
+
+    let u = g.kingdom.campaign.units.get(garrison).expect("she marched, not died");
+    assert_eq!(u.garrison_county, 0, "unit.garrisonCounty = 0");
+    assert_eq!(g.kingdom.counties[1].garrison_unit, 0, "county.garrisonUnit = 0");
+    assert_ne!(u.tile(), keep, "Map_FindFreeTileNear moved her off the keep");
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "g_screenId = 0");
+    assert!(g.begin_move_order.is_none(), "and it is not the move button");
+}
+

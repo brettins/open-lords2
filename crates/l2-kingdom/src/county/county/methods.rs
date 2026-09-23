@@ -202,6 +202,12 @@ impl County {
     /// which `Minimap_DrawOverlay` calls on **every** draw before it reads
     /// them. See [`MinimapBands`].
     pub fn minimap_bands(&self) -> MinimapBands {
+        self.minimap_bands_with(false)
+    }
+
+    /// `food_debug` is `DAT_00553E60`, which F2 flips on the court screen
+    /// (`0x004B29BE` `case 0x71`, `if (g_screenId == '\t')`).
+    pub fn minimap_bands_with(&self, food_debug: bool) -> MinimapBands {
         // +0x01. The original divides an `i8` happiness by 20 and stores an
         // `i8`
         // happiness of -20 or worse wraps past 5 and the county is left
@@ -215,7 +221,17 @@ impl County {
         // is *binary*: red when the county did not achieve the ration it was
         // asked for, and **6, meaning draw nothing at all**, when it did. The
         // debug branch spreads `ration_achieved` over bands 1..=5 instead.
-        let food = if self.ration_achieved < self.ration_wanted { 0 } else { 6 };
+        let food = if self.ration_achieved < self.ration_wanted {
+            0
+        } else if !food_debug {
+            6
+        } else {
+            // 0x00451BBA: rationAchieved 0..=3 -> field_0x2 1..=4, else 5.
+            match self.ration_achieved {
+                0..=3 => self.ration_achieved as u8 + 1,
+                _ => 5,
+            }
+        };
 
         // +0x03. Idle townsfolk, plus one for each of jobs 0..=7 carrying more
         // workers than it can use. Understaffing either farm job below its
