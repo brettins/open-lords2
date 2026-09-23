@@ -37,8 +37,9 @@ fn a_battering_ram_opens_the_gate_and_the_breach_reaches_the_order_layer() {
             troops: &[(Troop::BatteringRams, 2u32), (Troop::Peasants, 200)],
             owner: 1,
             human: true,
+            mercenaries: None,
         },
-        Muster { troops: &[(Troop::Archers, 40u32)], owner: 2, human: false },
+        Muster { troops: &[(Troop::Archers, 40u32)], owner: 2, human: false, mercenaries: None },
         1,
     );
     r.order_side(SIDE_B, gx, gy);
@@ -80,8 +81,8 @@ fn a_small_castle_repeats_a_failed_assault_and_a_large_one_ends_it() {
         BattleRunner::deploy_siege(
             siege::our_castle(level),
             5,
-            Muster { troops: &[(Troop::Peasants, 200u32)], owner: 1, human: false },
-            Muster { troops: &[(Troop::Archers, 60u32)], owner: 2, human: false },
+            Muster { troops: &[(Troop::Peasants, 200u32)], owner: 1, human: false, mercenaries: None },
+            Muster { troops: &[(Troop::Archers, 60u32)], owner: 2, human: false, mercenaries: None },
             level,
         )
     };

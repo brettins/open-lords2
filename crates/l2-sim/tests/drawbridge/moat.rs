@@ -53,8 +53,8 @@ fn a_man_ordered_onto_the_moat_shovels_it_full_over_four_loads() {
     let mut r = BattleRunner::deploy_siege(
         siege::our_castle(2),
         17,
-        Muster { troops: &attacker, owner: 1, human: true },
-        Muster { troops: &defender, owner: 2, human: false },
+        Muster { troops: &attacker, owner: 1, human: true, mercenaries: None },
+        Muster { troops: &defender, owner: 2, human: false, mercenaries: None },
         2,
     );
     let moat = r

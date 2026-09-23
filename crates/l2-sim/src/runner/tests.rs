@@ -73,8 +73,8 @@ mod tests {
         let mut r = BattleRunner::deploy_muster(
             blank_field(),
             DEFAULT_SEED,
-            Muster { troops: &[(Troop::Catapults, 2)], owner: 1, human: false },
-            Muster { troops: &[(Troop::Peasants, 40)], owner: 2, human: true },
+            Muster { troops: &[(Troop::Catapults, 2)], owner: 1, human: false, mercenaries: None },
+            Muster { troops: &[(Troop::Peasants, 40)], owner: 2, human: true, mercenaries: None },
         );
         assert!(r.sim.figures.iter().any(|f| f.troop == Troop::Catapults), "they were raised");
         assert_eq!(r.men_of_side(SIDE_B), 0, "and they are worth nobody");
@@ -91,8 +91,8 @@ mod tests {
         let r = BattleRunner::deploy_muster(
             blank_field(),
             DEFAULT_SEED,
-            Muster { troops: &a, owner: 1, human: false },
-            Muster { troops: &b, owner: 2, human: true },
+            Muster { troops: &a, owner: 1, human: false, mercenaries: None },
+            Muster { troops: &b, owner: 2, human: true, mercenaries: None },
         );
         assert_eq!(r.men_per_figure(SIDE_B), 8);
         assert_eq!(r.men(SIDE_B), 306, "not 312, which 39 full figures of eight would give");
@@ -107,8 +107,8 @@ mod tests {
         let r = BattleRunner::deploy_muster(
             blank_field(),
             DEFAULT_SEED,
-            Muster { troops: &a, owner: 1, human: false },
-            Muster { troops: &b, owner: 2, human: true },
+            Muster { troops: &a, owner: 1, human: false, mercenaries: None },
+            Muster { troops: &b, owner: 2, human: true, mercenaries: None },
         );
         assert_eq!(size_class(1040), 2);
         assert_eq!(r.men_per_figure(SIDE_B), 16, "the large side keeps the pair's scale");
@@ -124,8 +124,8 @@ mod tests {
         let r = BattleRunner::deploy_muster(
             blank_field(),
             DEFAULT_SEED,
-            Muster { troops: &a, owner: 1, human: false },
-            Muster { troops: &b, owner: 2, human: true },
+            Muster { troops: &a, owner: 1, human: false, mercenaries: None },
+            Muster { troops: &b, owner: 2, human: true, mercenaries: None },
         );
         let first = r.sim.figures.iter().find(|f| f.side == SIDE_B).unwrap();
         assert_eq!(first.troop, Troop::Knights, "knights are raised before peasants");

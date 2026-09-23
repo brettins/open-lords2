@@ -81,8 +81,8 @@ fn oil_pours_and_a_tower_docks_in_a_siege_of_a_real_castle() {
             castle::build(level, sheet),
             &castle::tables(sheet),
             0x0C_A571_E0u64.wrapping_mul(level as u64 + 1),
-            Muster { troops: &attacker, owner: 1, human: false },
-            Muster { troops: &defender, owner: 2, human: false },
+            Muster { troops: &attacker, owner: 1, human: false, mercenaries: None },
+            Muster { troops: &defender, owner: 2, human: false, mercenaries: None },
             level,
         );
         for _ in 0..60_000 {
@@ -169,8 +169,8 @@ fn a_ram_sets_the_orientation_the_approach_handler_reads() {
             castle::build(level, sheet),
             &castle::tables(sheet),
             0x0C_A571_E0u64,
-            Muster { troops: &attacker, owner: 1, human: false },
-            Muster { troops: &defender, owner: 2, human: false },
+            Muster { troops: &attacker, owner: 1, human: false, mercenaries: None },
+            Muster { troops: &defender, owner: 2, human: false, mercenaries: None },
             level,
         );
         assert_eq!(r.ai_field.orientation, 1, "level {level}");

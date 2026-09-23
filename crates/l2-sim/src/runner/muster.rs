@@ -2,7 +2,8 @@ use super::*;
 
 impl Muster<'_> {
     pub fn men(&self) -> u32 {
-        self.troops.iter().map(|(_, n)| *n).sum()
+        // `menTotal` holds the band: `Mercenary_Hire` (`0x004AC7F3`) adds it.
+        self.troops.iter().map(|(_, n)| *n).sum::<u32>() + self.mercenaries.map_or(0, |(_, n)| n)
     }
 }
 

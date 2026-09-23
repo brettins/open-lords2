@@ -221,8 +221,8 @@ mod tests {
         let runner = BattleRunner::deploy_muster(
             blank_field(),
             1,
-            Muster { troops: &at, owner: 1, human: true },
-            Muster { troops: &dt, owner: 6, human: false },
+            Muster { troops: &at, owner: 1, human: true, mercenaries: None },
+            Muster { troops: &dt, owner: 6, human: false, mercenaries: None },
         );
         assert_eq!(runner.men_per_figure(SIDE_B), 8);
         assert_eq!(runner.men_per_figure(SIDE_A), 8);

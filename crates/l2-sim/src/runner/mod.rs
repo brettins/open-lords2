@@ -29,6 +29,9 @@ pub use muster::*;
 mod conclusion;
 pub use conclusion::*;
 mod simulation;
+mod raise;
+#[cfg(test)]
+mod band_tests;
 pub use simulation::*;
 mod closing;
 pub use closing::*;
@@ -195,6 +198,8 @@ pub struct Muster<'a> {
     pub troops: &'a [(Troop, u32)],
     pub owner: u8,
     pub human: bool,
+    /// `mercTroop`/`mercMen`, raised last and flagged — `Battle_RaiseSide` (`0x0047FEA7`).
+    pub mercenaries: Option<(Troop, u32)>,
 }
 
 /// `g_menPerFigureTable` (`0x004D9658`) — men one drawn figure stands for, by

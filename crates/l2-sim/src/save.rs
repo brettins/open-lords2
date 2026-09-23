@@ -211,6 +211,7 @@ impl Encode for Figure {
         out.bool(self.straffed);
         out.u16(self.full_men);
         out.u8(self.selected);
+        out.bool(self.mercenary);
     }
 }
 
@@ -253,6 +254,7 @@ impl Decode for Figure {
             straffed: input.bool()?,
             full_men: input.u16()?,
             selected: input.u8()?,
+            mercenary: input.bool()?,
         })
     }
 }

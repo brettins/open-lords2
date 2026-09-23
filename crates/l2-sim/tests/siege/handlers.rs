@@ -76,8 +76,8 @@ fn the_garrisons_first_two_missile_units_take_the_two_wall_categories() {
     let field = BattleRunner::deploy_muster(
         l2_sim::runner::blank_field(),
         7,
-        Muster { troops: &[(Troop::Archers, 100u32)], owner: 1, human: false },
-        Muster { troops: &[(Troop::Archers, 100u32)], owner: 2, human: false },
+        Muster { troops: &[(Troop::Archers, 100u32)], owner: 1, human: false, mercenaries: None },
+        Muster { troops: &[(Troop::Archers, 100u32)], owner: 2, human: false, mercenaries: None },
     );
     assert!((1..=l2_sim::MAX_UNITS)
         .map(|u| field.units.get(u))

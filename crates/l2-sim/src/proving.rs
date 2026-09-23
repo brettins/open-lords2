@@ -86,8 +86,8 @@ pub fn deploy() -> BattleRunner {
     BattleRunner::deploy_siege(
         field(),
         SEED,
-        Muster { troops: &BESIEGER, owner: 1, human: true },
-        Muster { troops: &GARRISON, owner: 2, human: true },
+        Muster { troops: &BESIEGER, owner: 1, human: true, mercenaries: None },
+        Muster { troops: &GARRISON, owner: 2, human: true, mercenaries: None },
         LEVEL,
     )
 }
