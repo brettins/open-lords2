@@ -1,0 +1,16 @@
+{ "reviewed": "37ff7b9d964b54d9c82f723ddf01d40afeacaaf5",
+  "date": "2026-09-23",
+  "behaviours": [
+    { "file": "crates/l2-game/src/command/run.rs", "line": 225, "address": "0x00472BC5", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/command/run.rs", "line": 237, "address": "0x00448339", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/command/run.rs", "line": 238, "address": "0x004483D1", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/command/run.rs", "line": 251, "address": "0x00448308", "verdict": "match", "note": "" },
+    { "file": "crates/l2-kingdom/src/diplomacy/inbox.rs", "line": 46, "address": "0x00448339", "verdict": "match", "note": "" },
+    { "file": "crates/l2-kingdom/src/diplomacy/inbox.rs", "line": 51, "address": "0x00448339", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/command/run.rs", "line": 269, "address": "0x004483D1", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/command/run.rs", "line": 275, "address": "0x0043A997", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/command/run.rs", "line": 277, "address": "0x00447FA1", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 150, "address": "0x00436408", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/mod.rs", "line": 325, "address": "0x004368FD", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/mod.rs", "line": 328, "address": "0x0043695D", "verdict": "departure", "note": "[I] county read from the open letter where the original reads DAT_0056894C" }
+  ] }
