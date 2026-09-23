@@ -1,4 +1,4 @@
-﻿use l2_formats::hlp::{Hlp, Topic};
+use l2_formats::hlp::{Hlp, Topic};
 
 fn help() -> Option<Hlp> {
     let dir = l2_testkit::install_dir()?;

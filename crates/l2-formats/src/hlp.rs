@@ -1,4 +1,4 @@
-﻿//! WinHelp `.hlp`, as far as `L2help.hlp` needs it. Format facts from the public
+//! WinHelp `.hlp`, as far as `L2help.hlp` needs it. Format facts from the public
 //! "Windows Help File Format" description (C5); no code taken.
 //!
 //! [V] measured on the install's `L2help.hlp` (2 980 023 bytes): `|SYSTEM` minor 33
