@@ -823,6 +823,7 @@ dependencies = [
  "l2-testkit",
  "l2-view",
  "pixels",
+ "windows-sys 0.52.0",
  "winit",
 ]
 

@@ -164,6 +164,9 @@ pub struct Prefs {
     /// A preference, so never in the save, never in the digest and never below
     /// this crate — the table above.
     pub debug_overlay: bool,
+    /// `g_optFullScreen` (`0x0053F228`). `Display_Init` (`0x0042E5C0`) forces 1
+    /// on any desktop that is not 8bpp. Our windowed mode is [D], C???.
+    pub full_screen: bool,
     /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
     pub kept: crate::prefs::Kept,
 }
@@ -182,6 +185,7 @@ impl Default for Prefs {
             game_speed: 90,
             // Ours, and off: see the field.
             debug_overlay: false,
+            full_screen: true,
             kept: crate::prefs::Kept::default(),
         }
     }

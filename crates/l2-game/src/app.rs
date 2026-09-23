@@ -56,3 +56,31 @@ pub(crate) fn usage() -> ! {
     eprintln!("               machine that has one and would rather it stayed quiet.");
     std::process::exit(2)
 }
+
+impl super::App {
+    /// [D] ours, C???: `Options_Save` on change, not only at exit (`0x0040EBFE`).
+    pub(super) fn persist_prefs(&mut self) {
+        if self.game.prefs == self.saved_prefs {
+            return;
+        }
+        self.saved_prefs = self.game.prefs;
+        if let Err(e) = l2_game::prefs::save(&self.game.prefs) {
+            eprintln!("preferences: {e}");
+        }
+    }
+
+    /// `Display_Init` (`0x0042E5C0`) forces full screen; borderless here, and
+    /// `pixels` scales 640 x 480 by F5's whole-number rule (`input::window`).
+    pub(super) fn fullscreen(&self) -> Option<winit::window::Fullscreen> {
+        self.game.prefs.full_screen.then_some(winit::window::Fullscreen::Borderless(None))
+    }
+
+    // arm: ours/windowed-toggle key
+    pub(super) fn toggle_full_screen(&mut self) {
+        self.game.prefs.full_screen = !self.game.prefs.full_screen;
+        if let Some(w) = &self.window {
+            w.set_fullscreen(self.fullscreen());
+        }
+        self.persist_prefs();
+    }
+}
