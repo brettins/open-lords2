@@ -294,7 +294,8 @@ impl BattlefieldScreen {
                 ctx.game.player_names.get(r as usize).map_or(String::new(), |n| n.as_str().into())
             };
             let (mine_name, foe_name) = (name(realms.0), name(realms.1));
-            ctx.game.battle_master.record(&mine_name, &foe_name, a, b);
+            let file = crate::screens::ratings::score_dat::path();
+            ctx.game.battle_master.record_to_file(file.as_deref(), &mine_name, &foe_name, a, b);
             return Transition::Replace(ScreenId::Ratings);
         }
         match turn::finish_battle(ctx.game) {

@@ -84,8 +84,8 @@ impl Screen for RankScreen {
         Some(RANK_PALETTE)
     }
 
-    /// `FUN_0042D179` runs before any sheet opens; with no `score.dat`
-    /// (`FUN_0042D216`) its table is the whole book.
+    /// `FUN_0042D179` runs before any sheet opens (App_WinMain); the sheet
+    /// itself never reads `score.dat`.
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         ctx.game.battle_master.seed_defaults(&ctx.assets.shell);
         Transition::Stay
@@ -146,16 +146,6 @@ impl Screen for RankScreen {
             let y = row as i32 * ROW_PITCH + MINE_Y0;
             pen.body(canvas, NAME_X, y, &name, font::TEXT);
             pen.number_in(Face::Body, canvas, SCORE_X, y, book.mine[row], ' ', " ", font::TEXT);
-        }
-
-        if ctx.game.prefs.debug_overlay {
-            l2_view::text::draw(
-                canvas,
-                4,
-                470,
-                "SCORE.DAT IS NOT READ OR WRITTEN: THIS BOOK LASTS ONE RUN",
-                ink.dim,
-            );
         }
     }
 }

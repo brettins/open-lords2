@@ -117,6 +117,7 @@ mod rank;
 pub use rank::*;
 mod end;
 pub use end::*;
+pub mod score_dat;
 
 use l2_view::Canvas;
 
