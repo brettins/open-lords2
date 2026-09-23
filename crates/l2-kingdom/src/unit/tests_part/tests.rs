@@ -1,13 +1,3 @@
-#![allow(unused_imports)]
-use super::*;
-
-use army::*;
-use crate::county::{County, MAX_COUNTIES};
-use crate::realm::{Realm, MAX_REALMS};
-use crate::tables::Tables;
-
-#[cfg(test)]
-mod tests {
     use super::*;
     use crate::tables::Tables;
 
@@ -435,6 +425,3 @@ mod tests {
         assert_eq!(units.at(10, 10), Some(a));
         assert_eq!(units.at(11, 10), None);
     }
-}
-
-
