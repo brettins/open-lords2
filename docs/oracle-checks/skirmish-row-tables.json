@@ -1,0 +1,97 @@
+{
+  "reviewed": "08ae794c8b49b32ea27fb11825d6f5a0a3929c1c",
+  "date": "2026-09-23",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/siege/mod.rs",
+      "line": 165,
+      "address": "0x004D4A98",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/mod.rs",
+      "line": 346,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/castle.rs",
+      "line": 357,
+      "address": "0x004D4AD8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/castle.rs",
+      "line": 361,
+      "address": "0x004D4A18",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/castle.rs",
+      "line": 373,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/siege/castle.rs",
+      "line": 375,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/castle/builder.rs",
+      "line": 153,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/terrain/mod.rs",
+      "line": 115,
+      "address": "0x0047C4BA",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/terrain/field.rs",
+      "line": 187,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation.rs",
+      "line": 104,
+      "address": "0x0047AAA3",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/terrain/builder.rs",
+      "line": 329,
+      "address": "0x0047B8B2",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 288,
+      "address": "0x00497CED",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/setup/settings.rs",
+      "line": 293,
+      "address": "0x004778A0",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

@@ -183,7 +183,7 @@ pub fn build_field(raster: &[u8], seed: u32) -> Battlefield {
     graphics_pass(&mut cells, &terrain, seed, false);
     bridge_pass(&mut cells);
 
-    // :4661-4688 write only the markers the frame carries; the rest keep the session's.
+    // Battlefield_BuildRandom 0x0047AAA3 :4661-4688 write only the markers the frame carries; the rest keep the session's.
     let unwritten = (
         enemy_end.map(|s| s.map(|e: Option<(u8, u8)>| e.is_none())),
         rally.map(|s| s.map(|g| g.map(|e: Option<(u8, u8)>| e.is_none()))),

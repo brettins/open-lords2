@@ -158,6 +158,7 @@ impl SetupScreen {
                 session,
             ),
         };
+        // Battle_Start 0x004778A0: the tables stay as this battle left them.
         ctx.game.kingdom.campaign.battle_markers = runner.session().markers;
         // `DAT_0057A0F0`: Battle_CheckOutcome's failed-assault arm reads `0x004D4A58`.
         runner.mark_skirmish();
