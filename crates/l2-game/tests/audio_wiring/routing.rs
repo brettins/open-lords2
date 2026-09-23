@@ -111,7 +111,12 @@ fn the_front_end_is_its_own_scene_on_all_thirteen_of_its_pages() {
     let game = world();
     for page in SetupPage::ALL {
         let m = Machine::new(ScreenId::Setup(page));
-        assert_eq!(audio::scene(&m, &game), Scene::FrontEnd, "{page:?}");
+        let skirmish = matches!(
+            page,
+            SetupPage::Skirmish | SetupPage::SkirmishMulti | SetupPage::SkirmishFile
+        );
+        let want = if skirmish { Scene::Skirmish } else { Scene::FrontEnd };
+        assert_eq!(audio::scene(&m, &game), want, "{page:?}");
     }
     let mut m = Machine::new(APP_ROOT);
     m.push(ScreenId::Index);
@@ -135,5 +140,23 @@ fn the_battlefield_is_battle_music_under_whatever_is_over_it() {
     );
     m.push(ScreenId::Info(l2_game::screens::info::Target::Tile(0)));
     assert!(matches!(audio::scene(&m, &game), Scene::Battle(_)), "a panel over the field");
+}
+
+/// `setup3.wav` on the skirmish pages: `docs/audio.json` FUN_00433155#1,
+/// FUN_00497a34#1, Screen_FrameInput#1/#2. 0x2E/0x2F leave the bed alone.
+///
+/// Ablation: the `Scene::Skirmish` arm of `audio::scene`.
+#[test]
+fn the_skirmish_pages_are_their_own_bed_and_the_sheets_keep_the_battles() {
+    let game = world();
+    for page in [SetupPage::Skirmish, SetupPage::SkirmishMulti, SetupPage::SkirmishFile] {
+        let m = Machine::new(ScreenId::Setup(page));
+        assert_eq!(audio::scene(&m, &game), Scene::Skirmish, "{page:?}");
+    }
+    for id in [ScreenId::Ratings, ScreenId::Rank] {
+        let m = Machine::new(id);
+        assert_eq!(audio::scene(&m, &game), Scene::Sheet, "{id:?}: Battle_CheckOutcome");
+    }
+    assert_eq!(audio::scene(&Machine::new(APP_ROOT), &game), Scene::FrontEnd);
 }
 

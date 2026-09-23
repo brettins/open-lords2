@@ -46,6 +46,8 @@ pub enum Music {
     /// 0, g_campaignMap < 8)`. The finished campaign's interstitial is the
     /// only screen in the game whose bed does not loop.
     Setup2,
+    /// `setup3.wav`, looped: the skirmish bed.
+    Setup3,
 }
 
 impl Music {
@@ -55,6 +57,7 @@ impl Music {
             Music::Battle(n) => super::names::MUSIC_BATTLE[(n.max(1).min(5) - 1) as usize],
             Music::Setup => super::names::MUSIC_SETUP,
             Music::Setup2 => super::names::MUSIC_SETUP2,
+            Music::Setup3 => super::names::MUSIC_SETUP3,
         }
     }
 

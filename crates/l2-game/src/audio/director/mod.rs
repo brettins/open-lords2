@@ -51,7 +51,17 @@ pub fn scene(machine: &crate::screen::Machine, game: &crate::Game) -> Scene {
         };
         return Scene::Battle(kind);
     }
+    if matches!(machine.top_id(), Some(ScreenId::Ratings | ScreenId::Rank)) {
+        return Scene::Sheet;
+    }
     if ids.iter().copied().all(before_the_campaign) {
+        use crate::screens::setup::SetupPage as P;
+        if matches!(
+            machine.top_id(),
+            Some(ScreenId::Setup(P::Skirmish | P::SkirmishMulti | P::SkirmishFile))
+        ) {
+            return Scene::Skirmish;
+        }
         return Scene::FrontEnd;
     }
     // `g_screenId == 0x1C`. The interstitial is the top of the stack while it
@@ -144,6 +154,23 @@ fn before_the_campaign(id: crate::screen::ScreenId) -> bool {
         | S::Rank
         | S::Info(_) => false,
     }
+}
+
+/// *Back* off the skirmish page, FUN_0043D649 (`00430000.c:7899-7911`), has no
+/// Music call: `setup3.wav` plays on over the title page. [V] the body; [I] that
+/// its callee FUN_00499034 does not play music either.
+pub(super) fn front_end_keeps(prev: Option<Scene>, playing: Option<&str>) -> bool {
+    playing == Some(names::MUSIC_SETUP3) && matches!(prev, Some(Scene::Skirmish | Scene::FrontEnd))
+}
+
+#[test]
+fn back_to_the_title_keeps_the_skirmish_bed_and_a_campaign_return_does_not() {
+    let s3 = Some(names::MUSIC_SETUP3);
+    assert!(front_end_keeps(Some(Scene::Skirmish), s3), "FUN_0043D649 plays nothing");
+    assert!(front_end_keeps(Some(Scene::FrontEnd), s3));
+    let campaign = Some(Scene::Campaign { county_count: 1, share_of_map_pct: 5 });
+    assert!(!front_end_keeps(campaign, s3), "FUN_00497a34#2 plays setup.wav");
+    assert!(!front_end_keeps(Some(Scene::Skirmish), Some(names::MUSIC_SETUP)));
 }
 
 pub(super) fn current_battle_track(name: String) -> Option<Music> {

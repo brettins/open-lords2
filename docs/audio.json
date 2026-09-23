@@ -347,10 +347,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup3_wav_004d56c4,0,1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "SETUP3.WAV is the SKIRMISH bed, not the credits and not the ending. [V] FUN_00433155 is the setup screen’s OK: with DAT_0055302c == 3 it sets g_setupPage 0xC single / 0xB multiplayer, plays setup3.wav looped and calls Skirmish_Setup. Nothing built here opens the skirmish pages."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/engine/engine.rs",
+      "sound": "setup3.wav",
+      "note": "SETUP3.WAV is the SKIRMISH bed, not the credits and not the ending. [V] FUN_00433155 is the setup screen’s OK: with DAT_0055302c == 3 it sets g_setupPage 0xC single / 0xB multiplayer, plays setup3.wav looped and calls Skirmish_Setup. Scene::Skirmish: every arrival on page 0xB/0xC plays it."
     },
     {
       "id": "FUN_00435339#1",
@@ -578,10 +578,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup3_wav_004dbc2c,0,1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The skirmish bed again, on the DAT_0057A0F0 == 1 arm of the return to the front end — the arm that does not reload the map or reset g_setupPage. [V] the branch; [I] that DAT_0057A0F0 is the skirmish flag, from FUN_00433155 clearing it on the way to setup page 1. The credits and the ending are FILMS and carry their own track: no Music_Play site plays a bed for either."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/engine/engine.rs",
+      "sound": "setup3.wav",
+      "note": "The skirmish bed again, on the DAT_0057A0F0 == 1 arm of the return to the front end — the arm that does not reload the map or reset g_setupPage. [V] the branch; [I] that DAT_0057A0F0 is the skirmish flag, from FUN_00433155 clearing it on the way to setup page 1. The credits and the ending are FILMS and carry their own track: no Music_Play site plays a bed for either. Scene::Skirmish: every arrival on page 0xB/0xC plays it."
     },
     {
       "id": "FUN_00497a34#2",
@@ -1326,10 +1326,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup3_wav_004d5650,0,1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The same skirmish bed, restarted as you LEAVE the rank sheet. [V] Screen_FrameInput’s own ladder: screen 0x2E (the Battle Master ratings, ScreenId::Ratings) goes to 0x2F on a press, and on 0x2F a RIGHT press plays setup3.wav looped and calls FUN_0042B780. Blocked on the skirmish front end, not on the sheet."
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/engine/engine.rs",
+      "sound": "setup3.wav",
+      "note": "The same skirmish bed, restarted as you LEAVE the rank sheet. [V] Screen_FrameInput’s own ladder: screen 0x2E (the Battle Master ratings, ScreenId::Ratings) goes to 0x2F on a press, and on 0x2F a RIGHT press plays setup3.wav looped and calls FUN_0042B780. Scene::Skirmish: every arrival on page 0xB/0xC plays it."
     },
     {
       "id": "Screen_FrameInput#2",
@@ -1337,10 +1337,10 @@
       "prim": "Music_Play",
       "class": "music",
       "arg": "s_setup3_wav_004d565c,0,1",
-      "status": "missing",
-      "ours": null,
-      "sound": null,
-      "note": "The LEFT press on screen 0x2F, the same statement pair as #1: setup3.wav looped, then FUN_0042B780. [V]"
+      "status": "reproduced",
+      "ours": "crates/l2-game/src/audio/engine/engine.rs",
+      "sound": "setup3.wav",
+      "note": "The LEFT press on screen 0x2F, the same statement pair as #1: setup3.wav looped, then FUN_0042B780. [V] Scene::Skirmish: every arrival on page 0xB/0xC plays it."
     },
     {
       "id": "Setup_ChooseCampaign#1",

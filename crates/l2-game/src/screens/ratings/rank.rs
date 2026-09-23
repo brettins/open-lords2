@@ -25,8 +25,7 @@
 //! So the chain is `0x2E` → `0x2F` → page 12, on **either** button, pressed,
 //! anywhere; neither sheet has a back door and neither tests the keyboard.
 //! `Music_Play("setup3.wav", 0, 1)` is `docs/audio.json`'s two `0x0042FF10`
-//! records and is **not** wired here: our bed is picked by
-//! `audio::director::scene` from the screen stack, which has no restart edge.
+//! records: `audio::Scene::Skirmish`, on arriving at page 12.
 use super::*;
 
 /// `L2.eng` group 38 — the twelve ranks `Ui_DrawCentred(0x26, DAT_0053E9E0, …)`
