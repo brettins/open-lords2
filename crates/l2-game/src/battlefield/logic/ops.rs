@@ -83,7 +83,7 @@ impl LiveBattle {
                 false
             }
             BattleOp::Charge => {
-                // 00430000.c:6857 `if ((g_battleChoiceOwner != 0) && (DAT_0055322c == 0))`
+                // Battle_ChargeButton 0x0043BD02 00430000.c:6857 `if ((g_battleChoiceOwner != 0) && (DAT_0055322c == 0))`
                 if self.choice_owner == 0 || self.has_charged(realm) {
                     return false;
                 }

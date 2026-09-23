@@ -226,7 +226,7 @@ impl Kingdom {
                 &mut self.campaign.explored,
                 restore,
             );
-            // FUN_004A6C68 004a0000.c:2865: set once the guards pass, battle or none.
+            // FUN_004A6C68 0x004A6C68 004a0000.c:2865: set once the guards pass, battle or none.
             if !matches!(outcome, Attack::Refused(_)) {
                 self.campaign.battle_county = county;
             }
