@@ -132,6 +132,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "england", 2),
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "executable", 1),
     ("crates/l2-game/tests/job_bodies/job_popups/industry_and_building.rs", "fixture", 3),
+    ("crates/l2-game/tests/job_bodies/job_popups/smithy_efficiency.rs", "england", 1),
     ("crates/l2-game/tests/job_bodies/tile_panel.rs", "england", 3),
     ("crates/l2-game/tests/labour_move/drag_and_drop_tests.rs", "england", 4),
     ("crates/l2-game/tests/labour_move/game_flow_tests.rs", "england", 1),
@@ -152,6 +153,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/movies/playback/input_and_drawing.rs", "install", 3),
     ("crates/l2-game/tests/movies/playback/timing_and_sound.rs", "install", 4),
     ("crates/l2-game/tests/movies/triggers/validation.rs", "install", 1),
+    ("crates/l2-game/tests/net_game/main.rs", "england", 3),
     ("crates/l2-game/tests/newgame/army_size.rs", "other", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "install", 1),
     ("crates/l2-game/tests/newgame/campaign.rs", "other", 3),
@@ -189,6 +191,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/screens_info/field_panel/labels_and_views.rs", "england", 4),
     ("crates/l2-game/tests/screens_info/field_panel/labels_and_views.rs", "executable", 1),
     ("crates/l2-game/tests/screens_info/tile_panel_part.rs", "england", 5),
+    ("crates/l2-game/tests/screens_info/unit_insets.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/fog_tests.rs", "england", 3),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/hover_frame_tests.rs", "england", 1),
     ("crates/l2-game/tests/screens_map/fog_and_march_tests/march_tests.rs", "england", 4),
@@ -296,7 +299,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 665;
+pub(crate) const GATED_TOTAL: usize = 670;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),
