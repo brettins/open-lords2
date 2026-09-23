@@ -80,7 +80,7 @@ fn a_march_into_the_enemy(platform: &l2_mods::Platform) -> (bool, Vec<String>) {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     director.listen(&mut audio, &machine, &game);
 
     send(&mut machine, &mut game, &assets, Event::KeyDown(Key::letter('e')));

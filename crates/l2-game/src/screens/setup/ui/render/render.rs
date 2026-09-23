@@ -37,6 +37,9 @@ impl SetupScreen {
             name: begin_name(text::DEFAULT_PLAYER_NAME),
             saved_name: text::DEFAULT_PLAYER_NAME.to_string(),
             prefs_read: false,
+            load: None,
+            load_opener: SetupPage::Options,
+            load_list_hit: false,
             skirmish: Default::default(),
             troops: Default::default(),
             troops_file: None,
@@ -171,7 +174,9 @@ impl SetupScreen {
                 }
             }
             SetupPage::SkirmishFile => self.skirmish_file_arms(&mut v),
-            SetupPage::NoCd | SetupPage::Load => {
+            // Screen_HandleInput 0x004BA9C8, 004b0000.c:7355-7362: page 3 is the box's table. [V]
+            SetupPage::Load => {}
+            SetupPage::NoCd => {
                 v.push((Rect::new(0, 0, 640, 480), Action::Item(0)));
             }
             SetupPage::Skirmish | SetupPage::SkirmishMulti => self.skirmish_arms(&mut v),
@@ -443,6 +448,10 @@ impl SetupScreen {
         if page == SetupPage::Shield && self.page != SetupPage::Shield {
             // arm: 0x00432B05/name-field-open left-release
             self.name = begin_name(&self.saved_name);
+        }
+        if page == SetupPage::Load && self.page != SetupPage::Load {
+            // FUN_004335F0 0x004335F0 00430000.c:975, FUN_00432CC8 :632 `DAT_00553e5c = g_setupPage`. [V]
+            self.load_opener = self.page;
         }
         self.page = page;
         self.selected = 0;

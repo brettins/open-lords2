@@ -36,19 +36,33 @@ impl Screen for SetupScreen {
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.read_prefs(ctx);
-        let t = self.update_page(ctx);
+        let t = if self.page == SetupPage::Load {
+            self.load_update(ctx)
+        } else {
+            self.update_page(ctx)
+        };
         self.keep_prefs(ctx);
         t
     }
 
+    fn take_clicks(&mut self) -> u8 {
+        self.load.as_mut().map_or(0, |l| l.take_clicks())
+    }
+
     fn take_redraw(&mut self) -> bool {
-        let pulse = self.press.take_redraw();
+        let boxed = self.load.as_mut().is_some_and(|l| l.take_redraw());
+        let pulse = self.press.take_redraw() | boxed;
         core::mem::take(&mut self.clock_redraw) || pulse
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         self.read_prefs(ctx);
-        let t = self.handle_page(event, ctx);
+        // arm: 0x004BA9C8/setup-load-name key
+        let t = if self.page == SetupPage::Load {
+            self.load_event(event, ctx)
+        } else {
+            self.handle_page(event, ctx)
+        };
         self.keep_prefs(ctx);
         t
     }
@@ -210,6 +224,9 @@ impl SetupScreen {
             l2_view::text::draw(canvas, 4, 4, &line, ctx.assets.ink.dim);
         }
         self.paint(ctx, canvas, &pen, &head, base);
+        if base == SetupPage::Load {
+            self.draw_load(ctx, canvas);
+        }
         if self.page == SetupPage::Dropdown {
             self.paint_dropdown(canvas, &pen, ctx);
         }

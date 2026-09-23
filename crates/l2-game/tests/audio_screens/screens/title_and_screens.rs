@@ -27,7 +27,7 @@ fn the_title_screen_plays_setup_wav_and_the_campaign_still_does_not() {
     let _assets = Assets::placeholder();
     let mut game = world();
     let machine = Machine::new(APP_ROOT);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     listen(&mut director, &mut audio, &machine, &game);
     assert_eq!(
@@ -61,7 +61,7 @@ fn four_screens_speak_as_they_open() {
         let game = world();
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         listen(&mut director, &mut audio, &machine, &game);
 
         machine.push(push);
@@ -77,7 +77,7 @@ fn four_screens_speak_as_they_open() {
     let mut game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &machine, &game);
     assert!(!audio.heard().contains(&"s033_02.wav"), "starting zoomed in is not an event");
     game.map_zoom_far = true;
@@ -100,7 +100,7 @@ fn a_screen_speaks_once_and_not_once_a_frame() {
     let game = world();
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     listen(&mut director, &mut audio, &machine, &game);
 
     machine.push(ScreenId::Supplies(1));
@@ -127,3 +127,22 @@ fn a_screen_speaks_once_and_not_once_a_frame() {
     let _ = &assets;
 }
 
+
+/// FUN_00497A34 :3288-3290, DAT_0055CE90 set once by FUN_00497500: ablate `welcomed = true`
+/// and the second arrival speaks again.
+#[test]
+fn the_front_end_welcomes_once_a_session() {
+    let Some(mut audio) = headless() else { l2_testkit::skip!("no game install") };
+    let game = world();
+    let mut machine = Machine::new(APP_ROOT);
+    let mut director = audio::Director::new();
+    listen(&mut director, &mut audio, &machine, &game);
+    let welcome = names::speech::WELCOME.to_ascii_lowercase();
+    assert!(audio.heard().contains(&welcome.as_str()), "heard {:?}", audio.heard());
+    machine.push(ScreenId::Campaign);
+    listen(&mut director, &mut audio, &machine, &game);
+    let machine = Machine::new(APP_ROOT);
+    listen(&mut director, &mut audio, &machine, &game);
+    let n = audio.heard().iter().filter(|h| **h == welcome.as_str()).count();
+    assert_eq!(n, 1, "the welcome is once a session");
+}

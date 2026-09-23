@@ -33,6 +33,9 @@ pub struct SaveLoadScreen {
     /// three `g_screenId` arms, so the frame the count reaches zero is painted
     /// whatever the outcome was.
     redraw: bool,
+    /// Box origin less `Screen_SaveLoad`'s `(0x10, 0x90)`: `SaveLoad_DrawStatus` 0x004149EC
+    /// takes `(0x60, 10)` on the front end's page 3, `Widget_Draw(0x60,10,..)` 004b0000.c:7067. [V]
+    pub(super) shift: (i32, i32),
 }
 
 /// `Edit_Begin(&DAT_004EA130, 8, 0xA0, 1)` — the save box's own arguments, and

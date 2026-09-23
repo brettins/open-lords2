@@ -21,7 +21,7 @@ fn play_it_twice(sound: &mut Audio) -> (Game, Game) {
     );
     let (mut heard, mut hm) = staged(&armies.0, &armies.1);
     let (mut silent, mut sm) = staged(&armies.0, &armies.1);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     for (g, m) in [(&mut heard, &mut hm), (&mut silent, &mut sm)] {
         box_the_army(m, g, &a);
@@ -84,7 +84,7 @@ fn play_a_siege_twice(sound: &mut Audio) -> (Game, Game) {
     let a = Assets::placeholder();
     let (mut heard, mut hm) = staged_siege();
     let (mut silent, mut sm) = staged_siege();
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     for (g, m) in [(&mut heard, &mut hm), (&mut silent, &mut sm)] {
         send(m, g, &a, Event::Pointer { x: 240, y: 240 });
     }

@@ -100,6 +100,12 @@ pub struct SetupScreen {
     /// which five.
     pub(crate) press: crate::press::Press,
     pub(crate) prefs_read: bool,
+    /// Page 3's box, `FUN_004148E4` + `SaveLoad_DrawStatus` at (0x60, 10). [V]
+    pub(crate) load: Option<crate::screens::saveload::SaveLoadScreen>,
+    /// DAT_00553E5C: FUN_00432CC8 hotspot 2 and FUN_004335F0 hotspot 4 store `g_setupPage`. [V]
+    pub(crate) load_opener: SetupPage,
+    /// FUN_0043400B(1) this frame: a left press on a listed file. [V]
+    pub(crate) load_list_hit: bool,
 }
 
 impl SetupScreen {

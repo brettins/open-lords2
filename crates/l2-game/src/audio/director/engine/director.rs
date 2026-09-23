@@ -17,6 +17,11 @@ impl Director {
         Director::default()
     }
 
+    /// A session whose FUN_00497A34 :3289 welcome has already been spoken.
+    pub fn welcomed() -> Director {
+        Director { welcomed: true, ..Director::default() }
+    }
+
     pub fn listen(
         &mut self,
         audio: &mut Audio,
@@ -86,6 +91,13 @@ impl Director {
         audio.follow(scene(machine, game));
 
         let now = machine.ids();
+        // FUN_00497A34 :3288-3290 `if (DAT_0055ce90) { Sound_PlayFile(s011_01, 1, 0);
+        // DAT_0055ce90 = 0; }`; App_IdleFrame reaches it at boot after the intro. [V]
+        // sfx: FUN_00497a34#3
+        if !self.welcomed && now.iter().any(|id| matches!(id, ScreenId::Setup(_))) {
+            self.welcomed = true;
+            audio.play_file(names::speech::WELCOME, true);
+        }
         let opened = |want: &dyn Fn(&ScreenId) -> bool| {
             now.iter().any(|id| want(id)) && !self.stack.iter().any(|id| want(id))
         };
@@ -431,13 +443,14 @@ impl Director {
         // g_localPlayer)`, and the mirror, `Sound_PlayFile(ff_lose.wav, 0, 0)`.
         // `[V]` 004a0000.c:4716..4771. Heard at `battle::record`, one per frame.
         // sfx: Battle_ReturnToCampaign#1,Battle_ReturnToCampaign#2
+        // Once per battle, the busy buffer dropping the rest; an idle battle with no turn is
+        // Settlement::Silently (settlement.rs:20, neither side human), never the local player's. [V]
         let reports = game.turn.as_ref().map_or(&[][..], |p| p.battle_reports());
-        if reports.len() > self.battles {
-            if let Some(r) = reports.last() {
-                let (a, d) = (r.attacker_owner, r.defender_owner);
-                if let Some(name) = after_battle(r.verdict.attacker_won, a, d, game.player) {
-                    audio.play_file(name, false);
-                }
+        // Battle_ReturnToCampaign 0x004AB383: one verdict per settled battle. [V]
+        for r in reports.get(self.battles..).unwrap_or_default() {
+            let (a, d) = (r.attacker_owner, r.defender_owner);
+            if let Some(name) = after_battle(r.verdict.attacker_won, a, d, game.player) {
+                audio.play_file(name, false);
             }
         }
         self.battles = reports.len();

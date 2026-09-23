@@ -34,7 +34,7 @@ fn closing_a_message_window_stops_the_narrator_unless_it_is_group_194() {
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
 
         let mut rec = message::Record::default();
         rec.group = group;
@@ -84,7 +84,7 @@ fn turning_music_off_also_cuts_whoever_is_speaking() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     let mut rec = message::Record::default();
     rec.group = 130;
@@ -127,7 +127,7 @@ fn the_mercenary_offer_speaks_when_the_sidebar_opens_the_raise_army_screen() {
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         director.listen(&mut audio, &machine, &game);
 
         let b = l2_game::screens::map::SIDEBAR_BUTTONS[0];
@@ -165,7 +165,7 @@ fn the_mercenary_offer_speaks_when_the_sidebar_opens_the_raise_army_screen() {
     machine.push(ScreenId::Campaign);
     machine.push(ScreenId::Armoury(1));
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     director.listen(&mut audio, &machine, &game);
     let change = l2_game::screens::armoury::CHANGE_BOX;
     send(
@@ -214,7 +214,7 @@ fn the_population_panel_speaks_the_countys_health_band() {
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         director.listen(&mut audio, &machine, &game);
         machine.push(ScreenId::County(1, l2_game::screens::county::Panel::Population));
         {
@@ -260,7 +260,7 @@ fn the_information_panel_speaks_the_unit_it_opened_on() {
         let mut machine = Machine::new(APP_ROOT);
         machine.push(ScreenId::Campaign);
         let mut audio = Audio::headless(&platform.vfs);
-        let mut director = audio::Director::new();
+        let mut director = audio::Director::welcomed();
         director.listen(&mut audio, &machine, &game);
         machine.push(ScreenId::Info(l2_game::screens::info::Target::Unit(id)));
         {

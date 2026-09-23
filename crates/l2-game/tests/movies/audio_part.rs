@@ -16,7 +16,7 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 fn a_film_silences_the_campaign_bed_and_it_starts_again_from_its_first_sample() {
     let (p, a) = install!();
     let mut audio = Audio::headless(&p.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let (mut g, _) = castle_world();
     g.kingdom.realms[1].county_count = 1;
     let mut m = Machine::new(ScreenId::Campaign);
@@ -45,7 +45,7 @@ fn a_film_silences_the_campaign_bed_and_it_starts_again_from_its_first_sample() 
 fn the_trailer_stops_setup_wav_and_the_title_page_starts_it_over() {
     let (p, a) = install!();
     let mut audio = Audio::headless(&p.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let mut g = Game::new(1);
     let mut m = Machine::new(ScreenId::Setup(setup::SetupPage::Title));
 
@@ -71,7 +71,7 @@ fn the_trailer_stops_setup_wav_and_the_title_page_starts_it_over() {
 fn the_narrator_reads_an_ending_over_the_opening_of_its_film() {
     let (p, a) = install!();
     let mut audio = Audio::headless(&p.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let mut g = realms();
     let player = g.player;
     assert!(g.messages.enqueue(ending(3, 194), player));
@@ -105,7 +105,7 @@ fn the_narrator_reads_an_ending_over_the_opening_of_its_film() {
 fn the_narrator_reads_a_capture_over_its_film_and_the_bed_starts_over_after_it() {
     let (p, a) = install!();
     let mut audio = Audio::headless(&p.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     let (mut g, _, mut m) = capture_world();
     march_on_the_town(&mut g);
 

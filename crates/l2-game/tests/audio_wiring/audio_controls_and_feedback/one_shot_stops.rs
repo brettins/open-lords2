@@ -47,7 +47,7 @@ fn the_forge_then_the_army_button(
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     machine.push(ScreenId::Job(1, FORGE));
     {
@@ -116,7 +116,7 @@ fn the_forge_popup_releases_the_buffer_and_the_battle_fanfare_is_heard() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     machine.push(ScreenId::Job(1, FORGE));
     director.listen(&mut audio, &machine, &game);
@@ -151,7 +151,7 @@ fn the_battlefield_opening_releases_the_buffer_and_the_bed_starts() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     director.listen(&mut audio, &machine, &game);
 
     assert!(audio.play_file(l2_game::audio::names::speech::SPLIT_ARMY, true), "the line started");
@@ -186,7 +186,7 @@ fn toggling_music_off_then_on_during_a_battle_empties_the_buffer() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     director.listen(&mut audio, &machine, &game);
     machine.push(ScreenId::Battlefield);
     director.listen(&mut audio, &machine, &game);

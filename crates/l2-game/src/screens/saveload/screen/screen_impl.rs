@@ -94,7 +94,7 @@ impl Screen for SaveLoadScreen {
                 Transition::Stay
             }
             Event::Click { x, y } | Event::DoubleClick { x, y } => {
-                if let Some(i) = self.press.event(&widgets(), event) {
+                if let Some(i) = self.press.event(&widgets(self.shift), event) {
                     return self.fire(ctx, i);
                 }
                 if let (Event::Click { .. }, Some(i)) = (event, self.at(x, y)) {
@@ -104,7 +104,7 @@ impl Screen for SaveLoadScreen {
                 Transition::Stay
             }
             Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
-                let fired = self.press.event(&widgets(), event);
+                let fired = self.press.event(&widgets(self.shift), event);
                 debug_assert!(fired.is_none(), "no save/load widget is a release widget");
                 Transition::Stay
             }
@@ -132,6 +132,25 @@ impl Screen for SaveLoadScreen {
         for (x, y, w, h) in INSETS {
             rect_outline(canvas, x, y, w, h, OUTLINE);
         }
+        self.draw_status(ctx, canvas);
+    }
+}
+
+impl SaveLoadScreen {
+    /// `SaveLoad_DrawStatus` 0x004149EC then `Widget_Draw(origin, g_saveLoadWidgets, 4)`:
+    /// what both boxes share, at the box's origin (004b0000.c:7066-7067, :7125-7126). [V]
+    pub fn draw_status(&self, ctx: &Ctx, canvas: &mut Canvas) {
+        let a = &ctx.assets.shell;
+        let ink = &ctx.assets.ink;
+        let pen = Pen {
+            assets: a,
+            ink,
+            chrome: ctx.assets.chrome.as_ref(),
+            shadow: Some(font::SHADOW),
+            caps: None,
+        };
+        let (dx, dy) = self.shift;
+        let (name_at, status_at) = ((NAME.0 + dx, NAME.1 + dy), (STATUS.0 + dx, STATUS.1 + dy));
 
         // The underscore was a stand-in and it was wrong twice over: it was
         // drawn in save mode only, when the original's edit arm covers both
@@ -141,13 +160,13 @@ impl Screen for SaveLoadScreen {
         // caret is `Edit_DrawCaret` (`0x0040ACCE`) now: it blinks, it sits at
 // the caret, and it changes shape with insert
         // mode.
-        pen.body(canvas, NAME.0, NAME.1, &self.name.text(), font::TEXT);
+        pen.body(canvas, name_at.0, name_at.1, &self.name.text(), font::TEXT);
         let caret_colour = if a.body.is_some() { font::TEXT } else { pen.ink.text };
-        self.name.draw_caret(canvas, NAME.0, NAME.1, caret_colour, &crate::text::FontMetrics::of(a));
+        self.name.draw_caret(canvas, name_at.0, name_at.1, caret_colour, &crate::text::FontMetrics::of(a));
 
         for i in 0..PAGE {
             let Some(entry) = self.entries.get(self.top + i) else { break };
-            let r = Self::row_rect(i);
+            let r = self.row(i);
             if self.selected == Some(self.top + i) {
                 // `g_spriteWidth = 6; g_spriteHeight = 0x10; FUN_004B414A(x - 2,
                 // y - 1, 0x3F)`, then the row's own text in colour 0x20.
@@ -170,12 +189,12 @@ impl Screen for SaveLoadScreen {
             // `SaveLoad_DrawStatus`: `Eng_DrawString(40, 2 | 3, …)` while
             // `DAT_0057D3C4` runs.
             Status::Working => {
-                pen.eng(canvas, GROUP, self.mode.working_index(), STATUS.0, STATUS.1, font::TEXT);
+                pen.eng(canvas, GROUP, self.mode.working_index(), status_at.0, status_at.1, font::TEXT);
             }
             Status::Failed(detail) => {
-                pen.eng(canvas, GROUP, ERROR_INDEX, STATUS.0, STATUS.1, font::TEXT);
+                pen.eng(canvas, GROUP, ERROR_INDEX, status_at.0, status_at.1, font::TEXT);
                 if ctx.game.prefs.debug_overlay {
-                    text::draw(canvas, STATUS.0, STATUS.1 + 18, &ours(detail), ink.bad);
+                    text::draw(canvas, status_at.0, status_at.1 + 18, &ours(detail), ink.bad);
                 }
             }
         }
@@ -186,9 +205,9 @@ impl Screen for SaveLoadScreen {
                 .assets
                 .chrome
                 .as_ref()
-                .is_some_and(|c| c.draw_system(canvas, frame, w.0, w.1));
+                .is_some_and(|c| c.draw_system(canvas, frame, w.0 + dx, w.1 + dy));
             if !drawn {
-                shell::button_recess(canvas, w.0, w.1, w.3, w.3);
+                shell::button_recess(canvas, w.0 + dx, w.1 + dy, w.3, w.3);
             }
         }
 
@@ -197,7 +216,7 @@ impl Screen for SaveLoadScreen {
             None => "NO SAVE DIRECTORY ON THIS MACHINE".into(),
         };
         if ctx.game.prefs.debug_overlay {
-            text::draw(canvas, DIR_LINE.0, DIR_LINE.1, &directory_line(&where_), ink.dim);
+            text::draw(canvas, DIR_LINE.0 + dx, DIR_LINE.1 + dy, &directory_line(&where_), ink.dim);
         }
     }
 }

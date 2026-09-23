@@ -25,7 +25,7 @@ fn pressing_start_on_the_title_screen_makes_a_noise() {
 
     let mut machine = Machine::new(APP_ROOT);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
     assert!(audio.file_count() > 700, "only {} wav files indexed", audio.file_count());
 
     macro_rules! tick {
@@ -103,7 +103,7 @@ fn a_message_window_speaks_ten_ticks_after_it_opens() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     let mut rec = message::Record::default();
     rec.group = 130;
@@ -150,7 +150,7 @@ fn the_speech_switch_silences_the_narrator_and_leaves_the_music_alone() {
     let mut machine = Machine::new(APP_ROOT);
     machine.push(ScreenId::Campaign);
     let mut audio = Audio::headless(&platform.vfs);
-    let mut director = audio::Director::new();
+    let mut director = audio::Director::welcomed();
 
     let mut rec = message::Record::default();
     rec.group = 130;
