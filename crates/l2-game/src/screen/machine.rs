@@ -204,13 +204,18 @@ impl Machine {
     /// else if ((g_battlePhase == 2) && (ticksDue != 0)) { …the battle's passes… }
     /// ```
     ///
-    /// `[V]`, `0x004B99C0`, and **the absence is the finding**:
-    ///
-    /// [`crate::screens::message`] — stopped the turn while it was open. So did
-    /// walking into a county panel. `docs/decisions.md` C197.
+    /// `[V]` `0x004B99C0`; `ticksDue` is FUN_004BB978 (0x004BB978), which is 0 under
+    /// `DAT_004E31B0[g_screenId] != 0` or an open letter: [`tick_gate`]. C197 missed it.
     ///
     // arm: 0x004B99C0/frame-winds-the-turn frame
     fn wind_turn(&mut self, ctx: &mut Ctx) -> bool {
+        // FUN_004BB978 0x004BB978: no ticks under DAT_004E31B0[g_screenId] or a letter
+        let byte = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message).and_then(|s| {
+            s.mode_screen_id().or_else(|| crate::turn_clock::screen_byte(s.id()))
+        });
+        if tick_gate::withheld(byte, ctx.game.messages.is_open(), ctx.game.multiplayer) {
+            return false;
+        }
         if ctx.game.battle.is_some() || self.stack.iter().any(|s| s.id() == ScreenId::Battlefield) {
             // arm: 0x004B99C0/frame-winds-the-battle frame
             if let Some(depth) = self.stack.iter().position(|s| s.id() == ScreenId::Battlefield) {
@@ -241,13 +246,8 @@ impl Machine {
         true
     }
 
-    /// The original's inner loop is one `if / else if` on `g_battlePhase` with
-    /// **no `g_screenId` test on either side**,
-/// drop-down as a campaign turn steps under an open letter. Ours
-    /// stepped only from [`Screen::update`], which the machine gives to the top
-    /// screen alone, so the menu bar this screen has just been given would have
-    /// frozen the fight every time a player opened it. Same absence, same fix,
-    /// one screen along: `docs/decisions.md` C197 is the turn's half of it.
+    /// `0x004B99C0`'s battle arm, at the battlefield's depth; withheld with the turn's
+    /// by [`tick_gate`] (FUN_004BB978 0x004BB978).
     fn wind_battle(&mut self, ctx: &mut Ctx, depth: usize) {
         let t = self.stack[depth].update(ctx);
         if self.stack[depth].take_redraw() {

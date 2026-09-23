@@ -74,6 +74,10 @@ fn run_until(
         if done(m, g) {
             return;
         }
+        // FUN_004BB978 0x004BB978: an open letter withholds the tick; the player reads it
+        if g.messages.is_open() {
+            l2_game::message::dismiss(g);
+        }
         tick(m, g, a);
     }
     panic!("{what} never happened");

@@ -80,10 +80,10 @@ fn a_battle_takes_the_date_off_the_bar_and_leaves_the_treasury() {
     );
 }
 
-/// Ablation: delete the `wind_battle` call from `Machine::wind_turn` — the
-/// second count comes out zero and this goes red.
+/// FUN_004BB978 0x004BB978: DAT_004E31B0[0x32] = 1 withholds the tick. Ablation:
+/// the `tick_gate::withheld` return in `Machine::wind_turn`.
 #[test]
-fn a_battle_runs_on_under_an_open_menu() {
+fn a_battle_stops_under_an_open_menu() {
     let Some((assets, _p)) = install() else {
         l2_testkit::skip!("no game install");
     };
@@ -109,11 +109,7 @@ fn a_battle_runs_on_under_an_open_menu() {
     for _ in 0..10 {
         frame(&mut m, &mut g, &assets, &mut canvas);
     }
-    assert_eq!(
-        live(&g).runner.tick - under,
-        plain,
-        "the battle froze under the open menu; Battle_Frame has no g_screenId test"
-    );
+    assert_eq!(live(&g).runner.tick, under, "the battle ran under the open menu; DAT_004E31B0[0x32] = 1");
 }
 
 /// I might be misremembering."* Measured, and the two columns differ by **two
