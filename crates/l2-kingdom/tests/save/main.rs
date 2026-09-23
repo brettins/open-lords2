@@ -802,7 +802,7 @@ fn every_field_of_the_state_is_furnished() {
 /// exists: an older save's *absence* of a field is a question.
 #[test]
 fn the_version_is_ahead_of_its_own_changelog() {
-    let source = include_str!("../src/save/codec_part.rs");
+    let source = include_str!("../../src/save/codec_part.rs");
     let head = source.split("pub const VERSION").next().expect("VERSION is declared");
     let mut entries: Vec<u32> = Vec::new();
     for line in head.lines() {
@@ -1150,7 +1150,7 @@ mod census {
 
     pub fn fixture_region() -> String {
         let src = std::fs::read_to_string(
-            repo_root().join("crates/l2-kingdom/tests/save.rs"),
+            repo_root().join("crates/l2-kingdom/tests/save/main.rs"),
         )
         .expect("this file");
         let begin = "// --- the fixture: begin ";
