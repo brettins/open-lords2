@@ -67,5 +67,14 @@ mod tests {
             }
         }
     }
+
+    /// `Army_SplitConfirm` `00430000.c:4353`, `:4357`: scrolls 0x94 (`L2.eng`
+    /// 148) and 0x11A (282). Ablate either arm of `split_scroll` and it fails.
+    #[test]
+    fn short_and_overfull_halves_raise_the_original_s_scrolls() {
+        assert_eq!(split_scroll(SplitRefusal::TooFew), Some(0x94));
+        assert_eq!(split_scroll(SplitRefusal::GarrisonFull(3)), Some(0x11A));
+        assert_eq!(split_scroll(SplitRefusal::Empty), None, "an empty column cancels silently");
+    }
 }
 

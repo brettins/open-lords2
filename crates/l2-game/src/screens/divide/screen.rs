@@ -9,6 +9,16 @@ use crate::press::{Press, Widget};
 use crate::input::{Event, Key, Rect};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::shell::{font, Face, Pen};
+
+/// `Army_SplitConfirm` 0x00437AFB `00430000.c:4353`, `:4357`; the other
+/// refusals are ours or silent there.
+pub(super) fn split_scroll(no: SplitRefusal) -> Option<u16> {
+    match no {
+        SplitRefusal::TooFew => Some(crate::message::group::UNDER_FIFTY),
+        SplitRefusal::GarrisonFull(_) => Some(crate::message::group::GARRISON_FULL),
+        _ => None,
+    }
+}
 use crate::widget;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -139,6 +149,9 @@ impl DivideScreen {
             }
             Err(no) => {
                 self.outcome = Divided::Refused;
+                if let Some(g) = split_scroll(no) {
+                    crate::message::tell_player(ctx.game, g);
+                }
                 self.status = match no {
                     SplitRefusal::NotAnArmy => "THAT IS NOT YOUR ARMY".into(),
                     SplitRefusal::AlreadyMoved => "IT HAS ALREADY MARCHED THIS SEASON".into(),

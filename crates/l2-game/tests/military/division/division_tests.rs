@@ -157,6 +157,9 @@ fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
 
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "the panel closes either way");
     assert!(g.kingdom.campaign.units.get(id).is_some(), "and the army is still there");
+    // `Panel_DisbandButton` `00430000.c:4084`; ablate its `tell_player` and this fails.
+    g.messages.pull();
+    assert_eq!(g.messages.open().map(|r| r.group), Some(0x91), "scroll 145 says why");
 }
 
 #[test]

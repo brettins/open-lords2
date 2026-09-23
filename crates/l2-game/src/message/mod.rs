@@ -116,6 +116,26 @@ pub mod group {
     pub const FOILED_AGAIN: u16 = 0xC2;
     /// `0x70` — `L2.eng` 112, *"No right of rule!!"*.
     pub const NO_RIGHT_OF_RULE: u16 = 0x70;
+    /// `0x93` — `L2.eng` 147; `CastleBuild_Confirm` 0x00436B59, same type.
+    pub const CASTLE_ALREADY: u16 = 0x93;
+    /// `0x122` — `L2.eng` 290; `CastleBuild_Confirm` 0x00436B59, smaller type.
+    pub const CASTLE_STRONGER: u16 = 0x122;
+    /// `0x91` — `L2.eng` 145; `Panel_DisbandButton` 0x0043733A.
+    pub const CANNOT_DISBAND: u16 = 0x91;
+    /// `0x94` — `L2.eng` 148; `Army_RaiseConfirm`, `Army_SplitConfirm` 0x00437AFB.
+    pub const UNDER_FIFTY: u16 = 0x94;
+    /// `0xA8` — `L2.eng` 168; `Army_RaiseConfirm`, a levy of zero.
+    pub const ZERO_MEN: u16 = 0xA8;
+    /// `0xDD` — `L2.eng` 221; `Army_RaiseConfirm`, `Army_Create` returned 0.
+    pub const NOWHERE_TO_STAND: u16 = 0xDD;
+    /// `0x11A` — `L2.eng` 282; `Army_SplitConfirm` 0x00437AFB, over the garrison cap.
+    pub const GARRISON_FULL: u16 = 0x11A;
+}
+
+/// `Msg_Enqueue(0, g_localPlayer, group, 0, '\0', '\0', '\0', 0)`.
+pub fn tell_player(game: &mut crate::Game, group: u16) {
+    let player = game.player;
+    game.messages.enqueue(Record { to: player, group, ..Default::default() }, player);
 }
 
 /// The message categories, `Msg_Enqueue`'s `+0x11` byte, as `Msg_DrawWindow`
