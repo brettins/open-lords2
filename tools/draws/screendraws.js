@@ -61,6 +61,7 @@
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
+const WR = require('./wrappers.js');
 
 // ---------------------------------------------------------------- the corpus
 //
@@ -316,6 +317,11 @@ function splitArgs(s) {
 function lookup(n) {
   return byName.get(n) || byAddr.get(String(n).replace(/^(FUN_|0x)/, '').toLowerCase().padStart(8, '0'));
 }
+// A leaf is its address: add the corpus's spelling of each, so a symbols.json
+// rename (FUN_00403cf4 -> Ui_DrawRectOutline) or a case variant still matches.
+for (const set of [LEAF, NOT_A_DRAW]) {
+  for (const n of [...set]) { const fn = lookup(n); if (fn) set.add(fn.name); }
+}
 (function seedSubstrate() {
   const q = [...SUBSTRATE_ROOTS];
   while (q.length) {
@@ -413,6 +419,11 @@ const OURS = new Map(Object.entries({
   increase_button: 'Widget_Draw, frame 68',
   decrease_button: 'Widget_Draw, frame 66',
   strip_hotspot: 'a county-strip row',
+  fill_rect: 'FUN_0040437D, a filled rectangle',
+  blit: 'Pl8_DrawFrame, a raw sheet blit',
+  blit_opaque: 'Pl8_DrawFrame, opaque',
+  blit_clipped: 'Pl8_DrawFrameClipped',
+  blit_raster: 'Blit_Raster',
   background: 'the .256 plate',
   palette: 'the .256 palette',
 }));
@@ -461,20 +472,53 @@ const REAL_EXTRA = /\b[a-z_0-9]+\.(draw|draw_centred|draw_right|draw_system|draw
 // belongs in the record's `literals_ours` with a reason.
 const LITERAL = /\b(text::draw|text::draw_centred|text::draw_right|widget::button|widget::label)\s*\([^;]*?"([A-Za-z][^"]*)"/g;
 
-function ourKinds(moduleFile) {
+// Every mark on one source line: [{name, kind}], kind 'real' or 'placeholder'.
+function marksOn(l) {
+  if (/^\s*(\/\/|\/\*|\*)/.test(l)) return [];
+  const out = [];
+  let m;
+  OURS_CALL.lastIndex = 0;
+  while ((m = OURS_CALL.exec(l))) if (!NOT_OURS.has(m[1]) && OURS.has(m[1])) out.push({ name: m[1], kind: 'real' });
+  REAL_EXTRA.lastIndex = 0; while ((m = REAL_EXTRA.exec(l))) out.push({ name: m[1], kind: 'real', extra: true });
+  PLACEHOLDER.lastIndex = 0; while ((m = PLACEHOLDER.exec(l))) out.push({ name: m[1], kind: 'placeholder', extra: true });
+  return out;
+}
+
+// A module's sources with its one-draw helpers resolved (tools/draws/wrappers.js):
+// a helper's body marks are dropped and each call site counts as one mark of its kind.
+function moduleMarks(moduleFile) {
   const files = moduleFiles(moduleFile);
   if (!files) return null;
-  let real = 0, placeholder = 0;
+  const sources = files.map(f => ({ file: f.file, lines: fs.readFileSync(f.path, 'utf8').split(/\r?\n/) }));
+  const hs = WR.helpers(sources, marksOn);
+  const calls = WR.helperCalls(sources, hs);
+  for (const n of [...hs.keys()]) if (!calls.some(c => c.name === n)) hs.delete(n);
+  const marks = [];
+  for (const { file, lines } of sources) {
+    lines.forEach((l, i) => {
+      if (WR.inHelper(hs, file, i)) return;
+      for (const k of marksOn(l)) marks.push({ file, line: i + 1, text: l.trim(), ...k });
+    });
+  }
+  for (const c of calls) {
+    if (!hs.has(c.name)) continue;
+    const h = hs.get(c.name), body = sources.find(s => s.file === h.file).lines.slice(h.from, h.to + 1);
+    const kind = body.some(b => marksOn(b).some(k => k.kind === 'real')) ? 'real' : 'placeholder';
+    marks.push({ ...c, kind, helper: true });
+  }
+  return { sources, marks, helpers: hs };
+}
+
+function ourKinds(moduleFile) {
+  const mm = moduleMarks(moduleFile);
+  if (!mm) return null;
+  const real = mm.marks.filter(k => k.kind === 'real').length;
+  const placeholder = mm.marks.length - real;
   const literals = [];
-  for (const { file, path: p } of files) {
-    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
+  for (const { file, lines } of mm.sources) {
+    lines.forEach((l, i) => {
       if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;
-      let m;
-      OURS_CALL.lastIndex = 0;
-      while ((m = OURS_CALL.exec(l))) if (!NOT_OURS.has(m[1]) && OURS.has(m[1])) real++;
-      REAL_EXTRA.lastIndex = 0; while (REAL_EXTRA.exec(l)) real++;
-      PLACEHOLDER.lastIndex = 0; while (PLACEHOLDER.exec(l)) placeholder++;
-      LITERAL.lastIndex = 0;
+      let m; LITERAL.lastIndex = 0;
       while ((m = LITERAL.exec(l))) literals.push({ file, line: i + 1, text: m[2] });
     });
   }
@@ -509,20 +553,10 @@ function moduleFiles(mod) {
 
 const OURS_CALL = /\b[a-z_][a-z_0-9]*\.([a-z_][a-z_0-9]*)\s*\(/g;
 function ourSites(moduleFile) {
-  const files = moduleFiles(moduleFile);
-  if (!files) return null;
-  const sites = [];
-  for (const { file, path: p } of files) {
-    fs.readFileSync(p, 'utf8').split(/\r?\n/).forEach((l, i) => {
-      if (/^\s*(\/\/|\/\*|\*)/.test(l)) return;   // a comment, including `//!` docs
-      let m; OURS_CALL.lastIndex = 0;
-      while ((m = OURS_CALL.exec(l))) {
-        if (NOT_OURS.has(m[1])) continue;
-        if (OURS.has(m[1])) sites.push({ file, line: i + 1, name: m[1], text: l.trim() });
-      }
-    });
-  }
-  return sites;
+  const mm = moduleMarks(moduleFile);
+  if (!mm) return null;
+  return mm.marks.filter(k => !k.extra)
+    .map(({ file, line, name, text, helper }) => ({ file, line, name, text, helper }));
 }
 
 // ---------------------------------------------------------------- the inventory
@@ -704,7 +738,7 @@ function allModules() {
     .map(e => e.name);
 }
 module.exports = {
-  originalSites, ourSites, ourKinds, allModules, moduleFiles, inventory, OURS, LEAF,
+  originalSites, ourSites, ourKinds, allModules, marksOn, moduleMarks, moduleFiles, inventory, OURS, LEAF,
   balanced, splitArgs, corpusLoaded: () => byName.size > 0,
 };
 
