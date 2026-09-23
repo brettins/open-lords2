@@ -325,7 +325,8 @@ pub fn build(layer: &[u8], seed: u32) -> Battlefield {
 
     bridge_pass(&mut cells);
 
-    Battlefield { cells, deploy_side0, deploy_side4, home_side0, home_side4 }
+    let (enemy_end, rally) = tables_at_homes(home_side0, home_side4);
+    Battlefield { cells, deploy_side0, deploy_side4, home_side0, home_side4, enemy_end, rally }
 }
 
 /// **The third pass of both open-field builders** — `Battlefield_BuildFromSkr`

@@ -22,7 +22,7 @@ fn r_on_the_map_opens_the_raise_army_screen_for_the_selected_county() {
     press(&mut m, &mut g, &a, 'r');
     assert_eq!(m.top_id(), Some(ScreenId::RaiseArmy(1)));
 
-    send(&mut m, &mut g, &a, Event::KeyDown(Key::Escape));
+    let (mut g, a, mut m) = on_the_map();
     g.selected = 2;
     press(&mut m, &mut g, &a, 'r');
     assert_eq!(m.top_id(), Some(ScreenId::Campaign), "county 2 is not yours");

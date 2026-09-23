@@ -73,7 +73,6 @@ impl Screen for RaiseArmyScreen {
             // gold is spent until *Create* on the armoury.
             //
             // arm: 0x0042FF10/levy-right-commits right-release
-            Event::KeyDown(Key::Escape) => Transition::Pop,
             Event::RightClick { x, y } => {
                 if self.left_down && self.slider_click(ctx, x, y, false, true) {
                     return Transition::Stay;

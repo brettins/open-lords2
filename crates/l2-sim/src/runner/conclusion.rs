@@ -25,6 +25,14 @@ pub fn ai_field_for(field: &Battlefield) -> AiField {
         (field.home_side0.0 as i16, field.home_side0.1 as i16),
         (field.home_side4.0 as i16, field.home_side4.1 as i16),
     );
+    let wide = |(x, y): (u8, u8)| (i16::from(x), i16::from(y));
+    for (to, from) in f.enemy_end.iter_mut().flatten().zip(field.enemy_end.iter().flatten()) {
+        *to = wide(*from);
+    }
+    let rally = field.rally.iter().flatten().flatten();
+    for (to, from) in f.rally.iter_mut().flatten().flatten().zip(rally) {
+        *to = wide(*from);
+    }
     f.surface = field.cells.iter().map(|c| c.surface).collect();
     f.elevation = field.cells.iter().map(|c| c.elevation).collect();
     f

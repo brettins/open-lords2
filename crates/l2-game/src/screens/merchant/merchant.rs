@@ -148,7 +148,7 @@ impl Screen for MerchantScreen {
 /// down.
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
+            Event::RightClick { .. } => Transition::Pop,
             Event::Pointer { x, y } => {
                 self.hover = self.pick(&Ctx { game: ctx.game, assets: ctx.assets }, x, y)
                     .map_or(0, |g| g.id());

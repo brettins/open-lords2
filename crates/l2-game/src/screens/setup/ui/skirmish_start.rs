@@ -122,7 +122,7 @@ impl SetupScreen {
         // `Siege_LowerDrawbridge` (`0x00496B9F`) reads `DAT_004D4B18[row]` under the
         // skirmish flag, and nothing in the siege reads `DAT_0057C910`.
         let level = self.skirmish.castle_level();
-        let runner = match level {
+        let mut runner = match level {
             Some(level) => match crate::castle::sheet(level) {
                 Some(sheet) => BattleRunner::deploy_siege_on_sheet(
                     l2_sim::castle::build(level, sheet),
@@ -151,11 +151,13 @@ impl SetupScreen {
                 def,
             ),
         };
+        // `DAT_0057A0F0`: Battle_CheckOutcome's failed-assault arm reads `0x004D4A58`.
+        runner.siege.skirmish = true;
         // `FUN_0042C5AD` (`0x0042C5AD`), the statement before `Battle_Start`
         // in `FUN_0043D5B7`: the two musters are copied into the records the
         // ratings sheet reads as *Before*.
         let local_side =
-            if self.skirmish.local_attacks { l2_sim::SIDE_A } else { l2_sim::SIDE_B };
+            if self.skirmish.local_defends { l2_sim::SIDE_A } else { l2_sim::SIDE_B };
         ctx.game.battle_master.seed_defaults(&ctx.assets.shell);
         ctx.game.battle_master.begin(
             (local, foe),

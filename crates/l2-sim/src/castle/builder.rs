@@ -135,6 +135,8 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
         deploy_side4: [(0, 0); 12],
         home_side0: (0, 0),
         home_side4: (0, 0),
+        enemy_end: Default::default(),
+        rally: Default::default(),
     };
     let t = tables(sheet);
     let clamp = |(x, y): (i16, i16)| {
@@ -147,7 +149,9 @@ pub fn build(level: u8, sheet: &CastleSheet) -> Battlefield {
     field.home_side0 = field.deploy_side0[0];
     field.home_side4 = field.deploy_side4[0];
     let _ = objective;
-    field
+    // [D] no castle builder writes DAT_00544050/00544070/g_rallyWaypoints: the original keeps the
+    // last field battle's tables (Battlefield_BuildRandom 00470000.c:4672-4727); ours places them at home.
+    field.with_home_tables()
 }
 
 /// **The besieger's ram-escort coin** — `Battlefield_BuildCastle`

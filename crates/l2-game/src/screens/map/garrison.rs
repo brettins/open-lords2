@@ -1,24 +1,135 @@
-//! The map's two move-order questions on screen 0x1E: Map_ConfirmMoveOrder 0x004A9252.
+//! The map's move-order questions on screen 0x1E: Map_ConfirmMoveOrder 0x004A9252.
 
 use l2_kingdom::industry::garrison_cap;
 use l2_kingdom::map::{self, flags, terrain};
-use l2_kingdom::unit::CombineRefusal;
+use l2_kingdom::unit::{CombineRefusal, UnitKind};
 
 use crate::screen::{Ctx, Transition};
 use crate::screens::confirm::Ask;
 
-/// Map_HoverUnitTarget: `flags & 0x80 && content > 0x14 && county.owner == unit.owner`
-/// (`004a0000.c:3759`); all prompts cleared when the moves left fall short (`:3778`).
-/// Map_HoverUnitTarget 0x004A8E0B: flags&0x80, content>0x14, owner, moves left.
-pub(crate) fn garrison_ask(ctx: &Ctx, unit: usize, dest: (u8, u8), dist: usize) -> Option<Ask> {
-    let u = ctx.game.kingdom.campaign.units.get(unit)?;
+/// Map_HoverUnitTarget 0x004A8E0B's six targets for `dest`; 0 is none, as in the original.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Hover {
+    pub village: u8,
+    pub field: u8,
+    pub town: u8,
+    pub merge: usize,
+    pub garrison: u8,
+    pub siege: u8,
+}
+
+/// Map_HoverUnitTarget 0x004A8E0B `004a0000.c:3744-3786`: each test reads the target tile only.
+pub(crate) fn hover(ctx: &Ctx, unit: usize, dest: (u8, u8), dist: usize) -> Hover {
+    let mut h = Hover::default();
+    let units = &ctx.game.kingdom.campaign.units;
+    let Some(u) = units.get(unit) else { return h };
     let m = &ctx.game.kingdom.campaign.map;
     let tile = map::index(dest.0, dest.1);
-    let castle = m.flags[tile] & flags::SETTLEMENT != 0 && m.terrain[tile] > terrain::CASTLE_PLOT;
-    let county = m.county[tile];
-    let owner = ctx.game.kingdom.counties.get(county as usize)?.owner;
-    let reach = dist <= u.moves_left().max(0) as usize;
-    (castle && owner == u.owner && reach).then_some(Ask::Garrison { unit, county, dest })
+    let (f, content, county) = (m.flags[tile], m.terrain[tile], m.county[tile]);
+    let owner = ctx.game.kingdom.counties.get(county as usize).map(|c| c.owner);
+    let foreign = owner != Some(u.owner);
+    if f & flags::CASTLE != 0 && foreign {
+        h.town = county; // `:3745` g_hoverCountyTownCounty
+    }
+    if f & flags::PLOT != 0 && foreign {
+        h.village = county; // `:3749`
+    }
+    // `:3753` County_TileIsField 0x00469E0E: `1 < content < 0x17`.
+    if f & flags::FARMLAND != 0 && (2..0x17).contains(&content) && foreign {
+        h.field = county;
+    }
+    // `:3759`: `uVar1 = uVar3` makes a foreign castle the siege county.
+    if f & flags::SETTLEMENT != 0 && content > terrain::CASTLE_PLOT {
+        if foreign {
+            h.siege = county;
+        } else {
+            h.garrison = county;
+        }
+    }
+    // `:3767`: the tile's unit, g_localPlayer's, not the mover, kind != 4.
+    if let Some(o) = units.at(dest.0, dest.1) {
+        let mine = units
+            .get(o)
+            .is_some_and(|w| w.owner == ctx.game.player && w.kind != UnitKind::Transport);
+        if o != unit && mine {
+            h.merge = o;
+        }
+    }
+    // `:3778`: all six cleared when the moves left fall short.
+    if (u.moves_left().max(0) as usize) < dist {
+        return Hover::default();
+    }
+    h
+}
+
+/// Map_ConfirmMoveOrder 0x004A9252 `004a0000.c:3845-3869`: the first rung set picks the question.
+pub(crate) fn pick(h: Hover, unit: usize, dest: (u8, u8)) -> Option<Ask> {
+    let town = h.town;
+    if h.village != 0 {
+        Some(Ask::Slaughter { unit, dest, town }) // `:3869` Ui_OpenConfirm(4, …, MoveOrder_Confirm)
+    } else if h.field != 0 {
+        Some(Ask::DestroyField { unit, dest, town }) // `:3865` Ui_OpenConfirm(10, …)
+    } else if h.merge != 0 {
+        None // [D] C226: 10/5 is asked on contact (turn/engine/tick.rs ask_combine).
+    } else if h.garrison != 0 {
+        Some(Ask::Garrison { unit, county: h.garrison, dest })
+    } else if h.siege != 0 {
+        Some(Ask::Siege { unit, county: h.siege, dest })
+    } else {
+        None
+    }
+}
+
+/// MoveOrder_Confirm 0x004A983B `004a0000.c:4031`: a county town whose castle holds a garrison
+/// refuses with 0x11E, ahead of the answer; `true` when it refused.
+pub(crate) fn town_refusal(ctx: &mut Ctx, town: u8) -> bool {
+    let held = town != 0
+        && ctx.game.kingdom.counties.get(town as usize).is_some_and(|c| c.garrison_unit != 0);
+    if held {
+        let player = ctx.game.player;
+        notice(ctx, player, 0x11E);
+    }
+    held
+}
+
+/// MoveOrder_Confirm 0x004A983B, the yes of 10/4 and 10/10: `Unit_OrderMove(…, 0)` (`:4034`).
+pub(crate) fn answer_move(
+    ctx: &mut Ctx,
+    yes: bool,
+    unit: usize,
+    dest: (u8, u8),
+    town: u8,
+) -> Transition {
+    if !town_refusal(ctx, town) && yes {
+        ctx.issue(crate::command::MoveUnit { unit, dest });
+    }
+    Transition::Pop
+}
+
+/// MoveOrder_ConfirmSiege 0x004A960F `004a0000.c:3956-3976`.
+pub(crate) fn answer_siege(
+    ctx: &mut Ctx,
+    yes: bool,
+    unit: usize,
+    county: u8,
+    dest: (u8, u8),
+) -> Transition {
+    if !yes {
+        return Transition::Pop;
+    }
+    let Some(c) = ctx.game.kingdom.counties.get(county as usize) else { return Transition::Pop };
+    let (keep, degraded) = (c.garrison_unit, c.castle_degraded);
+    let besieged = keep != 0
+        && ctx.game.kingdom.campaign.units.get(keep).is_some_and(|g| g.besieged_by != 0);
+    let player = ctx.game.player;
+    if besieged {
+        notice(ctx, player, 0x113); // `:3975`
+    } else if keep == 0 {
+        notice(ctx, player, if degraded == 0 { 0x11D } else { 0x11C }); // `:3961`/`:3964`
+    } else {
+        ctx.issue(crate::command::MoveUnit { unit, dest }); // `:3968`
+    }
+    Transition::Pop
 }
 
 /// Map_HoverUnitTarget's `local_8` (`004a0000.c:3729`): g_moveDistLocal at the target, and past

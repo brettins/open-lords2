@@ -96,17 +96,17 @@ fn the_handicap_seesaws_between_one_and_three() {
 fn swapping_sides_swaps_which_half_of_the_table_is_ours() {
     let (mut game, assets) = world!();
     let mut s = page12(&mut game, &assets);
-    assert!(s.skirmish().local_attacks, "DAT_0053EF5C = 1 and realm 1 is the player");
-    assert_eq!(s.skirmish().slots(), (2, 1), "attacking, the player is record 2");
+    assert!(s.skirmish().local_defends, "DAT_0053EF5C = 1 and realm 1 is the player");
+    assert_eq!(s.skirmish().slots(), (2, 1), "defending, the player is record 2");
     let before = s.skirmish().fill_armies(&table()).0;
     click(&mut s, &mut game, &assets, 90, 280);
-    assert!(!s.skirmish().local_attacks);
+    assert!(!s.skirmish().local_defends);
     let after = s.skirmish().fill_armies(&table()).0;
-    assert_eq!(before.counts[0] - after.counts[0], 10, "the attacker's half is side 1");
+    assert_eq!(before.counts[0] - after.counts[0], 10, "the defender's half is side 1");
     // `00420000.c:4665-4673`: `DAT_0053EF5C == g_localPlayer` gives the local
     // player record 2 and the opponent record 1; the other branch is the
     // other way round.
-    assert_eq!(s.skirmish().slots(), (1, 2), "defending, the player is record 1");
+    assert_eq!(s.skirmish().slots(), (1, 2), "attacking, the player is record 1");
 }
 
 #[test]

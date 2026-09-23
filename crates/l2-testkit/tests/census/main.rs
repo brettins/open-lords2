@@ -222,7 +222,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-game/tests/seam/battle.rs", "fixture", 2),
     ("crates/l2-game/tests/seam/conquest_part.rs", "fixture", 1),
     ("crates/l2-game/tests/seam/no_orders.rs", "fixture", 1),
-    ("crates/l2-game/tests/seam/no_orders_field.rs", "fixture", 1),
+    ("crates/l2-game/tests/seam/no_orders_field.rs", "fixture", 2),
     ("crates/l2-game/tests/seam/realm.rs", "fixture", 1),
     ("crates/l2-game/tests/setup/held_tests.rs", "england", 6),
     ("crates/l2-game/tests/setup/setup_tests.rs", "england", 7),
@@ -306,7 +306,7 @@ const INVENTORY: &[(&str, &str, usize)] = &[
     ("crates/l2-view/tests/install/render/ui.rs", "install", 4),
 ];
 
-pub(crate) const GATED_TOTAL: usize = 684;
+pub(crate) const GATED_TOTAL: usize = 685;
 
 const NEEDLES: &[(&str, Gate)] = &[
     ("england!(", Gate::England),

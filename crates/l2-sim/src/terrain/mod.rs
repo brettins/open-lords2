@@ -99,9 +99,29 @@ pub struct Battlefield {
     pub deploy_side4: [(u8, u8); 12],
     pub home_side0: (u8, u8),
     pub home_side4: (u8, u8),
+    /// `DAT_00544050` / `DAT_00544070`, `[side][slot]`, read by
+    /// `BattleUnit_OrderToEnemyEnd` (`0x0048B9C1`). **[V]**
+    pub enemy_end: [[(u8, u8); 4]; 2],
+    /// `g_rallyWaypoints` / `DAT_00522D60`, `[side][group][index]`, read by
+    /// `Order_ToRallyWaypoint` (`0x0048BAC4`). **[V]**
+    pub rally: [[[(u8, u8); 3]; 2]; 2],
+}
+
+pub type MarkerTables = ([[(u8, u8); 4]; 2], [[[(u8, u8); 3]; 2]; 2]);
+
+/// `Battlefield_BuildFromSkr` 0x0047B8B2 00470000.c:4940-4951, :4971-4982: every
+/// enemy-end slot on the other side's marker tile, every rally waypoint on
+/// the side's own. **[V]**
+pub fn tables_at_homes(home_side0: (u8, u8), home_side4: (u8, u8)) -> MarkerTables {
+    ([[home_side4; 4], [home_side0; 4]], [[[home_side0; 3]; 2], [[home_side4; 3]; 2]])
 }
 
 impl Battlefield {
+    pub fn with_home_tables(mut self) -> Self {
+        (self.enemy_end, self.rally) = tables_at_homes(self.home_side0, self.home_side4);
+        self
+    }
+
     #[inline]
     pub fn at(&self, x: usize, y: usize) -> Cell {
         self.cells[y * DIM + x]

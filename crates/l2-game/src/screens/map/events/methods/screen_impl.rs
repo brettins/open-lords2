@@ -36,11 +36,7 @@ impl Screen for MapScreen {
             // 3) Menu_Quit(); else g_quitRequest = 1;` — inside a game the key
             // *is* File > Quit, which is `Ui_OpenConfirm(0, …)`, and not a way
             // out on its own. Ours used to pop straight off the map.
-            //
-            // arm: 0x004B29BE/escape-quits-outside-the-game key
-            Event::KeyDown(Key::Escape) => {
-                return Transition::Push(ScreenId::Confirm(confirm::Ask::Quit))
-            }
+            // Taken in Machine::handle for every in-game screen.
             Event::KeyDown(Key::Enter) => {
                 if ctx.game.selected != 0 {
                     return Transition::Push(ScreenId::County(

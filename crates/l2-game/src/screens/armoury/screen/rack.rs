@@ -79,7 +79,7 @@ impl Screen for RackScreen {
         match event {
             // Both ways out go back to the armoury: `g_screenId = 0x0A;
             // FUN_004180F6()`.
-            Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
+            Event::RightClick { .. } => Transition::Pop,
             Event::KeyDown(Key::Right) => {
                 self.press(ctx, Button::EquipOne);
                 Transition::Stay

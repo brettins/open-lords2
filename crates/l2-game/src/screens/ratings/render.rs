@@ -43,8 +43,6 @@ impl Screen for RatingsScreen {
             }
             // arm: 0x0042FF10/ratings-any-press left-press
             Event::Click { .. } | Event::RightClick { .. } => Transition::Replace(ScreenId::Rank),
-            // arm: ours/ratings-keyboard-close key
-            Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
             _ => Transition::Stay,
         }
     }

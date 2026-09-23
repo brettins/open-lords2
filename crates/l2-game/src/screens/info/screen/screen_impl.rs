@@ -57,8 +57,6 @@ impl Screen for InfoScreen {
             return match event {
                 // arm: 0x0042FF10/info-right-close right-release
                 Event::RightClick { .. } => Transition::Pop,
-                // arm: ours/info-keyboard-close key
-                Event::KeyDown(Key::Escape) | Event::KeyDown(Key::Enter) => Transition::Pop,
                 // ```c
                 // if (Map_EdgeScroll()) { g_screenId = 0; FUN_0043CC56(); }
                 // ```

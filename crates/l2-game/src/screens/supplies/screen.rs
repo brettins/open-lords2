@@ -121,8 +121,6 @@ impl Screen for SuppliesScreen {
             return match event {
                 // arm: 0x0042FF10/supplies-right right-release
                 Event::RightClick { .. } => Transition::Pop,
-                // arm: ours/supplies-keyboard-close key
-                Event::KeyDown(Key::Escape) => Transition::Pop,
                 Event::Release { .. } | Event::Pointer { .. } | Event::PointerLeft => {
                     let fired = self.press.event(&widgets(), event);
                     debug_assert!(fired.is_none(), "no supplies widget is a release widget");

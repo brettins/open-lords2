@@ -88,16 +88,6 @@ impl Screen for VillageScreen {
                 }
                 return Transition::Pop;
             }
-            // arm: ours/village-keyboard key
-            Event::KeyDown(Key::Escape) => {
-                if self.phase == Phase::Idle {
-                    return Transition::Pop;
-                }
-                self.clear_drag();
-                self.pending_click = None;
-                self.status = "CANCELLED".into();
-            }
-            Event::KeyDown(Key::Enter) => return Transition::Pop,
             Event::Pointer { x, y } => {
                 self.pointer = (x, y);
                 if self.phase == Phase::Band {

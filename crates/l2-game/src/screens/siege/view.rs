@@ -85,8 +85,6 @@ impl Screen for SiegeScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         match event {
-            Event::KeyDown(Key::Escape) => self.lift(ctx),
-            Event::KeyDown(Key::Enter) => self.proceed(ctx),
             Event::Click { x, y } => {
                 if LIFT.contains(x, y) {
                     return self.lift(ctx);

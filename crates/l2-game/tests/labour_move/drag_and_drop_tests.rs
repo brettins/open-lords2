@@ -206,7 +206,7 @@ fn the_split_a_player_drags_is_the_split_the_season_deals_back() {
     let dragged = c.labour_share;
     let grain_after_drop = c.labour[0];
 
-    handle(&mut m, &mut game, &assets, Event::KeyDown(Key::Escape));
+    handle(&mut m, &mut game, &assets, Event::RightClick { x: 1, y: 1 });
     assert_eq!(m.ids(), vec![ScreenId::Campaign]);
     end_turn(&mut m, &mut game, &assets);
 

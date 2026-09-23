@@ -73,16 +73,11 @@ pub struct AiField {
 }
 
 impl AiField {
-    /// **[V]**, and it decides how a field battle opens. `Battlefield_BuildRandom`
-    /// writes `g_rallyWaypoints[i] = g_foundTileX` for `i` in `0..3`, for **both**
-    /// rally groups, out of the same tile it just read the deployment marker
-    /// from — in the terrain-`0x14` arm and again in the terrain-`0x1E` one. So
-    /// `Order_ToRallyWaypoint` sends a unit to where it already is, and the
-    /// cautious branch of `UnitOrder_FieldFoot` / `UnitOrder_FieldMelee` — the
-    /// branch every handler takes while `g_aiStrengthAdvantage` is under 5 — has
-    /// no way to advance at all. **An outnumbered AI stands on its marker and
-    /// waits**, and a player who gives no orders gets a battle in which nothing
-    /// happens. `docs/decisions.md` C186.
+    /// **[V]** `Battlefield_BuildFromSkr 0x0047B8B2`'s tables (00470000.c:4940-4951,
+    /// :4971-4982): rally waypoints on the side's own marker, enemy ends on the
+    /// other's. A `batfield.pl8` field reads its marker blocks instead
+    /// ([`crate::terrain::build_field`]; `ai_field_for` copies them).
+    /// `docs/decisions.md` C186.
     pub fn field(home_side0: (i16, i16), home_side4: (i16, i16)) -> Self {
         let mut f = AiField {
             rally: [[[(0, 0); 3]; 2]; 2],
@@ -106,11 +101,7 @@ impl AiField {
                 f.rally[1][group][i] = home_side4;
             }
         }
-        for slot in 0..4 {
-            let spread = slot as i16 * 2 - 3;
-            f.enemy_end[0][slot] = (home_side4.0 + spread, home_side4.1);
-            f.enemy_end[1][slot] = (home_side0.0 + spread, home_side0.1);
-        }
+        f.enemy_end = [[home_side4; 4], [home_side0; 4]];
         f
     }
 

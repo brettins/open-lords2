@@ -145,8 +145,6 @@ impl Screen for DropdownScreen {
             // `if (FUN_0040DD92(...) == 0 && g_mouseRightReleased) FUN_0040DF62();`
             // arm: 0x0042FF10/dropdown-right-close right-release
             Event::RightClick { .. } => return Transition::Pop,
-            // arm: ours/dropdown-escape-closes key
-            Event::KeyDown(Key::Escape) => return Transition::Pop,
             _ => {}
         }
         Transition::Stay
