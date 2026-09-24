@@ -16,6 +16,9 @@ impl Machine {
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
         self.trace_screen(ctx.game);
+        // Battle_Frame 004b0000.c:6707 ticksDue before the ticks (6940), Tip_Update and
+        // Msg_Pump (6783-6784) after them: a tip posted this frame withholds the next [V].
+        let withheld = self.ticks_withheld(ctx.game);
         self.run_tips(ctx);
         self.pump_messages(ctx);
         // `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at `0x004BA187`, in
@@ -34,7 +37,7 @@ impl Machine {
             self.dirty |= crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen);
             self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);
         }
-        if self.join_battle(ctx) || self.wind_turn(ctx) {
+        if self.join_battle(ctx) || self.wind_turn(ctx, withheld) {
             self.run_tooltips(ctx);
             return;
         }
@@ -104,12 +107,15 @@ impl Machine {
         true
     }
 
-    fn wind_turn(&mut self, ctx: &mut Ctx) -> bool {
-        // FUN_004BB978 0x004BB978: no ticks under DAT_004E31B0[g_screenId] or a letter
+    /// FUN_004BB978 0x004BB978: no ticks under DAT_004E31B0[g_screenId] or a letter.
+    fn ticks_withheld(&self, game: &crate::Game) -> bool {
         let byte = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message).and_then(|s| {
             s.mode_screen_id().or_else(|| crate::turn_clock::screen_byte(s.id()))
         });
-        let withheld = tick_gate::withheld(byte, ctx.game.messages.is_open(), ctx.game.multiplayer);
+        tick_gate::withheld(byte, game.messages.is_open(), game.multiplayer)
+    }
+
+    fn wind_turn(&mut self, ctx: &mut Ctx, withheld: bool) -> bool {
         // Battle_Frame 004b0000.c:6711 Season_FinishFade() sits after the tick loop: the fade
         // finishes whatever FUN_004BB978 returns.
         let fading = self.stack.iter().any(|s| s.id() == ScreenId::Campaign && s.fade().is_some());

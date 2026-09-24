@@ -54,6 +54,18 @@ mod tests {
         assert_eq!(m.tick(true).advanced_to, Some(Phase::SupplyTransports));
     }
 
+    // Ablation: `PhaseWait::Units(_) => settled && !started` (phase/mod.rs) fails this.
+    #[test]
+    fn phases_three_five_and_six_end_on_their_first_call_when_nothing_moves() {
+        // Turn_Tick 0x0049A010 00490000.c:4776-4781; trace endturn-england 3 -> 4 one frame.
+        for phase in [Phase::SupplyTransports, Phase::PeasantMobs, Phase::Merchants] {
+            let mut m = TurnMachine { phase, step: 0, ..TurnMachine::new() };
+            let first = m.tick(true);
+            assert!(first.started);
+            assert_eq!(first.advanced_to, Some(phase.next()), "{phase:?}");
+        }
+    }
+
     #[test]
     fn a_unit_phase_waits_indefinitely_while_units_are_moving() {
         let mut m = TurnMachine { phase: Phase::Merchants, step: 0, ..TurnMachine::new() };

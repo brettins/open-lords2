@@ -279,6 +279,8 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
                 let phase = game.kingdom.turn.phase;
                 if game.kingdom.turn.step == 0 {
                     begin_phase(game, phase);
+                } else if game.kingdom.turn.step == 1 && phase == Phase::NeutralCounties {
+                    neutral_fields(game);
                 }
             }
             Stage::Phase => {

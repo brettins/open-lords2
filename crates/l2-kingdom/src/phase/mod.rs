@@ -142,9 +142,10 @@ impl TurnMachine {
 
         let done = match phase.wait() {
             PhaseWait::Steps(n) => step + 1 >= n,
-            PhaseWait::Units(_) | PhaseWait::AllRealmsDone | PhaseWait::Sieges => {
-                settled && !started
-            }
+            // Turn_Tick 0x0049A010 00490000.c:4776-4781: phases 3, 5, 6 launch at step 1 and
+            // test Units_AnyMovingOfKind in the same call [V].
+            PhaseWait::Units(_) => settled,
+            PhaseWait::AllRealmsDone | PhaseWait::Sieges => settled && !started,
             PhaseWait::Immediate => true,
         };
 

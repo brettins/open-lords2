@@ -57,20 +57,8 @@ pub(super) fn begin_phase(game: &mut Game, phase: Phase) {
                 p.siege = Some(phase);
             }
         }
-        Phase::NeutralCounties => {
-            game.kingdom.run_ai_tax_rates(0);
-            // > It used to pass `l2_kingdom::ai_farm::NoMarket`, with the
-            // > reason written at the type: *"
-            // > style's opening shopping cascade is refused and the county
-            // > farms what it already has."* **The stated reason was false and
-            // > nothing had checked it.** `Ai_BuyGood`'s stall gate is county
-            // > `+0x1A4`, which every fixture carries non-zero wherever a
-            // > merchant is standing, and its purse is `+0x1F4`, which they
-            // > carry at 186 … 436. The behavioural differential put a number
-            // > on the refusal: **50 sacks of grain, per unowned county, per
-            // > season, for ever.** `docs/decisions.md` C149.
-            game.kingdom.run_neutral_farms_at_the_stall();
-        }
+        // Turn_Tick 0x0049A010 00490000.c:4755-4757: step 1 is AI_SetTaxRates(0) alone [V].
+        Phase::NeutralCounties => game.kingdom.run_ai_tax_rates(0),
         Phase::PlayersTurn => {
             if !game.kingdom.turn.players_turn_open {
                 // Headless only: an unopened phase 4 is a new game's or the wind-on's own.
@@ -81,5 +69,20 @@ pub(super) fn begin_phase(game: &mut Game, phase: Phase) {
         }
         _ => {}
     }
+}
+
+/// Turn_Tick 0x0049A010 00490000.c:4758-4759: phase 1's step 2, `AI_ManageFields(0)` [V].
+pub(super) fn neutral_fields(game: &mut Game) {
+    // > It used to pass `l2_kingdom::ai_farm::NoMarket`, with the
+    // > reason written at the type: *"
+    // > style's opening shopping cascade is refused and the county
+    // > farms what it already has."* **The stated reason was false and
+    // > nothing had checked it.** `Ai_BuyGood`'s stall gate is county
+    // > `+0x1A4`, which every fixture carries non-zero wherever a
+    // > merchant is standing, and its purse is `+0x1F4`, which they
+    // > carry at 186 … 436. The behavioural differential put a number
+    // > on the refusal: **50 sacks of grain, per unowned county, per
+    // > season, for ever.** `docs/decisions.md` C149.
+    game.kingdom.run_neutral_farms_at_the_stall();
 }
 
