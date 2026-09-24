@@ -80,8 +80,14 @@ fn in_table(c: char) -> bool {
 
 impl Font {
     pub fn new(bytes: Vec<u8>, line: i32) -> Result<Font, String> {
+        let heights = l2_formats::Pl8::parse(&bytes)
+            .map_err(|e| e.to_string())?
+            .frames
+            .iter()
+            .map(|f| f.height)
+            .collect();
         let sheet = Sheet::new(bytes).map_err(|e| e.to_string())?;
-        Ok(Font { sheet, line, raises_accents: false })
+        Ok(Font { sheet, line, raises_accents: false, heights })
     }
 
     /// This font, as `&g_fontBody`: [`ACCENT_RAISE`]'s characters one pixel
@@ -115,7 +121,13 @@ impl Font {
         if entry == 0 {
             return None;
         }
-        self.sheet.frame(entry as usize - 1)
+        let mut frame = self.sheet.frame(entry as usize - 1)?;
+        // FUN_004B41B7 copies `g_blitRowCount` = record `+0x02` rows from `+0x04` (Clip_Vertical
+        // 00400000.c:2356): bytes stored past the rectangle, 'v' and 'w' in Fntl2_14, are never drawn.
+        let stored = self.heights.get(entry as usize - 1).map_or(frame.height, |&h| h);
+        let reserve = frame.height.saturating_sub(stored) as usize * frame.width as usize;
+        frame.opaque[..reserve].fill(false);
+        Some(frame)
     }
 
     /// How wide a string **measures** — `FUN_004014F0`, which is what

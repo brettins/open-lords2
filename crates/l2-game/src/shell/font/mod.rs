@@ -137,6 +137,8 @@ pub struct Font {
     sheet: Sheet,
     pub line: i32,
     raises_accents: bool,
+    /// Record `+0x02` per frame: the rows `Glyph_Draw` (`0x00402A14`) blits, below the `+0x0D` reserve.
+    heights: Vec<u16>,
 }
 
 pub const BODY: &str = "Fntl2_14.pl8";

@@ -47,3 +47,30 @@ fn the_fonts_send_descenders_to_the_frames_that_have_them() {
     assert!(frame('A').height > frame('a').height);
 }
 
+/// `Glyph_Draw` (`0x00402A14`) blits record `+0x02` rows from `+0x04` below the `+0x0D` reserve
+/// (Clip_Vertical 00400000.c:2356); the bytes Fntl2_14 stores after 'v' and 'w' are never drawn.
+#[test]
+fn a_glyph_draws_nothing_in_its_reserved_rows() {
+    let Some(dir) = install() else {
+        eprintln!("skipping: no game install");
+        return;
+    };
+    let bytes = std::fs::read(dir.join(font::BODY)).expect("Fntl2_14.pl8");
+    let reserve = {
+        let pl8 = l2_formats::Pl8::parse(&bytes).expect("the body font parses");
+        pl8.frames[font::GLYPH_MAP['w' as usize - 0x20] as usize - 1].overhang_rows as usize
+    };
+    assert_eq!(reserve, 3, "'w' reserves three rows");
+    let f = font::Font::new(bytes, 16).expect("the body font loads");
+    let style = font::Style { colour: font::TEXT, shadow: None, caps: None };
+    for s in ["v", "w"] {
+        let mut canvas = Canvas::new(32, 32);
+        f.draw(&mut canvas, 4, 4, s, &style);
+        let inked = (4..4 + reserve)
+            .flat_map(|y| (0..32).map(move |x| (x, y)))
+            .filter(|&(x, y)| canvas.at(x, y) != 0)
+            .count();
+        assert_eq!(inked, 0, "{s:?} inks its reserved rows; Glyph_Draw never draws them");
+    }
+}
+
