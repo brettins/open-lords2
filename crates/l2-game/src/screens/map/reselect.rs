@@ -12,6 +12,16 @@ impl MapScreen {
             ctx.game.selected = best;
         }
     }
+
+    // Map_Click 00430000.c:7688-7690: select, Map_CentreOnTile, FUN_004050c0 -> Map_DrawFrame
+    // 0x004050F6 reselects; then Village_Draw 0x00412143 on g_selectedCounty [V].
+    pub(super) fn open_village(&mut self, ctx: &mut Ctx, county: u8, town: usize) -> Transition {
+        let (tx, ty) = l2_kingdom::map::coords(town);
+        ctx.game.select(county);
+        self.centre_on_tile(tx as usize, ty as usize);
+        self.reselect_busiest(ctx);
+        Transition::Push(ScreenId::Village(ctx.game.selected))
+    }
 }
 
 /// Map_DrawFrame 0x004050F6: g_countyTileTally zeroed, selection 0x1e (2828), then the scan

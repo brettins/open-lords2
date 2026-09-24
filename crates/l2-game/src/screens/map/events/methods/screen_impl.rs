@@ -337,10 +337,7 @@ impl Screen for MapScreen {
                         // arm: 0x0043CE1A/village left-release
                         if let Some(tile) = self.tile_at(x, y, Self::town(ctx, county).into_iter())
                         {
-                            let (tx, ty) = l2_kingdom::map::coords(tile);
-                            ctx.game.select(county);
-                            self.centre_on_tile(tx as usize, ty as usize);
-                            return Transition::Push(ScreenId::Village(county));
+                            return self.open_village(ctx, county, tile);
                         }
                         // ```c
                         // if ((flags & 0x20) && g_counties[pickedCounty].owner == g_localPlayer) {
@@ -417,6 +414,7 @@ impl Screen for MapScreen {
         if !self.opened {
             self.open_on_the_player(&Ctx { game: ctx.game, assets: ctx.assets });
         }
+        // Map_DrawFrame 0x004050F6 tallies the lattice Map_BuildLattice 0x004298C1 lays.
         self.reselect_busiest(ctx);
         if self.fading.is_some() {
             return Transition::Stay;
@@ -461,6 +459,13 @@ impl Screen for MapScreen {
 
     fn take_redraw(&mut self) -> bool {
         core::mem::replace(&mut self.scrolled, false)
+    }
+
+    // Battle_Frame 004b0000.c:6720: only on g_screenId 0 or 0x10.
+    fn under_letter(&mut self, ctx: &mut Ctx) {
+        if matches!(self.mode_screen_id(), None | Some(0x10)) {
+            self.reselect_busiest(ctx);
+        }
     }
 
     /// `FUN_0049A3E6`'s `Save_RotateAndWrite()`. Raised in

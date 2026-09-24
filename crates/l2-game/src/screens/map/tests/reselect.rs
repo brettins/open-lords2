@@ -60,3 +60,43 @@ fn cell_to_tile_inverts_tile_to_cell() {
     }
     assert_eq!(campaign::cell_to_tile(0, 0), None);
 }
+
+/// Map_Click 00430000.c:7688-7690: select, Map_CentreOnTile, FUN_004050c0 (reselect), then
+/// Village_Draw on g_selectedCounty. Every tile but the town handed to another county.
+/// Ablation: drop `self.reselect_busiest(ctx)` in `open_village` and the village is `c`'s.
+#[test]
+fn a_village_click_reselects_before_the_village_opens() {
+    let Some(mut game) = loaded((88, 29)) else { return };
+    let assets = crate::game::Assets::placeholder();
+    let c = (1..0x20u8).find(|&c| game.is_players(c)).unwrap();
+    let d = if c == 1 { 2 } else { 1 };
+    let town = MapScreen::town(&Ctx { game: &mut game, assets: &assets }, c);
+    let map = &mut game.kingdom.campaign.map;
+    for t in 0..map.county.len() {
+        if !town.contains(&t) {
+            map.county[t] = d;
+        }
+    }
+    let mut s = MapScreen::new();
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    let t = s.open_village(&mut ctx, c, town[0]);
+    assert_eq!(t, Transition::Push(ScreenId::Village(d)));
+    assert_eq!(ctx.game.selected, d);
+}
+
+/// Battle_Frame 004b0000.c:6718-6721 runs FUN_004050c0 on g_screenId 0 while a letter is up.
+/// Ablation: drop the `under_letter` call in `Machine::update` and county 3 stays.
+#[test]
+fn the_map_reselects_under_a_letter() {
+    let Some(mut game) = loaded((88, 29)) else { return };
+    let assets = crate::game::Assets::placeholder();
+    let mut m = crate::screen::Machine::new(ScreenId::Campaign);
+    m.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(game.selected, 4);
+    game.selected = 3;
+    let p = game.player;
+    game.messages.enqueue(crate::message::Record { to: 0, group: 0x92, ..Default::default() }, p);
+    m.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(m.top_id(), Some(ScreenId::Message));
+    assert_eq!(game.selected, 4);
+}

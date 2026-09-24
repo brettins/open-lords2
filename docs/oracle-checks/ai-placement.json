@@ -1,5 +1,5 @@
 {
-  "reviewed": "caf249e36b08c4a310f0e53df4f0136a56ef49bf",
+  "reviewed": "0b69616231ffe8a42a8d46497a92b9fa0c0ed20f",
   "date": "2026-09-24",
   "behaviours": [
     {
@@ -20,6 +20,41 @@
       "file": "crates/l2-game/src/scenario.rs",
       "line": 171,
       "address": "0x00448D7E",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/reselect.rs",
+      "line": 21,
+      "address": "0x004050F6",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/reselect.rs",
+      "line": 27,
+      "address": "0x00405C2F",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-view/src/campaign/terrain.rs",
+      "line": 22,
+      "address": "0x0040526E",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/reselect.rs",
+      "line": 16,
+      "address": "0x004050F6",
+      "verdict": "match",
+      "note": "fixed: MapScreen::open_village runs the reselect between select+centre and the Village push (Map_Click 00430000.c:7688-7690), village on the reselected county; Machine::update calls Screen::under_letter on the map under a letter, gated g_screenId 0/0x10 (Battle_Frame 004b0000.c:6718-6721, turns.rs:41); update call cites Map_BuildLattice 0x004298C1 (screen_impl.rs:417, terrain.rs:21)."
+    },
+    {
+      "file": "crates/l2-game/src/scenario.rs",
+      "line": 169,
+      "address": "0x004ADFE6",
       "verdict": "match",
       "note": ""
     }

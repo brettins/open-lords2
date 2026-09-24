@@ -39,6 +39,9 @@ pub trait Screen {
         false
     }
 
+    /// Battle_Frame 004b0000.c:6718-6721 `FUN_004050c0()` each frame; a letter leaves g_screenId alone.
+    fn under_letter(&mut self, _ctx: &mut Ctx) {}
+
     /// **How many widget clicks this screen owes the audio layer**, taken and
     /// forgotten — `Widget_Test`'s (`0x0040DA1E`) `Sound_RestartSlot(1)`.
     fn take_clicks(&mut self) -> u8 {
