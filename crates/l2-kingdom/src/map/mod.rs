@@ -122,6 +122,8 @@ pub struct CampaignMap {
     /// `TileInfo_Draw`'s rough arm a mountain from a wood. `docs/formats/maps-layers.md` §1.
     pub bank: Vec<u8>,
     pub county: Vec<u8>,
+    /// Byte `+3`, the frame `Map_DrawTile` (`0x004063C1`) blits. Empty unless read from a save [I].
+    pub frame: Vec<u8>,
 }
 
 pub const BANK_SELECTOR: u8 = 0x1C;

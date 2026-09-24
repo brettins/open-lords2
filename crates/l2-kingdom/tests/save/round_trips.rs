@@ -128,7 +128,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +2 at version 32 for `g_battleApproachLane` and `g_battleRallyGroup`.
     //
     // +40 at version 33 for the marker tables, `DAT_00544050`/`70` and `g_rallyWaypoints`/`DAT_00522D60`.
-    assert_eq!(c.finish().len, 67_664, "the state encoding changed - bump VERSION?");
+    //
+    // +4 at version 34 for the tile frame plane's length; the plane is empty unless imported.
+    assert_eq!(c.finish().len, 67_668, "the state encoding changed - bump VERSION?");
 }
 
 /// The other half of the same property the census covers. A field can go

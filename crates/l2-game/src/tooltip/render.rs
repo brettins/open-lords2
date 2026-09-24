@@ -72,14 +72,15 @@ pub fn layout(ctx: &Ctx, tip: Shown) -> (crate::input::Rect, Vec<String>) {
     let text = words(&ctx.assets.shell, tip.id);
     let measured = crate::message::break_lines(&text, MEASURE_WIDTH, |c| glyph_width(ctx, c));
     let pen = pen(ctx);
-    let widest = measured
+    // A measure, not a draw: ToolTip_Draw 0x00476E95 draws nothing at (0, 0).
+    let widest = l2_net::trace_leaf!("draw", 0, "hold"; measured
         .iter()
         .map(|l| {
             let mut scratch = Canvas::new(1, 1);
             pen.body(&mut scratch, 0, 0, l, INK)
         })
         .max()
-        .unwrap_or(0);
+        .unwrap_or(0));
     let (w, h) = box_size(measured.len(), widest);
     let lines = crate::message::break_lines(&text, DRAW_WIDTH, |c| glyph_width(ctx, c));
     (crate::input::Rect::new(tip.x, tip.y, w, h), lines)
@@ -107,20 +108,26 @@ pub fn draw(ctx: &Ctx, tips: &Tooltips, canvas: &mut Canvas) {
     let text = words(&ctx.assets.shell, tip.id);
     let (tx, ty) = (tip.x + 4, tip.y + 4);
     let measured = crate::message::break_lines(&text, MEASURE_WIDTH, |c| glyph_width(ctx, c));
-    for (k, line) in measured.iter().enumerate() {
-        pen.body(canvas, tx, ty + LINE * k as i32, line, font::TEXT);
-    }
+    // ToolTip_Draw 0x00476E95: FUN_0040328E(0xdc, id, x + 4, y + 4, 0xb4, ...), then 0xb0.
+    l2_net::trace_leaf!("text", 0x0040328E, "FUN_0040328E", s = text.as_str(), x = tx, y = ty, width = 0xb4; {
+        for (k, line) in measured.iter().enumerate() {
+            pen.body(canvas, tx, ty + LINE * k as i32, line, font::TEXT);
+        }
+    });
     let (rect, lines) = layout(ctx, tip);
     canvas.fill_rect(rect.x, rect.y, rect.w, rect.h, FILL);
-    for (k, line) in lines.iter().enumerate() {
-        pen.body(canvas, tx, ty + LINE * k as i32, line, font::TEXT);
-    }
+    l2_net::trace_leaf!("text", 0x0040328E, "FUN_0040328E", s = text.as_str(), x = tx, y = ty, width = 0xb0; {
+        for (k, line) in lines.iter().enumerate() {
+            pen.body(canvas, tx, ty + LINE * k as i32, line, font::TEXT);
+        }
+    });
     outline(canvas, rect.x, rect.y, rect.w, rect.h, INK);
 }
 
 /// **`FUN_00403CF4` (`0x00403CF4`)** — a one-pixel rectangle, its origin and
 /// extent clipped to the screen first.
 fn outline(canvas: &mut Canvas, mut x: i32, mut y: i32, mut w: i32, mut h: i32, c: u8) {
+    l2_net::trace_leaf!("draw", 0x00403CF4, "Ui_DrawRectOutline", x = x, y = y, w = w, h = h, colour = c; ());
     let (sw, sh) = (canvas.width as i32, canvas.height as i32);
     if x < 1 {
         x = 0;

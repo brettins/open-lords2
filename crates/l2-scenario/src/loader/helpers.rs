@@ -35,15 +35,20 @@ pub(super) fn read_map(save: &Save) -> Result<CampaignMap, SaveError> {
     let mut flags = vec![0u8; MAP_TILES];
     let mut bank = vec![0u8; MAP_TILES];
     let mut county = vec![0u8; MAP_TILES];
+    let mut frame = vec![0u8; MAP_TILES];
     for tile in 0..MAP_TILES {
         let t = save.tile(tile)?;
         terrain[tile] = t[0];
         flags[tile] = t[1];
         bank[tile] = t[TILE_BANK];
         county[tile] = t[7];
+        frame[tile] = t[3];
     }
-    Ok(CampaignMap::from_planes(&terrain, &flags, &bank, &county)
-        .expect("four planes of MAP_TILES bytes each"))
+    let mut map = CampaignMap::from_planes(&terrain, &flags, &bank, &county)
+        .expect("four planes of MAP_TILES bytes each");
+    // Map_DrawTile 0x004063C1: DAT_005c9288 = g_tiles[t].frame, save block 0 [V].
+    map.frame = frame;
+    Ok(map)
 }
 
 pub(super) fn read_explored(save: &Save, local_player: u8) -> Result<Explored, SaveError> {

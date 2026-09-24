@@ -12,6 +12,7 @@ impl CampaignMap {
             flags: vec![0; MAP_TILES],
             bank: vec![0; MAP_TILES],
             county: vec![0; MAP_TILES],
+            frame: Vec::new(),
         }
     }
 
@@ -33,6 +34,7 @@ impl CampaignMap {
             flags: flags.to_vec(),
             bank: bank.to_vec(),
             county: county.to_vec(),
+            frame: Vec::new(),
         })
     }
 

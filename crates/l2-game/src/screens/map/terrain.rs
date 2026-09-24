@@ -182,7 +182,23 @@ impl MapScreen {
     pub fn tile_graphics(ctx: &Ctx) -> campaign::Overrides {
         let mut out = Self::town_graphics(ctx);
         Self::add_field_graphics(ctx, &mut out);
+        Self::add_saved_frames(ctx, &mut out);
         out
+    }
+
+    /// Map_DrawTile 0x004063C1: bank `g_tiles[t].bank & 0x1c`, frame `g_tiles[t].frame`;
+    /// a loaded save's block 0 holds both [V]. Towns and fields keep ours' overlay [I].
+    fn add_saved_frames(ctx: &Ctx, out: &mut campaign::Overrides) {
+        let map = &ctx.game.kingdom.campaign.map;
+        if map.frame.len() != map.bank.len() {
+            return;
+        }
+        for tile in 0..map.frame.len() {
+            let (x, y) = l2_kingdom::map::coords(tile);
+            if out.get(x as usize, y as usize).is_none() {
+                out.set(x as usize, y as usize, map.bank[tile], map.frame[tile]);
+            }
+        }
     }
 
     /// `Terrain_Set` (`0x0046D7F4`) is the game's single writer of a tile's
@@ -214,6 +230,9 @@ impl MapScreen {
             }
             h ^= u64::from(map.terrain[tile]) ^ (tile as u64);
             h = h.wrapping_mul(0x0000_0100_0000_01b3);
+        }
+        for &f in &map.frame {
+            h = (h ^ u64::from(f)).wrapping_mul(0x0000_0100_0000_01b3);
         }
         h
     }
