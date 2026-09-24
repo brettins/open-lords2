@@ -34,7 +34,10 @@ pub struct SetupScreen {
     /// original, one-based there and zero-based here because this is an index
     /// into the five frame pairs and nothing else yet.
     pub(crate) shield: usize,
+    /// `DAT_0053E90C`, the first row shown, an index into `DAT_0050A460`.
     pub(crate) map_top: usize,
+    /// `DAT_0057CACC`, the lit row of the five.
+    pub(crate) map_row: usize,
     pub(crate) map: usize,
     pub(crate) player_starts: usize,
     pub(crate) map_read: bool,

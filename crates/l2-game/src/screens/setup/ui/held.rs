@@ -10,11 +10,15 @@ use crate::press::Widget;
 use crate::screen::{Ctx, Transition};
 
 impl SetupScreen {
-    pub(crate) fn held_table(&self) -> Vec<(Widget, SkirmishArm)> {
+    pub(crate) fn held_table(&self) -> Vec<(Widget, Action)> {
         self.hotspots()
             .into_iter()
             .filter_map(|(r, a)| match a {
-                Action::Skirmish(arm) => held_kind(arm).map(|k| (Widget::new(r, k), arm)),
+                Action::Skirmish(arm) => held_kind(arm).map(|k| (Widget::new(r, k), a)),
+                // .data 0x4DCD88 +0x0F = 2. [V]
+                Action::MapScroll(_) => {
+                    Some((Widget::new(r, crate::arm!("0x004337B4/custom-map-scroll", Held)), a))
+                }
                 _ => None,
             })
             .collect()
@@ -34,7 +38,7 @@ impl SetupScreen {
         // the first is [`SetupScreen::handle`]'s own `Event::Click` arm.
         match (event, fired) {
             (Event::DoubleClick { .. }, Some(i)) => match table.get(i) {
-                Some(&(_, arm)) => self.act(Action::Skirmish(arm), ctx),
+                Some(&(_, a)) => self.act(a, ctx),
                 None => Transition::Stay,
             },
             _ => Transition::Stay,
@@ -46,7 +50,7 @@ impl SetupScreen {
         for i in self.press.tick() {
             let arm = self.held_table().get(i).map(|&(_, a)| a);
             match arm {
-                Some(arm) => transition = self.act(Action::Skirmish(arm), ctx),
+                Some(a) => transition = self.act(a, ctx),
                 None => self.press.release(),
             }
         }

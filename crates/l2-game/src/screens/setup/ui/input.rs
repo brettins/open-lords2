@@ -225,13 +225,12 @@ impl SetupScreen {
                 &l2_view::chrome::MinimapTint::Owner(&owner),
             );
         }
+        // ScenarioList_Draw 0x0041F98B: DAT_0050A460[DAT_0053E90C + n], lit on n == DAT_0057CACC. [V]
+        let slots = ctx.assets.scenario_slots();
         for row in 0..MAP_LIST_ROWS {
-            let slot = self.map_top + row;
-            if slot >= MAP_COUNT {
-                break;
-            }
+            let slot = slots.get(self.map_top + row).copied().unwrap_or(0);
             let y = MAP_LIST_Y + row as i32 * MAP_LIST_ROW;
-            let chosen = slot == self.map;
+            let chosen = row == self.map_row;
             canvas.fill_rect(
                 MAP_LIST_X,
                 y,
@@ -248,7 +247,7 @@ impl SetupScreen {
                 if chosen { font::DISABLED } else { font::TEXT },
             );
         }
-        self.paint_scrollbar(canvas);
+        self.paint_scrollbar(canvas, slots.len() as i32);
         let chrome = pen.chrome;
         for (i, &(x, boxy, labely)) in OPTION_CELLS.iter().enumerate() {
             // `FUN_0040328E(102, i, x, labelY, 100, …)`: wrapped at 100 pixels,
@@ -297,13 +296,8 @@ impl SetupScreen {
     /// **[V] with an empty list it is one full-length thumb**: `PctOf` returns
     /// 0 when the total is 0, so all three heights come out 0 and the
     /// correction hands the whole 44 to the middle segment.
-    fn paint_scrollbar(&self, canvas: &mut Canvas) {
-        // `ScenarioList_Draw` divides by `DAT_00554018`, which
-        // `FUN_0046A101` sets to *how many of the sixty slots have a
-        // `MAPnn.PL8` on disk* — 44 on a shipped install, because the game
-        // ships eleven of the fifteen files. We divide by all sixty. The
-        // module header says what it would take to have the real one.
-        let total = MAP_COUNT as i32;
+    fn paint_scrollbar(&self, canvas: &mut Canvas, total: i32) {
+        // ScenarioList_Draw divides by DAT_00554018, FUN_0046A101's count. [V]
         let pct_of = |a: i32, b: i32| if b == 0 { 0 } else { a * 100 / b };
         let pct = |x: i32, p: i32| p * x / 100;
         let top = self.map_top as i32;

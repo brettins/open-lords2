@@ -28,6 +28,7 @@ impl SetupScreen {
             options: SetupOptions::new(),
             shield: 0,
             map_top: 0,
+            map_row: 0,
             map: 0,
             player_starts: 5,
             map_read: false,

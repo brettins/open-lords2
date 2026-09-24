@@ -214,3 +214,25 @@ fn nothing_is_started_by_looking_at_the_page() {
     assert_eq!(game.kingdom, before, "only Start may touch the world");
 }
 
+// FUN_004337B4 0x004337B4: the down arrow (603..624, 209..229) steps DAT_0053E90C and loads
+// DAT_0050A460[top + row]; 44 slots on an install, so top stops at 39. Ablate: the MapScroll arm.
+#[test]
+fn the_map_list_down_arrow_scrolls_through_the_packed_slots() {
+    let (mut game, assets) = world!();
+    let mut screen = SetupScreen::new(SetupPage::Custom);
+    tick(&mut screen, &mut game, &assets);
+    assert_eq!(assets.scenario_slots().len(), 44, "eleven MAPnn.PL8 files");
+    for _ in 0..24 {
+        click(&mut screen, &mut game, &assets, 613, 219);
+    }
+    assert_eq!(screen.map(), 40, "row 0 of top 24 is slot 40, past the missing 24..39");
+    for _ in 0..30 {
+        click(&mut screen, &mut game, &assets, 613, 219);
+    }
+    assert_eq!(screen.map(), 55, "top clamps at 44 - 5");
+    click(&mut screen, &mut game, &assets, MAP_LIST_X + 8, MAP_LIST_Y + 4 * MAP_LIST_ROW + 4);
+    assert_eq!(screen.map(), 59);
+    click(&mut screen, &mut game, &assets, 613, 150);
+    assert_eq!(screen.map(), 58, "the up arrow keeps the lit row");
+}
+

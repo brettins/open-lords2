@@ -52,6 +52,10 @@ impl SetupScreen {
                 for (i, &(x, y, _)) in OPTION_CELLS.iter().enumerate() {
                     v.push((Rect::new(x, y, OPTION_BOX_W, OPTION_BOX_H), Action::Open(i)));
                 }
+                // .data 0x4DCD88 records 0, 1: FUN_004337B4, kind 2, 603..624 x 140..160 / 209..229. [V]
+                for (y, d) in [(140, -1), (209, 1)] {
+                    v.push((Rect::new(603, y, 21, 20), Action::MapScroll(d)));
+                }
                 for row in 0..MAP_LIST_ROWS {
                     let y = MAP_LIST_Y + row as i32 * MAP_LIST_ROW;
                     v.push((
@@ -164,12 +168,31 @@ impl SetupScreen {
                 // loaded, and the seat count that comes out of them sets
                 // *Nobles*. All three, or the lord count is left claiming a
                 // number the new map cannot seat.
-                self.map = (self.map_top + row).min(MAP_COUNT - 1);
-                self.read_map(ctx);
+                // 0x00433905: DAT_0057CACC = row, slot = DAT_0050A460[row + DAT_0053E90C]. [V]
+                self.map_row = row;
+                self.pick_listed(ctx);
+                Transition::Stay
+            }
+            Action::MapScroll(d) => {
+                // FUN_004337B4 0x004337B4: -1 while top > 0, 1 while top < count - 5. [V]
+                let count = ctx.assets.scenario_slots().len() as i32;
+                let top = self.map_top as i32;
+                if (d < 0 && top > 0) || (d > 0 && top < count - MAP_LIST_ROWS as i32) {
+                    self.map_top = (top + d) as usize;
+                    self.pick_listed(ctx);
+                }
                 Transition::Stay
             }
             Action::Skirmish(arm) => self.skirmish_arm(arm, ctx),
         }
+    }
+
+    /// `DAT_0050A460[DAT_0057CACC + DAT_0053E90C]`, zero past the count
+    /// (`FUN_0046A101` clears all sixty). [V]
+    fn pick_listed(&mut self, ctx: &Ctx) {
+        let slots = ctx.assets.scenario_slots();
+        self.map = slots.get(self.map_top + self.map_row).copied().unwrap_or(0);
+        self.read_map(ctx);
     }
 
     /// Page 12's five arms and page 13's one, each of which ends the same way
