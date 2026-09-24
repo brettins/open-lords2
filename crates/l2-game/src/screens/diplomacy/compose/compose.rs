@@ -356,7 +356,7 @@ impl Screen for ComposeScreen {
                 pen.inset(canvas, LETTER_DRAFT);
                 let (dx, dy, dw) = LETTER_DRAFT_TEXT;
                 let draft = self.draft();
-                pen.body_wrapped(canvas, dx, dy, dw, &draft, font::TEXT);
+                pen.buffer_wrapped(canvas, dx, dy, dw, &draft, font::TEXT);
                 // `FUN_00417BD3` ends `Edit_DrawCaret(0x005AF8F0, 0x3F)` at the
                 // pen position `FUN_0040352F` left — `g_caretX + 0x30`,
                 // `g_caretY + 200` — so the caret of a *wrapped* field is an
