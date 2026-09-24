@@ -1,0 +1,14 @@
+# End Turn from mid-turn on the England turn-one save. FAILS at `load`: the front-end thumb sets
+# the countdown DAT_0057D3C4 but Save_Read 0x004ADFE6 is never reached (measured; see trace-run.ps1).
+films skip
+fixture england-turn1.sav
+load
+anchor loaded
+snap
+click 559 470   # End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+advance 30
+anchor end-turn-clicked
+snap
+advance 3000
+anchor after-3000
+snap

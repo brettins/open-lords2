@@ -1,0 +1,24 @@
+# A new game on the original campaign, traced through turn one and the AI lords' first moves.
+films skip
+new-game original
+click 424 352   # Ui_OkButton(400, 336) of message 298, "Non 256 colour display" (this harness)
+advance 60
+click 440 240   # Ui_OkButton(416, 224) of the "Game Objectives:" box, drawn from 0x00474683
+advance 60
+dismiss
+anchor map
+snap
+click 559 470   # End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+advance 30
+dismiss
+anchor end-turn-clicked
+snap
+advance 5000
+dismiss
+anchor after-5000
+click 559 470   # End turn again
+advance 3000
+dismiss
+anchor turn-2-ended
+snap
+snap

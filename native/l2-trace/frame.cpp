@@ -1,4 +1,5 @@
 #include "trace.h"
+#include "events.h"
 #include <cstdio>
 #include <cstring>
 
@@ -42,7 +43,8 @@ void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALET
     uint32_t hash = 2166136261u;
     for (int y = 0; y < h; y++) hash = Fnv(hash, pixels + y * pitch, w);
     hash = Fnv(hash, reinterpret_cast<const uint8_t*>(pal), 256 * sizeof(PALETTEENTRY));
-    uint32_t n = ++g_shared->frames;
+    // frames is published last, after every record of this present: the controller reads it as "blocked".
+    uint32_t n = g_shared->frames + 1;
     g_shared->frameHash = hash;
     static const int presentMs = EnvInt("L2TRACE_PRESENT_MS", 0);
     Clock_Advance(presentMs);
@@ -51,6 +53,9 @@ void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALET
         g_lastLogged = hash;
         LogFrame(n, hash, pixels, pitch, w, h, pal);
     }
+    Events_Present(n, hash);
+    MemoryBarrier();
+    g_shared->frames = n;
     // Lockstep: input posted while the game waits here is read at the same point every run.
     for (int spins = 0; g_shared->gate && n >= g_shared->gate; spins++) {
         if (spins < 20000) SwitchToThread(); else Sleep(1);
