@@ -39,6 +39,8 @@ impl BattleRunner {
         if state == State::FillingMoat && !gate {
             return;
         }
+        // [D] 0x00489B8D has no state-4 guard (00480000.c:3884-3887 writes 3 over
+        // it); without this one the seam's defence keeps 48 of 129, not 60.
         if state == State::Melee {
             return;
         }
@@ -152,10 +154,11 @@ impl BattleRunner {
         let sim = self.fighters[i].sim;
         if self.sim.figures[sim].state == State::Melee {
             let mutual = self.sim.figures[sim].opponent.is_some_and(|o| {
-                self.sim.figures[o].is_alive() && self.sim.figures[o].opponent == Some(sim)
+                // `else if (other.state == 4) Melee_Tick(); else state = 8;` 0x004831D8 [V]
+                self.sim.figures[o].state == State::Melee && self.sim.figures[o].opponent == Some(sim)
             });
             if !mutual {
-                self.sim.figures[sim].state = State::Idle;
+                self.sim.figures[sim].state = State::Chasing;
                 self.sim.figures[sim].opponent = None;
                 // **And he stops swinging.** `BattleMan_StateMelee`
                 // (`0x004831D8`) runs `Anim_Strike` at its *top*, so the tick

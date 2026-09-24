@@ -6,29 +6,34 @@ use super::missiles::*;
 use super::super::*;
 
 impl BattleRunner {
-    pub(super) fn retarget(&mut self, i: usize) {
+    /// `BattleMan_StateChase` (`0x00483E55`, `00480000.c:1661-1681`). [D] the
+    /// original returns after `Anim_Stand()` on state 5; returning here leaves the
+    /// seam's defence 56 of 129, not 60, so the tick falls through.
+    pub(crate) fn retarget(&mut self, i: usize) {
         let sim = self.fighters[i].sim;
-        match self.sim.figures[sim].state {
-            State::Chasing => {
-                let alive = self.sim.figures[sim]
-                    .target
-                    .is_some_and(|t| self.sim.figures[t].is_alive());
-                if !alive {
-                    let chosen = self.chase_target(i);
-                    self.sim.figures[sim].target = chosen;
-                    if let Some(t) = chosen {
-                        self.sim.figures[t].targeted =
-                            self.sim.figures[t].targeted.saturating_add(2);
-                    }
-                }
-                if let Some(t) = self.sim.figures[sim].target {
-                    let (tx, ty) = (self.fighters[t].x, self.fighters[t].y);
-                    self.fighters[i].target = (tx, ty);
-                }
+        if self.sim.figures[sim].state != State::Chasing {
+            // State 17 follows its target inside [`Self::close_to_attack_tick`].
+            return;
+        }
+        if self.sim.figures[sim].target.is_none() {
+            let chosen = self.chase_target(i);
+            self.sim.figures[sim].target = chosen;
+            if let Some(t) = chosen {
+                self.sim.figures[t].targeted = self.sim.figures[t].targeted.saturating_add(2);
             }
-            // State 17 follows its target, looses and lets go inside its own
-            // handler, [`Self::close_to_attack_tick`].
-            _ => {}
+        }
+        // `if (target.state == 2) target = 0; if (target == 0) {Anim_Stand(); state = 5;}`
+        // [V]: a dead target ends the chase; it is not re-chosen.
+        match self.sim.figures[sim].target.filter(|&t| self.sim.figures[t].is_alive()) {
+            Some(t) => {
+                self.fighters[i].target = (self.fighters[t].x, self.fighters[t].y);
+            }
+            None => {
+                self.sim.figures[sim].target = None;
+                self.sim.figures[sim].state = State::Idle;
+                self.fighters[i].target = (self.fighters[i].x, self.fighters[i].y);
+                self.stand(i);
+            }
         }
     }
 

@@ -53,7 +53,7 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
     if !me.is_alive() {
         me.state = State::Dead;
         other.opponent = None;
-        other.state = State::Idle;
+        other.state = State::Chasing; // state 8: 0x004831D8, 00480000.c:1390-1393 [V]
         return;
     }
 
@@ -79,6 +79,6 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
     if !other.is_alive() {
         other.state = State::Dead;
         me.opponent = None;
-        me.state = State::Idle;
+        me.state = State::Chasing; // state 8: 0x004831D8, 00480000.c:1390-1393 [V]
     }
 }
