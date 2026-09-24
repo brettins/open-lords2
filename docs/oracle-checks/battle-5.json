@@ -1,5 +1,5 @@
 {
-  "reviewed": "fc09c8178b1f83910173d3f5b02572ea62de3e4d",
+  "reviewed": "2661a0df03b58d32363a898165398225fef6f46b",
   "date": "2026-09-24",
   "behaviours": [
     {
@@ -85,6 +85,48 @@
       "address": "0x0047FC01",
       "verdict": "match",
       "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/unit/mod.rs",
+      "line": 218,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/movement/pathfinding.rs",
+      "line": 328,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": "fixed: surface read at the ordered cell before the facing arm; unobservable for human-controlled units, so no test. with a facing, surface is read at the unit cell (u.x,u.y); :4390 reads it at the ordered x,y before targX is overwritten; unobservable for human units"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+      "line": 27,
+      "address": "0x0047A814",
+      "verdict": "match",
+      "note": "[I] placement after the sweep: no reader in the sweep of pot state or the class-7 missile found"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/combat/melee.rs",
+      "line": 28,
+      "address": "0x004822ED",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+      "line": 39,
+      "address": "0x004822ED",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/unit/mod.rs",
+      "line": 238,
+      "address": "0x00488DFE",
+      "verdict": "mismatch",
+      "note": "rebuild counts is_alive figures; 00480000.c:3533 counts owner!=0, so a state-2 corpse (a poured pot) keeps its unit live for 80 frames"
     }
   ]
 }

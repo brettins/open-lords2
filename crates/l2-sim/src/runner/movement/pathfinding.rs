@@ -322,13 +322,15 @@ impl BattleRunner {
             }
         }
         self.pour_on_order(unit, dest.0 as i16, dest.1 as i16);
+        // BattleUnit_Order 0x00479E90 00470000.c:4381 reads the surface at the ordered cell,
+        // before the facing arm (:4407-4411) moves targX/targY [V].
+        let c = |v: i32| v.clamp(0, DIM as i32 - 1) as usize;
+        let surface = self.field.at(c(dest.0), c(dest.1)).surface;
         if let Some(o) = formation.orientation() {
             self.units.get_mut(unit).orientation = o;
             let u = self.units.get(unit);
             dest = (u.x as i32, u.y as i32);
         }
-        let c = |v: i32| v.clamp(0, DIM as i32 - 1) as usize;
-        let surface = self.field.at(c(dest.0), c(dest.1)).surface;
         // 00470000.c:4403 `targX = x` then BattleUnit_Order's tail
         self.units.order(&mut self.sim.figures, unit, (dest.0 as i16, dest.1 as i16), Some(surface));
     }
