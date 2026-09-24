@@ -30,6 +30,7 @@ pub mod press;
 pub mod save;
 pub mod saves;
 pub mod scenario;
+pub mod saved_battle;
 pub mod screen;
 pub mod screens;
 pub mod setup;

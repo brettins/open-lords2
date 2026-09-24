@@ -23,6 +23,8 @@ mod anim_tests;
 mod dying_tests;
 mod fighter;
 mod save;
+mod import;
+pub use import::{FIELD_LEN, MEN_LEN};
 mod muster;
 pub use muster::*;
 mod conclusion;

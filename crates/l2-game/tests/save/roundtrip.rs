@@ -148,6 +148,8 @@ fn ten_seasons_from_a_reloaded_england_are_the_same_ten() {
     }
     let bytes = save::encode(&original);
     let mut resumed = save::decode(&bytes, Tables::DEFAULT).expect("our own bytes");
+    // [D] Game::loaded_view is the original save's g_mapStartRow/Col (blocks 17/16), presentation, not in ours.
+    resumed.loaded_view = original.loaded_view;
     assert_eq!(resumed, original, "the England position reloads field for field");
 
     for season in 1..=6 {

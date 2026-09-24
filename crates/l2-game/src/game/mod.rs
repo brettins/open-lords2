@@ -310,6 +310,9 @@ pub struct Game {
     /// not-encoded: presentation. Which zoom a person is looking at cannot
     /// change a number in the world.
     pub map_zoom_far: bool,
+    /// `g_mapStartRow`/`g_mapStartCol` (`0x005651B8`/`0x005651B4`, save blocks 17/16) of a loaded
+    /// original save; `FUN_004976A1` (`0x004976A1`) does not re-centre. not-encoded: presentation.
+    pub loaded_view: Option<(i32, i32)>,
     /// **The message ring and the window over it.** `g_messageQueue`,
     /// `g_messageGroup`, `g_messageTimer` and their cursors.
     ///
