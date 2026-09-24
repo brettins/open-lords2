@@ -270,9 +270,6 @@ pub struct MapScreen {
     /// being *down*, not on it having been clicked, so the value tracks the
     /// pointer for as long as it is held — see [`SPLIT_SLIDER`].
     slider_held: bool,
-    /// `DAT_0052afa4`: Map_ZoomInAtTile 00430000.c:2522 sets it; the next map release on a tile
-    /// (Map_Click :7772, FUN_0043CAF4 :7536) clears it and does nothing else [V] peek 2026-09-24.
-    swallow_click: bool,
     /// **`g_minimapMode` (`0x0057A0C4`)** — what the minimap is coloured by.
     minimap_mode: MinimapMode,
     fading: Option<Fading>,

@@ -87,8 +87,8 @@ impl Screen for MapScreen {
                     return Transition::Stay;
                 }
                 // FUN_0043CAF4 00430000.c:7534 `g_screenId = 0; DAT_0052afa4 = 0;` [V]
-                if self.swallow_click && self.pick_tile(x, y).is_some() {
-                    self.swallow_click = false;
+                if ctx.game.map_click_latch && self.pick_tile(x, y).is_some() {
+                    ctx.game.map_click_latch = false;
                     return Transition::Stay;
                 }
                 // FUN_0043CAF4 00430000.c:7507 `if (g_mapZoom == 2) { g_screenId = 0; Map_ZoomInAtTile(); }` [V]
@@ -98,7 +98,7 @@ impl Screen for MapScreen {
                         self.set_zoom(ctx, NEAR);
                         self.centre_on_tile(tx as usize, ty as usize);
                         // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1` [V]
-                        self.swallow_click = true;
+                        ctx.game.map_click_latch = true;
                         return Transition::Stay;
                     }
                 }
@@ -161,8 +161,8 @@ impl Screen for MapScreen {
                 // (DAT_0055403c == 0 || DAT_00553018 != 0)`, screen 0 only [V].
                 let closed = (turn::turn_in_flight(ctx.game) && !turn::turn_opening(ctx.game))
                     || self.fading.is_some();
-                if self.swallow_click && !closed && self.pick_tile(x, y).is_some() {
-                    self.swallow_click = false;
+                if ctx.game.map_click_latch && !closed && self.pick_tile(x, y).is_some() {
+                    ctx.game.map_click_latch = false;
                 }
             }
             Event::Click { x, y } => {
@@ -275,13 +275,13 @@ impl Screen for MapScreen {
                             self.status = "ZOOMED IN".into();
                             // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1`; Map_Click :7770
                             // swallows the release (`DAT_0052afa4 = 0`), no dismiss [V].
-                            self.swallow_click = true;
+                            ctx.game.map_click_latch = true;
                             return Transition::Stay;
                         }
                     }
                     // Map_Click 00430000.c:7670 tests `DAT_0052afa4` before anything else [V].
-                    if self.swallow_click && self.pick_tile(x, y).is_some() {
-                        self.swallow_click = false;
+                    if ctx.game.map_click_latch && self.pick_tile(x, y).is_some() {
+                        ctx.game.map_click_latch = false;
                         return Transition::Stay;
                     }
                     // Screen_FrameInput 0x0042FF10 reaches Map_Click only after Sidebar_ButtonClicked,

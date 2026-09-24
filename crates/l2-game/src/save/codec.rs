@@ -255,6 +255,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         begin_move_order: None,
         combine_ask: None,
         map_zoom_far: false,
+        map_click_latch: false,
         loaded_view: None,
         turn_clock,
         unit_frames: crate::game::UnitFrames::default(),

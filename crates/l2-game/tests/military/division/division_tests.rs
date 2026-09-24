@@ -162,6 +162,8 @@ fn an_army_with_no_friendly_county_to_go_to_cannot_disband() {
     // `Panel_DisbandButton` `00430000.c:4084`; ablate its `tell_player` and this fails.
     g.messages.pull();
     assert_eq!(g.messages.open().map(|r| r.group), Some(0x91), "scroll 145 says why");
+    // Panel_DisbandButton 00430000.c:4089; ablate its `map_click_latch = true;` and this fails.
+    assert!(g.map_click_latch, "the refusal latches the next map click");
 }
 
 #[test]

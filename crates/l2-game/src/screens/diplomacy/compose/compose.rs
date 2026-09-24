@@ -128,6 +128,8 @@ impl ComposeScreen {
     }
 
     fn send(&mut self, ctx: &mut Ctx) -> Transition {
+        // Diplo_SendClicked 00430000.c:3526 `DAT_0052afa4 = 1`, ahead of every refusal [V]
+        ctx.game.map_click_latch = true;
         let refused = refusal(ctx, self.target, self.kind, self.county);
         if let Some(why) = refused {
             self.sent = Some(Err(why));

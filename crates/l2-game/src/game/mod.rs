@@ -310,6 +310,9 @@ pub struct Game {
     /// not-encoded: presentation. Which zoom a person is looking at cannot
     /// change a number in the world.
     pub map_zoom_far: bool,
+    /// `DAT_0052afa4`: Map_ZoomInAtTile 00430000.c:2522 and the overlay closers set it; the next map
+    /// release on a tile (Map_Click :7772, FUN_0043CAF4 :7536) spends it [V]. not-encoded: presentation.
+    pub map_click_latch: bool,
     /// `g_mapStartRow`/`g_mapStartCol` (`0x005651B8`/`0x005651B4`, save blocks 17/16) of a loaded
     /// original save; `FUN_004976A1` (`0x004976A1`) does not re-centre. not-encoded: presentation.
     pub loaded_view: Option<(i32, i32)>,

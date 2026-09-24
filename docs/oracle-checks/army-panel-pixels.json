@@ -1,14 +1,34 @@
-{ "reviewed": "a6ca9adebc33ea35eb6e7d524ff328d6462b78fc",
-  "date": "2026-09-24",
-  "behaviours": [
-    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 263,
-      "address": "0x004350A1", "verdict": "mismatch",
-      "note": "Left-press zoom sets the latch as :2522 does, but FUN_0043CAF4 :7508 also zooms (and latches) on a right release at far zoom; ours opens the info box there." },
-    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 149,
-      "address": "0x0043CE1A", "verdict": "mismatch",
-      "note": "Release clears the latch during turn-in-flight and fades; Screen_FrameInput 00420000.c:6795 and Map_Click :7669 reach the clear only when DAT_00553fc8==0 && (DAT_0055403c==0 || DAT_00553018)." },
-    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 268,
-      "address": "0x0043CE1A", "verdict": "match", "note": "" },
-    { "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs", "line": 90,
-      "address": "0x0043CAF4", "verdict": "match", "note": "" }
-  ] }
+{
+ "reviewed": "a6ca9adebc33ea35eb6e7d524ff328d6462b78fc",
+ "date": "2026-09-24",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 94,
+   "address": "0x004350A1",
+   "verdict": "match",
+   "note": "fixed: a right release at far zoom zooms in and latches (FUN_0043CAF4 :7507, Map_ZoomInAtTile :2522); latch.rs a_far_right_click_zooms_in_and_latches."
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 164,
+   "address": "0x0043CE1A",
+   "verdict": "match",
+   "note": "fixed: the release clears the latch only outside turn-in-flight and fades (Screen_FrameInput 00420000.c:6795); latch.rs a_release_after_end_turn_leaves_the_latch_set."
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 268,
+   "address": "0x0043CE1A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 90,
+   "address": "0x0043CAF4",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

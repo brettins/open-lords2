@@ -148,7 +148,7 @@ fn the_end_of_turn_fade_is_screens_0x23_then_0x24_then_0x23_then_the_map() {
 
 // Map_ZoomInAtTile 00430000.c:2522 sets `DAT_0052afa4`; a release off every tile leaves it,
 // and FUN_0043CAF4 :7534 spends the next right click on it (peek 2026-09-24, army-panel-kinds).
-// Ablate: `self.swallow_click = true;` in the zoom arm, first assertion red.
+// Ablate: `ctx.game.map_click_latch = true;` in the zoom arm, first assertion red.
 #[test]
 fn a_zoom_in_released_off_the_map_swallows_the_next_right_click() {
     let assets = crate::game::Assets::placeholder();
@@ -168,7 +168,7 @@ fn a_zoom_in_released_off_the_map_swallows_the_next_right_click() {
 }
 
 // Battle_Frame 004b0000.c:6742 `DAT_005533b0 = Map_PickTile(0)`; Map_Click :7772 clears the latch.
-// Ablate: the `Event::Release` arm's `self.swallow_click = false;`, red.
+// Ablate: the `Event::Release` arm's `ctx.game.map_click_latch = false;`, red.
 #[test]
 fn a_zoom_in_released_on_a_tile_leaves_the_next_right_click_alone() {
     let assets = crate::game::Assets::placeholder();

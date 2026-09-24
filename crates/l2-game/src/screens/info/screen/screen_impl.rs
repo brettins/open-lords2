@@ -226,6 +226,8 @@ impl Screen for InfoScreen {
                             // Panel_DisbandButton 00430000.c:4076-4084: 0x91 only when neither county is the owner's.
                             if no == l2_kingdom::divide::DisbandRefusal::NowhereToGo {
                                 crate::message::tell_player(ctx.game, crate::message::group::CANNOT_DISBAND);
+                                // Panel_DisbandButton 00430000.c:4089 `DAT_0052afa4 = 1` [V]
+                                ctx.game.map_click_latch = true;
                             }
                             Transition::Pop
                         }

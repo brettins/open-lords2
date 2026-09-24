@@ -28,7 +28,7 @@ fn a_release_after_end_turn_leaves_the_latch_set() {
 
 // FUN_0043CAF4 00430000.c:7507: a right release at far zoom zooms in, and Map_ZoomInAtTile :2522 latches.
 // Ablate: the far-zoom block in the right-click arm, first assertion red;
-// its `self.swallow_click = true;`, second red.
+// its `ctx.game.map_click_latch = true;`, second red.
 #[test]
 fn a_far_right_click_zooms_in_and_latches() {
     let assets = crate::game::Assets::placeholder();
@@ -42,7 +42,7 @@ fn a_far_right_click_zooms_in_and_latches() {
 }
 
 // Map_Click 00430000.c:7670 spends the latch on a left click on the map.
-// Ablate: the `if self.swallow_click` test before `map_click_dismiss`, red.
+// Ablate: the `if ctx.game.map_click_latch` test before `map_click_dismiss`, red.
 #[test]
 fn a_left_click_on_the_map_spends_the_latch() {
     let assets = crate::game::Assets::placeholder();
