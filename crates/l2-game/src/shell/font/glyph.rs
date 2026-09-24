@@ -80,8 +80,14 @@ fn in_table(c: char) -> bool {
 
 impl Font {
     pub fn new(bytes: Vec<u8>, line: i32) -> Result<Font, String> {
+        let rect_heights = l2_formats::Pl8::parse(&bytes)
+            .map_err(|e| e.to_string())?
+            .frames
+            .iter()
+            .map(|f| f.height)
+            .collect();
         let sheet = Sheet::new(bytes).map_err(|e| e.to_string())?;
-        Ok(Font { sheet, line, raises_accents: false })
+        Ok(Font { sheet, line, raises_accents: false, rect_heights })
     }
 
     /// This font, as `&g_fontBody`: [`ACCENT_RAISE`]'s characters one pixel
@@ -118,6 +124,17 @@ impl Font {
         self.sheet.frame(entry as usize - 1)
     }
 
+    /// `Glyph_Draw` 0x00402A14 adds record +0x0D to y, but `FUN_004B41B7` copies only
+    /// width x record height from `g_spriteDataOffset`: the inked overhangs of `v`, `w` never draw. [V] pixels, army-panel
+    fn overhang(&self, c: char, frame: &DecodedFrame) -> i32 {
+        let slot = (c as u32).wrapping_sub(GLYPH_MAP_BASE as u32) as usize;
+        let rect = GLYPH_MAP
+            .get(slot)
+            .and_then(|&e| self.rect_heights.get((e as usize).wrapping_sub(1)))
+            .map_or(frame.height, |&h| h);
+        frame.height.saturating_sub(rect) as i32
+    }
+
     /// How wide a string **measures** — `FUN_004014F0`, which is what
     /// centring uses, and not what drawing advances. **[V]**
     ///
@@ -148,8 +165,8 @@ impl Font {
     /// One glyph, as a mask: every pixel the frame paints is written in
     /// `colour`, because the font sheets carry a shape and the caller carries
     /// the colour (`Glyph_Draw` blits through `DAT_0057D3BC`).
-    fn blit_mask(canvas: &mut Canvas, frame: &DecodedFrame, x: i32, y: i32, colour: u8) {
-        for row in 0..frame.height as i32 {
+    fn blit_mask(canvas: &mut Canvas, frame: &DecodedFrame, from: i32, x: i32, y: i32, colour: u8) {
+        for row in from..frame.height as i32 {
             for col in 0..frame.width as i32 {
                 let i = (row * frame.width as i32 + col) as usize;
                 if !frame.opaque[i] {
@@ -172,11 +189,12 @@ impl Font {
                 continue;
             };
             let y = y + self.lift(c);
+            let from = self.overhang(c, &frame);
             if let Some((up, down)) = style.shadow {
-                Font::blit_mask(canvas, &frame, pen, y - 1, up);
-                Font::blit_mask(canvas, &frame, pen, y + 1, down);
+                Font::blit_mask(canvas, &frame, from, pen, y - 1, up);
+                Font::blit_mask(canvas, &frame, from, pen, y + 1, down);
             }
-            Font::blit_mask(canvas, &frame, pen, y, style.colour_of(c));
+            Font::blit_mask(canvas, &frame, from, pen, y, style.colour_of(c));
             pen += frame.width as i32 + 1;
         }
         pen - x
@@ -194,8 +212,9 @@ impl Font {
                 continue;
             };
             let y = y + self.lift(c);
-            Font::blit_mask(canvas, &frame, pen + 1, y + 1, DROP_SHADOW_COLOUR);
-            Font::blit_mask(canvas, &frame, pen, y, colour);
+            let from = self.overhang(c, &frame);
+            Font::blit_mask(canvas, &frame, from, pen + 1, y + 1, DROP_SHADOW_COLOUR);
+            Font::blit_mask(canvas, &frame, from, pen, y, colour);
             pen += frame.width as i32 + 1;
         }
         pen - x

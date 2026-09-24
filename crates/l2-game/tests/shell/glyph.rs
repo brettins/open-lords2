@@ -179,3 +179,29 @@ fn an_accent_sits_one_row_above_its_own_frame_in_the_body_face_and_nowhere_else(
     assert_eq!(font::GLYPH_MAP[0xB7 - 0x20], 0, "0xB7 is a blank in every face");
 }
 
+/// `FUN_004B41B7` copies width x record height (+0x02) from `g_spriteDataOffset`; the rows
+/// `Glyph_Draw` 0x00402A14 reserves (+0x0D) above it are never read. [V] pixels: the original's
+/// `w` lacks the curl its stored overhang holds (army-panel shot 1, "Crowns", "Periwinkle").
+#[test]
+fn a_glyphs_stored_overhang_rows_never_draw() {
+    let Some(dir) = install() else {
+        eprintln!("skipping: no game install");
+        return;
+    };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = Assets::load(&platform.vfs).expect("assets load");
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let bytes = std::fs::read(dir.join(font::BODY)).expect("Fntl2_14.pl8 reads");
+    let pl8 = l2_formats::Pl8::parse(&bytes).expect("parses");
+    let index = font::GLYPH_MAP['w' as usize - 0x20] as usize - 1;
+    let rows = pl8.frames[index].overhang_rows as usize;
+    let decoded = pl8.decode(index).expect("decodes");
+    let inked = decoded.opaque[..rows * decoded.width as usize].iter().any(|&o| o);
+    assert!(rows > 0 && inked, "w stores inked overhang rows");
+    let mut canvas = Canvas::new(48, 48);
+    let flat = font::Style { colour: font::TEXT, shadow: None, caps: None };
+    body.draw(&mut canvas, 8, 8, "w", &flat);
+    let top = (0..48).find(|&y| (0..48).any(|x| canvas.at(x, y) != 0)).expect("w draws");
+    assert!(top >= 8 + rows, "w's ink starts on row {top}, above its rectangle at {}", 8 + rows);
+}
+
