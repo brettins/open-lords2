@@ -105,7 +105,7 @@ fn the_turn_timer_is_up_for_the_players_own_turn_and_ends_it_when_it_runs_out() 
 /// `DAT_004D2E80` is 1 for `0x0B`, the other lords, so nothing is drawn over
 /// that page — but `Turn_Tick` does not ask the screen, so the count goes on
 /// under it. The village (`0x02`) is drawn over; its turn-ended guard never holds in single
-/// player (DAT_00553018 = 1, 00400000.c:8248), so it outlives the clock [V].
+/// player unless F12 shut it (DAT_00553018 = 1, 00400000.c:8248; 004b0000.c:2055), so it outlives the clock [V].
 #[test]
 fn running_out_leaves_the_village_open_and_a_page_hides_the_timer_without_stopping_it() {
     let (mut game, assets) = world!();
@@ -137,7 +137,7 @@ fn running_out_leaves_the_village_open_and_a_page_hides_the_timer_without_stoppi
     assert_eq!(m.ids(), vec![ScreenId::Campaign, ScreenId::Village(county)]);
     assert!(!l2_game::turn::turn_in_flight(&game));
     tick_stack(&mut m, &mut game, &assets, 1);
-    // App_WinMain 00400000.c:8248 DAT_00553018 = 1: no single-player force-close. CNEW-gate-open-in-single-player.
+    // App_WinMain 00400000.c:8248 DAT_00553018 = 1, no F12: no force-close. CNEW-gate-open-in-single-player.
     assert_eq!(m.ids(), vec![ScreenId::Campaign, ScreenId::Village(county)], "the village outlives the clock");
     assert!(l2_game::turn::players_turn_ended(&game), "and the map began the turn in the same frame");
 }

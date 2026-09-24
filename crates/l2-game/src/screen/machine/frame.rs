@@ -126,8 +126,8 @@ impl Machine {
             self.dirty = true;
         }
         //   if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))
-        // Holds in a network game only: DAT_00553018 = 1 in single player
-        // (00400000.c:8248) [V]; TurnClock::force_close. CNEW-gate-open-in-single-player.
+        // Single player: DAT_00553018 = 1 (00400000.c:8248) unless F12 on the court at far zoom
+        // wrote 0 (004b0000.c:2055) [V]; TurnClock::force_close. CNEW-gate-open-in-single-player.
         //
         // arm: 0x0042FF10/force-close-on-turn-end timer
         self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);

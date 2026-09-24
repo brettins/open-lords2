@@ -176,8 +176,8 @@ fn a_network_map_refuses_orders_while_the_turn_is_running() {
 
 /// App_WinMain 0x0040E9AB 00400000.c:8248 `DAT_00553018 = 1`: single player's gate
 /// (Screen_FrameInput 00420000.c:6795) stays open after End Turn, and a panel outlives it.
-/// Ablate: `multiplayer ||` dropped from `map_input_shut`, first assertion red;
-/// `multiplayer &&` from `TurnClock::force_close`, second red.
+/// Ablate: `map_input_shut`'s single-player arm made `turn_in_flight(game)`, first assertion red;
+/// `self.gate_shut` made `true` in `TurnClock::force_close`, red.
 #[test]
 fn a_single_player_map_takes_orders_and_keeps_panels_while_the_turn_is_running() {
     let (mut g, a, mut m) = on_the_map();
@@ -193,4 +193,27 @@ fn a_single_player_map_takes_orders_and_keeps_panels_while_the_turn_is_running()
     tick(&mut m, &mut g, &a);
     assert!(l2_game::turn::turn_in_flight(&g));
     assert_eq!(m.top_id(), Some(ScreenId::Court), "screen 0x09 is not force-closed");
+}
+
+/// App_WndProc 0x004B29BE 004b0000.c:2053-2055 `case 0x7b: DAT_00553018 = 1; if (g_screenId == 9
+/// && g_mapZoom == 2) DAT_00553018 = 0;`: F12 on the court at far zoom shuts the gate, so End
+/// Turn force-closes a panel; F12 anywhere else opens it again. Ablate: `f12`'s body made
+/// `self.gate_shut = false`, first assertion red; made `= true`, second red.
+#[test]
+fn f12_on_the_court_at_far_zoom_lets_end_turn_close_a_panel() {
+    let (mut g, a, mut m) = on_the_map();
+    g.map_zoom_far = true;
+    let mut court = Machine::new(ScreenId::Court);
+    send(&mut court, &mut g, &a, Event::KeyDown(Key::F12));
+    press(&mut m, &mut g, &a, 'e');
+    tick(&mut m, &mut g, &a);
+    assert!(l2_game::turn::turn_in_flight(&g), "a turn is in flight");
+    m.push(ScreenId::Court);
+    tick(&mut m, &mut g, &a);
+    assert_eq!(m.top_id(), Some(ScreenId::Campaign), "DAT_00553018 == 0: screen 0x09 force-closed");
+    send(&mut m, &mut g, &a, Event::KeyDown(Key::F12));
+    m.push(ScreenId::Court);
+    tick(&mut m, &mut g, &a);
+    assert!(l2_game::turn::turn_in_flight(&g));
+    assert_eq!(m.top_id(), Some(ScreenId::Court), "F12 on screen 0x00 writes 1");
 }

@@ -131,7 +131,8 @@ impl Machine {
             return;
         }
         if let Event::KeyDown(k) = event {
-            let screen = self.top_screen_byte(ctx.game);
+            // g_screenId: the court (0x09) is in turn_clock::screen_byte only.
+            let screen = self.traced_screen_byte(ctx.game);
             crate::debug_keys::key_down(ctx.game, k, screen);
         }
         // `FUN_004B191E`'s `g_mouseInputChanged`: the position moved, or either

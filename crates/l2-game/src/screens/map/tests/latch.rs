@@ -28,7 +28,8 @@ fn a_release_after_end_turn_leaves_the_latch_set() {
 }
 
 // App_WinMain 00400000.c:8248 DAT_00553018 = 1: in single player the gate stays open after End
-// Turn and the release clears the latch. Ablate: `multiplayer ||` dropped from map_input_shut, red.
+// Turn and the release clears the latch. Ablate: map_input_shut's single-player arm made
+// `turn_in_flight(game)`, red.
 #[test]
 fn a_single_player_release_after_end_turn_clears_the_latch() {
     let assets = crate::game::Assets::placeholder();

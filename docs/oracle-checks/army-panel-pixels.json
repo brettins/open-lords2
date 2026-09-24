@@ -67,17 +67,17 @@
   },
   {
    "file": "crates/l2-game/src/turn/types.rs",
-   "line": 109,
+   "line": 110,
    "address": "0x0042FF10",
-   "verdict": "mismatch",
-   "note": "DAT_00553018 is cleared in single player too: WndProc VK_F12 004b0000.c:2055 when g_screenId==9 && g_mapZoom==2, until Turn_Tick :4806; ours has no such path and says never."
+   "verdict": "match",
+   "note": "fixed: TurnClock::f12 models App_WndProc 004b0000.c:2053-2055 (court 0x09 at far zoom writes 0, else 1), Turn_Tick :4806 writes 1 back; map_input_shut and force_close read it in single player. selection_and_orders.rs f12_on_the_court_at_far_zoom_lets_end_turn_close_a_panel; turn_clock the_restart_reopens_the_gate_f12_shut."
   },
   {
    "file": "crates/l2-game/src/turn_clock/clock.rs",
    "line": 92,
    "address": "0x0040E9AB",
    "verdict": "departure",
-   "note": "network game keeps the latch [D] netcode; single-player half matches App_WinMain :8248 / Turn_AllRealmsDone :5337, F12 clear aside."
+   "note": "network game keeps the latch [D] netcode; single-player half matches App_WinMain :8248, Turn_Tick :4806 and F12 004b0000.c:2055 (TurnClock::f12)."
   },
   {
    "file": "crates/l2-game/src/screen/tick_gate.rs",
@@ -102,7 +102,7 @@
   },
   {
    "file": "crates/l2-game/src/turn_clock/clock.rs",
-   "line": 174,
+   "line": 179,
    "address": "0x0041A639",
    "verdict": "match",
    "note": ""
