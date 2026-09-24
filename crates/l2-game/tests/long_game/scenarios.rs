@@ -115,14 +115,48 @@ fn a_hundred_turns_is_the_same_hundred_however_it_is_reached() {
     }
     let bytes = l2_game::save::encode(&halved);
     let mut reloaded = l2_game::save::decode(&bytes, Tables::DEFAULT).expect("our own save loads");
+    // A load leaves g_moveCost empty (BNEW-stale-move-cost-after-load); so does this.
+    halved.kingdom.campaign.move_cost = l2_kingdom::map::CostMap::uniform(0);
     for _ in 0..TURNS / 2 {
         l2_game::turn::end_turn(&mut reloaded).expect("the machine comes round");
+        l2_game::turn::end_turn(&mut halved).expect("the machine comes round");
     }
     assert_eq!(
-        digest(&straight).hash,
+        digest(&halved).hash,
         digest(&reloaded).hash,
         "a game saved at turn {} and reloaded reached a different turn {TURNS}",
         TURNS / 2
     );
 }
 
+
+/// BNEW-stale-move-cost-after-load: Save_Read 0x004ADFE6 leaves g_moveCost 0x004F4080 as it was.
+#[test]
+fn a_loaded_game_paths_on_an_empty_cost_map_until_phase_seven() {
+    let empty = l2_kingdom::map::CostMap::uniform(0);
+    let mut game = l2_game::scenario::from_save(&l2_testkit::england!(), Tables::DEFAULT).unwrap();
+    assert_eq!(game.kingdom.campaign.move_cost, empty, "from_save runs no Move_BuildCostMap");
+    let ai_armies = |g: &Game| {
+        g.kingdom.campaign.units.iter()
+            .filter(|(_, u)| u.kind == UnitKind::Army && u.owner != g.player)
+            .map(|(id, u)| (id, u.tile())).collect::<Vec<_>>()
+    };
+    let mut built = game.clone();
+    built.kingdom.campaign.rebuild_move_cost();
+    let mut loaded = game.clone();
+    l2_game::turn::end_turn_to_autosave(&mut built).unwrap();
+    l2_game::turn::end_turn_to_autosave(&mut loaded).unwrap();
+    assert_ne!(ai_armies(&built), ai_armies(&loaded), "Ai_AdvanceArmies 0x004A5667 paths on the stored map");
+
+    let (army, owner) = built.kingdom.campaign.units.iter()
+        .find(|(_, u)| u.kind == UnitKind::Army).map(|(id, u)| (id, u.owner)).unwrap();
+    let mut ordered = built.clone();
+    ordered.kingdom.campaign.move_cost = empty.clone();
+    ordered.player = owner;
+    let (x, y) = ordered.kingdom.campaign.units.get(army).unwrap().tile();
+    ordered.order_unit_move(army, (x + 1, y));
+    assert_ne!(ordered.kingdom.campaign.move_cost, empty, "Unit_OrderMove 0x004A98FE rebuilds it");
+
+    l2_game::turn::end_turn_to_autosave(&mut game).unwrap();
+    assert_eq!(game.kingdom.campaign.move_cost, game.kingdom.campaign.map.cost_map(), "Turn_Tick phase 7");
+}

@@ -41,7 +41,8 @@ impl Encode for crate::unit::Unit {
             out.u8(*x);
             out.u8(*y);
         }
-        out.bool(self.moving);
+        // +0x14C moveState 0/1/2: Unit_OrderMove 0x004A98FE writes 2, PeasantMob_AdvanceAll 004a0000.c:5094 writes 1 [V].
+        out.u8(if !self.moving { 0 } else if self.ordered { 1 } else { 2 });
         out.bool(self.on_road);
         out.u8(self.sub_tile);
         out.u8(self.sub_frame);
@@ -127,7 +128,9 @@ impl Decode for crate::unit::Unit {
         for _ in 0..steps {
             u.path.push((input.u8()?, input.u8()?));
         }
-        u.moving = input.bool()?;
+        let state = input.u8()?;
+        // +0x14C: 1 ordered, 2 stepping (Army_Tick 00460000.c:4094 steps only 2) [V].
+        (u.moving, u.ordered) = (state != 0, state == 1);
         u.on_road = input.bool()?;
         u.sub_tile = input.u8()?;
         u.sub_frame = input.u8()?;

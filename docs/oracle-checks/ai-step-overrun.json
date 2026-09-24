@@ -1,0 +1,195 @@
+{
+  "reviewed": "244717b11a54f3910bc8013d29ad07e64cc5e689",
+  "date": "2026-09-24",
+  "behaviours": [
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs",
+      "line": 89,
+      "address": "0x0046521F",
+      "verdict": "match",
+      "note": "fixed: Army_Tick promotes a chained (playerDriven == 0) army every frame; playerDriven kept by Unit_LinkToTile in movement::step."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs",
+      "line": 385,
+      "address": "0x004A4E3D",
+      "verdict": "match",
+      "note": "fixed: realm_units_moving calls break_siege on every army it starts."
+    },
+    {
+      "file": "crates/l2-game/src/turn/ai_part.rs",
+      "line": 152,
+      "address": "0x0049A581",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/ai_army/army/movement.rs",
+      "line": 65,
+      "address": "0x004A5667",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 58,
+      "address": "0x004A98FE",
+      "verdict": "match",
+      "note": "fixed: merchants/transports (order_move_by_road) and mobs write moving = 1; units_moving (Units_AnyMovingOfKind 0x004A4F5B, the phase 3/5/6 wait) promotes to 2."
+    },
+    {
+      "file": "crates/l2-kingdom/src/kingdom/pipeline/pipeline/pipeline/seasonal.rs",
+      "line": 32,
+      "address": "0x0049A010",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/kingdom/mod.rs",
+      "line": 156,
+      "address": "0x0046FF43",
+      "verdict": "match",
+      "note": "fixed: the load screen carries the running game's move_cost into the loaded one; [D] text and bugs.md rewritten."
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+      "line": 382,
+      "address": "0x0043723A",
+      "verdict": "match",
+      "note": "fixed: opening move selection rebuilds campaign.move_cost."
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/aside.rs",
+      "line": 20,
+      "address": "0x004701AC",
+      "verdict": "match",
+      "note": "fixed: FUN_00467196 is movement::step_aside, run from Unit_Step's stop and Castle_EvictTile, flooding the stored move_cost."
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 159,
+      "address": "0x00437FD7",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 133,
+      "address": "0x00437FD7",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 34,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 46,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 42,
+      "address": "0x004658C1",
+      "verdict": "departure",
+      "note": "[I] :4267-4272 walks over unless +0x152 names the occupant, then Army_Combine; ours Blocked."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 56,
+      "address": "0x004658C1",
+      "verdict": "departure",
+      "note": "[I] Army_Combine merges two mobs; ours refuses."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 62,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 67,
+      "address": "0x004658C1",
+      "verdict": "departure",
+      "note": "[I] auto-resolved battle: owner!=0 walks on at once, owner 0 returns 10; ours steps next tick."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 69,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 85,
+      "address": "0x004A16F7",
+      "verdict": "departure",
+      "note": "[I] mob owner 6 has no realm record; only actor != target read."
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 120,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 130,
+      "address": "0x00465D28",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 174,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 36,
+      "address": "0x0046D130",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 20,
+      "address": "0x0046733C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs",
+      "line": 141,
+      "address": "0x00465D28",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 31,
+      "address": "0x0046FF43",
+      "verdict": "departure",
+      "note": "BNEW-stale-move-cost-after-load confirmed by orig endturn-year trace: turn-1 phase 6 has 2 merchant steps, later seasons 4-6 every 8 frames."
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/aside.rs",
+      "line": 43,
+      "address": "0x004280E9",
+      "verdict": "match",
+      "note": "fixed: no saved path (all 6 merchants pathLen 0 in england-turn1.sav); an empty Path_CopyToUnit zeroes path[0], Unit_Step :4368 aims at (0,0); merchants 2 and 4 have open NW tiles. Ours now 2 merchant.wav, phase 6 34 frames (one frame after entry)."
+    }
+  ]
+}

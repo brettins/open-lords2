@@ -22,7 +22,13 @@ use crate::unit::{UnitKind, Units, MAX_PATH};
 /// > army stands still with `moveState = 2`. Only a dead end in the descent —
 /// > which a fully relaxed field should not produce — fails.
 pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8), routing: Routing) -> Option<usize> {
-    let cost = map.cost_map();
+    repath(&map.cost_map(), map, units, id, dest, routing)
+}
+
+/// `Move_FloodFill` + `Move_ExtractPath` (`0x004701AC`) against the stored `g_moveCost`, with no
+/// `Move_BuildCostMap` (0x0046FF43): Ai_AdvanceArmies 0x004A5667, PeasantMob_AdvanceAll, Merchant_AdvanceAll,
+/// Transport_RetargetAll, Army_Split; FUN_00467196 floods it too (step_aside). BNEW-stale-move-cost-after-load.
+pub fn repath(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8), routing: Routing) -> Option<usize> {
     let unit = units.get(id)?;
     let field = flood_fill(&cost, unit.tile(), routing);
     let path = extract_path(&cost, &field, dest)?;
@@ -32,7 +38,9 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
     unit.path = path;
     unit.dest = Some(dest);
     unit.dest_county = dest_county;
+    // Unit_OrderMove 0x004A98FE writes moving = 2 [V].
     unit.moving = true;
+    unit.ordered = false;
     unit.needs_destination = false;
     Some(steps)
 }
@@ -41,12 +49,18 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 /// (`FUN_00429418`, turn phase 3), `Merchant_AdvanceAll` (phase 6)
 /// AI's army walk — against [`order_move`] with [`Routing::Direct`], which is
 /// what a *human* order does. So [`Routing::PreferRoads`]'s doc comment is
-pub fn order_move_by_road(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8)) -> Option<usize> {
-    let by_road = order_move(map, units, id, dest, Routing::PreferRoads);
-    match by_road {
+pub fn order_move_by_road(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8)) -> Option<usize> {
+    let by_road = repath(cost, map, units, id, dest, Routing::PreferRoads);
+    let steps = match by_road {
         Some(steps) if steps < crate::unit::MAX_PATH => Some(steps),
-        _ => order_move(map, units, id, dest, Routing::Direct).or(by_road),
+        _ => repath(cost, map, units, id, dest, Routing::Direct).or(by_road),
+    };
+    // Merchant_AdvanceAll 00420000.c:2954/:2962, Transport_RetargetAll :3517/:3525 `moving = 1`;
+    // Units_AnyMovingOfKind 0x004A4F5B starts them [V].
+    if let (Some(_), Some(u)) = (steps, units.get_mut(id)) {
+        u.ordered = true;
     }
+    steps
 }
 
 /// `Unit_TryEnterTile` (`0x00466C3C`) — classify the tile in front.
@@ -99,11 +113,27 @@ fn pass_through(
     if !mover_ignores && !occupant_is_merchant {
         return entry;
     }
+    road_or_open(map, x, y)
+}
+
+/// Unit_EnterOccupiedTile 00460000.c:4248-4252 `local_8 = (flags & 1) ? 3 : 1` [V].
+fn road_or_open(map: &CampaignMap, x: u8, y: u8) -> Entry {
     if map.flags_at(x, y) & crate::map::flags::ROAD != 0 {
         Entry::Road
     } else {
         Entry::Open
     }
+}
+
+/// Unit_Step 00460000.c:4370 `field_0x1c -= 1` spends the path entry before Unit_StepOnce;
+/// a code > 4 stop (:4389, castle 5, settlement 6, plot 7) does not give it back [V].
+fn stop_spent(units: &mut Units, id: usize) -> Option<()> {
+    let u = units.get_mut(id)?;
+    u.moving = false;
+    if !u.path.is_empty() {
+        u.path.remove(0);
+    }
+    Some(())
 }
 
 /// `Unit_StepOnce` (`0x0046634D`) — take exactly one step along the unit's
@@ -114,6 +144,19 @@ pub fn step(
     realms: &[Realm; MAX_REALMS],
     units: &mut Units,
     id: usize,
+) -> Option<Step> {
+    step_over(map, counties, realms, units, id, false)
+}
+
+/// [`step`]; `over` is Unit_EnterOccupiedTile 0x004658C1 returning `local_8`, the occupied
+/// tile read as road or open and nothing else [V].
+pub fn step_over(
+    map: &mut CampaignMap,
+    counties: &mut [County; MAX_COUNTIES],
+    realms: &[Realm; MAX_REALMS],
+    units: &mut Units,
+    id: usize,
+    over: bool,
 ) -> Option<Step> {
     let (next, kind, owner, owner_is_human) = {
         let u = units.get(id)?;
@@ -127,14 +170,17 @@ pub fn step(
         u.sub_frame = 0;
     }
     let (nx, ny) = next;
-    let entry = pass_through(map, units, kind, try_enter(map, units, nx, ny), nx, ny);
+    let entry = match try_enter(map, units, nx, ny) {
+        Entry::Occupied(_) if over => road_or_open(map, nx, ny),
+        e => pass_through(map, units, kind, e, nx, ny),
+    };
     let tile_county = map.county_at(nx, ny);
     let mut out = Step::nothing(entry);
 
     match entry {
         Entry::Castle => {
             out.reached_castle = Some(tile_county);
-            units.get_mut(id)?.moving = false;
+            stop_spent(units, id)?;
             return Some(out);
         }
         Entry::Occupied(_) => {
@@ -154,7 +200,7 @@ pub fn step(
             if (terrain::CASTLE_FROM..=terrain::CASTLE_TO).contains(&t) {
                 out.reached_castle_building = Some(tile_county);
             }
-            units.get_mut(id)?.moving = false;
+            stop_spent(units, id)?;
             return Some(out);
         }
         Entry::Plot => {
@@ -183,7 +229,7 @@ pub fn step(
                     amount: DWELLING_BURN_OFFENCE,
                 });
             }
-            units.get_mut(id)?.moving = false;
+            stop_spent(units, id)?;
             return Some(out);
         }
         Entry::Field => {
@@ -223,6 +269,8 @@ pub fn step(
         u.county = tile_county;
         out.entered_county = Some(tile_county);
     }
+    // Unit_MoveInFacing 00460000.c:4805 `Unit_LinkToTile(g_movingUnit);` [V].
+    link_to_tile(units, id);
     Some(out)
 }
 

@@ -27,12 +27,19 @@ fn a_furnished_kingdom_round_trips_field_for_field() {
     assert_eq!(back, k);
 }
 
+/// g_moveCost 0x004F4080 is in no Save_Write block; the load screen carries it across (saveload methods.rs) [V].
+fn loaded(k: &Kingdom) -> Kingdom {
+    let mut back = decode(&encode(k), Tables::DEFAULT).expect("must decode");
+    back.campaign.move_cost = k.campaign.move_cost.clone();
+    back
+}
+
 #[test]
 fn a_kingdom_with_turns_behind_it_round_trips() {
     for seasons in [1usize, 2, 5, 13] {
         let k = played(seasons);
         assert_eq!(k.turn_count as usize, seasons);
-        let back = decode(&encode(&k), Tables::DEFAULT).expect("must decode");
+        let back = loaded(&k);
         assert_eq!(back, k, "after {seasons} seasons");
     }
 }
@@ -57,7 +64,7 @@ fn a_history_ring_that_has_wrapped_round_trips() {
         k.advance_season();
     }
     assert_eq!(k.history.len(), l2_kingdom::tables::HISTORY_SEASONS, "the ring is full");
-    let back = decode(&encode(&k), Tables::DEFAULT).expect("must decode");
+    let back = loaded(&k);
     assert_eq!(back, k);
     assert_eq!(back.history.county(1), k.history.county(1), "oldest first, still");
 }

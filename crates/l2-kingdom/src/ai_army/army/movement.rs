@@ -49,7 +49,9 @@ impl Kingdom {
                 continue;
             }
             let Some(dest) = self.campaign.units.get(id).and_then(|u| u.dest) else { continue };
-            if crate::movement::order_move(
+            // Ai_AdvanceArmies 0x004A5667: Move_FloodFill + Move_ExtractPath on the stored g_moveCost [V].
+            if crate::movement::repath(
+                &self.campaign.move_cost,
                 &self.campaign.map,
                 &mut self.campaign.units,
                 id,
@@ -58,6 +60,10 @@ impl Kingdom {
             )
             .is_some()
             {
+                // 004a0000.c:2263 `moving = 1`: ordered; FUN_004A4E3D starts it at the AI's last step [V].
+                if let Some(u) = self.campaign.units.get_mut(id) {
+                    u.ordered = true;
+                }
                 report.marching.push(id);
             }
         }

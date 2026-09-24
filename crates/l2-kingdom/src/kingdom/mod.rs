@@ -151,6 +151,11 @@ pub struct Campaign {
     /// Siege_LaunchAssault (:3621) and 00430000.c:4173 write it; the skirmish path does not [V].
     /// [D] not saved or hashed: the original's save does not hold it [I]; a load keeps the process value.
     pub battle_county: u8,
+    /// `g_moveCost` (`0x004F4080`), `.bss`: only Move_BuildCostMap 0x0046FF43 writes it (Game_NewGame,
+    /// Turn_Tick phase 7, Unit_OrderMove, Map_BeginMoveSelection). In no Save_Write block, so a load
+    /// keeps the previous game's map; the first game in a process starts all-zero [V]. Not saved or
+    /// hashed; the load screen carries it across [D]. BNEW-stale-move-cost-after-load.
+    pub move_cost: crate::map::CostMap,
 }
 
 /// `[side][slot]` enemy ends, `[side][group][index]` rally waypoints: `l2_sim::terrain::MarkerTables`.
@@ -181,7 +186,13 @@ impl Campaign {
             battle_selectors: (0, 0),
             battle_markers: Default::default(),
             battle_county: 0,
+            move_cost: crate::map::CostMap::uniform(0),
         }
+    }
+
+    /// `Move_BuildCostMap` (`0x0046FF43`).
+    pub fn rebuild_move_cost(&mut self) {
+        self.move_cost = self.map.cost_map();
     }
 }
 

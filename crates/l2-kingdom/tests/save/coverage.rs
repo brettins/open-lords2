@@ -21,6 +21,12 @@ const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[
          it; only a skirmish reads it stale (Battlefield_BuildCastle 0x0047C4BA:5344)",
     ),
     (
+        "Campaign",
+        "move_cost",
+        "g_moveCost 0x004F4080, .bss and in no Save_Write block; only Move_BuildCostMap \
+         0x0046FF43 writes it, and a load keeps the process value (BNEW-stale-move-cost-after-load)",
+    ),
+    (
         "Kingdom",
         "tables",
         "the ruleset is fingerprinted into the header rather than written into the \

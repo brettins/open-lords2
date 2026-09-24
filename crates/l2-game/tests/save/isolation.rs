@@ -106,6 +106,11 @@ fn a_save_written_by_another_test_is_in_neither_this_listing_nor_this_load_scree
     });
 }
 
+/// g_moveCost 0x004F4080 is in no Save_Write block; the load screen carries the running game's across (saveload methods.rs) [V].
+pub(crate) fn carried(back: &mut Game, was: &Game) {
+    back.kingdom.campaign.move_cost = was.kingdom.campaign.move_cost.clone();
+}
+
 /// **A read is not the identity.** `saves::read` runs `save::resume`, which is
 /// `FUN_004976A1`, and its `DAT_005440C8 += 10` (`00490000.c:3081`) is the one
 /// field of a loaded game that is deliberately not what was written. The grace
@@ -114,6 +119,7 @@ fn a_save_written_by_another_test_is_in_neither_this_listing_nor_this_load_scree
 /// is checked and set aside so the rest of the game can be compared field for
 /// field.
 fn less_the_load_grace(back: &mut Game, was: &Game) {
+    carried(back, was);
     assert_eq!(
         back.turn_clock.remaining(),
         was.turn_clock.remaining() + l2_game::turn_clock::LOAD_GRACE,

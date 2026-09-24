@@ -116,6 +116,13 @@ const ALLOWED: &[Allowed] = &[
         why: "the loaded world, before the swap above",
     },
     Allowed {
+        file: "screens/saveload/screen/methods.rs",
+        pattern: "game.kingdom.campaign.move_cost = ",
+        gate: "if ctx.game.net.lockstep {",
+        back: 40,
+        why: "g_moveCost is .bss; the loaded world, before the swap",
+    },
+    Allowed {
         file: "screens/battlefield/mod.rs",
         pattern: "battle.take(",
         gate: "debug_assert!(!live.deferred && !ctx.game.net.lockstep",

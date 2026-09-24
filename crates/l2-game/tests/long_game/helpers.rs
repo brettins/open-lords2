@@ -83,13 +83,6 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
                     realm.ally, realm.ally, other.ally
                 ));
             }
-            if !other.in_play && (realm.ally as usize) < r {
-                return Err(format!(
-                    "realm {r} is allied to {}, which is out of play and below it — \
-                     `Diplo_ReconcileAlliances` drops exactly this pairing",
-                    realm.ally
-                ));
-            }
         }
         for other in 1..l2_kingdom::MAX_REALMS {
             let s = realm.pair(other as u8).standing;
@@ -117,6 +110,21 @@ fn invariant(k: &Kingdom) -> Result<(), String> {
     Ok(())
 }
 
+// Only phase 7 drops it: Realm_RecountStrength 0x0049B42B, run by County_ChangeOwner in
+// phase 2, leaves `ally` alone; Diplo_ReconcileAlliances 0x004A1847 is its one reader.
+fn reconciled(k: &Kingdom) -> Result<(), String> {
+    for r in 1..l2_kingdom::MAX_REALMS {
+        let a = k.realms[r].ally as usize;
+        if k.realms[r].in_play && a != 0 && a < r && !k.realms[a].in_play {
+            return Err(format!(
+                "realm {r} is allied to {a}, which is out of play and below it — \
+                 `Diplo_ReconcileAlliances` drops exactly this pairing"
+            ));
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn play(game: &mut Game, turns: usize, label: &str) -> Census {
     let mut census = Census::default();
     if let Err(why) = invariant(&game.kingdom) {
@@ -127,6 +135,9 @@ pub(crate) fn play(game: &mut Game, turns: usize, label: &str) -> Census {
         let Some(mut outcome) = l2_game::turn::end_turn_to_autosave(game) else {
             panic!("{label}: the turn machine stopped to ask a question on turn {turn}");
         };
+        if let Err(why) = reconciled(&game.kingdom) {
+            panic!("{label}: turn {turn}, at the autosave: {why}");
+        }
         census.observe_blocks(&game.kingdom, turn);
         let Some(opened) = l2_game::turn::end_turn_opening(game) else {
             panic!("{label}: phases 1-3 stopped to ask a question on turn {turn}");

@@ -106,7 +106,8 @@ fn a_game_with_turns_behind_it_round_trips_including_its_last_report() {
         let game = played(turns);
         assert_eq!(game.turns_played, 3 + turns as u32, "the interface's counter moved");
         assert!(game.last_report.is_some(), "a played turn leaves a report to redraw");
-        let back = save::decode(&save::encode(&game), Tables::DEFAULT).expect("our own bytes");
+        let mut back = save::decode(&save::encode(&game), Tables::DEFAULT).expect("our own bytes");
+        carried(&mut back, &game);
         assert_eq!(back, game, "after {turns} turns");
     }
 }
@@ -116,6 +117,7 @@ fn ten_seasons_from_a_reloaded_game_are_the_same_ten() {
     let mut original = played(4);
     let mut resumed =
         save::decode(&save::encode(&original), Tables::DEFAULT).expect("our own bytes");
+    carried(&mut resumed, &original);
     assert_eq!(
         digest(&original.kingdom),
         digest(&resumed.kingdom),
@@ -148,6 +150,7 @@ fn ten_seasons_from_a_reloaded_england_are_the_same_ten() {
     }
     let bytes = save::encode(&original);
     let mut resumed = save::decode(&bytes, Tables::DEFAULT).expect("our own bytes");
+    carried(&mut resumed, &original);
     // [D] Game::loaded_view is the original save's g_mapStartRow/Col (blocks 17/16), presentation, not in ours.
     resumed.loaded_view = original.loaded_view;
     assert_eq!(resumed, original, "the England position reloads field for field");

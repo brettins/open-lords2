@@ -97,7 +97,7 @@ crates/l2-game/tests/labour_move/game_flow_tests.rs fixture 1
 crates/l2-game/tests/load_selected.rs fixture 1
 crates/l2-game/tests/long_game/england.rs england 2
 crates/l2-game/tests/long_game/england.rs other 1
-crates/l2-game/tests/long_game/scenarios.rs england 1
+crates/l2-game/tests/long_game/scenarios.rs england 2
 crates/l2-game/tests/long_game/scenarios.rs install 1
 crates/l2-game/tests/long_game/scenarios.rs other 1
 crates/l2-game/tests/merchant/merchant_ui.rs england 3

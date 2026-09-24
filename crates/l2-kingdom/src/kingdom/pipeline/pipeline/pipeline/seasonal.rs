@@ -29,6 +29,8 @@ impl Kingdom {
     /// type: `moveState = 0` and `movesUsed = 0`.
     pub(super) fn units_reset_moves(&mut self) {
         self.campaign.units.reset_moves();
+        // Turn_Tick 0x0049A010 phase 7: Units_ResetMoves(); Move_BuildCostMap(); [V]
+        self.campaign.rebuild_move_cost();
     }
 
     /// `Mercenary_AdvanceAll` (`0x004ACA2B`) — turn phase 7, and **before**

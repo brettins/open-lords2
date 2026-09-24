@@ -179,7 +179,7 @@ mod tests {
         let mut r = MerchantRoutes::none();
         r.set_route(0, &[1, 2]);
 
-        assert_eq!(advance_all(&r, &map, &counties, &mut units, 2), 1);
+        assert_eq!(advance_all(&r, &map.cost_map(), &map, &counties, &mut units, 2), 1);
         let u = units.get(1).unwrap();
         assert_eq!(u.dest_county, 2, "the second entry on the route");
         assert!(u.moving, "and it has been set walking");
@@ -204,7 +204,7 @@ mod tests {
         let mut r = MerchantRoutes::none();
         r.set_route(0, &[1, 2]);
 
-        assert_eq!(advance_all(&r, &map, &counties, &mut units, 2), 1);
+        assert_eq!(advance_all(&r, &map.cost_map(), &map, &counties, &mut units, 2), 1);
         let u = units.get(1).unwrap();
         assert_eq!(u.dest_county, 2, "the same leg");
         assert_eq!(u.year_formed, 9, "and the route cursor did not move");
@@ -232,7 +232,7 @@ mod tests {
         let mut r = MerchantRoutes::none();
         r.set_route(0, &[1, 2]);
 
-        assert_eq!(advance_all(&r, &map, &counties, &mut units, 2), 0);
+        assert_eq!(advance_all(&r, &map.cost_map(), &map, &counties, &mut units, 2), 0);
         let u = units.get(1).unwrap();
         assert!(u.needs_destination, "still asking");
         assert!(!u.moving);

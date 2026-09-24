@@ -26,6 +26,7 @@ impl Unit {
             dest: None,
             path: Vec::new(),
             moving: false,
+            ordered: false,
             on_road: false,
             sub_tile: 0,
             sub_frame: 0,

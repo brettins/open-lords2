@@ -217,6 +217,8 @@ impl SaveLoadScreen {
                         let chosen = ctx.game.chosen_gold;
                         // g_battleCounty is .bss and Save_Read 0x004ADFE6 does not read it [I].
                         game.kingdom.campaign.battle_county = ctx.game.kingdom.campaign.battle_county;
+                        // g_moveCost 0x004F4080 is .bss and in no Save_Write block: a load keeps the last game's [V].
+                        game.kingdom.campaign.move_cost = ctx.game.kingdom.campaign.move_cost.clone();
                         *ctx.game = game;
                         ctx.game.tips = tips;
                         ctx.game.chosen_gold = chosen;
