@@ -120,6 +120,9 @@ mod tests {
         assert!(l.surround[..30 * LATTICE_W].iter().all(|f| (22..30).contains(f)));
         assert!(l.surround.iter().any(|&f| f != 22), "the sea is varied");
         assert!((6..22).contains(&l.surround[40 * LATTICE_W + 30]));
+        let mut other = blank();
+        other.dress(&|_, _| true, 2);
+        assert_ne!(other.surround[..LATTICE_W], l.surround[..LATTICE_W], "open sea is LFSR & 7, not the counter");
     }
 
     /// A lone grass cell: the sea cell two rows above has land at step 3 (0, +2)
