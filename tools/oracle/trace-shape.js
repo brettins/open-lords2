@@ -30,12 +30,25 @@ for (const l of fs.readFileSync(raw, 'utf8').split('\n')) {
       case 'Msg_PlayVoice': lines.push(rec(e.f, 'sound', 0x004b35c1, e.fn, from, { group: a[0], variant: a[1] })); break;
       // Msg_Enqueue(from, to, group, variant, category, ...) per docs/symbols.json; county as arg 6 is [I].
       case 'Msg_Enqueue': lines.push(rec(e.f, 'message', 0x00472bc5, e.fn, from, { group: a[2], category: a[4], to: a[1], from: a[0], county: a[5] })); break;
-      // DAT_0057C944, the realm cursor, read at entry; the step byte is not captured (null).
-      case 'AI_RunTurnStep': lines.push(rec(e.f, 'ai', 0x0049a581, e.fn, from, { realm: a[0], step: null, done: null })); break;
+      // a[0] is DAT_0057C944 at entry, the cursor, not the realm: the body steps the first in-play
+      // realm from it and leaves the cursor one past (00490000.c:4910-4919). Realm set below.
+      case 'AI_RunTurnStep': lines.push(rec(e.f, 'ai', 0x0049a581, e.fn, from, { realm: null, cursor: a[0], step: null, done: null })); break;
       case 'Pl8_DrawFrame': lines.push(rec(e.f, 'draw', 0x0040a21a, e.fn, from, { sheet: e.text, frame: a[1], x: a[2], y: a[3] })); break;
       case 'Eng_DrawString': lines.push(rec(e.f, 'text', 0x00402d37, e.fn, from, { group: a[0], index: a[1], x: a[2], y: a[3] })); break;
       case 'Smk_Play': lines.push(rec(e.f, 'film', 0x0042d91b, e.fn, from, { file: e.text })); break;
     }
   }
 }
+// The realm a call stepped is the next call's entry cursor less one, 1 wrapping to 5
+// (`if (5 < cursor) cursor = 1`); the last call's is unknown and stays null. A cursor back where
+// it was went round all five with none in play [I] (or one realm, before it): null too.
+const ai = lines.map((l, i) => [JSON.parse(l), i]).filter(([r]) => r.kind === 'ai');
+ai.forEach(([r, i], k) => {
+  const next = ai[k + 1];
+  if (!next) return;
+  const c = next[0].args.cursor;
+  if (c === r.args.cursor) return;
+  r.args.realm = c === 1 ? 5 : c - 1;
+  lines[i] = JSON.stringify(r);
+});
 fs.writeFileSync(out, lines.join('\n') + '\n');

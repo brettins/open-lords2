@@ -26,7 +26,7 @@ function keyOf(r) {
     case 'phase': return ['phase', String(a.phase)];
     case 'film': return ['film', low(a.file)];
     case 'message': return ['message', `${a.group}/c${a.category}/to${a.to}`];
-    case 'ai': return ['ai', `realm${a.realm}`];
+    case 'ai': return a.realm == null ? null : ['ai', `realm${a.realm}`];
     case 'order': return ['order', 'order'];
     case 'sound':
       if (r.name === 'Music_Play') return ['music', low(a.file)];
@@ -38,6 +38,9 @@ function keyOf(r) {
   }
 }
 const COLLAPSE = new Set(['screen', 'phase']);
+// The original steps one realm a call, round-robin (0x0049A581), many calls a frame; ours every
+// realm a frame: only which realms step, in first-step order, compares.
+const DISTINCT = new Set(['ai']);
 const RANK = ['screen', 'sound', 'music', 'voice', 'film', 'message', 'phase', 'ai', 'order', 'slot', 'text', 'draw', 'rand'];
 
 // Steps: [label, records]; a repeated label gets #n.
@@ -88,6 +91,7 @@ function sequences(recs, side) {
     const [cat, key] = k;
     const s = (seq[cat] = seq[cat] || []);
     if (COLLAPSE.has(cat) && s.length && s[s.length - 1].key === key) continue;
+    if (DISTINCT.has(cat) && s.some((x) => x.key === key)) continue;
     s.push({ key, r });
   }
   return seq;

@@ -1,6 +1,7 @@
 ﻿//! Our side of the trace differ: a scenario played headless, every `l2_net::trace!` site
 //! written as `<scenario>.ours.jsonl`. C246; `tools/oracle/scenarios/FORMAT.md`.
 
+mod harness;
 mod script;
 mod sink;
 mod symbols;
@@ -26,6 +27,7 @@ pub struct Run {
     canvas: Canvas,
     tables: l2_kingdom::tables::Tables,
     frame: u64,
+    posted_298: bool,
 }
 
 pub fn scenarios_dir() -> PathBuf {
@@ -51,6 +53,7 @@ impl Run {
             canvas: Canvas::screen(),
             tables,
             frame: 0,
+            posted_298: false,
         })
     }
 
@@ -63,9 +66,11 @@ impl Run {
     fn frame(&mut self) {
         self.frame += 1;
         trace::set_frame(self.frame);
+        harness::post_non_256_colour(&mut self.posted_298, &self.machine, &mut self.game);
         let mut ctx = Ctx { game: &mut self.game, assets: &self.assets };
         self.machine.update(&mut ctx);
         self.director.listen(&mut self.audio, &self.machine, &self.game);
+        harness::end_one_shots(&mut self.audio);
         if self.machine.take_dirty() {
             let ctx = Ctx { game: &mut self.game, assets: &self.assets };
             self.machine.draw(&ctx, &mut self.canvas);
@@ -160,8 +165,8 @@ impl Run {
                         .expect("the save plays");
                     self.machine = Machine::new(ScreenId::Campaign);
                 }
-                Step::Click(.., true) => {}
-                Step::Click(x, y, right, false) => {
+                // A "(this harness)" click answers message 298, which harness.rs posts too.
+                Step::Click(x, y, right, _) => {
                     let (x, y) = (*x, *y);
                     self.send(Event::Pointer { x, y });
                     if *right {

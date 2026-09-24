@@ -73,6 +73,8 @@ pub fn open_players_turn(game: &mut Game) {
         let realm = &mut game.kingdom.realms[id];
         if realm.in_play && realm.is_human {
             realm.ai_step = 1;
+            // 0x0049A581 steps the human too; the isHuman guard leaves it the prologue alone.
+            l2_net::trace!("ai", 0x0049A581, "AI_RunTurnStep", realm = id, step = 0, done = 0);
         }
     }
     game.ai_granted = false;
