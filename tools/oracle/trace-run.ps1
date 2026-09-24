@@ -9,6 +9,7 @@
     load                     title menu > Load > first entry > OK, then waits for the map
     new-game original|new    Play Now! > campaign > Continue, then 300 frames
     click x y | rclick x y | key <vk number or name> | advance N | snap | anchor <label>
+    move x y | drag x y x2 y2 | record N    (record: N frames keeping draw records)
     wait-screen N | wait-page N | wait-phase N | wait-idle N   (numbers may be 0x..)
     wait-screen-not N | wait-page-not N | peek <addr>  (a dword of the game, as a note)
     dismiss                  press OK on message boxes (screen 0x27) until none is up
@@ -60,6 +61,11 @@ function FromJson($line) {
     'new-game' { "new-game $(if ($o.campaign) { $o.campaign } else { 'original' })" }
     'click' { "$(if ($o.button -eq 'right') { 'rclick' } else { 'click' }) $($o.x) $($o.y)" }
     'key' { $k = [string]$o.key; if ($k.Length -eq 1) { "key $([int][char]$k.ToUpper())" } else { "key $($k.ToLower())" } }
+    'drag' { "drag $($o.x) $($o.y) $($o.x2) $($o.y2)" }
+    'move' { "move $($o.x) $($o.y)" }
+    'record' { "record $($o.frames)" }
+    'wait-event' { "wait-event $($o.event)" }
+    'wait-screen-not' { "wait-screen-not $($o.id)" }
     'wait-screen' { "wait-screen $($o.id)" }
     'wait-phase' { "wait-phase $($o.phase)" }
     'wait-page' { "wait-page $($o.page)" }
@@ -106,6 +112,9 @@ function Run-Scenario($file, $run) {
       switch ($w[0]) {
         'click' { $t.Click((Num $w[1]), (Num $w[2])) }
         'rclick' { $t.RClick((Num $w[1]), (Num $w[2])) }
+        'move' { $t.MoveTo((Num $w[1]), (Num $w[2])) }
+        'drag' { $t.Drag((Num $w[1]), (Num $w[2]), (Num $w[3]), (Num $w[4])) }
+        'record' { $t.KeepDraws = $true; $t.Advance((Num $w[1])); $t.KeepDraws = $false }
         'key' { $k = if ($vk.ContainsKey($w[1])) { $vk[$w[1]] } else { Num $w[1] }; $t.Key($k) }
         'advance' { $t.Advance((Num $w[1])) }
         'snap' { $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Note('{"ev":"snap","f":' + $t.Frames + ',"hash":"' + ('{0:x8}' -f $t.Hash) + '"}') }

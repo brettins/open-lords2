@@ -176,6 +176,20 @@ public class L2Trace : IDisposable {
         WaitFrames(2, 5000);
         PostMessage(Hwnd, 0x0205, IntPtr.Zero, XY(x, y));
     }
+    // Left button held from (x0, y0) to (x1, y1) over 8 moves: the battle's selection box.
+    public void Drag(int x0, int y0, int x1, int y1) {
+        MoveTo(x0, y0);
+        WaitFrames(2, 5000);
+        PostMessage(Hwnd, 0x0201, new IntPtr(1), XY(x0, y0));
+        WaitFrames(2, 5000);
+        for (int i = 1; i <= 8; i++) {
+            int x = x0 + (x1 - x0) * i / 8, y = y0 + (y1 - y0) * i / 8;
+            view.Write(OffCursorX, x); view.Write(OffCursorY, y);
+            PostMessage(Hwnd, 0x0200, new IntPtr(1), XY(x, y));
+            WaitFrames(2, 5000);
+        }
+        PostMessage(Hwnd, 0x0202, IntPtr.Zero, XY(x1, y1));
+    }
     public void Key(int vk) {
         PostMessage(Hwnd, 0x0100, new IntPtr(vk), new IntPtr(1));
         WaitFrames(1, 5000);

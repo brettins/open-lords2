@@ -1,21 +1,27 @@
-// battle-during.sav: the minimap on the troops, a left click on the view centre (select), a right click beside it (order), unpause.
+// battle-during.sav loads into the field battle (screen 0x29), paused: unpause, click the archers, order them onto open ground, unpause.
+// NOT YET: no Battle_OrderSelection 0x0043C634 fires; the pause click opens screen 0x2A and the figure click selects nothing.
 {"op":"films","mode":"skip"}
 {"op":"load","save":"battle-during.sav"}
 {"op":"dismiss"}
 {"op":"anchor","label":"loaded"}
+{"op":"record","frames":2}
 {"op":"snap"}
-{"op":"click","x":584,"y":100}
-{"op":"advance","frames":30}
-{"op":"snap"}
-{"op":"click","x":240,"y":250}
+// Figures from FUN_004BDC31's blits (caller 0x004BDFEA): a2w_arch.pl8 at x 152..248, y 328..360.
+// Battle_ButtonClicked 0x004329A4: button 0, pause, at (480, 448) 32 x 32; a click on the paused field opens screen 0x2A.
+{"op":"click","x":496,"y":464}
+{"op":"advance","frames":10}
+{"op":"click","x":160,"y":340}
 {"op":"advance","frames":10}
 {"op":"anchor","label":"select"}
+{"op":"record","frames":2}
 {"op":"snap"}
-{"op":"click","x":180,"y":200,"button":"right"}
+// Open ground right of the peasants (a2w_psnt, x 152..312, y 168..232).
+{"op":"click","x":380,"y":280}
 {"op":"advance","frames":10}
 {"op":"anchor","label":"order"}
+{"op":"record","frames":2}
 {"op":"snap"}
-{"op":"key","key":"Space"}
 {"op":"advance","frames":600}
 {"op":"anchor","label":"after-600"}
+{"op":"record","frames":2}
 {"op":"snap"}
