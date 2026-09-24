@@ -74,7 +74,8 @@ fn the_paragraph_counts_are_the_table_in_the_exe() {
 fn the_help_window_draws_every_paragraph_of_its_group() {
     let five = paint(292);
     let ten = paint(295);
-    let (top, bottom) = (32 + 0x150, 32 + 0x170);
+    // FUN_0040328E wraps 292 to 14 lines ending y=322 and 295 to 15 ending y=358.
+    let (top, bottom) = (32 + 0x130, 32 + 0x150);
     assert!(
         band_diff(&five, &ten, top, bottom) > 0,
         "group 295's late paragraphs paint where group 292's window is bare"

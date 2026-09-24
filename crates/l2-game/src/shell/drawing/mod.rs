@@ -4,6 +4,7 @@ mod primitives;
 pub use primitives::*;
 mod pen;
 pub use pen::*;
+mod wrap;
 
 use super::*;
 use super::assets::*;

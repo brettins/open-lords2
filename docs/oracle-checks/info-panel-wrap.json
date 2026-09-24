@@ -1,0 +1,15 @@
+{ "reviewed": "3f5e13b86d0b38523e70adb47a5773bba3ecab9f",
+  "date": "2026-09-24",
+  "behaviours": [
+    { "file": "crates/l2-game/src/message/layout.rs", "line": 236, "address": "0x0040328E", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/message/layout.rs", "line": 243, "address": "0x0040352F", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/message/layout.rs", "line": 255, "address": "0x0040328E", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/message/layout.rs", "line": 287, "address": "0x004036F9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/shell/drawing/wrap.rs", "line": 8, "address": "0x0040328E", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/shell/drawing/wrap.rs", "line": 15, "address": "0x0040352F", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/shell/drawing/wrap.rs", "line": 30, "address": "0x004015B9", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs", "line": 357, "address": "0x00417BD3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/message/render.rs", "line": 124, "address": "0x00475E07", "verdict": "match", "note": "fixed: the buffer_wrapped call cites FUN_0040352F 0x0040352F" },
+    { "file": "crates/l2-game/src/screens/setup/ui/skirmish_page.rs", "line": 91, "address": "0x00421231", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/diplomacy/compose/helper.rs", "line": 26, "address": "0x0040352F", "verdict": "match", "note": "fixed: caret found by index while wrapping the whole buffer (Ui_DrawText 00400000.c:1125); end of text falls back to the last line + 4 px, one line below (FUN_00417BD3 00410000.c:2919, DAT_005CD4F8 +0x10 per line at 00400000.c:1720) [V]" }
+  ] }

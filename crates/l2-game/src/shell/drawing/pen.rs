@@ -94,60 +94,6 @@ impl<'a> Pen<'a> {
         })
     }
 
-    /// `FUN_0040328E(group, index, x, y, width, …)` — one `L2.eng` string,
-    /// **wrapped** to `width` and stepped down a line each time.
-    ///
-    /// **[V]** the step: the function ends with
-    /// `if (font == &g_fontHeading) y += 0x18; else y += 0x10;` — 24 pixels for
-    /// the 22-pixel font and 16 for the 14-pixel one. It also strips a leading
-/// space from every line but the first, so a wrapped paragraph in
-    /// the original has no ragged left edge.
-    pub fn body_wrapped(
-        &self,
-        canvas: &mut Canvas,
-        x: i32,
-        y: i32,
-        width: i32,
-        s: &str,
-        colour: u8,
-    ) -> i32 {
-        l2_net::trace_leaf!("text", 0x0040328E, "FUN_0040328E", s = s, x = x, y = y, width = width; {
-            let mut line = y;
-            for text in self.wrap(s, width) {
-                self.body(canvas, x, line, &text, colour);
-                line += self.assets.body.as_ref().map_or(16, |f| f.line);
-            }
-            line - y })
-    }
-
-    pub fn wrap(&self, s: &str, width: i32) -> Vec<String> {
-        let measure = |t: &str| -> i32 {
-            match &self.assets.body {
-                Some(f) => f.width(t),
-                None => l2_view::text::width(t),
-            }
-        };
-        let mut out: Vec<String> = Vec::new();
-        let mut line = String::new();
-        for word in s.split_whitespace() {
-            let candidate =
-                if line.is_empty() { word.to_string() } else { format!("{line} {word}") };
-            if !line.is_empty() && measure(&candidate) > width {
-                out.push(std::mem::take(&mut line));
-                line = word.to_string();
-            } else {
-                line = candidate;
-            }
-        }
-        if !line.is_empty() {
-            out.push(line);
-        }
-        if out.is_empty() {
-            out.push(String::new());
-        }
-        out
-    }
-
     /// An `L2.eng` string, drawn in the body font. Returns where it ended, like
     /// [`Pen::body`], because the original's sentences are built out of a
     /// string and a number and a string.

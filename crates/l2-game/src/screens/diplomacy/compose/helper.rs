@@ -14,21 +14,57 @@ use crate::screens::message::lord_name;
 use crate::shell::{font, Pen};
 use crate::widget;
 
-/// Where the caret lands inside the wrapped draft — the pen position
-/// `FUN_0040352F` hands back to `FUN_00417BD3` as `g_caretX`, `g_caretY`.
-///
-/// **[I] on the column.** Our wrap splits on whitespace and drops it, so a
-/// caret standing on a run of spaces is drawn at the end of the word before
-/// them; the original measures the spaces. Elsewhere the two agree.
+/// `Ui_DrawText` (00400000.c:1125) takes the caret while `FUN_0040352F` draws the
+/// whole buffer: the pen at the character whose index is `g_editCaret`. None
+/// matched, `FUN_00417BD3` (00410000.c:2919) falls back to the last line's
+/// `g_penAdvance`, +4 (`0x00402637`), and `DAT_005CD4F8`, +0x10 per line drawn
+/// (00400000.c:1720): one line below the last. [V]
 pub(super) fn caret_pen(pen: &Pen, text: &str, caret: usize, x: i32, y: i32, width: i32) -> (i32, i32) {
     use crate::text::Metrics;
     let m = crate::text::FontMetrics::of(pen.assets);
     let line_h = pen.assets.body.as_ref().map_or(16, |f| f.line);
-    let head: String = text.chars().take(caret).collect();
-    let rows = pen.wrap(&head, width);
-    let row = rows.len().saturating_sub(1) as i32;
+    let rows = pen.wrap_buffer(text, width);
+    let mut at = 0;
+    for (row, line) in rows.iter().enumerate() {
+        let chars: Vec<char> = line.chars().collect();
+        // `if (0x1f < local_c)` guards the capture
+        if caret >= at && caret < at + chars.len() && chars[caret - at] > '\u{1f}' {
+            return (x + m.width(&chars[..caret - at]), y + row as i32 * line_h);
+        }
+        at += chars.len();
+    }
     let last: Vec<char> = rows.last().map_or_else(Vec::new, |s| s.chars().collect());
-    (x + m.width(&last), y + row * line_h)
+    (x + m.width(&last) + 4, y + rows.len() as i32 * line_h)
+}
+
+#[cfg(test)]
+mod caret_tests {
+    use super::*;
+
+    fn pen_of(a: &crate::game::Assets) -> Pen<'_> {
+        Pen { assets: &a.shell, ink: &a.ink, chrome: None, shadow: None, caps: None }
+    }
+
+    /// Ablated by restoring the wrap of the text before the caret (3f5e13b8): "aaaa bb"
+    /// fits one line, the caret stays on row 0 and this goes red. Verified.
+    #[test]
+    fn a_caret_mid_word_follows_its_word_to_the_next_line() {
+        let a = crate::game::Assets::placeholder();
+        let pen = pen_of(&a);
+        let rows = pen.wrap_buffer("aaaa bbbb", 44);
+        assert_eq!(rows, vec!["aaaa".to_string(), " bbbb".to_string()]);
+        assert_eq!(caret_pen(&pen, "aaaa bbbb", 7, 0x30, 200, 44), (0x30 + 12, 216));
+    }
+
+    /// Ablated by dropping the fallback's `+ 4` and row below: the caret sits
+    /// after "bbbb" on row 1 and this goes red. Verified.
+    #[test]
+    fn a_caret_at_the_end_falls_back_one_line_below() {
+        let a = crate::game::Assets::placeholder();
+        let pen = pen_of(&a);
+        assert_eq!(caret_pen(&pen, "aaaa bbbb", 9, 0x30, 200, 44), (0x30 + 24, 232));
+        assert_eq!(caret_pen(&pen, "", 0, 0x30, 200, 44), (0x30 + 4, 216));
+    }
 }
 
 /// `Diplo_SendClicked` (`0x00436408`)'s validation, as a function of the state

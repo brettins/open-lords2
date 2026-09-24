@@ -319,9 +319,10 @@ impl Screen for CourtScreen {
 
         let wages = a.text(GROUP, WAGES).to_string();
         let w = pen.body(canvas, FOOTER_X, WAGES_Y, &wages, font::TEXT);
+        // `Ui_DrawCount(wages, 0, g_penAdvance + 100, 0x124, …)` 00410000.c:2642; `w` is absolute.
         pen.count(
             canvas,
-            FOOTER_X + w,
+            w,
             WAGES_Y,
             realm.map_or(0, |r| r.wages),
             CROWN_NOUN,
@@ -330,9 +331,10 @@ impl Screen for CourtScreen {
 
         let tax = a.text(GROUP, TAX_EXPECTED).to_string();
         let w = pen.body(canvas, FOOTER_X, TAX_Y, &tax, font::TEXT);
+        // `Ui_DrawCount(field_0x15c, 0, g_penAdvance + 100, 0x136, …)` 00410000.c:2645.
         pen.count(
             canvas,
-            FOOTER_X + w,
+            w,
             TAX_Y,
             tax_expected(ctx, player),
             CROWN_NOUN,

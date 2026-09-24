@@ -192,3 +192,28 @@ fn the_court_s_stores_are_drawn_in_the_heading_face_at_court_draw_s_x() {
     );
 }
 
+
+/// `Court_Draw` (`0x00416925`) 00410000.c:2642/2645: each footer count sits at
+/// `g_penAdvance + 100`, right after its label; we added 100 twice.
+#[test]
+fn the_court_s_footer_counts_follow_their_labels() {
+    use l2_game::screens::court::{self, CourtScreen};
+    let (mut game, assets) = world!();
+    let body = assets.shell.body.as_ref().expect("Fntl2_14.pl8");
+    let (wages, tax) = {
+        let r = &game.kingdom.realms[game.player as usize];
+        (r.wages, game.kingdom.tax_expected(game.player))
+    };
+    let mut screen = CourtScreen::new();
+    let canvas = draw(&mut screen, &mut game, &assets);
+    const LEAD: i32 = 4; // Ui_DrawCount's '@'
+    const TRAILER: i32 = 4; // Ui_DrawText 0x00402637, 00400000.c:1191
+    for (index, y, n) in [(court::WAGES, court::WAGES_Y, wages), (court::TAX_EXPECTED, court::TAX_Y, tax)] {
+        let label = assets.shell.text(court::GROUP, index).to_string();
+        assert_eq!(
+            find_on_row(&canvas, body, &n.to_string(), font::TEXT, y),
+            Some(court::FOOTER_X + body.width(&label) + TRAILER + LEAD),
+            "L2.eng 70/{index}'s count is not at g_penAdvance + 100"
+        );
+    }
+}

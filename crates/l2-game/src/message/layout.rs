@@ -235,6 +235,17 @@ pub fn paragraph_layout(lines: &[usize]) -> Paragraphs {
 /// non-space character in the font the text is drawn in.
 pub fn break_lines(text: &str, width: i32, glyph: impl Fn(char) -> i32) -> Vec<String> {
     let chars: Vec<char> = text.chars().skip_while(|c| (*c as u32) < 0x20).collect();
+    break_chars(&chars, width, &glyph, true)
+}
+
+/// **`FUN_0040352F`** (`0x0040352F`): the same loop over a raw buffer; it keeps
+/// a wrapped line's leading spaces and skips no leading control bytes. [V]
+pub fn break_buffer(text: &str, width: i32, glyph: impl Fn(char) -> i32) -> Vec<String> {
+    let chars: Vec<char> = text.chars().collect();
+    break_chars(&chars, width, &glyph, false)
+}
+
+fn break_chars(chars: &[char], width: i32, glyph: &impl Fn(char) -> i32, strip: bool) -> Vec<String> {
     let mut at = 0;
     let mut lines = Vec::new();
     let mut more = true;
@@ -248,13 +259,13 @@ pub fn break_lines(text: &str, width: i32, glyph: impl Fn(char) -> i32) -> Vec<S
         let mut line = String::new();
         let mut line_start = true;
         while more && used < width {
-            let (w, n) = measure_word(&chars[at..], &glyph);
+            let (w, n) = measure_word(&chars[at..], glyph);
             used += w;
             if used < width {
                 for _ in 0..n {
                     let c = chars[at];
                     at += 1;
-                    if !line_start || c != ' ' {
+                    if !strip || !line_start || c != ' ' {
                         line.push(c);
                         line_start = false;
                     }
