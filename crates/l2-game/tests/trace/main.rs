@@ -165,7 +165,8 @@ impl Run {
                     // trace-run.ps1 `$LoadSteps` ends `wait-screen-not 0x1F`, `advance 60`.
                     self.frames(60);
                 }
-                Step::Click(x, y, right, _) => {
+                Step::Click(_, _, _, true) => {}
+                Step::Click(x, y, right, false) => {
                     if *right {
                         self.rclick(*x, *y);
                     } else {
