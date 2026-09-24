@@ -248,6 +248,23 @@ pub(super) fn draw_selection_markers(
     }
 }
 
+/// FUN_004BE33F 0x004BE33F, last in FUN_004BD233 while `0 < DAT_00553F84`: misc_bat
+/// frame 0x3F at `(cellX - camX) * 32 + viewX + 2`, `(cellY - camY) * 32 + viewY + 9`. [V]
+pub(super) fn draw_order_mark(canvas: &mut Canvas, chrome: Option<&l2_view::chrome::Chrome>, live: &LiveBattle) {
+    if live.order_mark_ticks == 0 {
+        return;
+    }
+    let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
+    let x = (live.order_mark.0 as i32 - cam.x as i32) * TILE + VIEW.x + 2;
+    let y = (live.order_mark.1 as i32 - cam.y as i32) * TILE + VIEW.y + 9;
+    // [I] Clip_Horizontal/Clip_Vertical to the field view leave an off-view mark undrawn.
+    if let Some(c) = chrome.filter(|_| VIEW.contains(x, y)) {
+        c.draw_misc_bat(canvas, ORDER_MARK_FRAME, x, y);
+    }
+}
+
+pub(crate) const ORDER_MARK_FRAME: usize = 0x3F;
+
 pub(super) fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
     let picked = live.runner.selected_fighters(live.owner);
     let layout = BannerLayout::for_count(picked.len());

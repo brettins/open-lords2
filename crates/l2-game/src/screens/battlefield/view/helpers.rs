@@ -62,17 +62,33 @@ pub(crate) fn overview_occupants(game: &crate::Game, live: &LiveBattle) -> Vec<u
 /// men belong to. The clamp is the original's and it is what keeps an ownerless
 /// army off frame 6, which is a button. **[V]**
 pub(crate) fn side_shield(game: &crate::Game, live: &LiveBattle, side: l2_sim::Side) -> u8 {
+    let shield = raw_shield(game, live, side);
+    if shield == 0 { 6 } else { shield }
+}
+
+fn raw_shield(game: &crate::Game, live: &LiveBattle, side: l2_sim::Side) -> u8 {
     let owner = live
         .runner
         .fighters
         .iter()
         .enumerate()
         .find(|(i, f)| f.side == side && live.runner.is_alive(*i))
+        .or_else(|| live.runner.fighters.iter().enumerate().find(|(_, f)| f.side == side))
         .map(|(_, f)| live.runner.sim.figures[f.sim].owner);
-    let shield = owner
-        .and_then(|o| game.kingdom.realms.get(o as usize))
-        .map_or(0, |r| r.shield_index);
-    if shield == 0 { 6 } else { shield }
+    owner.and_then(|o| game.kingdom.realms.get(o as usize)).map_or(0, |r| r.shield_index)
+}
+
+/// The men's sheets: `FUN_004987B7` (`0x004987B7`) indexes the asset table by the
+/// army's unclamped shield byte, `shield * 7 + 0x12 + troop` (00490000.c:3811). [V]
+pub(crate) fn side_colours(
+    game: &crate::Game,
+    live: &LiveBattle,
+) -> (l2_view::figures::Colour, l2_view::figures::Colour) {
+    let colour = |side| {
+        let all = l2_view::figures::Colour::ALL;
+        all[(raw_shield(game, live, side) as usize).min(all.len() - 1)]
+    };
+    (colour(l2_sim::SIDE_B), colour(l2_sim::SIDE_A))
 }
 
 pub(crate) fn side_shields(game: &crate::Game, live: &LiveBattle) -> (u8, u8) {

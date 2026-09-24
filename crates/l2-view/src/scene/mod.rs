@@ -281,8 +281,9 @@ pub struct GroundArt {
 
 pub struct BattleAssets {
     grounds: [Option<GroundArt>; 3],
-    side4: Vec<Option<Sheet>>,
-    side0: Vec<Option<Sheet>>,
+    /// Indexed by `Colour` (a2w_ … a2b_); `sides` picks side 4's and side 0's.
+    banks: Vec<Vec<Option<Sheet>>>,
+    sides: std::cell::Cell<[Colour; 2]>,
     horse: Option<Sheet>,
     /// These three are on `BattleAssets` and not on [`GroundArt`] because they
     /// do not move with the ground: slots `0x12`…`0x1F` of the asset table are
@@ -349,15 +350,21 @@ impl BattleAssets {
             }
             Ok(out)
         };
-        let a = load_side(side4)?;
-        let b = load_side(side0)?;
+        let mut banks = Vec::with_capacity(Colour::ALL.len());
+        for c in Colour::ALL {
+            match load_side(c) {
+                Ok(bank) => banks.push(bank),
+                Err(e) if c == side4 || c == side0 => return Err(e),
+                Err(_) => banks.push((0..11).map(|_| None).collect()),
+            }
+        }
         let horse = read(figures::HORSE_FILE).ok().and_then(|b| Sheet::new(b).ok());
         let mut sheet = |name: &str| read(name).ok().and_then(|b| Sheet::new(b).ok());
         let missiles = sheet(missiles::MISSILE_SHEET);
         let engine = sheet(engines::ENGINE_SHEET);
         let catarm = [sheet(engines::ARM_SHEETS[0]), sheet(engines::ARM_SHEETS[1])];
 
-        Ok(BattleAssets { grounds, side4: a, side0: b, horse, missiles, engine, catarm })
+        Ok(BattleAssets { grounds, banks, sides: std::cell::Cell::new([side4, side0]), horse, missiles, engine, catarm })
     }
 
     pub fn ground(&self, g: Ground) -> &GroundArt {
@@ -383,6 +390,16 @@ impl BattleAssets {
         self.missiles.as_ref()
     }
 
+    /// `FUN_004987B7` (`0x004987B7`): table slot `shield * 7 + 0x12 + troop`, side 4 from
+    /// `g_units[g_battleArmyA].shield`, side 0 from `g_battleArmyB`'s. [V]
+    pub fn set_sides(&self, side4: Colour, side0: Colour) {
+        self.sides.set([side4, side0]);
+    }
+
+    pub fn sides(&self) -> [Colour; 2] {
+        self.sides.get()
+    }
+
     pub fn overview(&self) -> Option<&OverviewSheets> {
         self.ground(Ground::Field).overview.as_ref()
     }
@@ -394,8 +411,9 @@ impl BattleAssets {
         if troop.is_siege() {
             return self.engine.as_ref();
         }
-        let bank = if side == SIDE_A { &self.side0 } else { &self.side4 };
-        bank.get(troop.index()).and_then(|s| s.as_ref())
+        let [side4, side0] = self.sides.get();
+        let colour = if side == SIDE_A { side0 } else { side4 };
+        self.banks[colour as usize].get(troop.index()).and_then(|s| s.as_ref())
     }
 }
 

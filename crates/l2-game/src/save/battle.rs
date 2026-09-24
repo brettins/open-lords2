@@ -172,6 +172,8 @@ impl Decode for LiveBattle {
             sallied: input.bool()?,
             current_unit: input.len32()?,
             outcome_ticks: input.u32()?,
+            order_mark: (0, 0),
+            order_mark_ticks: 0,
             skirmish: input.bool()?,
             conclusion: input.option(l2_sim::Conclusion::decode)?,
             autocalc: input.bool()?,
