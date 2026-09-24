@@ -109,3 +109,18 @@ fn picking_up_an_army_is_screen_0x10_and_putting_it_down_is_not() {
     assert_eq!(s.mode_screen_id(), None);
 }
 
+
+// FUN_004B0CB4 0x004B0CB4 `g_screenId = 0x23`; Season_FinishFade 0x0049A3E6 guards 0x24.
+// Ablate: the `fading` arm of mode_screen_id -> None throughout, first assertion red.
+#[test]
+fn the_end_of_turn_fade_is_screens_0x23_then_0x24_then_0x23_then_the_map() {
+    let mut s = MapScreen::new();
+    s.fading = Some(Fading { phase: 0, status: String::new(), over: false });
+    let mut seen = vec![s.mode_screen_id()];
+    while s.fading.is_some() {
+        s.tick_fade();
+        seen.push(s.mode_screen_id());
+    }
+    seen.dedup();
+    assert_eq!(seen, [Some(0x23), Some(0x24), Some(0x23), None], "newgame-original.orig f602..f607");
+}

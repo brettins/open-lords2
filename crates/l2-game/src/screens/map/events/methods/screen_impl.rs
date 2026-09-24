@@ -10,6 +10,11 @@ impl Screen for MapScreen {
     }
 
     fn mode_screen_id(&self) -> Option<u8> {
+        // FUN_004B0CB4 0x004B0CB4 `g_screenId = 0x23;` while a fade runs; the bottom is 0x24,
+        // Season_FinishFade 0x0049A3E6's guard [V]. Trace: 0x23 0x24 0x23 0 at each End Turn.
+        if let Some(f) = &self.fading {
+            return Some(if l2_view::fade::is_darkest(f.phase) { 0x24 } else { 0x23 });
+        }
         self.move_order.is_some().then_some(0x10)
     }
 

@@ -68,6 +68,9 @@ impl Machine {
     pub(super) fn trace_screen(&self, game: &crate::Game) {
         let _ = game;
         l2_net::trace_changed!(self.traced_screen_byte(game).map_or(-1, i64::from); "screen", 0x004EAC50, "g_screenId", id = self.traced_screen_byte(game).map_or(-1, i64::from), ours = format!("{:?}", self.top_id()));
+        // Sampled once a frame, as native/l2-trace watches 0x00569584 at each present (caller null).
+        let phase = game.kingdom.turn.phase as u8;
+        l2_net::trace_changed!(i64::from(phase); "phase", 0x00569584, "g_turnPhase", phase = phase);
     }
 
     /// ```c
