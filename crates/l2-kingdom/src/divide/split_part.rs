@@ -13,6 +13,11 @@ use crate::unit::{
 
 /// `FUN_0046733C` — a free tile within five of `(x, y)`, road preferred.
 pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<(u8, u8)> {
+    free_tile_ring(map, units, x, y).map(|(_, t)| t)
+}
+
+/// Map_FindFreeTileNear 0x0046733C returns the ring `local_8` it found the tile on (00460000.c:4870) [V].
+pub fn free_tile_ring(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<(i32, (u8, u8))> {
     let cost = map.cost_map();
     let scan = |r: i32, road: bool| -> Option<(u8, u8)> {
         let dim = crate::map::MAP_DIM as i32;
@@ -37,10 +42,10 @@ pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
     };
     for r in 1..=SPLIT_SEARCH_RADIUS {
         if let Some(t) = scan(r + 1, true) {
-            return Some(t);
+            return Some((r, t));
         }
         if let Some(t) = scan(r, false) {
-            return Some(t);
+            return Some((r, t));
         }
     }
     None

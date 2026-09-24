@@ -84,8 +84,12 @@ impl Kingdom {
         let mut out = UnitsTick::default();
         refresh_allowances(&mut self.campaign.units);
         for id in 1..crate::unit::MAX_UNITS {
-            // Army_Tick 0x0046521F: `if (moving == 2) Unit_Step();` [V].
-            if !self.campaign.units.get(id).is_some_and(|u| u.moving && !u.ordered) {
+            let Some(u) = self.campaign.units.get_mut(id) else { continue };
+            if !(u.moving && !u.ordered) {
+                // Army_Tick 00460000.c:4096-4098 `else if (playerDriven == 0) moving = 2;` [V].
+                if u.kind == UnitKind::Army && !u.player_driven {
+                    (u.moving, u.ordered) = (true, false);
+                }
                 continue;
             }
             if !cross_sub_tile(&mut self.campaign.units, id) {
@@ -123,10 +127,22 @@ impl Kingdom {
             &mut self.campaign.units,
             id,
         ) else {
+            let (mut stacked, mut at_end) = (false, false);
             if let Some(u) = self.campaign.units.get_mut(id) {
                 u.moving = false;
                 if u.path.is_empty() {
                     u.needs_destination = true;
+                }
+                (stacked, at_end) = (!u.player_driven, u.path.is_empty());
+            }
+            // Unit_Step 00460000.c:4356/:4368 `if (playerDriven == 0) FUN_00467196(unit);` [V].
+            if stacked {
+                let c = &mut self.campaign;
+                let _ = movement::step_aside(&c.move_cost, &c.map, &mut c.units, id);
+                // :4368 falls through to the stale path[0], the unit's own tile, so Dir_FromDelta
+                // is 8 and `moving = 0` unless a path was copied [I].
+                if let Some(u) = c.units.get_mut(id).filter(|u| at_end && u.path.is_empty()) {
+                    u.moving = false;
                 }
             }
             return;
@@ -344,22 +360,33 @@ impl Kingdom {
     /// Whether any unit of a kind is still walking — the predicate
     /// `FUN_004A4F5B(kind)` answers for phases 3 and 6, and
     /// `FUN_004A4E3D(2, 6)` for phase 5.
-    pub fn units_moving(&self, kind: UnitKind) -> bool {
-        self.campaign.units.iter().any(|(_, u)| {
-            u.moving
+    pub fn units_moving(&mut self, kind: UnitKind) -> bool {
+        let mut any = false;
+        for (_, u) in self.campaign.units.iter_mut() {
+            if u.moving
                 && u.kind == kind
                 && (kind != UnitKind::PeasantMob || (u.owner == OWNERLESS && !u.owner_is_human))
-        })
+            {
+                // Units_AnyMovingOfKind 004a0000.c:2004 / ForRealm :1976 `moving = 2` [V].
+                u.ordered = false;
+                any = true;
+            }
+        }
+        any
     }
 
     /// `FUN_004A4E3D(kind, realm)` — is that realm's own unit of this kind
     /// still walking?
     pub fn realm_units_moving(&mut self, kind: UnitKind, realm: u8) -> bool {
         let mut any = false;
-        for (_, u) in self.campaign.units.iter_mut() {
+        for id in 1..crate::unit::MAX_UNITS {
+            let Some(u) = self.campaign.units.get_mut(id) else { continue };
             if u.moving && u.kind == kind && u.owner == realm && !u.owner_is_human {
-                // 004a0000.c:1977 `moving = 2`: starts every ordered unit it finds [V].
+                // 004a0000.c:1976-1979 `moving = 2; if (kind == 1) Siege_Break(unit);` [V].
                 u.ordered = false;
+                if kind == UnitKind::Army {
+                    crate::siege::break_siege(&self.counties, &mut self.campaign.units, id);
+                }
                 any = true;
             }
         }
@@ -438,6 +465,10 @@ impl Kingdom {
             )
             .is_some()
             {
+                // PeasantMob_AdvanceAll 004a0000.c:5094 `moving = 1` [V].
+                if let Some(u) = self.campaign.units.get_mut(id) {
+                    u.ordered = true;
+                }
                 started += 1;
             }
         }

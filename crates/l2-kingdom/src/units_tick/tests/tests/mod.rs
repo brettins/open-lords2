@@ -1,5 +1,6 @@
 
 mod marching;
+mod stacking;
 pub use marching::*;
 
 use super::*;
@@ -44,6 +45,8 @@ fn army(k: &mut Kingdom, owner: u8, x: u8, y: u8) -> usize {
     u.troops[0] = 100;
     u.county = k.campaign.map.county_at(x, y);
     u.owner_is_human = k.realms[owner as usize].is_human;
+    // Army_Create's Unit_LinkToTile 0x0046EDDF on an empty tile: playerDriven = 1.
+    u.player_driven = true;
     k.campaign.units.spawn(u).expect("a free slot")
 }
 

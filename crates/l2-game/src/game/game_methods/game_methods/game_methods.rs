@@ -222,6 +222,7 @@ impl Game {
         if !self.is_players_unit(unit) {
             return None;
         }
+        // Unit_OrderMove 0x004A98FE 004a0000.c:4060 `Move_BuildCostMap();` [V].
         self.kingdom.campaign.rebuild_move_cost();
         l2_kingdom::movement::order_move(
             &self.kingdom.campaign.map,

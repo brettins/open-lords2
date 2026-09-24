@@ -27,7 +27,7 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 
 /// `Move_FloodFill` + `Move_ExtractPath` (`0x004701AC`) against the stored `g_moveCost`, with no
 /// `Move_BuildCostMap`: Ai_AdvanceArmies 0x004A5667, PeasantMob_AdvanceAll, Merchant_AdvanceAll,
-/// Transport_RetargetAll, Army_Split. BNEW-stale-move-cost-after-load.
+/// Transport_RetargetAll, Army_Split; FUN_00467196 floods it too (step_aside). BNEW-stale-move-cost-after-load.
 pub fn repath(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8), routing: Routing) -> Option<usize> {
     let unit = units.get(id)?;
     let field = flood_fill(&cost, unit.tile(), routing);
@@ -51,10 +51,16 @@ pub fn repath(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, d
 /// what a *human* order does. So [`Routing::PreferRoads`]'s doc comment is
 pub fn order_move_by_road(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8)) -> Option<usize> {
     let by_road = repath(cost, map, units, id, dest, Routing::PreferRoads);
-    match by_road {
+    let steps = match by_road {
         Some(steps) if steps < crate::unit::MAX_PATH => Some(steps),
         _ => repath(cost, map, units, id, dest, Routing::Direct).or(by_road),
+    };
+    // Merchant_AdvanceAll 00420000.c:2954/:2962, Transport_RetargetAll :3517/:3525 `moving = 1`;
+    // Units_AnyMovingOfKind 0x004A4F5B starts them [V].
+    if let (Some(_), Some(u)) = (steps, units.get_mut(id)) {
+        u.ordered = true;
     }
+    steps
 }
 
 /// `Unit_TryEnterTile` (`0x00466C3C`) — classify the tile in front.
@@ -231,6 +237,8 @@ pub fn step(
         u.county = tile_county;
         out.entered_county = Some(tile_county);
     }
+    // Unit_MoveInFacing 00460000.c:4805 `Unit_LinkToTile(g_movingUnit);` [V].
+    link_to_tile(units, id);
     Some(out)
 }
 

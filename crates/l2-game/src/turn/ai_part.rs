@@ -149,7 +149,8 @@ pub fn drive_ai(
     // 00490000.c:4970: `2*realm + 15 <= aiStep && FUN_004A4E3D(1, realm) == 0`; the call,
     // which starts ordered armies, is short-circuited below the threshold [V].
     let r = &kingdom.realms[id];
-    let at_end = r.in_play && !r.is_human && r.ai_step < l2_kingdom::AI_STEP_DONE
+    // 00490000.c:4920 `strength != 0` is the filter above; 4927 `isHuman == 0 && aiStep < 999` [V].
+    let at_end = !r.is_human && r.ai_step < l2_kingdom::AI_STEP_DONE
         && r.ai_step >= ai::done_threshold(id);
     let marching = at_end && kingdom.realm_units_moving(l2_kingdom::UnitKind::Army, id as u8);
     let step = ai::pending_step(&kingdom.realms[id], id);

@@ -415,15 +415,20 @@ divergence and a deliberate one: it is our save format, and D11 already separate
 `g_moveCost` (`0x004F4080`), the 64×64 cost map every `Move_FloodFill` reads, is in no
 `Save_Write` block, and `Save_Read` (`0x004ADFE6`) does not rebuild it. Its one writer,
 `Move_BuildCostMap` (`0x0046FF43`), has four callers: `Game_NewGame`, `Turn_Tick` phase 7,
-`Unit_OrderMove` and `Map_BeginMoveSelection`. Loaded in a fresh process, the map is `.bss`
-zero, every cell impassable, so `Move_ExtractPath` returns a zero-length path and
+`Unit_OrderMove` and `Map_BeginMoveSelection`. A load
+therefore keeps whatever the process last built: the previous game's map, stale against the
+loaded terrain, roads and castles. Only the first game loaded in a process sees it `.bss`
+zero, every cell impassable, so that `Move_ExtractPath` returns a zero-length path and
 `Ai_AdvanceArmies` (`0x004A5667`), `PeasantMob_AdvanceAll`, `Merchant_AdvanceAll`,
-`Transport_RetargetAll` and `Army_Split` order nothing, until phase 7 rebuilds it. The player
-opening a move order rebuilds it for everyone.
+`Transport_RetargetAll`, `Army_Split` and `FUN_00467196` (the stacked unit's step aside) order
+nothing until phase 7 rebuilds it. The player opening a move order rebuilds it for everyone.
 
-**What we do.** Reproduced: `Campaign::move_cost` is not saved, starts empty on a load, and
-is rebuilt only where the original rebuilds it. `Map_BeginMoveSelection`'s rebuild is not
-reproduced (the move screen builds its own copy); an order placed from it rebuilds anyway.
+**What we do.** Reproduced: `Campaign::move_cost` is not saved or hashed; the load screen
+moves the running game's map into the loaded one, so a first load in a process sees zeros and a
+later one the last game's map. It is rebuilt only where the original rebuilds it, including
+`Map_BeginMoveSelection`. **Determinism** (docs/netcode.md D-11): a network game starts from
+`Game_NewGame`, which rebuilds it, and a load is refused in a network game (C245), so no peer ever
+reads a carried map; a networked load, if one is added, must start every peer from zeros.
 
 ### B66 — `Options_SetDefaults` defaults one sound flag twice and, apparently, another not at all
 

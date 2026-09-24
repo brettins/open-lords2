@@ -379,6 +379,8 @@ impl Screen for MapScreen {
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         if let Some(unit) = ctx.game.begin_move_order.take() {
+            // Map_BeginMoveSelection 00430000.c:4033 `Move_BuildCostMap();` rebuilds the shared g_moveCost [V].
+            ctx.game.kingdom.campaign.rebuild_move_cost();
             let read = Ctx { game: ctx.game, assets: ctx.assets };
             self.begin_move_selection(&read, unit);
         }

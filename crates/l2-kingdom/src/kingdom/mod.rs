@@ -152,8 +152,9 @@ pub struct Campaign {
     /// [D] not saved or hashed: the original's save does not hold it [I]; a load keeps the process value.
     pub battle_county: u8,
     /// `g_moveCost` (`0x004F4080`), `.bss`: only Move_BuildCostMap 0x0046FF43 writes it (Game_NewGame,
-    /// Turn_Tick phase 7, Unit_OrderMove, Map_BeginMoveSelection). Not saved or hashed, so a load
-    /// starts all-zero, every cell impassable [D]. BNEW-stale-move-cost-after-load.
+    /// Turn_Tick phase 7, Unit_OrderMove, Map_BeginMoveSelection). In no Save_Write block, so a load
+    /// keeps the previous game's map; the first game in a process starts all-zero [V]. Not saved or
+    /// hashed; the load screen carries it across [D]. BNEW-stale-move-cost-after-load.
     pub move_cost: crate::map::CostMap,
 }
 

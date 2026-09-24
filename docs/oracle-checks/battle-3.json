@@ -6,22 +6,22 @@
    "file": "crates/l2-sim/src/melee.rs",
    "line": 37,
    "address": "0x004831D8",
-   "verdict": "mismatch",
-   "note": "Body matches; trigger does not: the original runs it inside each man's state-4 handler in the man loop; ours runs every duel in sim.step after all men, missiles and wood fire."
+   "verdict": "match",
+   "note": "fixed: survivor reaches state 8 in its own tick (melee::tick prologue / step_one), not in the victim's; other.opponent no longer cleared."
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
    "line": 58,
    "address": "0x00494908",
    "verdict": "match",
-   "note": ""
+   "note": "fixed: Melee_Tick kills only cur (state 2); heavy blow adds other.hits (:1829), resolved in other's tick. Also dropped our own-tick recovery decrement (no else at :1795-1799)."
   },
   {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 50,
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 154,
    "address": "0x00494DF9",
    "verdict": "match",
-   "note": ""
+   "note": "fixed: opponent owner!=0 && state==4 only; opponent-of-opponent guard dropped."
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
@@ -31,39 +31,39 @@
    "note": ""
   },
   {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 54,
-   "address": "0x00494908",
-   "verdict": "mismatch",
-   "note": "take_hits loops `while hits >= threshold`; 00490000.c:1801 is one `if`, one man per tick, so carried hits of 200+ (heavy blow + attack) kill two."
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 78,
-   "address": "0x00494908",
-   "verdict": "mismatch",
-   "note": "exchange end always swaps both roles and skips the :1791 demotion; original swaps only when other.opponent == cur (:1834-1842), else resets cur's exchange alone."
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 154,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 161,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": ""
-  },
-  {
    "file": "crates/l2-sim/src/runner/orders/movement.rs",
    "line": 33,
+   "address": "0x00494908",
+   "verdict": "match",
+   "note": "fixed: [D] state-4 guard removed; send_figure writes over state 4 as :3884-3887 does."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 21,
+   "address": "0x00494908",
+   "verdict": "match",
+   "note": "fixed: re-chooses when target is None or target.owner==0 (:1661)."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 16,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": "fixed: troopType>6 leaves state 8 (:1658); [I] Idle stands in for state 11 (no enum variant; EngineHalt 0x0048437E only stands)."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 30,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": "fixed: only a state-2 target ends the chase; tgX/tgY (fighter.target) kept."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 11,
    "address": "0x00489B8D",
    "verdict": "match",
-   "note": ""
+   "note": "fixed: [D] removed; retarget returns true on state 5 and step_one returns."
   },
   {
    "file": "crates/l2-sim/src/runner/orders/targeting.rs",

@@ -1,0 +1,83 @@
+{
+  "reviewed": "458bdf398b2929477b0d04daa0c981cb5733c517",
+  "date": "2026-09-24",
+  "behaviours": [
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs",
+      "line": 88,
+      "address": "0x0046521F",
+      "verdict": "mismatch",
+      "note": "Army_Tick 00460000.c:4097 `else if (playerDriven == 0) moving = 2;` promotes a non-player-driven army every frame; ours has no such arm."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs",
+      "line": 362,
+      "address": "0x004A4E3D",
+      "verdict": "mismatch",
+      "note": "004a0000.c:1978 calls Siege_Break on every kind-1 unit it starts; ours only clears ordered."
+    },
+    {
+      "file": "crates/l2-game/src/turn/ai_part.rs",
+      "line": 152,
+      "address": "0x0049A581",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/ai_army/army/movement.rs",
+      "line": 65,
+      "address": "0x004A5667",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 43,
+      "address": "0x004A98FE",
+      "verdict": "mismatch",
+      "note": "repath writes moving=2 for every caller; PeasantMob_AdvanceAll, Merchant_AdvanceAll, Transport_RetargetAll write moving=1."
+    },
+    {
+      "file": "crates/l2-kingdom/src/kingdom/pipeline/pipeline/pipeline/seasonal.rs",
+      "line": 32,
+      "address": "0x0049A010",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/kingdom/mod.rs",
+      "line": 157,
+      "address": "0x0046FF43",
+      "verdict": "mismatch",
+      "note": "Original .bss keeps the previous game's g_moveCost across an in-process load; ours zeroes it on every load, and the [D] reason claims fidelity."
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/units.rs",
+      "line": 126,
+      "address": "0x0043723A",
+      "verdict": "mismatch",
+      "note": "Map_BeginMoveSelection 00430000.c:4033 rebuilds the global g_moveCost; ours builds a local copy and leaves campaign.move_cost stale."
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 31,
+      "address": "0x004701AC",
+      "verdict": "mismatch",
+      "note": "The list of stale-cost users omits FUN_00467196 (Unit_Step, Castle_EvictTile), which floods g_moveCost without a rebuild."
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 159,
+      "address": "0x00437FD7",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 133,
+      "address": "0x00437FD7",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

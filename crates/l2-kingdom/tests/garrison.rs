@@ -49,6 +49,8 @@ fn army(k: &mut Kingdom, at: (u8, u8), men: i32) -> usize {
     u.county = 1;
     u.home_county = 1;
     u.owner_is_human = true;
+    // Army_Create's Unit_LinkToTile 0x0046EDDF on an empty tile: playerDriven = 1.
+    u.player_driven = true;
     k.campaign.units.spawn(u).expect("a free slot")
 }
 
