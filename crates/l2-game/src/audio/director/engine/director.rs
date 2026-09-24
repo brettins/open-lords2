@@ -94,7 +94,10 @@ impl Director {
         // FUN_00497A34 :3288-3290 `if (DAT_0055ce90) { Sound_PlayFile(s011_01, 1, 0);
         // DAT_0055ce90 = 0; }`; App_IdleFrame reaches it at boot after the intro. [V]
         // sfx: FUN_00497a34#3
-        if !self.welcomed && now.iter().any(|id| matches!(id, ScreenId::Setup(_))) {
+        // The main menu must be the screen on top: at launch it sits under the intro film.
+        if !self.welcomed
+            && matches!(now.last(), Some(ScreenId::Setup(crate::screens::setup::SetupPage::Title)))
+        {
             self.welcomed = true;
             audio.play_file(names::speech::WELCOME, true);
         }

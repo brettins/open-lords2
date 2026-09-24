@@ -35,7 +35,13 @@ Beside each behaviour, a comment with the function, its address, and the decomp 
 `+0x` offset (rule 7 shape). A deliberate difference is marked `[D]` with its reason or a
 C-number. Strings come from the screen's `L2.eng` group (rule 6), not literals.
 
-## 3. Before commit: the three questions, per behaviour
+## 3. Before commit: the trigger, then three questions, per behaviour
+
+0. **Trigger** — what makes the original run this function (its callers, and the
+   condition at each call site: which screen is up, which phase, which flag, after what)?
+   Is our trigger the same event at the same moment? Read the caller, not only the callee.
+   A correct body at the wrong moment is the most visible defect there is (example:
+   the welcome line played under the intro film instead of on the main menu).
 
 Put the Rust line beside the C line and answer:
 

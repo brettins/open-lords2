@@ -136,8 +136,14 @@ fn the_front_end_welcomes_once_a_session() {
     let game = world();
     let mut machine = Machine::new(APP_ROOT);
     let mut director = audio::Director::new();
-    listen(&mut director, &mut audio, &machine, &game);
     let welcome = names::speech::WELCOME.to_ascii_lowercase();
+    // At launch the menu sits under the intro film: nothing until the menu is on top.
+    // Ablation: the director's any-Setup-on-the-stack test speaks here.
+    let mut covered = Machine::new(APP_ROOT);
+    covered.push(ScreenId::About);
+    listen(&mut director, &mut audio, &covered, &game);
+    assert!(!audio.heard().contains(&welcome.as_str()), "spoke under another screen");
+    listen(&mut director, &mut audio, &machine, &game);
     assert!(audio.heard().contains(&welcome.as_str()), "heard {:?}", audio.heard());
     machine.push(ScreenId::Campaign);
     listen(&mut director, &mut audio, &machine, &game);

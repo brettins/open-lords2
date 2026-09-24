@@ -28,11 +28,17 @@ writes: no `cargo`, no `git checkout`, no `git merge`. `git diff main...<branch>
    body in `tools/oracle/decomp/` with Read and an offset and limit, never a whole file.
    `docs/symbols.md` is the name table; `docs/decisions.md` (grep by C-number only)
    records deliberate departures, which are not mismatches when the code cites them.
-5. Answer three questions per behaviour: same order of operations, same guards (every
+5. **First, the trigger.** Find what makes the original run the cited function: its
+   callers (`xref.js callers`) and the condition at each call site (the screen, phase,
+   flag or event that must hold). Then find what makes ours run the Rust. Same event, same
+   moment? A body that matches, run at the wrong moment, is a mismatch — the welcome line
+   (S011_01) matched FUN_00497A34 line for line and played under the intro film, because
+   ours fired on "a setup screen on the stack" where App_IdleFrame calls it after the intro.
+6. Then answer three questions per behaviour: same order of operations, same guards (every
    `if` the original tests, and none it does not), same constants (offsets, counts,
    thresholds, table indices, coordinates). A departure the code labels `[D]` with its
    reason is not a mismatch; an unlabeled one is.
-6. **Last, write your record** — the one file you write, and never any other:
+7. **Last, write your record** — the one file you write, and never any other:
    `docs/oracle-checks/<branch>.json` (branch without the `agent/` prefix).
 
    ```json
