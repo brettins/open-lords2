@@ -99,5 +99,17 @@ mod tests {
             assert_eq!(game.messages.open().map(|r| r.group), Some(want));
         }
     }
-}
 
+    /// Screen_FrameInput 0x0042FF10 `00420000.c:7134`: the right release closes 0x1B and orders
+    /// nothing. Ablation: drop CastleScreen::handle's RightClick arm.
+    #[test]
+    fn the_right_button_leaves_the_chooser_and_orders_nothing() {
+        let mut game = crate::Game::new(1);
+        let assets = crate::game::Assets::placeholder();
+        let mut s = CastleScreen::new(0);
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        let t = s.handle(Event::RightClick { x: 320, y: 300 }, &mut ctx);
+        assert_eq!(t, Transition::Pop);
+        assert_eq!(s.choice, CastleChoice::Cancelled);
+    }
+}

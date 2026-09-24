@@ -168,6 +168,11 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         .find(|&id| game.kingdom.counties[id].owner == game.player)
         .unwrap_or(0) as u8;
 
+    // g_mapStartRow 0x005651B8, g_mapStartCol 0x005651B4: blocks 17, 16. [V] savedump layout
+    if let (Ok(row), Ok(col)) = (save.i32_at(0x0056_51B8), save.i32_at(0x0056_51B4)) {
+        game.loaded_view = Some((row, col));
+    }
+    crate::saved_battle::resume(save, &mut game);
     Ok(game)
 }
 

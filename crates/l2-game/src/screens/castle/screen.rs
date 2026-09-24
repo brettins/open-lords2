@@ -194,6 +194,11 @@ impl Screen for CastleScreen {
                 }
                 Transition::Stay
             }
+            // Screen_FrameInput 0x0042FF10 `00420000.c:7134`: `g_mouseRightReleased` -> g_screenId = 0, orders nothing. [V]
+            Event::RightClick { .. } => {
+                self.choice = CastleChoice::Cancelled;
+                Transition::Pop
+            }
             _ => Transition::Stay,
         }
     }

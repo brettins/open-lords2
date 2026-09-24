@@ -67,6 +67,8 @@ pub mod rng;
 pub mod tcp;
 #[cfg(feature = "trace")]
 pub mod trace;
+#[cfg(feature = "trace")]
+pub mod trace_draw;
 mod trace_macro;
 pub mod transport;
 

@@ -118,7 +118,7 @@ impl BattleRunner {
         }
     }
 
-    pub(super) fn rebuild_blocked(&mut self) {
+    pub(in crate::runner) fn rebuild_blocked(&mut self) {
         for (c, cell) in self.field.cells.iter().enumerate() {
             self.blocked[c] = cell.impassable();
         }

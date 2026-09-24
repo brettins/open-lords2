@@ -34,6 +34,7 @@ pub fn draw_unit(
     let Some((x, y, decoded)) = unit_sprite_rect(assets, view, zoom, tile, sprite) else {
         return false;
     };
+    l2_net::trace_do!(l2_net::trace_draw::map_leaf(l2_net::trace_draw::Map::Figure, zoom.id, x, decoded.width as i32, clip.x0, clip.x1););
     canvas.blit_clipped(&decoded, x, y, clip);
     true
 }
@@ -63,6 +64,7 @@ pub fn draw_unit_banner(
     let Some((x, y, _)) = unit_sprite_rect(assets, view, zoom, tile, sprite) else { return false };
     let Some(banner) = assets.flag_sheet(zoom).and_then(|s| s.frame(frame)) else { return false };
     let (dx, dy) = if zoom.id == 2 { at[1] } else { at[0] };
+    l2_net::trace_do!(l2_net::trace_draw::map_leaf(l2_net::trace_draw::Map::Flag, zoom.id, x + dx, banner.width as i32, clip.x0, clip.x1););
     canvas.blit_clipped(&banner, x + dx, y + dy, clip);
     true
 }

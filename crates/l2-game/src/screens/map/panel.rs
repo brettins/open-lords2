@@ -138,6 +138,12 @@ impl MapScreen {
     pub(super) fn open_on_the_player(&mut self, ctx: &Ctx) {
         self.opened = true;
         let g = &ctx.game;
+        // FUN_004976A1 0x004976A1: a load keeps the saved g_mapStartRow/Col.
+        if let Some((row, col)) = g.loaded_view {
+            self.view = Viewport::new(row, col).clamped(&self.zoom);
+            self.saved = self.view;
+            return;
+        }
         let county = if g.is_players(g.selected) {
             g.selected
         } else {
