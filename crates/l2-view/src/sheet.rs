@@ -20,6 +20,7 @@ impl Sheet {
     }
 
     pub fn frame(&self, index: usize) -> Option<DecodedFrame> {
+        l2_net::trace_do!(l2_net::trace::note_frame(index););
         if index >= self.count {
             return None;
         }

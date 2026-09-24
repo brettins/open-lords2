@@ -39,6 +39,7 @@ impl Pcg32 {
     }
 
     pub fn next_u32(&mut self) -> u32 {
+        crate::trace_do!(crate::trace::rand_draw(););
         let old = self.state;
         self.step();
         let xorshifted = (((old >> 18) ^ old) >> 27) as u32;

@@ -889,6 +889,7 @@ name = "l2-view"
 version = "0.1.0"
 dependencies = [
  "l2-formats",
+ "l2-net",
  "l2-sim",
  "l2-testkit",
 ]

@@ -50,3 +50,7 @@ description = "Deterministic primitives, lockstep session core and transport sea
 # (no C compiler, no build script, no crates.io) satisfied by
 # construction rather than by audit.
 [dependencies]
+
+# CNEW-trace-sink: only l2-game's dev-dependency turns it on.
+[features]
+trace = []

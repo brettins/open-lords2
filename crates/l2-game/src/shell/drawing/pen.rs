@@ -159,6 +159,7 @@ impl<'a> Pen<'a> {
         colour: u8,
     ) -> i32 {
         let s = self.assets.text(group, index).to_string();
+        l2_net::trace!("text", 0x00402D37, "Eng_DrawString", group = group, index = index, x = x, y = y);
         self.body(canvas, x, y, &s, colour)
     }
 
@@ -174,6 +175,7 @@ impl<'a> Pen<'a> {
         colour: u8,
     ) -> i32 {
         let s = self.assets.text(group, index).to_string();
+        l2_net::trace!("text", 0x00402D37, "Eng_DrawString", group = group, index = index, x = x, y = y);
         self.text_in(face, canvas, x, y, &s, colour)
     }
 

@@ -87,3 +87,5 @@ path = "src/main.rs"
 # rewrites. Test-only: the spine finds its own install at run time.
 [dev-dependencies]
 l2-testkit = { path = "../l2-testkit" }
+# CNEW-trace-sink: tests alone; a release build of the binary never sees the feature.
+l2-net = { path = "../l2-net", features = ["trace"] }

@@ -63,6 +63,15 @@ impl Machine {
         s.mode_screen_id().or_else(|| crate::tip::screen_byte(s.id(), game))
     }
 
+    /// `g_screenId` (`0x004EAC50`) for the trace: the tip table, then `turn_clock::screen_byte`
+    /// where the tip table has no row. CNEW-trace-sink.
+    pub fn traced_screen_byte(&self, game: &Game) -> Option<u8> {
+        let s = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message)?;
+        s.mode_screen_id()
+            .or_else(|| crate::tip::screen_byte(s.id(), game))
+            .or_else(|| crate::turn_clock::screen_byte(s.id()))
+    }
+
     /// **The pointer this frame** — `Battle_Frame`'s two-way choice
     /// (`0x004B99C0`): the battlefield ids run the hover ladder, every other
     /// screen is one lookup in `g_cursorByScreen` (`0x004E3098`). See

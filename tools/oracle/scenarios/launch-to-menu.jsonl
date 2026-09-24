@@ -1,0 +1,11 @@
+{"op":"anchor","label":"launch"}
+{"op":"advance","frames":30}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":30}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":30}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"wait-screen","id":"0x1F","max":20000}
+{"op":"anchor","label":"title"}
+{"op":"wait-idle","frames":30,"max":2000}
+{"op":"snap"}

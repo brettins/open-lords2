@@ -47,6 +47,7 @@ impl MessageQueue {
 
     /// `Msg_Enqueue` (`0x00472BC5`) — **the peer filter and the ring write.**
     pub fn enqueue(&mut self, record: Record, local_player: u8) -> bool {
+        l2_net::trace!("message", 0x00472BC5, "Msg_Enqueue", group = record.group, category = record.category, to = record.to, from = record.from, county = record.county);
         if !(record.to == 0 || record.to == local_player) {
             return false;
         }

@@ -241,6 +241,7 @@ impl Audio {
         if self.music_name().as_deref() == Some(name) {
             return;
         }
+        l2_net::trace!("sound", 0x004263AD, "Music_Play", file = name, looped = music.loops());
         let Some(sound) = self.load(name) else {
             self.stop_music();
             return;
@@ -262,6 +263,7 @@ impl Audio {
     /// Fire a one-shot by file name, restarting it if it is already sounding —
     /// `Sound_RestartSlot` (`0x00426216`), the verb a click uses.
     pub fn play_effect(&mut self, name: &str) {
+        l2_net::trace!("sound", 0x00426216, "Sound_RestartSlot", file = name);
         if !self.options.effects {
             return;
         }
@@ -274,6 +276,7 @@ impl Audio {
     /// Fire a one-shot **unless it is already playing** — `Sound_PlaySlot`
     /// (`0x00426120`).
     pub fn play_effect_if_idle(&mut self, name: &str) {
+        l2_net::trace!("sound", 0x00426120, "Sound_PlaySlot", file = name);
         if !self.options.effects {
             return;
         }
@@ -344,6 +347,7 @@ impl Audio {
     ///
     /// `[V]`. There is **one** one-shot buffer.
     pub fn play_file(&mut self, name: &str, speech: bool) -> bool {
+        l2_net::trace!("sound", 0x00427990, "Sound_PlayFile", file = name, speech = speech);
         if self.one_shot_busy() {
             return false;
         }

@@ -140,6 +140,7 @@ impl ShellAssets {
     }
 
     pub fn sheet(&self, name: &str) -> Option<&Sheet> {
+        l2_net::trace_do!(l2_net::trace::note_sheet(name););
         self.sheets.get(&key(name))
     }
 

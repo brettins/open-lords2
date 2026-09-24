@@ -133,6 +133,7 @@ impl Game {
     /// Commands from an unseated slot are dropped.
     pub fn apply(&mut self, slot: PlayerSlot, command: &GameCommand) {
         let Some(realm) = self.realm_of(slot) else { return };
+        l2_net::trace!("order", 0, "GameCommand", slot = format!("{slot:?}"), cmd = format!("{command:?}"));
         let me = std::mem::replace(&mut self.player, realm);
         command.clone().run(self);
         self.player = me;
@@ -143,6 +144,7 @@ impl Game {
     /// and the screen reads what it would do now, run on a copy.
     pub fn issue<O: Order>(&mut self, order: O) -> O::Reply {
         if !self.net.lockstep {
+            l2_net::trace!("order", 0, "GameCommand", slot = -1, cmd = format!("{:?}", Into::<GameCommand>::into(order.clone())));
             return order.run(self);
         }
         self.net.outbox.push(order.clone().into());

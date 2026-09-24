@@ -102,6 +102,7 @@ impl MovieScreen {
         }
         // `FUN_0041A166`'s language test, made once: the cues are `intro.smk`'s
         // alone, and only a translated `L2.eng` has them.
+        l2_net::trace!("film", 0x0042D91B, "Smk_Play", file = self.film.file());
         let cued = self.film == Film::Intro
             && !movie::is_english(ctx.assets.shell.text(GROUP_LANGUAGE, 0));
         self.state = match ctx

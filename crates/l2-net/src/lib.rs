@@ -65,6 +65,9 @@ pub mod quirks;
 pub mod replay;
 pub mod rng;
 pub mod tcp;
+#[cfg(feature = "trace")]
+pub mod trace;
+mod trace_macro;
 pub mod transport;
 
 pub use canonical::{

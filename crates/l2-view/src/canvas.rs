@@ -229,6 +229,9 @@ impl Canvas {
         mut tags: Option<(&mut Tags, u8)>,
         clip: Clip,
     ) {
+        l2_net::trace_do!(if let Some((sheet, index)) = l2_net::trace::take_sprite() {
+            l2_net::trace!("draw", 0x0040A21A, "Pl8_DrawFrame", sheet = sheet, frame = index, x = ox, y = oy);
+        });
         let (fw, fh) = (frame.width as i32, frame.height as i32);
         for y in 0..fh {
             let cy = oy + y;

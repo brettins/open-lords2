@@ -153,6 +153,7 @@ impl TurnMachine {
         if done {
             self.phase = phase.next();
             self.step = 0;
+            l2_net::trace!("phase", 0x00569584, "g_turnPhase", phase = self.phase as u8);
             PhaseTick { phase, started, advanced_to: Some(self.phase) }
         } else {
             PhaseTick { phase, started, advanced_to: None }
