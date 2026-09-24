@@ -1,0 +1,3 @@
+LIBRARY dsound
+EXPORTS
+    DirectSoundCreate=FakeDirectSoundCreate @1
