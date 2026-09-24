@@ -1,0 +1,90 @@
+{
+  "reviewed": "fc09c8178b1f83910173d3f5b02572ea62de3e4d",
+  "date": "2026-09-24",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 24,
+      "address": "0x00479E90",
+      "verdict": "mismatch",
+      "note": "BattleUnit_Order ends with BattleUnits_RebuildFromFigures (00470000.c:4412), which ages every unit's orderLock/hitMemory/firing/+0x2D and rebuilds inMelee on every order; set_target does not"
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 26,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 30,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 33,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 37,
+      "address": "0x00479E90",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 149,
+      "address": "0x0048B5FC",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 173,
+      "address": "0x0048B7FC",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 23,
+      "address": "0x00489401",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/handlers_part.rs",
+      "line": 131,
+      "address": "0x00489654",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/movement/pathfinding.rs",
+      "line": 344,
+      "address": "0x00479E90",
+      "verdict": "mismatch",
+      "note": "player order reforms at once; BattleUnit_Order only sets reTarg 0x14 and BattleUnit_Reform's one caller is Battle_UpdateAllUnits"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+      "line": 53,
+      "address": "0x004822ED",
+      "verdict": "mismatch",
+      "note": "targeted +2 (00490000.c:2043) has no ceiling in the original; ours saturates at 255 (signedness of the byte not verified)"
+    },
+    {
+      "file": "crates/l2-sim/src/ai/types.rs",
+      "line": 336,
+      "address": "0x0047FC01",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}
