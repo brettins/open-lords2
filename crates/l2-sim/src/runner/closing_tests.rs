@@ -230,7 +230,9 @@ mod tests {
             }
             held += 1;
         }
-        assert_eq!(held, CORPSE_FRAMES as u32 + 1, "the body's slot, then one frame to read it");
+        // freed on the body's 81st StateDead run (00480000.c:1337), in a slot before the shooter's
+        assert!(t < s);
+        assert_eq!(held, CORPSE_FRAMES as u32, "80 frames, then read in the frame the slot is freed");
         assert_eq!(r.sim.figures[ssim].state, State::Idle, "freed: back to state 5");
         assert!(r.sim.cues.closing_loosed(WeaponClass::Bow) > 0, "and it shot at the body");
     }
