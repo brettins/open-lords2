@@ -1,0 +1,73 @@
+// The four option pages from the menu bar on england-turn1.sav. g_menuBarItems 0x004DC428 measured x (peeked): 10..50, 82..151, 183..227, y 6..18.
+// FUN_0040E099: item i at y 6 + 20 i + 0x1F, 15 tall, 144 wide from the title x.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+// Menu_OpenDropdown 0x0040DECA: screen 0x32.
+{"op":"click","x":90,"y":10}
+{"op":"wait-screen","id":50,"max":300}
+{"op":"advance","frames":5}
+// menu 2 item 0: Screen_AdvancedOptions, group 50, screen 0x39.
+{"op":"click","x":90,"y":44}
+{"op":"advance","frames":5}
+{"op":"dismiss"}
+{"op":"wait-screen","id":57,"max":300}
+{"op":"anchor","label":"advanced"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// g_mouseRightReleased leaves (screens-county.md 10.2).
+{"op":"click","x":320,"y":400,"button":"right"}
+{"op":"wait-screen","id":0,"max":300}
+{"op":"advance","frames":10}
+// Menu_OpenDropdown 0x0040DECA: screen 0x32.
+{"op":"click","x":90,"y":10}
+{"op":"wait-screen","id":50,"max":300}
+{"op":"advance","frames":5}
+// menu 2 item 1: Screen_SoundOptions, group 51, screen 0x42.
+{"op":"click","x":90,"y":64}
+{"op":"advance","frames":5}
+{"op":"dismiss"}
+{"op":"wait-screen","id":66,"max":300}
+{"op":"anchor","label":"sound"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// g_mouseRightReleased leaves (screens-county.md 10.2).
+{"op":"click","x":320,"y":400,"button":"right"}
+{"op":"wait-screen","id":0,"max":300}
+{"op":"advance","frames":10}
+// Menu_OpenDropdown 0x0040DECA: screen 0x32.
+{"op":"click","x":90,"y":10}
+{"op":"wait-screen","id":50,"max":300}
+{"op":"advance","frames":5}
+// menu 2 item 2: Screen_DisplayOptions, group 52, screen 0x43.
+{"op":"click","x":90,"y":84}
+{"op":"advance","frames":5}
+{"op":"dismiss"}
+{"op":"wait-screen","id":67,"max":300}
+{"op":"anchor","label":"display"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// g_mouseRightReleased leaves (screens-county.md 10.2).
+{"op":"click","x":320,"y":400,"button":"right"}
+{"op":"wait-screen","id":0,"max":300}
+{"op":"advance","frames":10}
+// Menu_OpenDropdown 0x0040DECA: screen 0x32.
+{"op":"click","x":191,"y":10}
+{"op":"wait-screen","id":50,"max":300}
+{"op":"advance","frames":5}
+// menu 3 item 0: Screen_HelpOptions, group 45, screen 0x31.
+{"op":"click","x":191,"y":44}
+{"op":"advance","frames":5}
+{"op":"dismiss"}
+{"op":"wait-screen","id":49,"max":300}
+{"op":"anchor","label":"help"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// g_mouseRightReleased leaves (screens-county.md 10.2).
+{"op":"click","x":320,"y":400,"button":"right"}
+{"op":"wait-screen","id":0,"max":300}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"map"}
+{"op":"snap"}

@@ -2,8 +2,8 @@
 #pragma once
 #include <cstdint>
 
-enum HookCat : uint8_t { Cat_sound = 0, Cat_music = 1, Cat_voice = 2, Cat_msg = 3, Cat_turn = 4, Cat_ai = 5, Cat_army = 6, Cat_order = 7, Cat_rng = 8, Cat_draw = 9, Cat_load = 10, Cat_film = 11, Cat_save = 12, Cat_newgame = 13, Cat_count };
-static const char* const kCatNames[] = { "sound", "music", "voice", "msg", "turn", "ai", "army", "order", "rng", "draw", "load", "film", "save", "newgame" };
+enum HookCat : uint8_t { Cat_sound = 0, Cat_music = 1, Cat_voice = 2, Cat_msg = 3, Cat_turn = 4, Cat_ai = 5, Cat_army = 6, Cat_panel = 7, Cat_order = 8, Cat_rng = 9, Cat_draw = 10, Cat_load = 11, Cat_film = 12, Cat_save = 13, Cat_newgame = 14, Cat_count };
+static const char* const kCatNames[] = { "sound", "music", "voice", "msg", "turn", "ai", "army", "panel", "order", "rng", "draw", "load", "film", "save", "newgame" };
 
 struct HookDef { uint32_t addr; const char* name; uint8_t cat, ret, stolen; const char* args; uint8_t expect[16]; uint32_t globals[3]; };
 static const HookDef kHooks[] = {
@@ -91,6 +91,7 @@ static const HookDef kHooks[] = {
   {0x00479E90, "BattleUnit_Order", Cat_army, 1, 6, "iiiiii", {0x55,0x8b,0xec,0x83,0xec,0x24}, {0}},
   {0x004AAD07, "Battle_AutoResolve", Cat_army, 1, 6, "", {0x55,0x8b,0xec,0x83,0xec,0x18}, {0}},
   {0x004AB383, "Battle_ReturnToCampaign", Cat_army, 1, 6, "i", {0x55,0x8b,0xec,0x83,0xec,0x10}, {0}},
+  {0x0041B19D, "UnitPanel_Draw", Cat_panel, 0, 6, "", {0x55,0x8b,0xec,0x83,0xec,0x20}, {0}},
   {0x0048B37B, "Order_DoNothing", Cat_order, 1, 5, "", {0x55,0x8b,0xec,0x53,0x56}, {0}},
   {0x0048B386, "Order_HoldPosition", Cat_order, 1, 5, "", {0x55,0x8b,0xec,0x53,0x56}, {0}},
   {0x0048B546, "Order_ToSecondTarget", Cat_order, 1, 5, "", {0x55,0x8b,0xec,0x53,0x56}, {0}},

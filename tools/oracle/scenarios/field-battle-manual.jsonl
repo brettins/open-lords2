@@ -1,0 +1,41 @@
+// battle-during.sav, fought by hand to a decision: unpause, box the player's men, order them onto the enemy from the overview, charge, wait for the outcome banner.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-during.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+// Battle button 0, FUN_0043B9A1 pause, at (480, 448).
+{"op":"click","x":496,"y":464}
+{"op":"advance","frames":10}
+// BattleMap_Click 0x00432443 right: the camera to (11, 1); the player's swordsmen and peasants, cells x 11..22 y 4..5, in view.
+{"op":"click","x":516,"y":40,"button":"right"}
+{"op":"advance","frames":10}
+{"op":"drag","x":8,"y":100,"x2":470,"y2":200}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"select"}
+{"op":"snap"}
+// BattleMap_Click left with a selection: FUN_0043C634 at overview scale, onto the enemy at cell (52, 40), (584, 104).
+{"op":"click","x":584,"y":104}
+{"op":"advance","frames":5}
+{"op":"anchor","label":"order"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// Battle button 3, FUN_0043BD02 charge, at (576, 448): the rest of the player's men.
+{"op":"click","x":592,"y":464}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"charge"}
+{"op":"snap"}
+// Screen 0x2B, the outcome banner.
+{"op":"wait-screen","id":43}
+{"op":"anchor","label":"decided"}
+{"op":"record","frames":2}
+{"op":"snap"}
+{"op":"click","x":320,"y":240}
+{"op":"advance","frames":120}
+{"op":"dismiss"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":120}
+{"op":"dismiss"}
+{"op":"anchor","label":"map"}
+{"op":"record","frames":2}
+{"op":"snap"}
