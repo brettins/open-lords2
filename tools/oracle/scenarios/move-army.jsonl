@@ -1,0 +1,16 @@
+// Move the blue army on battle-before.sav: click it, then a road tile to its south-west.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-before.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+{"op":"click","x":242,"y":265}
+{"op":"advance","frames":30}
+{"op":"anchor","label":"army-clicked"}
+{"op":"snap"}
+{"op":"click","x":150,"y":330}
+{"op":"advance","frames":30}
+{"op":"anchor","label":"destination-clicked"}
+{"op":"snap"}
+{"op":"advance","frames":300}
+{"op":"snap"}

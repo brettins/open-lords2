@@ -1,0 +1,14 @@
+// Raise an army in Dyfed on the England turn-one save: sidebar button 1 (478..510, y 430..458) sets screen 0x17.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"click","x":494,"y":444}
+{"op":"wait-screen","id":23,"max":600}
+{"op":"advance","frames":30}
+{"op":"anchor","label":"raise-screen"}
+{"op":"snap"}
+{"op":"ok"}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"after-ok"}
+{"op":"snap"}

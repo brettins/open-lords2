@@ -1,0 +1,21 @@
+// battle-during.sav: the minimap on the troops, a left click on the view centre (select), a right click beside it (order), unpause.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-during.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+{"op":"click","x":584,"y":100}
+{"op":"advance","frames":30}
+{"op":"snap"}
+{"op":"click","x":240,"y":250}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"select"}
+{"op":"snap"}
+{"op":"click","x":180,"y":200,"button":"right"}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"order"}
+{"op":"snap"}
+{"op":"key","key":"Space"}
+{"op":"advance","frames":600}
+{"op":"anchor","label":"after-600"}
+{"op":"snap"}

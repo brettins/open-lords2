@@ -5,7 +5,7 @@
 enum HookCat : uint8_t { Cat_sound = 0, Cat_music = 1, Cat_voice = 2, Cat_msg = 3, Cat_turn = 4, Cat_ai = 5, Cat_army = 6, Cat_order = 7, Cat_rng = 8, Cat_draw = 9, Cat_load = 10, Cat_film = 11, Cat_save = 12, Cat_newgame = 13, Cat_count };
 static const char* const kCatNames[] = { "sound", "music", "voice", "msg", "turn", "ai", "army", "order", "rng", "draw", "load", "film", "save", "newgame" };
 
-struct HookDef { uint32_t addr; const char* name; uint8_t cat, ret, stolen; const char* args; uint8_t expect[16]; uint32_t globals[2]; };
+struct HookDef { uint32_t addr; const char* name; uint8_t cat, ret, stolen; const char* args; uint8_t expect[16]; uint32_t globals[3]; };
 static const HookDef kHooks[] = {
   {0x00426120, "Sound_PlaySlot", Cat_sound, 1, 6, "i", {0x55,0x8b,0xec,0x83,0xec,0x08}, {0}},
   {0x004262CF, "Sound_PlaySlotWrap", Cat_sound, 1, 5, "i", {0x55,0x8b,0xec,0x53,0x56}, {0}},
@@ -151,6 +151,15 @@ static const HookDef kHooks[] = {
   {0x00409346, "FUN_00409346", Cat_draw, 0, 5, "iiii", {0x55,0x8b,0xec,0x53,0x56}, {0}},
   {0x00408FCB, "FUN_00408fcb", Cat_draw, 0, 5, "si", {0x55,0x8b,0xec,0x53,0x56}, {0}},
   {0x00410C71, "FUN_00410c71", Cat_draw, 0, 5, "", {0x55,0x8b,0xec,0x53,0x56}, {0}},
+  {0x00452820, "TileBlit_Plain_Z0", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x00460501, "TileBlit_Plain_Z1", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x00463B42, "TileBlit_Plain_Z2", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x0045337B, "TileBlit_M3_Z0", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x0046079D, "TileBlit_M3_Z1", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x00463C06, "TileBlit_M3_Z2", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x004538F6, "TileBlit_M4_Z0", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x004608DE, "TileBlit_M4_Z1", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
+  {0x00463C62, "TileBlit_M4_Z2", Cat_draw, 0, 5, "kiii", {0x55,0x8b,0xec,0x53,0x56}, {0x005C9288, 0x00591524, 0x00591528}},
   {0x004AF8D9, "File_ReadChunk", Cat_load, 1, 6, "spii", {0x55,0x8b,0xec,0x83,0xec,0x0c}, {0}},
   {0x0042D91B, "Smk_Play", Cat_film, 1, 5, "siiii", {0x55,0x8b,0xec,0x53,0x56}, {0}},
   {0x004ADFE6, "Save_Read", Cat_save, 1, 6, "s", {0x55,0x8b,0xec,0x83,0xec,0x18}, {0}},

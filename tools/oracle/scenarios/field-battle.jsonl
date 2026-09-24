@@ -1,0 +1,13 @@
+// A field battle from battle-before.sav: End Turn, then take whatever the battle offer is by its OK.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-before.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":3000}
+{"op":"anchor","label":"after-3000"}
+{"op":"snap"}
+{"op":"dismiss"}
+{"op":"advance","frames":3000}
+{"op":"anchor","label":"after-6000"}
+{"op":"snap"}

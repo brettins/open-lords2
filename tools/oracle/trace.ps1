@@ -147,6 +147,14 @@ public class L2Trace : IDisposable {
         return WaitUntil(() => { if (Hash != h) { h = Hash; since = Frames; } return Frames >= since + frames; }, timeoutMs);
     }
 
+    // FORMAT.md wait-idle: `frames` presents in a row whose events are only draw, text and rand.
+    public bool WaitIdle(int frames, int timeoutMs) {
+        Drain();
+        uint start = Frames;
+        return WaitUntil(() => { uint since = Math.Max(start, LastBusy + 1); return Frames >= since + (uint)frames; }, timeoutMs);
+    }
+    public int CountOf(string k) { Drain(); int n; Counts.TryGetValue(k, out n); return n; }
+
     static IntPtr XY(int x, int y) { return new IntPtr((y << 16) | (x & 0xFFFF)); }
     public void MoveTo(int x, int y) {
         view.Write(OffCursorX, x); view.Write(OffCursorY, y);
@@ -194,6 +202,10 @@ public class L2Trace : IDisposable {
     public static System.Collections.Generic.Dictionary<uint, string[]> Hooks = new System.Collections.Generic.Dictionary<uint, string[]>();
     public System.Collections.Generic.Dictionary<string, int> Counts = new System.Collections.Generic.Dictionary<string, int>();
     public int UnnamedSheets, SheetDraws, OkX = -1, OkY = -1;
+    // Categories whose calls become FORMAT.md records other than draw/text/rand.
+    static readonly string[] Busy = { "sound", "music", "voice", "msg", "ai", "film", "save", "newgame" };
+    public uint LastBusy;
+    int lastScreen = -1, lastPhase = -1;
     static readonly string[] Kinds = { "", "call", "ret", "frame", "phase", "pin", "refused" };
     public bool KeepDraws { set { if (ringView != null) ringView.Write(OffKeep, value ? 1 : 0); } }
     void Count(string k) { int n; Counts.TryGetValue(k, out n); Counts[k] = n + 1; }
@@ -229,7 +241,10 @@ public class L2Trace : IDisposable {
                 sb.AppendFormat(",\"hash\":\"{0:x8}\",\"screen\":{1},\"phase\":{2},\"draws\":{3},\"rand\":{4},\"lfsr\":{5},\"rng\":[{6},{7},{8}]}}",
                     ret, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
                 Count("frame");
+                if (a[0] != lastScreen || a[1] != lastPhase) LastBusy = frame;
+                lastScreen = a[0]; lastPhase = a[1];
             } else {
+                if (kind == 1 && Array.IndexOf(Busy, cat) >= 0) LastBusy = frame;
                 sb.AppendFormat(",\"fn\":\"{0}\",\"cat\":\"{1}\"", name, cat);
                 if (caller != 0) sb.AppendFormat(",\"from\":\"0x{0:X8}\"", caller);
                 if (kind == 2) sb.AppendFormat(",\"ret\":{0}", ret);
@@ -241,7 +256,7 @@ public class L2Trace : IDisposable {
                 if (text.Length > 0) sb.AppendFormat(",\"text\":\"{0}\"", Esc(text));
                 sb.Append("}");
                 Count(ev + ":" + (cat == "" ? name : cat));
-                if (kind == 1 && name == "Pl8_DrawFrame") { SheetDraws++; if (text == "?" || text == "") UnnamedSheets++; }
+                if (kind == 1 && (name == "Pl8_DrawFrame" || name.StartsWith("TileBlit_"))) { SheetDraws++; if (text == "?" || text == "") UnnamedSheets++; }
                 if (kind == 1 && name == "Ui_OkButton") { OkX = a[0]; OkY = a[1]; }
             }
             Events.WriteLine(sb.ToString());
