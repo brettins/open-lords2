@@ -28,7 +28,6 @@ pub struct Run {
     canvas: Canvas,
     tables: l2_kingdom::tables::Tables,
     frame: u64,
-    posted_298: bool,
 }
 
 pub fn scenarios_dir() -> PathBuf {
@@ -54,7 +53,6 @@ impl Run {
             canvas: Canvas::screen(),
             tables,
             frame: 0,
-            posted_298: false,
         })
     }
 
@@ -67,7 +65,6 @@ impl Run {
     fn frame(&mut self) {
         self.frame += 1;
         trace::set_frame(self.frame);
-        harness::post_non_256_colour(&mut self.posted_298, &self.machine, &mut self.game);
         let mut ctx = Ctx { game: &mut self.game, assets: &self.assets };
         self.machine.update(&mut ctx);
         self.director.listen(&mut self.audio, &self.machine, &self.game);
@@ -159,8 +156,9 @@ impl Run {
                     if self.game.battle.is_some() {
                         self.machine.push(ScreenId::Battlefield);
                     }
+                    // trace-run.ps1 `$LoadSteps` ends `wait-screen-not 0x1F`, `advance 60`.
+                    self.frames(60);
                 }
-                // A "(this harness)" click answers message 298, which harness.rs posts too.
                 Step::Click(x, y, right, _) => {
                     if *right {
                         self.rclick(*x, *y);
