@@ -144,7 +144,7 @@ crates/l2-game/tests/placeholders/main.rs england 1
 crates/l2-game/tests/press.rs executable 1
 crates/l2-game/tests/right_column/geometry.rs executable 1
 crates/l2-game/tests/save/battle.rs fixture 2
-crates/l2-game/tests/save/original_battle.rs fixture 4
+crates/l2-game/tests/save/original_battle.rs fixture 6
 crates/l2-game/tests/save/roundtrip.rs england 1
 crates/l2-game/tests/save/ui/save_tests.rs install 1
 crates/l2-game/tests/scenario/england_fixture.rs england 7

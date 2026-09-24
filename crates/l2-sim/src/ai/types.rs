@@ -158,8 +158,8 @@ pub struct Ai {
     pub advantage_timer: i32,
     pub commit_counter: i32,
     pub engagement_count: i32,
-    /// `g_engagementBudget[battlefield]` (`0x00553080`), which
-    /// `docs/battle-ai.md` §9 records as never traced to where it is filled.
+    /// `(&DAT_00553080)[DAT_005653f8]`, filled by `PlayerStart_Shuffle` 00490000.c:3455-3461;
+    /// the battle sets it from `Session::engagement_budget`.
     pub engagement_budget: i32,
     pub rally_request: bool,
     pub rally_x: i32,

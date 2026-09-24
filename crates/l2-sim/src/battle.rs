@@ -36,14 +36,18 @@ impl Battle {
 
     pub fn step(&mut self) {
         for i in 0..self.figures.len() {
-            if self.figures[i].state == State::Melee {
-                let pair = self.figures[i].opponent.filter(|&o| o != i && o < self.figures.len());
-                let before = self.duel_snapshot(i, pair);
-                melee::tick(&mut self.figures, i);
-                self.hear_the_duel(i, pair, before);
-            }
+            self.duel(i);
         }
         self.tick += 1;
+    }
+
+    pub fn duel(&mut self, i: usize) {
+        if self.figures[i].state == State::Melee {
+            let pair = self.figures[i].opponent.filter(|&o| o != i && o < self.figures.len());
+            let before = self.duel_snapshot(i, pair);
+            melee::tick(&mut self.figures, i);
+            self.hear_the_duel(i, pair, before);
+        }
     }
 
     fn duel_snapshot(&self, i: usize, pair: Option<usize>) -> [(u16, bool); 2] {
@@ -175,8 +179,11 @@ mod tests {
         assert_eq!(f.take_hits(1), 1, "the hundredth hit kills");
         assert_eq!(f.men, 3);
         assert_eq!(f.hits, 0, "no remainder here");
-        assert_eq!(f.take_hits(250), 2);
-        assert_eq!(f.men, 1);
+        // ablation: `if` -> `while` in take_hits fails this (00490000.c:1801)
+        assert_eq!(f.take_hits(250), 1, "one man a tick");
+        assert_eq!(f.men, 2);
+        assert_eq!(f.hits, 150);
+        assert_eq!(f.take_hits(0), 1, "the carried 150 takes the next");
         assert_eq!(f.hits, 50);
     }
 

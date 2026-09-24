@@ -226,6 +226,8 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.section("field_playlist");
     out.raw(campaign.field_playlist.frames());
     out.u32(campaign.field_playlist.cursor() as u32);
+    // `DAT_00553080`, version 36.
+    out.raw(campaign.field_playlist.budgets());
 
     out.section("explored");
     campaign.explored.encode(out);
@@ -312,7 +314,9 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
     let mut order = [0u8; crate::field_playlist::PLAYLIST_LEN];
     order.copy_from_slice(frames);
     let cursor = input.u32()? as usize;
-    campaign.field_playlist = crate::field_playlist::FieldPlaylist::restore(order, cursor);
+    let mut budgets = [0u8; crate::field_playlist::PLAYLIST_LEN];
+    budgets.copy_from_slice(input.raw(crate::field_playlist::PLAYLIST_LEN)?);
+    campaign.field_playlist = crate::field_playlist::FieldPlaylist::restore(order, cursor, budgets);
 
     let seen = input.raw(crate::map::MAP_TILES)?;
     campaign.explored.copy_from_bytes(seen);

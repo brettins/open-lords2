@@ -619,7 +619,7 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///   `Battlefield_BuildRandom` (`0x0047AAA3`) walks them by. 48 bytes + 4.
 ///
 ///   **Refusal, under entry 16's rule: a defaulted load feeds the
-///   simulation.** The original stores neither global in a `.sav` — no row in
+///   simulation.** [V] wrong below: both are `g_saveBlocks` entries 56 and 178. The original stores neither global in a `.sav` — no row in
 ///   `docs/stored-fields.json` for `0x0057CAE0` or `0x005653F8` — and gets
 ///   away with it because the globals survive a load in the same process.
 ///   Ours cannot: a peer that joins by loading would deal a fresh order from
@@ -653,7 +653,9 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 35 with `VERSION` at 34 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 35;
+/// * 36 — the engagement budgets `DAT_00553080`, 48 bytes after the playlist's cursor
+///   (00490000.c:3455-3461; read at 00480000.c:4393).
+pub const VERSION: u32 = 36;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;

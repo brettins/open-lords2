@@ -85,6 +85,7 @@ impl BattleRunner {
                 self.ai_field.enemy_end.map(|s| s.map(narrow)),
                 self.ai_field.rally.map(|s| s.map(|g| g.map(narrow))),
             ),
+            engagement_budget: Some(self.ai.engagement_budget as u8),
         }
     }
 
@@ -109,6 +110,9 @@ impl BattleRunner {
         let mut runner = BattleRunner::empty(field, seed);
         let prev = (session.lane, session.rally);
         runner.ai = Ai::new_for_battle(seed, session.multiplayer, prev);
+        if let Some(b) = session.engagement_budget {
+            runner.ai.engagement_budget = i32::from(b);
+        }
         runner.men_per_figure = [mpf_b as u16, mpf_a as u16];
         runner.size_class = sized as u8;
         if let Some(level) = castle_level {

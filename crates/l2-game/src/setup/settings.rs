@@ -305,5 +305,6 @@ pub fn battle_process(game: &Game) -> BattleProcess {
 pub fn skirmish_session(game: &Game) -> l2_sim::Session {
     let c = &game.kingdom.campaign;
     let (lane, rally) = (usize::from(c.battle_selectors.0), usize::from(c.battle_selectors.1));
-    l2_sim::Session { markers: c.battle_markers, lane, rally, ..l2_sim::Session::default() }
+    let engagement_budget = Some(c.field_playlist.budget());
+    l2_sim::Session { markers: c.battle_markers, lane, rally, engagement_budget, ..l2_sim::Session::default() }
 }

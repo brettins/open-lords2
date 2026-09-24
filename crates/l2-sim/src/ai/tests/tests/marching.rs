@@ -103,7 +103,9 @@ fn a_worn_down_enemy_unit_becomes_invisible_to_the_melee_ai() {
         .take(2)
         .collect();
     for i in doomed {
-        worn.figures[i].take_hits(60_000);
+        while worn.figures[i].is_alive() {
+            worn.figures[i].take_hits(1_000);
+        }
     }
     assert_ne!(worn.think_at(0), Action::Charge, "two figures is not a target");
 }

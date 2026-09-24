@@ -120,7 +120,9 @@ fn an_unopposed_army_reads_minus_one_hundred() {
     let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
     fx.ai.multiplayer = true;
     for f in fx.figures.iter_mut().filter(|f| f.owner_is_human) {
-        f.take_hits(60_000);
+        while f.is_alive() {
+            f.take_hits(1_000);
+        }
     }
     fx.ai.update_strength_advantage(&fx.figures);
     assert_eq!(fx.ai.strength_advantage, -100);
