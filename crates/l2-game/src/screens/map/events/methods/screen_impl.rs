@@ -139,26 +139,6 @@ impl Screen for MapScreen {
             // value was already set on the way down and on every move since.
             Event::Release { .. } => self.slider_held = false,
             Event::Click { x, y } => {
-                // **`Map_Click`'s outermost guard, and it is the whole
-                // function.** `Map_Click` (`0x0043CE1A`) is
-                // `if (g_messageGroup == 0) { …all 1,263 bytes of it… } else
-                // { Msg_DismissUnlessQuestion(); }` — so with a message scroll
-                // up, a left click on the map closes it and **the map does
-                // nothing else**: no tile picked, no county selected, no
-                // village, no army ordered. A *question* survives, which is
-                // what stops a stray click from silently declining an alliance.
-                //
-                // arm: 0x00476710/map-click-dismiss left-release
-                if ctx.game.messages.is_open() {
-                    // `Msg_Dismiss` (`00470000.c:2444`): a game-over letter's
-                    // dismissal is `Campaign_EnterConquest(); g_screenId = 0x1C`.
-                    return match crate::message::dismiss_unless_question(ctx.game) {
-                        Some(crate::message::Dismissal::GameOver(_)) => {
-                            Transition::Replace(ScreenId::Conquest)
-                        }
-                        _ => Transition::Stay,
-                    };
-                }
                 // ```c
                 // if (Map_EdgeScroll() || FUN_00439079() || Sidebar_ButtonClicked()) goto done;
                 // if (!syncWait && (!turnEnded || debugOverride)) {
@@ -266,8 +246,16 @@ impl Screen for MapScreen {
                             self.set_zoom(ctx, NEAR);
                             self.centre_on_tile(tx as usize, ty as usize);
                             self.status = "ZOOMED IN".into();
-                            return Transition::Stay;
+                            // The press zooms (no message test, 0x0042FF10); its release is Map_Click's.
+                            return map_click_dismiss(ctx).unwrap_or(Transition::Stay);
                         }
+                    }
+                    // Screen_FrameInput 0x0042FF10 reaches Map_Click only after Sidebar_ButtonClicked,
+                    // the strips and the zoom [V]; Map_Click 0x0043CE1A is `if (g_messageGroup == 0)
+                    // {…} else { Msg_DismissUnlessQuestion(); }`, so the click does nothing else [V].
+                    // arm: 0x00476710/map-click-dismiss left-release
+                    if let Some(t) = map_click_dismiss(ctx) {
+                        return t;
                     }
                     if let Some(unit) = self.selected_unit {
                         if !ctx.game.is_players_unit(unit) {
@@ -659,3 +647,15 @@ impl Screen for MapScreen {
 }
 
 
+
+/// Msg_DismissUnlessQuestion 0x00476710; a game-over letter's `Msg_Dismiss` (`00470000.c:2444`)
+/// ends in `Campaign_EnterConquest(); g_screenId = 0x1C`. `None`: no message was open.
+fn map_click_dismiss(ctx: &mut Ctx) -> Option<Transition> {
+    if !ctx.game.messages.is_open() {
+        return None;
+    }
+    Some(match crate::message::dismiss_unless_question(ctx.game) {
+        Some(crate::message::Dismissal::GameOver(_)) => Transition::Replace(ScreenId::Conquest),
+        _ => Transition::Stay,
+    })
+}

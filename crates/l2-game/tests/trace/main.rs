@@ -272,7 +272,7 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
 #[test]
 #[ignore = "minutes of frames; run for the differ"]
 fn the_differs_scenarios_write_traces() {
-    for name in ["launch", "newgame-original", "newgame-new", "zoom-map"] {
+    for name in ["launch", "newgame-original", "newgame-new", "zoom-map", "endturn-england", "endturn-year", "raise-army"] {
         let Some((records, out)) = trace_scenario(name) else { return };
         let failed = records.iter().find(|r| r.kind == "failed").map(|r| r.to_json());
         eprintln!("{name}: {} records -> {} {failed:?}", records.len(), out.display());
