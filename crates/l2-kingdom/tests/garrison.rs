@@ -78,6 +78,7 @@ fn a_split_into_a_castle_becomes_the_garrison() {
     let daughter = split(
         tables,
         &campaign.map,
+        &campaign.map.cost_map(),
         counties,
         realms,
         &mut campaign.units,
@@ -117,6 +118,7 @@ fn a_castle_split_may_be_under_fifty_men() {
     let daughter = split(
         tables,
         &campaign.map,
+        &campaign.map.cost_map(),
         counties,
         realms,
         &mut campaign.units,

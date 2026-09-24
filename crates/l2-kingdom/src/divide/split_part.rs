@@ -89,6 +89,7 @@ pub fn refuse_split(
 pub fn split(
     t: &Tables,
     map: &CampaignMap,
+    cost: &crate::map::CostMap,
     counties: &mut [County; MAX_COUNTIES],
     realms: &mut [Realm; MAX_REALMS],
     units: &mut Units,
@@ -155,7 +156,7 @@ pub fn split(
             }
         }
         SplitInto::Castle { tile, .. } => {
-            crate::movement::order_move(map, units, id, tile, crate::movement::Routing::Direct);
+            crate::movement::repath(cost, map, units, id, tile, crate::movement::Routing::Direct);
         }
     }
     let snapshot: [Realm; MAX_REALMS] = realms.clone();

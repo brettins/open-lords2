@@ -222,6 +222,7 @@ impl Game {
         if !self.is_players_unit(unit) {
             return None;
         }
+        self.kingdom.campaign.rebuild_move_cost();
         l2_kingdom::movement::order_move(
             &self.kingdom.campaign.map,
             &mut self.kingdom.campaign.units,
@@ -342,9 +343,9 @@ impl Game {
         }
         let k = &mut self.kingdom;
         let l2_kingdom::Kingdom { tables, counties, realms, campaign, year, .. } = k;
-        let l2_kingdom::kingdom::Campaign { units, map, mercenaries, names, .. } = campaign;
+        let l2_kingdom::kingdom::Campaign { units, map, mercenaries, names, move_cost, .. } = campaign;
         l2_kingdom::divide::split(
-            tables, map, counties, realms, units, names, mercenaries, army, basket, into, *year,
+            tables, map, move_cost, counties, realms, units, names, mercenaries, army, basket, into, *year,
         )
     }
 

@@ -49,7 +49,9 @@ impl Kingdom {
                 continue;
             }
             let Some(dest) = self.campaign.units.get(id).and_then(|u| u.dest) else { continue };
-            if crate::movement::order_move(
+            // Ai_AdvanceArmies 0x004A5667: Move_FloodFill + Move_ExtractPath on the stored g_moveCost [V].
+            if crate::movement::repath(
+                &self.campaign.move_cost,
                 &self.campaign.map,
                 &mut self.campaign.units,
                 id,

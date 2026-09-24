@@ -331,6 +331,7 @@ impl Kingdom {
             Phase::PeasantMobs => self.retarget_mobs(),
             Phase::Merchants => merchant::advance_all(
                 &self.campaign.routes,
+                &self.campaign.move_cost,
                 &self.campaign.map,
                 &self.counties,
                 &mut self.campaign.units,
@@ -384,7 +385,7 @@ impl Kingdom {
                 u.dest_county = cargo;
                 u.needs_destination = false;
             }
-            if movement::order_move_by_road(&self.campaign.map, &mut self.campaign.units, id, anchor)
+            if movement::order_move_by_road(&self.campaign.move_cost, &self.campaign.map, &mut self.campaign.units, id, anchor)
                 .is_some()
             {
                 started += 1;
@@ -427,7 +428,8 @@ impl Kingdom {
                 u.dest = Some(anchor);
                 u.needs_destination = false;
             }
-            if movement::order_move(
+            if movement::repath(
+                &self.campaign.move_cost,
                 &self.campaign.map,
                 &mut self.campaign.units,
                 id,

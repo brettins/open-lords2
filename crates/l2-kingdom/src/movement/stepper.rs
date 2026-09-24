@@ -22,7 +22,13 @@ use crate::unit::{UnitKind, Units, MAX_PATH};
 /// > army stands still with `moveState = 2`. Only a dead end in the descent —
 /// > which a fully relaxed field should not produce — fails.
 pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8), routing: Routing) -> Option<usize> {
-    let cost = map.cost_map();
+    repath(&map.cost_map(), map, units, id, dest, routing)
+}
+
+/// `Move_FloodFill` + `Move_ExtractPath` (`0x004701AC`) against the stored `g_moveCost`, with no
+/// `Move_BuildCostMap`: Ai_AdvanceArmies 0x004A5667, PeasantMob_AdvanceAll, Merchant_AdvanceAll,
+/// Transport_RetargetAll, Army_Split. BNEW-stale-move-cost-after-load.
+pub fn repath(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8), routing: Routing) -> Option<usize> {
     let unit = units.get(id)?;
     let field = flood_fill(&cost, unit.tile(), routing);
     let path = extract_path(&cost, &field, dest)?;
@@ -43,11 +49,11 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 /// (`FUN_00429418`, turn phase 3), `Merchant_AdvanceAll` (phase 6)
 /// AI's army walk — against [`order_move`] with [`Routing::Direct`], which is
 /// what a *human* order does. So [`Routing::PreferRoads`]'s doc comment is
-pub fn order_move_by_road(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8)) -> Option<usize> {
-    let by_road = order_move(map, units, id, dest, Routing::PreferRoads);
+pub fn order_move_by_road(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8)) -> Option<usize> {
+    let by_road = repath(cost, map, units, id, dest, Routing::PreferRoads);
     match by_road {
         Some(steps) if steps < crate::unit::MAX_PATH => Some(steps),
-        _ => order_move(map, units, id, dest, Routing::Direct).or(by_road),
+        _ => repath(cost, map, units, id, dest, Routing::Direct).or(by_road),
     }
 }
 
