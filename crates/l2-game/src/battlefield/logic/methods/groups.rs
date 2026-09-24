@@ -107,6 +107,8 @@ impl LiveBattle {
         if self.paused {
             return;
         }
+        // FUN_00478952 0x00478952, first in Battle_Frame's g_battlePhase == 2 step. [V]
+        self.order_mark_ticks = self.order_mark_ticks.saturating_sub(1);
         self.runner.step();
         self.redraw = true;
         if self.conclusion.is_none() {

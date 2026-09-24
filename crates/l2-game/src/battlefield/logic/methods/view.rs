@@ -45,6 +45,8 @@ impl LiveBattle {
             sallied: false,
             current_unit: 0,
             outcome_ticks: 0,
+            order_mark: (0, 0),
+            order_mark_ticks: 0,
             skirmish: false,
             conclusion: None,
             autocalc: false,

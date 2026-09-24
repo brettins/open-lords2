@@ -196,6 +196,7 @@ impl LiveBattle {
             self.cry(class);
         }
         let cell = self.cell_at(x, y);
+        self.mark_order(cell);
         let target = self.hover.enemy;
         let woodland = self.hover.woodland;
         self.act_then(BattleOp::Order { cell, target, woodland }, Follow::Cry { class, if_held: false })
@@ -249,6 +250,7 @@ impl LiveBattle {
             && !self.oil_selected()
             && !self.paused;
         if orderable {
+            self.mark_order(cell);
             let order = BattleOp::Order { cell, target: None, woodland: false };
             if !self.act(order) {
                 self.current_unit = 0;
@@ -260,5 +262,10 @@ impl LiveBattle {
         true
     }
 
-
+    /// Battle_OrderSelection 0x0043C634: `DAT_00553F84 = 0x1E` (10 in multiplayer),
+    /// `DAT_00553F14 = x; DAT_00553F18 = y;` before BattleUnit_Order. [V]
+    fn mark_order(&mut self, cell: (u8, u8)) {
+        self.order_mark = cell;
+        self.order_mark_ticks = if self.deferred { 10 } else { 0x1E };
+    }
 }

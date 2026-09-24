@@ -26,6 +26,7 @@ mod column;
 
 mod band;
 mod marker;
+mod sheets;
 
 mod plates;
 mod panel;
@@ -96,6 +97,9 @@ fn staged_on(
     g.prefs.tip_screens = false;
     g.prefs.tool_tips = false;
     g.player = 1;
+    // FUN_004987B7 0x004987B7: the sheets follow the lords' shields; human a2b_, AI a2r_.
+    g.kingdom.realms[1].shield_index = 5;
+    g.kingdom.realms[2].shield_index = 1;
     g.battle = Some(Box::new(live));
     (g, Machine::new(ScreenId::Battlefield))
 }

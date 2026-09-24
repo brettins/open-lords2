@@ -303,6 +303,8 @@ impl Screen for BattlefieldScreen {
 
         match ctx.assets.battle.as_ref() {
             Some(art) => {
+                let (side4, side0) = side_colours(ctx.game, live);
+                art.set_sides(side4, side0);
                 let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
                 l2_view::scene::draw(canvas, &live.runner, art, self.ground, cam, banner);
             }
@@ -310,6 +312,7 @@ impl Screen for BattlefieldScreen {
         }
 
         draw_selection_markers(canvas, ctx.assets.chrome.as_ref(), live, ink);
+        draw_order_mark(canvas, ctx.assets.chrome.as_ref(), live);
 
         // **The rubber band, while one is being drawn** — `Battlefield_DrawBand`
         // (`0x0041298A`), the twin of the village's `Village_DrawBand`. Both
