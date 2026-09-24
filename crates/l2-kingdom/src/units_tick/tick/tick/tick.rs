@@ -120,12 +120,18 @@ impl Kingdom {
     }
 
     fn step_one(&mut self, id: usize, out: &mut UnitsTick) {
-        let Some(step) = movement::step(
+        let arm = self.enter_occupied(id, out);
+        // Unit_Step 00460000.c:4386 `if (iVar2 == 10) break;`: no step, `moving` kept [V].
+        if arm == Arm::Captured {
+            return;
+        }
+        let Some(step) = movement::step_over(
             &mut self.campaign.map,
             &mut self.counties,
             &self.realms,
             &mut self.campaign.units,
             id,
+            arm == Arm::Over,
         ) else {
             let (mut stacked, mut at_end) = (false, false);
             if let Some(u) = self.campaign.units.get_mut(id) {
@@ -274,69 +280,12 @@ impl Kingdom {
         }
 
         if let Entry::Occupied(occupant) = step.entry {
-            if self.merge_on_contact(id, occupant) {
-                out.contacts.push(Contact::Merged { mover: id, into: occupant });
-                return;
-            }
-            out.contacts.push(self.classify_occupied(id, occupant));
+            let county = self.campaign.units.get(occupant).map_or(0, |o| o.county);
+            out.contacts.push(match arm {
+                Arm::Battle(_) => Contact::Battle(Encounter { mover: id, occupant, county }),
+                _ => Contact::Blocked { mover: id, occupant },
+            });
         }
-    }
-
-    /// The two exemptions are the reason [`crate::ai_army::Mission`] has to be
-    /// modelled at all outside `ai_army`: an army walking to a castle to join
-    /// its garrison is on a **dedicated errand** and is not to be absorbed by
-    /// whatever it passes, in either direction. `[D]`
-    fn merge_on_contact(&mut self, mover: usize, occupant: usize) -> bool {
-        let units = &self.campaign.units;
-        let (Some(m), Some(o)) = (units.get(mover), units.get(occupant)) else { return false };
-        if m.kind != UnitKind::Army || o.kind != UnitKind::Army || m.owner != o.owner {
-            return false;
-        }
-        if o.owner_is_human
-            || m.mission == crate::ai_army::Mission::JOIN_GARRISON
-            || o.mission == crate::ai_army::Mission::JOIN_GARRISON
-        {
-            return false;
-        }
-        crate::unit::combine(&mut self.campaign.units, occupant, mover).is_ok()
-    }
-
-    /// `Unit_EnterOccupiedTile` (`0x004658C1`), reduced to the question this
-    /// driver has to answer: is that a fight?
-    ///
-    /// **Rungs 1 and 2 no longer reach here.** They are not "no fight, but the
-    /// move ends": the original returns the tile's ordinary Road or Open code
-    /// and the mover steps onto the tile,
-    /// than a contact. [`crate::movement::pass_through`] gives it, so
-    /// [`Entry::Occupied`] never reaches this function in those two cases and
-    /// the rungs are kept below only because the ladder reads wrong without
-    /// them. `docs/decisions.md` C40.
-    fn classify_occupied(&self, mover: usize, occupant: usize) -> Contact {
-        let units = &self.campaign.units;
-        let (Some(m), Some(o)) = (units.get(mover), units.get(occupant)) else {
-            return Contact::Blocked { mover, occupant };
-        };
-        let hostile = m.kind.is_combatant()
-            && o.kind.is_combatant()
-            && m.owner != o.owner
-            && !self.allied(m.owner, o.owner);
-        if hostile {
-            Contact::Battle(Encounter { mover, occupant, county: o.county })
-        } else {
-            Contact::Blocked { mover, occupant }
-        }
-    }
-
-    /// `Diplo_ActionAllowed` (`0x004A0710`)'s ally test, and nothing else of it.
-    ///
-    /// Realm `+0x81` is one byte,
-    /// relation is read from both sides because the original stores it on both.
-    fn allied(&self, a: u8, b: u8) -> bool {
-        if a == b {
-            return true;
-        }
-        let ally_of = |r: u8| self.realms.get(r as usize).map_or(0, |x| x.ally);
-        ally_of(a) == b || ally_of(b) == a
     }
 
     pub fn begin_unit_phase(&mut self, phase: Phase) -> usize {

@@ -1,6 +1,7 @@
 
 mod marching;
 mod stacking;
+mod occupied;
 pub use marching::*;
 
 use super::*;
@@ -225,18 +226,3 @@ fn a_friendly_unit_blocks_rather_than_fights() {
     assert_eq!(t.battle(), None);
     assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: b }]);
 }
-
-#[test]
-fn an_ally_is_not_attacked() {
-    let mut k = kingdom();
-    k.realms[2].in_play = true;
-    k.realms[1].ally = 2;
-    let a = army(&mut k, 1, 5, 10);
-    let b = army(&mut k, 2, 6, 10);
-    movement::order_move(&k.campaign.map, &mut k.campaign.units, a, (8, 10), movement::Routing::Direct)
-        .unwrap();
-    let t = k.tick_units();
-    assert_eq!(t.battle(), None);
-    assert_eq!(t.contacts, vec![Contact::Blocked { mover: a, occupant: b }]);
-}
-

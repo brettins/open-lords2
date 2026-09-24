@@ -9,7 +9,7 @@ use super::*;
 /// Road or Open code — so the army walks *through* the merchant and no
 /// contact is reported at all. [`crate::movement::pass_through`] is where
 /// that now happens, which makes rungs 1 and 2 of
-/// [`UnitsTick::classify_occupied`] unreachable by construction
+/// [`Kingdom::enter_occupied`] unreachable by construction
 /// by comment. `docs/decisions.md` C40.
 #[test]
 fn a_merchant_is_walked_through_rather_than_attacked() {

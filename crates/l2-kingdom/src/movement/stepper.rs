@@ -113,6 +113,11 @@ fn pass_through(
     if !mover_ignores && !occupant_is_merchant {
         return entry;
     }
+    road_or_open(map, x, y)
+}
+
+/// Unit_EnterOccupiedTile 00460000.c:4248-4252 `local_8 = (flags & 1) ? 3 : 1` [V].
+fn road_or_open(map: &CampaignMap, x: u8, y: u8) -> Entry {
     if map.flags_at(x, y) & crate::map::flags::ROAD != 0 {
         Entry::Road
     } else {
@@ -140,6 +145,19 @@ pub fn step(
     units: &mut Units,
     id: usize,
 ) -> Option<Step> {
+    step_over(map, counties, realms, units, id, false)
+}
+
+/// [`step`]; `over` is Unit_EnterOccupiedTile 0x004658C1 returning `local_8`, the occupied
+/// tile read as road or open and nothing else [V].
+pub fn step_over(
+    map: &mut CampaignMap,
+    counties: &mut [County; MAX_COUNTIES],
+    realms: &[Realm; MAX_REALMS],
+    units: &mut Units,
+    id: usize,
+    over: bool,
+) -> Option<Step> {
     let (next, kind, owner, owner_is_human) = {
         let u = units.get(id)?;
         if u.path.is_empty() || u.moves_used >= u.move_allowance {
@@ -152,7 +170,10 @@ pub fn step(
         u.sub_frame = 0;
     }
     let (nx, ny) = next;
-    let entry = pass_through(map, units, kind, try_enter(map, units, nx, ny), nx, ny);
+    let entry = match try_enter(map, units, nx, ny) {
+        Entry::Occupied(_) if over => road_or_open(map, nx, ny),
+        e => pass_through(map, units, kind, e, nx, ny),
+    };
     let tile_county = map.county_at(nx, ny);
     let mut out = Step::nothing(entry);
 
