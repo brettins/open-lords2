@@ -41,7 +41,7 @@ impl Encode for crate::unit::Unit {
             out.u8(*x);
             out.u8(*y);
         }
-        out.bool(self.moving);
+        out.u8(if !self.moving { 0 } else if self.ordered { 1 } else { 2 });
         out.bool(self.on_road);
         out.u8(self.sub_tile);
         out.u8(self.sub_frame);
@@ -127,7 +127,8 @@ impl Decode for crate::unit::Unit {
         for _ in 0..steps {
             u.path.push((input.u8()?, input.u8()?));
         }
-        u.moving = input.bool()?;
+        let state = input.u8()?;
+        (u.moving, u.ordered) = (state != 0, state == 1);
         u.on_road = input.bool()?;
         u.sub_tile = input.u8()?;
         u.sub_frame = input.u8()?;

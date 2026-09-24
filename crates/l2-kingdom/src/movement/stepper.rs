@@ -32,7 +32,9 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
     unit.path = path;
     unit.dest = Some(dest);
     unit.dest_county = dest_county;
+    // Unit_OrderMove 0x004A98FE writes moving = 2 [V].
     unit.moving = true;
+    unit.ordered = false;
     unit.needs_destination = false;
     Some(steps)
 }

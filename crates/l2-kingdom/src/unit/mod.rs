@@ -218,8 +218,10 @@ pub struct Unit {
     pub dest: Option<(u8, u8)>,
     /// `+0x1C` and `+0x1D…+0x148` — the remaining steps, **in travel order**.
     pub path: Vec<(u8, u8)>,
-    /// `+0x14C` — 0 idle, 2 moving.
+    /// `+0x14C != 0` — ordered or stepping.
     pub moving: bool,
+    /// `+0x14C == 1` — ordered, not started: `Army_Tick` `0x0046521F` steps only `moving == 2`.
+    pub ordered: bool,
     /// `+0x14D` — the tile just entered was a road, which is what makes the
     /// step cost 1 instead of 3.
     pub on_road: bool,

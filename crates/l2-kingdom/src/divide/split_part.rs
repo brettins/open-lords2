@@ -129,6 +129,7 @@ pub fn split(
         parent.troops = basket.parent;
         parent.men = basket.parent_total();
         parent.moving = true;
+        parent.ordered = false;
     }
     if let (Some(band), true) = (basket.mercenaries, basket.mercenaries_leave) {
         if let Some(p) = units.get_mut(army) {

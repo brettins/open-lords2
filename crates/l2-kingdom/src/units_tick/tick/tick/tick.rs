@@ -84,7 +84,8 @@ impl Kingdom {
         let mut out = UnitsTick::default();
         refresh_allowances(&mut self.campaign.units);
         for id in 1..crate::unit::MAX_UNITS {
-            if !self.campaign.units.get(id).is_some_and(|u| u.moving) {
+            // Army_Tick 0x0046521F: `if (moving == 2) Unit_Step();` [V].
+            if !self.campaign.units.get(id).is_some_and(|u| u.moving && !u.ordered) {
                 continue;
             }
             if !cross_sub_tile(&mut self.campaign.units, id) {
@@ -352,11 +353,16 @@ impl Kingdom {
 
     /// `FUN_004A4E3D(kind, realm)` — is that realm's own unit of this kind
     /// still walking?
-    pub fn realm_units_moving(&self, kind: UnitKind, realm: u8) -> bool {
-        self.campaign
-            .units
-            .iter()
-            .any(|(_, u)| u.moving && u.kind == kind && u.owner == realm && !u.owner_is_human)
+    pub fn realm_units_moving(&mut self, kind: UnitKind, realm: u8) -> bool {
+        let mut any = false;
+        for (_, u) in self.campaign.units.iter_mut() {
+            if u.moving && u.kind == kind && u.owner == realm && !u.owner_is_human {
+                // 004a0000.c:1977 `moving = 2`: starts every ordered unit it finds [V].
+                u.ordered = false;
+                any = true;
+            }
+        }
+        any
     }
 
     /// `FUN_00429418` — **the first step of phase 3.**

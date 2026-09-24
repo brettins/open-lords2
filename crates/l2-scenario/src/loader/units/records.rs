@@ -122,6 +122,7 @@ pub(super) fn read_unit(u: &l2_formats::save::Unit) -> Result<Unit, ImportError>
         dest: Some((u.dest_x, u.dest_y)),
         path: u.path(),
         moving: u.move_state != 0,
+        ordered: u.move_state == 1,
         on_road: u.on_road,
 // **`+0x149 … +0x14B` are not read**, and this is a default
         // an import. `l2_formats::save::Unit` stops at `+0x14C`; adding the

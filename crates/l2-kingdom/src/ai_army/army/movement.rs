@@ -58,6 +58,10 @@ impl Kingdom {
             )
             .is_some()
             {
+                // 004a0000.c:2263 `moving = 1`: ordered; FUN_004A4E3D starts it at the AI's last step [V].
+                if let Some(u) = self.campaign.units.get_mut(id) {
+                    u.ordered = true;
+                }
                 report.marching.push(id);
             }
         }

@@ -146,7 +146,12 @@ pub fn drive_ai(
     if realm.ai_step == 0 {
         realm.ai_step = 1;
     }
-    let marching = kingdom.realm_units_moving(l2_kingdom::UnitKind::Army, id as u8);
+    // 00490000.c:4970: `2*realm + 15 <= aiStep && FUN_004A4E3D(1, realm) == 0`; the call,
+    // which starts ordered armies, is short-circuited below the threshold [V].
+    let r = &kingdom.realms[id];
+    let at_end = r.in_play && !r.is_human && r.ai_step < l2_kingdom::AI_STEP_DONE
+        && r.ai_step >= ai::done_threshold(id);
+    let marching = at_end && kingdom.realm_units_moving(l2_kingdom::UnitKind::Army, id as u8);
     let step = ai::pending_step(&kingdom.realms[id], id);
     let _finished = ai::run_step(&mut kingdom.realms[id], id, marching);
     if let Some(step) = step {

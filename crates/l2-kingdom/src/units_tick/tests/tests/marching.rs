@@ -158,3 +158,25 @@ fn the_allowance_is_rebuilt_from_the_type() {
     assert_eq!(k.campaign.units.get(id).unwrap().move_allowance, 15);
 }
 
+/// Ai_AdvanceArmies 0x004A5667 writes moving = 1; Army_Tick 0x0046521F steps only 2, and
+/// FUN_004A4E3D promotes. Ablate: `!u.ordered` in tick_units, or `u.ordered = false` there.
+#[test]
+fn an_ai_ordered_army_waits_until_the_realms_last_step_starts_it() {
+    let mut k = kingdom();
+    k.realms[2].in_play = true;
+    let a = army(&mut k, 2, 5, 10);
+    movement::order_move(&k.campaign.map, &mut k.campaign.units, a, (8, 10), movement::Routing::Direct)
+        .unwrap();
+    k.campaign.units.get_mut(a).unwrap().ordered = true;
+    for _ in 0..40 {
+        k.tick_units();
+    }
+    assert_eq!(k.campaign.units.get(a).unwrap().tile(), (5, 10), "moving == 1 does not step");
+    assert!(k.realm_units_moving(UnitKind::Army, 2), "an ordered army holds the realm's turn open");
+    assert!(!k.campaign.units.get(a).unwrap().ordered, "and is started by the same call");
+    for _ in 0..40 {
+        k.tick_units();
+    }
+    assert_ne!(k.campaign.units.get(a).unwrap().tile(), (5, 10), "moving == 2 steps");
+}
+
