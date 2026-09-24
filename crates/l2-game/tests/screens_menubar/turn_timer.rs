@@ -137,7 +137,7 @@ fn running_out_leaves_the_village_open_and_a_page_hides_the_timer_without_stoppi
     assert_eq!(m.ids(), vec![ScreenId::Campaign, ScreenId::Village(county)]);
     assert!(!l2_game::turn::turn_in_flight(&game));
     tick_stack(&mut m, &mut game, &assets, 1);
-    // App_WinMain 00400000.c:8248 DAT_00553018 = 1, no F12: no force-close. CNEW-gate-open-in-single-player.
+    // App_WinMain 00400000.c:8248 DAT_00553018 = 1, no F12: no force-close. C249.
     assert_eq!(m.ids(), vec![ScreenId::Campaign, ScreenId::Village(county)], "the village outlives the clock");
     assert!(l2_game::turn::players_turn_ended(&game), "and the map began the turn in the same frame");
 }

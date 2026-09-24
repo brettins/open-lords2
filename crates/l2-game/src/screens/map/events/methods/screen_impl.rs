@@ -33,7 +33,7 @@ impl Screen for MapScreen {
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         // Screen_FrameInput 00420000.c:6795 gate, open after End Turn in single player: a phase-6
         // county-strip click opened 0x14 in the trace [V]; Turn_Tick 0x0049A010 phases 1-3 likewise.
-        // CNEW-gate-open-in-single-player.
+        // C249.
         if (turn::map_input_shut(ctx.game) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {

@@ -559,7 +559,7 @@ orders — `Map_ConfirmMoveOrder` on `0x10`, the levy on `0x17` — loads `vill_
 Twenty-nine arms open with `if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))`
 → force-close, where `DAT_0055403C` is what `Turn_End` writes and `DAT_00553FC8` is the
 multiplayer sync-wait latch. **A third of this function's job is tearing every open panel
-down when a network turn ends or blocks**, with no user input involved; in single player `DAT_00553018` is 1 and it never fires (CNEW-gate-open-in-single-player).
+down when a network turn ends or blocks**, with no user input involved; in single player `DAT_00553018` is 1 and it never fires (C249).
 
 **Where it sits in the frame matters.** Its one caller is `Battle_Frame` (`0x004B99C0`) —
 the whole-game per-frame function — and it is the *last* thing in
@@ -630,7 +630,7 @@ them fires on a *left* click, so clicking the strip or the sidebar while a panel
 The outer condition is not a keyboard test; `DAT_0055403C`
 is what `Turn_End` writes, `DAT_00553FC8` is the multiplayer turn state and `DAT_00553018`
 is 1 from `App_WinMain` on (`00400000.c:8248`), cleared only by the network sync wait, so its `else`
-**force-closes the panel when a network turn ends under it**, never in single player (CNEW-gate-open-in-single-player). `0x19` is identical plus a `Ration_SliderClick()` guard, so dragging the ration slider
+**force-closes the panel when a network turn ends under it**, never in single player (C249). `0x19` is identical plus a `Ration_SliderClick()` guard, so dragging the ration slider
 does not dismiss the panel.
 
 **So a panel has three ways out and none of them is a key**: the corner picture (`FUN_0040E7E4`, a

@@ -88,7 +88,7 @@ impl TurnClock {
     /// `DAT_00553018`: 1 from App_WinMain 0x0040E9AB (00400000.c:8248) and Turn_Tick's
     /// restart (00490000.c:4806); F12 writes it ([`TurnClock::f12`]) [V]. Turn_AllRealmsDone's
     /// network arm (:5337) clears it beside `DAT_00553FC8 = 1`: a network game keeps the latch
-    /// [D] netcode. CNEW-gate-open-in-single-player.
+    /// [D] netcode. C249.
     pub fn force_close(&self, multiplayer: bool) -> bool {
         self.restart_pending && (multiplayer || self.gate_shut)
     }

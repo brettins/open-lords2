@@ -12524,7 +12524,7 @@ the season's secession pass), so the long-game census measures blocks at the aut
 takes input in phases 1-3, and End Turn pressed then is kept until phase 4 [I: `Turn_End`'s 999
 survives, the reset having run at the wrap]. Units_Tick contacts in phases 1-3 still ask to combine.
 
-**CNEW-gate-open-in-single-player — `DAT_00553018` is not the F12 override; the input gate
+**C249 — `DAT_00553018` is not the F12 override; the input gate
 never shuts in single player.** Corrects C207's reading ("`DAT_00553018` the F12 override
 whose one setter is `App_WndProc`'s `VK_F12` arm") and `docs/screens-county.md`'s.
 
