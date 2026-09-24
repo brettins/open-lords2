@@ -72,7 +72,8 @@ impl BattleRunner {
                 self.sync_cell(c);
             }
         }
-        self.sim.step();
+        // Melee_Tick is per man, in step_one: BattleMan_StateMelee 0x004831D8, 00480000.c:1395
+        self.sim.tick += 1;
         for i in 0..self.fighters.len() {
             if !self.is_alive(i) && self.fighters[i].anim != Motion::Dying {
                 let f = &self.fighters[i];

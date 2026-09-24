@@ -136,7 +136,8 @@ impl BattleRunner {
         //
         // Its `if (weaponClass != 0 && 5 < delay) BattleMan_FireMissile()` —
         // a waiting archer still shoots — is not modelled here. `[D]`.
-        if self.fighters[i].delay > 0 {
+        // state 4 overwrites state 1: g_manStateTable dispatches 0x004831D8, not the delay count [V]
+        if self.fighters[i].delay > 0 && self.sim.figures[self.fighters[i].sim].state != State::Melee {
             self.fighters[i].delay -= 1;
             self.fighters[i].anim = Motion::Idle;
             return;
@@ -187,6 +188,12 @@ impl BattleRunner {
                 let phase = self.fighters[i].phase;
                 self.strike(i, facing);
                 self.fighters[i].phase = phase;
+            } else {
+                // `else if (other.state == 4) { Melee_Tick();` 0x004831D8 00480000.c:1395 [V]
+                self.sim.duel(sim);
+                if !self.is_alive(i) {
+                    return;
+                }
             }
         }
 

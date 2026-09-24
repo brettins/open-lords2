@@ -206,20 +206,15 @@ impl Figure {
         }
     }
 
-    pub fn take_hits_from(&mut self, amount: u16, by: usize) -> u16 {
-        self.was_hit = true;
-        self.hit_by = Some(by);
-        self.take_hits(amount)
-    }
-
     pub fn take_hits(&mut self, amount: u16) -> u16 {
         let threshold = self.hits_per_casualty;
         self.hits = self.hits.saturating_add(amount);
         let mut killed = 0;
-        while self.hits >= threshold && self.men > 0 {
+        // Melee_Tick 0x00494908 00490000.c:1801: one `if`, one man a tick [V]
+        if self.hits >= threshold && self.men > 0 {
             self.hits -= threshold;
             self.men -= 1;
-            killed += 1;
+            killed = 1;
         }
         if self.men == 0 {
             self.state = State::Dead;

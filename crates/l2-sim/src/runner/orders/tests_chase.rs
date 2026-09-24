@@ -2,7 +2,7 @@
 //! the duel's survivor pursues, and the pursuit ends with its target.
 
 use crate::battle::Battle;
-use crate::figure::{State, SIDE_A, SIDE_B};
+use crate::figure::{Role, State, SIDE_A, SIDE_B};
 use crate::runner::*;
 use crate::melee;
 use crate::Troop;
@@ -141,4 +141,50 @@ fn an_order_reaches_a_man_in_melee() {
     r.send_figure(unit, me, 10, 10, false);
     assert_eq!(r.sim.figures[sim].state, State::Idle);
     assert_eq!(r.fighters[me].target, (10, 10));
+}
+
+/// BattleMan_StateMelee 0x004831D8 (00480000.c:1395) runs Melee_Tick in the man's own step.
+/// Ablation: dropping `self.sim.duel(sim)` from step_one fails this.
+#[test]
+fn a_man_dies_in_melee_on_his_own_step() {
+    let mut r = BattleRunner::deploy(blank_field(), &[(Troop::Swordsmen, 1)], &[(Troop::Pikemen, 1)]);
+    let find = |r: &BattleRunner, t| (0..r.fighters.len()).find(|&i| r.fighters[i].troop == t).unwrap();
+    let (me, foe) = (find(&r, Troop::Pikemen), find(&r, Troop::Swordsmen));
+    let (sim, fsim) = (r.fighters[me].sim, r.fighters[foe].sim);
+    r.sim.engage(fsim, sim);
+    let f = &mut r.sim.figures[sim];
+    f.men = 1;
+    f.hits = f.hits_per_casualty - 1;
+    f.recovery_counter = 0;
+    r.step_one(me);
+    assert_eq!(r.sim.figures[sim].state, State::Dead);
+}
+
+/// 00490000.c:1834-1842: the exchange ends with a swap only when other.opponent == cur.
+/// Ablation: the old unconditional swap in `melee.rs` fails this.
+#[test]
+fn a_third_man_s_exchange_resets_without_a_swap() {
+    let mut bt = duel();
+    bt.add(Troop::Swordsmen, SIDE_A, 1).unwrap();
+    let c = &mut bt.figures[2];
+    c.state = State::Melee;
+    c.opponent = Some(1);
+    c.role = Role::Attacking;
+    c.exchange = 1;
+    melee::tick(&mut bt.figures, 2);
+    assert_eq!(bt.figures[2].role, Role::Attacking);
+    assert_eq!(bt.figures[2].exchange, bt.figures[2].stats().exchange as i32);
+    assert_eq!(bt.figures[1].role, Role::Defending);
+}
+
+/// 00490000.c:1791: `if (scan == cur && other.role == 1) cur.role = 2`.
+/// Ablation: removing the demotion in `melee.rs` fails this.
+#[test]
+fn of_two_attackers_the_one_whose_tick_it_is_gives_way() {
+    let mut bt = duel();
+    bt.figures[1].role = Role::Attacking;
+    bt.figures[0].recovery_counter = 5;
+    melee::tick(&mut bt.figures, 1);
+    assert_eq!(bt.figures[1].role, Role::Defending);
+    assert_eq!(bt.figures[0].recovery_counter, 5, "a defender does not wear the other down");
 }
