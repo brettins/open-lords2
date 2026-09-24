@@ -1,24 +1,31 @@
-// siege-sieging.sav loads into the siege (screen 0x29), paused: unpause, click the swordsmen, order them onto open ground, unpause.
-// NOT YET: no Battle_OrderSelection 0x0043C634 fires; the pause click opens screen 0x2A and the figure click selects nothing.
+// siege-sieging.sav loads into the siege (screen 0x29), paused: unpause, put the camera on the player's men, box them, order them onto open ground.
 {"op":"films","mode":"skip"}
 {"op":"load","save":"siege-sieging.sav"}
 {"op":"dismiss"}
 {"op":"anchor","label":"loaded"}
 {"op":"record","frames":2}
 {"op":"snap"}
-// Figures from FUN_004BDC31's blits (caller 0x004BDFEA): a2y_swor.pl8 at x 120..184, y 264..296.
-// Battle_ButtonClicked 0x004329A4: button 0, pause, at (480, 448) 32 x 32; a click on the paused field opens screen 0x2A.
+// Battle button 0, FUN_0043B9A1 pause, at (480, 448) 32 x 32.
 {"op":"click","x":496,"y":464}
 {"op":"advance","frames":10}
-{"op":"click","x":128,"y":276}
+{"op":"peek","addr":"0x0053F238"}
+// BattleMap_Click 0x00432443, right button on the overview: cell (42, 66) is (564, 156); the camera to (35, 59).
+{"op":"click","x":564,"y":156,"button":"right"}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"camera"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// g_battleMen 0x00554480 +0x13 1 (peeked): knights x 37..42, swordsmen 44..45, all y 70; pixels x 64..351, y 376..407.
+{"op":"drag","x":50,"y":360,"x2":360,"y2":420}
 {"op":"advance","frames":10}
 {"op":"anchor","label":"select"}
 {"op":"record","frames":2}
 {"op":"snap"}
-{"op":"click","x":300,"y":340}
-{"op":"advance","frames":10}
+// Open ground, cell (40, 64): (176, 200). Battle_OrderSelection 0x0043C634 -> BattleUnit_Order 0x00479E90.
+{"op":"click","x":176,"y":200}
+{"op":"advance","frames":5}
 {"op":"anchor","label":"order"}
-{"op":"record","frames":2}
+{"op":"record","frames":4}
 {"op":"snap"}
 {"op":"advance","frames":600}
 {"op":"anchor","label":"after-600"}

@@ -1,0 +1,25 @@
+// The army information panel: right-click the blue army on battle-before.sav, screen 0x04 (screens-county.md 2.6).
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-before.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+// Map_DrawArmies 0x00408438: sprite1a.pl8 78 at (214, 246); the feet at (228, 272). Screen_MapInfo 0x0041B032 -> UnitPanel_Draw 0x0041B19D.
+{"op":"click","x":228,"y":272,"button":"right"}
+{"op":"wait-screen","id":4,"max":600}
+{"op":"anchor","label":"army-panel"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+// A tile with no unit: FUN_0041BEFE's tile panel.
+{"op":"click","x":120,"y":380,"button":"right"}
+{"op":"wait-screen","id":4,"max":600}
+{"op":"anchor","label":"tile-panel"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"anchor","label":"map"}
+{"op":"snap"}

@@ -1,0 +1,81 @@
+// County panels on england-turn1.sav: CountyStrip_Click 0x00438CEB quadrants, then the sidebar court and castle buttons.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// CountyStrip_Click my < 212, mx < 548: Panel_Population 0x004110B1, screen 0x14.
+{"op":"click","x":500,"y":195}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"wait-screen","id":20,"max":600}
+{"op":"anchor","label":"population"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// The right button leaves the panel (screens-county.md 2.6).
+{"op":"click","x":320,"y":300,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+// my < 212, mx > 567: Panel_Happiness 0x004116FB, screen 0x16.
+{"op":"click","x":600,"y":195}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"wait-screen","id":22,"max":600}
+{"op":"anchor","label":"happiness"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// The right button leaves the panel (screens-county.md 2.6).
+{"op":"click","x":320,"y":300,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+// my >= 212, mx < 548: Panel_Tax 0x0041152F, screen 0x15.
+{"op":"click","x":500,"y":225}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"wait-screen","id":21,"max":600}
+{"op":"anchor","label":"tax"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// The right button leaves the panel (screens-county.md 2.6).
+{"op":"click","x":320,"y":300,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+// my >= 212, mx > 567: Panel_Ration 0x00411B72, screen 0x19.
+{"op":"click","x":600,"y":225}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"wait-screen","id":25,"max":600}
+{"op":"anchor","label":"rations"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// The right button leaves the panel (screens-county.md 2.6).
+{"op":"click","x":320,"y":300,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+// g_sidebarButtons 0x004DC680 button 2: Court_Draw 0x00416925, screen 0x9.
+{"op":"click","x":527,"y":444}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"wait-screen","id":9,"max":600}
+{"op":"anchor","label":"court"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// The right button leaves the panel (screens-county.md 2.6).
+{"op":"click","x":320,"y":300,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+// g_sidebarButtons button 4: Screen_CastleBuild 0x00419789, screen 0x1B.
+{"op":"click","x":590,"y":444}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"wait-screen","id":27,"max":600}
+{"op":"anchor","label":"castle"}
+{"op":"record","frames":3}
+{"op":"snap"}
+// The right button leaves the panel (screens-county.md 2.6).
+{"op":"click","x":320,"y":300,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"map"}
+{"op":"snap"}

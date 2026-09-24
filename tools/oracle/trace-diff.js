@@ -28,6 +28,8 @@ function keyOf(r) {
     case 'message': return ['message', `${a.group}/c${a.category}/to${a.to}`];
     case 'ai': return ['ai', `realm${a.realm}`];
     case 'order': return ['order', 'order'];
+    // Army_*, Battle_*, UnitPanel_Draw: compared by name, only where ours has the emit site.
+    case 'call': return BUILT().has(String(r.addr).toUpperCase()) ? ['call', r.name] : null;
     case 'sound':
       if (r.name === 'Music_Play') return ['music', low(a.file)];
       if (r.name === 'Msg_PlayVoice') return ['voice', String(a.group)];
@@ -38,7 +40,9 @@ function keyOf(r) {
   }
 }
 const COLLAPSE = new Set(['screen', 'phase']);
-const RANK = ['screen', 'sound', 'music', 'voice', 'film', 'message', 'phase', 'ai', 'order', 'slot', 'text', 'draw', 'rand'];
+let built = null;
+const BUILT = () => (built = built || builtSites());
+const RANK = ['screen', 'sound', 'music', 'voice', 'film', 'message', 'call', 'phase', 'ai', 'order', 'slot', 'text', 'draw', 'rand'];
 
 // Steps: [label, records]; a repeated label gets #n.
 function steps(recs, byAnchor) {
