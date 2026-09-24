@@ -44,6 +44,8 @@ impl BattleRunner {
         if !u.is_live() || u.human || u.category == 1 || u.order_lock != 0 {
             return;
         }
+        // `g_battleUnits[unit].withdrawing = 0` — 0x0048F079, 00480000.c:6340. [V]
+        self.units.get_mut(unit).withdrawing = false;
         for j in 0..self.fighters.len() {
             let sim = self.fighters[j].sim;
             let f = &mut self.sim.figures[sim];

@@ -39,9 +39,6 @@ impl BattleRunner {
         if state == State::FillingMoat && !gate {
             return;
         }
-        if state == State::Melee {
-            return;
-        }
         let x = x.clamp(0, DIM as i32 - 1);
         let y = y.clamp(0, DIM as i32 - 1);
         let cell = self.field.at(x as usize, y as usize);
@@ -152,10 +149,12 @@ impl BattleRunner {
         let sim = self.fighters[i].sim;
         if self.sim.figures[sim].state == State::Melee {
             let mutual = self.sim.figures[sim].opponent.is_some_and(|o| {
-                self.sim.figures[o].is_alive() && self.sim.figures[o].opponent == Some(sim)
+                // `owner == 0 / state == 2 -> 8; else if (state == 4) Melee_Tick(); else 8` 0x004831D8 [V]
+                let other = &self.sim.figures[o];
+                other.owner != 0 && other.state == State::Melee
             });
             if !mutual {
-                self.sim.figures[sim].state = State::Idle;
+                self.sim.figures[sim].state = State::Chasing;
                 self.sim.figures[sim].opponent = None;
                 // **And he stops swinging.** `BattleMan_StateMelee`
                 // (`0x004831D8`) runs `Anim_Strike` at its *top*, so the tick
@@ -226,7 +225,9 @@ impl BattleRunner {
             return;
         }
 
-        self.retarget(i);
+        if self.retarget(i) {
+            return;
+        }
 
         // **`BattleMan_Step`'s head, and everything below it is that function's
         // decision section.** `0x0048F1DD` opens with the sub-cell counter and

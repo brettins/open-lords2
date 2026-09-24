@@ -6,29 +6,42 @@ use super::missiles::*;
 use super::super::*;
 
 impl BattleRunner {
-    pub(super) fn retarget(&mut self, i: usize) {
+    /// `BattleMan_StateChase` (`0x00483E55`, `00480000.c:1653-1681`). True when the
+    /// man stood (state 5): the original returns there. [V]
+    pub(crate) fn retarget(&mut self, i: usize) -> bool {
         let sim = self.fighters[i].sim;
-        match self.sim.figures[sim].state {
-            State::Chasing => {
-                let alive = self.sim.figures[sim]
-                    .target
-                    .is_some_and(|t| self.sim.figures[t].is_alive());
-                if !alive {
-                    let chosen = self.chase_target(i);
-                    self.sim.figures[sim].target = chosen;
-                    if let Some(t) = chosen {
-                        self.sim.figures[t].targeted =
-                            self.sim.figures[t].targeted.saturating_add(2);
-                    }
-                }
-                if let Some(t) = self.sim.figures[sim].target {
-                    let (tx, ty) = (self.fighters[t].x, self.fighters[t].y);
-                    self.fighters[i].target = (tx, ty);
-                }
+        if self.sim.figures[sim].state != State::Chasing {
+            return false;
+        }
+        // :1658 `if (6 < troopType) state = 0xb;` [I] no state-11 variant; Idle stands in
+        // for BattleMan_StateEngineHalt 0x0048437E, as send_figure's Idle does for 10.
+        if self.fighters[i].troop.is_siege() {
+            self.sim.figures[sim].state = State::Idle;
+        }
+        // :1661 `if (target == 0 || target.owner == 0) target = Melee_ChooseChaseTarget();`
+        let held = self.sim.figures[sim].target.filter(|&t| self.sim.figures[t].owner != 0);
+        if held.is_none() {
+            let chosen = self.chase_target(i);
+            self.sim.figures[sim].target = chosen;
+            if let Some(t) = chosen {
+                self.sim.figures[t].targeted = self.sim.figures[t].targeted.saturating_add(2);
             }
-            // State 17 follows its target, looses and lets go inside its own
-            // handler, [`Self::close_to_attack_tick`].
-            _ => {}
+        }
+        // :1665-1669 `if (target.state == 2) target = 0; if (target == 0) {Anim_Stand(); state = 5;}`
+        let target = self.sim.figures[sim].target;
+        match target.filter(|&t| self.sim.figures[t].state != State::Dead) {
+            Some(t) => {
+                if let Some(f) = self.fighters.iter().position(|f| f.sim == t) {
+                    self.fighters[i].target = (self.fighters[f].x, self.fighters[f].y);
+                }
+                false
+            }
+            None => {
+                self.sim.figures[sim].target = None;
+                self.sim.figures[sim].state = State::Idle;
+                self.stand(i);
+                true
+            }
         }
     }
 
