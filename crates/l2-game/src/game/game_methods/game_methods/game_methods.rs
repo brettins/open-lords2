@@ -47,6 +47,7 @@ impl Game {
             begin_move_order: None,
             combine_ask: None,
             map_zoom_far: false,
+            loaded_view: None,
             messages: crate::message::MessageQueue::new(),
             tips: crate::tip::Tips::new(),
             chosen_gold: 0,
