@@ -6,33 +6,41 @@ use super::missiles::*;
 use super::super::*;
 
 impl BattleRunner {
-    /// `BattleMan_StateChase` (`0x00483E55`, `00480000.c:1661-1681`). [D] the
-    /// original returns after `Anim_Stand()` on state 5; returning here leaves the
-    /// seam's defence 56 of 129, not 60, so the tick falls through.
-    pub(crate) fn retarget(&mut self, i: usize) {
+    /// `BattleMan_StateChase` (`0x00483E55`, `00480000.c:1653-1681`). True when the
+    /// man stood (state 5): the original returns there. [V]
+    pub(crate) fn retarget(&mut self, i: usize) -> bool {
         let sim = self.fighters[i].sim;
         if self.sim.figures[sim].state != State::Chasing {
-            // State 17 follows its target inside [`Self::close_to_attack_tick`].
-            return;
+            return false;
         }
-        if self.sim.figures[sim].target.is_none() {
+        // :1658 `if (6 < troopType) state = 0xb;` [I] no state-11 variant; Idle stands in
+        // for BattleMan_StateEngineHalt 0x0048437E, as send_figure's Idle does for 10.
+        if self.fighters[i].troop.is_siege() {
+            self.sim.figures[sim].state = State::Idle;
+        }
+        // :1661 `if (target == 0 || target.owner == 0) target = Melee_ChooseChaseTarget();`
+        let held = self.sim.figures[sim].target.filter(|&t| self.sim.figures[t].owner != 0);
+        if held.is_none() {
             let chosen = self.chase_target(i);
             self.sim.figures[sim].target = chosen;
             if let Some(t) = chosen {
                 self.sim.figures[t].targeted = self.sim.figures[t].targeted.saturating_add(2);
             }
         }
-        // `if (target.state == 2) target = 0; if (target == 0) {Anim_Stand(); state = 5;}`
-        // [V]: a dead target ends the chase; it is not re-chosen.
-        match self.sim.figures[sim].target.filter(|&t| self.sim.figures[t].is_alive()) {
+        // :1665-1669 `if (target.state == 2) target = 0; if (target == 0) {Anim_Stand(); state = 5;}`
+        let target = self.sim.figures[sim].target;
+        match target.filter(|&t| self.sim.figures[t].state != State::Dead) {
             Some(t) => {
-                self.fighters[i].target = (self.fighters[t].x, self.fighters[t].y);
+                if let Some(f) = self.fighters.iter().position(|f| f.sim == t) {
+                    self.fighters[i].target = (self.fighters[f].x, self.fighters[f].y);
+                }
+                false
             }
             None => {
                 self.sim.figures[sim].target = None;
                 self.sim.figures[sim].state = State::Idle;
-                self.fighters[i].target = (self.fighters[i].x, self.fighters[i].y);
                 self.stand(i);
+                true
             }
         }
     }

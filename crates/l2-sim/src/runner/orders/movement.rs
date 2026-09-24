@@ -39,11 +39,6 @@ impl BattleRunner {
         if state == State::FillingMoat && !gate {
             return;
         }
-        // [D] 0x00489B8D has no state-4 guard (00480000.c:3884-3887 writes 3 over
-        // it); without this one the seam's defence keeps 48 of 129, not 60.
-        if state == State::Melee {
-            return;
-        }
         let x = x.clamp(0, DIM as i32 - 1);
         let y = y.clamp(0, DIM as i32 - 1);
         let cell = self.field.at(x as usize, y as usize);
@@ -154,8 +149,9 @@ impl BattleRunner {
         let sim = self.fighters[i].sim;
         if self.sim.figures[sim].state == State::Melee {
             let mutual = self.sim.figures[sim].opponent.is_some_and(|o| {
-                // `else if (other.state == 4) Melee_Tick(); else state = 8;` 0x004831D8 [V]
-                self.sim.figures[o].state == State::Melee && self.sim.figures[o].opponent == Some(sim)
+                // `owner == 0 / state == 2 -> 8; else if (state == 4) Melee_Tick(); else 8` 0x004831D8 [V]
+                let other = &self.sim.figures[o];
+                other.owner != 0 && other.state == State::Melee
             });
             if !mutual {
                 self.sim.figures[sim].state = State::Chasing;
@@ -229,7 +225,9 @@ impl BattleRunner {
             return;
         }
 
-        self.retarget(i);
+        if self.retarget(i) {
+            return;
+        }
 
         // **`BattleMan_Step`'s head, and everything below it is that function's
         // decision section.** `0x0048F1DD` opens with the sub-cell counter and

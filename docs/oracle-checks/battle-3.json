@@ -1,0 +1,76 @@
+{
+ "reviewed": "1eeadf5979c9dd8380d793e87dbca15bb35feb79",
+ "date": "2026-09-24",
+ "behaviours": [
+  {
+   "file": "crates/l2-sim/src/melee.rs",
+   "line": 37,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": "fixed: survivor reaches state 8 in its own tick (melee::tick prologue / step_one), not in the victim's; other.opponent no longer cleared."
+  },
+  {
+   "file": "crates/l2-sim/src/melee.rs",
+   "line": 58,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": "fixed: Melee_Tick kills only cur (state 2); heavy blow adds other.hits (:1829), resolved in other's tick. Also dropped our own-tick recovery decrement (no else at :1795-1799)."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 154,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": "fixed: opponent owner!=0 && state==4 only; opponent-of-opponent guard dropped."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 161,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 33,
+   "address": "0x00489B8D",
+   "verdict": "match",
+   "note": "fixed: [D] state-4 guard removed; send_figure writes over state 4 as :3884-3887 does."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 21,
+   "address": "0x00483E55",
+   "verdict": "match",
+   "note": "fixed: re-chooses when target is None or target.owner==0 (:1661)."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 16,
+   "address": "0x00483E55",
+   "verdict": "match",
+   "note": "fixed: troopType>6 leaves state 8 (:1658); [I] Idle stands in for state 11 (no enum variant; EngineHalt 0x0048437E only stands)."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 30,
+   "address": "0x00483E55",
+   "verdict": "match",
+   "note": "fixed: only a state-2 target ends the chase; tgX/tgY (fighter.target) kept."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+   "line": 11,
+   "address": "0x00483E55",
+   "verdict": "match",
+   "note": "fixed: [D] removed; retarget returns true on state 5 and step_one returns."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/combat/melee.rs",
+   "line": 48,
+   "address": "0x0048F079",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}
