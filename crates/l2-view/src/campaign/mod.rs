@@ -10,6 +10,7 @@ mod assets;
 pub use assets::*;
 
 mod terrain;
+mod dress;
 pub use terrain::*;
 mod render;
 pub use render::*;
