@@ -124,6 +124,9 @@ fn the_five_help_topics_put_their_message_on_the_ring() {
         assert_eq!(posted.group, id);
         assert_eq!(posted.category, l2_game::message::category::HELP);
         assert_eq!(posted.to, game.player);
+        // Menu_HelpHowDoI 00430000.c:1752; ablate `ctx.game.map_click_latch = true;` in dropdown.rs and this fails.
+        assert!(game.map_click_latch, "the help topic latches the next map click");
+        game.map_click_latch = false;
     }
 }
 

@@ -126,16 +126,8 @@ impl Machine {
             self.dirty = true;
         }
         //   if (DAT_00553FC8 != 0 || (DAT_0055403C != 0 && DAT_00553018 == 0))
-        //
-        // `Turn_End` (`0x0043AC23`) writes `DAT_0055403C = 2` — whichever door
-        // the turn was ended through, the clock's or the person's own End Turn
-        // — and `Turn_Tick`'s restart clears it on the first frame of his next
-        // live turn. So the guard stands for the whole turn in between, and
-        // twenty-six of the twenty-seven sites close their screen. This tested
-        // `end_turn_pending` instead, which is the clock's request and is taken
-        // by the map the moment the map is on top: a panel opened *during* the
-        // turn that followed stayed open, and ending the turn by hand with one
-        // up closed nothing at all.
+        // Single player: DAT_00553018 = 1 (00400000.c:8248) unless F12 on the court at far zoom
+        // wrote 0 (004b0000.c:2055) [V]; TurnClock::force_close. CNEW-gate-open-in-single-player.
         //
         // arm: 0x0042FF10/force-close-on-turn-end timer
         self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);

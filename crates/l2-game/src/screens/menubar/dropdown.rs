@@ -78,6 +78,8 @@ impl DropdownScreen {
                     },
                     player,
                 );
+                // Menu_HelpHowDoI 00430000.c:1752-1816 `DAT_0052afa4 = 1` [V]
+                ctx.game.map_click_latch = true;
                 Transition::Pop
             }
             // arm: 0x0040DECA/help-about left-press

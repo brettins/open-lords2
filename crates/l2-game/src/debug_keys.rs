@@ -26,6 +26,12 @@ pub struct DebugKeys {
 
 /// `screen` is `g_screenId`.
 pub fn key_down(game: &mut Game, key: Key, screen: Option<u8>) {
+    // arm: 0x004B29BE/f12-gate key
+    if key == Key::F12 {
+        let far = game.map_zoom_far;
+        game.turn_clock.f12(screen == Some(0x09) && far);
+        return;
+    }
     let dk = &mut game.debug_keys;
     match key {
         // `case 0x25: if (0 < g_debugSelectedMan) g_debugSelectedMan--;`

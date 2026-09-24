@@ -1,0 +1,111 @@
+{
+ "reviewed": "ba34d8a0283eac4629efdf6ef721cb24cd16338f",
+ "date": "2026-09-24",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 94,
+   "address": "0x004350A1",
+   "verdict": "match",
+   "note": "fixed: a right release at far zoom zooms in and latches (FUN_0043CAF4 :7507, Map_ZoomInAtTile :2522); latch.rs a_far_right_click_zooms_in_and_latches."
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 164,
+   "address": "0x0043CE1A",
+   "verdict": "match",
+   "note": "fixed: DAT_00553018 = 1 from App_WinMain 00400000.c:8248, cleared only in the network arm :5337, so single player's gate never shuts; turn::map_input_shut holds in a network game only. latch.rs a_single_player_release_after_end_turn_clears_the_latch; CNEW-gate-open-in-single-player."
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 268,
+   "address": "0x0043CE1A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 90,
+   "address": "0x0043CAF4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/menubar/dropdown.rs",
+   "line": 82,
+   "address": "0x0043480C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs",
+   "line": 230,
+   "address": "0x0043733A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs",
+   "line": 132,
+   "address": "0x00436408",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs",
+   "line": 53,
+   "address": "0x004335F0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs",
+   "line": 83,
+   "address": "0x00433155",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/types.rs",
+   "line": 110,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": "fixed: TurnClock::f12 models App_WndProc 004b0000.c:2053-2055 (court 0x09 at far zoom writes 0, else 1), Turn_Tick :4806 writes 1 back; map_input_shut and force_close read it in single player. selection_and_orders.rs f12_on_the_court_at_far_zoom_lets_end_turn_close_a_panel; turn_clock the_restart_reopens_the_gate_f12_shut."
+  },
+  {
+   "file": "crates/l2-game/src/turn_clock/clock.rs",
+   "line": 92,
+   "address": "0x0040E9AB",
+   "verdict": "departure",
+   "note": "network game keeps the latch [D] netcode; single-player half matches App_WinMain :8248, Turn_Tick :4806 and F12 004b0000.c:2055 (TurnClock::f12)."
+  },
+  {
+   "file": "crates/l2-game/src/screen/tick_gate.rs",
+   "line": 59,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 37,
+   "address": "0x0042FF10",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/camera.rs",
+   "line": 97,
+   "address": "0x0043AC23",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn_clock/clock.rs",
+   "line": 179,
+   "address": "0x0041A639",
+   "verdict": "match",
+   "note": ""
+  }
+ ]
+}

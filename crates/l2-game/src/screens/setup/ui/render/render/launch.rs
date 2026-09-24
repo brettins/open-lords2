@@ -48,7 +48,9 @@ impl SetupScreen {
         let settings = self.options.commit(HUMAN_PLAYERS, ctx.game.kingdom.options.quirks);
         self.unhonoured = settings.unhonoured();
         let slot = self.map;
-        self.new_game(ctx, slot, settings, None)
+        // FUN_004335F0 00430000.c:951 `Setup_StartGame(); DAT_0052afa4 = 1;` [V]
+        let t = self.new_game(ctx, slot, settings, None);
+        latch_on_start(ctx, t)
     }
 
     /// ***Continue*, at the bottom of page 4 — `FUN_00433155`'s hotspot-2
@@ -76,7 +78,9 @@ impl SetupScreen {
             // FUN_00433155 0x00433155 :794-808, single-player arms: DAT_0055302C == 3 -> 0xC, else 7.
             return self.go(if self.via_skirmish { SetupPage::Skirmish } else { SetupPage::Custom });
         }
-        self.start_campaign(ctx)
+        // FUN_00433155 00430000.c:791 `Setup_StartGame(); DAT_0052afa4 = 1;` [V]
+        let t = self.start_campaign(ctx);
+        latch_on_start(ctx, t)
     }
 
     /// **`Campaign_LoadEntry` (`0x00499E5D`) and then `Setup_StartGame`.**
@@ -203,3 +207,10 @@ impl SetupScreen {
 
 
 
+
+fn latch_on_start(ctx: &mut Ctx, t: Transition) -> Transition {
+    if t == Transition::Push(ScreenId::Campaign) {
+        ctx.game.map_click_latch = true;
+    }
+    t
+}

@@ -10,7 +10,7 @@
 {"op":"click","x":160,"y":62}
 {"op":"advance","frames":60}
 {"op":"dismiss"}
-// The original ignores the session's first right click on the map (measured 2026-09-24: screen 4 opened on the second, 74 steps on); ours opens on the first. This one is the original's only (this harness)
+// Map_ZoomInAtTile 00430000.c:2522 latched DAT_0052afa4; the release at (160, 62) was off-map (peek: DAT_005533b0 0), so FUN_0043CAF4 :7534 spends this click on it, no box.
 {"op":"click","x":318,"y":287,"button":"right"}
 {"op":"advance","frames":60}
 {"op":"anchor","label":"near-0"}

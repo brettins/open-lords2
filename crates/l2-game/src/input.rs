@@ -57,6 +57,8 @@ pub enum Key {
     F2,
     F3,
     F4,
+    /// `VK_F12` — [`crate::turn_clock::TurnClock::f12`].
+    F12,
     Char(char),
 /// A separate variant, because in the original
     /// it is a separate *dispatch*, not a qualifier: the window procedure

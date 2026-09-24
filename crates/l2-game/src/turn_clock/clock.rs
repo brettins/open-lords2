@@ -85,14 +85,18 @@ impl TurnClock {
     /// exactly, and it is a wider window than [`TurnClock::end_turn_pending`],
     /// which the map takes as soon as it is on top.
     ///
-    /// **Two clauses are not ours and are named so the reader knows what is
-    /// `DAT_00553FC8`
-    /// is the multiplayer sync-wait latch, which nothing in this engine sets
-    /// (`docs/netcode.md`); `DAT_00553018` is the F12 debug override, whose one
-    /// setter is `App_WndProc`'s `VK_F12` arm and which we do not have. With
-    /// both absent the guard reduces to this one field.
-    pub fn force_close(&self) -> bool {
-        self.restart_pending
+    /// `DAT_00553018`: 1 from App_WinMain 0x0040E9AB (00400000.c:8248) and Turn_Tick's
+    /// restart (00490000.c:4806); F12 writes it ([`TurnClock::f12`]) [V]. Turn_AllRealmsDone's
+    /// network arm (:5337) clears it beside `DAT_00553FC8 = 1`: a network game keeps the latch
+    /// [D] netcode. CNEW-gate-open-in-single-player.
+    pub fn force_close(&self, multiplayer: bool) -> bool {
+        self.restart_pending && (multiplayer || self.gate_shut)
+    }
+
+    /// App_WndProc 0x004B29BE 004b0000.c:2053-2055 `case 0x7b: DAT_00553018 = 1;
+    /// if (g_screenId == 9 && g_mapZoom == 2) DAT_00553018 = 0;` [V]
+    pub fn f12(&mut self, court_far: bool) {
+        self.gate_shut = court_far;
     }
 
     /// **`Turn_Tick`'s phase-2 arm: `DAT_0055403C = 0; Siege_LaunchAssault(…)`.**
@@ -155,9 +159,12 @@ impl TurnClock {
                 return Tick::Expired;
             }
         }
+        // Turn_Tick 0x0049A010 00490000.c:4799
         // `if (1 < DAT_0055403C && g_realms[g_localPlayer].aiStep != 999)` —
         // single player's `local_8 = 0xBB9` passes the 2.5-second wait at once.
         if self.restart_pending && !self.end_turn {
+            // Turn_Tick 0x0049A010 00490000.c:4806 `DAT_00553018 = 1` [V]
+            self.gate_shut = false;
             self.restart_pending = false;
             self.remaining = f.limit;
             self.elapsed_ms = 0;

@@ -64,6 +64,8 @@ impl SiegeScreen {
     /// *"Proceed"*, `L2.eng` 83/7 — and the countdown decides which of the two
     /// things it means.
     fn proceed(&mut self, ctx: &mut Ctx) -> Transition {
+        // SiegePrep_Button 0x0043B848 00430000.c:6639 hotspot 2 `DAT_0052afa4 = 1` [V]
+        ctx.game.map_click_latch = true;
         self.choice =
             if self.seasons(ctx) == 0 { SiegeChoice::Assault } else { SiegeChoice::Wait };
         Transition::Pop

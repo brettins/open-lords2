@@ -103,6 +103,18 @@ pub fn turn_opening(game: &Game) -> bool {
     game.turn.as_ref().is_some_and(|p| p.opening)
 }
 
+/// Screen_FrameInput 0x0042FF10 :6795 / Map_Click :7669 gate shut. Single player: the
+/// `DAT_0055403C != 0 && DAT_00553018 == 0` clause, open unless F12 shut it
+/// ([`crate::turn_clock::TurnClock::f12`]) [V]. A network game shuts it from End Turn to
+/// phases 1-3 [D] netcode. CNEW-gate-open-in-single-player.
+pub fn map_input_shut(game: &Game) -> bool {
+    if game.multiplayer || game.net.lockstep {
+        turn_in_flight(game) && !turn_opening(game)
+    } else {
+        game.turn_clock.force_close(false)
+    }
+}
+
 /// `Screen_DrawMenuBar` (`0x00419C78`) draws one banner per realm under
 ///
 /// `Turn_End` (`0x0043AC23`) writes it for the local player the instant End

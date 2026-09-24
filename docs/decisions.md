@@ -12523,3 +12523,22 @@ turns; a realm can hold two contiguity blocks during the person's turn (a phase-
 the season's secession pass), so the long-game census measures blocks at the autosave. The map
 takes input in phases 1-3, and End Turn pressed then is kept until phase 4 [I: `Turn_End`'s 999
 survives, the reset having run at the wrap]. Units_Tick contacts in phases 1-3 still ask to combine.
+
+**CNEW-gate-open-in-single-player — `DAT_00553018` is not the F12 override; the input gate
+never shuts in single player.** Corrects C207's reading ("`DAT_00553018` the F12 override
+whose one setter is `App_WndProc`'s `VK_F12` arm") and `docs/screens-county.md`'s.
+
+[V] from the decompilation: `App_WinMain` (`0x0040E9AB`, `00400000.c:8248`) writes
+`DAT_00553018 = 1` on its "Game fully setup" path, before any game mode is chosen;
+`Turn_Tick`'s phase-4 restart writes 1 again (`00490000.c:4806`); the only clear outside
+F12-on-screen-9-at-far-zoom (`004b0000.c:2055`) is `Turn_AllRealmsDone`'s network arm
+(`00490000.c:5337`), beside `DAT_00553FC8 = 1`. So `DAT_00553FC8 == 0 && (DAT_0055403C == 0 ||
+DAT_00553018 != 0)` — `Screen_FrameInput` `0x0042FF10` (`00420000.c:6795`), `Map_Click` (:7669),
+`Labour_SplitSliderDrag` and the twenty-seven force-close sites — is always open in single
+player: End Turn closes no panel, and the map takes clicks while the turn runs.
+
+Ours: `TurnClock::force_close(multiplayer)` and `turn::map_input_shut` hold in a network game
+only, where the old latch stays [D] netcode (`docs/netcode.md`; not an oracle question).
+Tests: `a_single_player_map_takes_orders_and_keeps_panels_while_the_turn_is_running`,
+`a_single_player_release_after_end_turn_clears_the_latch`; the two old refusals now run
+with `multiplayer` set.

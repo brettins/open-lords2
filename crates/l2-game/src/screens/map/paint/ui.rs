@@ -235,6 +235,7 @@ pub(crate) fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ct
     //
     // `docs/draws-map.md` §5.11, `docs/decisions.md`
     // C152 and C158.
+    // Screen_DrawEndTurn 0x0041A734 00410000.c:3856 `if (g_realms[g_localPlayer].aiStep < 999)` [V]
     if !turn::turn_in_flight(&ctx.game) {
         let end = if screen.focus == Focus::EndTurn && game.prefs.debug_overlay {
             ink.highlight

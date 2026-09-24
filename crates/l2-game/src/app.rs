@@ -40,6 +40,7 @@ pub(super) fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
         WinitKey::Named(NamedKey::F2) => Key::F2,
         WinitKey::Named(NamedKey::F3) => Key::F3,
         WinitKey::Named(NamedKey::F4) => Key::F4,
+        WinitKey::Named(NamedKey::F12) => Key::F12,
         WinitKey::Character(s) if ctrl => Key::ctrl_letter(s.chars().next()?),
         WinitKey::Character(s) => Key::letter(s.chars().next()?),
         _ => return None,

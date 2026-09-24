@@ -153,6 +153,9 @@ pub struct TurnClock {
     battle_saved: Option<i32>,
     was_ended: bool,
     end_turn: bool,
+    /// `DAT_00553018 == 0`. Default open: App_WinMain 0x0040E9AB 00400000.c:8248 `= 1` [V].
+    /// not-encoded: session, in no save block.
+    gate_shut: bool,
 }
 
 #[cfg(test)]
@@ -212,17 +215,32 @@ mod tests {
     fn the_force_close_latch_stands_for_the_whole_turn_and_not_only_for_the_request() {
         let mut c = TurnClock::default();
         assert_eq!(c.tick(players(0)), Tick::Running);
-        assert!(!c.force_close(), "a live turn closes nothing");
+        assert!(!c.force_close(true), "a live turn closes nothing");
         let ended = Frame { turn: TurnState::Ended, ..players(0) };
         assert_eq!(c.tick(ended), Tick::Waiting);
-        assert!(c.force_close(), "Turn_End writes DAT_0055403C whichever door it came through");
+        assert!(c.force_close(true), "Turn_End writes DAT_0055403C whichever door it came through");
+        assert!(!c.force_close(false), "App_WinMain 00400000.c:8248 DAT_00553018 = 1: single player closes nothing");
         assert!(!c.end_turn_pending(), "and it is NOT the clock's request: there is no limit");
 
         assert_eq!(run(&mut c, ended, 500), Tick::Waiting);
-        assert!(c.force_close(), "still standing 500 ticks into the turn");
+        assert!(c.force_close(true), "still standing 500 ticks into the turn");
 
         assert_eq!(c.tick(players(0)), Tick::Restarted);
-        assert!(!c.force_close(), "Turn_Tick's restart is the one writer that clears it");
+        assert!(!c.force_close(true), "Turn_Tick's restart is the one writer that clears it");
+    }
+
+    // Turn_Tick 0x0049A010 00490000.c:4806 `DAT_00553018 = 1` reopens what F12 shut.
+    // Ablate: `self.gate_shut = false;` in the restart arm, red.
+    #[test]
+    fn the_restart_reopens_the_gate_f12_shut() {
+        let mut c = TurnClock::default();
+        c.f12(true);
+        let ended = Frame { turn: TurnState::Ended, ..players(0) };
+        assert_eq!(c.tick(ended), Tick::Waiting);
+        assert!(c.force_close(false), "DAT_00553018 == 0: single player closes");
+        assert_eq!(c.tick(players(0)), Tick::Restarted);
+        assert_eq!(c.tick(ended), Tick::Waiting);
+        assert!(!c.force_close(false), "the restart wrote 1");
     }
 
     #[test]

@@ -31,8 +31,10 @@ impl Screen for MapScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // Turn_Tick 0x0049A010 phases 1-3 run under a live map: no input test in them [I].
-        if ((turn::turn_in_flight(ctx.game) && !turn::turn_opening(ctx.game)) || self.fading.is_some())
+        // Screen_FrameInput 00420000.c:6795 gate, open after End Turn in single player: a phase-6
+        // county-strip click opened 0x14 in the trace [V]; Turn_Tick 0x0049A010 phases 1-3 likewise.
+        // CNEW-gate-open-in-single-player.
+        if (turn::map_input_shut(ctx.game) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {
             return Transition::Stay;
@@ -86,6 +88,22 @@ impl Screen for MapScreen {
                     self.status = "ORDERS CANCELLED".into();
                     return Transition::Stay;
                 }
+                // FUN_0043CAF4 00430000.c:7534 `g_screenId = 0; DAT_0052afa4 = 0;` [V]
+                if ctx.game.map_click_latch && self.pick_tile(x, y).is_some() {
+                    ctx.game.map_click_latch = false;
+                    return Transition::Stay;
+                }
+                // FUN_0043CAF4 00430000.c:7507 `if (g_mapZoom == 2) { g_screenId = 0; Map_ZoomInAtTile(); }` [V]
+                if self.zoom.id == FAR.id {
+                    if let Some((tx, ty)) = self.pick_tile(x, y) {
+                        self.ensure(ctx);
+                        self.set_zoom(ctx, NEAR);
+                        self.centre_on_tile(tx as usize, ty as usize);
+                        // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1` [V]
+                        ctx.game.map_click_latch = true;
+                        return Transition::Stay;
+                    }
+                }
                 let target = self
                     .pick_tile(x, y)
                     .map(|(tx, ty)| {
@@ -138,7 +156,17 @@ impl Screen for MapScreen {
             }
             // `FUN_00439122` eats the release and does nothing with it — the
             // value was already set on the way down and on every move since.
-            Event::Release { .. } => self.slider_held = false,
+            Event::Release { x, y } => {
+                self.slider_held = false;
+                // Battle_Frame 004b0000.c:6742 `DAT_005533b0 = Map_PickTile(0)` gates Map_Click [V].
+                // Screen_FrameInput 00420000.c:6795 and Map_Click :7669: `DAT_00553fc8 == 0 &&
+                // (DAT_0055403c == 0 || DAT_00553018 != 0)`, screen 0 only [V].
+                let closed = turn::map_input_shut(ctx.game)
+                    || self.fading.is_some();
+                if ctx.game.map_click_latch && !closed && self.pick_tile(x, y).is_some() {
+                    ctx.game.map_click_latch = false;
+                }
+            }
             Event::Click { x, y } => {
                 // ```c
                 // if (Map_EdgeScroll() || FUN_00439079() || Sidebar_ButtonClicked()) goto done;
@@ -249,8 +277,14 @@ impl Screen for MapScreen {
                             self.status = "ZOOMED IN".into();
                             // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1`; Map_Click :7770
                             // swallows the release (`DAT_0052afa4 = 0`), no dismiss [V].
+                            ctx.game.map_click_latch = true;
                             return Transition::Stay;
                         }
+                    }
+                    // Map_Click 00430000.c:7670 tests `DAT_0052afa4` before anything else [V].
+                    if ctx.game.map_click_latch && self.pick_tile(x, y).is_some() {
+                        ctx.game.map_click_latch = false;
+                        return Transition::Stay;
                     }
                     // Screen_FrameInput 0x0042FF10 reaches Map_Click only after Sidebar_ButtonClicked,
                     // the strips and the zoom [V]; Map_Click 0x0043CE1A is `if (g_messageGroup == 0)
