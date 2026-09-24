@@ -53,11 +53,12 @@ fn the_castle_layout_flag_jumps_the_approach_script_to_a_hundred() {
 fn the_five_hundred_frame_countdown_reforms_and_runs_for_human_units_too() {
     let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
     fx.ai.multiplayer = true;
+    // The AI unit's own order at its think resets its countdown to 0x14 (0x00479E90).
     let mut who = Vec::new();
     for _ in 0..500 {
-        who = fx.frame();
+        who.extend(fx.frame());
     }
-    assert_eq!(who, vec![fx.ai_unit, fx.human_unit], "both sides reform");
+    assert!(who.contains(&fx.ai_unit) && who.contains(&fx.human_unit), "both sides reform");
     assert_eq!(fx.units.get(fx.human_unit).reform, REFORM_INTERVAL);
 }
 
@@ -67,7 +68,7 @@ fn a_small_human_unit_is_exempt_and_so_is_one_that_has_charged() {
     fx.ai.multiplayer = true;
     let mut who = Vec::new();
     for _ in 0..500 {
-        who = fx.frame();
+        who.extend(fx.frame());
     }
     assert!(
         !who.contains(&fx.human_unit),
@@ -97,5 +98,29 @@ fn two_ai_battles_from_the_same_seed_stay_identical() {
         assert_eq!(a.figures, b.figures, "figures diverged");
     }
     assert_ne!(a.ai.rng, Ai::new(0x5EED).rng, "the generator never advanced");
+}
+
+/// `BattleUnit_Order` (`0x00479E90`) writes `reTarg = 0x14`: an AI order reaches the figures at
+/// the reform twenty frames on (`Battle_UpdateAllUnits` `0x00489401`), and never once halted.
+#[test]
+fn an_ai_order_reforms_its_unit_twenty_frames_later_unless_it_has_charged() {
+    let run = |halted: bool| {
+        let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
+        fx.ai.multiplayer = true;
+        let unit = fx.ai_unit;
+        fx.units.get_mut(unit).halted = halted;
+        let mut world = World {
+            units: &mut fx.units,
+            figures: &mut fx.figures,
+            positions: &fx.positions,
+            field: &fx.field,
+            ai: &mut fx.ai,
+        };
+        world.to_rally_waypoint(unit, 0);
+        assert!(fx.units.get(unit).reform_gate, "`field_0x13 = 1`");
+        (1..=40).find(|_| fx.frame().contains(&unit))
+    };
+    assert_eq!(run(false), Some(20));
+    assert_eq!(run(true), None);
 }
 

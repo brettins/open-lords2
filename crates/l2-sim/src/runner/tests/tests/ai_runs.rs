@@ -25,6 +25,8 @@ fn a_unit_thinks_once_every_two_hundred_frames_and_not_before() {
         "the fifth think should march: {:?}",
         r.ai.last_action[swords]
     );
+    // `reTarg = 0x14` (BattleUnit_Order 0x00479E90): the figures move at the reform.
+    r.run(20);
     let marching = r
         .fighters
         .iter()
