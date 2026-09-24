@@ -135,6 +135,8 @@ impl Kingdom {
         ) else {
             let (mut stacked, mut at_end) = (false, false);
             if let Some(u) = self.campaign.units.get_mut(id) {
+                // :4337 tests the allowance before :4350's pathLen; that branch returns.
+                at_end = u.moves_used < u.move_allowance;
                 u.moving = false;
                 // Unit_Step 00460000.c:4340 `movesUsed = moveAllowance;`, so FUN_00467196's refund is spendable [V].
                 if u.moves_used >= u.move_allowance {
@@ -143,14 +145,16 @@ impl Kingdom {
                 if u.path.is_empty() {
                     u.needs_destination = true;
                 }
-                (stacked, at_end) = (!u.player_driven, u.path.is_empty());
+                (stacked, at_end) = (!u.player_driven, at_end && u.path.is_empty());
             }
             // Unit_Step 00460000.c:4356/:4368 `if (playerDriven == 0) FUN_00467196(unit);` [V].
             if stacked {
                 let c = &mut self.campaign;
                 let _ = movement::step_aside(&c.move_cost, &c.map, &mut c.units, id);
-                // :4368 falls through to the stale path[0], the unit's own tile, so Dir_FromDelta
-                // is 8 and `moving = 0` unless a path was copied [I].
+                // :4368 falls through to path[0]; movement::zeroed_head.
+                if at_end && movement::zeroed_head(&mut c.units, id) {
+                    return self.step_one(id, out);
+                }
                 if let Some(u) = c.units.get_mut(id).filter(|u| at_end && u.path.is_empty()) {
                     u.moving = false;
                 }

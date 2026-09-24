@@ -36,6 +36,20 @@ pub fn step_aside(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usiz
     true
 }
 
+/// Unit_Step 00460000.c:4368 reads path[0] with pathLen 0; Path_CopyToUnit 0x004707BE zeroed it on
+/// an empty copy, so Dir_FromDelta 0x0046F434 aims at (0, 0) [V]. A walked-out path leaves the unit's
+/// own tile there (Dir 8); told apart by `dest` not being that tile [I]. Merchants and transports
+/// only: Army_Tick 0x0046521F restarts a stopped army, whose path[0] is then the spent entry [I].
+pub fn zeroed_head(units: &mut Units, id: usize) -> bool {
+    let Some(u) = units.get_mut(id) else { return false };
+    if !matches!(u.kind, UnitKind::Merchant | UnitKind::Transport)
+        || !u.path.is_empty() || u.dest.is_none_or(|d| d == u.tile()) || (u.x, u.y) == (0, 0) {
+        return false;
+    }
+    u.path = vec![(u.x - (u.x > 0) as u8, u.y - (u.y > 0) as u8)];
+    true
+}
+
 /// Castle_EvictTile 0x0046841C (00460000.c:5489), from Castle_Order after Castle_StampTile: the unit
 /// heading each of the castle's 2×2 tiles is stepped aside [V]; `units.at` is the lowest slot there,
 /// not the chain head [I].

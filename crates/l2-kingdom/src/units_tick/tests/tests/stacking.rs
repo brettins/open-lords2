@@ -69,3 +69,18 @@ fn a_merchant_is_ordered_then_started_by_the_phase_wait() {
     assert!(k.units_moving(UnitKind::Merchant));
     assert!(!k.campaign.units.get(id).unwrap().ordered, "moving = 2");
 }
+
+/// Unit_Step 00460000.c:4368 reads path[0] = (0, 0) after an empty Path_CopyToUnit: a load's
+/// all-zero g_moveCost gives Merchant_AdvanceAll one, and the merchant steps north-west (the
+/// original's turn 1 after england-turn1.sav: 2 merchant.wav at phase 6). Ablate zeroed_head's call.
+#[test]
+fn a_merchant_with_an_empty_copied_path_walks_toward_the_origin() {
+    let mut k = kingdom();
+    let id = k.campaign.units.spawn(Unit::new(UnitKind::Merchant, OWNERLESS, 5, 10)).unwrap();
+    let c = &mut k.campaign;
+    assert_eq!(movement::order_move_by_road(&c.move_cost, &c.map, &mut c.units, id, (8, 10)), Some(0));
+    k.campaign.units.get_mut(id).unwrap().player_driven = false;
+    assert!(k.units_moving(UnitKind::Merchant));
+    k.tick_units();
+    assert_eq!(k.campaign.units.get(id).unwrap().tile(), (4, 9));
+}

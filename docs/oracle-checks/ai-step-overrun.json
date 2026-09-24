@@ -185,11 +185,11 @@
       "note": "BNEW-stale-move-cost-after-load confirmed by orig endturn-year trace: turn-1 phase 6 has 2 merchant steps, later seasons 4-6 every 8 frames."
     },
     {
-      "file": "crates/l2-kingdom/src/movement/stepper.rs",
-      "line": 31,
+      "file": "crates/l2-kingdom/src/movement/aside.rs",
+      "line": 43,
       "address": "0x004280E9",
-      "verdict": "mismatch",
-      "note": "Orig turn 1 after load: 2 merchant.wav at phase-6 entry (f482), phase 6 lasts 34 frames; ours (after2) no step, phase 6 lasts 2."
+      "verdict": "match",
+      "note": "fixed: no saved path (all 6 merchants pathLen 0 in england-turn1.sav); an empty Path_CopyToUnit zeroes path[0], Unit_Step :4368 aims at (0,0); merchants 2 and 4 have open NW tiles. Ours now 2 merchant.wav, phase 6 34 frames (one frame after entry)."
     }
   ]
 }

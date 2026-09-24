@@ -15,6 +15,7 @@ fn a_merchant_takes_at_least_eight_frames_to_cross_one_tile() {
     let mut game = england!();
     let mut machine = Machine::new(ScreenId::Campaign);
     let slots = merchant_slots(&game);
+    second_turn(&mut game, &mut machine);
     let trail = watch_a_turn(&mut game, &mut machine);
 
     let mut measured = 0;
@@ -47,6 +48,7 @@ fn a_turn_lasts_at_least_as_long_as_the_longest_march_in_it() {
     let mut game = england!();
     let mut machine = Machine::new(ScreenId::Campaign);
     let slots = merchant_slots(&game);
+    second_turn(&mut game, &mut machine);
     let trail = watch_a_turn(&mut game, &mut machine);
     let frames = trail[0].len() as u32;
 
