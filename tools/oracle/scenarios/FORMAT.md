@@ -28,6 +28,11 @@ Blank lines and lines starting `//` are skipped. Numbers may be decimal or a `"0
 
 `max` defaults to 20000 frames; a wait that runs out fails the scenario.
 
+A frame is one step: the original's `Battle_Frame` `0x004B99C0`, blocked at its `ticksDue` call `0x004B9A78`
+(a film's present with no `Battle_Frame` is a step too); ours, one `frame()`. The original's virtual clock
+moves the game-speed throttle's interval each step, so a step whose ticks are not withheld runs one tick on
+both sides. `dismiss` presses OK on a box on screen 0x27 or over the map (`g_messageGroup` `0x0053E910`).
+
 ## Record: one JSON object a line
 
 ```json
@@ -64,6 +69,10 @@ where the event has no original function. `caller` is the return address; ours i
 `order` and `rand` have no one-to-one original function: an order is a direct call in single
 player (`Net_SendCommand` `0x0043EDA0` in multiplayer), and our generator is `Pcg32`, not
 `Rand_Advance` (`0x00404A46`; `docs/netcode.md` D-3a). The differ compares their counts only.
+
+`draw` and `text` records are written for `snap` and `record` frames only (the original also for
+`ok`/`dismiss` frames, `KeepDraws` in `trace-run.ps1`); the differ streams both files and reads them
+only before a `snap`.
 
 A draw leaf whose caller lies inside another hooked draw primitive (`hooktable.json` `size`, from the
 decompilation headers) is that primitive's and is dropped, except `Pl8_DrawFrame` and `Eng_DrawString`,

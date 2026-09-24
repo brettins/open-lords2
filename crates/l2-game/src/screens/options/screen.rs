@@ -212,15 +212,9 @@ impl Screen for OptionsScreen {
         }
         let _ = (bx, by, cols, rows);
 
+        // Screen_DisplayOptions 0x004152EA: Ui_OkButton(0x188,0x100,0).
         let (cx, cy) = self.page.close_at();
-        let drawn = ctx
-            .assets
-            .chrome
-            .as_ref()
-            .is_some_and(|c| c.draw_system(canvas, l2_view::chrome::system::OK, cx, cy));
-        if !drawn {
-            shell::button_recess(canvas, cx, cy, WIDGET, WIDGET);
-        }
+        pen.ok_button(canvas, cx, cy, 0);
     }
 }
 

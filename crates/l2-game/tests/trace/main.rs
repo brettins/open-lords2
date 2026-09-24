@@ -28,7 +28,8 @@ pub struct Run {
     canvas: Canvas,
     tables: l2_kingdom::tables::Tables,
     frame: u64,
-    posted_298: bool,
+    /// Snap and `record` frames: the draw and text records FORMAT.md keeps (trace-run.ps1 KeepDraws).
+    kept: Vec<u64>,
 }
 
 pub fn scenarios_dir() -> PathBuf {
@@ -54,7 +55,7 @@ impl Run {
             canvas: Canvas::screen(),
             tables,
             frame: 0,
-            posted_298: false,
+            kept: Vec::new(),
         })
     }
 
@@ -67,7 +68,6 @@ impl Run {
     fn frame(&mut self) {
         self.frame += 1;
         trace::set_frame(self.frame);
-        harness::post_non_256_colour(&mut self.posted_298, &self.machine, &mut self.game);
         let mut ctx = Ctx { game: &mut self.game, assets: &self.assets };
         self.machine.update(&mut ctx);
         self.director.listen(&mut self.audio, &self.machine, &self.game);
@@ -159,22 +159,21 @@ impl Run {
                     if self.game.battle.is_some() {
                         self.machine.push(ScreenId::Battlefield);
                     }
+                    // trace-run.ps1 `$LoadSteps` ends `wait-screen-not 0x1F`, `advance 60`.
+                    self.frames(60);
                 }
-                // A "(this harness)" click answers message 298, which harness.rs posts too.
                 Step::Click(x, y, right, _) => {
-                    let (x, y) = (*x, *y);
-                    self.send(Event::Pointer { x, y });
                     if *right {
-                        self.send(Event::RightPress { x, y });
-                        self.frame();
-                        self.send(Event::RightClick { x, y });
+                        self.rclick(*x, *y);
                     } else {
-                        self.send(Event::Click { x, y });
-                        self.frame();
-                        self.send(Event::Release { x, y });
+                        self.click(*x, *y);
                     }
                 }
-                Step::Key(k) => self.send(key(k)),
+                // trace.ps1 `Key`: down, one step, up.
+                Step::Key(k) => {
+                    self.send(key(k));
+                    self.frame();
+                }
                 Step::WaitScreen(id, max) => {
                     return self.until(*max, "screen", |r| r.screen() == *id)
                 }
@@ -187,6 +186,7 @@ impl Run {
                 Step::Snap => {
                     self.machine.mark_dirty();
                     self.frame();
+                    self.kept.push(self.frame);
                     let hash = fnv(&self.canvas.pixels);
                     l2_net::trace!("snap", 0, "Canvas", hash = hash as i64);
                 }
@@ -254,7 +254,11 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
     };
     trace::start();
     run.play(&steps);
-    let records = trace::stop();
+    let kept = std::mem::take(&mut run.kept);
+    let records: Vec<_> = trace::stop()
+        .into_iter()
+        .filter(|r| !matches!(r.kind, "draw" | "text") || kept.binary_search(&r.frame).is_ok())
+        .collect();
     let dir = std::env::var_os("L2_TRACE_OUT")
         .map_or_else(|| PathBuf::from(env!("CARGO_TARGET_TMPDIR")), PathBuf::from);
     let out = dir.join(format!("{name}.ours.jsonl"));

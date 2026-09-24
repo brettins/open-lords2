@@ -44,7 +44,7 @@ EvRecord* Ev_Begin(uint8_t kind, uint32_t fn, uint32_t caller) {
     EvRecord* r = &g_recs[g_ring->head % kRingCapacity];
     memset(r, 0, sizeof(*r));
     r->seq = g_seq++;
-    r->frame = g_shared->frames;
+    r->frame = g_shared->steps;
     r->kind = kind;
     r->fn = fn;
     r->caller = caller;
@@ -69,6 +69,8 @@ void Events_Present(uint32_t frame, uint32_t hash) {
     g_last = now;
     EvRecord* r = Ev_Begin(Ev_frame, 0, 0);
     r->frame = frame;
+    r->fn = g_shared->ticks;
+    r->caller = g_shared->loops;
     r->ret = static_cast<int32_t>(hash);
     const int32_t v[8] = {static_cast<int32_t>(now.screen), static_cast<int32_t>(now.phase),
                           static_cast<int32_t>(now.draws), static_cast<int32_t>(now.randA),

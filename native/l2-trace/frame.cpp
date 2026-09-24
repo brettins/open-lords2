@@ -43,7 +43,6 @@ void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALET
     uint32_t hash = 2166136261u;
     for (int y = 0; y < h; y++) hash = Fnv(hash, pixels + y * pitch, w);
     hash = Fnv(hash, reinterpret_cast<const uint8_t*>(pal), 256 * sizeof(PALETTEENTRY));
-    // frames is published last, after every record of this present: the controller reads it as "blocked".
     uint32_t n = g_shared->frames + 1;
     g_shared->frameHash = hash;
     static const int presentMs = EnvInt("L2TRACE_PRESENT_MS", 0);
@@ -53,9 +52,20 @@ void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALET
         g_lastLogged = hash;
         LogFrame(n, hash, pixels, pitch, w, h, pal);
     }
-    Events_Present(n, hash);
-    MemoryBarrier();
     g_shared->frames = n;
+    // A present with no Battle_Frame since the last (a film's own loop) is a step of its own.
+    if (!g_loopSinceFrame) Step_Reached();
+    g_loopSinceFrame = false;
+}
+
+bool g_loopSinceFrame = false;
+
+// steps is published last, after every record of the step before: the controller reads it as "blocked".
+void Step_Reached() {
+    uint32_t n = g_shared->steps + 1;
+    Events_Present(n, g_shared->frameHash);
+    MemoryBarrier();
+    g_shared->steps = n;
     // Lockstep: input posted while the game waits here is read at the same point every run.
     for (int spins = 0; g_shared->gate && n >= g_shared->gate; spins++) {
         if (spins < 20000) SwitchToThread(); else Sleep(1);
@@ -65,7 +75,7 @@ void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALET
 void LogFrame(uint32_t n, uint32_t hash, const uint8_t* pixels, int pitch, int w, int h,
               const PALETTEENTRY* pal) {
     // g_screenId 0x004EAC50, g_turnPhase 0x00569584 (docs/symbols.md).
-    Log("FRAME %u hash %08x screen %u phase %d", n, hash,
+    Log("FRAME %u step %u ticks %u hash %08x screen %u phase %d", n, g_shared->steps, g_shared->ticks, hash,
         *reinterpret_cast<volatile uint8_t*>(0x004EAC50),
         *reinterpret_cast<volatile int32_t*>(0x00569584));
     char dir[MAX_PATH];

@@ -22,6 +22,7 @@ pub(super) fn furnish_campaign(k: &mut Kingdom) {
         k.campaign.map.bank[i] = (i % 31) as u8 + 1;
         k.campaign.map.county[i] = (i % 14) as u8 + 1;
     }
+    k.campaign.map.frame = (0..l2_kingdom::MAP_TILES).map(|i| (i % 29) as u8 + 1).collect();
 
     let kinds = [UnitKind::Army, UnitKind::PeasantMob, UnitKind::Merchant, UnitKind::Transport];
     for (n, kind) in kinds.into_iter().enumerate() {

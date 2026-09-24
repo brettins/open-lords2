@@ -195,6 +195,8 @@ fn encode_campaign(campaign: &crate::kingdom::Campaign, out: &mut Canonical) {
     out.raw(&campaign.map.flags);
     out.raw(&campaign.map.bank);
     out.raw(&campaign.map.county);
+    out.u32(campaign.map.frame.len() as u32);
+    out.raw(&campaign.map.frame);
 
     out.section("mercenaries");
     out.u32(campaign.mercenaries.in_play() as u32);
@@ -269,6 +271,11 @@ fn decode_campaign(input: &mut Reader<'_>) -> Result<crate::kingdom::Campaign, L
         };
         target.copy_from_slice(bytes);
     }
+    let frames = input.u32()? as usize;
+    if frames != 0 && frames != crate::map::MAP_TILES {
+        return Err(LoadError::MapSize(frames as u32));
+    }
+    campaign.map.frame = input.raw(frames)?.to_vec();
 
     let in_play = input.u32()? as usize;
     if in_play > crate::mercenary::MERCENARY_BANDS {

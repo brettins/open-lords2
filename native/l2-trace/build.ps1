@@ -10,6 +10,7 @@
     L2TRACE_FILMS=skip    Smk_Play takes its failed-open branch instead of playing
     L2TRACE_TIMERS=drop   drop timeSetEvent instead of running it at presents
     L2TRACE_PRESENT_MS=n  extra virtual ms per present (default 0)
+    L2TRACE_PACE=0        leave the clock alone at each step (default: one tick a Battle_Frame)
     L2TRACE_REALTIME=1    leave the clock imports alone
     L2TRACE_EVENTS=1      detours (hooktable.h, from gen-hooks.js) write the event ring (events.h);
                           toolsoracle	race-run.ps1 drains it to JSONL

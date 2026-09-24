@@ -34,19 +34,22 @@ impl Run {
         self.send(Event::Pointer { x, y });
     }
 
-    /// trace.ps1 `Drag`: press at (x0, y0), eight moves with the button held, release.
+    /// trace.ps1 `Drag`: press at (x0, y0), eight moves with the button held, release; two steps each.
     pub(crate) fn drag(&mut self, x0: i32, y0: i32, x1: i32, y1: i32) {
         self.pointer(x0, y0);
-        self.frame();
+        self.frames(2);
         self.send(Event::Click { x: x0, y: y0 });
-        self.frame();
+        self.frames(2);
         for i in 1..=8 {
             let (x, y) = (x0 + (x1 - x0) * i / 8, y0 + (y1 - y0) * i / 8);
             self.pointer(x, y);
-            self.frame();
+            self.frames(2);
         }
         self.send(Event::Release { x: x1, y: y1 });
-        self.frame();
+    }
+
+    pub(crate) fn frames(&mut self, n: u64) {
+        (0..n).for_each(|_| self.frame());
     }
 
     /// Frames with every painter run, as the original's `record` keeps each frame's draws.
@@ -54,6 +57,7 @@ impl Run {
         for _ in 0..n {
             self.machine.mark_dirty();
             self.frame();
+            self.kept.push(self.frame);
         }
     }
 
@@ -79,19 +83,18 @@ impl Run {
         true
     }
 
-    /// trace-run.ps1 `dismiss`: while g_screenId is 0x27, one frame, OK at
-    /// Ui_OkButton + (24, 16), 60 frames. A tip over the map (screen 0) stays up.
+    /// trace-run.ps1 `dismiss`: up to 24 steps for a box (screen 0x27, or ours over the map with
+    /// screen 0), one step, OK at Ui_OkButton + (24, 16), 60 steps; at most 20 boxes.
     pub(crate) fn dismiss(&mut self) {
+        let up = |r: &Run| r.screen() == 0x27 || r.game.messages.is_open();
         for _ in 0..20 {
-            // Harness: ours posts the next tip 20 frames after one closes, the
-            // original the next frame (2026-09-24-first-diff.md finding 7).
             for _ in 0..24 {
-                if self.screen() == 0x27 {
+                if up(self) {
                     break;
                 }
                 self.frame();
             }
-            if self.screen() != 0x27 {
+            if !up(self) {
                 break;
             }
             let ctx = Ctx { game: &mut self.game, assets: &self.assets };
@@ -101,14 +104,25 @@ impl Run {
             self.frame();
             let (x, y) = f.ok_button();
             self.click(x + 24, y + 16);
-            (0..60).for_each(|_| self.frame());
+            self.frames(60);
         }
     }
 
+    /// trace.ps1 `Click`: the pointer, two steps, press, two steps, release.
     pub(crate) fn click(&mut self, x: i32, y: i32) {
         self.pointer(x, y);
+        self.frames(2);
         self.send(Event::Click { x, y });
-        self.frame();
+        self.frames(2);
         self.send(Event::Release { x, y });
+    }
+
+    /// trace.ps1 `RClick`, the same with the right button.
+    pub(crate) fn rclick(&mut self, x: i32, y: i32) {
+        self.pointer(x, y);
+        self.frames(2);
+        self.send(Event::RightPress { x, y });
+        self.frames(2);
+        self.send(Event::RightClick { x, y });
     }
 }

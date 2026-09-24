@@ -7,7 +7,7 @@
 // Shared with the controller as "Local\l2trace-<pid>"; layout is the controller's C# struct.
 struct TraceShared {
     uint32_t magic;          // 'L2TR'
-    uint32_t version;        // 1
+    uint32_t version;        // 2
     int32_t  cursorX, cursorY;
     uint32_t frames;         // presents to the primary
     uint32_t frameHash;      // FNV-1a of the last presented 640x480 frame + palette
@@ -18,7 +18,10 @@ struct TraceShared {
     uint32_t gapsLogged;     // distinct unimplemented COM methods hit
     uint32_t patchesRefused;
     uint32_t timersRun;      // timeSetEvent callbacks run on the main thread
-    volatile uint32_t gate;  // nonzero: block at the present that makes frames == gate until raised
+    volatile uint32_t gate;  // nonzero: block at the step that makes steps == gate until raised
+    uint32_t steps;          // Battle_Frame 0x004B99C0 calls, plus presents with none since the last (films)
+    uint32_t loops;          // Battle_Frame calls
+    uint32_t ticks;          // sum of FUN_004BB978's ticksDue
 };
 constexpr uint32_t kTraceMagic = 0x5254324C;
 
@@ -40,3 +43,5 @@ bool Hooks_Install();
 
 // frame.cpp
 void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALETTEENTRY* pal);
+void Step_Reached();
+extern bool g_loopSinceFrame;
