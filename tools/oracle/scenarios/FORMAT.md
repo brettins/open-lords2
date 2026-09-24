@@ -56,6 +56,7 @@ where the event has no original function. `caller` is the return address; ours i
 | `draw` | `Blit_Unclipped` `0x004B43B1`, `Blit_ClippedLeft`/`Right`, `FUN_004B4537`/`4814`/`48B8`, `FUN_004B49F7`/`4CB8`/`5333` | `sheet`, `frame` `DAT_005C9288`, `x`, `y` `g_drawX/Y`: painters that blit directly, told apart by `caller` (`Map_DrawArmies` `0x00408438`, `Map_DrawPathMarker`, `Widget_Draw` `0x0040CFD2`, the battle figures `FUN_004BDC31`) |
 | `draw`, `text` | every other hooked draw leaf (`Ui_Draw*`, `Ui_OkButton`, `FUN_0040328E`, …) | the arguments by `docs/symbols.json` parameter name, `a<n>` where it has none; fonts dropped |
 | `text` | `0x00402D37 Eng_DrawString` | `group`, `index`, `x`, `y` |
+| `text` | `0x00402637 Ui_DrawText` (ours) | `s`, `x`, `y`, `font` (`body`, `heading`, `eight`, or `5x7` for our debug fallback); `group`, `index` when `s` is an `L2.eng` string |
 | `film` | `0x0042D91B Smk_Play` | `file` |
 | `call` | `Army_*`, `MoveOrder_*`, `Battle_OrderSelection`, `BattleUnit_Order`, `Battle_AutoResolve`, `Battle_ReturnToCampaign`, the battle's `Order_*`, `UnitPanel_Draw` `0x0041B19D` (cat `panel`) | `args`, the raw list: what a scenario proves it did |
 | `snap`, `anchor` | `null` | `hash` / `label` |

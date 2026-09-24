@@ -78,12 +78,26 @@ function snapDraws(recs, lag) {
     for (let j = k - 1; j >= 0; j--) {
       const q = recs[j];
       if (q.frame !== r.frame - lag || !['draw', 'text', 'rand'].includes(q.kind)) break;
-      if (q.kind === 'draw') got.draw.unshift(`${low(q.args.sheet)}:${q.args.frame}@${q.args.x},${q.args.y}`);
-      if (q.kind === 'text') got.text.unshift(`${q.args.group}/${q.args.index}@${q.args.x},${q.args.y}`);
+      if (q.kind === 'draw') got.draw.unshift(drawKey(q));
+      if (q.kind === 'text') got.text.unshift(textKey(q));
     }
     out.push(got);
   });
   return out;
+}
+
+// A sprite by sheet, frame and place; a Ui_* leaf (no sheet) by name and arguments.
+function drawKey(q) {
+  const a = q.args;
+  if (a.sheet != null) return `${low(a.sheet)}:${a.frame}@${a.x},${a.y}`;
+  return `${q.name}(${Object.entries(a).map(([k, v]) => `${k}=${v}`).join(',')})`;
+}
+// Text by L2.eng group/index, else a number's value, else the literal (ours only: no group).
+function textKey(q) {
+  const a = q.args;
+  if (a.group != null) return `${a.group}/${a.index}@${a.x},${a.y}`;
+  if (a.value != null) return `#${a.value}@${a.x},${a.y}`;
+  return `${JSON.stringify(a.s)}@${a.x},${a.y}`;
 }
 
 function sequences(recs, side) {
@@ -176,7 +190,8 @@ function diff(orig, ours, oursLag = 0) {
       const q = pu[k];
       if (!q) { findings.push({ label, cat: 'draw', note: `snap ${k} only in original` }); return; }
       for (const cat of ['draw', 'text']) {
-        const m = multisetDiff(p[cat], q[cat]);
+        // Distinct: the original repaints some leaves several times a frame, which no pixel shows.
+        const m = multisetDiff([...new Set(p[cat])], [...new Set(q[cat])]);
         totals[cat] = totals[cat] || [0, 0]; totals[cat][0] += p[cat].length; totals[cat][1] += q[cat].length;
         if (!p[cat].length && q[cat].length) { findings.push({ label, cat, counts: [0, q[cat].length], note: `snap ${k}: the original side recorded no ${cat} records` }); continue; }
         if (m.origOnly.length || m.oursOnly.length) findings.push({ label, cat, counts: [p[cat].length, q[cat].length], note: `snap ${k} multiset`, orig: m.origOnly.slice(0, 8), ours: m.oursOnly.slice(0, 8) });
