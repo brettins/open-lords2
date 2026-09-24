@@ -27,6 +27,9 @@ pub(crate) fn field_colour(ink: &Ink, kind: FieldType) -> u8 {
     }
 }
 
+/// Screen_DrawEndTurn 0x0041A734: `Ui_DrawCentred(…, &g_fontSmall, 0x16)` [V].
+pub(crate) const END_TURN_INK: u8 = 0x16;
+
 pub(crate) fn fill_clipped(canvas: &mut Canvas, x: i32, y: i32, side: i32, colour: u8, clip: Clip) {
     for yy in y..y + side {
         for xx in x..x + side {
@@ -236,11 +239,19 @@ pub(crate) fn draw_right_panel(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ct
         let end = if screen.focus == Focus::EndTurn && game.prefs.debug_overlay {
             ink.highlight
         } else {
-            ink.text
+            END_TURN_INK
         };
         let label = ctx.assets.shell.text(4, 0);
         let label = if label.is_empty() { "END TURN" } else { label };
-        county::strip_centred_at(ctx, canvas, PANEL_X, 462, PANEL_W, label, end);
+        match ctx.assets.shell.small.as_ref() {
+            // Ui_DrawCentred(4, 0, 0x1DE, 0x1CE, 0xA2, &g_fontSmall, 0x16), DAT_005AEA40 clear:
+            // Ui_DrawText 0x00402637 embosses it (00400000.c:1136-1144) [V].
+            Some(f) => {
+                let x = PANEL_X + ((PANEL_W - f.width(label)) / 2).max(0);
+                f.draw(canvas, x, 462, label, &font::Style::new(end));
+            }
+            None => county::strip_centred_at(ctx, canvas, PANEL_X, 462, PANEL_W, label, end),
+        }
     }
 }
 
