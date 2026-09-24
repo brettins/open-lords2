@@ -231,7 +231,9 @@ impl Units {
         self.rebuild_from_figures(figures);
     }
 
-    /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`), once per frame.
+    /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`), once per frame. Its
+    /// `g_battlePhase == 2` guard (:3505) always holds here: Battle_Start sets
+    /// it (00470000.c:3142) before Battle_InitArmies (:3159). [V]
     pub fn rebuild_from_figures(&mut self, figures: &mut [Figure]) {
         for i in 1..=MAX_UNITS {
             let u = &mut self.slots[i];
@@ -257,7 +259,9 @@ impl Units {
         }
 
         for f in 0..figures.len() {
-            if !figures[f].is_alive() {
+            // 00480000.c:3533 `owner != 0`, no state test: a corpse counts until
+            // BattleMan_StateDead 0x004830E9 frees the slot. [V]
+            if figures[f].owner == 0 {
                 continue;
             }
             let unit = figures[f].unit as usize;

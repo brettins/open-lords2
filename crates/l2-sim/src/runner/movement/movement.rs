@@ -99,7 +99,8 @@ impl BattleRunner {
     /// FUN_004262CF(3);                                     /* pouroil.wav */
     /// ```
     ///
-    /// This crate has no corpse lifetime and only the living pour. `[D]`.
+    /// Its caller tests `owner != 0`, not state (00470000.c:4389), so a spent
+    /// pot pours again until its slot is freed. [V]
     pub(crate) fn pour_oil(&mut self, pot: usize, to: (u8, u8)) {
         let sim = self.fighters[pot].sim;
         let from = (self.fighters[pot].x, self.fighters[pot].y);
@@ -133,7 +134,7 @@ impl BattleRunner {
             let sim = self.fighters[i].sim;
             if self.fighters[i].troop != Troop::Oil
                 || self.sim.figures[sim].unit as usize != unit
-                || !self.sim.figures[sim].is_alive()
+                || self.sim.figures[sim].owner == 0
             {
                 continue;
             }
@@ -284,6 +285,8 @@ impl BattleRunner {
             let f = &mut self.sim.figures[sim];
             f.men = 0;
             f.hits = 0;
+            // BattleMan_Clear 0x0046EB3F zeroes owner +0x2C
+            f.owner = 0;
             f.state = State::Dead;
             f.opponent = None;
             f.target = None;

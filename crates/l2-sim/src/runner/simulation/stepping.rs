@@ -76,6 +76,10 @@ impl BattleRunner {
                 let limit = self.fighters[i].corpse_frames();
                 if self.fighters[i].corpse < limit {
                     self.fighters[i].corpse += 1;
+                    // BattleMan_Destroy 0x0046EBE4 -> BattleMan_Clear 0x0046EB3F zeroes owner +0x2C
+                    if self.fighters[i].corpse == limit {
+                        self.sim.figures[self.fighters[i].sim].owner = 0;
+                    }
                 }
             }
         }

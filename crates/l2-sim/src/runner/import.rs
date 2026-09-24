@@ -42,6 +42,7 @@ impl BattleRunner {
                 // +0x2C owner: 0 is a freed slot, a man who died.
                 if r[0x2C] == 0 {
                     fig.men = 0;
+                    fig.owner = 0;
                     fig.state = State::Dead;
                     continue;
                 }

@@ -63,13 +63,19 @@ mod tests {
     }
 
     #[test]
-    fn the_rebuild_frees_a_unit_whose_last_figure_died() {
+    fn the_rebuild_frees_a_unit_only_when_its_corpses_are_freed() {
         let (mut units, mut figs, _) = one_unit(Troop::Peasants, 1, 2);
         units.rebuild_from_figures(&mut figs);
         assert_eq!(units.get(1).figures, 2);
         assert_eq!(units.owner_of(1), 1);
         for f in &mut figs {
             f.take_hits(10_000);
+        }
+        units.rebuild_from_figures(&mut figs);
+        // 00480000.c:3533 counts owner != 0, corpses included
+        assert_eq!((units.owner_of(1), units.get(1).figures), (1, 2), "state-2 corpses still count");
+        for f in &mut figs {
+            f.owner = 0;
         }
         units.rebuild_from_figures(&mut figs);
         assert_eq!(units.owner_of(1), 0, "a wiped-out unit reads as a free slot");

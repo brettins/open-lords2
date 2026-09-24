@@ -102,10 +102,15 @@ fn a_worn_down_enemy_unit_becomes_invisible_to_the_melee_ai() {
         .map(|(i, _)| i)
         .take(2)
         .collect();
-    for i in doomed {
+    for &i in &doomed {
         while worn.figures[i].is_alive() {
             worn.figures[i].take_hits(1_000);
         }
+    }
+    // BattleUnits_RebuildFromFigures 00480000.c:3533: corpses count until the slot is freed
+    assert_eq!(worn.think_at(0), Action::Charge, "corpses still count");
+    for &i in &doomed {
+        worn.figures[i].owner = 0;
     }
     assert_ne!(worn.think_at(0), Action::Charge, "two figures is not a target");
 }

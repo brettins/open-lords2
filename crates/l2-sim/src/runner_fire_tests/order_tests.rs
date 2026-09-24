@@ -62,3 +62,22 @@ fn a_man_targeted_past_127_draws_chasers_and_wraps_to_zero() {
     assert_eq!(r.sim.figures[r.fighters[me].sim].target, Some(far_sim), "3 + (char)254 = 1 beats 2");
     assert_eq!(r.sim.figures[far_sim].targeted, 0, "254 + 2 wraps");
 }
+
+/// The pour loop tests `owner != 0`, not state (00470000.c:4389), and the rebuild counts a corpse
+/// (00480000.c:3533) until BattleMan_StateDead frees it (:1337). Ablations: `!is_alive()` in
+/// `pour_on_order`; `!is_alive()` in `rebuild_from_figures`; the `owner = 0` in `step`.
+#[test]
+fn a_spent_pot_pours_again_and_its_unit_lasts_until_the_slot_is_freed() {
+    let (mut r, unit, _pot) = one(Troop::Oil, true, (40, 40), Some(4));
+    r.order_unit(unit, 40, 42);
+    assert_eq!(r.sim.cues.oil_poured(), 1);
+    r.step();
+    assert!(r.units.get(unit).is_live(), "the spent pot's unit is still in the list");
+    r.order_unit(unit, 40, 36);
+    assert_eq!(r.sim.cues.oil_poured(), 2, "a spent pot pours again");
+    let freed = (2..=120).find(|_| {
+        r.step();
+        !r.units.get(unit).is_live()
+    });
+    assert_eq!(freed, Some(82), "80 corpse frames, then the next frame's rebuild");
+}
