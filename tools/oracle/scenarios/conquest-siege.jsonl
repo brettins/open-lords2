@@ -1,0 +1,36 @@
+// siege-sieging.sav fought by hand: every man charged, through the verdict, its fanfare, the conquest messages and the map after.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"siege-sieging.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+// Battle button 0, FUN_0043B9A1 pause, at (480, 448).
+{"op":"click","x":496,"y":464}
+{"op":"advance","frames":10}
+// Battle button 3, FUN_0043BD02 charge, at (576, 448).
+{"op":"click","x":592,"y":464}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"charge"}
+{"op":"snap"}
+// Screen 0x2B, the outcome banner.
+{"op":"wait-screen","id":43}
+{"op":"anchor","label":"decided"}
+{"op":"record","frames":60}
+{"op":"snap"}
+{"op":"click","x":320,"y":240}
+{"op":"anchor","label":"after-banner"}
+{"op":"record","frames":120}
+{"op":"dismiss"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":120}
+{"op":"dismiss"}
+{"op":"anchor","label":"map"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":2000}
+{"op":"dismiss"}
+{"op":"anchor","label":"next-turn"}
+{"op":"record","frames":2}
+{"op":"snap"}

@@ -1,0 +1,15 @@
+// End Turn on england-turn1.sav with every frame recorded until the AI lords are done: the sidebar and menu-bar shields as each lord moves.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+{"op":"click","x":559,"y":470}
+{"op":"anchor","label":"end-turn"}
+{"op":"record","frames":1500}
+{"op":"dismiss"}
+{"op":"anchor","label":"after"}
+{"op":"record","frames":2}
+{"op":"snap"}

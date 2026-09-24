@@ -1,0 +1,35 @@
+// Far zoom on a new original-campaign game: tips dismissed first, so the minimap button is not eaten; the redraw recorded.
+{"op":"films","mode":"skip"}
+{"op":"new-game","campaign":"original"}
+// Ui_OkButton(416, 224) of the "Game Objectives:" box, drawn from 0x00474683
+{"op":"click","x":440,"y":240}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"near"}
+{"op":"snap"}
+// minimap button 4, x 610..636 y 128..158: Map_ToggleZoom (screens-county.md 2.5); FUN_00434FA1 col 0x0E row 0x0C.
+{"op":"click","x":623,"y":143}
+{"op":"anchor","label":"zooming"}
+{"op":"record","frames":30}
+{"op":"dismiss"}
+{"op":"anchor","label":"far"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// The pointer at the left and right edges: the far view scrolls sideways only (FUN_00432221).
+{"op":"move","x":1,"y":200}
+{"op":"advance","frames":120}
+{"op":"anchor","label":"far-left"}
+{"op":"record","frames":2}
+{"op":"snap"}
+{"op":"move","x":476,"y":200}
+{"op":"advance","frames":240}
+{"op":"anchor","label":"far-right"}
+{"op":"record","frames":2}
+{"op":"snap"}
+{"op":"move","x":240,"y":200}
+{"op":"click","x":623,"y":143}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"anchor","label":"near-again"}
+{"op":"record","frames":2}
+{"op":"snap"}

@@ -1,0 +1,81 @@
+// A custom game on list entry 41 of page 7, through turn one and the AI lords' first moves (custom-maps.js).
+{"op":"films","mode":"skip"}
+{"op":"wait-page","page":1}
+{"op":"wait-idle","frames":5}
+// Page 1 item 0 at y 0x5B (screens-county.md 1.2): page 2.
+{"op":"click","x":320,"y":103}
+{"op":"wait-page","page":2}
+{"op":"wait-idle","frames":5}
+// Page 2 item 3, "Custom game": FUN_00432CC8 hotspot 3, page 4.
+{"op":"click","x":320,"y":211}
+{"op":"wait-page","page":4}
+{"op":"advance","frames":20}
+// Page 4 "Continue", FUN_00433155 hotspot 2: page 7.
+{"op":"click","x":432,"y":227}
+{"op":"wait-page","page":7}
+{"op":"advance","frames":20}
+// FUN_004337B4 hotspot 1, the list's down arrow: rect 603..624 x 209..229 (.data 0x4DCD90), 39 times.
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+{"op":"click","x":613,"y":219}
+// FUN_00433905 hotspot 2: list row 2, rect 496..601 x 173.. (.data 0x4DCDA8 + 24 n).
+{"op":"click","x":548,"y":181}
+{"op":"advance","frames":10}
+{"op":"peek","addr":"0x0053F034"}
+{"op":"anchor","label":"custom-page"}
+{"op":"snap"}
+// "Start", CUSTOM_BUTTONS 1 at x 0xF3, caption y 0xC6.
+{"op":"click","x":281,"y":206}
+{"op":"wait-screen-not","id":"0x1F"}
+{"op":"advance","frames":300}
+{"op":"dismiss"}
+{"op":"anchor","label":"map"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"anchor","label":"end-turn-clicked"}
+{"op":"snap"}
+{"op":"advance","frames":2000}
+{"op":"dismiss"}
+{"op":"anchor","label":"turn-2"}
+{"op":"record","frames":2}
+{"op":"snap"}

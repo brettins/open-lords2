@@ -1,0 +1,88 @@
+// UnitPanel_Draw 0x0041B19D on the units of england-turn1.sav: each army found at far zoom, zoomed in on, right-clicked; its text recorded.
+// A right click opens screen 4 some 40 steps later on the original (measured), so each wait is 60 steps.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+// minimap button 4: Map_ToggleZoom; then FUN_004350A1, the far-zoom click: near zoom centred on the army at far (154, 50).
+{"op":"click","x":623,"y":143}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"click","x":160,"y":62}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"near-0"}
+{"op":"snap"}
+// Map_DrawArmies 0x00408438 sprite at (304, 261); the feet at +14, +26 (army-panel.jsonl). Screen_MapInfo 0x0041B032.
+{"op":"click","x":318,"y":287,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"army-0"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"advance","frames":10}
+// Map_DrawArmies 0x00408438 sprite at (276, 260); the feet at +14, +26 (army-panel.jsonl). Screen_MapInfo 0x0041B032.
+{"op":"click","x":290,"y":286,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"unit12-0"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"advance","frames":10}
+// minimap button 4: Map_ToggleZoom; then FUN_004350A1, the far-zoom click: near zoom centred on the army at far (316, 125).
+{"op":"click","x":623,"y":143}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"click","x":322,"y":137}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"near-1"}
+{"op":"snap"}
+// Map_DrawArmies 0x00408438 sprite at (304, 261); the feet at +14, +26 (army-panel.jsonl). Screen_MapInfo 0x0041B032.
+{"op":"click","x":318,"y":287,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"army-1"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"advance","frames":10}
+// minimap button 4: Map_ToggleZoom; then FUN_004350A1, the far-zoom click: near zoom centred on the army at far (394, 254).
+{"op":"click","x":623,"y":143}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"click","x":400,"y":266}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"near-2"}
+{"op":"snap"}
+// Map_DrawArmies 0x00408438 sprite at (304, 261); the feet at +14, +26 (army-panel.jsonl). Screen_MapInfo 0x0041B032.
+{"op":"click","x":318,"y":287,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"army-2"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"advance","frames":10}
+// minimap button 4: Map_ToggleZoom; then FUN_004350A1, the far-zoom click: near zoom centred on the army at far (142, 278).
+{"op":"click","x":623,"y":143}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"click","x":148,"y":290}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"near-3"}
+{"op":"snap"}
+// Map_DrawArmies 0x00408438 sprite at (304, 261); the feet at +14, +26 (army-panel.jsonl). Screen_MapInfo 0x0041B032.
+{"op":"click","x":318,"y":287,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"army-3"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":60}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"map"}
+{"op":"snap"}

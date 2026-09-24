@@ -1,0 +1,25 @@
+// battle-during.sav: select the player's men, order them onto open ground, record ten frames of the order markers.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-during.sav"}
+{"op":"dismiss"}
+// Battle button 0, FUN_0043B9A1 pause, at (480, 448).
+{"op":"click","x":496,"y":464}
+{"op":"advance","frames":10}
+// BattleMap_Click 0x00432443 right on the overview: the camera to (11, 1).
+{"op":"click","x":516,"y":40,"button":"right"}
+{"op":"advance","frames":10}
+// Battle_DragSelect 0x0043BF07 over figures 9..20 (battle-during-move.jsonl).
+{"op":"drag","x":180,"y":100,"x2":400,"y2":200}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"selected"}
+{"op":"snap"}
+// Open ground, cell (18, 10): Battle_OrderSelection 0x0043C634 -> BattleUnit_Order 0x00479E90.
+{"op":"click","x":240,"y":328}
+{"op":"anchor","label":"ordered"}
+{"op":"record","frames":10}
+{"op":"snap"}
+// The same on the overview: cell (30, 20).
+{"op":"click","x":552,"y":80}
+{"op":"anchor","label":"ordered-overview"}
+{"op":"record","frames":10}
+{"op":"snap"}
