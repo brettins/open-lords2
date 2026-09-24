@@ -1,7 +1,6 @@
 #![allow(unused_imports)]
 use super::*;
 use super::primitives::*;
-use super::*;
 use super::assets::*;
 use std::collections::BTreeMap;
 use l2_formats::Palette;
@@ -118,8 +117,7 @@ impl<'a> Pen<'a> {
                 self.body(canvas, x, line, &text, colour);
                 line += self.assets.body.as_ref().map_or(16, |f| f.line);
             }
-            line - y
-        })
+            line - y })
     }
 
     pub fn wrap(&self, s: &str, width: i32) -> Vec<String> {
@@ -163,8 +161,7 @@ impl<'a> Pen<'a> {
         colour: u8,
     ) -> i32 {
         let s = self.assets.text(group, index).to_string();
-        l2_net::trace!("text", 0x00402D37, "Eng_DrawString", group = group, index = index, x = x, y = y);
-        l2_net::trace_do!(l2_net::trace_draw::claim_text(););
+        l2_net::trace!("text", 0x00402D37, "Eng_DrawString", group = group, index = index, x = x, y = y); l2_net::trace_do!(l2_net::trace_draw::claim_text(););
         self.body(canvas, x, y, &s, colour)
     }
 
@@ -180,8 +177,7 @@ impl<'a> Pen<'a> {
         colour: u8,
     ) -> i32 {
         let s = self.assets.text(group, index).to_string();
-        l2_net::trace!("text", 0x00402D37, "Eng_DrawString", group = group, index = index, x = x, y = y);
-        l2_net::trace_do!(l2_net::trace_draw::claim_text(););
+        l2_net::trace!("text", 0x00402D37, "Eng_DrawString", group = group, index = index, x = x, y = y); l2_net::trace_do!(l2_net::trace_draw::claim_text(););
         self.text_in(face, canvas, x, y, &s, colour)
     }
 
@@ -204,10 +200,7 @@ impl<'a> Pen<'a> {
     /// set 0 or 1. Falls back to a flat plate in the interface colours, which
     /// is visibly ours.
     pub fn window(&self, canvas: &mut Canvas, x: i32, y: i32, cols: i32, rows: i32, set: usize) {
-        l2_net::trace_do!(match set {
-            1 => l2_net::trace_leaf!("draw", 0x004093E0, "Ui_DrawBoxStyle1", a0 = x, a1 = y, a2 = cols, a3 = rows; ()),
-            _ => l2_net::trace_leaf!("draw", 0x00409397, "Ui_DrawBox", x = x, y = y, cols = cols, rows = rows; ()),
-        });
+        l2_net::trace_do!(if set == 1 { l2_net::trace_leaf!("draw", 0x004093E0, "Ui_DrawBoxStyle1", a0 = x, a1 = y, a2 = cols, a3 = rows; ()) } else { l2_net::trace_leaf!("draw", 0x00409397, "Ui_DrawBox", x = x, y = y, cols = cols, rows = rows; ()) });
         l2_net::trace_leaf!("draw", 0, "hold"; match self.chrome {
             Some(c) => c.draw_box(canvas, x, y, cols, rows, set),
             None => {
@@ -254,7 +247,6 @@ impl<'a> Pen<'a> {
         }
     }
 
-
     pub fn inset(&self, canvas: &mut Canvas, r: crate::input::Rect) {
         l2_net::trace_leaf!("draw", 0x00403DEB, "Ui_DrawInsetRect", x = r.x, y = r.y, w = r.w, h = r.h; ());
         inset_rect(canvas, r.x, r.y, r.w, r.h);
@@ -297,9 +289,7 @@ impl<'a> Pen<'a> {
         s: &str,
         colour: u8,
     ) -> i32 {
-        l2_net::trace_do!(if face == Face::Eight {
-            l2_net::trace_draw::text(if self.assets.eight.is_some() { "eight" } else { "5x7" }, s, x, y);
-        });
+        l2_net::trace_do!(if face == Face::Eight { l2_net::trace_draw::text(if self.assets.eight.is_some() { "eight" } else { "5x7" }, s, x, y) });
         match face {
             Face::Body => self.body(canvas, x, y, s, colour),
             Face::Heading => self.heading(canvas, x, y, s, colour),
@@ -329,8 +319,7 @@ impl<'a> Pen<'a> {
         suffix: &str,
         colour: u8,
     ) -> i32 {
-        let s = format!("{lead}{value}{suffix}");
-        l2_net::trace_leaf!("text", 0x00402F64, "Ui_DrawNumber", value = value, lead = lead as u32, x = x, y = y; self.text_in(face, canvas, x, y, &s, colour))
+        l2_net::trace_leaf!("text", 0x00402F64, "Ui_DrawNumber", value = value, lead = lead as u32, x = x, y = y; self.text_in(face, canvas, x, y, &format!("{lead}{value}{suffix}"), colour))
     }
 
     /// `Ui_DrawYear(year, x, y, style)` (`0x0041A900`) — a year, and for three
@@ -432,9 +421,7 @@ impl<'a> Pen<'a> {
         colour: u8,
     ) -> i32 {
         l2_net::trace_leaf!("text", 0x0041AB67, "Ui_DrawCount", value = value, s = noun, x = x, y = y; {
-            let next = self.number_in(face, canvas, x, y, value, COUNT_LEAD, COUNT_SUFFIX, colour);
-            self.text_in(face, canvas, next, y, noun, colour)
-        })
+            let next = self.number_in(face, canvas, x, y, value, COUNT_LEAD, COUNT_SUFFIX, colour); self.text_in(face, canvas, next, y, noun, colour) })
     }
 
     /// Its whole body after building the string is `FUN_004025D7`, and that is
@@ -470,8 +457,7 @@ impl<'a> Pen<'a> {
         suffix: &str,
         colour: u8,
     ) {
-        let s = format!("{lead}{value}{suffix}");
-        l2_net::trace_leaf!("text", 0x004030C6, "Ui_DrawNumberRight", value = value, x = x, y = y, width = width; self.body_centred(canvas, x, y, width, &s, colour));
+        l2_net::trace_leaf!("text", 0x004030C6, "Ui_DrawNumberRight", value = value, x = x, y = y, width = width; self.body_centred(canvas, x, y, width, &format!("{lead}{value}{suffix}"), colour));
     }
 
     /// **The slot is not always that file.** `g_miscCtySheet` (`0x005530C8`)
@@ -511,5 +497,3 @@ impl<'a> Pen<'a> {
         l2_net::trace_leaf!("text", 0x00402C5E, "Ui_DrawCentred", group = group, index = index, x = x, y = y, width = width; self.heading_centred(canvas, x, y, width, &s, colour));
     }
 }
-
-
