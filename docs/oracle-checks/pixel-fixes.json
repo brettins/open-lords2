@@ -1,0 +1,10 @@
+{ "reviewed": "e326243deaa79527d606da983fe8ae6c4a11b8cc",
+  "date": "2026-09-24",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screens/menubar/items.rs", "line": 123, "address": "0x0040C5B0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/menubar/render.rs", "line": 29, "address": "0x004014F0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/paint/ui.rs", "line": 31, "address": "0x0041A734", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/map/paint/ui.rs", "line": 251, "address": "0x00402637", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/shell/drawing/pen.rs", "line": 462, "address": "0x004030C6", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/county/strip/render_helpers.rs", "line": 154, "address": "0x004030C6", "verdict": "match", "note": "" }
+  ] }

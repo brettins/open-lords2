@@ -46,7 +46,8 @@ fn timer_digits(canvas: &Canvas, assets: &Assets, v: i32) -> Option<(i32, i32)> 
 /// the picture two pixels and leaves this where it is.
 fn timer_digits_expected(assets: &Assets, v: i32) -> (i32, i32) {
     let space = body_width(assets, " ");
-    let buffer = body_width(assets, &format!(" {v}")) + space;
+    // Ui_DrawNumberRight 0x004030C6 00400000.c:1500-1509: the suffix lands past the NUL.
+    let buffer = body_width(assets, &format!(" {v}"));
     (((0x32 - buffer) / 2).max(0) + space, 0)
 }
 
