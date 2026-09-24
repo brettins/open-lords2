@@ -1,5 +1,5 @@
 {
- "reviewed": "e8d2c314cb5506157396a828d22fcdb665f9c13e",
+ "reviewed": "2a168bf883083f4c5ef08de3ca980056e6d92ff9",
  "date": "2026-09-24",
  "behaviours": [
   {
@@ -11,28 +11,28 @@
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
-   "line": 58,
+   "line": 55,
    "address": "0x00494908",
    "verdict": "match",
    "note": ""
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
-   "line": 50,
+   "line": 59,
    "address": "0x00494DF9",
    "verdict": "match",
    "note": ""
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
-   "line": 68,
+   "line": 65,
    "address": "0x00494908",
    "verdict": "match",
    "note": ""
   },
   {
    "file": "crates/l2-sim/src/figure.rs",
-   "line": 214,
+   "line": 215,
    "address": "0x00494908",
    "verdict": "match",
    "note": "fixed: take_hits is one if, one man a tick (00490000.c:1801); melee adds the attack then calls it once. Its only other callers are tests; missiles (combat.rs) and fire (burn_part.rs) have their own code."
@@ -46,14 +46,14 @@
   },
   {
    "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 154,
+   "line": 155,
    "address": "0x004831D8",
    "verdict": "match",
    "note": ""
   },
   {
    "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 161,
+   "line": 158,
    "address": "0x004831D8",
    "verdict": "match",
    "note": ""
@@ -99,6 +99,55 @@
    "address": "0x0048F079",
    "verdict": "match",
    "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/melee.rs",
+   "line": 48,
+   "address": "0x00494908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/melee.rs",
+   "line": 62,
+   "address": "0x00494908",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+   "line": 76,
+   "address": "0x004831D8",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 140,
+   "address": "0x004831D8",
+   "verdict": "mismatch",
+   "note": "delay is skipped only while in melee and never cleared; after the duel (state 8) ours runs out the leftover delay, the original never counts it outside state 1."
+  },
+  {
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 194,
+   "address": "0x004831D8",
+   "verdict": "mismatch",
+   "note": "a man killed in Melee_Tick still runs `if ((stepFlags & 1) == 0 && BattleMan_Step(1))` (00480000.c:1396); ours returns."
+  },
+  {
+   "file": "crates/l2-sim/src/melee.rs",
+   "line": 33,
+   "address": "0x00494908",
+   "verdict": "mismatch",
+   "note": "no troopType 10 arm (00490000.c:1788, FUN_0047a814: missile at opponent, cur state 2); unreachable in ours, engage refuses siege."
+  },
+  {
+   "file": "crates/l2-sim/src/ai/handlers/field.rs",
+   "line": 116,
+   "address": "0x0048ACD2",
+   "verdict": "mismatch",
+   "note": "budget is the constant 6 (ai/types.rs:266); original reads DAT_00553080[DAT_005653f8], filled per battlefield 0, 100 or 6+5n (00490000.c:3455-3461)."
   }
  ]
 }
