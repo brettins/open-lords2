@@ -8,6 +8,7 @@ use ui::*;
 mod speed;
 mod autosave;
 mod battle;
+mod original_battle;
 
 
 
