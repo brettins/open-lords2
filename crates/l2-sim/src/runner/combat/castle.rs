@@ -49,7 +49,7 @@ impl BattleRunner {
             self.sim.figures[sim].role = crate::Role::Attacking;
             let facing = self.fighters[i].facing;
             self.strike(i, facing);
-            // `FUN_0049694F(mapX, mapY, 4)` â€” `Wall_Smash` â€” centred on the
+            // `FUN_0049694F(mapX, mapY, 4)` — `Wall_Smash` — centred on the
 // *attacker's* cell
             // enter, which is the original's argument list exactly. Every wall
             // cell in the square loses `0x20` and becomes
@@ -103,7 +103,7 @@ impl BattleRunner {
         false
     }
 
-    /// `FUN_0048EE46` â€” file a cell in the twenty-entry defence-post table.
+    /// `FUN_0048EE46` — file a cell in the twenty-entry defence-post table.
     pub(super) fn register_defence_posts(&mut self, cell: usize) {
         for n in crate::siege::orthogonal_neighbours(cell) {
             if self.field.cells[n].surface != crate::siege::SURFACE_BAILEY {
@@ -146,7 +146,7 @@ impl BattleRunner {
         // `BattleMen_SwapPlaces` (`0x0049005F`) exchanges `mapX`, `mapY` and
         // `cellOffset` and touches neither `walking` nor `dirc`, so the
         // original draws both of them a whole cell away in one frame; ours
-        // may not â€” `no_drawn_man_ever_jumps_half_a_cell_in_one_tick` counts
+        // may not — `no_drawn_man_ever_jumps_half_a_cell_in_one_tick` counts
         // 500 such jumps, worst 64 px. Each man takes the facing of the cell
         // he was given and starts that crossing, which is the same cell at the
         // same tick and a trail behind it. `[D]`.
@@ -161,7 +161,7 @@ impl BattleRunner {
             // (`0x0048F1DD`) returns 0 from the swap arm and
             // `BattleMan_StateWalk` (`0x0048314E`) is `Anim_Walk(); if
             // (BattleMan_Step(0) == 0) Anim_Stand();`, so neither man's walk
-            // counter is stepped by this move â€”
+            // counter is stepped by this move —
             // `a_marching_man_is_drawn_at_the_phase_he_ended_the_last_tick_with`
             // reads that counter. **[V]**.
             self.stand(m);
