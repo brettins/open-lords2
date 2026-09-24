@@ -1,7 +1,9 @@
 // IAT and code patches on Lords2.exe, installed from DllMain after the loader has bound the
 // exe's imports. Every patch checks what it replaces and refuses on a mismatch.
 #include "trace.h"
+#include "events.h"
 #include <cstdio>
+#include <intrin.h>
 #include <cstring>
 
 namespace {
@@ -151,6 +153,7 @@ BOOL WINAPI H_WinHelpA(HWND, LPCSTR, UINT, ULONG_PTR) { return TRUE; }
 // Smk_Play 0x0042D91B, its failed-open branch: g_screenId 0x004EAC50 = returnScreen, return 0.
 int __cdecl H_SmkPlay(const char* path, int, int, int, int returnScreen) {
     g_shared->filmsSkipped++;
+    Events_Film(path, reinterpret_cast<uint32_t>(_ReturnAddress()));
     Log("film skipped: %s -> screen %d", path ? path : "?", returnScreen);
     *reinterpret_cast<volatile uint8_t*>(0x004EAC50) = static_cast<uint8_t>(returnScreen);
     return 0;

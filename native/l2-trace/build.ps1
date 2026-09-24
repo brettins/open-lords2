@@ -11,6 +11,8 @@
     L2TRACE_TIMERS=drop   drop timeSetEvent instead of running it at presents
     L2TRACE_PRESENT_MS=n  extra virtual ms per present (default 0)
     L2TRACE_REALTIME=1    leave the clock imports alone
+    L2TRACE_EVENTS=1      detours (hooktable.h, from gen-hooks.js) write the event ring (events.h);
+                          toolsoracle	race-run.ps1 drains it to JSONL
   Output beside the DLLs: l2trace.log (patches, GAP lines, FRAME hash per change), l2trace-dsound.log.
 #>
 [CmdletBinding()]
@@ -26,7 +28,7 @@ New-Item -ItemType Directory -Force $Out | Out-Null
 $flags = "/nologo /LD /MT /W4 /O2 /EHsc /std:c++17 /Fo`"$Out\\`""
 $libs = "user32.lib kernel32.lib"
 $cmd = "call `"$VcVars`" x86 >nul 2>&1 && cd /d `"$dir`" && " +
-  "cl $flags ddraw_fake.cpp hooks.cpp frame.cpp common.cpp $libs /link /DEF:ddraw.def " +
+  "cl $flags ddraw_fake.cpp hooks.cpp frame.cpp common.cpp events.cpp detour.cpp $libs /link /DEF:ddraw.def " +
   "/IMPLIB:`"$Out\ddraw.lib`" /OUT:`"$Out\ddraw.dll`" && " +
   "cl $flags dsound_null.cpp common.cpp $libs /link /DEF:dsound.def " +
   "/IMPLIB:`"$Out\dsound.lib`" /OUT:`"$Out\dsound.dll`""

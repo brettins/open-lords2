@@ -1,6 +1,7 @@
 // Memory-backed DirectDraw for the calls Display_Init 0x0042E5C0, Display_CreateSurfaces
 // 0x0042EC91, Palette_Create 0x0042F1DF and Gfx_Present 0x00452160 make.
 #include "trace.h"
+#include "events.h"
 #include <ddraw.h>
 #include <cstring>
 #include <vector>
@@ -244,6 +245,8 @@ BOOL WINAPI DllMain(HINSTANCE inst, DWORD reason, LPVOID) {
         DisableThreadLibraryCalls(inst);
         Shared_Open("l2trace.log");
         if (!Hooks_Install()) Log("HOOKS INCOMPLETE - see REFUSED lines");
+        Events_Open();
+        if (!Detours_Install()) Log("DETOURS INCOMPLETE - see REFUSED lines");
     }
     return TRUE;
 }

@@ -63,6 +63,10 @@ public class L2Trace : IDisposable {
     }
 
     public static L2Trace Launch(string install, int step, string dump, bool gated) {
+        return Launch(install, step, dump, gated, null, null);
+    }
+    // events: JSONL path for the detour event ring (native/l2-trace/events.h); films: play|skip.
+    public static L2Trace Launch(string install, int step, string dump, bool gated, string events, string films) {
         var psi = new ProcessStartInfo(System.IO.Path.Combine(install, "Lords2.exe"));
         psi.WorkingDirectory = install;
         psi.UseShellExecute = false;
@@ -70,6 +74,8 @@ public class L2Trace : IDisposable {
         psi.EnvironmentVariables["L2TRACE_STEP"] = step.ToString();
         if (!string.IsNullOrEmpty(dump)) psi.EnvironmentVariables["L2TRACE_DUMP"] = dump;
         if (gated) psi.EnvironmentVariables["L2TRACE_GATE"] = "1";
+        if (!string.IsNullOrEmpty(films)) psi.EnvironmentVariables["L2TRACE_FILMS"] = films;
+        if (!string.IsNullOrEmpty(events)) psi.EnvironmentVariables["L2TRACE_EVENTS"] = "1";
         var t = new L2Trace();
         t.Gated = gated;
         t.Real.Start();
@@ -83,6 +89,15 @@ public class L2Trace : IDisposable {
             if (t.Proc.HasExited) throw new Exception("game exited before the trace DLL came up");
         }
         if (t.view == null) throw new Exception("no l2trace shared memory - is ddraw.dll in the install?");
+        if (!string.IsNullOrEmpty(events)) {
+            for (int i = 0; i < 500 && t.ring == null; i++) {
+                try { t.ring = MemoryMappedFile.OpenExisting("Local\\l2trace-ring-" + t.Proc.Id); }
+                catch (System.IO.FileNotFoundException) { Thread.Sleep(10); }
+            }
+            if (t.ring == null) throw new Exception("no event ring - L2TRACE_EVENTS not honoured?");
+            t.ringView = t.ring.CreateViewAccessor(0, RingHeader + RingCap * RecSize);
+            t.Events = new System.IO.StreamWriter(events, false, new System.Text.UTF8Encoding(false));
+        }
         return t;
     }
 
@@ -111,6 +126,7 @@ public class L2Trace : IDisposable {
         if (Gated) view.Write(OffGate, target);
         var sw = Stopwatch.StartNew();
         while (Frames < target && !Proc.HasExited && sw.ElapsedMilliseconds < 30000) {
+            Drain();
             if (Gated) Thread.Yield(); else Thread.Sleep(2);
         }
     }
@@ -144,6 +160,14 @@ public class L2Trace : IDisposable {
         WaitFrames(2, 5000);
         PostMessage(Hwnd, 0x0202, IntPtr.Zero, XY(x, y));
     }
+    // WM_RBUTTONDOWN/UP: the right button leaves most panels (screens-county.md 2.6).
+    public void RClick(int x, int y) {
+        MoveTo(x, y);
+        WaitFrames(2, 5000);
+        PostMessage(Hwnd, 0x0204, new IntPtr(2), XY(x, y));
+        WaitFrames(2, 5000);
+        PostMessage(Hwnd, 0x0205, IntPtr.Zero, XY(x, y));
+    }
     public void Key(int vk) {
         PostMessage(Hwnd, 0x0100, new IntPtr(vk), new IntPtr(1));
         WaitFrames(1, 5000);
@@ -162,10 +186,76 @@ public class L2Trace : IDisposable {
         }
         return string.Join(";", found.ToArray());
     }
+    // The event ring (native/l2-trace/events.h): header 32 bytes, 16384 records of 128.
+    const int RingHeader = 32, RingCap = 16384, RecSize = 128, OffHead = 12, OffTail = 16, OffKeep = 20;
+    MemoryMappedFile ring;
+    MemoryMappedViewAccessor ringView;
+    public System.IO.StreamWriter Events;
+    public static System.Collections.Generic.Dictionary<uint, string[]> Hooks = new System.Collections.Generic.Dictionary<uint, string[]>();
+    public System.Collections.Generic.Dictionary<string, int> Counts = new System.Collections.Generic.Dictionary<string, int>();
+    public int UnnamedSheets, SheetDraws, OkX = -1, OkY = -1;
+    static readonly string[] Kinds = { "", "call", "ret", "frame", "phase", "pin", "refused" };
+    public bool KeepDraws { set { if (ringView != null) ringView.Write(OffKeep, value ? 1 : 0); } }
+    void Count(string k) { int n; Counts.TryGetValue(k, out n); Counts[k] = n + 1; }
+    static string Esc(string s) {
+        var sb = new System.Text.StringBuilder();
+        foreach (char c in s) {
+            if (c == '"' || c == '\\') sb.Append('\\').Append(c);
+            else if (c < 0x20 || c > 0x7e) sb.AppendFormat("\\u{0:x4}", (int)c);
+            else sb.Append(c);
+        }
+        return sb.ToString();
+    }
+    public void Note(string json) { Drain(); if (Events != null) Events.WriteLine(json); }
+    public void Drain() {
+        if (ringView == null || Events == null) return;
+        uint head = ringView.ReadUInt32(OffHead), tail = ringView.ReadUInt32(OffTail);
+        var b = new byte[RecSize];
+        for (; tail != head; tail++) {
+            ringView.ReadArray(RingHeader + (long)(tail % RingCap) * RecSize, b, 0, RecSize);
+            uint seq = BitConverter.ToUInt32(b, 0), frame = BitConverter.ToUInt32(b, 4), fn = BitConverter.ToUInt32(b, 8), caller = BitConverter.ToUInt32(b, 12);
+            int ret = BitConverter.ToInt32(b, 16), kind = b[22], nargs = b[23];
+            string types = System.Text.Encoding.ASCII.GetString(b, 24, 8).TrimEnd('\0');
+            int z = Array.IndexOf(b, (byte)0, 64); if (z < 0 || z > 127) z = 128;
+            string text = System.Text.Encoding.GetEncoding(1252).GetString(b, 64, z - 64);
+            var a = new int[8];
+            for (int i = 0; i < 8; i++) a[i] = BitConverter.ToInt32(b, 32 + i * 4);
+            string[] h; Hooks.TryGetValue(fn, out h);
+            string name = h != null ? h[0] : string.Format("0x{0:X8}", fn), cat = h != null ? h[1] : "";
+            string ev = kind < Kinds.Length ? Kinds[kind] : "k" + kind;
+            var sb = new System.Text.StringBuilder();
+            sb.AppendFormat("{{\"seq\":{0},\"f\":{1},\"ev\":\"{2}\"", seq, frame, ev);
+            if (kind == 3) {
+                sb.AppendFormat(",\"hash\":\"{0:x8}\",\"screen\":{1},\"phase\":{2},\"draws\":{3},\"rand\":{4},\"lfsr\":{5},\"rng\":[{6},{7},{8}]}}",
+                    ret, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
+                Count("frame");
+            } else {
+                sb.AppendFormat(",\"fn\":\"{0}\",\"cat\":\"{1}\"", name, cat);
+                if (caller != 0) sb.AppendFormat(",\"from\":\"0x{0:X8}\"", caller);
+                if (kind == 2) sb.AppendFormat(",\"ret\":{0}", ret);
+                if (nargs > 0) {
+                    sb.Append(",\"args\":[");
+                    for (int i = 0; i < nargs; i++) sb.Append(i > 0 ? "," : "").Append(a[i]);
+                    sb.AppendFormat("],\"t\":\"{0}\"", types);
+                }
+                if (text.Length > 0) sb.AppendFormat(",\"text\":\"{0}\"", Esc(text));
+                sb.Append("}");
+                Count(ev + ":" + (cat == "" ? name : cat));
+                if (kind == 1 && name == "Pl8_DrawFrame") { SheetDraws++; if (text == "?" || text == "") UnnamedSheets++; }
+                if (kind == 1 && name == "Ui_OkButton") { OkX = a[0]; OkY = a[1]; }
+            }
+            Events.WriteLine(sb.ToString());
+        }
+        ringView.Write(OffTail, tail);
+    }
     public void Dispose() {
+        Drain();
+        if (Events != null) { Events.Flush(); Events.Dispose(); Events = null; }
         if (Proc != null && !Proc.HasExited) { Proc.Kill(); Proc.WaitForExit(5000); }
         if (view != null) view.Dispose();
         if (map != null) map.Dispose();
+        if (ringView != null) ringView.Dispose();
+        if (ring != null) ring.Dispose();
     }
 }
 '@
