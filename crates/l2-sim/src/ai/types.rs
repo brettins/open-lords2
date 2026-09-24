@@ -234,6 +234,8 @@ pub struct Ai {
     /// not-encoded: a trace of the last handler to run, read by
     /// `crate::ai::tests` and by nothing the simulation branches on.
     pub last_action: Vec<Action>,
+    /// not-encoded: every `BattleUnit_Order` of this sweep, drained by the runner's pour.
+    pub orders: Vec<(usize, i16, i16)>,
 }
 
 impl Ai {
@@ -295,6 +297,7 @@ impl Ai {
             inner_slot_cursor: 0,
             defence_post_owner: [0; 20],
             last_action: vec![Action::NoThink; MAX_UNITS + 1],
+            orders: Vec::new(),
         }
     }
 

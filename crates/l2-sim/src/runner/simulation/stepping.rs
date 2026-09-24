@@ -15,12 +15,6 @@ impl BattleRunner {
             self.assault_repulsed();
         }
 
-        let mut before = [(0i16, 0i16); MAX_UNITS + 1];
-        for (u, slot) in before.iter_mut().enumerate().skip(1) {
-            let unit = self.units.get(u);
-            *slot = (unit.target_x, unit.target_y);
-        }
-
         let reform = {
             let BattleRunner { units, sim, positions, ai_field, ai, .. } = self;
             ai::update_all_units(units, &mut sim.figures, positions, ai_field, ai)
@@ -29,18 +23,8 @@ impl BattleRunner {
             self.withdrawn = Some(side);
         }
 
-        let ordered: Vec<usize> = before
-            .iter()
-            .enumerate()
-            .skip(1)
-            .filter(|&(u, &was)| {
-                let unit = self.units.get(u);
-                unit.is_live() && (unit.target_x, unit.target_y) != was
-            })
-            .map(|(u, _)| u)
-            .collect();
-        for u in ordered {
-            let (tx, ty) = (self.units.get(u).target_x, self.units.get(u).target_y);
+        // `FUN_0047a814` (`0x0047A814`) is tested on every `BattleUnit_Order`, 00470000.c:4393 [V]
+        for (u, tx, ty) in std::mem::take(&mut self.ai.orders) {
             self.pour_on_order(u, tx, ty);
         }
         for u in reform {
@@ -50,7 +34,10 @@ impl BattleRunner {
         // `Battle_UpdateAllMen` (`0x004822ED`): `targeted` `:893-894` and
         // `firing` `:896-897`, each counted down to zero.
         for f in self.sim.figures.iter_mut() {
-            f.targeted = f.targeted.saturating_sub(1);
+            // 00480000.c:893-894 `if (targeted != 0) targeted - 1` [V]
+            if f.targeted != 0 {
+                f.targeted -= 1;
+            }
             f.firing = f.firing.saturating_sub(1);
         }
 

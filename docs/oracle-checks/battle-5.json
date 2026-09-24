@@ -4,10 +4,10 @@
   "behaviours": [
     {
       "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
-      "line": 24,
+      "line": 28,
       "address": "0x00479E90",
-      "verdict": "mismatch",
-      "note": "BattleUnit_Order ends with BattleUnits_RebuildFromFigures (00470000.c:4412), which ages every unit's orderLock/hitMemory/firing/+0x2D and rebuilds inMelee on every order; set_target does not"
+      "verdict": "match",
+      "note": "fixed: set_target and order_full share Units::order, which ends in rebuild_from_figures (00470000.c:4412)"
     },
     {
       "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
@@ -67,17 +67,17 @@
     },
     {
       "file": "crates/l2-sim/src/runner/movement/pathfinding.rs",
-      "line": 344,
+      "line": 333,
       "address": "0x00479E90",
-      "verdict": "mismatch",
-      "note": "player order reforms at once; BattleUnit_Order only sets reTarg 0x14 and BattleUnit_Reform's one caller is Battle_UpdateAllUnits"
+      "verdict": "match",
+      "note": "fixed: order_full writes reTarg 0x14 via Units::order and no longer reforms; the reform comes from Battle_UpdateAllUnits 00480000.c:3656"
     },
     {
-      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
-      "line": 53,
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 28,
       "address": "0x004822ED",
-      "verdict": "mismatch",
-      "note": "targeted +2 (00490000.c:2043) has no ceiling in the original; ours saturates at 255 (signedness of the byte not verified)"
+      "verdict": "match",
+      "note": "fixed: targeted += 2 wraps as a byte (00490000.c:2043) and chase_target reads it (char) (:2031)"
     },
     {
       "file": "crates/l2-sim/src/ai/types.rs",

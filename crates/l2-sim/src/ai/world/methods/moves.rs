@@ -19,32 +19,14 @@ impl World<'_> {
     }
 
     /// `BattleUnit_Order` (`0x00479E90`) as every AI order routine calls it,
-    /// `(cur, targX, targY, 0, 0, 0)`: the figures move at the unit's reform,
-    /// not here. `[V]` 00470000.c BattleUnit_Order; Battle_UpdateAllUnits 0x00489401
+    /// `(cur, targX, targY, 0, 0, 0)`; the oil pour `FUN_0047a814` (:4393) runs in the
+    /// runner from `Ai::orders`, after the sweep. [I] its place in the frame
     pub(crate) fn set_target(&mut self, cur: usize, x: i16, y: i16) {
-        // `if (bVar1 == 2 && humanControlled == 0) field_0x13 = 0` [V]
-        let surface2 = self.field.surface_at(x as i32, y as i32) == Some(2);
-        let u = self.units.get_mut(cur);
-        // `if (inMelee != 0) orderLock = 0x40` [V]
-        if u.in_melee {
-            u.order_lock = crate::unit::ORDER_LOCK;
-        }
+        let surface = self.field.surface_at(x as i32, y as i32);
         // `destIsWoodland == 0`: `targetCell = 0` [V]
-        u.target_cell = 0;
-        u.target_x = x;
-        u.target_y = y;
-        // `reTarg = 0x14; field_0x13 = 1` [V]
-        u.reform = crate::unit::REFORM_ON_ORDER;
-        u.reform_gate = !(surface2 && !u.human);
-        // `BattleUnit_Order` (`0x00479E90`) opens with `movStraff = 0` for every
-        // figure of the unit, whether or not the destination moved — and every
-        // AI order routine reaches the figures through it. Without this a
-        // closing archer that has shot once never follows again. `[V]`
-        for f in self.figures.iter_mut() {
-            if f.unit as usize == cur {
-                f.straffed = false;
-            }
-        }
+        self.units.get_mut(cur).target_cell = 0;
+        self.units.order(self.figures, cur, (x, y), surface);
+        self.ai.orders.push((cur, x, y));
     }
 
     pub(crate) fn clear_withdrawing(&mut self, cur: usize) {

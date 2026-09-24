@@ -124,3 +124,23 @@ fn an_ai_order_reforms_its_unit_twenty_frames_later_unless_it_has_charged() {
     assert_eq!(run(true), None);
 }
 
+
+/// `BattleUnit_Order` ends in `BattleUnits_RebuildFromFigures()` (00470000.c:4412): an AI order
+/// ages every unit's `orderLock` (00480000.c:3522). Ablation: `rebuild_from_figures` in `Units::order`.
+#[test]
+fn an_ai_order_ages_every_units_order_lock() {
+    let mut fx = Fixture::new(Troop::Swordsmen, Troop::Swordsmen, 4);
+    let (unit, other) = (fx.ai_unit, fx.human_unit);
+    fx.units.get_mut(other).order_lock = 10;
+    let mut world = World {
+        units: &mut fx.units,
+        figures: &mut fx.figures,
+        positions: &fx.positions,
+        field: &fx.field,
+        ai: &mut fx.ai,
+    };
+    world.set_target(unit, 40, 45);
+    world.set_target(unit, 40, 46);
+    assert_eq!(fx.units.get(other).order_lock, 8);
+    assert_eq!(fx.ai.orders, vec![(unit, 40, 45), (unit, 40, 46)]);
+}
