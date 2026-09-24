@@ -70,6 +70,7 @@ function keyOf(r) {
   }
 }
 const COLLAPSE = new Set(['screen', 'phase']);
+const SOUNDS = new Set(['sound', 'voice', 'music']);
 // The original steps one realm a call, round-robin (0x0049A581), many calls a frame; ours every
 // realm a frame: only which realms step, in first-step order, compares.
 const DISTINCT = new Set(['ai']);
@@ -124,11 +125,12 @@ function scan(file, byAnchor, lag, orig) {
     const k = keyOf(r);
     if (!k) continue;
     const [cat, key] = k;
+    if (cat === 'film') cur.films = (cur.films || 0) + 1;
     const s = (cur.seq[cat] = cur.seq[cat] || []);
     if (COLLAPSE.has(cat) && s.length && s[s.length - 1].key === key) continue;
     if (DISTINCT.has(cat) && s.some((x) => x.key === key)) continue;
     // Soft: one of our Pcg32 draws precedes the record within its step.
-    s.push({ key, r, tainted: cur.randAt != null && cur.randAt < at });
+    s.push({ key, fi: cur.films || 0, r, tainted: cur.randAt != null && cur.randAt < at });
   }
   out.push(cur);
   return { steps: out, notBuilt };
@@ -204,7 +206,10 @@ function diff(origPath, oursPath, oursLag = 0) {
       const a = qo[cat] || [], b = qu[cat] || [];
       totals[cat] = totals[cat] || [0, 0];
       totals[cat][0] += a.length; totals[cat][1] += b.length;
-      const i = cat === 'slot' || cat === 'order' ? (a.length === b.length ? -1 : 0) : firstDiff(a, b);
+      // A sound also by the films before it, where both steps saw as many (the original records a
+      // skipped film, ours none): S011_01 under the intro is otherwise the same sequence (2b1da403).
+      const byFilm = SOUNDS.has(cat) && (o.films || 0) === (u.films || 0);
+      const i = cat === 'slot' || cat === 'order' ? (a.length === b.length ? -1 : 0) : firstDiff(a, b, byFilm ? (x) => `${x.key}@film${x.fi}` : undefined);
       if (i < 0) continue;
       const lo = Math.max(0, i - CONTEXT);
       findings.push({
