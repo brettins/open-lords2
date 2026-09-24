@@ -77,15 +77,18 @@ fn a_besieger_with_eight_hundred_men_takes_a_castle_held_by_two() {
 }
 
 /// Missile units of three at slots 0 and 1 (`Battle_RaiseSideSiege` `0x004801F8`)
-/// do not hold a gate alone; pikemen at slot 4 do.
+/// do not hold a gate alone; pikemen at slot 4 do. The garrison is the player's:
+/// `Battle_ChooseSettlement` `0x004A6A30` sends a battle with no human side to
+/// `Battle_AutoResolve` `0x004AAD07`; `Battle_UpdateStrengthAdvantage` 00470000.c:6752-6761
+/// splits by `ownerIsHuman`. [I] outcome not observed in the original.
+/// Ablation: the garrison `human: false` runs past 200,000 frames.
 #[test]
-#[ignore = "stalls past 200k frames since AI orders reform at reTarg 0x14 (BattleUnit_Order 0x00479E90) and UnitOrder_SiegeDefFoot 0x0048E39C re-orders every 100 frames in melee [V]; outcome unknown"]
 fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
     let mut r = BattleRunner::deploy_siege(
         siege::our_castle(4),
         99,
         Muster { troops: STORMING_PARTY, owner: 1, human: false, mercenaries: None },
-        Muster { troops: &[(Troop::Archers, 1_000u32), (Troop::Pikemen, 1_000)], owner: 2, human: false, mercenaries: None },
+        Muster { troops: &[(Troop::Archers, 1_000u32), (Troop::Pikemen, 1_000)], owner: 2, human: true, mercenaries: None },
         4,
     );
     let mut ticks = 0;
@@ -97,6 +100,5 @@ fn the_same_besieger_is_thrown_off_a_castle_held_in_strength() {
         }
         assert!(ticks < 200_000, "neither side could finish it");
     };
-    assert_eq!(end.winner, SIDE_A, "the garrison holds: {end:?} at {ticks}");
+    assert_eq!((end.winner, end.cause), (SIDE_A, End::Annihilation), "the garrison holds: {end:?} at {ticks}");
 }
-
