@@ -1,6 +1,0 @@
-# Launch with films on, to the title menu; its draws kept.
-films play
-wait-page 1
-wait-idle 10
-anchor title-menu
-snap

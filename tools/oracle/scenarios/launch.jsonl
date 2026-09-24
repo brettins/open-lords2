@@ -1,0 +1,6 @@
+// Launch with films on, to the title menu; its draws kept.
+{"op":"films","mode":"play"}
+{"op":"wait-page","page":1}
+{"op":"wait-idle","frames":10}
+{"op":"anchor","label":"title-menu"}
+{"op":"snap"}

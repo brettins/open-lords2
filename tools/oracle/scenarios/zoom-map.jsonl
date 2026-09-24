@@ -1,0 +1,17 @@
+// Zoom the campaign map out on a new original-campaign game.
+{"op":"films","mode":"skip"}
+{"op":"new-game","campaign":"original"}
+// Ui_OkButton(400, 336) of message 298, "Non 256 colour display" (this harness)
+{"op":"click","x":424,"y":352}
+{"op":"advance","frames":60}
+// Ui_OkButton(416, 224) of the "Game Objectives:" box, drawn from 0x00474683
+{"op":"click","x":440,"y":240}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"near"}
+{"op":"snap"}
+// minimap button 4, x 610..636 y 128..158: Map_ToggleZoom (screens-county.md 2.5)
+{"op":"click","x":623,"y":143}
+{"op":"advance","frames":60}
+{"op":"anchor","label":"far"}
+{"op":"snap"}

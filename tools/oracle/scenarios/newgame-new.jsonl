@@ -1,0 +1,28 @@
+// A new game on the new campaign, traced through turn one and the AI lords' first moves.
+{"op":"films","mode":"skip"}
+{"op":"new-game","campaign":"new"}
+// Ui_OkButton(400, 336) of message 298, "Non 256 colour display" (this harness)
+{"op":"click","x":424,"y":352}
+{"op":"advance","frames":60}
+// Ui_OkButton(416, 224) of the "Game Objectives:" box, drawn from 0x00474683
+{"op":"click","x":440,"y":240}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"map"}
+{"op":"snap"}
+// End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":30}
+{"op":"dismiss"}
+{"op":"anchor","label":"end-turn-clicked"}
+{"op":"snap"}
+{"op":"advance","frames":5000}
+{"op":"dismiss"}
+{"op":"anchor","label":"after-5000"}
+// End turn again
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":3000}
+{"op":"dismiss"}
+{"op":"anchor","label":"turn-2-ended"}
+{"op":"snap"}
+{"op":"snap"}

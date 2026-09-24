@@ -1,6 +1,7 @@
 <#
   Runs scenario scripts (tools/oracle/scenarios/*.txt) on the hidden original with the event
-  ring on, -Runs times each, and writes <name>.orig.jsonl (run 1) and <name>.run<k>.jsonl.
+  ring on, -Runs times each: <name>.raw.jsonl (every event) and <name>.orig.jsonl (FORMAT.md records,
+  by trace-shape.js); later runs add .run<k>. A .jsonl scenario is FORMAT.md steps.
   Prints one JSON line per scenario: steps done, event counts, identical across runs or not.
   Script lines (one step each, '#' comments):
     films play|skip          before any step; default play
@@ -47,9 +48,30 @@ $LoadSteps = @('wait-page 1', 'wait-idle 5', 'click 320 103', 'wait-page 2', 'wa
 $NewGameSteps = @('wait-page 1', 'wait-idle 5', 'click 320 103', 'wait-page 2', 'wait-idle 5', 'click 320 103', 'wait-page 5', 'advance 20')
 $NewGameTail = @('wait-page 4', 'advance 20', 'click 432 227', 'wait-screen-not 0x1F', 'advance 300')
 
+# One FORMAT.md step (JSON) as a text step; films, wait-page, dismiss, peek and new-game's campaign are this side's.
+function FromJson($line) {
+  $o = $line | ConvertFrom-Json
+  switch ($o.op) {
+    'load' { "fixture $($o.save)"; 'load' }
+    'new-game' { "new-game $(if ($o.campaign) { $o.campaign } else { 'original' })" }
+    'click' { "$(if ($o.button -eq 'right') { 'rclick' } else { 'click' }) $($o.x) $($o.y)" }
+    'key' { $k = [string]$o.key; if ($k.Length -eq 1) { "key $([int][char]$k.ToUpper())" } else { "key $($k.ToLower())" } }
+    'wait-screen' { "wait-screen $($o.id)" }
+    'wait-phase' { "wait-phase $($o.phase)" }
+    'wait-page' { "wait-page $($o.page)" }
+    'wait-idle' { "wait-idle $($o.frames)" }
+    'advance' { "advance $($o.frames)" }
+    'anchor' { "anchor $($o.label)" }
+    'peek' { "peek $($o.addr)" }
+    'films' { "films $($o.mode)" }
+    default { $o.op }
+  }
+}
+
 function Run-Scenario($file, $run) {
   $name = [IO.Path]::GetFileNameWithoutExtension($file)
   $lines = Get-Content $file | ForEach-Object { ($_ -replace '#.*$', '').Trim() } | Where-Object { $_ }
+  if ($file -like '*.jsonl') { $lines = @(Get-Content $file | Where-Object { $_.Trim() -and $_ -notmatch '^\s*//' } | ForEach-Object { FromJson $_ }) }
   $films = 'play'; $fixture = $null; $steps = @()
   foreach ($l in $lines) {
     $w = $l -split '\s+'
@@ -64,7 +86,9 @@ function Run-Scenario($file, $run) {
   & (Join-Path $PSScriptRoot 'trace-install.ps1') -Dest $Install | Out-Null
   Get-ChildItem $Install -Filter *.sav | Remove-Item -Force
   if ($fixture) { Copy-Item (Join-Path $Fixtures $fixture) (Join-Path $Install $fixture) }
-  $jsonl = Join-Path $Out ($(if ($run -eq 1) { "$name.orig.jsonl" } else { "$name.run$run.jsonl" }))
+  $sfx = if ($run -eq 1) { '' } else { ".run$run" }
+  $jsonl = Join-Path $Out "$name.raw$sfx.jsonl"
+  $shaped = Join-Path $Out "$name.orig$sfx.jsonl"
   $t = [L2Trace]::Launch($Install, 1, $Dump, $true, $jsonl, $films)
   $timeout = $TimeoutSec * 1000; $done = 0; $failed = $null
   # Start at the first gated present, so every note lands at the same point of the stream.
@@ -79,7 +103,7 @@ function Run-Scenario($file, $run) {
         'rclick' { $t.RClick((Num $w[1]), (Num $w[2])) }
         'key' { $k = if ($vk.ContainsKey($w[1])) { $vk[$w[1]] } else { Num $w[1] }; $t.Key($k) }
         'advance' { $t.Advance((Num $w[1])) }
-        'snap' { $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false }
+        'snap' { $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Note('{"ev":"snap","f":' + $t.Frames + ',"hash":"' + ('{0:x8}' -f $t.Hash) + '"}') }
         'anchor' { $t.Note('{"ev":"anchor","f":' + $t.Frames + ',"label":"' + ($w[1..9] -join ' ') + '"}') }
         'wait-screen' { $n = Num $w[1]; $ok = $t.WaitUntil({ $t.Screen -eq $n }.GetNewClosure(), $timeout) }
         'wait-screen-not' { $n = Num $w[1]; $ok = $t.WaitUntil({ $t.Screen -ne $n }.GetNewClosure(), $timeout) }
@@ -104,7 +128,9 @@ function Run-Scenario($file, $run) {
       counts = $t.Counts
     }
   } finally { $t.Dispose() }
-  $r.sha = (Get-FileHash $jsonl -Algorithm SHA256).Hash.Substring(0, 16)
+  node (Join-Path $PSScriptRoot 'trace-shape.js') $jsonl $shaped
+  $r.sha = (Get-FileHash $jsonl -Algorithm SHA256).Hash.Substring(0, 12) + '/' + (Get-FileHash $shaped -Algorithm SHA256).Hash.Substring(0, 12)
+  $r.records = (Get-Content $shaped | Measure-Object -Line).Lines
   $r
 }
 
