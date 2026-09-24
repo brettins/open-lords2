@@ -1,5 +1,5 @@
 {
- "reviewed": "a6ca9adebc33ea35eb6e7d524ff328d6462b78fc",
+ "reviewed": "6221f145bd7a0cf9937c42af5ac9c2b2ce77a95f",
  "date": "2026-09-24",
  "behaviours": [
   {
@@ -13,8 +13,8 @@
    "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
    "line": 164,
    "address": "0x0043CE1A",
-   "verdict": "match",
-   "note": "fixed: the release clears the latch only outside turn-in-flight and fades (Screen_FrameInput 00420000.c:6795); latch.rs a_release_after_end_turn_leaves_the_latch_set."
+   "verdict": "mismatch",
+   "note": "[I] DAT_0055403c stays set through phases 1-3 (Turn_Tick :4799 clears it in phase 4) and DAT_00553018, set to 1 there, is never cleared in single player, so the gate is open from turn 2 on; ours closes all in-flight, opens phases 1-3."
   },
   {
    "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
@@ -27,6 +27,41 @@
    "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
    "line": 90,
    "address": "0x0043CAF4",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/menubar/dropdown.rs",
+   "line": 82,
+   "address": "0x0043480C",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs",
+   "line": 230,
+   "address": "0x0043733A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/diplomacy/compose/compose.rs",
+   "line": 132,
+   "address": "0x00436408",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs",
+   "line": 53,
+   "address": "0x004335F0",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/setup/ui/render/render/launch.rs",
+   "line": 83,
+   "address": "0x00433155",
    "verdict": "match",
    "note": ""
   }
