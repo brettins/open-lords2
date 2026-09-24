@@ -216,7 +216,7 @@ crates/l2-game/tests/shell/font_part/font_numeral.rs install 1
 crates/l2-game/tests/shell/font_part/glyph_map.rs install 1
 crates/l2-game/tests/shell/font_part/measure.rs install 1
 crates/l2-game/tests/shell/font_part/preload.rs executable 1
-crates/l2-game/tests/shell/glyph.rs install 2
+crates/l2-game/tests/shell/glyph.rs install 3
 crates/l2-game/tests/siege_picture/rendering_tests/banner_and_wall_rendering.rs install 2
 crates/l2-game/tests/siege_picture/rendering_tests/cell_selection.rs install 2
 crates/l2-game/tests/siege_picture/rendering_tests/picture_comparison.rs install 1
