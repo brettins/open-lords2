@@ -81,3 +81,15 @@ fn a_new_game_deals_the_playlist() {
     assert_eq!(k.campaign.field_playlist, FieldPlaylist::deal(0x5EED));
     assert_eq!(k.campaign.field_playlist.cursor(), 0);
 }
+
+/// 00490000.c:3455-3461: each entry is 0, 100 or `6 + 5n`, n in 0..=4 or 7; read after the bump
+/// (00480000.c:4393). Ablation: `budget()` reading `cursor - 1`, or a constant table.
+#[test]
+fn the_engagement_budget_is_dealt_per_field_and_read_after_the_bump() {
+    let mut list = FieldPlaylist::deal(0x5EED);
+    let budgets = *list.budgets();
+    assert!(budgets.iter().all(|&b| [0, 6, 11, 16, 21, 26, 41, 100].contains(&b)), "{budgets:?}");
+    assert!(budgets.iter().any(|&b| b != budgets[0]), "not one value");
+    list.take_next();
+    assert_eq!(list.budget(), budgets[1]);
+}

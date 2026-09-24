@@ -8,6 +8,8 @@ impl BattleRunner {
     pub fn step(&mut self) {
         self.sync_positions();
         self.units.rebuild_from_figures(&mut self.sim.figures);
+        // Battle_Frame runs Battle_CountMenByType 0x00481B9A every frame, 004b0000.c:6703 [V]
+        self.ai.count_men(&self.sim.figures);
         if self.siege.is_siege {
             self.recount_siege();
             self.assault_repulsed();
@@ -72,7 +74,8 @@ impl BattleRunner {
                 self.sync_cell(c);
             }
         }
-        self.sim.step();
+        // Melee_Tick is per man, in step_one: BattleMan_StateMelee 0x004831D8, 00480000.c:1395
+        self.sim.tick += 1;
         for i in 0..self.fighters.len() {
             if !self.is_alive(i) && self.fighters[i].anim != Motion::Dying {
                 let f = &self.fighters[i];

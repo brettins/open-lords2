@@ -112,12 +112,19 @@ fn every_lane_on_the_saves_frame_leaves_the_defence_its_sixty() {
     assert_eq!(f.rally[1][1], [(67, 5), (65, 2), (72, 4)], "DAT_00522D78");
 
     let mut lanes = std::collections::BTreeSet::new();
+    let mut closing = 0;
     for i in 0..8u64 {
         let seed = l2_sim::runner::DEFAULT_SEED.wrapping_add(i.wrapping_mul(0x9E37_79B9));
-        lanes.insert(l2_sim::ai::Ai::new(seed).approach_lane);
+        let lane = l2_sim::ai::Ai::new(seed).approach_lane;
+        lanes.insert(lane);
         let field = build_field(sheets.get(17).unwrap(), seed as u32);
         let fight = fight_unordered(&start, seed, Some(field));
-        assert_eq!(fight.defender.1, 60, "seed {i}: the save leaves the defence 60 of its 129");
+        closing += fight.closing.0;
+        // [I] lanes 0 and 3 leave 60, lane 1 61 since Melee_Tick moved into 0x004831D8 (battle-4)
+        let want = if lane == 1 { 61 } else { 60 };
+        assert_eq!(fight.defender.1, want, "seed {i} lane {lane}: the save leaves the defence 60 of 129");
     }
     assert_eq!(lanes.into_iter().collect::<Vec<_>>(), vec![0, 1, 3], "three lanes dealt");
+    // Order_ShootAtUnit 0x0048C974 -> state 17; lane 0 looses 12. Ablation: close_to_attack_tick's loose arm returns false
+    assert!(closing > 0, "no arrow ever left state 17");
 }
