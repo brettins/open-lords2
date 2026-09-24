@@ -1,0 +1,15 @@
+// The court, screen 0x09, on battle-before.sav: Sidebar_Button 0x0043AE30 hotspot 2 (x 512..542, y 430..458), arm 0x0043AE30/sidebar-court.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-before.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+{"op":"click","x":527,"y":444}
+{"op":"wait-screen","id":9,"max":600}
+{"op":"anchor","label":"court"}
+{"op":"record","frames":3}
+{"op":"snap"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"anchor","label":"map"}
+{"op":"snap"}
