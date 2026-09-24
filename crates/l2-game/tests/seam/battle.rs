@@ -133,9 +133,9 @@ fn the_same_position_can_be_fought_for_real_and_still_comes_back() {
             false => (report.defender_men, report.attacker_men),
         };
         assert_eq!(lost.1, 0, "annihilation leaves the loser none");
-        // [I] no oracle bound; the old `* 4` was ours. Melee_Tick 0x00494908 as the binary has it
-        // leaves the winner 20-83 of 178 over the 8 seeds.
-        assert!(won.1 > 0 && won.1 * 2 < won.0, "an even fight costs the winner most: {won:?}");
+        // [I] no oracle bound. Melee_Tick 0x00494908 run inside 0x004831D8, one man a tick,
+        // leaves the winner 28-94 of 178 over the 8 seeds (battle-4; 20-83 before).
+        assert!(won.1 > 0 && won.1 * 3 < won.0 * 2, "an even fight costs the winner a third: {won:?}");
         assert_eq!(report.verdict.winner() != *defender, report.verdict.attacker_won);
 
         assert!(k.campaign.units.get(report.verdict.loser()).is_none(), "the loser is gone");

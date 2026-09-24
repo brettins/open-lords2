@@ -3,11 +3,11 @@
  "date": "2026-09-24",
  "behaviours": [
   {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 37,
+   "file": "crates/l2-sim/src/runner/orders/movement.rs",
+   "line": 193,
    "address": "0x004831D8",
-   "verdict": "mismatch",
-   "note": "Body matches; trigger does not: the original runs it inside each man's state-4 handler in the man loop; ours runs every duel in sim.step after all men, missiles and wood fire."
+   "verdict": "match",
+   "note": "fixed: Melee_Tick runs in the man's own step_one (Battle::duel), 00480000.c:1395; sim.step no longer runs duels after missiles and wood fire."
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
@@ -31,18 +31,18 @@
    "note": ""
   },
   {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 54,
+   "file": "crates/l2-sim/src/figure.rs",
+   "line": 214,
    "address": "0x00494908",
-   "verdict": "mismatch",
-   "note": "take_hits loops `while hits >= threshold`; 00490000.c:1801 is one `if`, one man per tick, so carried hits of 200+ (heavy blow + attack) kill two."
+   "verdict": "match",
+   "note": "fixed: take_hits is one if, one man a tick (00490000.c:1801); melee adds the attack then calls it once. Its only other callers are tests; missiles (combat.rs) and fire (burn_part.rs) have their own code."
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
-   "line": 78,
+   "line": 85,
    "address": "0x00494908",
-   "verdict": "mismatch",
-   "note": "exchange end always swaps both roles and skips the :1791 demotion; original swaps only when other.opponent == cur (:1834-1842), else resets cur's exchange alone."
+   "verdict": "match",
+   "note": "fixed: swap only when other.opponent == cur (:1834-1842), else reset cur exchange alone; :1791 demotion at melee.rs:48."
   },
   {
    "file": "crates/l2-sim/src/runner/orders/movement.rs",

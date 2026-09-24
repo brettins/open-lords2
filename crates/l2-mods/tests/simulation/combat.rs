@@ -57,7 +57,8 @@ fn a_mod_file_changes_the_outcome_of_a_battle() {
     let after = duel(modded.troop_table().unwrap(), Troop::Peasants, Troop::Swordsmen, 20, 2000);
 
     assert!(
-        after.0 > before.0,
+        // one man a tick (00490000.c:1801): both lose all 20; the swordsmen keep 7, not 19
+        after.0 >= before.0,
         "peasants swinging for 40 should fare better than the stock 5: {after:?} vs {before:?}"
     );
     assert!(after.1 < before.1, "and the swordsmen should suffer for it");
