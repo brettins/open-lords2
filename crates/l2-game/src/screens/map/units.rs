@@ -279,6 +279,7 @@ impl MapScreen {
     }
 
     pub(super) fn order_march(&mut self, ctx: &mut Ctx, unit: usize, dest: (u8, u8)) -> Transition {
+        l2_net::trace!("call", 0x004A983B, "MoveOrder_Confirm", unit = unit as i64);
         match ctx.issue(crate::command::MoveUnit { unit, dest }) {
             Some(0) => self.status = "THAT TILE CANNOT BE REACHED - THE ARMY STANDS".into(),
             Some(steps) => {

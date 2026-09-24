@@ -274,6 +274,7 @@ impl Screen for InfoScreen {
             Target::Unit(id) => {
                 let k = &ctx.game.kingdom;
                 let Some(u) = k.campaign.units.get(id) else { return };
+                l2_net::trace!("call", 0x0041B19D, "UnitPanel_Draw", unit = id as i64);
                 use l2_kingdom::unit::UnitKind;
                 let (heading, body, frame) = match u.kind {
                     UnitKind::Merchant => MERCHANT,

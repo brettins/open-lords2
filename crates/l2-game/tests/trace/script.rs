@@ -12,7 +12,14 @@ pub enum Step {
     WaitPage(i64, u64),
     WaitScreenNot(i64, u64),
     Dismiss,
+    /// trace-run.ps1 `ok`: the OK of the box drawn next frame, whatever the screen.
+    Ok,
     Peek,
+    Move(i32, i32),
+    Drag(i32, i32, i32, i32),
+    Record(u64),
+    /// A raw event key of the original (`call:army`); ours waits on the record kind it maps to.
+    WaitEvent(String, u64),
     Key(String),
     WaitScreen(i64, u64),
     WaitPhase(i64, u64),
@@ -69,6 +76,17 @@ pub fn parse(text: &str) -> Result<Vec<Step>, String> {
             "wait-page" => Step::WaitPage(num(line, "page").ok_or_else(bad)?, max),
             "dismiss" => Step::Dismiss,
             "peek" => Step::Peek,
+            "ok" => Step::Ok,
+            "move" => Step::Move(num(line, "x").ok_or_else(bad)? as i32, num(line, "y").ok_or_else(bad)? as i32),
+            "drag" => Step::Drag(
+                num(line, "x").ok_or_else(bad)? as i32,
+                num(line, "y").ok_or_else(bad)? as i32,
+                num(line, "x2").ok_or_else(bad)? as i32,
+                num(line, "y2").ok_or_else(bad)? as i32,
+            ),
+            "record" => Step::Record(num(line, "frames").ok_or_else(bad)? as u64),
+            "wait-event" => Step::WaitEvent(field(line, "event").ok_or_else(bad)?.to_string(), max),
+            "wait-screen-not" => Step::WaitScreenNot(num(line, "id").ok_or_else(bad)?, max),
             "key" => Step::Key(field(line, "key").ok_or_else(bad)?.to_string()),
             "wait-screen" => Step::WaitScreen(num(line, "id").ok_or_else(bad)?, max),
             "wait-phase" => Step::WaitPhase(num(line, "phase").ok_or_else(bad)?, max),
@@ -95,7 +113,9 @@ fn every_op_parses() {
 {"op":"wait-idle","frames":30}
 {"op":"advance","frames":5}
 {"op":"snap"}
-{"op":"anchor","label":"title"}"#;
+{"op":"anchor","label":"title"}
+{"op":"drag","x":1,"y":2,"x2":3,"y2":4}
+{"op":"wait-event","event":"call:army"}"#;
     let steps = parse(text).unwrap();
     assert_eq!(steps[2], Step::Click(320, 240, false, false));
     assert_eq!(steps[1], Step::NewGame(true));
@@ -105,6 +125,8 @@ fn every_op_parses() {
     assert_eq!(harness.unwrap(), [Step::Click(1, 2, false, true)]);
     assert_eq!(steps[4], Step::WaitScreen(0x1F, 900));
     assert_eq!(steps[5], Step::WaitPhase(4, MAX_FRAMES));
-    assert_eq!(steps.len(), 10);
+    assert_eq!(steps.len(), 12);
+    assert_eq!(steps[10], Step::Drag(1, 2, 3, 4));
+    assert_eq!(steps[11], Step::WaitEvent("call:army".into(), MAX_FRAMES));
     assert!(parse(r#"{"op":"dance"}"#).is_err());
 }

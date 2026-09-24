@@ -3,6 +3,7 @@
 
 mod script;
 mod sink;
+mod steps;
 mod symbols;
 
 use std::path::PathBuf;
@@ -122,21 +123,11 @@ impl Run {
                 Step::WaitPage(p, max) => self.until(*max, "page", |r| r.page() == *p),
                 Step::WaitScreenNot(id, max) => self.until(*max, "screen-not", |r| r.screen() != *id),
                 Step::Peek => true,
-                // trace-run.ps1 `dismiss`: while g_screenId is 0x27, one frame, OK at
-                // Ui_OkButton + (24, 16), 60 frames. A tip over the map (screen 0) stays up.
+                Step::Ok => self.ok(),
+                Step::Move(..) | Step::Drag(..) | Step::Record(_) => self.input(step),
+                Step::WaitEvent(event, max) => self.wait_event(event, *max),
                 Step::Dismiss => {
-                    for _ in 0..20 {
-                        if self.screen() != 0x27 {
-                            break;
-                        }
-                        let ctx = Ctx { game: &mut self.game, assets: &self.assets };
-                        let open = ctx.game.messages.open().cloned();
-                        let at = |r| l2_game::screens::message::window_frame(&ctx, r);
-                        let Some(f) = open.as_ref().and_then(at) else { break };
-                        self.frame();
-                        let (x, y) = f.ok_button();
-                        self.play(&[Step::Click(x + 24, y + 16, false, false), Step::Advance(60)]);
-                    }
+                    self.dismiss();
                     true
                 }
                 _ => {
@@ -159,6 +150,10 @@ impl Run {
                     self.game = l2_game::scenario::from_save(&save, self.tables.clone())
                         .expect("the save plays");
                     self.machine = Machine::new(ScreenId::Campaign);
+                    // SaveLoadScreen::landing: FUN_004976A1 0x004976A1, g_battlePhase 2 -> 0x29.
+                    if self.game.battle.is_some() {
+                        self.machine.push(ScreenId::Battlefield);
+                    }
                 }
                 Step::Click(.., true) => {}
                 Step::Click(x, y, right, false) => {
@@ -267,7 +262,9 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
 #[test]
 #[ignore = "minutes of frames; run for the differ"]
 fn the_differs_scenarios_write_traces() {
-    for name in ["launch", "newgame-original", "newgame-new", "zoom-map"] {
+    let names = std::env::var("L2_TRACE_SCENARIOS")
+        .unwrap_or_else(|_| "launch,newgame-original,newgame-new,zoom-map".into());
+    for name in names.split(',') {
         let Some((records, out)) = trace_scenario(name) else { return };
         let failed = records.iter().find(|r| r.kind == "failed").map(|r| r.to_json());
         eprintln!("{name}: {} records -> {} {failed:?}", records.len(), out.display());

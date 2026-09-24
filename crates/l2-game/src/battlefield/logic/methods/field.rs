@@ -178,6 +178,7 @@ impl LiveBattle {
         if self.runner.selected_count(self.owner) == 0 || self.paused {
             return false;
         }
+        l2_net::trace!("call", 0x0043C634, "Battle_OrderSelection", at = format!("{:?}", self.cell_at(x, y)));
         // **`FUN_0043C634` cries before it orders**, from the hover it was
         // handed: an enemy under the pointer first, then surface 2, then
         // anything else. `[V]`
