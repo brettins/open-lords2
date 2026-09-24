@@ -12,7 +12,7 @@
     move x y | drag x y x2 y2 | record N    (record: N frames keeping draw records)
     wait-screen N | wait-page N | wait-phase N | wait-idle N   (numbers may be 0x..)
     wait-screen-not N | wait-page-not N | peek <addr>  (a dword of the game, as a note)
-    dismiss                  press OK on message boxes (screen 0x27) until none is up
+    dismiss                  press OK on message boxes (screen 0x27 or a box over the map) until none is up
     ok                       press the Ui_OkButton 0x0040D1BC drawn next frame; fails if none is
   snap keeps the draw-leaf records of the next frame; other frames only count draws.
 #>
@@ -126,8 +126,11 @@ function Run-Scenario($file, $run) {
         'wait-phase' { $n = Num $w[1]; $ok = $t.WaitUntil({ $t.Phase -eq $n }.GetNewClosure(), $timeout) }
         'wait-idle' { $ok = $t.WaitIdle((Num $w[1]), $timeout) }
         'wait-event' { $k = $w[1]; $n0 = $t.CountOf($k); $ok = $t.WaitUntil({ $t.CountOf($k) -gt $n0 }.GetNewClosure(), $timeout) }
-        # Ui_OkButton 0x0040D1BC draws the OK at (x, y); screen 0x27 is a message box up.
-        'dismiss' { for ($i = 0; $i -lt 20 -and $t.Screen -eq 0x27; $i++) { $t.OkX = -1; $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Drain(); if ($t.OkX -lt 0) { break }; $t.Click($t.OkX + 24, $t.OkY + 16); $t.Advance(60) } }
+        # Ui_OkButton 0x0040D1BC draws the OK at (x, y). A box is up on screen 0x27, or over the map with
+        # g_messageGroup 0x0053E910 nonzero (Msg_DismissUnlessQuestion 0x00476710). Up to 24 steps for the next.
+        'dismiss' { $up = { $t.Screen -eq 0x27 -or $t.Read(0x0053E910, 4) -ne 0 }
+          for ($i = 0; $i -lt 20; $i++) { for ($k = 0; $k -lt 24 -and -not (& $up); $k++) { $t.Advance(1) }; if (-not (& $up)) { break }
+            $t.OkX = -1; $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Drain(); if ($t.OkX -lt 0) { break }; $t.Click($t.OkX + 24, $t.OkY + 16); $t.Advance(60) } }
         'ok' { $t.OkX = -1; $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Drain(); $ok = $t.OkX -ge 0; if ($ok) { $t.Click($t.OkX + 24, $t.OkY + 16) } }
         'peek' { $t.Note('{"ev":"peek","f":' + $t.Frames + ',"addr":"' + $w[1] + '","value":' + $t.Read((Num $w[1]), 4) + '}') }
         default { throw "unknown step: $s" }
@@ -139,7 +142,7 @@ function Run-Scenario($file, $run) {
     $t.Drain()
     $r = [ordered]@{
       scenario = $name; run = $run; steps = "$done/$($steps.Count)"; failed = $failed
-      frames = $t.Frames; screen = $t.Screen; phase = $t.Phase; realMs = $t.Real.ElapsedMilliseconds
+      frames = $t.Frames; presents = $t.Presents; ticks = $t.Ticks; screen = $t.Screen; phase = $t.Phase; realMs = $t.Real.ElapsedMilliseconds
       refused = $t.Shared(44); pl8Draws = $t.SheetDraws; pl8Unnamed = $t.UnnamedSheets
       counts = $t.Counts
     }

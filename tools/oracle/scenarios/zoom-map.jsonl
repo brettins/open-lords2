@@ -1,8 +1,6 @@
 // Zoom the campaign map out on a new original-campaign game.
 {"op":"films","mode":"skip"}
 {"op":"new-game","campaign":"original"}
-// Ui_OkButton(400, 336) of message 298, "Non 256 colour display" (this harness)
-{"op":"click","x":424,"y":352}
 {"op":"advance","frames":60}
 // Ui_OkButton(416, 224) of the "Game Objectives:" box, drawn from 0x00474683
 {"op":"click","x":440,"y":240}
