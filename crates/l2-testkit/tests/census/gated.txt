@@ -14,6 +14,7 @@ crates/l2-formats/tests/save_england_turn1/main.rs england 1
 crates/l2-formats/tests/save_england_turn1/merchants.rs england 2
 crates/l2-game/src/audio/mod.rs install 1
 crates/l2-game/src/prefs.rs install 2
+crates/l2-game/src/screens/map/tests/loaded_view.rs fixture 2
 crates/l2-game/src/screens/menubar/tests_part.rs install 2
 crates/l2-game/tests/ai_first_year.rs england 3
 crates/l2-game/tests/ai_war/simulation.rs england 2
@@ -51,11 +52,12 @@ crates/l2-game/tests/audio_wiring/ui_and_speech/voice_and_audio_metrics.rs insta
 crates/l2-game/tests/battle_picture/band.rs install 2
 crates/l2-game/tests/battle_picture/column.rs install 5
 crates/l2-game/tests/battle_picture/entities.rs install 3
-crates/l2-game/tests/battle_picture/marker.rs install 1
+crates/l2-game/tests/battle_picture/marker.rs install 2
 crates/l2-game/tests/battle_picture/motion/motion_tests.rs install 2
 crates/l2-game/tests/battle_picture/panel.rs install 3
 crates/l2-game/tests/battle_picture/plates.rs install 3
 crates/l2-game/tests/battle_picture/render.rs install 3
+crates/l2-game/tests/battle_picture/sheets.rs install 1
 crates/l2-game/tests/battle_picture/ui/battle_events.rs install 3
 crates/l2-game/tests/battle_picture/ui/menu_bar.rs install 3
 crates/l2-game/tests/cattle_shortage.rs england 2
@@ -140,6 +142,7 @@ crates/l2-game/tests/placeholders/main.rs england 1
 crates/l2-game/tests/press.rs executable 1
 crates/l2-game/tests/right_column/geometry.rs executable 1
 crates/l2-game/tests/save/battle.rs fixture 2
+crates/l2-game/tests/save/original_battle.rs fixture 2
 crates/l2-game/tests/save/roundtrip.rs england 1
 crates/l2-game/tests/save/ui/save_tests.rs install 1
 crates/l2-game/tests/scenario/england_fixture.rs england 7
@@ -198,7 +201,7 @@ crates/l2-game/tests/seam/no_orders.rs fixture 1
 crates/l2-game/tests/seam/no_orders_field.rs fixture 2
 crates/l2-game/tests/seam/realm.rs fixture 1
 crates/l2-game/tests/setup/held_tests.rs england 6
-crates/l2-game/tests/setup/setup_tests.rs england 7
+crates/l2-game/tests/setup/setup_tests.rs england 8
 crates/l2-game/tests/setup/setup_tests.rs install 1
 crates/l2-game/tests/setup/skirmish_draw_tests.rs england 9
 crates/l2-game/tests/setup/skirmish_file_tests.rs england 4
