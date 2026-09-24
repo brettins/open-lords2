@@ -16,14 +16,49 @@ use l2_kingdom::{Kingdom, SeasonReport};
 use crate::engagement::{self, Answer, BattleReport, SiegePhase};
 use crate::game::Game;
 
+/// Headless End Turn, player's turn to player's turn: phases 4-7, then 1-3 to the
+/// wait in phase 4 (`Turn_Tick` `0x0049A010`); prompts take `field_policy`.
 pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
+    reach_players_turn(game)?;
+    let outcome = match advance(game, Resume::Start, false) {
+        TurnStep::Done(outcome) => *outcome,
+        _ => return None,
+    };
+    reach_players_turn(game)?;
+    Some(outcome)
+}
+
+/// Headless, to the instant `Season_FinishFade` (`0x0049A3E6`) calls
+/// `Save_RotateAndWrite`: after phase 7's `Turn_AdvancePhase`, `g_turnPhase == 1` [V].
+pub fn end_turn_to_autosave(game: &mut Game) -> Option<TurnOutcome> {
+    reach_players_turn(game)?;
     match advance(game, Resume::Start, false) {
         TurnStep::Done(outcome) => Some(*outcome),
         _ => None,
     }
 }
 
+/// Runs phases 1-3 headless if the machine is short of phase 4.
+pub fn reach_players_turn(game: &mut Game) -> Option<()> {
+    if game.kingdom.turn.phase == Phase::PlayersTurn && !turn_opening(game) {
+        return Some(());
+    }
+    if game.turn.is_none() {
+        game.turn = Some(TurnProgress { opening: true, ..TurnProgress::default() });
+    }
+    matches!(advance(game, Resume::Start, false), TurnStep::Running).then_some(())
+}
+
 pub fn begin_turn(game: &mut Game) -> TurnStep {
+    advance(game, Resume::Start, true)
+}
+
+/// Phases 1-3 up to the wait in phase 4 — `Turn_Tick` (`0x0049A010`) runs them after the
+/// season's fade and before the person's turn [V]; they end at `Turn_AdvancePhase` into 4.
+pub fn open_turn(game: &mut Game) -> TurnStep {
+    if game.turn.is_none() {
+        game.turn = Some(TurnProgress { opening: true, ..TurnProgress::default() });
+    }
     advance(game, Resume::Start, true)
 }
 
@@ -224,6 +259,14 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
             Stage::Tail => {
                 if let Some(outcome) = finish_tick(game, interactive) {
                     return TurnStep::Done(Box::new(outcome));
+                }
+                let opened = game.turn.as_ref().is_some_and(|p| {
+                    p.opening && p.stage == Stage::Begin && p.question.is_none() && p.unseen.is_none()
+                });
+                if opened && game.kingdom.turn.phase == Phase::PlayersTurn {
+                    game.turn = None;
+                    open_players_turn(game);
+                    return TurnStep::Running;
                 }
                 if interactive
                     && game.turn.as_ref().is_some_and(|p| p.stage == Stage::Begin)

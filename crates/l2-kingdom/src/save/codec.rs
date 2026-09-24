@@ -91,6 +91,7 @@ impl Encode for Kingdom {
         out.u32(self.turn_count);
         out.u8(self.turn.phase.index());
         out.u32(self.turn.step);
+        out.u8(self.turn.ai_cursor);
         out.u32(self.weather_county as u32);
 
         out.section("options");
@@ -330,15 +331,16 @@ fn decode_kingdom(input: &mut Reader<'_>, tables: Tables) -> Result<Kingdom, Loa
     k.year_next = input.i32()?;
     k.turn_count = input.u32()?;
     let phase = input.u8()?;
-    k.turn = TurnMachine {
-        phase: Phase::from_index(phase).ok_or(CodecError::BadTag {
-            tag: phase,
-            expected: "turn phase",
-            at: input.position() - 1,
-        })?,
-        step: input.u32()?,
-        players_turn_open: false,
-    };
+    let phase = Phase::from_index(phase).ok_or(CodecError::BadTag {
+        tag: phase,
+        expected: "turn phase",
+        at: input.position() - 1,
+    })?;
+    // A save taken in phase 4 resumes it on its realms' aiStep as written [I].
+    let players_turn_open = phase == Phase::PlayersTurn;
+    let step = input.u32()?;
+    let ai_cursor = input.u8()?;
+    k.turn = TurnMachine { phase, step, players_turn_open, ai_cursor };
     k.weather_county = input.u32()? as usize;
 
     k.options = Options {

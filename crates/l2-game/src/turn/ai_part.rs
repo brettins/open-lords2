@@ -124,16 +124,29 @@ pub fn drive_ai(
     granted: &mut bool,
     letters: &mut Vec<l2_kingdom::diplomacy::Letter>,
 ) {
-    for id in 1..kingdom.realms.len() {
-        if kingdom.realms[id].turn_done() {
-            continue;
+    // AI_RunTurnStep 0x0049A581: one realm a call, the first with strength != 0 from the
+    // cursor DAT_0057C944, which moves one past it and wraps 5 -> 1 [V].
+    let last = (kingdom.realms.len() - 1).min(5) as u8;
+    let mut id = kingdom.turn.ai_cursor;
+    for _ in 0..last {
+        id = kingdom.turn.ai_cursor;
+        kingdom.turn.ai_cursor = if id >= last { 1 } else { id + 1 };
+        if kingdom.realms[id as usize].in_play {
+            break;
         }
-        let marching = kingdom.realm_units_moving(l2_kingdom::UnitKind::Army, id as u8);
-        let step = ai::pending_step(&kingdom.realms[id], id);
-        let _finished = ai::run_step(&mut kingdom.realms[id], id, marching);
-        if let Some(step) = step {
-            run_handler(kingdom, id as u8, step, granted, letters);
-        }
+    }
+    let id = id as usize;
+    let Some(realm) = kingdom.realms.get_mut(id).filter(|r| r.in_play) else { return };
+    // `if (aiStep == 0) { …prologue…; aiStep = 1; }` then the handler in the same call [V];
+    // our prologue ran in `open_players_turn`.
+    if realm.ai_step == 0 {
+        realm.ai_step = 1;
+    }
+    let marching = kingdom.realm_units_moving(l2_kingdom::UnitKind::Army, id as u8);
+    let step = ai::pending_step(&kingdom.realms[id], id);
+    let _finished = ai::run_step(&mut kingdom.realms[id], id, marching);
+    if let Some(step) = step {
+        run_handler(kingdom, id as u8, step, granted, letters);
     }
 }
 

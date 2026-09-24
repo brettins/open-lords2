@@ -13,6 +13,8 @@ pub struct Script {
     pub asked: u32,
     pub reports: u32,
     pub ended: u32,
+    /// `theirs`' men when the first report came up: the AI may recruit into it later.
+    pub theirs_at_report: Option<i32>,
     idle: u32,
 }
 
@@ -44,7 +46,7 @@ pub fn stage(game: &mut Game) -> Script {
         .expect("land beside the town");
     let mine = army(game, me, ax, ay, 400);
     let theirs = army(game, foe, target.0, target.1, 60);
-    Script { mine, theirs, target, county, asked: 0, reports: 0, ended: 0, idle: 0 }
+    Script { mine, theirs, target, county, asked: 0, reports: 0, ended: 0, theirs_at_report: None, idle: 0 }
 }
 
 impl Script {
@@ -60,6 +62,8 @@ impl Script {
             out.push(cmd::AnswerBattle { answer: Answer::Decline }.into());
         } else if turn::pending_report(game).is_some() {
             self.reports += 1;
+            let men = game.kingdom.campaign.units.get(self.theirs).map_or(0, |u| u.men);
+            self.theirs_at_report.get_or_insert(men);
             out.push(cmd::DismissReport {}.into());
         } else if !turn::turn_in_flight(game) {
             self.idle += 1;

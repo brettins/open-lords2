@@ -90,8 +90,17 @@ pub fn turn_in_flight(game: &Game) -> bool {
     game.turn.is_some()
 }
 
+/// The person's `aiStep == 999`: from `Turn_End` (`0x0043AC23`) to the wrap into
+/// phase 1, whose `Turn_BeginPlayersTurn` (`0x0049B6D3`) clears it [V]; not in the
+/// phases 1-3 that open his turn.
 pub fn players_turn_ended(game: &Game) -> bool {
-    game.turn.as_ref().is_some_and(|p| !p.idle)
+    game.turn.as_ref().is_some_and(|p| !p.idle && !p.opening)
+}
+
+/// Phases 1-3 are running ahead of the person's phase 4: `Turn_Tick` (`0x0049A010`)
+/// waits for him only in phase 4 [V].
+pub fn turn_opening(game: &Game) -> bool {
+    game.turn.as_ref().is_some_and(|p| p.opening)
 }
 
 /// `Screen_DrawMenuBar` (`0x00419C78`) draws one banner per realm under
@@ -103,14 +112,9 @@ pub fn players_turn_ended(game: &Game) -> bool {
 ///
 /// `Turn_End` also raises `DAT_0056D6A0`, which is half of
 /// `Screen_DrawMenuBar`'s own repaint guard — the button forces the bar to
-/// repaint so that the shield goes.
+/// repaint so that the shield goes. The guard is `aiStep < 999`, literal: our
+/// machine waits in phase 4 as the original does.
 pub fn realm_turn_ended(game: &Game, realm: usize) -> bool {
-    if !turn_in_flight(game) {
-        return false;
-    }
-    if realm == game.player as usize {
-        return true;
-    }
     match game.kingdom.realms.get(realm) {
         Some(r) => r.ai_step >= l2_kingdom::AI_STEP_DONE,
         None => true,
@@ -142,6 +146,8 @@ pub(super) struct Tail {
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TurnProgress {
     pub(super) idle: bool,
+    /// Phases 1-3 ahead of phase 4, not an End Turn's wind-on.
+    pub(super) opening: bool,
     pub(super) ticks: u32,
     pub(super) steps: usize,
     pub(super) contacts: Vec<Contact>,

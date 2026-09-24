@@ -89,15 +89,12 @@ pub fn all_realms_done(realms: &[Realm]) -> bool {
     realms.iter().all(|r| !r.in_play || r.turn_done())
 }
 
-/// # This is `Turn_BeginPlayersTurn` (`0x0049B6D3`) with one deliberate difference
-///
-/// **The original resets a human realm's counter to 0 like any other**, because
-/// `AI_RunTurnStep`'s step-0 prologue runs for every realm; the human then parks
-/// at 1 — the counter's increment is inside the `isHuman == 0` guard — until
-/// `Turn_End` (`0x0043AC23`) writes 999 when the person presses the button.
+/// `Turn_BeginPlayersTurn` (`0x0049B6D3`): `aiStep = 0`, or 999 where `strength == 0`,
+/// the human too [V]; he parks at 1 after step 0 (`AI_RunTurnStep`'s increment is
+/// inside `isHuman == 0`) until `Turn_End` (`0x0043AC23`) writes 999.
 pub fn begin_turn(realms: &mut [Realm]) {
     for realm in realms.iter_mut() {
-        realm.ai_step = if realm.in_play && !realm.is_human { 0 } else { AI_STEP_DONE };
+        realm.ai_step = if realm.in_play { 0 } else { AI_STEP_DONE };
     }
 }
 
