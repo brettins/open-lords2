@@ -70,6 +70,10 @@ where the event has no original function. `caller` is the return address; ours i
 player (`Net_SendCommand` `0x0043EDA0` in multiplayer), and our generator is `Pcg32`, not
 `Rand_Advance` (`0x00404A46`; `docs/netcode.md` D-3a). The differ compares their counts only.
 
+`draw` and `text` records are written for `snap` and `record` frames only (the original also for
+`ok`/`dismiss` frames, `KeepDraws` in `trace-run.ps1`); the differ streams both files and reads them
+only before a `snap`.
+
 A draw leaf whose caller lies inside another hooked draw primitive (`hooktable.json` `size`, from the
 decompilation headers) is that primitive's and is dropped, except `Pl8_DrawFrame` and `Eng_DrawString`,
 which are kept as before.
