@@ -1,0 +1,28 @@
+// A whole year on england-turn1.sav: four End Turns, the AI lords' turns between them.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"snap"}
+// End turn strip, Misc_cty frame 59 at (478, 460) 162 x 20 (screens.md 4.3)
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":3000}
+{"op":"dismiss"}
+{"op":"anchor","label":"season-1"}
+{"op":"snap"}
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":3000}
+{"op":"dismiss"}
+{"op":"anchor","label":"season-2"}
+{"op":"snap"}
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":3000}
+{"op":"dismiss"}
+{"op":"anchor","label":"season-3"}
+{"op":"snap"}
+{"op":"click","x":559,"y":470}
+{"op":"advance","frames":3000}
+{"op":"dismiss"}
+{"op":"anchor","label":"season-4"}
+{"op":"record","frames":2}
+{"op":"snap"}

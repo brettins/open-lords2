@@ -1,16 +1,32 @@
-// Move the blue army on battle-before.sav: click it, then a road tile to its south-west.
+// Move the blue army on battle-before.sav east along the road; MoveOrder_Confirm 0x004A983B is the goal.
 {"op":"films","mode":"skip"}
 {"op":"load","save":"battle-before.sav"}
 {"op":"dismiss"}
 {"op":"anchor","label":"loaded"}
+{"op":"record","frames":2}
 {"op":"snap"}
-{"op":"click","x":242,"y":265}
+// Map_DrawArmies 0x00408438: sprite1a.pl8 78 at (214, 246), its shield flags1a.pl8 32 at (232, 225); the feet at (228, 272).
+{"op":"click","x":228,"y":272}
+{"op":"advance","frames":10}
+// First selection: tip 210 (Msg_Enqueue); then screen 0x10, the move-order mode.
+{"op":"dismiss"}
+{"op":"wait-screen","id":16,"max":600}
+{"op":"anchor","label":"army-selected"}
+{"op":"move","x":420,"y":290}
 {"op":"advance","frames":30}
-{"op":"anchor","label":"army-clicked"}
+{"op":"record","frames":2}
 {"op":"snap"}
-{"op":"click","x":150,"y":330}
-{"op":"advance","frames":30}
-{"op":"anchor","label":"destination-clicked"}
+// The path preview (flags1a.pl8 57, 64, 70 from 0x0040841C) ends here; Map_ConfirmMoveOrder 0x004A9252.
+{"op":"click","x":420,"y":290}
+{"op":"wait-screen","id":30,"max":600}
+{"op":"record","frames":2}
+{"op":"anchor","label":"confirm"}
 {"op":"snap"}
-{"op":"advance","frames":300}
+// Screen_ConfirmBox: L2.eng 10/10 "Destroy field?"; the thumb-up, system.pl8 29 at (224, 206) (g_confirmWidgets).
+{"op":"click","x":244,"y":226}
+{"op":"wait-screen","id":0,"max":600}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"ordered"}
+{"op":"record","frames":2}
 {"op":"snap"}
