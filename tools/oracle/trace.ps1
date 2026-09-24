@@ -41,7 +41,7 @@ public class L2Trace : IDisposable {
     // TraceShared in native/l2-trace/trace.h
     const int OffCursorX = 8, OffCursorY = 12, OffFrames = 16, OffHash = 20, OffMs = 24, OffHwnd = 28,
               OffTimers = 32, OffFilms = 36, OffGaps = 40, OffRefused = 44, OffTimersRun = 48,
-              OffGate = 52, SharedSize = 56;
+              OffGate = 52, OffSteps = 56, OffLoops = 60, OffTicks = 64, SharedSize = 68;
     public const int ScreenId = 0x004EAC50, TurnPhase = 0x00569584, SetupPage = 0x005530F0;
 
     public Process Proc;
@@ -102,7 +102,10 @@ public class L2Trace : IDisposable {
     }
 
     public uint Shared(int off) { return view.ReadUInt32(off); }
-    public uint Frames { get { return Shared(OffFrames); } }
+    // Steps: the lockstep unit (native/l2-trace frame.cpp Step_Reached), one Battle_Frame a step.
+    public uint Frames { get { return Shared(OffSteps); } }
+    public uint Presents { get { return Shared(OffFrames); } }
+    public uint Ticks { get { return Shared(OffTicks); } }
     public uint Hash { get { return Shared(OffHash); } }
     public uint VirtualMs { get { return Shared(OffMs); } }
     public IntPtr Hwnd { get { return new IntPtr((int)Shared(OffHwnd)); } }
@@ -252,8 +255,8 @@ public class L2Trace : IDisposable {
             var sb = new System.Text.StringBuilder();
             sb.AppendFormat("{{\"seq\":{0},\"f\":{1},\"ev\":\"{2}\"", seq, frame, ev);
             if (kind == 3) {
-                sb.AppendFormat(",\"hash\":\"{0:x8}\",\"screen\":{1},\"phase\":{2},\"draws\":{3},\"rand\":{4},\"lfsr\":{5},\"rng\":[{6},{7},{8}]}}",
-                    ret, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7]);
+                sb.AppendFormat(",\"hash\":\"{0:x8}\",\"screen\":{1},\"phase\":{2},\"draws\":{3},\"rand\":{4},\"lfsr\":{5},\"rng\":[{6},{7},{8}],\"ticks\":{9},\"loops\":{10}}}",
+                    ret, a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], fn, caller);
                 Count("frame");
                 if (a[0] != lastScreen || a[1] != lastPhase) LastBusy = frame;
                 lastScreen = a[0]; lastPhase = a[1];

@@ -155,6 +155,22 @@ int WINAPI H_GetDeviceCaps(HDC dc, int i) {
 }
 BOOL WINAPI H_WinHelpA(HWND, LPCSTR, UINT, ULONG_PTR) { return TRUE; }
 
+// Battle_Frame 0x004B99C0: `local_c = FUN_004bb978();` at 0x004B9A78 is the lockstep step.
+// L2TRACE_PACE (default 1): the virtual clock moves the throttle's interval first, so every loop
+// whose ticks are not withheld runs one tick, as ours does. FUN_004BB978 004b0000.c:
+// `iVar3 = (100 - _g_optGameSpeed) / 10` ... `local_8 < iVar3 * 10 + 2` -> 0; g_optGameSpeed 0x0053F230.
+bool g_pace = true;
+int __cdecl H_TicksDue() {
+    g_loopSinceFrame = true;
+    g_shared->loops++;
+    Step_Reached();
+    const int wait = (100 - *reinterpret_cast<volatile int32_t*>(0x0053F230)) / 10;
+    if (g_pace && wait >= 0 && wait < 10) Clock_Advance(static_cast<uint32_t>(wait * 10 + 2));
+    const int ticks = reinterpret_cast<int(__cdecl*)()>(0x004BB978)();
+    g_shared->ticks += ticks;
+    return ticks;
+}
+
 // Smk_Play 0x0042D91B, its failed-open branch: g_screenId 0x004EAC50 = returnScreen, return 0.
 int __cdecl H_SmkPlay(const char* path, int, int, int, int returnScreen) {
     g_shared->filmsSkipped++;
@@ -221,6 +237,14 @@ bool Hooks_Install() {
     HookIat(u32, "MessageBoxA", H_MessageBoxA, 0);
     HookIat(u32, "WinHelpA", H_WinHelpA, 0);
     HookIat("GDI32.dll", "GetDeviceCaps", H_GetDeviceCaps, 0);
+    g_pace = EnvInt("L2TRACE_PACE", 1) != 0;
+    {
+        const uint8_t expect[] = {0xE8, 0xFB, 0x1E, 0x00, 0x00, 0x89, 0x45, 0xF8};
+        uint8_t call[5] = {0xE8};
+        int32_t rel = static_cast<int32_t>(reinterpret_cast<uintptr_t>(&H_TicksDue) - (0x004B9A78 + 5));
+        memcpy(call + 1, &rel, 4);
+        PatchCode("Battle_Frame ticksDue 0x004B9A78", 0x004B9A78, expect, sizeof(expect), call, sizeof(call));
+    }
     char films[16] = "play";
     EnvStr("L2TRACE_FILMS", films, sizeof(films));
     if (_stricmp(films, "skip") == 0) {

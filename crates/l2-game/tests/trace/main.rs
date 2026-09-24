@@ -162,19 +162,17 @@ impl Run {
                 }
                 // A "(this harness)" click answers message 298, which harness.rs posts too.
                 Step::Click(x, y, right, _) => {
-                    let (x, y) = (*x, *y);
-                    self.send(Event::Pointer { x, y });
                     if *right {
-                        self.send(Event::RightPress { x, y });
-                        self.frame();
-                        self.send(Event::RightClick { x, y });
+                        self.rclick(*x, *y);
                     } else {
-                        self.send(Event::Click { x, y });
-                        self.frame();
-                        self.send(Event::Release { x, y });
+                        self.click(*x, *y);
                     }
                 }
-                Step::Key(k) => self.send(key(k)),
+                // trace.ps1 `Key`: down, one step, up.
+                Step::Key(k) => {
+                    self.send(key(k));
+                    self.frame();
+                }
                 Step::WaitScreen(id, max) => {
                     return self.until(*max, "screen", |r| r.screen() == *id)
                 }
