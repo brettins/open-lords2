@@ -37,6 +37,15 @@ fn a_save_taken_on_the_map_loads_no_battle() {
     assert!(game.battle.is_none());
 }
 
+/// DAT_0053F084 comes back from the save: Battle_CheckOutcome 0x00477DFC's film column.
+/// Ablation: drop the `films.battle` line in `scenario::from_save`.
+#[test]
+fn the_battle_film_column_is_the_saves() {
+    let save: Save = l2_testkit::fixture!("siege-sieging.sav");
+    let game = l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("loads");
+    assert_eq!(game.films.battle, 1);
+}
+
 /// FUN_004782C5 0x004782C5 `00470000.c:3452-3459`: a loaded battle ends on screen 0x13 too.
 /// Ablation: drop the `game.turn.is_none()` arm in `turn::finish_battle` and this is `Stuck`.
 #[test]

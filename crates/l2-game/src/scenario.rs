@@ -173,6 +173,9 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
         game.loaded_view = Some((row, col));
     }
     crate::saved_battle::resume(save, &mut game);
+    // DAT_0053F084, the battle-film column, is in the save blocks (siege-sieging.sav 1,
+    // battle-during.sav 0; measured) and only App_WinMain's two inits zero it [V].
+    game.films.battle = save.u8_at(0x0053_F084).unwrap_or(0) & 3;
     Ok(game)
 }
 
