@@ -1,0 +1,27 @@
+{
+  "reviewed": "caf249e36b08c4a310f0e53df4f0136a56ef49bf",
+  "date": "2026-09-24",
+  "behaviours": [
+    {
+      "file": "crates/l2-game/src/screens/map/reselect.rs",
+      "line": 12,
+      "address": "0x004050F6",
+      "verdict": "match",
+      "note": "fixed: MapScreen::update runs Map_DrawFrame 0x004050F6 reselect at zoom 0 each frame, first frame after a load included; tally +1/+5 (flags 0x40) over aligned rows and offset-row middles, saved county 0x1e head start, strict < over 1..0x20."
+    },
+    {
+      "file": "crates/l2-game/src/scenario.rs",
+      "line": 171,
+      "address": "0x004ADFE6",
+      "verdict": "match",
+      "note": "fixed: Save_Read 004a0000.c:5941 raw copy; range guard and first-owned fallback dropped."
+    },
+    {
+      "file": "crates/l2-game/src/scenario.rs",
+      "line": 171,
+      "address": "0x00448D7E",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}

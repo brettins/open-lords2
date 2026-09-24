@@ -166,11 +166,10 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
 
     // g_selectedCounty 0x0057C93C is in the save's blocks; Event_Post 0x00448D7E reads it the
     // first frame [V] siege-sieging.sav holds 4, and county 1's eventFired 1 stays unposted.
-    let saved = save.i32_at(SELECTED_COUNTY).ok().filter(|&c| (1..=game.kingdom.county_count as i32).contains(&c));
-    game.selected = saved.map_or_else(
-        || game.kingdom.county_ids().find(|&id| game.kingdom.counties[id].owner == game.player).unwrap_or(0),
-        |c| c as usize,
-    ) as u8;
+    // Save_Read 0x004ADFE6 004a0000.c:5941 copies it raw, no range test [V].
+    if let Ok(c) = save.i32_at(SELECTED_COUNTY) {
+        game.selected = c as u8;
+    }
 
     // g_mapStartRow 0x005651B8, g_mapStartCol 0x005651B4: blocks 17, 16. [V] savedump layout
     if let (Ok(row), Ok(col)) = (save.i32_at(0x0056_51B8), save.i32_at(0x0056_51B4)) {

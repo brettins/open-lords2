@@ -414,6 +414,10 @@ impl Screen for MapScreen {
                 self.scrolled = true;
             }
         }
+        if !self.opened {
+            self.open_on_the_player(&Ctx { game: ctx.game, assets: ctx.assets });
+        }
+        self.reselect_busiest(ctx);
         if self.fading.is_some() {
             return Transition::Stay;
         }

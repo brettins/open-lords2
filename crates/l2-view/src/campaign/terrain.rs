@@ -18,6 +18,15 @@ pub fn tile_to_cell(x: usize, y: usize) -> (i32, i32) {
     (x + y + 1, (x - y + PLANE_DIM as i32) >> 1)
 }
 
+/// The inverse of [`tile_to_cell`]; `None` is a surround cell (`>= 0x0FFF0000`), Map_RenderIso 0x0040526E.
+pub fn cell_to_tile(row: i32, col: i32) -> Option<(usize, usize)> {
+    let s = row - 1;
+    let d = 2 * col - PLANE_DIM as i32 + (s & 1);
+    let (x, y) = ((s + d) / 2, (s - d) / 2);
+    let n = PLANE_DIM as i32;
+    ((0..n).contains(&x) && (0..n).contains(&y)).then_some((x as usize, y as usize))
+}
+
 /// **`Terrain_Set` (`0x0046D7F4`) — the single writer of a tile's `content`
 /// byte, and the terrain → picture map the renderer needs.[V]**
 ///
