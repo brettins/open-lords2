@@ -115,8 +115,10 @@ fn later_realms_get_two_extra_steps_each() {
 fn a_human_realm_is_skipped_entirely() {
     let mut realms = ai_realms();
     realms[2].is_human = true;
+    realms[2].ai_step = 7;
     begin_turn(&mut realms);
-    assert_eq!(realms[2].ai_step, AI_STEP_DONE);
+    assert_eq!(realms[2].ai_step, 0, "Turn_BeginPlayersTurn 0x0049B6D3 resets the human too");
+    assert!(run_step(&mut realms[2], 2, false), "and AI_RunTurnStep never advances him");
     assert!(run_step(&mut realms[2], 2, false), "and stays done");
 }
 

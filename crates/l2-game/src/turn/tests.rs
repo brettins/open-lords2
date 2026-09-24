@@ -30,21 +30,14 @@ mod tests {
         game.kingdom.realms[1].ai_step = AI_STEP_DONE;
         game.kingdom.realms[2].ai_step = AI_STEP_DONE + 1;
         game.kingdom.realms[3].ai_step = AI_STEP_DONE + 1;
+        // Screen_DrawMenuBar 0x00419C78: `strength != 0 && aiStep < 999`, in the person's
+        // own turn too — the shield goes the moment the AI finishes. Ablate: `!turn_in_flight`.
         assert!(!turn_in_flight(&game));
-        for id in 1..=3 {
-            assert!(
-                !realm_turn_ended(&game, id),
-                "realm {id}: nobody has ended a turn while the person is playing his"
-            );
-        }
-
-        game.turn = Some(TurnProgress::default());
-        game.kingdom.realms[1].ai_step = 0;
-        assert!(realm_turn_ended(&game, 1), "the person's turn ends on the click");
-
+        assert!(realm_turn_ended(&game, 3), "an AI parked on 999 has, while the person plays");
+        game.kingdom.realms[1].ai_step = 1;
         game.kingdom.realms[2].ai_step = 4;
+        assert!(!realm_turn_ended(&game, 1), "the person parks on 1 until Turn_End");
         assert!(!realm_turn_ended(&game, 2), "an AI still stepping has not finished");
-        assert!(realm_turn_ended(&game, 3), "an AI parked on 999 has");
     }
 
     fn asked(men: i32) -> Game {
