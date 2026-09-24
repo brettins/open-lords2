@@ -56,11 +56,12 @@ fn a_mod_file_changes_the_outcome_of_a_battle() {
     let before = duel(plain.troop_table().unwrap(), Troop::Peasants, Troop::Swordsmen, 20, 2000);
     let after = duel(modded.troop_table().unwrap(), Troop::Peasants, Troop::Swordsmen, 20, 2000);
 
+    // Melee_ResetRecovery 0x00494DF9: peasants are wiped out either way; the swordsmen's losses carry the mod.
+    assert!(after.0 >= before.0, "{after:?} vs {before:?}");
     assert!(
-        after.0 > before.0,
-        "peasants swinging for 40 should fare better than the stock 5: {after:?} vs {before:?}"
+        after.1 < before.1,
+        "swordsmen facing peasants that swing for 40 should lose more men: {after:?} vs {before:?}"
     );
-    assert!(after.1 < before.1, "and the swordsmen should suffer for it");
 }
 
 #[test]
