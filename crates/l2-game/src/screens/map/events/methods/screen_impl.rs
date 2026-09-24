@@ -86,6 +86,11 @@ impl Screen for MapScreen {
                     self.status = "ORDERS CANCELLED".into();
                     return Transition::Stay;
                 }
+                // FUN_0043CAF4 00430000.c:7534 `g_screenId = 0; DAT_0052afa4 = 0;` [V]
+                if self.swallow_click && self.pick_tile(x, y).is_some() {
+                    self.swallow_click = false;
+                    return Transition::Stay;
+                }
                 let target = self
                     .pick_tile(x, y)
                     .map(|(tx, ty)| {
@@ -138,7 +143,13 @@ impl Screen for MapScreen {
             }
             // `FUN_00439122` eats the release and does nothing with it — the
             // value was already set on the way down and on every move since.
-            Event::Release { .. } => self.slider_held = false,
+            Event::Release { x, y } => {
+                self.slider_held = false;
+                // Battle_Frame 004b0000.c:6742 `DAT_005533b0 = Map_PickTile(0)` gates Map_Click [V].
+                if self.swallow_click && self.pick_tile(x, y).is_some() {
+                    self.swallow_click = false;
+                }
+            }
             Event::Click { x, y } => {
                 // ```c
                 // if (Map_EdgeScroll() || FUN_00439079() || Sidebar_ButtonClicked()) goto done;
@@ -249,8 +260,14 @@ impl Screen for MapScreen {
                             self.status = "ZOOMED IN".into();
                             // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1`; Map_Click :7770
                             // swallows the release (`DAT_0052afa4 = 0`), no dismiss [V].
+                            self.swallow_click = true;
                             return Transition::Stay;
                         }
+                    }
+                    // Map_Click 00430000.c:7670 tests `DAT_0052afa4` before anything else [V].
+                    if self.swallow_click && self.pick_tile(x, y).is_some() {
+                        self.swallow_click = false;
+                        return Transition::Stay;
                     }
                     // Screen_FrameInput 0x0042FF10 reaches Map_Click only after Sidebar_ButtonClicked,
                     // the strips and the zoom [V]; Map_Click 0x0043CE1A is `if (g_messageGroup == 0)

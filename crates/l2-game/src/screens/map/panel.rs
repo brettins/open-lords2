@@ -30,6 +30,7 @@ impl MapScreen {
             selected_unit: None,
             move_order: None,
             slider_held: false,
+            swallow_click: false,
             minimap_mode: MinimapMode::Owner,
             fading: None,
             autosave: false,

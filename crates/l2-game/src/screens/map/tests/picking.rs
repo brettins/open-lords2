@@ -145,3 +145,41 @@ fn the_end_of_turn_fade_is_screens_0x23_then_0x24_then_0x23_then_the_map() {
     seen.dedup();
     assert_eq!(seen, [Some(0x23), Some(0x24), Some(0x23), None], "newgame-original.orig f602..f607");
 }
+
+// Map_ZoomInAtTile 00430000.c:2522 sets `DAT_0052afa4`; a release off every tile leaves it,
+// and FUN_0043CAF4 :7534 spends the next right click on it (peek 2026-09-24, army-panel-kinds).
+// Ablate: `self.swallow_click = true;` in the zoom arm, first assertion red.
+#[test]
+fn a_zoom_in_released_off_the_map_swallows_the_next_right_click() {
+    let assets = crate::game::Assets::placeholder();
+    let mut game = crate::Game::new(1);
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    let mut s = MapScreen::new();
+    s.zoom = FAR;
+    s.view = Viewport::new(0, 14).clamped(&FAR);
+    let c = s.map_clip();
+    let (x, y) = ((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
+    s.handle(Event::Click { x, y }, &mut ctx);
+    s.handle(Event::Release { x: c.x1 + 20, y }, &mut ctx);
+    let first = s.handle(Event::RightClick { x, y }, &mut ctx);
+    assert!(matches!(first, Transition::Stay), "the first right click opened a box");
+    let second = s.handle(Event::RightClick { x, y }, &mut ctx);
+    assert!(matches!(second, Transition::Push(_)), "the second opens it");
+}
+
+// Battle_Frame 004b0000.c:6742 `DAT_005533b0 = Map_PickTile(0)`; Map_Click :7772 clears the latch.
+// Ablate: the `Event::Release` arm's `self.swallow_click = false;`, red.
+#[test]
+fn a_zoom_in_released_on_a_tile_leaves_the_next_right_click_alone() {
+    let assets = crate::game::Assets::placeholder();
+    let mut game = crate::Game::new(1);
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    let mut s = MapScreen::new();
+    s.zoom = FAR;
+    s.view = Viewport::new(0, 14).clamped(&FAR);
+    let c = s.map_clip();
+    let (x, y) = ((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
+    s.handle(Event::Click { x, y }, &mut ctx);
+    s.handle(Event::Release { x, y }, &mut ctx);
+    assert!(matches!(s.handle(Event::RightClick { x, y }, &mut ctx), Transition::Push(_)));
+}
