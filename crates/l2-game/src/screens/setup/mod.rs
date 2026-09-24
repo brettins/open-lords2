@@ -195,11 +195,7 @@
 //! So `ScenarioList_Draw` indexes group 101 *through* that table, and on a
 //! shipped install — eleven of the fifteen files, `Map01`…`Map06` and
 //! `MAP11`…`MAP15` — it holds slots 0…23 and 40…59, 44 of them. Row 24 shows
-//! group 101 index **40**, not 24. **This module still indexes group 101
-//! directly, so rows 24 and up name the wrong map on a real install.** The fix
-//! needs the packed table, which [`Ctx`]'s assets already have the evidence for
-//! (`Assets::minimap` returns `None` for a slot with no file), and it moves the
-//! meaning of every row — so it is recorded here.
+//! group 101 index **40**, not 24. `Assets::scenario_slots` is that table.
 //!
 //! With **no** `MAPnn.PL8` at all the table is sixty zeroes and the count is 0.
 //! The painter still draws its five rows: five bars, and `Eng_DrawString(101,

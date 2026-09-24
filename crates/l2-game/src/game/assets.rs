@@ -92,6 +92,12 @@ impl Assets {
         MapSet::parse(&self.maps).ok()?.slot(index).ok()
     }
 
+    /// `FUN_0046A101` `0x0046A101`: the slots whose `MAPnn.PL8` opens, packed
+    /// into `DAT_0050A460`; its length is `DAT_00554018`. [V]
+    pub fn scenario_slots(&self) -> Vec<usize> {
+        (0..60).filter(|s| matches!(self.minimap_files.get(s >> 2), Some(Some(_)))).collect()
+    }
+
     pub fn minimap(&self, slot: usize) -> Option<Minimap> {
         let bytes = self.minimap_files.get(slot >> 2)?.as_ref()?;
         Minimap::load(bytes, slot).ok()

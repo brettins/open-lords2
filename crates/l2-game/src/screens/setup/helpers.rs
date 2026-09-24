@@ -34,6 +34,8 @@ pub(crate) enum Action {
     Open(usize),
     Choose(usize),
     Map(usize),
+    /// `FUN_004337B4`, hotspot −1 and 1: the map list's arrows, kind 2.
+    MapScroll(i32),
     Skirmish(SkirmishArm),
 }
 

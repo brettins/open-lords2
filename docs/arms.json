@@ -1455,6 +1455,17 @@
       "evidence": "V"
     },
     {
+      "id": "0x004337B4/custom-map-scroll",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x004337B4",
+      "what": "Setup page 7/8, records 0x004DCD88 and 0x004DCDA0 (kind 2, rects (603,140)-(624,160) and (603,209)-(624,229)), hotspot -1 / 1. FUN_004337B4 00430000.c:990-1022: DAT_0053E90C steps while 0 < top / top < DAT_00554018 - 5, and g_scenarioIndex = DAT_0050A460[top + DAT_0057CACC] is reloaded.",
+      "ours": "crates/l2-game/src/screens/setup/ui/held.rs",
+      "evidence": "V"
+    },
+    {
       "id": "0x00432CC8/load",
       "status": "reproduced",
       "group": "front-end-pages",
