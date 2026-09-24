@@ -15,6 +15,7 @@ crates/l2-formats/tests/save_england_turn1/merchants.rs england 2
 crates/l2-game/src/audio/mod.rs install 1
 crates/l2-game/src/prefs.rs install 2
 crates/l2-game/src/screens/map/tests/loaded_view.rs fixture 2
+crates/l2-game/src/screens/map/tests/reselect.rs fixture 7
 crates/l2-game/src/screens/menubar/tests_part.rs install 2
 crates/l2-game/tests/ai_first_year.rs england 3
 crates/l2-game/tests/ai_war/simulation.rs england 2
@@ -93,6 +94,7 @@ crates/l2-game/tests/job_bodies/tile_panel.rs england 3
 crates/l2-game/tests/labour_move/drag_and_drop_tests.rs england 4
 crates/l2-game/tests/labour_move/game_flow_tests.rs england 1
 crates/l2-game/tests/labour_move/game_flow_tests.rs fixture 1
+crates/l2-game/tests/load_selected.rs fixture 1
 crates/l2-game/tests/long_game/england.rs england 2
 crates/l2-game/tests/long_game/england.rs other 1
 crates/l2-game/tests/long_game/scenarios.rs england 1

@@ -294,6 +294,7 @@ mod camera;
 mod events;
 mod paint;
 mod panel;
+mod reselect;
 mod terrain;
 mod units;
 pub(crate) mod garrison;
