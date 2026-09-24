@@ -1,25 +1,32 @@
-// battle-during.sav loads into the field battle (screen 0x29), paused: unpause, click the archers, order them onto open ground, unpause.
-// NOT YET: no Battle_OrderSelection 0x0043C634 fires; the pause click opens screen 0x2A and the figure click selects nothing.
+// battle-during.sav loads into the field battle (screen 0x29), paused: unpause, put the camera on the player's men, box them, order them onto open ground.
 {"op":"films","mode":"skip"}
 {"op":"load","save":"battle-during.sav"}
 {"op":"dismiss"}
 {"op":"anchor","label":"loaded"}
 {"op":"record","frames":2}
 {"op":"snap"}
-// Figures from FUN_004BDC31's blits (caller 0x004BDFEA): a2w_arch.pl8 at x 152..248, y 328..360.
-// Battle_ButtonClicked 0x004329A4: button 0, pause, at (480, 448) 32 x 32; a click on the paused field opens screen 0x2A.
+// Battle button 0, FUN_0043B9A1 pause, at (480, 448) 32 x 32: DAT_0053F238 -1 to 0 (peeked).
 {"op":"click","x":496,"y":464}
 {"op":"advance","frames":10}
-{"op":"click","x":160,"y":340}
+{"op":"peek","addr":"0x0053F238"}
+// BattleMap_Click 0x00432443, right button on the overview: cam = cell - 7. Cell (18, 8) is (516, 40); the camera to (11, 1).
+{"op":"click","x":516,"y":40,"button":"right"}
+{"op":"advance","frames":10}
+{"op":"anchor","label":"camera"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// g_battleMen 0x00554480 +0x13 1 (peeked): figures 9..20, peasants, cells x 17..22 y 4..5, pixels x 192..383 y 120..183.
+// Battle_DragSelect 0x0043BF07: a box of 25 px or more commits (FUN_00479CF7 class 1).
+{"op":"drag","x":180,"y":100,"x2":400,"y2":200}
 {"op":"advance","frames":10}
 {"op":"anchor","label":"select"}
 {"op":"record","frames":2}
 {"op":"snap"}
-// Open ground right of the peasants (a2w_psnt, x 152..312, y 168..232).
-{"op":"click","x":380,"y":280}
-{"op":"advance","frames":10}
+// Open ground, cell (18, 10): (240, 328). FUN_0043C57D -> Battle_OrderSelection 0x0043C634 -> BattleUnit_Order 0x00479E90.
+{"op":"click","x":240,"y":328}
+{"op":"advance","frames":5}
 {"op":"anchor","label":"order"}
-{"op":"record","frames":2}
+{"op":"record","frames":4}
 {"op":"snap"}
 {"op":"advance","frames":600}
 {"op":"anchor","label":"after-600"}

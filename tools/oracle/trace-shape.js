@@ -36,7 +36,7 @@ for (const l of fs.readFileSync(raw, 'utf8').split('\n')) {
   else if (e.ev === 'ret' && e.fn === 'AI_RunTurnStep') lines.push(rec(e.f, 'ai', 0x0049a581, e.fn, from, { realm: a[0], step: a[1], done: a[2] >= 999 ? 1 : 0 }));
   // The map's terrain leaves (Map_DrawTile 0x004063C1): (bank, ...) + frame DAT_005C9288, g_drawX/Y.
   // Army_*, MoveOrder_* and the battle's Order_* (hooktable.json cats army, order): what a scenario did.
-  else if (e.ev === 'call' && (e.cat === 'army' || e.cat === 'order')) lines.push(rec(e.f, 'call', tileAddr[e.fn], e.fn, from, { args: a }));
+  else if (e.ev === 'call' && (e.cat === 'army' || e.cat === 'order' || e.cat === 'panel')) lines.push(rec(e.f, 'call', tileAddr[e.fn], e.fn, from, { args: a }));
   else if (e.ev === 'call' && /^TileBlit_/.test(e.fn)) lines.push(rec(e.f, 'draw', tileAddr[e.fn], e.fn, from, { sheet: e.text, frame: a[4], x: a[5], y: a[6] }));
   else if (e.ev === 'call') {
     switch (e.fn) {

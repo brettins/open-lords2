@@ -39,6 +39,7 @@ const GROUPS = [
     'Army_PrepareForBattle', 'Army_Desert', 'Army_WithdrawCasualties', 'MoveOrder_StripClicked',
     'MoveOrder_ConfirmGarrison', 'MoveOrder_ConfirmSiege', 'MoveOrder_ConfirmCombine', 'MoveOrder_Confirm',
     'Battle_OrderSelection', 'BattleUnit_Order', 'Battle_AutoResolve', 'Battle_ReturnToCampaign']],
+  ['panel', 0, ['UnitPanel_Draw']],
   ['order', 1, syms.filter((f) => /^Order_/.test(f.name)).map((f) => f.name)],
   ['rng', 1, ['Rand_Advance', 'Rng_LfsrStep']],
   ['draw', 0, ['Pl8_DrawFrame', 'Pl8_DrawFrameHere', 'Pl8_DrawFrameClipped', 'Eng_DrawString', 'Ui_DrawText',

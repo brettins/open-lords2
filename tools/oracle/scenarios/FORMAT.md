@@ -57,7 +57,7 @@ where the event has no original function. `caller` is the return address; ours i
 | `draw`, `text` | every other hooked draw leaf (`Ui_Draw*`, `Ui_OkButton`, `FUN_0040328E`, …) | the arguments by `docs/symbols.json` parameter name, `a<n>` where it has none; fonts dropped |
 | `text` | `0x00402D37 Eng_DrawString` | `group`, `index`, `x`, `y` |
 | `film` | `0x0042D91B Smk_Play` | `file` |
-| `call` | `Army_*`, `MoveOrder_*`, `Battle_OrderSelection`, `BattleUnit_Order`, `Battle_AutoResolve`, `Battle_ReturnToCampaign`, the battle's `Order_*` | `args`, the raw list: what a scenario proves it did |
+| `call` | `Army_*`, `MoveOrder_*`, `Battle_OrderSelection`, `BattleUnit_Order`, `Battle_AutoResolve`, `Battle_ReturnToCampaign`, the battle's `Order_*`, `UnitPanel_Draw` `0x0041B19D` (cat `panel`) | `args`, the raw list: what a scenario proves it did |
 | `snap`, `anchor` | `null` | `hash` / `label` |
 
 `order` and `rand` have no one-to-one original function: an order is a direct call in single
