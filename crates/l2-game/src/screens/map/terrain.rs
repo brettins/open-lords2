@@ -141,8 +141,9 @@ impl MapScreen {
         let Some(slot) = ctx.assets.slot(ctx.game.map_slot) else {
             return;
         };
-        let lattice = Lattice::build(&slot);
+        let mut lattice = Lattice::build(&slot);
         let mut overrides = Self::tile_graphics(ctx);
+        Self::add_coast(ctx, &mut lattice, &slot, &mut overrides);
         self.add_industry_graphics(&mut overrides);
         self.base.clear(ctx.assets.ink.background);
         self.tags.clear();
@@ -184,6 +185,25 @@ impl MapScreen {
         Self::add_field_graphics(ctx, &mut out);
         Self::add_saved_frames(ctx, &mut out);
         out
+    }
+
+    /// `FUN_0046DBF5` / `FUN_0046DD34` over the lattice; sea is `g_tiles[t].flags & 4`.
+    /// [D] seed: the original's is the live `DAT_00591564`, not in a save; ours the slot.
+    pub(super) fn add_coast(
+        ctx: &Ctx,
+        lattice: &mut Lattice,
+        slot: &l2_formats::maps::MapSlot,
+        out: &mut campaign::Overrides,
+    ) {
+        let map = &ctx.game.kingdom.campaign.map;
+        let sea = |x: usize, y: usize| {
+            let t = l2_kingdom::map::index(x as u8, y as u8);
+            map.flags.get(t).is_some_and(|f| f & l2_kingdom::map::flags::NO_COUNTY != 0)
+        };
+        for (x, y, frame) in lattice.dress(&sea, 0x2A5 + ctx.game.map_slot as u32) {
+            let bank = out.get(x, y).map_or(slot.at(Plane::GfxBank, x, y), |(b, _)| b);
+            out.set(x, y, bank, frame);
+        }
     }
 
     /// Map_DrawTile 0x004063C1: bank `g_tiles[t].bank & 0x1c`, frame `g_tiles[t].frame`;
