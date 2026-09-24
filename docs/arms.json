@@ -1455,17 +1455,6 @@
       "evidence": "V"
     },
     {
-      "id": "0x004337B4/custom-map-scroll",
-      "status": "reproduced",
-      "group": "front-end-pages",
-      "screen": "0x1F",
-      "gesture": "left-press-held",
-      "addr": "0x004337B4",
-      "what": "Setup page 7/8, records 0x004DCD88 and 0x004DCDA0 (kind 2, rects (603,140)-(624,160) and (603,209)-(624,229)), hotspot -1 / 1. FUN_004337B4 00430000.c:990-1022: DAT_0053E90C steps while 0 < top / top < DAT_00554018 - 5, and g_scenarioIndex = DAT_0050A460[top + DAT_0057CACC] is reloaded.",
-      "ours": "crates/l2-game/src/screens/setup/ui/held.rs",
-      "evidence": "V"
-    },
-    {
       "id": "0x00432CC8/load",
       "status": "reproduced",
       "group": "front-end-pages",
@@ -1521,6 +1510,17 @@
       "what": "PAGE 5, EITHER RECESS -- Setup_ChooseCampaign. Six writes: g_campaignTrack = the hotspot; g_campaignMap = 2 for hotspot 1 and 0 otherwise; DAT_0057D320 = 1, which is what makes Continue on page 4 a campaign start; DAT_0055302C = 1; g_setupPage = 4; and Edit_Begin on the name field.",
       "note": "THE DAT_0057D320 WRITE IS THE ONE THAT HAD NO COUNTERPART HERE, and without it page 4's Continue started the map list's slot -- which is 0, England, when nobody has touched the list. So the original campaign opened on its FIFTH map. docs/decisions.md C117.",
       "ours": "crates/l2-game/src/screens/setup/mod.rs",
+      "evidence": "V"
+    },
+    {
+      "id": "0x004337B4/custom-map-scroll",
+      "status": "reproduced",
+      "group": "front-end-pages",
+      "screen": "0x1F",
+      "gesture": "left-press-held",
+      "addr": "0x004337B4",
+      "what": "Setup page 7/8, records 0x004DCD88 and 0x004DCDA0 (kind 2, rects (603,140)-(624,160) and (603,209)-(624,229)), hotspot -1 / 1. FUN_004337B4 00430000.c:990-1022: DAT_0053E90C steps while 0 < top / top < DAT_00554018 - 5, and g_scenarioIndex = DAT_0050A460[top + DAT_0057CACC] is reloaded.",
+      "ours": "crates/l2-game/src/screens/setup/ui/held.rs",
       "evidence": "V"
     },
     {
