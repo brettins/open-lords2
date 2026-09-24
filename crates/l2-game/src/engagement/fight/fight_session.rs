@@ -69,7 +69,8 @@ pub fn begin_fight_in(
     let d = Muster { troops: &d_troops, owner: d_owner, human: d_human, mercenaries: d_band };
     let (lane, rally) = kingdom.campaign.battle_selectors;
     let markers = kingdom.campaign.battle_markers;
-    let session = l2_sim::Session { multiplayer, lane: lane as usize, rally: rally as usize, markers };
+    let engagement_budget = Some(kingdom.campaign.field_playlist.budget());
+    let session = l2_sim::Session { multiplayer, lane: lane as usize, rally: rally as usize, markers, engagement_budget };
     let mut runner = match castle_level {
         // **`Battlefield_BuildCastle` (`0x0047C4BA`), from the layout file the
         // player's own install ships.** `crate::castle` holds the two 6,400-byte

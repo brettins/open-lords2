@@ -212,6 +212,8 @@ pub struct Session {
     /// `DAT_00544050`/`DAT_00544070` and `g_rallyWaypoints` (`0x00522D30`)/`DAT_00522D60`,
     /// `.bss` so zero at process start **[V]**; a castle field reads the last field's.
     pub markers: crate::terrain::MarkerTables,
+    /// `(&DAT_00553080)[DAT_005653f8]` (00480000.c:4393); `None` keeps [`crate::ai::Ai`]'s.
+    pub engagement_budget: Option<u8>,
 }
 
 /// `g_menPerFigureTable` (`0x004D9658`) — men one drawn figure stands for, by

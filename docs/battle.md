@@ -418,7 +418,9 @@ so unit `+0x04` (firstFigure) resolved through figure `+0x20`/`+0x22` is a marke
 the `batfield.pl8` frame. `g_battleUnits` (block 9) and `g_battleMen` (block 7) are both
 saved, so a save taken with a battle up carries seven or so of those cells — and in
 `noorders-start.sav` **exactly one of the 48 frames carries all seven**, frame 17. The
-playlist cursor `DAT_005653F8` is not saved, so this is the only way back to the frame.
+playlist cursor `DAT_005653F8` *is* saved (block 56, beside the playlist, block 178, and the
+engagement budgets `DAT_00553080`, block 191) [V] `g_saveBlocks` 0x004DE960; the frame is
+`playlist[cursor - 1]`.
 `g_battleApproachLane` (`0x0056D6B0`) and `g_battleRallyGroup` (`0x0053F654`) *are* saved,
 as their own 4-byte blocks (92 and 93): that save holds 3 and 1.
 `crates/l2-game/tests/seam/no_orders_field.rs` does the search and fights the result.

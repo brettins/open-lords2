@@ -57,3 +57,25 @@ fn a_battle_loaded_from_a_save_ends_on_its_report() {
     assert!(matches!(turn::dismiss_report(&mut game), TurnStep::Running));
     assert!(game.battle.is_none() && turn::pending_report(&game).is_none());
 }
+
+/// UnitOrder_FieldFoot 00480000.c:4393 reads `DAT_00553080[DAT_005653f8]`, save blocks 191 and 56:
+/// cursor 1, entry 41. Ablation: drop the `saved_playlist` line in `saved_battle::resume`.
+#[test]
+fn a_loaded_battle_keeps_the_saves_engagement_budget() {
+    let save: Save = l2_testkit::fixture!("battle-during.sav");
+    let game = l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("loads");
+    assert_eq!(game.kingdom.campaign.field_playlist.cursor(), 1);
+    assert_eq!(game.battle.as_ref().unwrap().runner.ai.engagement_budget, 41);
+}
+
+/// Save_Read 0x004ADFE6 keeps block 56 as saved; a siege's Battlefield_BuildCastle 0x0047C4BA
+/// never bumps it. Ablation: drop `if siege { cursor }` in `saved_battle::saved_playlist`.
+#[test]
+fn a_loaded_siege_keeps_the_saved_cursor_and_its_budget() {
+    let save: Save = l2_testkit::fixture!("siege-sieging.sav");
+    let cursor = save.i32_at(0x0056_53F8).unwrap() as usize;
+    let budget = save.u8_at(0x0055_3080 + cursor as u32).unwrap();
+    let game = l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("loads");
+    assert_eq!(game.kingdom.campaign.field_playlist.cursor(), cursor);
+    assert_eq!(game.battle.as_ref().unwrap().runner.ai.engagement_budget as u32, budget as u32);
+}

@@ -98,3 +98,53 @@ fn a_man_with_no_side_step_and_no_route_parks_for_a_hundred_frames() {
     assert!(r.fighters[a].path.is_empty(), "nothing came back");
     assert_eq!(r.fighters[a].delay, 100, "`delay = 100`");
 }
+
+/// Swordsman `a` and the pikeman locked in a mutual duel, state 4 both.
+fn dueling() -> (BattleRunner, usize) {
+    let (mut r, a, b) = two_of_a_unit();
+    place(&mut r, b, 60, 60);
+    let p = (0..r.fighters.len()).find(|&i| r.fighters[i].troop == Troop::Pikemen).unwrap();
+    place(&mut r, p, 11, 10);
+    let (sa, sp) = (r.fighters[a].sim, r.fighters[p].sim);
+    for (me, other) in [(sa, sp), (sp, sa)] {
+        r.sim.figures[me].state = crate::figure::State::Melee;
+        r.sim.figures[me].opponent = Some(other);
+    }
+    (r, a)
+}
+
+/// Ablation: movement.rs's `delay = 0` for a man in state 4, BattleMan_StateMelee 00480000.c:1386-1402.
+#[test]
+fn a_delay_interrupted_by_a_duel_is_not_run_out_afterwards() {
+    let (mut r, a) = dueling();
+    r.fighters[a].delay = 50;
+    r.step_one(a);
+    assert_eq!(r.fighters[a].delay, 0);
+}
+
+/// Ablation: movement.rs's march for the man `Melee_Tick` killed, 00480000.c:1396.
+#[test]
+fn a_man_killed_mid_crossing_still_steps_that_tick() {
+    let (mut r, a) = dueling();
+    let sa = r.fighters[a].sim;
+    r.sim.figures[sa].men = 1;
+    r.sim.figures[sa].hits = 500;
+    r.fighters[a].progress.free = false;
+    let before = (r.fighters[a].progress.tick_counter, r.fighters[a].progress.substep);
+    r.step_one(a);
+    assert!(!r.is_alive(a), "Melee_Tick killed him");
+    let after = (r.fighters[a].progress.tick_counter, r.fighters[a].progress.substep);
+    assert_ne!(after, before, "BattleMan_Step(1) counted his crossing");
+}
+
+/// Ablation: stepping.rs's `count_men`, Battle_Frame 004b0000.c:6703.
+#[test]
+fn the_ais_census_is_taken_every_frame() {
+    let (mut r, _, _) = two_of_a_unit();
+    let before = r.ai.men_total;
+    for f in r.sim.figures.iter_mut().filter(|f| !f.owner_is_human) {
+        f.men = 1;
+    }
+    r.step();
+    assert!(r.ai.men_total < before, "{} -> {}", before, r.ai.men_total);
+}

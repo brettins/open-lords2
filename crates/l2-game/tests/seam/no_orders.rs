@@ -91,7 +91,7 @@ pub struct Fight {
     /// battle — state 17's own shot, `BattleMan_StateCloseToAttack`.
     closing_before_contact: (u32, u32),
     standing_before_contact: (u32, u32),
-    closing: (u32, u32),
+    pub closing: (u32, u32),
     standing: (u32, u32),
 }
 
@@ -238,16 +238,5 @@ fn the_position_the_player_gave_no_order_in_is_held_by_the_defence() {
         fights.iter().all(|f| f.attacker.1 == 0),
         "the save has the player's army destroyed — slot 5 free, realm 1 strength 4 to 3",
     );
-
-    // **State 17 is reached in a real battle, not only in a unit test.** The
-    // defence is 60 archers; `Order_ShootAtUnit` (`0x0048C974`) puts them in
-    // state 17 on the AI's aggressive arm, which is what being shot at turns
-    // on (`docs/battle-ai.md`). Ablation: return `false` from
-    // `close_to_attack_tick`'s loose arm and this is 0 on every seed. Not
-    // every seed reaches it: `Battle_Start`'s lane draw (`0x004778A0`,
-    // 00470000.c:3060) sends the defence to a different end of the field, and
-    // on two of the four lanes the two sides meet without a closing shot. The
-    // lane the original dealt here was 3 — `no_orders_field`, which fights it
-    // on the frame the save names and reaches the save's 60.
-    assert!(fights.iter().any(|f| f.closing.0 > 0), "no arrow ever left state 17");
+    // state 17 in a real battle: no_orders_field, on the save's frame 17 (battle-4)
 }

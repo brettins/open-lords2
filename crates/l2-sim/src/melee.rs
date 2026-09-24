@@ -42,18 +42,24 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
     };
 
     let (me, other) = pair_mut(figs, idx, opp);
+    let mutual = other.opponent == Some(idx);
+
+    // 00490000.c:1791: `if (scan == cur && other.role == 1) cur.role = 2` [V]
+    if mutual && other.role == Role::Attacking {
+        me.role = Role::Defending;
+    }
 
     if me.recovery_counter <= 0 {
         let band = 0; // strength band; single-band until unit strength lands
         let incoming = other.stats().attack(band);
-        me.take_hits_from(incoming, opp);
+        me.hits = me.hits.saturating_add(incoming);
+        me.was_hit = true;
+        me.hit_by = Some(opp);
         // Melee_ResetRecovery 0x00494DF9; no else: only the attacker steps it down, :1832 [V]
         me.recovery_counter += me.stats().recovery as i32;
     }
-    // 00490000.c:1801: `if (99 < me.hits)` each tick, so a heavy blow's hits land here [V]
-    if me.hits >= me.hits_per_casualty {
-        me.take_hits(0);
-    }
+    // 00490000.c:1801: one `if (99 < me.hits)` a tick, after the attack is added [V]
+    me.take_hits(0);
 
     // Melee_Tick 0x00494908 00490000.c:1817-1825: only cur dies, `state = 2` [V]
     if !me.is_alive() {
@@ -75,11 +81,15 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
         other.recovery_counter -= 1;
 
         me.exchange -= 1;
+        // 00490000.c:1834-1842: swap only if other fights cur, else reset cur's exchange [V]
         if me.exchange < 1 {
-            me.role = Role::Defending;
-            other.role = Role::Attacking;
-            me.exchange = me.stats().exchange as i32;
-            other.exchange = other.stats().exchange as i32;
+            if mutual {
+                other.role = Role::Attacking;
+                other.exchange = other.stats().exchange as i32;
+                me.role = Role::Defending;
+            } else {
+                me.exchange = me.stats().exchange as i32;
+            }
         }
     }
 
