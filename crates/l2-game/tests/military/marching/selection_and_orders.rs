@@ -152,8 +152,9 @@ fn the_click_that_selects_an_army_never_also_orders_it() {
 }
 
 #[test]
-fn the_map_refuses_orders_while_the_turn_is_running() {
+fn a_network_map_refuses_orders_while_the_turn_is_running() {
     let (mut g, a, mut m) = on_the_map();
+    g.multiplayer = true; // Screen_FrameInput 00420000.c:6795 shut in a network game only [D] netcode
     let (here, there) = adjacent_pair(|x| x < 30);
     let id = army_at(&mut g, 1, 1, 300, here);
 
@@ -172,3 +173,24 @@ fn the_map_refuses_orders_while_the_turn_is_running() {
     assert_eq!(m.top_id(), Some(ScreenId::Campaign));
 }
 
+
+/// App_WinMain 0x0040E9AB 00400000.c:8248 `DAT_00553018 = 1`: single player's gate
+/// (Screen_FrameInput 00420000.c:6795) stays open after End Turn, and a panel outlives it.
+/// Ablate: `multiplayer ||` dropped from `map_input_shut`, first assertion red;
+/// `multiplayer &&` from `TurnClock::force_close`, second red.
+#[test]
+fn a_single_player_map_takes_orders_and_keeps_panels_while_the_turn_is_running() {
+    let (mut g, a, mut m) = on_the_map();
+    let (here, there) = adjacent_pair(|x| x < 30);
+    let id = army_at(&mut g, 1, 1, 300, here);
+    press(&mut m, &mut g, &a, 'e');
+    tick(&mut m, &mut g, &a);
+    assert!(l2_game::turn::turn_in_flight(&g), "a turn is in flight");
+    click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
+    click(&mut m, &mut g, &a, pixel(there.0, there.1).unwrap());
+    assert!(g.kingdom.campaign.units.get(id).and_then(|u| u.dest).is_some(), "Map_Click :7669 ran");
+    m.push(ScreenId::Court);
+    tick(&mut m, &mut g, &a);
+    assert!(l2_game::turn::turn_in_flight(&g));
+    assert_eq!(m.top_id(), Some(ScreenId::Court), "screen 0x09 is not force-closed");
+}

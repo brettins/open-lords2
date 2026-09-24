@@ -56,7 +56,7 @@ pub fn season_keeps(id: super::ScreenId) -> bool {
 /// Screen_FrameInput 0x0042FF10's force_close: pops what `closed_by_turn_end` names while
 /// `DAT_0055403C` stands. Presentation only, no world state.
 pub(super) fn close_on_turn_end(stack: &mut Vec<Box<dyn super::Screen>>, game: &crate::game::Game) -> bool {
-    if !game.turn_clock.force_close() {
+    if !game.turn_clock.force_close(game.multiplayer || game.net.lockstep) {
         return false;
     }
     let in_battle = game.battle.is_some();

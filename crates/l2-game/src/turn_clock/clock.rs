@@ -85,14 +85,12 @@ impl TurnClock {
     /// exactly, and it is a wider window than [`TurnClock::end_turn_pending`],
     /// which the map takes as soon as it is on top.
     ///
-    /// **Two clauses are not ours and are named so the reader knows what is
-    /// `DAT_00553FC8`
-    /// is the multiplayer sync-wait latch, which nothing in this engine sets
-    /// (`docs/netcode.md`); `DAT_00553018` is the F12 debug override, whose one
-    /// setter is `App_WndProc`'s `VK_F12` arm and which we do not have. With
-    /// both absent the guard reduces to this one field.
-    pub fn force_close(&self) -> bool {
-        self.restart_pending
+    /// `DAT_00553018` is 1 from App_WinMain 0x0040E9AB (00400000.c:8248) and Turn_Tick's
+    /// restart (00490000.c:4806); only Turn_AllRealmsDone's network arm (:5337) clears it,
+    /// beside `DAT_00553FC8 = 1` [V]. Single player never force-closes [V]; a network
+    /// game keeps the latch [D] netcode. CNEW-gate-open-in-single-player.
+    pub fn force_close(&self, multiplayer: bool) -> bool {
+        multiplayer && self.restart_pending
     }
 
     /// **`Turn_Tick`'s phase-2 arm: `DAT_0055403C = 0; Siege_LaunchAssault(…)`.**

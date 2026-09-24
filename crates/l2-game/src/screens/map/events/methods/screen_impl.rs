@@ -31,8 +31,10 @@ impl Screen for MapScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        // Turn_Tick 0x0049A010 phases 1-3 run under a live map: no input test in them [I].
-        if ((turn::turn_in_flight(ctx.game) && !turn::turn_opening(ctx.game)) || self.fading.is_some())
+        // Screen_FrameInput 00420000.c:6795 gate, open after End Turn in single player: a phase-6
+        // county-strip click opened 0x14 in the trace [V]; Turn_Tick 0x0049A010 phases 1-3 likewise.
+        // CNEW-gate-open-in-single-player.
+        if (turn::map_input_shut(ctx.game) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {
             return Transition::Stay;
@@ -159,7 +161,7 @@ impl Screen for MapScreen {
                 // Battle_Frame 004b0000.c:6742 `DAT_005533b0 = Map_PickTile(0)` gates Map_Click [V].
                 // Screen_FrameInput 00420000.c:6795 and Map_Click :7669: `DAT_00553fc8 == 0 &&
                 // (DAT_0055403c == 0 || DAT_00553018 != 0)`, screen 0 only [V].
-                let closed = (turn::turn_in_flight(ctx.game) && !turn::turn_opening(ctx.game))
+                let closed = turn::map_input_shut(ctx.game)
                     || self.fading.is_some();
                 if ctx.game.map_click_latch && !closed && self.pick_tile(x, y).is_some() {
                     ctx.game.map_click_latch = false;

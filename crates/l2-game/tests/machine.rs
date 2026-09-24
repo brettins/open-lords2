@@ -274,7 +274,7 @@ fn a_network_seats_panel_closes_when_the_shared_turn_ends() {
     m.update(&mut Ctx { game: &mut game, assets: &assets });
     assert_eq!(m.top_id(), Some(ScreenId::Court), "a live turn closes nothing");
     game.turn_clock.tick(Frame { limit: 30, turn: TurnState::Ended, battle: false });
-    assert!(game.turn_clock.force_close());
+    assert!(game.turn_clock.force_close(true));
     m.update(&mut Ctx { game: &mut game, assets: &assets });
     assert_eq!(m.ids(), vec![ScreenId::Campaign], "screen 0x09 is in the force-close table");
 }

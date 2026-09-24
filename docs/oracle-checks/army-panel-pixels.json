@@ -11,10 +11,10 @@
   },
   {
    "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
-   "line": 164,
+   "line": 163,
    "address": "0x0043CE1A",
-   "verdict": "mismatch",
-   "note": "[I] DAT_0055403c stays set through phases 1-3 (Turn_Tick :4799 clears it in phase 4) and DAT_00553018, set to 1 there, is never cleared in single player, so the gate is open from turn 2 on; ours closes all in-flight, opens phases 1-3."
+   "verdict": "match",
+   "note": "fixed: DAT_00553018 = 1 from App_WinMain 00400000.c:8248, cleared only in the network arm :5337, so single player's gate never shuts; turn::map_input_shut holds in a network game only. latch.rs a_single_player_release_after_end_turn_clears_the_latch; CNEW-gate-open-in-single-player."
   },
   {
    "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
