@@ -79,11 +79,13 @@ fn the_sting_table_is_read_by_lord_minus_one() {
 }
 
 /// `Battle_ReturnToCampaign` (`0x004AB383`), 004a0000.c:4716..4771: ff_lose.wav to
-/// the winner's owner only. Ablate: `winner == player` in `audio::after_battle`.
+/// the loser's owner only; g_battleLoser is the winner. Ablate: `loser == player` in
+/// `audio::after_battle`.
 #[test]
-fn the_verdict_fanfare_goes_to_the_side_that_did_not_lose() {
-    assert_eq!(audio::after_battle(true, 1, 3, 1), Some("ff_lose.wav"));
-    assert_eq!(audio::after_battle(false, 3, 1, 1), Some("ff_lose.wav"));
-    assert_eq!(audio::after_battle(false, 1, 3, 1), None, "the player lost");
+fn the_defeat_fanfare_goes_to_the_side_that_lost() {
+    assert_eq!(audio::after_battle(true, 1, 3, 1), None, "attacked and won");
+    assert_eq!(audio::after_battle(false, 3, 1, 1), None, "defended and won");
+    assert_eq!(audio::after_battle(false, 1, 3, 1), Some("ff_lose.wav"), "attacked and lost");
+    assert_eq!(audio::after_battle(true, 3, 1, 1), Some("ff_lose.wav"), "defended and lost");
     assert_eq!(audio::after_battle(true, 2, 3, 1), None, "not the player's battle");
 }

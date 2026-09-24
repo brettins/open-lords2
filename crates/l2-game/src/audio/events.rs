@@ -84,10 +84,12 @@ pub fn lord_sting(record: &crate::message::Record, timer: i32, lord: u8, animati
 }
 
 /// `Battle_ReturnToCampaign` (`0x004AB383`)'s two `Sound_PlayFile(ff_lose.wav, 0, 0)`:
-/// the local player owns the side that did **not** lose. `[V]` 004a0000.c:4716..4771.
+/// `g_battleLoser` holds the WINNER (docs/symbols.md), so each arm plays to the losing
+/// army's owner. `[V]` 004a0000.c:4716..4771; the original's field-battle-manual trace
+/// plays bat_los1.smk, then ff_lose.wav from 0x004AB80D.
 pub fn after_battle(attacker_won: bool, attacker: u8, defender: u8, player: u8) -> Option<&'static str> {
-    let winner = if attacker_won { attacker } else { defender };
-    (winner == player).then_some(names::fanfare::AFTER_BATTLE)
+    let loser = if attacker_won { defender } else { attacker };
+    (loser == player).then_some(names::fanfare::AFTER_BATTLE)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

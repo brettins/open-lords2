@@ -443,8 +443,8 @@ impl Director {
             self.spoken = Some(game.spoken.0);
         }
 
-        // `Battle_ReturnToCampaign` (`0x004AB383`): `if (loser == A && B.owner ==
-        // g_localPlayer)`, and the mirror, `Sound_PlayFile(ff_lose.wav, 0, 0)`.
+        // `Battle_ReturnToCampaign` (`0x004AB383`): `if (g_battleLoser == A && B.owner ==
+        // g_localPlayer)`, and the mirror, `Sound_PlayFile(ff_lose.wav, 0, 0)`; g_battleLoser is the winner.
         // `[V]` 004a0000.c:4716..4771. Heard at `battle::record`, one per frame.
         // sfx: Battle_ReturnToCampaign#1,Battle_ReturnToCampaign#2
         // Once per battle, the busy buffer dropping the rest; an idle battle with no turn is

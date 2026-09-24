@@ -1,0 +1,6 @@
+{ "reviewed": "52231428e41de276c35159887e2107b2356fa83b",
+  "date": "2026-09-24",
+  "behaviours": [
+    { "file": "crates/l2-game/src/audio/events.rs", "line": 90, "address": "0x004AB383", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/audio/director/engine/director.rs", "line": 456, "address": "0x004AB383", "verdict": "match", "note": "" }
+  ] }

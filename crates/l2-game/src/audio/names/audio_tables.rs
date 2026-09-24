@@ -279,9 +279,7 @@ pub mod fanfare {
     ///
     /// See the module note on `Ff_win.wav`. `[V]`
     ///
-    /// **And both sites play it to the *winner*.** `[V]`, read from the
-    /// decompilation while wiring this up, because it decides the gate a call
-    /// site here would need:
+    /// Both play it to the *loser*: `g_battleLoser` holds the winner. `[V]` docs/bugs.md B62.
     pub const AFTER_BATTLE: &str = "ff_lose.wav";
 }
 

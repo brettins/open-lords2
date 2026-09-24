@@ -483,23 +483,11 @@ All five arrived with the siege branch, and all five are reproduced.
 
 ## 2.9 Sound
 
-### B62 — Winning a battle plays the defeat fanfare
+### B62 — A won battle has no fanfare; `Ff_win.wav` ships and is never played
 
 **What the original does.** `Battle_ReturnToCampaign` (`0x004AB383`) plays a fanfare at two
-sites, one on each side of the outcome. Both name **`ff_lose.wav`** — and not through a
-shared pointer either: they are two separate string literals, at `0x004DE8F8` and
-`0x004DE904`, holding the same eleven characters.
-
-**Why it is a bug.** `Ff_win.wav` **ships**, 8-bit 11 kHz like every other effect, and
-`Lords2.exe` does not contain its name anywhere. A byte scan of the executable for each of
-the install's 771 `.wav` filenames finds 753 and misses 18; `Ff_win.wav` is one of them, and
-it is the only one of the eighteen with an obvious caller sitting right beside a literal
-that ought to be it. Two adjacent identical literals is what a copy-paste looks like in
-`.data`.
-
-**And it is sharper than "one fanfare for both", which is what the heading above assumed.**
-**[V]**, read out of the decompilation while wiring the audio layer up — the two sites are
-not *win* and *lose*. They are the same case twice:
+sites, one per branch. Both name **`ff_lose.wav`**, from two separate string literals at
+`0x004DE8F8` and `0x004DE904`:
 
 ```c
 if (g_battleLoser == g_battleArmyA) {
@@ -509,25 +497,21 @@ if (g_battleLoser == g_battleArmyA) {
 }
 ```
 
-Each arm names the army that did **not** lose. So a fanfare sounds exactly when the local
-player **wins**, and **nothing at all** sounds when he loses — the game has no defeat
-fanfare, and the file it plays for a victory is the one called *lose*. The original defect
-is therefore two defects: the wrong file, and a missing sound on the other outcome.
+`g_battleLoser` holds the **winner** (`docs/symbols.md`, four sites; the first branch hands
+the county to A's owner and destroys B). So each arm plays to the **losing** army's owner:
+the defeat fanfare sounds when the local player loses, field or siege, and a win is silent.
+**[V]** on the decompilation, and on the original's trace of `field-battle-manual`:
+`bat_los1.smk`, then `ff_lose.wav` from `0x004AB80D`.
 
-**Evidence.** **[V]** on the two call sites, on their gates, and on the executable
-containing no reference to `ff_win.wav`, asserted over the user's own install by
-`l2-game/tests/audio_install.rs::the_shipped_sounds_the_executable_never_names_are_the_eighteen_we_wrote_down`.
-**[I]** that it is a mistake, not a late decision to use one fanfare for both — but
-a decision would have deleted the file, and it is still in the box.
+**Why it is a bug.** `Ff_win.wav` **ships**, 8-bit 11 kHz like every other effect, and
+`Lords2.exe` does not contain its name anywhere: a byte scan for each of the install's 771
+`.wav` filenames finds 753, and `Ff_win.wav` is one of the 18 missing
+(`l2-game/tests/audio_install.rs::the_shipped_sounds_the_executable_never_names_are_the_eighteen_we_wrote_down`).
+**[I]** that a victory fanfare was meant and never wired.
 
-**Reproduced?** **No, and it is now blocked on a value, not on a screen.** The claim
-`ScreenId::BattleResult` is built.
-`audio::Director` cannot see is *who won*: the `BattleReport` travels inside
-`turn::TurnStep::Report` and is never parked on the `Game`, so the fanfare's gate is out of
-reach. Firing it on every battle would add a sound the original never makes, on the one
-outcome it is silent for, so it is left unwired. `crates/l2-game/src/audio/names/mod.rs` names
-the constant `fanfare::AFTER_BATTLE`, not `LOSE`, and now carries the gate beside it,
-so whoever wires it up meets both facts, not the assumption.
+**Reproduced.** `audio::after_battle` plays `ff_lose.wav` to the loser's owner only. An
+earlier reading took `g_battleLoser` at its name and played it on a win instead: our
+`field-battle-manual` trace showed `bat_win1.smk`, then `ff_lose.wav`.
 
 ## 2.10 Screens and navigation
 
