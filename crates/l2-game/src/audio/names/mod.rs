@@ -46,9 +46,9 @@
 //! **`Ff_win.wav` is the interesting one.** `Battle_ReturnToCampaign`
 //! (`0x004AB383`) plays a fanfare at two sites and *both* of them name
 //! `ff_lose.wav` — two separate string literals, at `0x004DE8F8` and
-//! `0x004DE904`, holding the same text. A victory fanfare shipped and the
-//! function that would play it plays the defeat one twice. `[V]` that the
-//! binary contains no reference to `ff_win.wav`; `[I]` that this is a bug
+//! `0x004DE904`, holding the same text, one per losing side; a win is silent.
+//! `[V]` that the binary contains no reference to `ff_win.wav`; `[I]` that this
+//! is a bug (docs/bugs.md B62)
 
 mod audio_tables;
 pub use audio_tables::*;

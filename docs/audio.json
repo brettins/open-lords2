@@ -163,7 +163,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/events.rs",
       "sound": "ff_lose.wav",
-      "note": "audio::after_battle, heard by Director::listen when turn::battle::record files a report (TurnProgress::battle_reports grows). Effects switch, drop-if-busy, when the local player owns the side that did not lose: loser == A plays to B.owner, loser == B to A.owner."
+      "note": "audio::after_battle, heard by Director::listen when turn::battle::record files a report (TurnProgress::battle_reports grows). Effects switch, drop-if-busy, when the local player owns the side that LOST: g_battleLoser holds the winner (docs/symbols.md), so g_battleLoser == A plays to B.owner, == B to A.owner. The original's field-battle-manual trace: bat_los1.smk, then ff_lose.wav from 0x004AB80D. docs/bugs.md B62."
     },
     {
       "id": "Battle_ReturnToCampaign#2",
@@ -174,7 +174,7 @@
       "status": "reproduced",
       "ours": "crates/l2-game/src/audio/events.rs",
       "sound": "ff_lose.wav",
-      "note": "As #1, the loser == B arm."
+      "note": "As #1, the g_battleLoser == B arm (B won, A's owner hears it)."
     },
     {
       "id": "Battle_Start#1",
