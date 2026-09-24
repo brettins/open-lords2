@@ -116,6 +116,15 @@
       "inplay": "Both the original and ours use the Windows pointer. Ours is drawn at the window's scale, 128 pixels square on your 4K screen, where the original's is 32. Windows can fall back to drawing a pointer that large itself, which can look choppy.",
       "todo": "Play full screen and note whether the pointer is choppy; then run in a smaller window (so the pointer is smaller) and compare.",
       "ask": "Reply: Q13 same, or Q13 smoother when small"
+    },
+    {
+      "q": "Q14",
+      "row": "dead-archers-keep-shooting",
+      "state": "open",
+      "title": "Should a freshly killed archer keep shooting?",
+      "inplay": "In the original, when the computer orders its archers to fire back, it can pick an archer who has just died and whose body is still on the field. That archer gets up, walks and keeps shooting at half strength until he is hit again. It is a defect in the original, read from its code, not yet seen on screen. Ours treats a dead archer as dead.",
+      "todo": "Choose: keep the original's behaviour (closer to the original), or leave dead archers dead.",
+      "ask": "Reply: Q14 keep, or Q14 dead"
     }
   ],
   "reports": [

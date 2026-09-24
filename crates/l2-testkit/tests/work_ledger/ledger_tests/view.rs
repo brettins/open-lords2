@@ -59,7 +59,7 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
         "docs/stored-fields.json",
         "{\"fields\": [{\"id\": \"County+0x000\", \"status\": \"imported\"}, {\"id\": \"County+0x001\", \"status\": \"excluded\"}]}\n",
     );
-    put("crates/l2-game/tests/differential.rs", &differential(900, 258));
+    put("crates/l2-game/tests/differential/main.rs", &differential(900, 258));
     put("crates/l2-testkit/tests/census/gated.txt", &census(412));
     put("docs/work.json", &ledger("as committed"));
 
@@ -69,7 +69,7 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
         "docs/arms.json",
         "docs/audio.json",
         "docs/stored-fields.json",
-        "crates/l2-game/tests/differential.rs",
+        "crates/l2-game/tests/differential/main.rs",
         "crates/l2-testkit/tests/census/gated.txt",
         "docs/work.json",
     ];
@@ -92,7 +92,7 @@ fn the_view_counts_main_not_the_working_tree_and_dates_the_ledger_by_its_own_com
     put("docs/arms.json", &arms(&["reproduced", "reproduced", "reproduced", "reproduced"]));
     put("docs/audio.json", &audio(&["reproduced", "reproduced", "reproduced"]));
     std::fs::remove_file(repo.join("docs/stored-fields.json")).unwrap();
-    put("crates/l2-game/tests/differential.rs", &differential(1, 2));
+    put("crates/l2-game/tests/differential/main.rs", &differential(1, 2));
     put("crates/l2-testkit/tests/census/gated.txt", &census(7));
     put("docs/work.json", &ledger("edited and not committed"));
 
@@ -360,7 +360,7 @@ fn the_players_page_shows_every_feature_and_every_open_row_once_and_no_prose() {
         ("docs/audio.json", r#"{"sites": [{"id": "site#0", "status": "reproduced", "class": "file", "sound": null}]}"#.into()),
         ("docs/stored-fields.json", r#"{"fields": [{"id": "County+0x000", "status": "imported"}]}"#.into()),
         (
-            "crates/l2-game/tests/differential.rs",
+            "crates/l2-game/tests/differential/main.rs",
             "const COMPARED_TOTAL: usize = 10;\nconst AGREE_TOTAL: usize = 9;\nconst MOVED_TOTAL: usize = 4;\nconst MOVED_AGREE_TOTAL: usize = 3;\n".into(),
         ),
         ("crates/l2-testkit/tests/census/gated.txt", "crates/x/tests/y.rs install 1\n".into()),
