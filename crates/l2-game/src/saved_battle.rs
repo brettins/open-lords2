@@ -25,12 +25,14 @@ const MEN: u32 = 0x0055_4480;
 const LANE: u32 = 0x0056_D6B0;
 const RALLY: u32 = 0x0053_F654;
 
-/// The cursor one step back, as `Sync_Rollback` 00430000.c:9159 steps it, so
-/// `Battlefield_BuildRandom`'s bump lands on the saved cursor again.
-fn saved_playlist(save: &Save) -> Option<FieldPlaylist> {
+/// [V] Save_Read 0x004ADFE6 restores block 56 as saved and builds no field. [D] we re-run
+/// Battle_Start, whose open-field Battlefield_BuildRandom 0x0047AAA3 bumps the cursor, so an
+/// open-field resume starts one back (wrapping at 0x2e as Sync_Rollback 0x0043F5C5 does); a
+/// siege takes Battlefield_BuildCastle 0x0047C4BA, which never bumps, and keeps it.
+fn saved_playlist(save: &Save, siege: bool) -> Option<FieldPlaylist> {
     let bytes = |va| -> Option<[u8; PLAYLIST_LEN]> { block(save, va, PLAYLIST_LEN).try_into().ok() };
     let cursor = usize::try_from(save.i32_at(CURSOR).ok()?).ok()?;
-    let back = if cursor < 1 { 0x2e } else { cursor - 1 };
+    let back = if siege { cursor } else if cursor < 1 { 0x2e } else { cursor - 1 };
     Some(FieldPlaylist::restore(bytes(PLAYLIST)?, back, bytes(BUDGETS)?))
 }
 
@@ -52,7 +54,7 @@ pub fn resume(save: &Save, game: &mut Game) -> Option<usize> {
     let castle_level = (save.i32_at(IS_SIEGE).ok()? != 0)
         .then(|| save.i32_at(CASTLE_LEVEL).unwrap_or(0) as u8);
     let choice_owner = save.u8_at(CHOICE_OWNER).ok()?;
-    game.kingdom.campaign.field_playlist = saved_playlist(save)?;
+    game.kingdom.campaign.field_playlist = saved_playlist(save, castle_level.is_some())?;
     let mut runner = crate::engagement::begin_fight_in(
         &mut game.kingdom,
         attacker,

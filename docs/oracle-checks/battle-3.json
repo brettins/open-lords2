@@ -1,153 +1,188 @@
 {
- "reviewed": "2a168bf883083f4c5ef08de3ca980056e6d92ff9",
- "date": "2026-09-24",
- "behaviours": [
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 193,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": "fixed: Melee_Tick runs in the man's own step_one (Battle::duel), 00480000.c:1395; sim.step no longer runs duels after missiles and wood fire."
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 55,
-   "address": "0x00494908",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 59,
-   "address": "0x00494DF9",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 65,
-   "address": "0x00494908",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/figure.rs",
-   "line": 215,
-   "address": "0x00494908",
-   "verdict": "match",
-   "note": "fixed: take_hits is one if, one man a tick (00490000.c:1801); melee adds the attack then calls it once. Its only other callers are tests; missiles (combat.rs) and fire (burn_part.rs) have their own code."
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 85,
-   "address": "0x00494908",
-   "verdict": "match",
-   "note": "fixed: swap only when other.opponent == cur (:1834-1842), else reset cur exchange alone; :1791 demotion at melee.rs:48."
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 155,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 158,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 33,
-   "address": "0x00489B8D",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
-   "line": 21,
-   "address": "0x00483E55",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
-   "line": 16,
-   "address": "0x00483E55",
-   "verdict": "departure",
-   "note": "[I] Idle for state 11; 11 is the engines' rest state (FUN_0048437e: engine pose, tg2X/tg2Y = 0), which Idle does not zero."
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
-   "line": 30,
-   "address": "0x00483E55",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/targeting.rs",
-   "line": 11,
-   "address": "0x00483E55",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/combat/melee.rs",
-   "line": 48,
-   "address": "0x0048F079",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 48,
-   "address": "0x00494908",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 62,
-   "address": "0x00494908",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
-   "line": 76,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": ""
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 141,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": "fixed: a man in state 4 loses his delay (state 1 overwritten, left for 8), 00480000.c:1386-1402; tests_delay.rs a_delay_interrupted_by_a_duel_is_not_run_out_afterwards."
-  },
-  {
-   "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 202,
-   "address": "0x004831D8",
-   "verdict": "match",
-   "note": "fixed: the man Melee_Tick killed still runs the crossing step, 00480000.c:1396; tests_delay.rs a_man_killed_mid_crossing_still_steps_that_tick."
-  },
-  {
-   "file": "crates/l2-sim/src/melee.rs",
-   "line": 33,
-   "address": "0x00494908",
-   "verdict": "mismatch",
-   "note": "no troopType 10 arm (00490000.c:1788, FUN_0047a814: missile at opponent, cur state 2); unreachable in ours, engage refuses siege."
-  },
-  {
-   "file": "crates/l2-sim/src/ai/handlers/field.rs",
-   "line": 116,
-   "address": "0x0048ACD2",
-   "verdict": "match",
-   "note": "fixed: budget is (&DAT_00553080)[DAT_005653f8]: dealt 0/100/6+5n in FieldPlaylist::deal (00490000.c:3455-3461), save blocks 191/56 read on resume (saved_battle.rs), passed through Session::engagement_budget."
-  }
- ]
+  "reviewed": "4757674bb748bb5c179a2845c58abfe96c323a26",
+  "date": "2026-09-24",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 193,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": "fixed: Melee_Tick runs in the man's own step_one (Battle::duel), 00480000.c:1395; sim.step no longer runs duels after missiles and wood fire."
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 55,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 59,
+      "address": "0x00494DF9",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 65,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/figure.rs",
+      "line": 215,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": "fixed: take_hits is one if, one man a tick (00490000.c:1801); melee adds the attack then calls it once. Its only other callers are tests; missiles (combat.rs) and fire (burn_part.rs) have their own code."
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 85,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": "fixed: swap only when other.opponent == cur (:1834-1842), else reset cur exchange alone; :1791 demotion at melee.rs:48."
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 155,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 158,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 33,
+      "address": "0x00489B8D",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 21,
+      "address": "0x00483E55",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 16,
+      "address": "0x00483E55",
+      "verdict": "departure",
+      "note": "[I] Idle for state 11; 11 is the engines' rest state (FUN_0048437e: engine pose, tg2X/tg2Y = 0), which Idle does not zero."
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 30,
+      "address": "0x00483E55",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 11,
+      "address": "0x00483E55",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/combat/melee.rs",
+      "line": 48,
+      "address": "0x0048F079",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 48,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 62,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+      "line": 76,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 141,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": "fixed: a man in state 4 loses his delay (state 1 overwritten, left for 8), 00480000.c:1386-1402; tests_delay.rs a_delay_interrupted_by_a_duel_is_not_run_out_afterwards."
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 202,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": "fixed: the man Melee_Tick killed still runs the crossing step, 00480000.c:1396; tests_delay.rs a_man_killed_mid_crossing_still_steps_that_tick."
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 33,
+      "address": "0x00494908",
+      "verdict": "mismatch",
+      "note": "no troopType 10 arm (00490000.c:1788, FUN_0047a814: missile at opponent, cur state 2); unreachable in ours, engage refuses siege."
+    },
+    {
+      "file": "crates/l2-sim/src/ai/handlers/field.rs",
+      "line": 116,
+      "address": "0x0048ACD2",
+      "verdict": "match",
+      "note": "fixed: budget is (&DAT_00553080)[DAT_005653f8]: dealt 0/100/6+5n in FieldPlaylist::deal (00490000.c:3455-3461), save blocks 191/56 read on resume (saved_battle.rs), passed through Session::engagement_budget."
+    },
+    {
+      "file": "crates/l2-kingdom/src/field_playlist.rs",
+      "line": 110,
+      "address": "0x00497E65",
+      "verdict": "departure",
+      "note": "budgets 0/100/c*5+6 after the scatter as 00490000.c:3455-3461, but drawn on our Pcg32 not g_rand7B; C62 on deal()."
+    },
+    {
+      "file": "crates/l2-game/src/saved_battle.rs",
+      "line": 35,
+      "address": "0x0043F5C5",
+      "verdict": "match",
+      "note": "fixed: a resumed siege keeps the saved cursor (Battlefield_BuildCastle never bumps); the open-field step-back is a labelled [D] for re-running Battle_Start. Sync_Rollback step-back is the net resync path (DAT_00553214>=4), not the load; a siege resume never calls take_next, so the budget is read one entry behind the saved cursor."
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+      "line": 12,
+      "address": "0x00481B9A",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 139,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 196,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
 }
