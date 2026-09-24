@@ -172,3 +172,16 @@ fn a_release_the_drag_declines_is_ordered_from_0x2a() {
     send(&mut m, &mut g, &a, Event::Release { x, y });
     assert_eq!(live(&g).cries[before..], [Cry { troop: 4, class: cry::ORDERED }]);
 }
+
+/// BattleMap_Click 0x00432443 `00430000.c:241` orders through Battle_OrderSelection 0x0043C634,
+/// which cries first. Ablation: `click_overview` acting the order without `order_selection`.
+#[test]
+fn an_order_on_the_overview_cries_like_one_on_the_field() {
+    let a = Assets::placeholder();
+    let (mut g, mut m) = staged(&[(Troop::Pikemen, 4)], &[(Troop::Knights, 3)]);
+    box_the_army(&mut m, &mut g, &a);
+    let before = live(&g).cries.len();
+    // BattleMap_Click: (x - 0x1E0) / 2, (y - 0x18) / 2 -> cell (10, 10).
+    click_at(&mut m, &mut g, &a, (500, 44));
+    assert_eq!(live(&g).cries[before..], [Cry { troop: 4, class: cry::ORDERED }]);
+}

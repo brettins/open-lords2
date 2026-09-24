@@ -178,7 +178,14 @@ impl LiveBattle {
         if self.runner.selected_count(self.owner) == 0 || self.paused {
             return false;
         }
-        l2_net::trace!("call", 0x0043C634, "Battle_OrderSelection", at = format!("{:?}", self.cell_at(x, y)));
+        let cell = self.cell_at(x, y);
+        self.order_selection(cell)
+    }
+
+    /// Battle_OrderSelection 0x0043C634, from the field and from BattleMap_Click 0x00432443
+    /// (`00430000.c:241`); both hand it the hover of the moment. [V]
+    fn order_selection(&mut self, cell: (u8, u8)) -> bool {
+        l2_net::trace!("call", 0x0043C634, "Battle_OrderSelection", at = format!("{cell:?}"));
         // **`FUN_0043C634` cries before it orders**, from the hover it was
         // handed: an enemy under the pointer first, then surface 2, then
         // anything else. `[V]`
@@ -195,7 +202,6 @@ impl LiveBattle {
         if !self.deferred {
             self.cry(class);
         }
-        let cell = self.cell_at(x, y);
         self.mark_order(cell);
         let target = self.hover.enemy;
         let woodland = self.hover.woodland;
@@ -250,9 +256,7 @@ impl LiveBattle {
             && !self.oil_selected()
             && !self.paused;
         if orderable {
-            self.mark_order(cell);
-            let order = BattleOp::Order { cell, target: None, woodland: false };
-            if !self.act(order) {
+            if !self.order_selection(cell) {
                 self.current_unit = 0;
             }
         } else {
