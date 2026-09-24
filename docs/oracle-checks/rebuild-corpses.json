@@ -1,0 +1,11 @@
+{ "reviewed": "92a3108ae0c2358c18108075211f1f0ce25d0747",
+  "date": "2026-09-24",
+  "behaviours": [
+    { "file": "crates/l2-sim/src/unit/mod.rs", "line": 264, "address": "0x00488DFE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/unit/mod.rs", "line": 237, "address": "0x00488DFE", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/simulation/stepping.rs", "line": 92, "address": "0x004830E9", "verdict": "match", "note": "fixed: state_dead counts +0x173 per dead run in the man's own slot of Battle_UpdateAllMen (00480000.c:899) and frees on the 81st run (:1337), 121st for an engine (:1958); melee dead freed 81 frames on, burnt 80" },
+    { "file": "crates/l2-sim/src/runner/movement/movement.rs", "line": 289, "address": "0x0046EB3F", "verdict": "match", "note": "" },
+    { "file": "crates/l2-sim/src/runner/movement/movement.rs", "line": 135, "address": "0x0047A814", "verdict": "match", "note": "cited: 00470000.c:4389" },
+    { "file": "crates/l2-sim/src/runner/import.rs", "line": 42, "address": "0x0046EB3F", "verdict": "match", "note": "cited: BattleMan_Destroy 0x0046EBE4 -> BattleMan_Clear; a freed slot imports as a body already cleared" },
+    { "file": "crates/l2-sim/src/ai/world/methods/moves.rs", "line": 198, "address": "0x0048C974", "verdict": "mismatch", "note": "not fixed: Order_ShootAtUnit takes owner != 0 (00480000.c:5137), so a body still counting +0x173 is put in state 0x11; it then runs BattleMan_StateCloseToAttack (:1984) not StateDead, stops counting, walks and looses at band 3 = missileDamage/2 (:2082), and stays targetable (Missile_FindTarget skips only state 2, 00490000.c:2082) until a hit re-kills it (00490000.c:1443-1445). Ours treats men == 0 as dead everywhere (figure.rs is_alive); a kept-defect decision for docs/bugs.md" }
+  ] }
