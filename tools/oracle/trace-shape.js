@@ -30,7 +30,7 @@ for (const l of fs.readFileSync(raw, 'utf8').split('\n')) {
     // Rand_Advance 0x00404A46 and Rng_LfsrStep 0x00404B2C calls in the frame.
     if (e.rand + e.lfsr) lines.push(rec(e.f, 'rand', null, 'Pcg32', null, { count: e.rand + e.lfsr }));
   } else if (e.ev === 'anchor') lines.push(rec(e.f, 'anchor', null, null, null, { label: e.label }));
-  else if (e.ev === 'snap') lines.push(rec(e.f, 'snap', null, null, null, { hash: e.hash }));
+  else if (e.ev === 'snap' || e.ev === 'shot') lines.push(rec(e.f, e.ev, null, null, null, e.shot ? { hash: e.hash, shot: e.shot } : { hash: e.hash }));
   else if (e.ev === 'failed') lines.push(rec(e.f, 'failed', null, null, null, { step: e.step }));
   // [realm stepped, g_realms[realm].aiStep before, after] (detour.cpp); 999 is done.
   else if (e.ev === 'ret' && e.fn === 'AI_RunTurnStep') lines.push(rec(e.f, 'ai', 0x0049a581, e.fn, from, { realm: a[0], step: a[1], done: a[2] >= 999 ? 1 : 0 }));

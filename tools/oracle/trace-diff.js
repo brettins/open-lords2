@@ -6,11 +6,14 @@
 const fs = require('fs');
 const path = require('path');
 const { StringDecoder } = require('string_decoder');
+const pixels = require('./pixel-diff');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i < 0 ? d : args[i + 1]; };
-const [origFile, oursFile] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1] === '--context'));
+const [origFile, oursFile] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && ['--context', '--png-dir'].includes(args[i - 1])));
+// Side-by-side PNGs of differing shots (pixel-diff.js); default <trace dir>/pixels.
+const PNG_DIR = opt('--png-dir', null);
 const CONTEXT = Number(opt('--context', 3));
 
 function* lines(file) {
@@ -67,12 +70,13 @@ function keyOf(r) {
   }
 }
 const COLLAPSE = new Set(['screen', 'phase']);
+const SOUNDS = new Set(['sound', 'voice', 'music']);
 // The original steps one realm a call, round-robin (0x0049A581), many calls a frame; ours every
 // realm a frame: only which realms step, in first-step order, compares.
 const DISTINCT = new Set(['ai']);
 let built = null;
 const BUILT = () => (built = built || builtSites());
-const RANK = ['screen', 'sound', 'music', 'voice', 'film', 'message', 'call', 'phase', 'ai', 'order', 'slot', 'text', 'draw', 'rand'];
+const RANK = ['pixels', 'screen', 'sound', 'music', 'voice', 'film', 'message', 'call', 'phase', 'ai', 'order', 'slot', 'text', 'draw', 'rand'];
 
 
 // One pass over a trace: per step (label; a repeated label gets #n) its category sequences, its
@@ -84,7 +88,7 @@ const LEAF = /^\{"frame":(-?\d+),"kind":"(draw|text|rand)"/;
 function scan(file, byAnchor, lag, orig) {
   const out = [], seen = {}, notBuilt = {};
   const sites = orig ? BUILT() : null;
-  const step = (label) => ({ label, seq: {}, rand: 0, randAt: null, snaps: [] });
+  const step = (label) => ({ label, seq: {}, rand: 0, randAt: null, snaps: [], shots: [] });
   let cur = step('(start)'), n = 0, i = 0, run = { frame: null, lines: [] };
   const miss = (r) => { if (sites && r.addr && !sites.has(r.addr.toUpperCase())) notBuilt[`${r.addr} ${r.name}`] = (notBuilt[`${r.addr} ${r.name}`] || 0) + 1; };
   for (const l of lines(file)) {
@@ -108,6 +112,7 @@ function scan(file, byAnchor, lag, orig) {
       if (seen[label] > 1) label += `#${seen[label]}`;
       cur = step(label);
     }
+    if ((r.kind === 'snap' || r.kind === 'shot') && r.args.shot) cur.shots.push(path.join(path.dirname(file), r.args.shot));
     if (r.kind === 'snap') {
       const got = { draw: [], text: [] };
       if (run.frame === r.frame - lag) {
@@ -120,11 +125,12 @@ function scan(file, byAnchor, lag, orig) {
     const k = keyOf(r);
     if (!k) continue;
     const [cat, key] = k;
+    if (cat === 'film') cur.films = (cur.films || 0) + 1;
     const s = (cur.seq[cat] = cur.seq[cat] || []);
     if (COLLAPSE.has(cat) && s.length && s[s.length - 1].key === key) continue;
     if (DISTINCT.has(cat) && s.some((x) => x.key === key)) continue;
     // Soft: one of our Pcg32 draws precedes the record within its step.
-    s.push({ key, r, tainted: cur.randAt != null && cur.randAt < at });
+    s.push({ key, fi: cur.films || 0, r, tainted: cur.randAt != null && cur.randAt < at });
   }
   out.push(cur);
   return { steps: out, notBuilt };
@@ -200,7 +206,10 @@ function diff(origPath, oursPath, oursLag = 0) {
       const a = qo[cat] || [], b = qu[cat] || [];
       totals[cat] = totals[cat] || [0, 0];
       totals[cat][0] += a.length; totals[cat][1] += b.length;
-      const i = cat === 'slot' || cat === 'order' ? (a.length === b.length ? -1 : 0) : firstDiff(a, b);
+      // A sound also by the films before it, where both steps saw as many (the original records a
+      // skipped film, ours none): S011_01 under the intro is otherwise the same sequence (2b1da403).
+      const byFilm = SOUNDS.has(cat) && (o.films || 0) === (u.films || 0);
+      const i = cat === 'slot' || cat === 'order' ? (a.length === b.length ? -1 : 0) : firstDiff(a, b, byFilm ? (x) => `${x.key}@film${x.fi}` : undefined);
       if (i < 0) continue;
       const lo = Math.max(0, i - CONTEXT);
       findings.push({
@@ -226,6 +235,16 @@ function diff(origPath, oursPath, oursLag = 0) {
         else if (p[cat].join() !== q[cat].join()) findings.push({ label, cat, note: `snap ${k} same set, paint order differs at ${firstDiff(p[cat], q[cat], (x) => x)}` });
       }
     });
+    // Totals: shots compared / shots that differ.
+    const name = path.basename(origPath).replace(/\..*$/, '');
+    o.shots.forEach((a, k) => {
+      const b = u.shots[k];
+      if (!b || !fs.existsSync(a) || !fs.existsSync(b)) { findings.push({ label, cat: 'pixels', note: `shot ${k}: ${b ? 'a file is missing' : 'only in original'}` }); return; }
+      const png = path.join(PNG_DIR || path.join(path.dirname(origPath), 'pixels'), `${name}-${label.replace(/[^\w#-]+/g, '_')}-shot${k}.png`);
+      const r = pixels.diffShots(a, b, { scenario: name, png });
+      totals.pixels = totals.pixels || [0, 0]; totals.pixels[0]++; if (r.full.pixels) totals.pixels[1]++;
+      if (r.full.pixels) findings.push({ label, cat: 'pixels', note: `shot ${k} (${path.basename(a)}): ${pixels.fmt(r)} -> ${png}` });
+    });
   }
   const notBuilt = O.notBuilt;
   findings.sort((x, y) => RANK.indexOf(x.cat) - RANK.indexOf(y.cat));
@@ -250,7 +269,7 @@ function render(name, d) {
 // --dir D --a orig --b ours s1 s2 ...: diffs D/<s>.<a>.jsonl against D/<s>.<b>.jsonl for each s.
 if (require.main === module && flag('--dir')) {
   const dir = opt('--dir'), a = opt('--a', 'orig'), b = opt('--b', 'ours');
-  const names = args.filter((x, i) => !x.startsWith('--') && !['--dir', '--a', '--b', '--context'].includes(args[i - 1]));
+  const names = args.filter((x, i) => !x.startsWith('--') && !['--dir', '--a', '--b', '--context', '--png-dir'].includes(args[i - 1]));
   let any = 0;
   for (const s of names) {
     const d = diff(path.join(dir, `${s}.${a}.jsonl`), path.join(dir, `${s}.${b}.jsonl`), b.includes('ours') ? 0 : 1);

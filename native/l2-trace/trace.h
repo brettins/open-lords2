@@ -7,7 +7,7 @@
 // Shared with the controller as "Local\l2trace-<pid>"; layout is the controller's C# struct.
 struct TraceShared {
     uint32_t magic;          // 'L2TR'
-    uint32_t version;        // 2
+    uint32_t version;        // 3
     int32_t  cursorX, cursorY;
     uint32_t frames;         // presents to the primary
     uint32_t frameHash;      // FNV-1a of the last presented 640x480 frame + palette
@@ -22,6 +22,8 @@ struct TraceShared {
     uint32_t steps;          // Battle_Frame 0x004B99C0 calls, plus presents with none since the last (films)
     uint32_t loops;          // Battle_Frame calls
     uint32_t ticks;          // sum of FUN_004BB978's ticksDue
+    uint32_t fbAddr;         // v3: the primary's 640x480 indices at the last present (trace.ps1 SaveShot)
+    uint32_t palAddr;        // v3: its 256 PALETTEENTRY
 };
 constexpr uint32_t kTraceMagic = 0x5254324C;
 

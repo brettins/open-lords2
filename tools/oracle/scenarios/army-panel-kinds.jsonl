@@ -10,6 +10,9 @@
 {"op":"click","x":160,"y":62}
 {"op":"advance","frames":60}
 {"op":"dismiss"}
+// The original ignores the session's first right click on the map (measured 2026-09-24: screen 4 opened on the second, 74 steps on); ours opens on the first. This one is the original's only (this harness)
+{"op":"click","x":318,"y":287,"button":"right"}
+{"op":"advance","frames":60}
 {"op":"anchor","label":"near-0"}
 {"op":"snap"}
 // Map_DrawArmies 0x00408438 sprite at (304, 261); the feet at +14, +26 (army-panel.jsonl). Screen_MapInfo 0x0041B032.

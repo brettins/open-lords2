@@ -8,7 +8,7 @@
     fixture <file.sav>       the only *.sav in the install at launch (from -Fixtures)
     load                     title menu > Load > first entry > OK, then waits for the map
     new-game original|new    Play Now! > campaign > Continue, then 300 frames
-    click x y | rclick x y | key <vk number or name> | advance N | snap | anchor <label>
+    click x y | rclick x y | key <vk number or name> | advance N | snap | shot | anchor <label>
     move x y | drag x y x2 y2 | record N    (record: N frames keeping draw records)
     wait-screen N | wait-page N | wait-phase N | wait-idle N   (numbers may be 0x..)
     wait-screen-not N | wait-page-not N | peek <addr>  (a dword of the game, as a note)
@@ -100,6 +100,9 @@ function Run-Scenario($file, $run) {
   $sfx = if ($run -eq 1) { '' } else { ".run$run" }
   $jsonl = Join-Path $Out "$name.raw$sfx.jsonl"
   $shaped = Join-Path $Out "$name.orig$sfx.jsonl"
+  # snap and shot: the framebuffer as <name>.orig.shot<k>.bmp beside the trace (pixel-diff.js).
+  $shots = @{ n = 0 }
+  function Shot { $f = "$name.orig$sfx.shot$(($shots.n++)).bmp"; if ($t.SaveShot((Join-Path $Out $f))) { ',"shot":"' + $f + '"' } else { '' } }
   $t = [L2Trace]::Launch($Install, 1, $Dump, $true, $jsonl, $films)
   $timeout = $TimeoutSec * 1000; $done = 0; $failed = $null
   # Start at the first gated present, so every note lands at the same point of the stream.
@@ -117,7 +120,8 @@ function Run-Scenario($file, $run) {
         'record' { $t.KeepDraws = $true; $t.Advance((Num $w[1])); $t.KeepDraws = $false }
         'key' { $k = if ($vk.ContainsKey($w[1])) { $vk[$w[1]] } else { Num $w[1] }; $t.Key($k) }
         'advance' { $t.Advance((Num $w[1])) }
-        'snap' { $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Note('{"ev":"snap","f":' + $t.Frames + ',"hash":"' + ('{0:x8}' -f $t.Hash) + '"}') }
+        'snap' { $t.KeepDraws = $true; $t.Advance(1); $t.KeepDraws = $false; $t.Note('{"ev":"snap","f":' + $t.Frames + ',"hash":"' + ('{0:x8}' -f $t.Hash) + '"' + (Shot) + '}') }
+        'shot' { $t.Note('{"ev":"shot","f":' + $t.Frames + ',"hash":"' + ('{0:x8}' -f $t.Hash) + '"' + (Shot) + '}') }
         'anchor' { $t.Note('{"ev":"anchor","f":' + $t.Frames + ',"label":"' + ($w[1..9] -join ' ') + '"}') }
         'wait-screen' { $n = Num $w[1]; $ok = $t.WaitUntil({ $t.Screen -eq $n }.GetNewClosure(), $timeout) }
         'wait-screen-not' { $n = Num $w[1]; $ok = $t.WaitUntil({ $t.Screen -ne $n }.GetNewClosure(), $timeout) }

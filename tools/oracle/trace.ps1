@@ -41,7 +41,7 @@ public class L2Trace : IDisposable {
     // TraceShared in native/l2-trace/trace.h
     const int OffCursorX = 8, OffCursorY = 12, OffFrames = 16, OffHash = 20, OffMs = 24, OffHwnd = 28,
               OffTimers = 32, OffFilms = 36, OffGaps = 40, OffRefused = 44, OffTimersRun = 48,
-              OffGate = 52, OffSteps = 56, OffLoops = 60, OffTicks = 64, SharedSize = 68;
+              OffGate = 52, OffSteps = 56, OffLoops = 60, OffTicks = 64, OffFb = 68, OffPal = 72, SharedSize = 76;
     public const int ScreenId = 0x004EAC50, TurnPhase = 0x00569584, SetupPage = 0x005530F0;
 
     public Process Proc;
@@ -117,6 +117,24 @@ public class L2Trace : IDisposable {
         var b = new byte[4]; int n;
         if (!ReadProcessMemory(handle, new IntPtr(addr), b, size, out n)) return -1;
         return BitConverter.ToInt32(b, 0);
+    }
+    // The last presented frame (TraceShared v3 fbAddr/palAddr) as an 8-bit BMP; false when none yet.
+    public bool SaveShot(string path) {
+        const int W = 640, H = 480;
+        uint fb = Shared(OffFb), pal = Shared(OffPal); int n;
+        var px = new byte[W * H]; var pe = new byte[1024];
+        if (fb == 0 || !ReadProcessMemory(handle, new IntPtr((int)fb), px, px.Length, out n)) return false;
+        if (!ReadProcessMemory(handle, new IntPtr((int)pal), pe, pe.Length, out n)) return false;
+        var hdr = new byte[14 + 40 + 1024];
+        Action<int, int> put = (at, v) => BitConverter.GetBytes(v).CopyTo(hdr, at);
+        hdr[0] = (byte)'B'; hdr[1] = (byte)'M'; put(2, hdr.Length + W * H); put(10, hdr.Length);
+        put(14, 40); put(18, W); put(22, H); hdr[26] = 1; hdr[28] = 8; put(46, 256);
+        for (int i = 0; i < 256; i++) { hdr[54 + i * 4] = pe[i * 4 + 2]; hdr[55 + i * 4] = pe[i * 4 + 1]; hdr[56 + i * 4] = pe[i * 4]; }
+        using (var f = System.IO.File.Create(path)) {
+            f.Write(hdr, 0, hdr.Length);
+            for (int y = H - 1; y >= 0; y--) f.Write(px, y * W, W);
+        }
+        return true;
     }
     public int Screen { get { return Read(ScreenId, 1); } }
     public int Phase { get { return Read(TurnPhase, 4); } }
