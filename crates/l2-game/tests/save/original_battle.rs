@@ -36,3 +36,15 @@ fn a_save_taken_on_the_map_loads_no_battle() {
     let game = l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("loads");
     assert!(game.battle.is_none());
 }
+
+/// FUN_004782C5 0x004782C5 `00470000.c:3452-3459`: a loaded battle ends on screen 0x13 too.
+/// Ablation: drop the `game.turn.is_none()` arm in `turn::finish_battle` and this is `Stuck`.
+#[test]
+fn a_battle_loaded_from_a_save_ends_on_its_report() {
+    use l2_game::turn::{self, TurnStep};
+    let save: Save = l2_testkit::fixture!("battle-during.sav");
+    let mut game = l2_game::scenario::from_save(&save, Tables::DEFAULT).expect("loads");
+    assert!(matches!(turn::finish_battle(&mut game), TurnStep::Report(_)));
+    assert!(matches!(turn::dismiss_report(&mut game), TurnStep::Running));
+    assert!(game.battle.is_none() && turn::pending_report(&game).is_none());
+}

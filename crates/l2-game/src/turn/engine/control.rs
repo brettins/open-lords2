@@ -156,6 +156,13 @@ pub fn take_the_field(game: &mut Game) -> bool {
 /// discards**, and only here. `docs/decisions.md` C71.
 pub fn finish_battle(game: &mut Game) -> TurnStep {
     let Some(live) = game.battle.take() else { return TurnStep::Stuck };
+    // A battle loaded from a save has no turn in hand; FUN_004782C5 0x004782C5 still runs
+    // Battle_ReturnToCampaign(1) and screen 0x13 (`00470000.c:3452-3459`) [V].
+    if game.turn.is_none() {
+        let q = question_for(game, live.attacker, live.defender, live.castle_level);
+        let question = Some(Question { county: live.county, ..q });
+        game.turn = Some(TurnProgress { idle: true, question, ..TurnProgress::default() });
+    }
     if live.autocalc {
         return answer_battle(game, Answer::Decline);
     }
