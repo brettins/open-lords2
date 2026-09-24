@@ -3,9 +3,16 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Step {
     Load(String),
-    NewGame,
-    /// x, y, right button.
-    Click(i32, i32, bool),
+    /// `true`: the new campaign, page 5's right box (trace-run.ps1 `$NewGameSteps`).
+    NewGame(bool),
+    /// x, y, right button; harness-only when its comment ends "(this harness)", which ours skips.
+    Click(i32, i32, bool, bool),
+    /// `false`: every film takes `Smk_Play` 0x0042D91B's failed-open branch, as `H_SmkPlay` does.
+    Films(bool),
+    WaitPage(i64, u64),
+    WaitScreenNot(i64, u64),
+    Dismiss,
+    Peek,
     Key(String),
     WaitScreen(i64, u64),
     WaitPhase(i64, u64),
@@ -15,7 +22,7 @@ pub enum Step {
     Anchor(String),
 }
 
-const MAX_FRAMES: u64 = 20_000;
+pub const MAX_FRAMES: u64 = 20_000;
 
 fn field<'a>(line: &'a str, key: &str) -> Option<&'a str> {
     let quoted = format!("\"{key}\"");
@@ -40,21 +47,28 @@ fn num(line: &str, key: &str) -> Option<i64> {
 
 pub fn parse(text: &str) -> Result<Vec<Step>, String> {
     let mut steps = Vec::new();
+    let mut harness = false;
     for (n, line) in text.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() || line.starts_with("//") {
+            harness = line.ends_with("(this harness)");
             continue;
         }
         let bad = || format!("line {}: {line}", n + 1);
         let max = num(line, "max").map_or(MAX_FRAMES, |m| m as u64);
         let step = match field(line, "op").ok_or_else(bad)? {
             "load" => Step::Load(field(line, "save").ok_or_else(bad)?.to_string()),
-            "new-game" => Step::NewGame,
+            "new-game" => Step::NewGame(field(line, "campaign") == Some("new")),
             "click" => Step::Click(
                 num(line, "x").ok_or_else(bad)? as i32,
                 num(line, "y").ok_or_else(bad)? as i32,
                 field(line, "button") == Some("right"),
+                harness,
             ),
+            "films" => Step::Films(field(line, "mode") != Some("skip")),
+            "wait-page" => Step::WaitPage(num(line, "page").ok_or_else(bad)?, max),
+            "dismiss" => Step::Dismiss,
+            "peek" => Step::Peek,
             "key" => Step::Key(field(line, "key").ok_or_else(bad)?.to_string()),
             "wait-screen" => Step::WaitScreen(num(line, "id").ok_or_else(bad)?, max),
             "wait-phase" => Step::WaitPhase(num(line, "phase").ok_or_else(bad)?, max),
@@ -64,6 +78,7 @@ pub fn parse(text: &str) -> Result<Vec<Step>, String> {
             "anchor" => Step::Anchor(field(line, "label").ok_or_else(bad)?.to_string()),
             _ => return Err(bad()),
         };
+        harness = false;
         steps.push(step);
     }
     Ok(steps)
@@ -72,7 +87,7 @@ pub fn parse(text: &str) -> Result<Vec<Step>, String> {
 #[test]
 fn every_op_parses() {
     let text = r#"{"op":"load","save":"england.sav"}
-{"op":"new-game"}
+{"op":"new-game","campaign":"new"}
 {"op":"click","x":320,"y":240}
 {"op":"key","key":"Escape"}
 {"op":"wait-screen","id":"0x1F","max":900}
@@ -82,9 +97,12 @@ fn every_op_parses() {
 {"op":"snap"}
 {"op":"anchor","label":"title"}"#;
     let steps = parse(text).unwrap();
-    assert_eq!(steps[2], Step::Click(320, 240, false));
+    assert_eq!(steps[2], Step::Click(320, 240, false, false));
+    assert_eq!(steps[1], Step::NewGame(true));
     let right = parse(r#"{"op":"click","x":1,"y":2,"button":"right"}"#).unwrap();
-    assert_eq!(right, [Step::Click(1, 2, true)]);
+    assert_eq!(right, [Step::Click(1, 2, true, false)]);
+    let harness = parse("// OK of message 298 (this harness)\n{\"op\":\"click\",\"x\":1,\"y\":2}");
+    assert_eq!(harness.unwrap(), [Step::Click(1, 2, false, true)]);
     assert_eq!(steps[4], Step::WaitScreen(0x1F, 900));
     assert_eq!(steps[5], Step::WaitPhase(4, MAX_FRAMES));
     assert_eq!(steps.len(), 10);
