@@ -310,7 +310,7 @@ fn blit_cell(
     let Some(sheet) = assets.bank(zoom, season, bank) else { return false };
     let Some(decoded) = sheet.frame(frame) else { return false };
     let overhang = (decoded.height as i32 - zoom.tile_h).max(0);
-    // Map_DrawTile  x004063C1: the TileBlit record is g_drawX/Y, the tile's origin, not the overhang's top.
+    // Map_DrawTile 0x004063C1: the TileBlit record is g_drawX/Y, the tile's origin, not the overhang's top.
     l2_net::trace_do!(l2_net::trace_draw::map_leaf(l2_net::trace_draw::Map::Tile, zoom.id, sx, decoded.width as i32, clip.x0, clip.x1); l2_net::trace_draw::record_at(sx, sy););
     canvas.blit_clipped_tagged(&decoded, sx, sy - overhang, clip, tags, county);
     true
