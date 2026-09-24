@@ -91,6 +91,17 @@ impl Screen for MapScreen {
                     self.swallow_click = false;
                     return Transition::Stay;
                 }
+                // FUN_0043CAF4 00430000.c:7507 `if (g_mapZoom == 2) { g_screenId = 0; Map_ZoomInAtTile(); }` [V]
+                if self.zoom.id == FAR.id {
+                    if let Some((tx, ty)) = self.pick_tile(x, y) {
+                        self.ensure(ctx);
+                        self.set_zoom(ctx, NEAR);
+                        self.centre_on_tile(tx as usize, ty as usize);
+                        // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1` [V]
+                        self.swallow_click = true;
+                        return Transition::Stay;
+                    }
+                }
                 let target = self
                     .pick_tile(x, y)
                     .map(|(tx, ty)| {
@@ -146,7 +157,11 @@ impl Screen for MapScreen {
             Event::Release { x, y } => {
                 self.slider_held = false;
                 // Battle_Frame 004b0000.c:6742 `DAT_005533b0 = Map_PickTile(0)` gates Map_Click [V].
-                if self.swallow_click && self.pick_tile(x, y).is_some() {
+                // Screen_FrameInput 00420000.c:6795 and Map_Click :7669: `DAT_00553fc8 == 0 &&
+                // (DAT_0055403c == 0 || DAT_00553018 != 0)`, screen 0 only [V].
+                let closed = (turn::turn_in_flight(ctx.game) && !turn::turn_opening(ctx.game))
+                    || self.fading.is_some();
+                if self.swallow_click && !closed && self.pick_tile(x, y).is_some() {
                     self.swallow_click = false;
                 }
             }
