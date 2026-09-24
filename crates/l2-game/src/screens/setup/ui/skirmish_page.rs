@@ -88,7 +88,7 @@ impl SetupScreen {
         let text = self.battle_text(ctx, self.skirmish.row);
         pen.drop_caps().heading_centred(canvas, 0x25, 0x78, 0x179, &text.title, 0x3F);
         // `FUN_0040352F` — wrapped and left-aligned, not centred.
-        pen.body_wrapped(canvas, 0x28, 0x98, 0x172, &text.description, 0x3F);
+        pen.buffer_wrapped(canvas, 0x28, 0x98, 0x172, &text.description, 0x3F);
     }
 
     /// **`FUN_004209C1`** — the two names, the two roles and the strengths.

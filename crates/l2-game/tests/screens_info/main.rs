@@ -7,6 +7,7 @@ mod common;
 mod field_panel;
 mod tile_panel_part;
 mod unit_insets;
+mod wrap;
 
 use common::*;
 
