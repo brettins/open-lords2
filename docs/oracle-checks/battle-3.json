@@ -123,17 +123,17 @@
   },
   {
    "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 140,
+   "line": 141,
    "address": "0x004831D8",
-   "verdict": "mismatch",
-   "note": "delay is skipped only while in melee and never cleared; after the duel (state 8) ours runs out the leftover delay, the original never counts it outside state 1."
+   "verdict": "match",
+   "note": "fixed: a man in state 4 loses his delay (state 1 overwritten, left for 8), 00480000.c:1386-1402; tests_delay.rs a_delay_interrupted_by_a_duel_is_not_run_out_afterwards."
   },
   {
    "file": "crates/l2-sim/src/runner/orders/movement.rs",
-   "line": 194,
+   "line": 202,
    "address": "0x004831D8",
-   "verdict": "mismatch",
-   "note": "a man killed in Melee_Tick still runs `if ((stepFlags & 1) == 0 && BattleMan_Step(1))` (00480000.c:1396); ours returns."
+   "verdict": "match",
+   "note": "fixed: the man Melee_Tick killed still runs the crossing step, 00480000.c:1396; tests_delay.rs a_man_killed_mid_crossing_still_steps_that_tick."
   },
   {
    "file": "crates/l2-sim/src/melee.rs",
@@ -146,8 +146,8 @@
    "file": "crates/l2-sim/src/ai/handlers/field.rs",
    "line": 116,
    "address": "0x0048ACD2",
-   "verdict": "mismatch",
-   "note": "budget is the constant 6 (ai/types.rs:266); original reads DAT_00553080[DAT_005653f8], filled per battlefield 0, 100 or 6+5n (00490000.c:3455-3461)."
+   "verdict": "match",
+   "note": "fixed: budget is (&DAT_00553080)[DAT_005653f8]: dealt 0/100/6+5n in FieldPlaylist::deal (00490000.c:3455-3461), save blocks 191/56 read on resume (saved_battle.rs), passed through Session::engagement_budget."
   }
  ]
 }

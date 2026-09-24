@@ -15,12 +15,9 @@
 //!
 //! Both are net-synced at every battle start — `FUN_00444A2F` writes
 //! `Net_WriteField(&DAT_005653F8, 4); Net_WriteField(&DAT_0057CAE0, 0x30);`
-//! and `FUN_00444A9B` reads the pair back — which is why the walk has to be
-//! state and not a draw. Neither is a save block: `docs/stored-fields.json`
-//! has no row for either address, so the original carries the order across a
-//! `.sav` load only by leaving the globals alone. Ours is in our own save
-//! (`save::codec` entry 31) because a lockstep peer that loads must walk the
-//! same order.
+//! and `FUN_00444A9B` reads the pair back. [V] Both, and the budget table
+//! `DAT_00553080`, are save blocks: `g_saveBlocks` (`0x004DE960`) entries 56,
+//! 178 and 191 (`battle-during.sav` offsets 262820, 266464, 266796).
 //!
 //! `Sync_Rollback` (`0x0043F5C5`) steps the cursor the other way —
 //! `if (DAT_005653f8 < 1) { DAT_005653f8 = 0x2e; } else { DAT_005653f8 - 1; }`
@@ -44,6 +41,8 @@ pub const WALK_LEN: usize = 0x2f;
 pub struct FieldPlaylist {
     frames: [u8; PLAYLIST_LEN],
     cursor: usize,
+    /// `DAT_00553080`, read at `[DAT_005653f8]` by `UnitOrder_FieldFoot` (00480000.c:4393).
+    budgets: [u8; PLAYLIST_LEN],
 }
 
 impl Default for FieldPlaylist {
@@ -55,7 +54,7 @@ impl Default for FieldPlaylist {
 impl FieldPlaylist {
     /// What the globals hold before a new game deals them: `.bss` zeros.
     pub fn empty() -> FieldPlaylist {
-        FieldPlaylist { frames: [0; PLAYLIST_LEN], cursor: 0 }
+        FieldPlaylist { frames: [0; PLAYLIST_LEN], cursor: 0, budgets: [0; PLAYLIST_LEN] }
     }
 
     /// `PlayerStart_Shuffle` (`0x00497E65`), second half. [V] against the
@@ -107,7 +106,16 @@ impl FieldPlaylist {
                 }
             }
         }
-        FieldPlaylist { frames, cursor: 0 }
+        // 00490000.c:3455-3461: `c = g_rand7B & 7`; 5 -> 0, 6 -> 100, else `c * 5 + 6`.
+        let mut budgets = [0u8; PLAYLIST_LEN];
+        for b in &mut budgets {
+            *b = match rng.next_u32() & 7 {
+                5 => 0,
+                6 => 100,
+                c => c as u8 * 5 + 6,
+            };
+        }
+        FieldPlaylist { frames, cursor: 0, budgets }
     }
 
     /// `Battlefield_BuildRandom` (`0x0047AAA3`) — read `DAT_00553528`, then
@@ -130,9 +138,18 @@ impl FieldPlaylist {
         &self.frames
     }
 
+    pub fn budgets(&self) -> &[u8; PLAYLIST_LEN] {
+        &self.budgets
+    }
+
+    /// `(&DAT_00553080)[DAT_005653f8]` (00480000.c:4393), after the walk's bump. [V]
+    pub fn budget(&self) -> u8 {
+        self.budgets[self.cursor]
+    }
+
     /// For the save codec, which restores both halves of the state
     /// `Net_WriteField` sends.
-    pub fn restore(frames: [u8; PLAYLIST_LEN], cursor: usize) -> FieldPlaylist {
-        FieldPlaylist { frames, cursor: cursor.min(WALK_LEN - 1) }
+    pub fn restore(frames: [u8; PLAYLIST_LEN], cursor: usize, budgets: [u8; PLAYLIST_LEN]) -> FieldPlaylist {
+        FieldPlaylist { frames, cursor: cursor.min(WALK_LEN - 1), budgets }
     }
 }

@@ -54,6 +54,7 @@ const FURNISHED_BY_CALL: &[(&str, &str, &str)] = &[
     // The deal is `PlayerStart_Shuffle` (`0x00497E65`) and the cursor is
     // `Battlefield_BuildRandom` (`0x0047AAA3`); neither is set field by field.
     ("FieldPlaylist", "frames", "FieldPlaylist::deal("),
+    ("FieldPlaylist", "budgets", "FieldPlaylist::deal("),
     ("FieldPlaylist", "cursor", "field_playlist.take_next()"),
 ];
 

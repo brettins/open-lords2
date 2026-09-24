@@ -4,6 +4,7 @@
 //! dumped with it. [V]
 
 use l2_formats::save::Save;
+use l2_kingdom::field_playlist::{FieldPlaylist, PLAYLIST_LEN};
 use l2_sim::runner::{FIELD_LEN, MEN_LEN};
 
 use crate::battlefield::LiveBattle;
@@ -17,9 +18,21 @@ const IS_SIEGE: u32 = 0x0053_E8FC;
 const CASTLE_LEVEL: u32 = 0x0055_401C;
 const CHOICE_OWNER: u32 = 0x0055_33D0;
 const FIELD: u32 = 0x0054_40E0;
+const PLAYLIST: u32 = 0x0057_CAE0;
+const CURSOR: u32 = 0x0056_53F8;
+const BUDGETS: u32 = 0x0055_3080;
 const MEN: u32 = 0x0055_4480;
 const LANE: u32 = 0x0056_D6B0;
 const RALLY: u32 = 0x0053_F654;
+
+/// The cursor one step back, as `Sync_Rollback` 00430000.c:9159 steps it, so
+/// `Battlefield_BuildRandom`'s bump lands on the saved cursor again.
+fn saved_playlist(save: &Save) -> Option<FieldPlaylist> {
+    let bytes = |va| -> Option<[u8; PLAYLIST_LEN]> { block(save, va, PLAYLIST_LEN).try_into().ok() };
+    let cursor = usize::try_from(save.i32_at(CURSOR).ok()?).ok()?;
+    let back = if cursor < 1 { 0x2e } else { cursor - 1 };
+    Some(FieldPlaylist::restore(bytes(PLAYLIST)?, back, bytes(BUDGETS)?))
+}
 
 fn block(save: &Save, va: u32, len: usize) -> Vec<u8> {
     (0..len as u32).map(|i| save.u8_at(va + i).unwrap_or(0)).collect()
@@ -28,8 +41,7 @@ fn block(save: &Save, va: u32, len: usize) -> Vec<u8> {
 /// `Battle_Start` (`0x004778A0`) again over the saved armies A (side 4) and B
 /// (side 0), then the saved field and men laid over it. Returns the figures
 /// whose troop agreed; `None` when the save holds no running battle.
-/// [I] the deploy markers are the playlist frame's, not the save's: the
-/// cursor `DAT_005653F8` is in no block (`docs/battle.md` §4.3).
+/// [V] playlist, cursor and budgets are save blocks 178, 56, 191.
 pub fn resume(save: &Save, game: &mut Game) -> Option<usize> {
     if save.i32_at(BATTLE_PHASE).ok()? != 2 {
         return None;
@@ -40,6 +52,7 @@ pub fn resume(save: &Save, game: &mut Game) -> Option<usize> {
     let castle_level = (save.i32_at(IS_SIEGE).ok()? != 0)
         .then(|| save.i32_at(CASTLE_LEVEL).unwrap_or(0) as u8);
     let choice_owner = save.u8_at(CHOICE_OWNER).ok()?;
+    game.kingdom.campaign.field_playlist = saved_playlist(save)?;
     let mut runner = crate::engagement::begin_fight_in(
         &mut game.kingdom,
         attacker,

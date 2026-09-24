@@ -8,6 +8,8 @@ impl BattleRunner {
     pub fn step(&mut self) {
         self.sync_positions();
         self.units.rebuild_from_figures(&mut self.sim.figures);
+        // Battle_Frame runs Battle_CountMenByType 0x00481B9A every frame, 004b0000.c:6703 [V]
+        self.ai.count_men(&self.sim.figures);
         if self.siege.is_siege {
             self.recount_siege();
             self.assault_repulsed();
