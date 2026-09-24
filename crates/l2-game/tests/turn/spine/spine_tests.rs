@@ -33,17 +33,16 @@ fn a_turn_walks_the_whole_phase_machine_and_runs_the_season_once() {
 }
 
 /// Turn_AllRealmsDone gates 4 -> 5, and Turn_BeginPlayersTurn (0x0049B6D3) on the wrap
-/// into 1 zeroes every counter, the human's too; the next phase 4 opens them all at 1.
+/// into 1 zeroes every counter, the human's too; each stays 0 until its round-robin call.
 #[test]
 fn every_realm_finishes_its_turn_and_every_realm_starts_the_next_one() {
     let mut g = five_realms();
     let before = g.kingdom.turn_count;
     turn::end_turn(&mut g).expect("the AI must finish or the turn cannot end");
     assert_eq!(g.kingdom.turn_count, before + 1, "phase 4 was left, so every realm reached 999");
-    // The prologue leaves the human at 1; an AI's first AI_RunTurnStep call takes it 0 -> 1.
+    // AI_RunTurnStep 00490000.c:4920-4924: aiStep 0 -> 1 is the realm's own call, the human's too.
     for realm in 1..=5usize {
-        let want = if g.kingdom.realms[realm].is_human { 1 } else { 0 };
-        assert_eq!(g.kingdom.realms[realm].ai_step, want, "realm {realm} did not open the new turn");
+        assert_eq!(g.kingdom.realms[realm].ai_step, 0, "realm {realm} did not open the new turn");
     }
 }
 
