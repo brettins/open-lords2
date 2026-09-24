@@ -15,7 +15,13 @@ DWORD g_mainThread = 0;
 struct Shadow { uint32_t ret, slot, hook, g0; };
 Shadow g_shadow[1024];
 int g_depth = 0;
-int g_hookRand = -1, g_hookLfsr = -1;
+int g_hookRand = -1, g_hookLfsr = -1, g_hookAi = -1, g_hookBank = -1, g_hookSlot = -1, g_hookRestart = -1;
+// Sound_LoadBank 0x00425E4B (names, count): char[count][16]; slot n plays entry n - 1 (C51).
+uint32_t g_bankNames = 0;
+int g_bankCount = 0;
+// g_realms 0x0057BF00, 0x160 a realm, +0x00 aiStep; AI_RunTurnStep 0x0049A581 is not reentrant.
+int32_t g_aiBefore[6];
+int32_t AiStep(int realm) { return *reinterpret_cast<volatile int32_t*>(0x0057BF00 + realm * 0x160); }
 
 struct Sheet { uint32_t base, len; char name[24]; };
 Sheet g_sheets[256];
@@ -85,11 +91,18 @@ void RecordCall(int h, const uint32_t* f) {
         r->args[i] = static_cast<int32_t>(v);
     }
     int k = n < 8 ? n : 8;
-    for (int g = 0; g < 2 && d.globals[g] && k < 8; g++, k++) {
+    for (int g = 0; g < 3 && d.globals[g] && k < 8; g++, k++) {
         r->types[k] = 'g';
         r->args[k] = *reinterpret_cast<volatile int32_t*>(static_cast<uintptr_t>(d.globals[g]));
     }
     r->nargs = static_cast<uint8_t>(k);
+    if ((h == g_hookSlot || h == g_hookRestart) && g_bankNames) {
+        int slot = static_cast<int>(f[10]);
+        char s[20];
+        s[0] = 0;
+        if (slot >= 1 && slot <= g_bankCount) CopyString(s, 17, g_bankNames + (slot - 1) * 16);
+        Append(r->text, s);
+    }
     Ev_End();
 }
 }
@@ -114,6 +127,8 @@ extern "C" void __cdecl OnEntry(uint32_t* f) {
         return;
     }
     if (d.cat == Cat_load) SheetLoaded(f[10], f[11], f[12]);
+    if (h == g_hookBank) { g_bankNames = f[10]; g_bankCount = static_cast<int>(f[11]) < 20 ? static_cast<int>(f[11]) : 20; }
+    if (h == g_hookAi) for (int i = 1; i <= 5; i++) g_aiBefore[i] = AiStep(i);
     if (d.cat == Cat_newgame) Pin(d.addr);
     uint32_t g0 = d.globals[0] ? *reinterpret_cast<volatile uint32_t*>(static_cast<uintptr_t>(d.globals[0])) : 0;
     if (d.cat != Cat_turn) RecordCall(h, f);
@@ -150,6 +165,16 @@ extern "C" void __cdecl OnReturn(uint32_t* f) {
     EvRecord* r = Ev_Begin(Ev_ret, d.addr, s.ret);
     r->hook = static_cast<uint16_t>(s.hook);
     r->ret = static_cast<int32_t>(f[7]);
+    if (s.hook == static_cast<uint32_t>(g_hookAi)) {
+        // The realm stepped is the one before the cursor DAT_0057C944 (0x0049A581 do-while).
+        int cur = *reinterpret_cast<volatile int32_t*>(0x0057C944);
+        int realm = cur <= 1 ? 5 : cur - 1;
+        r->args[0] = realm;
+        r->args[1] = g_aiBefore[realm];
+        r->args[2] = AiStep(realm);
+        memcpy(r->types, "iii", 3);
+        r->nargs = 3;
+    }
     Ev_End();
     if (d.cat == Cat_save) Pin(d.addr);
 }
@@ -187,6 +212,10 @@ bool Detours_Install() {
         auto target = reinterpret_cast<uint8_t*>(static_cast<uintptr_t>(d.addr));
         if (strcmp(d.name, "Rand_Advance") == 0) g_hookRand = h;
         if (strcmp(d.name, "Rng_LfsrStep") == 0) g_hookLfsr = h;
+        if (strcmp(d.name, "AI_RunTurnStep") == 0) g_hookAi = h;
+        if (strcmp(d.name, "Sound_LoadBank") == 0) g_hookBank = h;
+        if (strcmp(d.name, "Sound_PlaySlot") == 0) g_hookSlot = h;
+        if (strcmp(d.name, "Sound_RestartSlot") == 0) g_hookRestart = h;
         if (memcmp(target, d.expect, d.stolen) != 0) {
             // Smk_Play under L2TRACE_FILMS=skip already jumps to H_SmkPlay, which records the film.
             bool filmSkip = d.cat == Cat_film && target[0] == 0xE9;

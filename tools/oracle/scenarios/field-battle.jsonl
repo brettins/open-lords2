@@ -1,0 +1,27 @@
+// battle-during.sav loads into the field battle (screen 0x29): autocalc it, through the outcome and back to the map.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"battle-during.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"record","frames":2}
+{"op":"snap"}
+// Battle_ButtonClicked 0x004329A4: button 4, autocalc, at (608, 448); Battle_AutocalcButton opens Ui_OpenConfirm(9).
+{"op":"click","x":624,"y":464}
+{"op":"wait-screen","id":30,"max":600}
+{"op":"record","frames":2}
+{"op":"anchor","label":"confirm"}
+{"op":"snap"}
+// L2.eng 10/9 "Autocalc battle?"; the thumb-up, system.pl8 29 at (224, 206). Battle_AutoResolve, Battle_ReturnToCampaign.
+{"op":"click","x":244,"y":226}
+{"op":"wait-screen-not","id":30}
+{"op":"advance","frames":120}
+{"op":"anchor","label":"outcome"}
+{"op":"record","frames":2}
+{"op":"snap"}
+{"op":"dismiss"}
+{"op":"click","x":320,"y":240,"button":"right"}
+{"op":"advance","frames":120}
+{"op":"dismiss"}
+{"op":"anchor","label":"map"}
+{"op":"record","frames":2}
+{"op":"snap"}

@@ -26,7 +26,7 @@ if (-not (Test-Path $VcVars)) { throw "vcvarsall not found: $VcVars" }
 New-Item -ItemType Directory -Force $Out | Out-Null
 
 $flags = "/nologo /LD /MT /W4 /O2 /EHsc /std:c++17 /Fo`"$Out\\`""
-$libs = "user32.lib kernel32.lib"
+$libs = "user32.lib kernel32.lib gdi32.lib"
 $cmd = "call `"$VcVars`" x86 >nul 2>&1 && cd /d `"$dir`" && " +
   "cl $flags ddraw_fake.cpp hooks.cpp frame.cpp common.cpp events.cpp detour.cpp $libs /link /DEF:ddraw.def " +
   "/IMPLIB:`"$Out\ddraw.lib`" /OUT:`"$Out\ddraw.dll`" && " +

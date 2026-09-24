@@ -1,0 +1,35 @@
+// Raise an army in Dyfed on the England turn-one save: sidebar button 1 (478..510, y 430..458) sets screen 0x17.
+{"op":"films","mode":"skip"}
+{"op":"load","save":"england-turn1.sav"}
+{"op":"dismiss"}
+{"op":"anchor","label":"loaded"}
+{"op":"click","x":494,"y":444}
+{"op":"wait-screen","id":23,"max":600}
+{"op":"advance","frames":30}
+// First visit: tip 209 "The Armoury:" (Msg_Enqueue), its Ui_OkButton at (416, 336).
+{"op":"ok"}
+{"op":"wait-screen","id":23,"max":600}
+{"op":"record","frames":5}
+{"op":"anchor","label":"raise-screen"}
+{"op":"snap"}
+// Levy_SliderClick 0x00435CEF: x 0xC4 + 50 sets g_levyPercent 50 (track system.pl8 80 at 196, 186).
+{"op":"click","x":246,"y":195}
+{"op":"advance","frames":10}
+{"op":"peek","addr":"0x0056D65C"}
+{"op":"peek","addr":"0x00543FD8"}
+{"op":"anchor","label":"levied"}
+{"op":"snap"}
+// RaiseArmy_Continue 0x00435CBF, DAT_004DD340 record 0 at (480, 336): screen 0x0A.
+{"op":"click","x":496,"y":350}
+{"op":"wait-screen","id":10,"max":600}
+{"op":"record","frames":5}
+{"op":"anchor","label":"armoury"}
+{"op":"snap"}
+// Armoury_Button 0x00435AE8 id 1, 'Create' Ui_DrawCentred(69, 6) at (542, 404) w 100: Army_RaiseConfirm.
+{"op":"click","x":592,"y":410}
+{"op":"wait-screen-not","id":10}
+{"op":"advance","frames":60}
+{"op":"dismiss"}
+{"op":"anchor","label":"raised"}
+{"op":"record","frames":2}
+{"op":"snap"}

@@ -148,6 +148,11 @@ int WINAPI H_MessageBoxA(HWND, LPCSTR text, LPCSTR caption, UINT) {
     Log("MessageBoxA suppressed: [%s] %s", caption ? caption : "", text ? text : "");
     return IDOK;
 }
+// Display_Init 0x0042E5C0: g_desktopColours = BITSPIXEL x PLANES, 16 if NUMCOLORS is -1; not 8
+// raises message 298 "Non 256 colour display" (Battle_Frame 0x004B99C0). An 8-bit palette desktop.
+int WINAPI H_GetDeviceCaps(HDC dc, int i) {
+    return i == BITSPIXEL ? 8 : i == PLANES ? 1 : i == NUMCOLORS ? 20 : GetDeviceCaps(dc, i);
+}
 BOOL WINAPI H_WinHelpA(HWND, LPCSTR, UINT, ULONG_PTR) { return TRUE; }
 
 // Smk_Play 0x0042D91B, its failed-open branch: g_screenId 0x004EAC50 = returnScreen, return 0.
@@ -215,6 +220,7 @@ bool Hooks_Install() {
     HookIat(u32, "SetWindowLongA", H_SetWindowLongA, 0);
     HookIat(u32, "MessageBoxA", H_MessageBoxA, 0);
     HookIat(u32, "WinHelpA", H_WinHelpA, 0);
+    HookIat("GDI32.dll", "GetDeviceCaps", H_GetDeviceCaps, 0);
     char films[16] = "play";
     EnvStr("L2TRACE_FILMS", films, sizeof(films));
     if (_stricmp(films, "skip") == 0) {
