@@ -16,19 +16,12 @@ impl Machine {
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
         self.trace_screen(ctx.game);
-        // Battle_Frame 004b0000.c:6707 ticksDue before the ticks (6940), Tip_Update and
-        // Msg_Pump (6783-6784) after them: a tip posted this frame withholds the next [V].
+        // Battle_Frame 004b0000.c:6707 ticksDue, the ticks (6940), then on loop exit
+        // Tip_Update/Msg_Pump (6783-6784), Event_Post (6867), Screen_FrameInput (6871) [V].
+        // FUN_00476E21 0x00476E21 restored g_screenId at the dismissal, before this gate [V].
+        self.seat_tip_host(ctx.game);
         let withheld = self.ticks_withheld(ctx.game);
-        self.run_tips(ctx);
-        self.pump_messages(ctx);
-        // `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at `0x004BA187`, in
-        // its place: `Tip_Update` (106), `Msg_Pump` (107), … this (190), …
-        // `Turn_Tick` (262). **After the pump on purpose** — a letter posted now
-// is pulled off the ring on the next frame, as in the original,
-        // which is what gives the player one frame of the county they just
-        // clicked before the scroll covers it. See
-        // [`crate::message::post_event`]. No screen test: the original has none.
-        crate::message::post_event(ctx.game);
+        // Turn_Tick 0x0049A010 00490000.c:4787 counts DAT_005440C8 down inside the tick [V].
         // A network game's clock is `net::frame`'s, on the session's tick.
         if !ctx.game.net.lockstep {
             self.run_turn_clock(ctx);
@@ -37,7 +30,12 @@ impl Machine {
             self.dirty |= crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen);
             self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);
         }
-        if self.join_battle(ctx) || self.wind_turn(ctx, withheld) {
+        let wound = self.join_battle(ctx) || self.wind_turn(ctx, withheld);
+        self.run_tips(ctx);
+        self.pump_messages(ctx);
+        // Event_Post(g_selectedCounty) 004b0000.c:6867 after Msg_Pump: its letter leaves the ring next frame [V].
+        crate::message::post_event(ctx.game);
+        if wound {
             self.run_tooltips(ctx);
             return;
         }
