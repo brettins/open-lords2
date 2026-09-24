@@ -1,0 +1,6 @@
+{ "reviewed": "e10c8177f5eb5e509e557175ba0089f42152f454",
+  "date": "2026-09-24",
+  "behaviours": [
+    { "file": "crates/l2-game/src/shell/font/glyph.rs", "line": 129, "address": "0x00402A14", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/shell/font/glyph.rs", "line": 168, "address": "0x004B41B7", "verdict": "match", "note": "" }
+  ] }

@@ -137,6 +137,8 @@ pub struct Font {
     sheet: Sheet,
     pub line: i32,
     raises_accents: bool,
+    /// Each frame record's height (`+0x02`), without the overhang rows.
+    rect_heights: Vec<u16>,
 }
 
 pub const BODY: &str = "Fntl2_14.pl8";

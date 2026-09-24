@@ -102,7 +102,10 @@ desynchronises the whole file.
 after it, drawn *above* it — real artwork continuous with the rectangle, such as the
 accent on a glyph or the sloped top edge of a hill tile. `Glyph_Draw` (`0x00402A14`)
 shifts the destination down by that row count before clipping, reserving exactly those
-rows. 70 frames across four files store them, and all 70 land byte-exact.
+rows. 70 frames across four files store them, and all 70 land byte-exact. **For glyphs
+those rows never draw [V]:** the blit `FUN_004B41B7` copies width × record height from
+`g_spriteDataOffset` and never reads past it; the original's `v` and `w` show no overhang
+ink (pixel diff, army-panel 2026-09-24).
 
 **Declaring the rows and storing them are two different questions, and only the
 second one is structural.** A shape-0 frame *always* reserves the rows it declares:
