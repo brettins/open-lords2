@@ -16,16 +16,13 @@ use crate::widget;
 
 /// Where the caret lands inside the wrapped draft — the pen position
 /// `FUN_0040352F` hands back to `FUN_00417BD3` as `g_caretX`, `g_caretY`.
-///
-/// **[I] on the column.** Our wrap splits on whitespace and drops it, so a
-/// caret standing on a run of spaces is drawn at the end of the word before
-/// them; the original measures the spaces. Elsewhere the two agree.
+/// [I] the column is `FUN_004014F0`'s measure of the last line, spaces kept.
 pub(super) fn caret_pen(pen: &Pen, text: &str, caret: usize, x: i32, y: i32, width: i32) -> (i32, i32) {
     use crate::text::Metrics;
     let m = crate::text::FontMetrics::of(pen.assets);
     let line_h = pen.assets.body.as_ref().map_or(16, |f| f.line);
     let head: String = text.chars().take(caret).collect();
-    let rows = pen.wrap(&head, width);
+    let rows = pen.wrap_buffer(&head, width);
     let row = rows.len().saturating_sub(1) as i32;
     let last: Vec<char> = rows.last().map_or_else(Vec::new, |s| s.chars().collect());
     (x + m.width(&last), y + row * line_h)

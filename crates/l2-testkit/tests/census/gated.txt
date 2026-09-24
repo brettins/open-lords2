@@ -172,6 +172,7 @@ crates/l2-game/tests/screens_info/field_panel/labels_and_views/views.rs england 
 crates/l2-game/tests/screens_info/field_panel/labels_and_views/views.rs executable 1
 crates/l2-game/tests/screens_info/tile_panel_part.rs england 5
 crates/l2-game/tests/screens_info/unit_insets.rs england 1
+crates/l2-game/tests/screens_info/wrap.rs england 1
 crates/l2-game/tests/screens_map/fog_and_march_tests/fog_tests.rs england 3
 crates/l2-game/tests/screens_map/fog_and_march_tests/hover_frame_tests.rs england 1
 crates/l2-game/tests/screens_map/fog_and_march_tests/march_tests/drawn.rs england 2

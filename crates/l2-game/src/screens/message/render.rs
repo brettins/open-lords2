@@ -121,7 +121,7 @@ pub(super) fn draw_diplomacy(pen: &Pen, ctx: &Ctx, canvas: &mut Canvas, record: 
     let letter = ctx.game.messages.letters.get(usize::from(record.from)).cloned().unwrap_or_default();
     let free_text = |canvas: &mut Canvas, top: i32| {
         pen.inset(canvas, Rect::new(f.x + 0x20, f.y + top, f.w - 0x40, 0x5A));
-        pen.body_wrapped(canvas, f.x + 0x28, f.y + top + 4, f.w - 0x50, &letter, font::TEXT);
+        pen.buffer_wrapped(canvas, f.x + 0x28, f.y + top + 4, f.w - 0x50, &letter, font::TEXT);
     };
     match arm {
         1 | 2 => free_text(canvas, 0x68),
