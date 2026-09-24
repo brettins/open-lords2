@@ -151,6 +151,7 @@ impl MapScreen {
         };
         let fog: campaign::Fog =
             if ctx.game.kingdom.options.exploration { Some(&hidden) } else { None };
+        l2_net::trace_do!(l2_net::trace_draw::capture(););
         campaign::draw(
             &mut self.base,
             &slot,
@@ -163,6 +164,7 @@ impl MapScreen {
             ctx.game.kingdom.season,
             fog,
         );
+        l2_net::trace_do!(l2_net::trace_draw::captured("map-base"););
         self.built = Some(key);
     }
 

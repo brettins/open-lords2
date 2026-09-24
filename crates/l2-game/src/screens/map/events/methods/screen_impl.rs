@@ -497,6 +497,7 @@ impl Screen for MapScreen {
         let clip = self.map_clip();
 
         canvas.pixels.copy_from_slice(&self.base.pixels);
+        l2_net::trace_do!(l2_net::trace_draw::replay("map-base"););
 
 
         let debug = game.prefs.debug_overlay;
