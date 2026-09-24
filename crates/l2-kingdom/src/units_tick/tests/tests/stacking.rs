@@ -28,6 +28,20 @@ fn a_stacked_army_that_stops_steps_aside() {
     assert!(!u.path.is_empty() && u.dest != Some((5, 10)));
 }
 
+/// FUN_00467196 00460000.c:4833 `moving = 2` stands even when Path_CopyToUnit copied no path:
+/// Unit_Step :4368 has no reset after it. Ablate: `moving = false` after step_aside in step_one.
+#[test]
+fn a_stacked_army_stepping_aside_without_a_path_stays_moving() {
+    let mut k = kingdom();
+    let a = army(&mut k, 2, 5, 10);
+    let u = k.campaign.units.get_mut(a).unwrap();
+    (u.player_driven, u.moving, u.moves_used) = (false, true, 4);
+    k.tick_units();
+    let u = k.campaign.units.get(a).unwrap();
+    assert!(u.path.is_empty() && u.dest != Some((5, 10)), "aside, with no path copied");
+    assert!(u.moving, "moving = 2 is FUN_00467196's last word");
+}
+
 /// Unit_MoveInFacing 00460000.c:4805 Unit_LinkToTile: entering an occupied tile chains the unit.
 /// Ablate the link_to_tile call in movement::step.
 #[test]

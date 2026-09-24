@@ -54,9 +54,9 @@ fn a_castle_refuses_more_men_than_it_can_barrack() {
     click(&mut m, &mut g, &a, pixel(here.0, here.1).unwrap());
     answer_yes(&mut m, &mut g, &a);
     // MoveOrder_ConfirmGarrison 0x004A9372 `:3913`: the split offer, no Unit_OrderMove to the keep.
-    // Not `!moving`: 0x1E is outside DAT_004E31B0 (FUN_004BB978), so Units_Tick runs under the
-    // confirm and FUN_00467196 walks the stacked army aside on alternate frames [I].
-    assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.dest != Some(here)));
+    // 0x1E is outside DAT_004E31B0 (FUN_004BB978), so Units_Tick runs under the confirm and
+    // FUN_00467196 steps the stacked army aside; its `moving = 2` (00460000.c:4833) stands [V].
+    assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.dest != Some(here) && u.moving));
     tick(&mut m, &mut g, &a);
     assert_eq!(g.messages.open().map(|r| r.group), Some(0xA6));
 

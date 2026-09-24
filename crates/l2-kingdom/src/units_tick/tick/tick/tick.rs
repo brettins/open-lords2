@@ -155,9 +155,7 @@ impl Kingdom {
                 if at_end && movement::zeroed_head(&mut c.units, id) {
                     return self.step_one(id, out);
                 }
-                if let Some(u) = c.units.get_mut(id).filter(|u| at_end && u.path.is_empty()) {
-                    u.moving = false;
-                }
+                // FUN_00467196 00460000.c:4833 `moving = 2` is its last word; no reset after :4356/:4368 [V].
             }
             return;
         };
