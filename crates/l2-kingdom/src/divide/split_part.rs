@@ -18,7 +18,6 @@ pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
 
 /// Map_FindFreeTileNear 0x0046733C returns the ring `local_8` it found the tile on (00460000.c:4870) [V].
 pub fn free_tile_ring(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<(i32, (u8, u8))> {
-    let cost = map.cost_map();
     let scan = |r: i32, road: bool| -> Option<(u8, u8)> {
         let dim = crate::map::MAP_DIM as i32;
         let (x0, y0) = ((x as i32 - r).max(0), (y as i32 - r).max(0));
@@ -33,7 +32,8 @@ pub fn free_tile_ring(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
                     if map.has(tx, ty, flags::ROAD) {
                         return Some((tx, ty));
                     }
-                } else if cost.at(tx, ty) != 0 {
+                // Map_FindFreeOpenTileNear 00460000.c `(flags & 0xfd) == 0`: a castle plot is not free [V].
+                } else if map.flags_at(tx, ty) & !flags::BOUNDARY == 0 {
                     return Some((tx, ty));
                 }
             }

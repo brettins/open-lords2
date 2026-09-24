@@ -130,6 +130,10 @@ impl Kingdom {
             let (mut stacked, mut at_end) = (false, false);
             if let Some(u) = self.campaign.units.get_mut(id) {
                 u.moving = false;
+                // Unit_Step 00460000.c:4340 `movesUsed = moveAllowance;`, so FUN_00467196's refund is spendable [V].
+                if u.moves_used >= u.move_allowance {
+                    u.moves_used = u.move_allowance;
+                }
                 if u.path.is_empty() {
                     u.needs_destination = true;
                 }

@@ -120,6 +120,17 @@ fn pass_through(
     }
 }
 
+/// Unit_Step 00460000.c:4370 `field_0x1c -= 1` spends the path entry before Unit_StepOnce;
+/// a code > 4 stop (:4389, castle 5, settlement 6, plot 7) does not give it back [V].
+fn stop_spent(units: &mut Units, id: usize) -> Option<()> {
+    let u = units.get_mut(id)?;
+    u.moving = false;
+    if !u.path.is_empty() {
+        u.path.remove(0);
+    }
+    Some(())
+}
+
 /// `Unit_StepOnce` (`0x0046634D`) — take exactly one step along the unit's
 /// path.
 pub fn step(
@@ -148,7 +159,7 @@ pub fn step(
     match entry {
         Entry::Castle => {
             out.reached_castle = Some(tile_county);
-            units.get_mut(id)?.moving = false;
+            stop_spent(units, id)?;
             return Some(out);
         }
         Entry::Occupied(_) => {
@@ -168,7 +179,7 @@ pub fn step(
             if (terrain::CASTLE_FROM..=terrain::CASTLE_TO).contains(&t) {
                 out.reached_castle_building = Some(tile_county);
             }
-            units.get_mut(id)?.moving = false;
+            stop_spent(units, id)?;
             return Some(out);
         }
         Entry::Plot => {
@@ -197,7 +208,7 @@ pub fn step(
                     amount: DWELLING_BURN_OFFENCE,
                 });
             }
-            units.get_mut(id)?.moving = false;
+            stop_spent(units, id)?;
             return Some(out);
         }
         Entry::Field => {
