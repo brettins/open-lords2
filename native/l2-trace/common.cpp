@@ -80,7 +80,7 @@ void Shared_Open(const char* logName) {
     void* view = map ? MapViewOfFile(map, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(TraceShared)) : nullptr;
     g_shared = view ? static_cast<TraceShared*>(view) : &g_fallback;
     g_shared->magic = kTraceMagic;
-    g_shared->version = 2;
+    g_shared->version = 3;
     if (!g_shared->gate) g_shared->gate = EnvInt("L2TRACE_GATE", 0);
     Log("l2trace up, pid %u, shared %s", GetCurrentProcessId(), view ? name : "(local only)");
 }

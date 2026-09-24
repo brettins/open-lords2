@@ -1,6 +1,6 @@
 //! The pointer, record and wait steps trace-run.ps1 added (`FORMAT.md`), on our side.
 
-use l2_game::input::Event;
+use l2_game::input::{Event, Key};
 use l2_game::screen::Ctx;
 use l2_net::trace;
 
@@ -125,4 +125,20 @@ impl Run {
         self.frames(2);
         self.send(Event::RightClick { x, y });
     }
+}
+
+/// trace.ps1 `Key`'s names; one character is text.
+pub(crate) fn key(k: &str) -> Event {
+    Event::KeyDown(match k {
+        "Escape" => Key::Escape,
+        "Enter" => Key::Enter,
+        "Space" => Key::Space,
+        "Backspace" => Key::Backspace,
+        "Up" => Key::Up,
+        "Down" => Key::Down,
+        "Left" => Key::Left,
+        "Right" => Key::Right,
+        c if c.chars().count() == 1 => return Event::Text(c.chars().next().unwrap()),
+        other => panic!("no key {other}"),
+    })
 }

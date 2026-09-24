@@ -45,6 +45,8 @@ void Frame_Presented(const uint8_t* pixels, int pitch, int w, int h, const PALET
     hash = Fnv(hash, reinterpret_cast<const uint8_t*>(pal), 256 * sizeof(PALETTEENTRY));
     uint32_t n = g_shared->frames + 1;
     g_shared->frameHash = hash;
+    g_shared->fbAddr = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pixels));
+    g_shared->palAddr = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pal));
     static const int presentMs = EnvInt("L2TRACE_PRESENT_MS", 0);
     Clock_Advance(presentMs);
     Timers_Run();

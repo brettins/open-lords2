@@ -26,6 +26,8 @@ pub enum Step {
     WaitIdle(u64, u64),
     Advance(u64),
     Snap,
+    /// The framebuffer as it stands, no frame run (trace-run.ps1 `shot`).
+    Shot,
     Anchor(String),
 }
 
@@ -93,6 +95,7 @@ pub fn parse(text: &str) -> Result<Vec<Step>, String> {
             "wait-idle" => Step::WaitIdle(num(line, "frames").ok_or_else(bad)? as u64, max),
             "advance" => Step::Advance(num(line, "frames").ok_or_else(bad)? as u64),
             "snap" => Step::Snap,
+            "shot" => Step::Shot,
             "anchor" => Step::Anchor(field(line, "label").ok_or_else(bad)?.to_string()),
             _ => return Err(bad()),
         };

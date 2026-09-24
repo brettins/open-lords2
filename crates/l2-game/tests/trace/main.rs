@@ -3,6 +3,7 @@
 
 mod harness;
 mod script;
+mod shot;
 mod sink;
 mod steps;
 mod symbols;
@@ -11,7 +12,7 @@ use std::path::PathBuf;
 
 use l2_game::audio::{Audio, Director};
 use l2_game::game::Assets;
-use l2_game::input::{Event, Key};
+use l2_game::input::Event;
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::setup::SetupPage;
 use l2_game::Game;
@@ -30,6 +31,7 @@ pub struct Run {
     frame: u64,
     /// Snap and `record` frames: the draw and text records FORMAT.md keeps (trace-run.ps1 KeepDraws).
     kept: Vec<u64>,
+    shots: Option<shot::Shots>,
 }
 
 pub fn scenarios_dir() -> PathBuf {
@@ -56,6 +58,7 @@ impl Run {
             tables,
             frame: 0,
             kept: Vec::new(),
+            shots: None,
         })
     }
 
@@ -171,7 +174,7 @@ impl Run {
                 }
                 // trace.ps1 `Key`: down, one step, up.
                 Step::Key(k) => {
-                    self.send(key(k));
+                    self.send(steps::key(k));
                     self.frame();
                 }
                 Step::WaitScreen(id, max) => {
@@ -187,8 +190,14 @@ impl Run {
                     self.machine.mark_dirty();
                     self.frame();
                     self.kept.push(self.frame);
-                    let hash = fnv(&self.canvas.pixels);
-                    l2_net::trace!("snap", 0, "Canvas", hash = hash as i64);
+                    let hash = shot::fnv(&self.canvas.pixels);
+                    let shot = self.shot();
+                    l2_net::trace!("snap", 0, "Canvas", hash = hash as i64, shot = shot);
+                }
+                Step::Shot => {
+                    let hash = shot::fnv(&self.canvas.pixels);
+                    let shot = self.shot();
+                    l2_net::trace!("shot", 0, "Canvas", hash = hash as i64, shot = shot);
                 }
                 Step::Anchor(label) => l2_net::trace!("anchor", 0, "Scenario", label = label),
                 _ => unreachable!("play handles {step:?}"),
@@ -224,25 +233,6 @@ fn new_game(assets: &Assets, tables: l2_kingdom::tables::Tables) -> Game {
         .expect("a new world")
 }
 
-fn key(k: &str) -> Event {
-    Event::KeyDown(match k {
-        "Escape" => Key::Escape,
-        "Enter" => Key::Enter,
-        "Space" => Key::Space,
-        "Backspace" => Key::Backspace,
-        "Up" => Key::Up,
-        "Down" => Key::Down,
-        "Left" => Key::Left,
-        "Right" => Key::Right,
-        c if c.chars().count() == 1 => return Event::Text(c.chars().next().unwrap()),
-        other => panic!("no key {other}"),
-    })
-}
-
-fn fnv(bytes: &[u8]) -> u32 {
-    bytes.iter().fold(0x811C_9DC5u32, |h, &b| (h ^ b as u32).wrapping_mul(0x0100_0193))
-}
-
 /// Plays `tools/oracle/scenarios/<name>.jsonl`; writes `<name>.ours.jsonl` beside the test binary.
 pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
     let text = std::fs::read_to_string(scenarios_dir().join(format!("{name}.jsonl")))
@@ -252,6 +242,9 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
         eprintln!("skip: no game install");
         return None;
     };
+    let dir = std::env::var_os("L2_TRACE_OUT")
+        .map_or_else(|| PathBuf::from(env!("CARGO_TARGET_TMPDIR")), PathBuf::from);
+    run.shots = Some(shot::Shots { dir: dir.clone(), name: name.into(), next: 0 });
     trace::start();
     run.play(&steps);
     let kept = std::mem::take(&mut run.kept);
@@ -259,8 +252,6 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
         .into_iter()
         .filter(|r| !matches!(r.kind, "draw" | "text") || kept.binary_search(&r.frame).is_ok())
         .collect();
-    let dir = std::env::var_os("L2_TRACE_OUT")
-        .map_or_else(|| PathBuf::from(env!("CARGO_TARGET_TMPDIR")), PathBuf::from);
     let out = dir.join(format!("{name}.ours.jsonl"));
     let body: String = records.iter().map(|r| r.to_json() + "\n").collect();
     std::fs::write(&out, body).expect("the trace writes");

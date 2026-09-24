@@ -23,7 +23,8 @@ Blank lines and lines starting `//` are skipped. Numbers may be decimal or a `"0
 | `wait-phase` | `phase`, `max`? | frames until `g_turnPhase` (`0x00569584`) is `phase` |
 | `wait-idle` | `frames`, `max`? | frames until `frames` in a row emit nothing but `draw`, `text`, `rand` (the original: no sound, music, voice, message, ai, film, save or new-game call and no screen or phase change) |
 | `advance` | `frames` | run that many frames |
-| `snap` | | a `snap` record: FNV-1a of the 640x480 indexed frame |
+| `snap` | | a `snap` record: FNV-1a of the 640x480 indexed frame; `shot`, the framebuffer written beside the trace (`pixel-diff.js`) |
+| `shot` | | the framebuffer as it stands, no frame run: a `shot` record (`hash`, `shot`) |
 | `anchor` | `label` | an `anchor` record; the differ aligns the two streams on anchors |
 
 `max` defaults to 20000 frames; a wait that runs out fails the scenario.
