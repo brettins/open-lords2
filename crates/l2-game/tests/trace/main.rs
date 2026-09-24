@@ -28,6 +28,8 @@ pub struct Run {
     canvas: Canvas,
     tables: l2_kingdom::tables::Tables,
     frame: u64,
+    /// Snap and `record` frames: the draw and text records FORMAT.md keeps (trace-run.ps1 KeepDraws).
+    kept: Vec<u64>,
 }
 
 pub fn scenarios_dir() -> PathBuf {
@@ -53,6 +55,7 @@ impl Run {
             canvas: Canvas::screen(),
             tables,
             frame: 0,
+            kept: Vec::new(),
         })
     }
 
@@ -183,6 +186,7 @@ impl Run {
                 Step::Snap => {
                     self.machine.mark_dirty();
                     self.frame();
+                    self.kept.push(self.frame);
                     let hash = fnv(&self.canvas.pixels);
                     l2_net::trace!("snap", 0, "Canvas", hash = hash as i64);
                 }
@@ -250,7 +254,11 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
     };
     trace::start();
     run.play(&steps);
-    let records = trace::stop();
+    let kept = std::mem::take(&mut run.kept);
+    let records: Vec<_> = trace::stop()
+        .into_iter()
+        .filter(|r| !matches!(r.kind, "draw" | "text") || kept.binary_search(&r.frame).is_ok())
+        .collect();
     let dir = std::env::var_os("L2_TRACE_OUT")
         .map_or_else(|| PathBuf::from(env!("CARGO_TARGET_TMPDIR")), PathBuf::from);
     let out = dir.join(format!("{name}.ours.jsonl"));

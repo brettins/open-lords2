@@ -57,6 +57,7 @@ impl Run {
         for _ in 0..n {
             self.machine.mark_dirty();
             self.frame();
+            self.kept.push(self.frame);
         }
     }
 

@@ -1,9 +1,11 @@
 // Diffs two FORMAT.md traces: node trace-diff.js <a.orig.jsonl> <b.ours.jsonl> [--md] [--context N]
 // Steps are the spans between anchors (screen changes when neither side has one); within a step,
 // each category's ordered subsequence is compared and its first divergence printed. C246.
+// Both files stream: a 1.7 GB field-battle-manual.ours.jsonl overflows a string.
 'use strict';
 const fs = require('fs');
 const path = require('path');
+const { StringDecoder } = require('string_decoder');
 
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
@@ -11,7 +13,32 @@ const opt = (n, d) => { const i = args.indexOf(n); return i < 0 ? d : args[i + 1
 const [origFile, oursFile] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1] === '--context'));
 const CONTEXT = Number(opt('--context', 3));
 
-const load = (f) => fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l, i) => ({ ...JSON.parse(l), i }));
+function* lines(file) {
+  const fd = fs.openSync(file, 'r'), buf = Buffer.alloc(1 << 22), dec = new StringDecoder('utf8');
+  let rest = '';
+  try {
+    for (let n; (n = fs.readSync(fd, buf, 0, buf.length, null)) > 0;) {
+      const parts = (rest + dec.write(buf.subarray(0, n))).split('\n');
+      rest = parts.pop();
+      for (const l of parts) if (l) yield l;
+    }
+    rest += dec.end();
+    if (rest) yield rest;
+  } finally { fs.closeSync(fd); }
+}
+
+function hasAnchor(file) {
+  const fd = fs.openSync(file, 'r'), buf = Buffer.alloc(1 << 22), pat = Buffer.from('"kind":"anchor"');
+  try {
+    for (let n, keep = 0; (n = fs.readSync(fd, buf, keep, buf.length - keep, null)) > 0;) {
+      if (buf.subarray(0, keep + n).indexOf(pat) >= 0) return true;
+      const end = keep + n;
+      keep = Math.min(pat.length - 1, end);
+      buf.copy(buf, 0, end - keep, end);
+    }
+    return false;
+  } finally { fs.closeSync(fd); }
+}
 const low = (s) => (s == null ? '?' : String(s).toLowerCase());
 
 // Harness artifacts of the original side, not the game: message 298 "Non 256 colour display",
@@ -47,43 +74,60 @@ let built = null;
 const BUILT = () => (built = built || builtSites());
 const RANK = ['screen', 'sound', 'music', 'voice', 'film', 'message', 'call', 'phase', 'ai', 'order', 'slot', 'text', 'draw', 'rand'];
 
-// Steps: [label, records]; a repeated label gets #n.
-function steps(recs, byAnchor) {
-  const out = [];
-  const seen = {};
-  let cur = { label: '(start)', recs: [] };
-  let n = 0;
-  for (const r of recs) {
-    const cut = byAnchor ? r.kind === 'anchor' : r.kind === 'screen';
-    if (cut) {
+
+// One pass over a trace: per step (label; a repeated label gets #n) its category sequences, its
+// rand count and each snap's draw/text keys. A draw or text line stays raw, and only in the run of
+// one frame's draw/text/rand lines before the next other record; a snap takes that run when its
+// frame is the one before it on the original side (a record carries the frame count before the
+// present), its own frame on ours (the draw precedes the hash).
+const LEAF = /^\{"frame":(-?\d+),"kind":"(draw|text|rand)"/;
+function scan(file, byAnchor, lag, orig) {
+  const out = [], seen = {}, notBuilt = {};
+  const sites = orig ? BUILT() : null;
+  const step = (label) => ({ label, seq: {}, rand: 0, randAt: null, snaps: [] });
+  let cur = step('(start)'), n = 0, i = 0, run = { frame: null, lines: [] };
+  const miss = (r) => { if (sites && r.addr && !sites.has(r.addr.toUpperCase())) notBuilt[`${r.addr} ${r.name}`] = (notBuilt[`${r.addr} ${r.name}`] || 0) + 1; };
+  for (const l of lines(file)) {
+    const at = i++, m = LEAF.exec(l);
+    if (m) {
+      const frame = Number(m[1]);
+      if (run.frame !== frame) run = { frame, lines: [] };
+      if (m[2] !== 'rand') { run.lines.push(l); if (orig) miss(JSON.parse(l)); continue; }
+      const r = JSON.parse(l);
+      miss(r);
+      cur.rand += r.args.count;
+      if (cur.randAt == null) cur.randAt = at;
+      continue;
+    }
+    const r = JSON.parse(l);
+    miss(r);
+    if (byAnchor ? r.kind === 'anchor' : r.kind === 'screen') {
       out.push(cur);
       let label = byAnchor ? r.args.label : `screen-change-${++n}`;
       seen[label] = (seen[label] || 0) + 1;
       if (seen[label] > 1) label += `#${seen[label]}`;
-      cur = { label, recs: [] };
+      cur = step(label);
     }
-    cur.recs.push(r);
+    if (r.kind === 'snap') {
+      const got = { draw: [], text: [] };
+      if (run.frame === r.frame - lag) {
+        for (const q of run.lines.map((x) => JSON.parse(x))) got[q.kind].push(q.kind === 'draw' ? drawKey(q) : textKey(q));
+      }
+      cur.snaps.push(got);
+    }
+    run = { frame: null, lines: [] };
+    if (harness(r)) continue;
+    const k = keyOf(r);
+    if (!k) continue;
+    const [cat, key] = k;
+    const s = (cur.seq[cat] = cur.seq[cat] || []);
+    if (COLLAPSE.has(cat) && s.length && s[s.length - 1].key === key) continue;
+    if (DISTINCT.has(cat) && s.some((x) => x.key === key)) continue;
+    // Soft: one of our Pcg32 draws precedes the record within its step.
+    s.push({ key, r, tainted: cur.randAt != null && cur.randAt < at });
   }
   out.push(cur);
-  return out;
-}
-
-// The draw/text records of each snap: the frame before it on the original side (a record
-// carries the frame count before the present), its own frame on ours (the draw precedes the hash).
-function snapDraws(recs, lag) {
-  const out = [];
-  recs.forEach((r, k) => {
-    if (r.kind !== 'snap') return;
-    const got = { draw: [], text: [], hash: r.args.hash };
-    for (let j = k - 1; j >= 0; j--) {
-      const q = recs[j];
-      if (q.frame !== r.frame - lag || !['draw', 'text', 'rand'].includes(q.kind)) break;
-      if (q.kind === 'draw') got.draw.unshift(drawKey(q));
-      if (q.kind === 'text') got.text.unshift(textKey(q));
-    }
-    out.push(got);
-  });
-  return out;
+  return { steps: out, notBuilt };
 }
 
 // A sprite by sheet, frame and place; a Ui_* leaf (no sheet) by name and arguments.
@@ -100,26 +144,12 @@ function textKey(q) {
   return `${JSON.stringify(a.s)}@${a.x},${a.y}`;
 }
 
-function sequences(recs, side) {
-  const seq = {};
-  for (const r of recs) {
-    if (harness(r)) continue;
-    const k = keyOf(r);
-    if (!k) continue;
-    const [cat, key] = k;
-    const s = (seq[cat] = seq[cat] || []);
-    if (COLLAPSE.has(cat) && s.length && s[s.length - 1].key === key) continue;
-    if (DISTINCT.has(cat) && s.some((x) => x.key === key)) continue;
-    s.push({ key, r });
-  }
-  return seq;
-}
 
 const show = (e, taint) => {
   if (!e) return '(end)';
   const a = { ...e.r.args };
   const where = e.r.caller ? ` from ${e.r.caller}` : '';
-  const t = taint && taint(e.r) ? ' [rng-tainted]' : '';
+  const t = taint && e.tainted ? ' [rng-tainted]' : '';
   return `f${e.r.frame} ${e.r.name || e.r.kind} ${JSON.stringify(a)}${where}${t}`;
 };
 
@@ -154,19 +184,18 @@ function builtSites() {
   return addrs;
 }
 
-function diff(orig, ours, oursLag = 0) {
-  const byAnchor = orig.some((r) => r.kind === 'anchor') || ours.some((r) => r.kind === 'anchor');
-  const so = steps(orig, byAnchor), su = steps(ours, byAnchor);
-  // Soft: one of our Pcg32 draws precedes the record within its step.
-  const stepRand = new Map(su.map((s) => [s, s.recs.find((r) => r.kind === 'rand')]));
-  const taint = (r) => [...stepRand].some(([s, q]) => q && q.i < r.i && s.recs.includes(r));
+
+function diff(origPath, oursPath, oursLag = 0) {
+  const byAnchor = hasAnchor(origPath) || hasAnchor(oursPath);
+  const O = scan(origPath, byAnchor, 1, true), U = scan(oursPath, byAnchor, oursLag, false);
+  const so = O.steps, su = U.steps;
   const findings = [];
   const totals = {};
   const labels = [...new Set([...so.map((s) => s.label), ...su.map((s) => s.label)])];
   for (const label of labels) {
     const o = so.find((s) => s.label === label), u = su.find((s) => s.label === label);
     if (!o || !u) { findings.push({ label, cat: 'step', note: `step only in ${o ? 'original' : 'ours'}` }); continue; }
-    const qo = sequences(o.recs, 'orig'), qu = sequences(u.recs, 'ours');
+    const qo = o.seq, qu = u.seq;
     for (const cat of new Set([...Object.keys(qo), ...Object.keys(qu)])) {
       const a = qo[cat] || [], b = qu[cat] || [];
       totals[cat] = totals[cat] || [0, 0];
@@ -176,16 +205,15 @@ function diff(orig, ours, oursLag = 0) {
       const lo = Math.max(0, i - CONTEXT);
       findings.push({
         label, cat, index: i, counts: [a.length, b.length],
-        tainted: b[i] ? taint(b[i].r) : false,
+        tainted: b[i] ? b[i].tainted : false,
         orig: a.slice(lo, i + CONTEXT + 1).map((e, k) => (lo + k === i ? '> ' : '  ') + show(e)),
-        ours: b.slice(lo, i + CONTEXT + 1).map((e, k) => (lo + k === i ? '> ' : '  ') + show(e, taint)),
+        ours: b.slice(lo, i + CONTEXT + 1).map((e, k) => (lo + k === i ? '> ' : '  ') + show(e, true)),
       });
     }
-    const ro = o.recs.filter((r) => r.kind === 'rand').reduce((s, r) => s + r.args.count, 0);
-    const ru = u.recs.filter((r) => r.kind === 'rand').reduce((s, r) => s + r.args.count, 0);
+    const ro = o.rand, ru = u.rand;
     totals.rand = totals.rand || [0, 0]; totals.rand[0] += ro; totals.rand[1] += ru;
     if (ro !== ru) findings.push({ label, cat: 'rand', counts: [ro, ru], note: 'draw counts (Rand_Advance+Rng_LfsrStep vs Pcg32)' });
-    const po = snapDraws(o.recs, 1), pu = snapDraws(u.recs, oursLag);
+    const po = o.snaps, pu = u.snaps;
     po.forEach((p, k) => {
       const q = pu[k];
       if (!q) { findings.push({ label, cat: 'draw', note: `snap ${k} only in original` }); return; }
@@ -199,9 +227,7 @@ function diff(orig, ours, oursLag = 0) {
       }
     });
   }
-  const sites = builtSites();
-  const notBuilt = {};
-  for (const r of orig) if (r.addr && !sites.has(r.addr.toUpperCase())) notBuilt[`${r.addr} ${r.name}`] = (notBuilt[`${r.addr} ${r.name}`] || 0) + 1;
+  const notBuilt = O.notBuilt;
   findings.sort((x, y) => RANK.indexOf(x.cat) - RANK.indexOf(y.cat));
   return { byAnchor, findings, totals, notBuilt };
 }
@@ -220,20 +246,22 @@ function render(name, d) {
 }
 
 // --dir D --a orig --b ours s1 s2 ...: diffs D/<s>.<a>.jsonl against D/<s>.<b>.jsonl for each s.
+
+// --dir D --a orig --b ours s1 s2 ...: diffs D/<s>.<a>.jsonl against D/<s>.<b>.jsonl for each s.
 if (require.main === module && flag('--dir')) {
   const dir = opt('--dir'), a = opt('--a', 'orig'), b = opt('--b', 'ours');
   const names = args.filter((x, i) => !x.startsWith('--') && !['--dir', '--a', '--b', '--context'].includes(args[i - 1]));
   let any = 0;
   for (const s of names) {
-    const d = diff(load(path.join(dir, `${s}.${a}.jsonl`)), load(path.join(dir, `${s}.${b}.jsonl`)), b.includes("ours") ? 0 : 1);
+    const d = diff(path.join(dir, `${s}.${a}.jsonl`), path.join(dir, `${s}.${b}.jsonl`), b.includes('ours') ? 0 : 1);
     any += d.findings.length;
     console.log(render(s, d) + '\n');
   }
   process.exit(any ? 1 : 0);
 } else if (require.main === module) {
   if (!origFile || !oursFile) { console.error('usage: node trace-diff.js <orig.jsonl> <ours.jsonl> [--context N]'); process.exit(2); }
-  const d = diff(load(origFile), load(oursFile), oursFile.includes(".ours.") ? 0 : 1);
+  const d = diff(origFile, oursFile, oursFile.includes('.ours.') ? 0 : 1);
   console.log(render(path.basename(origFile).replace(/\..*$/, ''), d));
   process.exit(d.findings.length ? 1 : 0);
 }
-module.exports = { diff, render, load };
+module.exports = { diff, render, scan, lines };
