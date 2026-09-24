@@ -408,6 +408,23 @@ cannot answer it either. `l2_kingdom::save` (**our** format, version 12) stores 
 `exploration` and `time_limit`, so a game saved by this engine does not lose them. That is a
 divergence and a deliberate one: it is our save format, and D11 already separates the two.
 
+### BNEW-stale-move-cost-after-load — After a load, nothing but the player's own orders can find a path until the season ends
+
+**[D] on the reading, [D] on calling it a mistake.**
+
+`g_moveCost` (`0x004F4080`), the 64×64 cost map every `Move_FloodFill` reads, is in no
+`Save_Write` block, and `Save_Read` (`0x004ADFE6`) does not rebuild it. Its one writer,
+`Move_BuildCostMap` (`0x0046FF43`), has four callers: `Game_NewGame`, `Turn_Tick` phase 7,
+`Unit_OrderMove` and `Map_BeginMoveSelection`. Loaded in a fresh process, the map is `.bss`
+zero, every cell impassable, so `Move_ExtractPath` returns a zero-length path and
+`Ai_AdvanceArmies` (`0x004A5667`), `PeasantMob_AdvanceAll`, `Merchant_AdvanceAll`,
+`Transport_RetargetAll` and `Army_Split` order nothing, until phase 7 rebuilds it. The player
+opening a move order rebuilds it for everyone.
+
+**What we do.** Reproduced: `Campaign::move_cost` is not saved, starts empty on a load, and
+is rebuilt only where the original rebuilds it. `Map_BeginMoveSelection`'s rebuild is not
+reproduced (the move screen builds its own copy); an order placed from it rebuilds anyway.
+
 ### B66 — `Options_SetDefaults` defaults one sound flag twice and, apparently, another not at all
 
 **[V]** on the duplicate; **[I]**, and no more than that, on what was meant.
