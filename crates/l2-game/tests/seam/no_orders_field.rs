@@ -97,7 +97,7 @@ fn on_the_frame_and_lane_the_save_dealt_the_defence_keeps_its_sixty() {
 /// marker blocks (00470000.c:4661-4688). Ablation: `build_field`'s 0x28 arm
 /// removed fails the `DAT_00544050` line.
 #[test]
-fn every_lane_on_the_saves_frame_leaves_the_defence_its_sixty() {
+fn every_lane_on_the_saves_frame_holds_the_defence() {
     let start: Save = l2_testkit::fixture!("noorders-start.sav");
     let Some(dir) = l2_testkit::install_dir() else {
         println!("SKIP every_lane_on_the_saves_frame: no LORDS2_DIR");
@@ -121,8 +121,14 @@ fn every_lane_on_the_saves_frame_leaves_the_defence_its_sixty() {
         let field = build_field(sheets.get(17).unwrap(), seed as u32);
         let fight = fight_unordered(&start, seed, Some(field));
         closing += fight.closing.0;
-        // [I] one man either side: the save's 60 came from Rand_Advance, ours draws Pcg32 (D-3a; row trace-rng-parity)
-        assert!((59..=61).contains(&fight.defender.1), "seed {i} lane {lane}: the save leaves the defence 60 of 129: {}", fight.defender.1);
+        eprintln!("seed {i} lane {lane}: {} ticks, defender {:?}, attacker {:?}", fight.ticks, fight.defender, fight.attacker);
+        assert!(!fight.attacker_won, "seed {i} lane {lane}: the defence held");
+        assert_eq!(fight.attacker.1, 0, "seed {i} lane {lane}: the player's army is destroyed");
+        // [I] only lane 3 is the save's measurement; lanes 0 and 1 have no original count, so 60 binds lane 3 alone.
+        // One man either side: the save's 60 came from Rand_Advance, ours draws Pcg32 (D-3a; row trace-rng-parity)
+        if lane == 3 {
+            assert!((59..=61).contains(&fight.defender.1), "seed {i}: the save leaves the defence 60 of 129: {}", fight.defender.1);
+        }
     }
     assert_eq!(lanes.into_iter().collect::<Vec<_>>(), vec![0, 1, 3], "three lanes dealt");
     // Not asserted: UnitOrder_FieldMissile 0x0048A9D2 reaches Order_ShootAtUnit 0x0048C974 only while hitMemory
