@@ -12,6 +12,7 @@ pub struct Sheet {
 impl Sheet {
     pub fn new(bytes: Vec<u8>) -> Result<Self> {
         let count = Pl8::parse(&bytes)?.frames.len();
+        l2_net::trace_do!(l2_net::trace_draw::sheet_born(bytes.as_ptr() as usize, &bytes););
         Ok(Sheet { bytes, count, frames: RefCell::new(vec![None; count]) })
     }
 
@@ -20,7 +21,7 @@ impl Sheet {
     }
 
     pub fn frame(&self, index: usize) -> Option<DecodedFrame> {
-        l2_net::trace_do!(l2_net::trace::note_frame(index););
+        l2_net::trace_do!(l2_net::trace_draw::frame_of(self.bytes.as_ptr() as usize, index););
         if index >= self.count {
             return None;
         }

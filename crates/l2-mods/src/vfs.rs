@@ -119,7 +119,9 @@ impl Vfs {
 
     pub fn read(&self, name: &str) -> Result<Vec<u8>, VfsError> {
         let path = self.resolve(name).ok_or_else(|| VfsError::NotFound(name.to_string()))?;
-        fs::read(path).map_err(|e| VfsError::Io { name: name.to_string(), source: e })
+        let bytes = fs::read(path).map_err(|e| VfsError::Io { name: name.to_string(), source: e })?;
+        l2_net::trace_do!(l2_net::trace_draw::name_file(name, &bytes););
+        Ok(bytes)
     }
 
     pub fn read_to_string(&self, name: &str) -> Result<String, VfsError> {

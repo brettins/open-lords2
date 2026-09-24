@@ -47,3 +47,25 @@ macro_rules! trace_do {
 macro_rules! trace_do {
     ($($t:tt)*) => {};
 }
+
+/// `trace_leaf!("kind", 0x........, "Name", k = v…; body)`: a hooked leaf's record around `body`,
+/// whose own draws and text are not recorded (FORMAT.md, last line). Address 0 holds, no record.
+#[cfg(feature = "trace")]
+#[macro_export]
+macro_rules! trace_leaf {
+    ($kind:literal, $addr:literal, $name:literal $(, $k:ident = $v:expr)*; $body:expr) => {{
+        $crate::trace_draw::enter($kind, $addr, $name,
+            vec![$((stringify!($k), $crate::trace::IntoArg::into_arg($v))),*]);
+        let r = $body;
+        $crate::trace_draw::leave();
+        r
+    }};
+}
+
+#[cfg(not(feature = "trace"))]
+#[macro_export]
+macro_rules! trace_leaf {
+    ($kind:literal, $addr:literal, $name:literal $(, $k:ident = $v:expr)*; $body:expr) => {
+        $body
+    };
+}

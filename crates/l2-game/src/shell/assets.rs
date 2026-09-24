@@ -51,6 +51,11 @@ impl ShellAssets {
             merchant_grid: read_grid(&read, "mercgrid.pl8"),
             armoury_grid: read_grid(&read, "arm_grid.pl8"),
         };
+        l2_net::trace_do!(if let Some(e) = &loaded.eng {
+            for g in 0..e.count() {
+                e.group(g).iter().enumerate().for_each(|(i, s)| l2_net::trace_draw::name_string(g, i, s));
+            }
+        });
         loaded.complain_about_what_is_missing();
         loaded
     }

@@ -82,6 +82,7 @@ pub fn besieger_marker(
     let width = i32::from(decoded.width);
     let (row, col) = tile_to_cell(tile.0, tile.1);
     let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    l2_net::trace_do!(l2_net::trace_draw::map_leaf(l2_net::trace_draw::Map::Flag, zoom.id, sx + at.0, width, clip.x0, clip.x1););
     canvas.blit_clipped(&decoded, sx + at.0, sy + at.1, clip);
     let y = sy + at.1 + BESIEGER_COUNT_DY;
     (BESIEGER_COUNT_TOP < y).then_some((sx + at.0, y, width))
@@ -101,6 +102,7 @@ fn blit_over_tile(
     let Some(decoded) = sheet.frame(frame) else { return false };
     let (row, col) = tile_to_cell(tile.0, tile.1);
     let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    l2_net::trace_do!(l2_net::trace_draw::map_leaf(l2_net::trace_draw::Map::Flag, zoom.id, sx + at.0, decoded.width as i32, clip.x0, clip.x1););
     canvas.blit_clipped(&decoded, sx + at.0, sy + at.1, clip);
     true
 }
@@ -209,6 +211,7 @@ pub fn draw_herd(
     let Some(decoded) = sheet.frame(frame) else { return false };
     let (row, col) = tile_to_cell(tile.0, tile.1);
     let (sx, sy) = cell_to_screen(view, zoom, row, col);
+    l2_net::trace_do!(l2_net::trace_draw::map_leaf(l2_net::trace_draw::Map::Flag, zoom.id, sx + dx, decoded.width as i32, clip.x0, clip.x1););
     canvas.blit_clipped(&decoded, sx + dx, sy + dy, clip);
     true
 }

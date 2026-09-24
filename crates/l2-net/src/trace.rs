@@ -97,6 +97,7 @@ thread_local! {
 }
 
 pub fn start() {
+    crate::trace_draw::new_run();
     SINK.with(|s| *s.borrow_mut() = Sink { on: true, ..Sink::default() });
 }
 
@@ -142,6 +143,14 @@ pub fn emit(kind: &'static str, addr: u32, name: &'static str, args: Vec<(&'stat
 
 pub fn count() -> usize {
     SINK.with(|s| s.borrow().records.len())
+}
+
+/// The records from t on, and the frame they are in.
+pub fn records_from(at: usize) -> (u64, Vec<Record>) {
+    SINK.with(|s| {
+        let s = s.borrow();
+        (s.frame, s.records.iter().skip(at).cloned().collect())
+    })
 }
 
 pub fn kinds_from(at: usize) -> Vec<&'static str> {
@@ -194,6 +203,17 @@ pub fn note_frame(index: usize) {
         let mut s = s.borrow_mut();
         if s.on {
             s.sprite = s.sheet.take().map(|n| (n, index as i64));
+        }
+    });
+}
+
+/// `Sheet::frame` of a sheet whose file is known (`trace_draw::frame_of`).
+pub fn set_sprite(sheet: String, index: i64) {
+    SINK.with(|s| {
+        let mut s = s.borrow_mut();
+        if s.on {
+            s.sheet = None;
+            s.sprite = Some((sheet, index));
         }
     });
 }
