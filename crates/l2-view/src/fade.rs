@@ -25,7 +25,10 @@ pub const STEP: u8 = 12;
 
 pub const STEPS: u8 = 16;
 
-pub const PHASES: u8 = STEPS * 2;
+// FUN_004B0E03 004b0000.c:517-526: the step that moves nothing restores g_screenId, one
+// frame more each way; the down fade's first step shares Turn_Tick's phase-7 frame. Trace
+// endturn-year: 7 -> 1 at f516, AI_SetTaxRates at f550 [V].
+pub const PHASES: u8 = STEPS * 2 + 1;
 
 #[inline]
 fn quarter(v: u8) -> u8 {

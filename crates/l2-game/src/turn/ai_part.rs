@@ -70,15 +70,9 @@ pub fn open_players_turn(game: &mut Game) {
         return;
     }
     // Turn_BeginPlayersTurn has one caller, Turn_AdvancePhase's 7 -> 1 wrap (setup.rs) [V].
+    // aiStep stays 0: drive_ai's round-robin call sets it to 1, as 00490000.c:4921-4925 does.
     for id in 1..l2_kingdom::realm::MAX_REALMS {
-        let fresh = game.kingdom.realms[id].ai_step == 0;
         step_zero(game, id as u8);
-        let realm = &mut game.kingdom.realms[id];
-        if fresh && realm.strength != 0 && realm.is_human {
-            realm.ai_step = 1;
-            // 0x0049A581 steps the human too; the isHuman guard leaves it the prologue alone.
-            l2_net::trace!("ai", 0x0049A581, "AI_RunTurnStep", realm = id, step = 0, done = 0);
-        }
     }
     game.ai_granted = false;
     game.kingdom.turn.players_turn_open = true;
@@ -143,6 +137,7 @@ pub fn drive_ai(
     let Some(realm) = kingdom.realms.get_mut(id).filter(|r| r.strength != 0) else { return };
     // `if (aiStep == 0) { …prologue…; aiStep = 1; }` then the handler in the same call [V];
     // our prologue ran in `open_players_turn`.
+    let before = realm.ai_step;
     if realm.ai_step == 0 {
         realm.ai_step = 1;
     }
@@ -158,6 +153,9 @@ pub fn drive_ai(
     if let Some(step) = step {
         run_handler(kingdom, id as u8, step, granted, letters);
     }
+    // native/l2-trace's AI_RunTurnStep record: +0x00 before the call, done at the return.
+    let done = kingdom.realms[id].ai_step >= l2_kingdom::AI_STEP_DONE;
+    l2_net::trace!("ai", 0x0049A581, "AI_RunTurnStep", realm = id, step = before, done = done);
 }
 
 fn run_handler(

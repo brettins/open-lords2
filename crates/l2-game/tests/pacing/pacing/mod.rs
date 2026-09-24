@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
 mod pacing_tests;
+mod frame_order;
 pub use pacing_tests::*;
 
 use super::*;

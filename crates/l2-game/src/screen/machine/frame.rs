@@ -175,7 +175,7 @@ impl Machine {
     /// at the first screen [`crate::turn_clock::closed_by_turn_end`] rejects and
     /// `0x27` is not in its table, so the re-seat this doc once claimed was for
     /// a popper that does not exist.
-    fn seat_tip_host(&mut self, game: &Game) {
+    pub(super) fn seat_tip_host(&mut self, game: &Game) {
         let seated = self.stack.iter().any(|s| s.id() == ScreenId::Tip);
         if game.tips.hosting() && !seated {
             let at = match self.tip_seat {

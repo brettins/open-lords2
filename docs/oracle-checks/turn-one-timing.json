@@ -1,0 +1,12 @@
+{ "reviewed": "fade513ab5ba8c838ee96d87f347b1c23fded9d5",
+  "date": "2026-09-24",
+  "behaviours": [
+    { "file": "crates/l2-kingdom/src/phase/mod.rs", "line": 147, "address": "0x0049A010", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/turn/battle.rs", "line": 61, "address": "0x0049A010", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/turn/battle.rs", "line": 74, "address": "0x0049A010", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screen/machine/turns.rs", "line": 19, "address": "0x004B99C0", "verdict": "match", "note": "fixed: gate, Turn_Tick, then Tip_Update/Msg_Pump/Event_Post; the tip host unseats before the gate (FUN_00476E21 0x00476E21)" },
+    { "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs", "line": 158, "address": "0x00467196", "verdict": "match", "note": "fixed: no moving reset after FUN_00467196 (Unit_Step 00460000.c:4356/4368)" },
+    { "file": "crates/l2-view/src/fade.rs", "line": 31, "address": "0x004B0E03", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/turn/ai_part.rs", "line": 140, "address": "0x0049A581", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/save/mod.rs", "line": 191, "address": "0x004976A1", "verdict": "match", "note": "" }
+  ] }

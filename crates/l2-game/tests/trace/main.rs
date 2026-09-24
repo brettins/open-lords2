@@ -157,13 +157,16 @@ impl Run {
                     let save = l2_testkit::fixture_save(name).expect("the save loads");
                     self.game = l2_game::scenario::from_save(&save, self.tables.clone())
                         .expect("the save plays");
+                    // Save_Read 0x004ADFE6 -> FUN_004976A1 00490000.c:3114-3118 aiStep = 1 [V].
+                    l2_game::save::resume(&mut self.game);
                     self.machine = Machine::new(ScreenId::Campaign);
                     // SaveLoadScreen::landing: FUN_004976A1 0x004976A1, g_battlePhase 2 -> 0x29.
                     if self.game.battle.is_some() {
                         self.machine.push(ScreenId::Battlefield);
                     }
-                    // trace-run.ps1 `$LoadSteps` ends `wait-screen-not 0x1F`, `advance 60`.
-                    self.frames(60);
+                    // trace-run.ps1 `$LoadSteps` ends `wait-screen-not 0x1F`, `advance 60`; its
+                    // first frame is Save_Read's own (raw endturn-england: advance at f196, ret f197).
+                    self.frames(59);
                 }
                 Step::Click(_, _, _, true) => {}
                 Step::Click(x, y, right, false) => {

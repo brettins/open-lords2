@@ -65,7 +65,6 @@ pub fn done_threshold(realm_index: usize) -> i32 {
 /// condition `docs/kingdom.md` §3.2 omits. Armies are not this crate's, so the
 /// caller answers; passing `false` gives the pure-economy turn.
 pub fn run_step(realm: &mut Realm, realm_index: usize, launched_army: bool) -> bool {
-        l2_net::trace!("ai", 0x0049A581, "AI_RunTurnStep", realm = realm_index, step = realm.ai_step, done = realm.ai_step >= AI_STEP_DONE);
     if !realm.in_play || realm.is_human || realm.ai_step >= AI_STEP_DONE {
         return true;
     }

@@ -85,6 +85,22 @@ mod tests {
         assert_eq!(game.kingdom.realms[2].ai_step, 5);
     }
 
+    // AI_RunTurnStep 00490000.c:4921-4925: the human's aiStep 0 -> 1 is his round-robin call's;
+    // trace endturn-year f556 records realm 1 step 0. Ablate: `ai_step = 1` in open_players_turn.
+    #[test]
+    fn opening_phase_four_leaves_the_persons_step_zero_to_his_call() {
+        let mut game = Game::new(1);
+        game.kingdom.realms[1].strength = 3;
+        game.kingdom.realms[1].is_human = true;
+        game.kingdom.turn.players_turn_open = false;
+        open_players_turn(&mut game);
+        assert_eq!(game.kingdom.realms[1].ai_step, 0, "not stepped yet");
+        game.kingdom.realms[1].strength = 3; // the prologue recounted an empty map to 0
+        game.kingdom.turn.ai_cursor = 1;
+        drive_ai(&mut game.kingdom, &mut false, &mut Vec::new());
+        assert_eq!(game.kingdom.realms[1].ai_step, 1, "his call ran step 0");
+    }
+
     fn asked(men: i32) -> Game {
         let mut game = Game::new(5);
         game.kingdom.set_county_count(3);

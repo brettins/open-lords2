@@ -16,16 +16,12 @@ impl Machine {
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
         self.trace_screen(ctx.game);
-        self.run_tips(ctx);
-        self.pump_messages(ctx);
-        // `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at `0x004BA187`, in
-        // its place: `Tip_Update` (106), `Msg_Pump` (107), … this (190), …
-        // `Turn_Tick` (262). **After the pump on purpose** — a letter posted now
-// is pulled off the ring on the next frame, as in the original,
-        // which is what gives the player one frame of the county they just
-        // clicked before the scroll covers it. See
-        // [`crate::message::post_event`]. No screen test: the original has none.
-        crate::message::post_event(ctx.game);
+        // Battle_Frame 004b0000.c:6707 ticksDue, the ticks (6940), then on loop exit
+        // Tip_Update/Msg_Pump (6783-6784), Event_Post (6867), Screen_FrameInput (6871) [V].
+        // FUN_00476E21 0x00476E21 restored g_screenId at the dismissal, before this gate [V].
+        self.seat_tip_host(ctx.game);
+        let withheld = self.ticks_withheld(ctx.game);
+        // Turn_Tick 0x0049A010 00490000.c:4787 counts DAT_005440C8 down inside the tick [V].
         // A network game's clock is `net::frame`'s, on the session's tick.
         if !ctx.game.net.lockstep {
             self.run_turn_clock(ctx);
@@ -34,7 +30,12 @@ impl Machine {
             self.dirty |= crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen);
             self.dirty |= tick_gate::close_on_turn_end(&mut self.stack, ctx.game);
         }
-        if self.join_battle(ctx) || self.wind_turn(ctx) {
+        let wound = self.join_battle(ctx) || self.wind_turn(ctx, withheld);
+        self.run_tips(ctx);
+        self.pump_messages(ctx);
+        // Event_Post(g_selectedCounty) 004b0000.c:6867 after Msg_Pump: its letter leaves the ring next frame [V].
+        crate::message::post_event(ctx.game);
+        if wound {
             self.run_tooltips(ctx);
             return;
         }
@@ -104,12 +105,15 @@ impl Machine {
         true
     }
 
-    fn wind_turn(&mut self, ctx: &mut Ctx) -> bool {
-        // FUN_004BB978 0x004BB978: no ticks under DAT_004E31B0[g_screenId] or a letter
+    /// FUN_004BB978 0x004BB978: no ticks under DAT_004E31B0[g_screenId] or a letter.
+    fn ticks_withheld(&self, game: &crate::Game) -> bool {
         let byte = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message).and_then(|s| {
             s.mode_screen_id().or_else(|| crate::turn_clock::screen_byte(s.id()))
         });
-        let withheld = tick_gate::withheld(byte, ctx.game.messages.is_open(), ctx.game.multiplayer);
+        tick_gate::withheld(byte, game.messages.is_open(), game.multiplayer)
+    }
+
+    fn wind_turn(&mut self, ctx: &mut Ctx, withheld: bool) -> bool {
         // Battle_Frame 004b0000.c:6711 Season_FinishFade() sits after the tick loop: the fade
         // finishes whatever FUN_004BB978 returns.
         let fading = self.stack.iter().any(|s| s.id() == ScreenId::Campaign && s.fade().is_some());
