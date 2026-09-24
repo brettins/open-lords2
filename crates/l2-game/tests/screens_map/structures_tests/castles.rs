@@ -249,7 +249,8 @@ fn a_besieged_castle_carries_the_besiegers_mark_and_his_seasons_left() {
     reference.blit_clipped(&mark, mx, my, screen.map_clip());
     // `Ui_DrawNumberRight(seasons, ' ', " ", x, y + 10, frameWidth, &g_fontBody,
     // 0xF9)` — which centres, and is flat because `DAT_005AEA40` is set for it.
-    let count = format!(" {SEASONS} ");
+    // Ui_DrawNumberRight 0x004030C6 00400000.c:1500-1509: the suffix lands past the NUL.
+    let count = format!(" {SEASONS}");
     let style = l2_game::shell::font::Style {
         colour: campaign::BESIEGER_COUNT_INK,
         shadow: None,

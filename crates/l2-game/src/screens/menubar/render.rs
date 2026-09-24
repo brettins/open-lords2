@@ -25,7 +25,8 @@ pub fn draw_titles(ctx: &Ctx, canvas: &mut Canvas, open: Option<usize>) {
             // rounded out to a whole number of cells and is always at least 32
             // pixels wider than the word. This drew `w + 4`
             // until `FUN_004B414A`'s body was read.
-            let cells = (r.w + 4) / PLATE_CELL + 2;
+            // FUN_004014F0's measure, without the trailing 4 the hit box carries.
+            let cells = (r.w - font::SPACE_ADVANCE + 4) / PLATE_CELL + 2;
             canvas.fill_rect(
                 r.x + TITLE_PLATE_DX,
                 r.y + TITLE_PLATE_DY,

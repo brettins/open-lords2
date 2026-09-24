@@ -133,7 +133,7 @@ mod tests {
             bt.add(Troop::Swordsmen, SIDE_B, 20).unwrap();
             bt.engage(0, 1);
             bt.run(2000);
-            bt.men(SIDE_A)
+            bt.men(SIDE_B)
         };
 
         let mut table = TroopTable::DEFAULT;
@@ -144,12 +144,12 @@ mod tests {
             bt.add(Troop::Swordsmen, SIDE_B, 20).unwrap();
             bt.engage(0, 1);
             bt.run(2000);
-            bt.men(SIDE_A)
+            bt.men(SIDE_B)
         };
 
         assert!(
-            modded > stock,
-            "peasants swinging for 40 should fare better than the stock 5: {modded} vs {stock}"
+            modded < stock,
+            "peasants swinging for 40 leave fewer swordsmen than the stock 5: {modded} vs {stock}"
         );
         assert_eq!(Battle::new().troops, TroopTable::DEFAULT);
     }

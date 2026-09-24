@@ -11,6 +11,8 @@ use crate::game::Game;
 
 pub const EXECUTABLE: &str = "Lords2.exe";
 pub const SAVE: &str = "lastturn.sav";
+/// `g_selectedCounty` [V] docs/symbols.md.
+const SELECTED_COUNTY: u32 = 0x0057_C93C;
 
 /// `g_scenarioIndex` (`0x0053F034`), and it **is the map slot**, 0..=59.
 ///
@@ -162,11 +164,12 @@ pub fn from_save(save: &Save, tables: Tables) -> Result<Game, Error> {
     //
     // `docs/decisions.md` C83.
 
-    game.selected = game
-        .kingdom
-        .county_ids()
-        .find(|&id| game.kingdom.counties[id].owner == game.player)
-        .unwrap_or(0) as u8;
+    // g_selectedCounty 0x0057C93C is in the save's blocks; Event_Post 0x00448D7E reads it the
+    // first frame [V] siege-sieging.sav holds 4, and county 1's eventFired 1 stays unposted.
+    // Save_Read 0x004ADFE6 004a0000.c:5941 copies it raw, no range test [V].
+    if let Ok(c) = save.i32_at(SELECTED_COUNTY) {
+        game.selected = c as u8;
+    }
 
     // g_mapStartRow 0x005651B8, g_mapStartCol 0x005651B4: blocks 17, 16. [V] savedump layout
     if let (Ok(row), Ok(col)) = (save.i32_at(0x0056_51B8), save.i32_at(0x0056_51B4)) {

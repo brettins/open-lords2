@@ -457,7 +457,10 @@ impl<'a> Pen<'a> {
         suffix: &str,
         colour: u8,
     ) {
-        l2_net::trace_leaf!("text", 0x004030C6, "Ui_DrawNumberRight", value = value, x = x, y = y, width = width; self.body_centred(canvas, x, y, width, &format!("{lead}{value}{suffix}"), colour));
+        // 00400000.c:1500-1509: the length loop stops one past the NUL, so the suffix lands
+        // after it and is never drawn or measured [V]; measured 2 px on the herd count.
+        let _ = suffix;
+        l2_net::trace_leaf!("text", 0x004030C6, "Ui_DrawNumberRight", value = value, x = x, y = y, width = width; self.body_centred(canvas, x, y, width, &format!("{lead}{value}"), colour));
     }
 
     /// **The slot is not always that file.** `g_miscCtySheet` (`0x005530C8`)

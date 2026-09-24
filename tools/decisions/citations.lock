@@ -524,7 +524,7 @@ docs/armies.md	C59	1cbb270593d9	37ab8ac1a2fc
 docs/armies.md	C61	350c7486898d	60611046b40d
 docs/arms.json	C117	816ec3580916	b20f3a227f0f
 docs/arms.json	C117	a36f393580bf	b20f3a227f0f
-docs/arms.json	C117	f2357500034c	b20f3a227f0f
+docs/arms.json	C117	f67eb59dffa1	b20f3a227f0f
 docs/arms.json	C130	f1f4b6aed7ea	055c6c022450
 docs/arms.json	C132	685e16261159	84bc50c0ddbe
 docs/arms.json	C139	86c8a3f81ef8	d11336df05e7
@@ -680,9 +680,12 @@ docs/decisions.md	C140	25d50c2122c0	e3a1ede42a95
 docs/decisions.md	C140	288c0334d02a	e3a1ede42a95
 docs/decisions.md	C140	3728bc578edd	e3a1ede42a95
 docs/decisions.md	C140	3bb1bdf69c75	e3a1ede42a95
+docs/decisions.md	C140	444bc275958a	e3a1ede42a95
+docs/decisions.md	C140	47ae37384088	e3a1ede42a95
 docs/decisions.md	C140	911585df7be9	e3a1ede42a95
 docs/decisions.md	C140	a6467caca8ac	e3a1ede42a95
 docs/decisions.md	C140	a780de623e89	e3a1ede42a95
+docs/decisions.md	C140	ae4e34a47f0b	e3a1ede42a95
 docs/decisions.md	C140	b7b4a7e7ec56	e3a1ede42a95
 docs/decisions.md	C140	c687db294a2e	e3a1ede42a95
 docs/decisions.md	C142	0800e9b335b3	d13324698105
@@ -793,6 +796,7 @@ docs/decisions.md	C221	c895407b0407	f24ff4b039ef
 docs/decisions.md	C23	99e73b072814	6ac2f322c3bd
 docs/decisions.md	C24	b6deda781733	52e202e041ab
 docs/decisions.md	C247	c93f872aac4b	a700ccc7c11e
+docs/decisions.md	C248	bfe5a21eb978	9a28a8f1ed87
 docs/decisions.md	C25	04e93d465fea	5d466f0cb89c
 docs/decisions.md	C25	1cb6c94e684e	5d466f0cb89c
 docs/decisions.md	C25	279621d20313	5d466f0cb89c

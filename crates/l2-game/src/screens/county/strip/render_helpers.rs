@@ -150,7 +150,9 @@ pub(super) fn body_number_centred(
     w: i32,
     colour: u8,
 ) {
-    body_centred_in(ctx, canvas, x, y, w, &format!("{lead}{value}{suffix}"), colour);
+    // Ui_DrawNumberRight 0x004030C6 00400000.c:1500-1509: the suffix lands past the NUL [V].
+    let _ = suffix;
+    body_centred_in(ctx, canvas, x, y, w, &format!("{lead}{value}"), colour);
 }
 
 /// **`Ui_DrawDelta` (`0x00402E0C`) — the produce rows' signed forecast.**
