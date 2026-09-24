@@ -7327,7 +7327,7 @@ the omission it describes* — and the first where the prose names the **guard c
 it then does not write. The two siblings are `Screen_DrawEndTurn`'s missing caption
 (which we do reproduce) and `FUN_0041A639`'s turn timer (which we do not).
 
-> **Superseded by CNEW-turn-order:** the machine now waits in phase 4 as the original
+> **Superseded by C247:** the machine now waits in phase 4 as the original
 > does, and the menu bar's guard is the literal `aiStep < 999`.
 
 **And the fix is not the literal clause**, which is the part a careful reader gets
@@ -12506,7 +12506,7 @@ Presentation code (screens, the frame driver, the letter ring, sound, the app sh
 
 The differ (row trace-harness) needs our game to emit what `native/l2-trace` records from the original: sound, screen, message, phase, ai, order, rand, draw, text, film, each under the original's address and `docs/symbols.md` name. `l2-kingdom` and `l2-sim` may not gain dependencies and `l2-net` is already a zero-dependency dependency of both, so the sink is `l2_net::trace` (a thread-local `Vec<Record>`) and the sites use `l2_net::trace!`, `trace_changed!` and `trace_do!`, which expand to nothing, arguments unevaluated, without the feature. A new `l2-trace` crate was the alternative: one more manifest line in every emitting crate for the same result. `l2-view` names `l2-net` directly for the draw events; it was already below it through `l2-sim`. Only `l2-game`'s `[dev-dependencies]` enables `l2-net/trace`, and resolver 2 keeps dev-dependency features out of `cargo build --release`: the release `l2-game.exe` built from this change and from its parent is the same size, every PE section is the same size, and neither holds any trace string (`Pl8_DrawFrame`, `Msg_Enqueue`, `"caller"`, …). The bytes are not identical: `L2_BUILD_ID` stamps the commit, and `[I]` the rest is layout moved by crate hashes (`l2-view`'s manifest and `Cargo.lock` changed). The record and scenario formats are `tools/oracle/scenarios/FORMAT.md`; the runner is `crates/l2-game/tests/trace`. `order` and `rand` carry no address: an order is a direct call in the original, and `Pcg32` is not `Rand_Advance` (`docs/netcode.md` D-3a).
 
-**CNEW-turn-order — the turn runs in the original's order; phase 4 is where the game waits.**
+**C247 — the turn runs in the original's order; phase 4 is where the game waits.**
 
 `Turn_Tick` (`0x0049A010`) [V]: phase 7 runs `Season_Advance` (secession included) and wraps
 to 1 with `Turn_BeginPlayersTurn` (`0x0049B6D3`, every realm's `aiStep = 0`, the human's too);

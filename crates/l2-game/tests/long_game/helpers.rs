@@ -123,7 +123,7 @@ pub(crate) fn play(game: &mut Game, turns: usize, label: &str) -> Census {
         panic!("{label}: broken before a single turn was played: {why}");
     }
     for turn in 1..=turns {
-        // Season_Advance's secession (phase 7) is measured before phase 2's sieges (CNEW-turn-order).
+        // Season_Advance's secession (phase 7) is measured before phase 2's sieges (C247).
         let Some(mut outcome) = l2_game::turn::end_turn_to_autosave(game) else {
             panic!("{label}: the turn machine stopped to ask a question on turn {turn}");
         };
