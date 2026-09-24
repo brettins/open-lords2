@@ -100,3 +100,34 @@ fn the_map_reselects_under_a_letter() {
     assert_eq!(m.top_id(), Some(ScreenId::Message));
     assert_eq!(game.selected, 4);
 }
+
+/// Map_Click 0x0043CE1A 00430000.c:7689 centres on townTile +0x70, not the tile clicked.
+/// Ablation: centre on `clicked` in `open_village` and the two views differ.
+#[test]
+fn a_village_click_centres_on_the_county_town_tile_whichever_tile_was_clicked() {
+    let Some(mut game) = loaded((88, 29)) else { return };
+    let assets = crate::game::Assets::placeholder();
+    let c = (1..0x20u8).find(|&c| game.is_players(c)).unwrap();
+    let town = MapScreen::town(&Ctx { game: &mut game, assets: &assets }, c);
+    let mut views = Vec::new();
+    for &t in [town[0], *town.last().unwrap()].iter() {
+        let mut s = MapScreen::new();
+        let _ = s.open_village(&mut Ctx { game: &mut game, assets: &assets }, c, t);
+        views.push((s.view.row, s.view.col));
+    }
+    assert_eq!(views[0], views[1]);
+}
+
+/// Battle_Frame 0x004B99C0 004b0000.c:6720: no Map_DrawFrame on the fade's screens 0x23/0x24.
+/// Ablation: move `reselect_busiest` above the `fading` return in `update` and county 4 wins.
+#[test]
+fn the_map_does_not_reselect_during_the_end_of_turn_fade() {
+    let Some(mut game) = loaded((88, 29)) else { return };
+    let assets = crate::game::Assets::placeholder();
+    let mut s = MapScreen::new();
+    s.update(&mut Ctx { game: &mut game, assets: &assets });
+    game.selected = 3;
+    s.fading = Some(Fading { phase: 0, status: String::new(), over: false });
+    s.update(&mut Ctx { game: &mut game, assets: &assets });
+    assert_eq!(game.selected, 3);
+}

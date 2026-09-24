@@ -38,7 +38,7 @@ impl Machine {
             self.run_tooltips(ctx);
             return;
         }
-        // Battle_Frame 004b0000.c:6718-6721: the map under a letter still redraws [V].
+        // Battle_Frame 0x004B99C0 004b0000.c:6718-6721: the map under a letter still redraws [V].
         if let Some(i) = self.stack.iter().rposition(|s| s.id() != ScreenId::Message) {
             if i + 1 < self.stack.len() {
                 self.stack[i].under_letter(ctx);

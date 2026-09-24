@@ -414,11 +414,12 @@ impl Screen for MapScreen {
         if !self.opened {
             self.open_on_the_player(&Ctx { game: ctx.game, assets: ctx.assets });
         }
-        // Map_DrawFrame 0x004050F6 tallies the lattice Map_BuildLattice 0x004298C1 lays.
-        self.reselect_busiest(ctx);
         if self.fading.is_some() {
             return Transition::Stay;
         }
+        // Battle_Frame 0x004B99C0 004b0000.c:6720: not on the fade's screens 0x23/0x24.
+        // Map_DrawFrame 0x004050F6 tallies the lattice Map_BuildLattice 0x004298C1 lays.
+        self.reselect_busiest(ctx);
         // **`Map_ScrollThrottle` (`0x004BBBE3`)** — the map does not step on
         // every frame the pointer is at the edge. See
         // [`MapScreen::scroll_interval_ticks`].
@@ -461,7 +462,7 @@ impl Screen for MapScreen {
         core::mem::replace(&mut self.scrolled, false)
     }
 
-    // Battle_Frame 004b0000.c:6720: only on g_screenId 0 or 0x10.
+    // Battle_Frame 0x004B99C0 004b0000.c:6720: only on g_screenId 0 or 0x10.
     fn under_letter(&mut self, ctx: &mut Ctx) {
         if matches!(self.mode_screen_id(), None | Some(0x10)) {
             self.reselect_busiest(ctx);

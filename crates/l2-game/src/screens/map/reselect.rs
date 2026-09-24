@@ -13,9 +13,15 @@ impl MapScreen {
         }
     }
 
-    // Map_Click 00430000.c:7688-7690: select, Map_CentreOnTile, FUN_004050c0 -> Map_DrawFrame
-    // 0x004050F6 reselects; then Village_Draw 0x00412143 on g_selectedCounty [V].
-    pub(super) fn open_village(&mut self, ctx: &mut Ctx, county: u8, town: usize) -> Transition {
+    // Map_Click 0x0043CE1A 00430000.c:7688-7690: select, Map_CentreOnTile, FUN_004050c0 ->
+    // Map_DrawFrame 0x004050F6 reselects; then Village_Draw 0x00412143 on g_selectedCounty [V].
+    // The centre is townTile +0x70, County_FindTownTile 0x00467FD1's first tile in index order,
+    // not the tile clicked [V].
+    pub(super) fn open_village(&mut self, ctx: &mut Ctx, county: u8, clicked: usize) -> Transition {
+        let town = Self::town(&Ctx { game: ctx.game, assets: ctx.assets }, county)
+            .first()
+            .copied()
+            .unwrap_or(clicked);
         let (tx, ty) = l2_kingdom::map::coords(town);
         ctx.game.select(county);
         self.centre_on_tile(tx as usize, ty as usize);

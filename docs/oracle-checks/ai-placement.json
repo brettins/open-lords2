@@ -1,5 +1,5 @@
 {
-  "reviewed": "0b69616231ffe8a42a8d46497a92b9fa0c0ed20f",
+  "reviewed": "496e0659ecf9191f4b82bb111dc0bac88a3f3fa9",
   "date": "2026-09-24",
   "behaviours": [
     {
@@ -57,6 +57,34 @@
       "address": "0x004ADFE6",
       "verdict": "match",
       "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/reselect.rs",
+      "line": 18,
+      "address": "0x004050F6",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/reselect.rs",
+      "line": 25,
+      "address": "0x004050F6",
+      "verdict": "match",
+      "note": "fixed: centres on County_FindTownTile 0x00467FD1's first tile (townTile +0x70), whichever tile was clicked. Map_Click 00430000.c:7689 centres on g_counties[c].townTile (+0x70, one tile of the 2x2); ours centres on the clicked town tile, so the viewport and hence the reselected village can differ by a tile."
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+      "line": 465,
+      "address": "0x004B99C0",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+      "line": 420,
+      "address": "0x004B99C0",
+      "verdict": "match",
+      "note": "fixed: the reselect runs after the fading return, so not on 0x23/0x24. Battle_Frame 004b0000.c:6720 runs FUN_004050c0 only on g_screenId 0/0x10; MapScreen::update reselects before its fading return, i.e. on 0x23/0x24."
     }
   ]
 }

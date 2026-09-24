@@ -39,7 +39,7 @@ pub trait Screen {
         false
     }
 
-    /// Battle_Frame 004b0000.c:6718-6721 `FUN_004050c0()` each frame; a letter leaves g_screenId alone.
+    /// Battle_Frame 0x004B99C0 004b0000.c:6718-6721 `FUN_004050c0()` each frame; a letter leaves g_screenId alone.
     fn under_letter(&mut self, _ctx: &mut Ctx) {}
 
     /// **How many widget clicks this screen owes the audio layer**, taken and
