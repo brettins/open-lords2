@@ -24,6 +24,7 @@ mod tests {
         game.player = 1;
         for id in 1..=3 {
             game.kingdom.realms[id].in_play = true;
+            game.kingdom.realms[id].strength = 3;
         }
         game.kingdom.realms[1].is_human = true;
 
@@ -38,6 +39,50 @@ mod tests {
         game.kingdom.realms[2].ai_step = 4;
         assert!(!realm_turn_ended(&game, 1), "the person parks on 1 until Turn_End");
         assert!(!realm_turn_ended(&game, 2), "an AI still stepping has not finished");
+        // Ablate: the `strength == 0 ||` in realm_turn_ended.
+        game.kingdom.realms[2].strength = 0;
+        assert!(realm_turn_ended(&game, 2), "no banner at strength 0, whatever aiStep says");
+    }
+
+    // Turn_BeginPlayersTurn 00490000.c:5288-5292. Ablate: `.skip(1).take(5)` or `strength`.
+    #[test]
+    fn begin_turn_reads_strength_over_realms_one_to_five() {
+        let mut game = Game::new(1);
+        let r = &mut game.kingdom.realms;
+        r[0].ai_step = 7;
+        r[1].in_play = true;
+        r[2].strength = 3;
+        ai::begin_turn(r);
+        assert_eq!(r[0].ai_step, 7, "realm 0 untouched");
+        assert_eq!(r[1].ai_step, AI_STEP_DONE, "in play at strength 0 is 999");
+        assert_eq!(r[2].ai_step, 0, "strength 3 starts its program");
+    }
+
+    // AI_RunTurnStep 00490000.c:4919-4920. Ablate: the cursor loop's `strength != 0`.
+    #[test]
+    fn the_ai_cursor_skips_a_realm_at_strength_zero() {
+        let mut game = Game::new(1);
+        game.kingdom.realms[1].in_play = true;
+        game.kingdom.realms[2].strength = 3;
+        game.kingdom.realms[2].is_human = true;
+        game.kingdom.turn.ai_cursor = 1;
+        let mut granted = false;
+        drive_ai(&mut game.kingdom, &mut granted, &mut Vec::new());
+        assert_eq!(game.kingdom.turn.ai_cursor, 3, "past realm 2");
+        assert_eq!(game.kingdom.realms[1].ai_step, 0, "realm 1 skipped");
+        assert_eq!(game.kingdom.realms[2].ai_step, 1, "realm 2 took step 0");
+    }
+
+    // Turn_BeginPlayersTurn's one caller is Turn_AdvancePhase 0x0049CE51's 7 -> 1 wrap.
+    // Ablate: put `ai::begin_turn` back at the top of open_players_turn.
+    #[test]
+    fn opening_phase_four_does_not_reset_the_ai_program() {
+        let mut game = Game::new(1);
+        game.kingdom.realms[2].strength = 3;
+        game.kingdom.realms[2].ai_step = 5;
+        game.kingdom.turn.players_turn_open = false;
+        open_players_turn(&mut game);
+        assert_eq!(game.kingdom.realms[2].ai_step, 5);
     }
 
     fn asked(men: i32) -> Game {

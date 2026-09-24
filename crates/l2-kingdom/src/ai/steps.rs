@@ -86,15 +86,17 @@ pub fn pending_step(realm: &Realm, realm_index: usize) -> Option<AiStep> {
 }
 
 pub fn all_realms_done(realms: &[Realm]) -> bool {
-    realms.iter().all(|r| !r.in_play || r.turn_done())
+    // Turn_AllRealmsDone 0x0049B762: `for (r = 1; r < 6; r++)` [V].
+    realms.iter().skip(1).take(5).all(Realm::turn_done)
 }
 
 /// `Turn_BeginPlayersTurn` (`0x0049B6D3`): `aiStep = 0`, or 999 where `strength == 0`,
 /// the human too [V]; he parks at 1 after step 0 (`AI_RunTurnStep`'s increment is
 /// inside `isHuman == 0`) until `Turn_End` (`0x0043AC23`) writes 999.
 pub fn begin_turn(realms: &mut [Realm]) {
-    for realm in realms.iter_mut() {
-        realm.ai_step = if realm.in_play { 0 } else { AI_STEP_DONE };
+    // 00490000.c:5288-5292: `for (r = 1; r < 6; r++)`, realm 0 untouched [V].
+    for realm in realms.iter_mut().skip(1).take(5) {
+        realm.ai_step = if realm.strength != 0 { 0 } else { AI_STEP_DONE };
     }
 }
 

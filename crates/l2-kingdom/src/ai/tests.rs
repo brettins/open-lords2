@@ -10,6 +10,7 @@ fn ai_realms() -> Vec<Realm> {
         realms[i].in_play = true;
         realms[i].lord = i as u8;
         realms[i].county_count = 4;
+        realms[i].strength = 12;
     }
     realms
 }

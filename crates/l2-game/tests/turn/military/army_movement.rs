@@ -27,6 +27,7 @@ fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
     }
     for r in 2..=5 {
         g.kingdom.realms[r].in_play = false;
+        g.kingdom.realms[r].strength = 0;
     }
     let id = army(&mut g, 1, 5, 10);
     let from = g.kingdom.campaign.units.get(id).unwrap().tile();

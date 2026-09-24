@@ -33,7 +33,9 @@ use crate::game::Game;
 /// 0 exactly like an AI one and then stops, its counter parked at 1 until
 /// `Turn_End` (`0x0043AC23`) writes 999.
 pub(super) fn step_zero(game: &mut Game, realm: u8) {
-    if game.kingdom.realms[realm as usize].strength == 0 {
+    // 00490000.c:4920-4921: `strength != 0` then `aiStep == 0` guard the prologue [V].
+    let r = &game.kingdom.realms[realm as usize];
+    if r.strength == 0 || r.ai_step != 0 {
         return;
     }
     game.recount_realm(realm);
@@ -67,11 +69,12 @@ pub fn open_players_turn(game: &mut Game) {
     if game.kingdom.turn.players_turn_open {
         return;
     }
-    ai::begin_turn(&mut game.kingdom.realms);
+    // Turn_BeginPlayersTurn has one caller, Turn_AdvancePhase's 7 -> 1 wrap (setup.rs) [V].
     for id in 1..l2_kingdom::realm::MAX_REALMS {
+        let fresh = game.kingdom.realms[id].ai_step == 0;
         step_zero(game, id as u8);
         let realm = &mut game.kingdom.realms[id];
-        if realm.in_play && realm.is_human {
+        if fresh && realm.strength != 0 && realm.is_human {
             realm.ai_step = 1;
             // 0x0049A581 steps the human too; the isHuman guard leaves it the prologue alone.
             l2_net::trace!("ai", 0x0049A581, "AI_RunTurnStep", realm = id, step = 0, done = 0);
@@ -131,12 +134,13 @@ pub fn drive_ai(
     for _ in 0..last {
         id = kingdom.turn.ai_cursor;
         kingdom.turn.ai_cursor = if id >= last { 1 } else { id + 1 };
-        if kingdom.realms[id as usize].in_play {
+        // 00490000.c:4919 `while (g_realms[uVar1].strength == 0)` [V].
+        if kingdom.realms[id as usize].strength != 0 {
             break;
         }
     }
     let id = id as usize;
-    let Some(realm) = kingdom.realms.get_mut(id).filter(|r| r.in_play) else { return };
+    let Some(realm) = kingdom.realms.get_mut(id).filter(|r| r.strength != 0) else { return };
     // `if (aiStep == 0) { …prologue…; aiStep = 1; }` then the handler in the same call [V];
     // our prologue ran in `open_players_turn`.
     if realm.ai_step == 0 {

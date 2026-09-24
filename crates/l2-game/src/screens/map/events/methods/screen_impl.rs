@@ -247,8 +247,9 @@ impl Screen for MapScreen {
                             self.set_zoom(ctx, NEAR);
                             self.centre_on_tile(tx as usize, ty as usize);
                             self.status = "ZOOMED IN".into();
-                            // The press zooms (no message test, 0x0042FF10); its release is Map_Click's.
-                            return map_click_dismiss(ctx).unwrap_or(Transition::Stay);
+                            // Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1`; Map_Click :7770
+                            // swallows the release (`DAT_0052afa4 = 0`), no dismiss [V].
+                            return Transition::Stay;
                         }
                     }
                     // Screen_FrameInput 0x0042FF10 reaches Map_Click only after Sidebar_ButtonClicked,

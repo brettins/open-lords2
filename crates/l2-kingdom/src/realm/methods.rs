@@ -101,7 +101,8 @@ impl Realm {
     }
 
     pub fn turn_done(&self) -> bool {
-        !self.in_play || self.is_human || self.ai_step >= AI_STEP_DONE
+        // Turn_AllRealmsDone 0x0049B762 (00490000.c:5319): `strength != 0 && aiStep < 999` [V].
+        self.strength == 0 || self.is_human || self.ai_step >= AI_STEP_DONE
     }
 
     /// Copy the five score inputs `Realm_UpdateTotals` (`0x0049D1E0`) rebuilds

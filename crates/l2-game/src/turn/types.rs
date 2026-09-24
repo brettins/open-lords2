@@ -116,7 +116,8 @@ pub fn turn_opening(game: &Game) -> bool {
 /// machine waits in phase 4 as the original does.
 pub fn realm_turn_ended(game: &Game, realm: usize) -> bool {
     match game.kingdom.realms.get(realm) {
-        Some(r) => r.ai_step >= l2_kingdom::AI_STEP_DONE,
+        // 0x00419C78: banner iff `strength != 0 && aiStep < 999` [V].
+        Some(r) => r.strength == 0 || r.ai_step >= l2_kingdom::AI_STEP_DONE,
         None => true,
     }
 }

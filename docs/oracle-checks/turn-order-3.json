@@ -1,0 +1,118 @@
+{
+ "reviewed": "ce0978da882161690ce251f94e8e148d64eeff02",
+ "date": "2026-09-24",
+ "behaviours": [
+  {
+   "file": "crates/l2-game/src/screens/map/camera.rs",
+   "line": 89,
+   "address": "0x0043AC23",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/camera.rs",
+   "line": 94,
+   "address": "0x0043AC23",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 34,
+   "address": "0x0049A010",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 252,
+   "address": "0x0043CE1A",
+   "verdict": "match",
+   "note": "fixed: the zoom-in press returns without Msg_DismissUnlessQuestion; Map_Click :7770 swallows its release"
+  },
+  {
+   "file": "crates/l2-game/src/screens/map/events/methods/screen_impl.rs",
+   "line": 258,
+   "address": "0x0043CE1A",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/ai_part.rs",
+   "line": 138,
+   "address": "0x0049A581",
+   "verdict": "match",
+   "note": "fixed: cursor loop and post-loop filter read strength != 0 (00490000.c:4919-4920)"
+  },
+  {
+   "file": "crates/l2-game/src/turn/ai_part.rs",
+   "line": 142,
+   "address": "0x0049A581",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/engine/wind.rs",
+   "line": 48,
+   "address": "0x0049A010",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/engine/battle.rs",
+   "line": 36,
+   "address": "0x004A6A30",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/types.rs",
+   "line": 96,
+   "address": "0x0043AC23",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/types.rs",
+   "line": 120,
+   "address": "0x00419C78",
+   "verdict": "match",
+   "note": "fixed: realm_turn_ended is strength == 0 || aiStep >= 999; ui.rs drops its in_play test"
+  },
+  {
+   "file": "crates/l2-kingdom/src/ai/steps.rs",
+   "line": 99,
+   "address": "0x0049B6D3",
+   "verdict": "match",
+   "note": "fixed: realms 1..=5 only, 999 where strength == 0 (00490000.c:5288-5292)"
+  },
+  {
+   "file": "crates/l2-kingdom/src/kingdom/pipeline/pipeline/pipeline/setup.rs",
+   "line": 156,
+   "address": "0x0049CE51",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-kingdom/src/phase/mod.rs",
+   "line": 154,
+   "address": "0x0049CE51",
+   "verdict": "match",
+   "note": ""
+  },
+  {
+   "file": "crates/l2-game/src/turn/ai_part.rs",
+   "line": 72,
+   "address": "0x0049CE51",
+   "verdict": "match",
+   "note": "fixed: open_players_turn and battle.rs:76 no longer call begin_turn; Turn_BeginPlayersTurn runs only at the 7 -> 1 wrap (setup.rs:156); step 0 guarded by aiStep == 0 (4921)"
+  },
+  {
+   "file": "crates/l2-kingdom/src/realm/methods.rs",
+   "line": 105,
+   "address": "0x0049B762",
+   "verdict": "match",
+   "note": "fixed: Turn_AllRealmsDone counts strength != 0 && aiStep < 999 over realms 1..5 (5319); was in_play over all realms"
+  }
+ ]
+}

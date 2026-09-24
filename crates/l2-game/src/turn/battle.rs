@@ -74,7 +74,6 @@ pub(super) fn begin_phase(game: &mut Game, phase: Phase) {
         Phase::PlayersTurn => {
             if !game.kingdom.turn.players_turn_open {
                 // Headless only: an unopened phase 4 is a new game's or the wind-on's own.
-                ai::begin_turn(&mut game.kingdom.realms);
                 for id in 1..l2_kingdom::realm::MAX_REALMS {
                     step_zero(game, id as u8);
                 }

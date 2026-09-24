@@ -88,6 +88,27 @@ fn the_zoom_toggle_saves_and_restores_the_near_views_position() {
     assert_eq!(s.viewport(), Viewport::new(60, 31));
 }
 
+// Map_ZoomInAtTile 00430000.c:2522 `DAT_0052afa4 = 1`; Map_Click :7770 swallows the release.
+// Ablate: `return map_click_dismiss(ctx)…` in the zoom arm, second assertion red.
+#[test]
+fn the_far_view_zoom_click_leaves_an_open_message_alone() {
+    let assets = crate::game::Assets::placeholder();
+    let mut game = crate::Game::new(1);
+    let rec = crate::message::Record { to: 0, group: 0x92, ..Default::default() };
+    game.messages.enqueue(rec, 1);
+    game.messages.pull();
+    assert!(game.messages.is_open());
+    let mut ctx = Ctx { game: &mut game, assets: &assets };
+    let mut s = MapScreen::new();
+    s.zoom = FAR;
+    s.view = Viewport::new(0, 14).clamped(&FAR);
+    let c = s.map_clip();
+    let (x, y) = ((c.x0 + c.x1) / 2, (c.y0 + c.y1) / 2);
+    s.handle(Event::Click { x, y }, &mut ctx);
+    assert_eq!(s.zoom().id, NEAR.id, "the click zoomed in");
+    assert!(ctx.game.messages.is_open(), "and did not dismiss the letter");
+}
+
 /// Ablation: make `mode_screen_id` answer `None`
 /// goes red.
 #[test]
