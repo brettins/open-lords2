@@ -151,7 +151,10 @@ fn army_at(g: &mut Game, owner: u8, county: u8, men: i32, at: (u8, u8)) -> usize
     u.county = county;
     u.home_county = county;
     u.owner_is_human = owner == 1;
-    g.kingdom.campaign.units.spawn(u).expect("a free slot")
+    let id = g.kingdom.campaign.units.spawn(u).expect("a free slot");
+    // Army_Create 0x0046EDDF Unit_LinkToTile: `playerDriven = 1` on an empty tile [V].
+    l2_kingdom::movement::link_to_tile(&mut g.kingdom.campaign.units, id);
+    id
 }
 
 fn on_the_map() -> (Game, Assets, Machine) {

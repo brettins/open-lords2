@@ -21,6 +21,8 @@
 
 mod pathfinding;
 pub use pathfinding::*;
+mod aside;
+pub use aside::*;
 mod stepper;
 pub use stepper::*;
 mod tests_part;

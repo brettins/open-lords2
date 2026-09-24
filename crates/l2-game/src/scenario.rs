@@ -247,6 +247,8 @@ fn build(
     game.kingdom = scenario.kingdom_with_tables(seed, tables);
     game.player = scenario.local_player;
     game.map_slot = slot;
+    // Game_NewGame 0x00497CED 00490000.c:3385 `Move_BuildCostMap();`; Save_Read 0x004ADFE6 has none [V].
+    game.kingdom.campaign.rebuild_move_cost();
 
     // `docs/decisions.md` C161.
 

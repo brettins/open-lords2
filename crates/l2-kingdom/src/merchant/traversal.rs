@@ -34,6 +34,7 @@ pub fn next_destination(routes: &MerchantRoutes, route_row: usize, cursor: &mut 
 /// `Merchant_AdvanceAll` (`0x004280E9`) — **the first step of turn phase 6**.
 pub fn advance_all(
     routes: &MerchantRoutes,
+    cost: &crate::map::CostMap,
     map: &CampaignMap,
     counties: &[County; MAX_COUNTIES],
     units: &mut Units,
@@ -68,7 +69,7 @@ pub fn advance_all(
             else {
                 continue;
             };
-            if movement::order_move_by_road(map, units, id, dest).is_some() {
+            if movement::order_move_by_road(cost, map, units, id, dest).is_some() {
                 started += 1;
             }
             if let Some(u) = units.get_mut(id) {

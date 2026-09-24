@@ -13,7 +13,11 @@ use crate::unit::{
 
 /// `FUN_0046733C` — a free tile within five of `(x, y)`, road preferred.
 pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<(u8, u8)> {
-    let cost = map.cost_map();
+    free_tile_ring(map, units, x, y).map(|(_, t)| t)
+}
+
+/// Map_FindFreeTileNear 0x0046733C returns the ring `local_8` it found the tile on (00460000.c:4870) [V].
+pub fn free_tile_ring(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<(i32, (u8, u8))> {
     let scan = |r: i32, road: bool| -> Option<(u8, u8)> {
         let dim = crate::map::MAP_DIM as i32;
         let (x0, y0) = ((x as i32 - r).max(0), (y as i32 - r).max(0));
@@ -28,7 +32,8 @@ pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
                     if map.has(tx, ty, flags::ROAD) {
                         return Some((tx, ty));
                     }
-                } else if cost.at(tx, ty) != 0 {
+                // Map_FindFreeOpenTileNear 0x0046D130 00460000.c `(flags & 0xfd) == 0`: a castle plot is not free [V].
+                } else if map.flags_at(tx, ty) & !flags::BOUNDARY == 0 {
                     return Some((tx, ty));
                 }
             }
@@ -37,10 +42,10 @@ pub fn free_tile_near(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
     };
     for r in 1..=SPLIT_SEARCH_RADIUS {
         if let Some(t) = scan(r + 1, true) {
-            return Some(t);
+            return Some((r, t));
         }
         if let Some(t) = scan(r, false) {
-            return Some(t);
+            return Some((r, t));
         }
     }
     None
@@ -89,6 +94,7 @@ pub fn refuse_split(
 pub fn split(
     t: &Tables,
     map: &CampaignMap,
+    cost: &crate::map::CostMap,
     counties: &mut [County; MAX_COUNTIES],
     realms: &mut [Realm; MAX_REALMS],
     units: &mut Units,
@@ -129,6 +135,7 @@ pub fn split(
         parent.troops = basket.parent;
         parent.men = basket.parent_total();
         parent.moving = true;
+        parent.ordered = false;
     }
     if let (Some(band), true) = (basket.mercenaries, basket.mercenaries_leave) {
         if let Some(p) = units.get_mut(army) {
@@ -154,7 +161,7 @@ pub fn split(
             }
         }
         SplitInto::Castle { tile, .. } => {
-            crate::movement::order_move(map, units, id, tile, crate::movement::Routing::Direct);
+            crate::movement::repath(cost, map, units, id, tile, crate::movement::Routing::Direct);
         }
     }
     let snapshot: [Realm; MAX_REALMS] = realms.clone();

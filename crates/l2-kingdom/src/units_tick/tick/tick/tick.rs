@@ -84,7 +84,12 @@ impl Kingdom {
         let mut out = UnitsTick::default();
         refresh_allowances(&mut self.campaign.units);
         for id in 1..crate::unit::MAX_UNITS {
-            if !self.campaign.units.get(id).is_some_and(|u| u.moving) {
+            let Some(u) = self.campaign.units.get_mut(id) else { continue };
+            if !(u.moving && !u.ordered) {
+                // Army_Tick 0x0046521F 00460000.c:4096-4098 `else if (playerDriven == 0) moving = 2;` [V].
+                if u.kind == UnitKind::Army && !u.player_driven {
+                    (u.moving, u.ordered) = (true, false);
+                }
                 continue;
             }
             if !cross_sub_tile(&mut self.campaign.units, id) {
@@ -115,17 +120,43 @@ impl Kingdom {
     }
 
     fn step_one(&mut self, id: usize, out: &mut UnitsTick) {
-        let Some(step) = movement::step(
+        let arm = self.enter_occupied(id, out);
+        // Unit_Step 00460000.c:4386 `if (iVar2 == 10) break;`: no step, `moving` kept [V].
+        if arm == Arm::Captured {
+            return;
+        }
+        let Some(step) = movement::step_over(
             &mut self.campaign.map,
             &mut self.counties,
             &self.realms,
             &mut self.campaign.units,
             id,
+            arm == Arm::Over,
         ) else {
+            let (mut stacked, mut at_end) = (false, false);
             if let Some(u) = self.campaign.units.get_mut(id) {
+                // :4337 tests the allowance before :4350's pathLen; that branch returns.
+                at_end = u.moves_used < u.move_allowance;
                 u.moving = false;
+                // Unit_Step 00460000.c:4340 `movesUsed = moveAllowance;`, so FUN_00467196's refund is spendable [V].
+                if u.moves_used >= u.move_allowance {
+                    u.moves_used = u.move_allowance;
+                }
                 if u.path.is_empty() {
                     u.needs_destination = true;
+                }
+                (stacked, at_end) = (!u.player_driven, at_end && u.path.is_empty());
+            }
+            // Unit_Step 00460000.c:4356/:4368 `if (playerDriven == 0) FUN_00467196(unit);` [V].
+            if stacked {
+                let c = &mut self.campaign;
+                let _ = movement::step_aside(&c.move_cost, &c.map, &mut c.units, id);
+                // :4368 falls through to path[0]; movement::zeroed_head.
+                if at_end && movement::zeroed_head(&mut c.units, id) {
+                    return self.step_one(id, out);
+                }
+                if let Some(u) = c.units.get_mut(id).filter(|u| at_end && u.path.is_empty()) {
+                    u.moving = false;
                 }
             }
             return;
@@ -253,69 +284,12 @@ impl Kingdom {
         }
 
         if let Entry::Occupied(occupant) = step.entry {
-            if self.merge_on_contact(id, occupant) {
-                out.contacts.push(Contact::Merged { mover: id, into: occupant });
-                return;
-            }
-            out.contacts.push(self.classify_occupied(id, occupant));
+            let county = self.campaign.units.get(occupant).map_or(0, |o| o.county);
+            out.contacts.push(match arm {
+                Arm::Battle(_) => Contact::Battle(Encounter { mover: id, occupant, county }),
+                _ => Contact::Blocked { mover: id, occupant },
+            });
         }
-    }
-
-    /// The two exemptions are the reason [`crate::ai_army::Mission`] has to be
-    /// modelled at all outside `ai_army`: an army walking to a castle to join
-    /// its garrison is on a **dedicated errand** and is not to be absorbed by
-    /// whatever it passes, in either direction. `[D]`
-    fn merge_on_contact(&mut self, mover: usize, occupant: usize) -> bool {
-        let units = &self.campaign.units;
-        let (Some(m), Some(o)) = (units.get(mover), units.get(occupant)) else { return false };
-        if m.kind != UnitKind::Army || o.kind != UnitKind::Army || m.owner != o.owner {
-            return false;
-        }
-        if o.owner_is_human
-            || m.mission == crate::ai_army::Mission::JOIN_GARRISON
-            || o.mission == crate::ai_army::Mission::JOIN_GARRISON
-        {
-            return false;
-        }
-        crate::unit::combine(&mut self.campaign.units, occupant, mover).is_ok()
-    }
-
-    /// `Unit_EnterOccupiedTile` (`0x004658C1`), reduced to the question this
-    /// driver has to answer: is that a fight?
-    ///
-    /// **Rungs 1 and 2 no longer reach here.** They are not "no fight, but the
-    /// move ends": the original returns the tile's ordinary Road or Open code
-    /// and the mover steps onto the tile,
-    /// than a contact. [`crate::movement::pass_through`] gives it, so
-    /// [`Entry::Occupied`] never reaches this function in those two cases and
-    /// the rungs are kept below only because the ladder reads wrong without
-    /// them. `docs/decisions.md` C40.
-    fn classify_occupied(&self, mover: usize, occupant: usize) -> Contact {
-        let units = &self.campaign.units;
-        let (Some(m), Some(o)) = (units.get(mover), units.get(occupant)) else {
-            return Contact::Blocked { mover, occupant };
-        };
-        let hostile = m.kind.is_combatant()
-            && o.kind.is_combatant()
-            && m.owner != o.owner
-            && !self.allied(m.owner, o.owner);
-        if hostile {
-            Contact::Battle(Encounter { mover, occupant, county: o.county })
-        } else {
-            Contact::Blocked { mover, occupant }
-        }
-    }
-
-    /// `Diplo_ActionAllowed` (`0x004A0710`)'s ally test, and nothing else of it.
-    ///
-    /// Realm `+0x81` is one byte,
-    /// relation is read from both sides because the original stores it on both.
-    fn allied(&self, a: u8, b: u8) -> bool {
-        if a == b {
-            return true;
-        }
-        let ally_of = |r: u8| self.realms.get(r as usize).map_or(0, |x| x.ally);
-        ally_of(a) == b || ally_of(b) == a
     }
 
     pub fn begin_unit_phase(&mut self, phase: Phase) -> usize {
@@ -330,6 +304,7 @@ impl Kingdom {
             Phase::PeasantMobs => self.retarget_mobs(),
             Phase::Merchants => merchant::advance_all(
                 &self.campaign.routes,
+                &self.campaign.move_cost,
                 &self.campaign.map,
                 &self.counties,
                 &mut self.campaign.units,
@@ -342,21 +317,37 @@ impl Kingdom {
     /// Whether any unit of a kind is still walking — the predicate
     /// `FUN_004A4F5B(kind)` answers for phases 3 and 6, and
     /// `FUN_004A4E3D(2, 6)` for phase 5.
-    pub fn units_moving(&self, kind: UnitKind) -> bool {
-        self.campaign.units.iter().any(|(_, u)| {
-            u.moving
+    pub fn units_moving(&mut self, kind: UnitKind) -> bool {
+        let mut any = false;
+        for (_, u) in self.campaign.units.iter_mut() {
+            if u.moving
                 && u.kind == kind
                 && (kind != UnitKind::PeasantMob || (u.owner == OWNERLESS && !u.owner_is_human))
-        })
+            {
+                // Units_AnyMovingOfKind 004a0000.c:2004 / ForRealm :1976 `moving = 2` [V].
+                u.ordered = false;
+                any = true;
+            }
+        }
+        any
     }
 
     /// `FUN_004A4E3D(kind, realm)` — is that realm's own unit of this kind
     /// still walking?
-    pub fn realm_units_moving(&self, kind: UnitKind, realm: u8) -> bool {
-        self.campaign
-            .units
-            .iter()
-            .any(|(_, u)| u.moving && u.kind == kind && u.owner == realm && !u.owner_is_human)
+    pub fn realm_units_moving(&mut self, kind: UnitKind, realm: u8) -> bool {
+        let mut any = false;
+        for id in 1..crate::unit::MAX_UNITS {
+            let Some(u) = self.campaign.units.get_mut(id) else { continue };
+            if u.moving && u.kind == kind && u.owner == realm && !u.owner_is_human {
+                // 004a0000.c:1976-1979 `moving = 2; if (kind == 1) Siege_Break(unit);` [V].
+                u.ordered = false;
+                if kind == UnitKind::Army {
+                    crate::siege::break_siege(&self.counties, &mut self.campaign.units, id);
+                }
+                any = true;
+            }
+        }
+        any
     }
 
     /// `FUN_00429418` — **the first step of phase 3.**
@@ -378,7 +369,7 @@ impl Kingdom {
                 u.dest_county = cargo;
                 u.needs_destination = false;
             }
-            if movement::order_move_by_road(&self.campaign.map, &mut self.campaign.units, id, anchor)
+            if movement::order_move_by_road(&self.campaign.move_cost, &self.campaign.map, &mut self.campaign.units, id, anchor)
                 .is_some()
             {
                 started += 1;
@@ -421,7 +412,8 @@ impl Kingdom {
                 u.dest = Some(anchor);
                 u.needs_destination = false;
             }
-            if movement::order_move(
+            if movement::repath(
+                &self.campaign.move_cost,
                 &self.campaign.map,
                 &mut self.campaign.units,
                 id,
@@ -430,6 +422,10 @@ impl Kingdom {
             )
             .is_some()
             {
+                // PeasantMob_AdvanceAll 004a0000.c:5094 `moving = 1` [V].
+                if let Some(u) = self.campaign.units.get_mut(id) {
+                    u.ordered = true;
+                }
                 started += 1;
             }
         }

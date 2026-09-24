@@ -85,7 +85,8 @@ pub(super) fn run_phase_tick(game: &mut Game) {
         }
         super::super::ai_part::post_letters(game, &letters);
     }
-    let (_, report) = game.kingdom.tick(settled(&game.kingdom, phase));
+    let settled = settled(&mut game.kingdom, phase);
+    let (_, report) = game.kingdom.tick(settled);
 
     let moved = game.sweep_units();
     // `DAT_00553210`, the invasion tip's flag. See `crate::tip`.
@@ -128,7 +129,7 @@ pub(super) fn pump_siege(game: &mut Game) {
     }
 }
 
-fn settled(kingdom: &Kingdom, phase: Phase) -> bool {
+fn settled(kingdom: &mut Kingdom, phase: Phase) -> bool {
     match phase.wait() {
         PhaseWait::Units(kind) => !kingdom.units_moving(kind),
         PhaseWait::Sieges => true,

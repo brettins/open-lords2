@@ -26,7 +26,10 @@ fn a_kingdom_with_armies_in_it_saves_and_resumes_identically() {
 
     let bytes = l2_kingdom::save::encode(&k);
     let restored = l2_kingdom::save::decode(&bytes, k.tables.clone()).expect("our own bytes");
-    assert_eq!(restored, k, "field for field, campaign included");
+    let mut saved = k.clone();
+    // g_moveCost 0x004F4080 is in no save block: BNEW-stale-move-cost-after-load.
+    saved.campaign.move_cost = l2_kingdom::map::CostMap::uniform(0);
+    assert_eq!(restored, saved, "field for field, campaign included");
 
     let mut one = k.clone();
     let mut two = restored;

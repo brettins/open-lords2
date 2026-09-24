@@ -239,7 +239,7 @@ mod tests {
         b.to_daughter(TroopType::Peasant, 100);
         let map = CampaignMap::empty();
         assert_eq!(
-            split(T, &map, &mut counties, &mut realms, &mut units, &mut names, &mut bands, id, &b, SplitInto::Field, 1268),
+            split(T, &map, &map.cost_map(), &mut counties, &mut realms, &mut units, &mut names, &mut bands, id, &b, SplitInto::Field, 1268),
             Err(SplitRefusal::AlreadyMoved),
         );
     }
