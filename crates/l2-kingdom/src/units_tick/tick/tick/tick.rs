@@ -86,7 +86,7 @@ impl Kingdom {
         for id in 1..crate::unit::MAX_UNITS {
             let Some(u) = self.campaign.units.get_mut(id) else { continue };
             if !(u.moving && !u.ordered) {
-                // Army_Tick 00460000.c:4096-4098 `else if (playerDriven == 0) moving = 2;` [V].
+                // Army_Tick 0x0046521F 00460000.c:4096-4098 `else if (playerDriven == 0) moving = 2;` [V].
                 if u.kind == UnitKind::Army && !u.player_driven {
                     (u.moving, u.ordered) = (true, false);
                 }

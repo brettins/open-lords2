@@ -19,7 +19,7 @@ pub fn link_to_tile(units: &mut Units, id: usize) {
 
 /// FUN_00467196 0x00467196 (00460000.c:4818-4841), from Unit_Step and Castle_EvictTile: a unit
 /// chained on a shared tile walks to Map_FindFreeTileNear's tile, refunded the ring in moves,
-/// `moving = 2`, flooding the stored g_moveCost with no Move_BuildCostMap [V].
+/// `moving = 2`, flooding the stored g_moveCost (Move_ExtractPath 0x004701AC) with no Move_BuildCostMap [V].
 pub fn step_aside(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize) -> bool {
     let Some(u) = units.get(id) else { return false };
     let Some((ring, tile)) = crate::divide::free_tile_ring(map, units, u.x, u.y) else { return false };
@@ -38,8 +38,8 @@ pub fn step_aside(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usiz
 
 /// Unit_Step 00460000.c:4368 reads path[0] with pathLen 0; Path_CopyToUnit 0x004707BE zeroed it on
 /// an empty copy, so Dir_FromDelta 0x0046F434 aims at (0, 0) [V]. A walked-out path leaves the unit's
-/// own tile there (Dir 8); told apart by `dest` not being that tile [I]. Merchants and transports
-/// only: Army_Tick 0x0046521F restarts a stopped army, whose path[0] is then the spent entry [I].
+/// own tile there (Dir 8); told apart by `dest` not being that tile [I]. Merchants (Merchant_AdvanceAll
+/// 0x004280E9) and transports only: Army_Tick 0x0046521F restarts a stopped army, whose path[0] is then the spent entry [I].
 pub fn zeroed_head(units: &mut Units, id: usize) -> bool {
     let Some(u) = units.get_mut(id) else { return false };
     if !matches!(u.kind, UnitKind::Merchant | UnitKind::Transport)

@@ -32,7 +32,7 @@ pub fn free_tile_ring(map: &CampaignMap, units: &Units, x: u8, y: u8) -> Option<
                     if map.has(tx, ty, flags::ROAD) {
                         return Some((tx, ty));
                     }
-                // Map_FindFreeOpenTileNear 00460000.c `(flags & 0xfd) == 0`: a castle plot is not free [V].
+                // Map_FindFreeOpenTileNear 0x0046D130 00460000.c `(flags & 0xfd) == 0`: a castle plot is not free [V].
                 } else if map.flags_at(tx, ty) & !flags::BOUNDARY == 0 {
                     return Some((tx, ty));
                 }

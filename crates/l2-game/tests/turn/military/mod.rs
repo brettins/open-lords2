@@ -37,6 +37,8 @@ fn with_a_map() -> Game {
         g.kingdom.counties[id].anchor_x = (id as u8 - 1) * 5 + 2;
         g.kingdom.counties[id].anchor_y = 10;
     }
+    // Game_NewGame 0x00497CED 00490000.c:3385 `Move_BuildCostMap();` [V].
+    g.kingdom.campaign.rebuild_move_cost();
     g
 }
 
@@ -62,6 +64,9 @@ fn army(g: &mut Game, owner: u8, x: u8, y: u8) -> usize {
     u.county = g.kingdom.campaign.map.county_at(x, y);
     u.home_county = u.county;
     u.owner_is_human = g.kingdom.realms[owner as usize].is_human;
-    g.kingdom.campaign.units.spawn(u).expect("a free slot")
+    let id = g.kingdom.campaign.units.spawn(u).expect("a free slot");
+    // Army_Create 0x0046EDDF Unit_LinkToTile: `playerDriven = 1` on an empty tile [V].
+    l2_kingdom::movement::link_to_tile(&mut g.kingdom.campaign.units, id);
+    id
 }
 

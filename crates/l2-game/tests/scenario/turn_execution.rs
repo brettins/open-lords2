@@ -51,9 +51,16 @@ fn a_turn_on_the_shipped_position_settles_every_phase() {
     assert!(outcome.pending_battles.is_empty(), "nobody is at war on turn one");
 }
 
+/// A fresh-process load walks turn 1 on a zero g_moveCost (BNEW-stale-move-cost-after-load);
+/// Map_BeginMoveSelection 00430000.c:4033 `Move_BuildCostMap();` rebuilds it when the player opens a move order [V].
+fn a_move_order_opened(game: &mut l2_game::Game) {
+    game.kingdom.campaign.rebuild_move_cost();
+}
+
 #[test]
 fn the_six_shipped_merchants_take_the_next_county_on_their_own_route() {
     let mut game = game!();
+    a_move_order_opened(&mut game);
     let routes = game.kingdom.campaign.routes.clone();
     let before: Vec<(usize, (u8, u8))> =
         game.kingdom.campaign.units.iter().map(|(id, u)| (id, u.tile())).collect();
@@ -121,6 +128,8 @@ fn ten_turns_of_merchants_never_leave_their_own_routes() {
 fn a_merchant_walks_its_route_over_the_frames_of_a_turn_rather_than_teleporting() {
     let mut stepped = game!();
     let mut at_once = game!();
+    a_move_order_opened(&mut stepped);
+    a_move_order_opened(&mut at_once);
 
     let watched: Vec<usize> = stepped.kingdom.campaign.units.iter().map(|(id, _)| id).collect();
     assert_eq!(watched.len(), 6, "six merchants to watch");
