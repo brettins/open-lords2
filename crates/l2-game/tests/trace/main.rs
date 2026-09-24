@@ -267,13 +267,9 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
 #[test]
 #[ignore = "minutes of frames; run for the differ"]
 fn the_differs_scenarios_write_traces() {
-<<<<<<< HEAD
-    for name in ["launch", "newgame-original", "newgame-new", "zoom-map", "endturn-england", "endturn-year", "raise-army"] {
-=======
     let names = std::env::var("L2_TRACE_SCENARIOS")
-        .unwrap_or_else(|_| "launch,newgame-original,newgame-new,zoom-map".into());
+        .unwrap_or_else(|_| "launch,newgame-original,newgame-new,zoom-map,endturn-england,endturn-year,raise-army".into());
     for name in names.split(',') {
->>>>>>> main
         let Some((records, out)) = trace_scenario(name) else { return };
         let failed = records.iter().find(|r| r.kind == "failed").map(|r| r.to_json());
         eprintln!("{name}: {} records -> {} {failed:?}", records.len(), out.display());
