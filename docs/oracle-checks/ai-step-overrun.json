@@ -1,5 +1,5 @@
 {
-  "reviewed": "458bdf398b2929477b0d04daa0c981cb5733c517",
+  "reviewed": "244717b11a54f3910bc8013d29ad07e64cc5e689",
   "date": "2026-09-24",
   "behaviours": [
     {
@@ -78,6 +78,118 @@
       "address": "0x00437FD7",
       "verdict": "match",
       "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 34,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 46,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 42,
+      "address": "0x004658C1",
+      "verdict": "departure",
+      "note": "[I] :4267-4272 walks over unless +0x152 names the occupant, then Army_Combine; ours Blocked."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 56,
+      "address": "0x004658C1",
+      "verdict": "departure",
+      "note": "[I] Army_Combine merges two mobs; ours refuses."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 62,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 67,
+      "address": "0x004658C1",
+      "verdict": "departure",
+      "note": "[I] auto-resolved battle: owner!=0 walks on at once, owner 0 returns 10; ours steps next tick."
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 69,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/occupied.rs",
+      "line": 85,
+      "address": "0x004A16F7",
+      "verdict": "departure",
+      "note": "[I] mob owner 6 has no realm record; only actor != target read."
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 120,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 130,
+      "address": "0x00465D28",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 174,
+      "address": "0x004658C1",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 36,
+      "address": "0x0046D130",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/divide/split_part.rs",
+      "line": 20,
+      "address": "0x0046733C",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/units_tick/tick/tick/tick.rs",
+      "line": 141,
+      "address": "0x00465D28",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 31,
+      "address": "0x0046FF43",
+      "verdict": "departure",
+      "note": "BNEW-stale-move-cost-after-load confirmed by orig endturn-year trace: turn-1 phase 6 has 2 merchant steps, later seasons 4-6 every 8 frames."
+    },
+    {
+      "file": "crates/l2-kingdom/src/movement/stepper.rs",
+      "line": 31,
+      "address": "0x004280E9",
+      "verdict": "mismatch",
+      "note": "Orig turn 1 after load: 2 merchant.wav at phase-6 entry (f482), phase 6 lasts 34 frames; ours (after2) no step, phase 6 lasts 2."
     }
   ]
 }
