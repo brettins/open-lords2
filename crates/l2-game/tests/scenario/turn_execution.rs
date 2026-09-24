@@ -46,7 +46,8 @@ fn a_turn_on_the_shipped_position_settles_every_phase() {
     let mut game = game!();
     let outcome = l2_game::turn::end_turn(&mut game).expect("the machine comes round");
     assert!(outcome.ticks < l2_game::turn::MAX_TICKS, "{} ticks", outcome.ticks);
-    assert_eq!(game.kingdom.turn.phase, l2_kingdom::Phase::NeutralCounties);
+    // Turn_Tick 0x0049A010 waits for the person in phase 4, after the next turn's 1-3.
+    assert_eq!(game.kingdom.turn.phase, l2_kingdom::Phase::PlayersTurn);
     assert!(outcome.pending_battles.is_empty(), "nobody is at war on turn one");
 }
 
@@ -161,7 +162,8 @@ fn a_merchant_walks_its_route_over_the_frames_of_a_turn_rather_than_teleporting(
         );
     }
 
-    let outcome = l2_game::turn::end_turn(&mut at_once).expect("the machine comes round");
+    // begin_turn's Done is the autosave at the 7 -> 1 wrap (Season_FinishFade 0x0049A3E6).
+    let outcome = l2_game::turn::end_turn_to_autosave(&mut at_once).expect("the machine comes round");
     assert_eq!(outcome.ticks, ticks, "both ways take the same number of Turn_Ticks");
     for &slot in &watched {
         let a = stepped.kingdom.campaign.units.get(slot).map(|u| u.tile());

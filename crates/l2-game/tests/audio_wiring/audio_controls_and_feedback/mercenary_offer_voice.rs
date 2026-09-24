@@ -93,13 +93,14 @@ fn the_offer_is_announced_when_the_army_screen_opens_after_the_seasons_letter() 
 
 /// Half one: `Mercenary_AdvanceAll` (`0x004ACA2B`) writes `+0x1AD` and plays
 /// no sound —, so a season that hands county 1 a
-/// band is silent. Half two: with the window up the sidebar never sees the
-/// click, so the screen the line hangs on does not open.
+/// band is silent. Half two: Msg_HandleInput 0x0047685D swallows only its widgets, the OK box
+/// and a right release; Screen_FrameInput 0x0042FF10 then runs Sidebar_ButtonClicked with no
+/// g_messageGroup test, and Sidebar_Button 0x0043AE30 opens 0x17 and FUN_004B3714 speaks [V].
 ///
 /// **Ablation, run:** move the mercenary arm off the `opened(RaiseArmy)` edge
 /// onto the county's `mercenary_offer` alone and half one goes red.
 #[test]
-fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
+fn the_arrival_itself_is_silent_and_the_army_button_answers_past_a_letter() {
     let Some(dir) = l2_testkit::install_dir() else {
         l2_testkit::skip!("no game install, so no S016 clips");
     };
@@ -133,10 +134,10 @@ fn the_arrival_itself_is_silent_and_a_talking_window_swallows_the_line() {
     );
 
     let (opened, heard) = a_season_then_the_army_button(&platform, 1, false);
-    assert!(!opened, "the sidebar answered a click the message window was holding");
+    assert!(opened, "the letter held a click Msg_HandleInput does not take");
     assert!(
-        !heard.iter().any(|n| n == "s016_01.wav"),
-        "a band was announced with no raise-army screen: {heard:?}",
+        heard.iter().any(|n| n == "s016_01.wav"),
+        "the raise-army screen opened unannounced: {heard:?}",
     );
 }
 

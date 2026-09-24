@@ -648,7 +648,12 @@ pub const MAGIC: [u8; 8] = *b"L2KSAVE\x01";
 ///
 ///   *Written as 34 with `VERSION` at 33 on `main`. Per the standing hazard
 ///   above, assume the number has moved.*
-pub const VERSION: u32 = 34;
+/// * 35 — `DAT_0057C944`, `AI_RunTurnStep`'s realm cursor, one byte after the
+///   turn step. **Refusal**: a defaulted load steps a different realm next.
+///
+///   *Written as 35 with `VERSION` at 34 on `main`. Per the standing hazard
+///   above, assume the number has moved.*
+pub const VERSION: u32 = 35;
 
 /// The header: magic, version, ruleset fingerprint, and the body length.
 pub const HEADER_LEN: usize = 8 + 4 + 8 + 4;

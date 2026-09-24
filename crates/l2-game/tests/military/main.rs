@@ -155,7 +155,9 @@ fn army_at(g: &mut Game, owner: u8, county: u8, men: i32, at: (u8, u8)) -> usize
 }
 
 fn on_the_map() -> (Game, Assets, Machine) {
-    let (g, a) = world();
+    let (mut g, a) = world();
+    // FUN_0049792e sets g_turnPhase = 1: phases 1-3 run before the person's phase 4 [V].
+    l2_game::turn::reach_players_turn(&mut g).expect("phases 1-3 settle");
     (g, a, Machine::new(ScreenId::Campaign))
 }
 

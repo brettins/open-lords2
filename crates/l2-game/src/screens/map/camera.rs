@@ -86,6 +86,14 @@ impl MapScreen {
     /// message that set `DAT_0053F0C4` calls `FUN_00497879` — which advances the
 /// campaign counter on a win — and sets `g_screenId = 0x1C`.
     pub(crate) fn end_turn(&mut self, ctx: &mut Ctx) -> Transition {
+        // Turn_End 0x0043AC23: `if (g_messageGroup != 0) Msg_Dismiss();` ahead of its 999 test [V].
+        if ctx.game.messages.is_open() {
+            crate::message::dismiss(ctx.game);
+        }
+        if turn::turn_opening(ctx.game) && !ctx.game.net.lockstep {
+            ctx.game.turn_clock.defer_end_turn();
+            return Transition::Stay;
+        }
         if turn::turn_in_flight(ctx.game) || self.fading.is_some() {
             return Transition::Stay;
         }

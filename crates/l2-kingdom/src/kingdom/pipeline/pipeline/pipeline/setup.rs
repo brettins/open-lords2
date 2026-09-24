@@ -152,12 +152,9 @@ impl Kingdom {
         } else {
             None
         };
-        // `Turn_BeginPlayersTurn` (`0x0049B6D3`), which `Turn_AdvancePhase`
-        // (`0x0049CE51`) calls on the wrap into phase 4 — **unless the
-        // interactive frames already opened this turn's phase 4 and ran the
-        // AI's steps in it**, which is where the original runs them. See
-        // [`TurnMachine::players_turn_open`] and `l2_game::turn::open_players_turn`.
-        if tick.advanced_to == Some(Phase::PlayersTurn) && !self.turn.players_turn_open {
+        // Turn_AdvancePhase 0x0049CE51: `if (7 < g_turnPhase) { g_turnPhase = 1;
+        // Turn_BeginPlayersTurn(); }` — on the wrap into phase 1, not the entry to 4 [V].
+        if tick.phase == Phase::SeasonEnd && tick.advanced_to == Some(Phase::NeutralCounties) {
             ai::begin_turn(&mut self.realms);
         }
         if tick.phase == Phase::PlayersTurn && tick.advanced_to.is_some() {

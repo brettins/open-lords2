@@ -272,7 +272,7 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
 #[ignore = "minutes of frames; run for the differ"]
 fn the_differs_scenarios_write_traces() {
     let names = std::env::var("L2_TRACE_SCENARIOS")
-        .unwrap_or_else(|_| "launch,newgame-original,newgame-new,zoom-map".into());
+        .unwrap_or_else(|_| "launch,newgame-original,newgame-new,zoom-map,endturn-england,endturn-year,raise-army".into());
     for name in names.split(',') {
         let Some((records, out)) = trace_scenario(name) else { return };
         let failed = records.iter().find(|r| r.kind == "failed").map(|r| r.to_json());

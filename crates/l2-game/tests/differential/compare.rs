@@ -58,7 +58,7 @@ pub fn run_saves(
 ) -> Result<PairReport, String> {
     let mut game = l2_game::scenario::from_save(before, Tables::DEFAULT)
         .map_err(|e| format!("{name} does not import: {e:?}"))?;
-    l2_game::turn::end_turn(&mut game)
+    l2_game::turn::end_turn_to_autosave(&mut game)
         .ok_or_else(|| format!("the turn machine did not come round on {name}"))?;
 
     let mut r = PairReport::default();
