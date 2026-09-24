@@ -164,8 +164,8 @@ the goal is not met — not "mostly met".
 1. **A player performs a gesture the original responds to and ours does not.** This is now
 countable: `docs/arms.json` is the inventory of the original's input
    arms and `crates/l2-game/tests/arms.rs` checks it against the code in both directions. Of the
-   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->265<!--/fig--> of
-   <!--fig:arms-live-->276<!--/fig--> live arms (<!--fig:arms-pct-->96<!--/fig-->%)** — so
+   arms enumerated so far we reproduce **<!--fig:arms-reproduced-->267<!--/fig--> of
+   <!--fig:arms-live-->278<!--/fig--> live arms (<!--fig:arms-pct-->96<!--/fig-->%)** — so
    **<!--fig:arms-missing-->11<!--/fig-->** gestures a player can make get no answer — with
    **<!--fig:arms-dead-->9<!--/fig-->** more arms that are in the binary and cannot run.
 171: 2. **We do something the original does not.** The other direction, and the half nobody was
@@ -182,7 +182,7 @@ countable: `docs/arms.json` is the inventory of the original's input
 
    **The other <!--fig:draws-screens-->52<!--/fig--> screens** make
    <!--fig:draws-original-->1,080<!--/fig--> draw calls and we make
-   <!--fig:draws-ours-->711<!--/fig-->: <!--fig:draws-pct-->66<!--/fig-->%.
+   <!--fig:draws-ours-->712<!--/fig-->: <!--fig:draws-pct-->66<!--/fig-->%.
    <!--fig:draws-missing-->41<!--/fig--> things the original draws are enumerated as missing,
    and **<!--fig:draws-inventions-->25<!--/fig--> things we draw that it does not** — the
 figure that answers row 2 for pictures, not gestures; the one nobody had.
@@ -952,7 +952,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->3,176<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->3,257<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---

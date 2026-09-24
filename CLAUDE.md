@@ -17,11 +17,11 @@ agent, so it stays short. Read the linked document before working in that area.
 5. **If we implement a feature, find its equivalent in the binary's functions**, and name
    it in the code beside the behaviour. *"We could not find it"* is a finding, not a licence
    to invent. Measured, generated not typed: we reproduce
-   **<!--fig:arms-reproduced-->265<!--/fig--> of <!--fig:arms-live-->276<!--/fig-->** live
+   **<!--fig:arms-reproduced-->267<!--/fig--> of <!--fig:arms-live-->278<!--/fig-->** live
    input arms (C61, `docs/arms.json`). That counts *which* controls a screen answers, not
    *how*: the original's input model is one kind byte at `+0x0F` of a 24-byte record, all
    <!--fig:gesture-kinds-->5<!--/fig--> gesture kinds built over
-   <!--fig:arms-kinded-->175<!--/fig--> kinded arms. `docs/input.md` is the model,
+   <!--fig:arms-kinded-->176<!--/fig--> kinded arms. `docs/input.md` is the model,
    `node tools/oracle/kinds.js` the original's side; say which measurement you quote.
 6. **A screen's strings are part of its specification.** A `L2.eng` group with one consumer
    *is* that screen's vocabulary; draw its words from the group, with our transcription as
