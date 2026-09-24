@@ -51,7 +51,7 @@ fn a_turn_on_the_shipped_position_settles_every_phase() {
     assert!(outcome.pending_battles.is_empty(), "nobody is at war on turn one");
 }
 
-/// A fresh-process load walks turn 1 on a zero g_moveCost (BNEW-stale-move-cost-after-load);
+/// A fresh-process load walks turn 1 on a zero g_moveCost (B108);
 /// Map_BeginMoveSelection 00430000.c:4033 `Move_BuildCostMap();` rebuilds it when the player opens a move order [V].
 fn a_move_order_opened(game: &mut l2_game::Game) {
     game.kingdom.campaign.rebuild_move_cost();

@@ -408,7 +408,7 @@ cannot answer it either. `l2_kingdom::save` (**our** format, version 12) stores 
 `exploration` and `time_limit`, so a game saved by this engine does not lose them. That is a
 divergence and a deliberate one: it is our save format, and D11 already separates the two.
 
-### BNEW-stale-move-cost-after-load — After a load, nothing but the player's own orders can find a path until the season ends
+### B108 — After a load, nothing but the player's own orders can find a path until the season ends
 
 **[D] on the reading, [D] on calling it a mistake.**
 

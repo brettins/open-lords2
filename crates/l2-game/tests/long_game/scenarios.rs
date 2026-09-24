@@ -115,7 +115,7 @@ fn a_hundred_turns_is_the_same_hundred_however_it_is_reached() {
     }
     let bytes = l2_game::save::encode(&halved);
     let mut reloaded = l2_game::save::decode(&bytes, Tables::DEFAULT).expect("our own save loads");
-    // A load leaves g_moveCost empty (BNEW-stale-move-cost-after-load); so does this.
+    // A load leaves g_moveCost empty (B108); so does this.
     halved.kingdom.campaign.move_cost = l2_kingdom::map::CostMap::uniform(0);
     for _ in 0..TURNS / 2 {
         l2_game::turn::end_turn(&mut reloaded).expect("the machine comes round");
@@ -130,7 +130,7 @@ fn a_hundred_turns_is_the_same_hundred_however_it_is_reached() {
 }
 
 
-/// BNEW-stale-move-cost-after-load: Save_Read 0x004ADFE6 leaves g_moveCost 0x004F4080 as it was.
+/// B108: Save_Read 0x004ADFE6 leaves g_moveCost 0x004F4080 as it was.
 #[test]
 fn a_loaded_game_paths_on_an_empty_cost_map_until_phase_seven() {
     let empty = l2_kingdom::map::CostMap::uniform(0);

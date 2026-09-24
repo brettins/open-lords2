@@ -27,7 +27,7 @@ pub fn order_move(map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8
 
 /// `Move_FloodFill` + `Move_ExtractPath` (`0x004701AC`) against the stored `g_moveCost`, with no
 /// `Move_BuildCostMap` (0x0046FF43): Ai_AdvanceArmies 0x004A5667, PeasantMob_AdvanceAll, Merchant_AdvanceAll,
-/// Transport_RetargetAll, Army_Split; FUN_00467196 floods it too (step_aside). BNEW-stale-move-cost-after-load.
+/// Transport_RetargetAll, Army_Split; FUN_00467196 floods it too (step_aside). B108.
 pub fn repath(cost: &CostMap, map: &CampaignMap, units: &mut Units, id: usize, dest: (u8, u8), routing: Routing) -> Option<usize> {
     let unit = units.get(id)?;
     let field = flood_fill(&cost, unit.tile(), routing);

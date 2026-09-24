@@ -182,7 +182,7 @@
       "line": 31,
       "address": "0x0046FF43",
       "verdict": "departure",
-      "note": "BNEW-stale-move-cost-after-load confirmed by orig endturn-year trace: turn-1 phase 6 has 2 merchant steps, later seasons 4-6 every 8 frames."
+      "note": "B108 confirmed by orig endturn-year trace: turn-1 phase 6 has 2 merchant steps, later seasons 4-6 every 8 frames."
     },
     {
       "file": "crates/l2-kingdom/src/movement/aside.rs",

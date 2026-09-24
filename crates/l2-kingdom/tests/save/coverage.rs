@@ -24,7 +24,7 @@ const NOT_IN_THE_BODY: &[(&str, &str, &str)] = &[
         "Campaign",
         "move_cost",
         "g_moveCost 0x004F4080, .bss and in no Save_Write block; only Move_BuildCostMap \
-         0x0046FF43 writes it, and a load keeps the process value (BNEW-stale-move-cost-after-load)",
+         0x0046FF43 writes it, and a load keeps the process value (B108)",
     ),
     (
         "Kingdom",

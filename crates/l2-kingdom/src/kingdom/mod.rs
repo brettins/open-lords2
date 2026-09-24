@@ -154,7 +154,7 @@ pub struct Campaign {
     /// `g_moveCost` (`0x004F4080`), `.bss`: only Move_BuildCostMap 0x0046FF43 writes it (Game_NewGame,
     /// Turn_Tick phase 7, Unit_OrderMove, Map_BeginMoveSelection). In no Save_Write block, so a load
     /// keeps the previous game's map; the first game in a process starts all-zero [V]. Not saved or
-    /// hashed; the load screen carries it across [D]. BNEW-stale-move-cost-after-load.
+    /// hashed; the load screen carries it across [D]. B108.
     pub move_cost: crate::map::CostMap,
 }
 

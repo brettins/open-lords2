@@ -55,7 +55,7 @@ fn entries(path: &[(u8, u8)]) -> Vec<u32> {
 }
 
 
-/// Turn 1 of a load walks on the stale g_moveCost (BNEW-stale-move-cost-after-load); Turn_Tick
+/// Turn 1 of a load walks on the stale g_moveCost (B108); Turn_Tick
 /// 0x0049A010 phase 7 rebuilds it. Plays turn 1 and phases 1-3 of turn 2 up to the player's phase 4.
 fn second_turn(game: &mut l2_game::Game, machine: &mut Machine) {
     let assets = Assets::placeholder();
