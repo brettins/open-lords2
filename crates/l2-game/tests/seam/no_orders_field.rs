@@ -125,6 +125,9 @@ fn every_lane_on_the_saves_frame_leaves_the_defence_its_sixty() {
         assert!((59..=61).contains(&fight.defender.1), "seed {i} lane {lane}: the save leaves the defence 60 of 129: {}", fight.defender.1);
     }
     assert_eq!(lanes.into_iter().collect::<Vec<_>>(), vec![0, 1, 3], "three lanes dealt");
-    // Order_ShootAtUnit 0x0048C974 -> state 17; lane 0 looses 12. Ablation: close_to_attack_tick's loose arm returns false
-    assert!(closing > 0, "no arrow ever left state 17");
+    // Not asserted: UnitOrder_FieldMissile 0x0048A9D2 reaches Order_ShootAtUnit 0x0048C974 only while hitMemory
+    // (0x32 frames) spans a think (200). [V] field-battle-manual.orig.jsonl: 262 bowmen1.wav, all from
+    // BattleMan_FireMissile (caller 0x00483A5D), none from BattleMan_StateCloseToAttack 0x00484BF9.
+    // The loose arm is held by wood_and_proving_tests.rs "though the archer shot".
+    eprintln!("state-17 looses over eight seeds: {closing}");
 }
