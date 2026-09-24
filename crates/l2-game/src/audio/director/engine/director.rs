@@ -392,6 +392,7 @@ impl Director {
                     //
                     // sfx: Msg_DrawWindow#16,Msg_DrawWindow#21
                     if let Some((group, variant)) = film.voice() {
+                        l2_net::trace!("sound", 0x004B35C1, "Msg_PlayVoice", group = group, variant = variant);
                         if let Some(name) = names::message_voice(group, variant.into()) {
                             audio.stop_and_play_file(&name, true);
                         }
@@ -509,6 +510,7 @@ impl Director {
                 // Sound_PlayFile(name, 1, 0)`, so this cuts off whatever the
                 // buffer holds — the window's own fanfare included — rather
                 // than waiting for it. `[V]`
+                l2_net::trace!("sound", 0x004B35C1, "Msg_PlayVoice", group = record.group, variant = record.variant);
                 if let Some(name) = names::message_voice(record.group, record.variant) {
                     audio.stop_and_play_file(&name, true);
                 }

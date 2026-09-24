@@ -15,7 +15,7 @@ impl Machine {
 /// test inside it is a test of `g_screenId`
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
-        l2_net::trace_changed!(self.traced_screen_byte(ctx.game).map_or(-1, i64::from); "screen", 0x004EAC50, "g_screenId", id = self.traced_screen_byte(ctx.game).map_or(-1, i64::from), ours = format!("{:?}", self.top_id()));
+        self.trace_screen(ctx.game);
         self.run_tips(ctx);
         self.pump_messages(ctx);
         // `Battle_Frame`'s `FUN_00448d7e(g_selectedCounty)` at `0x004BA187`, in
@@ -60,7 +60,14 @@ impl Machine {
                 self.dirty = true;
             }
         }
+        self.trace_screen(ctx.game);
         self.run_tooltips(ctx);
+    }
+
+    /// A write to `g_screenId` (`0x004EAC50`), as the detour on it sees it. CNEW-trace-sink.
+    pub(super) fn trace_screen(&self, game: &crate::Game) {
+        let _ = game;
+        l2_net::trace_changed!(self.traced_screen_byte(game).map_or(-1, i64::from); "screen", 0x004EAC50, "g_screenId", id = self.traced_screen_byte(game).map_or(-1, i64::from), ours = format!("{:?}", self.top_id()));
     }
 
     /// ```c

@@ -2,6 +2,7 @@
 //! written as `<scenario>.ours.jsonl`. CNEW-trace-sink; `tools/oracle/scenarios/FORMAT.md`.
 
 mod script;
+mod sink;
 mod symbols;
 
 use std::path::PathBuf;
@@ -199,5 +200,10 @@ fn launch_to_menu_reaches_the_title_page_and_writes_a_trace() {
         "the title page, g_screenId 0x1F, is in the trace: {screens:?}"
     );
     assert!(records.iter().any(|r| r.kind == "film"), "Smk_Play for the intro");
+    let sound = |name: &str| records.iter().any(|r| r.kind == "sound" && r.name == name);
+    assert!(sound("Music_Play") && sound("Sound_PlayFile"), "the title page's music and voice");
+    let title = records.iter().position(|r| r.args.contains(&("label", trace::Arg::S("title".into()))));
+    let shown = records.iter().position(|r| r.args.contains(&("id", trace::Arg::I(0x1F))));
+    assert!(shown < title, "the title page is traced on the frame it opens, before the anchor");
     symbols::every_record_is_named(&records);
 }

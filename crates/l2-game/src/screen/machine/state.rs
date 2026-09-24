@@ -127,6 +127,7 @@ impl Machine {
             && self.ids().iter().any(|id| matches!(id, ScreenId::Campaign | ScreenId::Battlefield))
         {
             self.push(ScreenId::Confirm(crate::screens::confirm::Ask::Quit));
+            self.trace_screen(ctx.game);
             return;
         }
         if let Event::KeyDown(k) = event {
@@ -163,6 +164,7 @@ impl Machine {
             self.apply_at(depth, t);
             break;
         }
+        self.trace_screen(ctx.game);
         self.dirty = true;
     }
 
