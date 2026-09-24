@@ -44,7 +44,12 @@ impl BattleRunner {
         self.humans_in_woods = 0;
         for i in 0..self.fighters.len() {
             self.update_man(i);
-            self.step_one(i);
+            // Battle_UpdateAllMen 0x004822ED dispatches the state in the man's own slot, 00480000.c:899 [V]
+            if self.is_alive(i) {
+                self.step_one(i);
+            } else {
+                self.state_dead(i);
+            }
         }
         self.update_missiles();
         // **`FUN_004859E5`, the wood fire.** `Battle_Frame` runs it after the
@@ -68,22 +73,26 @@ impl BattleRunner {
                 }
                 self.fighters[i].anim = Motion::Dying;
                 self.fighters[i].phase = 0;
-                self.fighters[i].corpse = 0;
                 self.fighters[i].path.clear();
-            } else if self.fighters[i].anim == Motion::Dying {
-                // The corpse state's own count, `+0x173`. It stops at the
-                // bound instead of freeing the slot — see [`Fighter::corpse`].
-                let limit = self.fighters[i].corpse_frames();
-                if self.fighters[i].corpse < limit {
-                    self.fighters[i].corpse += 1;
-                    // BattleMan_Destroy 0x0046EBE4 -> BattleMan_Clear 0x0046EB3F zeroes owner +0x2C
-                    if self.fighters[i].corpse == limit {
-                        self.sim.figures[self.fighters[i].sim].owner = 0;
-                    }
-                }
             }
         }
         self.tick += 1;
+    }
+
+    /// BattleMan_StateDead 0x004830E9, 00480000.c:1337 `if ('P' < (char)++field_0x173)`; BattleMan_StateEngineDead
+    /// 0x00484B89, :1958 `'x' <`. +0x173 is never reset at death (00470000.c:4506, 00490000.c:1445/1769/1824) [V]
+    fn state_dead(&mut self, i: usize) {
+        let limit = self.fighters[i].corpse_frames();
+        let f = &mut self.fighters[i];
+        // freed: owner == 0, which Battle_UpdateAllMen skips, 00480000.c:873 [V]
+        if f.corpse > limit {
+            return;
+        }
+        f.corpse += 1;
+        if f.corpse > limit {
+            // BattleMan_Destroy 0x0046EBE4 -> BattleMan_Clear 0x0046EB3F zeroes owner +0x2C
+            self.sim.figures[f.sim].owner = 0;
+        }
     }
 
     pub fn run(&mut self, ticks: u32) {

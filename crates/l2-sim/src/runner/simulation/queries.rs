@@ -235,7 +235,7 @@ impl BattleRunner {
     /// runs out. `docs/battle.md` §17.8.
     pub fn corpse_gone(&self, i: usize) -> bool {
         let f = &self.fighters[i];
-        f.anim == Motion::Dying && f.corpse >= f.corpse_frames()
+        f.anim == Motion::Dying && f.corpse > f.corpse_frames()
     }
 
     pub fn living(&self, side: Side) -> usize {

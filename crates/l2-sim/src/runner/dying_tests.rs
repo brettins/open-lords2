@@ -116,3 +116,73 @@ fn a_shovelling_knight_holds_his_horse_mid_stride() {
         assert_eq!(r.fighters[i].horse_frame, held, "the shovel moved the horse");
     }
 }
+
+/// BattleMan_StateDead 0x004830E9, 00480000.c:1337: freed on the 81st run; StateEngineDead :1958 on the 121st.
+/// Ablation: `>` to `>=` in `state_dead` frees on the 80th / 120th.
+#[test]
+fn a_body_is_freed_on_its_eighty_first_dead_run_an_engine_on_its_hundred_and_twenty_first() {
+    for (troop, runs) in [(Troop::Swordsmen, 81u32), (Troop::Catapults, 121)] {
+        let mut r = fight(0x5EED);
+        r.fighters[0].troop = troop;
+        let sim = r.fighters[0].sim;
+        r.sim.figures[sim].men = 0;
+        r.sim.figures[sim].state = State::Dead;
+        let mut n = 0;
+        while r.sim.figures[sim].owner != 0 {
+            r.step();
+            n += 1;
+        }
+        assert_eq!(n, runs, "{troop:?}");
+        assert!(r.corpse_gone(0));
+    }
+}
+
+/// Battle_UpdateAllMen 0x004822ED runs state 2 in the man's own slot (00480000.c:899). Melee_Tick 0x00494908
+/// kills g_curBattleMan in his own handler (00490000.c:1803/1824): first dead run next frame, freed 81 on.
+/// BattleMan_BurnTick runs before his dispatch (00480000.c:882): the death frame is his first run, 80 on.
+/// Ablation: count the dead in the end-of-frame sweep and the melee dead are freed 80 frames on.
+#[test]
+fn a_man_cut_down_is_freed_eighty_one_frames_on_a_man_burnt_eighty() {
+    let mut cut = 0;
+    for seed in [0x5EED, 1, 2, 7, 0xC0FFEE] {
+        let mut r = fight(seed);
+        let mut died = vec![None; r.fighters.len()];
+        for tick in 0..12_000u32 {
+            r.step();
+            for i in 0..r.fighters.len() {
+                if !r.is_alive(i) && died[i].is_none() {
+                    died[i] = Some(tick);
+                }
+                let Some(d) = died[i] else { continue };
+                if d != u32::MAX && r.sim.figures[r.fighters[i].sim].owner == 0 {
+                    assert_eq!(tick - d, 81, "seed {seed}: figure {i}");
+                    cut += 1;
+                    died[i] = Some(u32::MAX);
+                }
+            }
+            if r.is_decided() {
+                break;
+            }
+        }
+    }
+    assert!(cut > 0, "nobody was freed");
+
+    let mut r = fight(0x5EED);
+    let sim = r.fighters[0].sim;
+    let cell = r.fighters[0].y as usize * DIM + r.fighters[0].x as usize;
+    r.field.cells[cell].surface = fire::SURFACE_BURNING;
+    r.sim.figures[sim].men = 1;
+    r.sim.figures[sim].hits = 99;
+    let mut d = None;
+    for tick in 0..400u32 {
+        r.step();
+        if !r.is_alive(0) && d.is_none() {
+            d = Some(tick);
+        }
+        if r.sim.figures[sim].owner == 0 {
+            assert_eq!(tick - d.unwrap(), 80);
+            return;
+        }
+    }
+    panic!("the burnt man was never freed (died {d:?})");
+}

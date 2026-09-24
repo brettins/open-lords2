@@ -132,6 +132,7 @@ impl BattleRunner {
         let dest = self.field.at(at.0 as usize, at.1 as usize).surface;
         for i in 0..self.fighters.len() {
             let sim = self.fighters[i].sim;
+            // BattleUnit_Order 0x00479E90 tests owner != 0 before FUN_0047A814 0x0047A814, 00470000.c:4389 [V]
             if self.fighters[i].troop != Troop::Oil
                 || self.sim.figures[sim].unit as usize != unit
                 || self.sim.figures[sim].owner == 0
@@ -300,9 +301,9 @@ impl BattleRunner {
         // **[D]** — a substitute, not the original's write. `BattleMan_Destroy`
         // (`0x0046EBE4`) calls `BattleMan_Clear` and never touches `+0x173`; it
         // frees the record outright, and a freed slot cannot be drawn. We keep
-        // the slot, so we park the death timer at its bound instead, which is
+        // the slot, so we park the death timer past its bound instead, which is
         // what `corpse_gone` reads and what stops anything drawing this man.
-        f.corpse = f.corpse_frames();
+        f.corpse = f.corpse_frames() + 1;
         f.path.clear();
     }
 

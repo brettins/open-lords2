@@ -39,11 +39,12 @@ impl BattleRunner {
                 }
                 agreed += 1;
                 let fig = &mut self.sim.figures[f.sim];
-                // +0x2C owner: 0 is a freed slot, a man who died.
+                // +0x2C owner 0: freed by BattleMan_Destroy 0x0046EBE4 -> BattleMan_Clear 0x0046EB3F
                 if r[0x2C] == 0 {
                     fig.men = 0;
                     fig.owner = 0;
                     fig.state = State::Dead;
+                    f.corpse = f.corpse_frames() + 1;
                     continue;
                 }
                 // +0x20/+0x22 map x, y; +0x24/+0x26 tg x, y; +0x18 dirc; +0x19A hits; +0x1A0 men.
