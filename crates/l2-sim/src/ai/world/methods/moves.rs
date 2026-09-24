@@ -133,7 +133,7 @@ impl World<'_> {
     }
 
     pub(crate) fn step_toward_rally_point(&mut self, cur: usize) {
-        l2_net::trace!("call", 0x0048B7FC, "Order_StepTowardRallyPoint");
+        l2_net::trace!("call", 0x0048B7FC, "Order_StepTowardRallyPoint",);
         let (rx, ry) = (self.ai.rally_x, self.ai.rally_y);
         self.ai.rally_request = false;
         let (sx, sy) = self.unit_pos(cur);

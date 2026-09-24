@@ -209,7 +209,6 @@ impl Units {
         self.slots.get(i).map_or(0, |u| u.owner)
     }
 
-    /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`), once per frame.
     /// `BattleUnit_Order` (`0x00479E90`) after its destination arms, one path for AI and
     /// player orders: `orderLock = 0x40` if in melee (00470000.c:4324), `movStraff = 0`
     /// (:4337), `targX/Y`, `reTarg = 0x14`, `field_0x13` (:4403-4406, :4413), then
@@ -232,6 +231,7 @@ impl Units {
         self.rebuild_from_figures(figures);
     }
 
+    /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`), once per frame.
     pub fn rebuild_from_figures(&mut self, figures: &mut [Figure]) {
         for i in 1..=MAX_UNITS {
             let u = &mut self.slots[i];

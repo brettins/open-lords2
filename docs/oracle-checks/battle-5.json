@@ -54,7 +54,7 @@
     {
       "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
       "line": 23,
-      "address": "0x00489401",
+      "address": "0x00479E90",
       "verdict": "match",
       "note": ""
     },
@@ -88,7 +88,7 @@
     },
     {
       "file": "crates/l2-sim/src/unit/mod.rs",
-      "line": 218,
+      "line": 217,
       "address": "0x00479E90",
       "verdict": "match",
       "note": ""
@@ -110,7 +110,7 @@
     {
       "file": "crates/l2-sim/src/runner/combat/melee.rs",
       "line": 28,
-      "address": "0x004822ED",
+      "address": "0x004954DD",
       "verdict": "match",
       "note": ""
     },
