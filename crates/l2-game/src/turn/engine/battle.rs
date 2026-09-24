@@ -33,7 +33,10 @@ pub(crate) fn record(game: &mut Game, report: Option<BattleReport>) {
     crate::arrival::post_captures(game, &report.aftermath.captures);
     game.recount_realm(report.aftermath.loser_owner);
     if let Some(p) = game.turn.as_mut() {
-        p.unseen = Some(report.clone());
+        // Battle_ChooseSettlement 0x004A6A30: no ownerIsHuman side returns 0, autocalc, no 0x13 [V].
+        if report.settlement != l2_kingdom::battle::Settlement::Silently {
+            p.unseen = Some(report.clone());
+        }
         p.reports.push(report);
     }
 }

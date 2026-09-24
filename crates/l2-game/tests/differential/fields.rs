@@ -136,7 +136,7 @@ pub const REALM_FIELDS: &[RealmField] = &[
     // happened to be when the rotation ran. Our machine is between turns when
     // `end_turn` returns, so the two are not sampled at the same instant and
     // the comparison would measure the sampling point.
-    RealmField { path: "realm.ai_step", kind: Kind::Excluded("the AI turn cursor, sampled at a different instant: Save_RotateAndWrite runs inside phase 7 and our end_turn returns between turns"), ours: |r| r.ai_step as i64, theirs: |r| r.ai_step as i64 },
+    RealmField { path: "realm.ai_step", kind: Kind::Simulated, ours: |r| r.ai_step as i64, theirs: |r| r.ai_step as i64 },
 ];
 
 /// Realm `+0x84 + other * 0x10` — one realm's view of another. Nine fields,
@@ -175,7 +175,7 @@ pub const GLOBAL_FIELDS: &[GlobalField] = &[
     // ai_lords crates/` finds it in the save reader, in `l2_game::setup` (which
     // *starts* a game) and nowhere on the load path.
     GlobalField { path: "global.ai_lords", kind: Kind::Unsimulated, ours: |_| 0, theirs: |g| g.ai_lords as i64 },
-    GlobalField { path: "global.turn_phase", kind: Kind::Excluded("Turn_Tick's phase at the instant the autosave was written, which is inside phase 7; our end_turn returns between turns"), ours: |g| g.kingdom.turn.phase.index() as i64, theirs: |g| g.turn_phase as i64 },
+    GlobalField { path: "global.turn_phase", kind: Kind::Simulated, ours: |g| g.kingdom.turn.phase.index() as i64, theirs: |g| g.turn_phase as i64 },
     GlobalField { path: "global.turn_phase_step", kind: Kind::Excluded("the step counter inside that phase, for the same reason"), ours: |g| g.kingdom.turn.step as i64, theirs: |g| g.turn_phase_step as i64 },
     GlobalField { path: "global.weather_county", kind: Kind::Excluded("the county Weather_UpdateAll drew for the local swing, from the LFSR stream we do not reproduce"), ours: |g| g.kingdom.weather_county as i64, theirs: |g| g.weather_county as i64 },
 ];

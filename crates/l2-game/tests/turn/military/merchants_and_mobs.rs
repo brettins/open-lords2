@@ -58,6 +58,7 @@ fn a_unit_loaded_with_no_allowance_still_walks() {
     let mut g = with_a_map();
     for realm in 2..=5 {
         g.kingdom.realms[realm].in_play = false;
+        g.kingdom.realms[realm].strength = 0;
     }
     let id = army(&mut g, 1, 5, 10);
     g.order_unit_move(id, (12, 10)).unwrap();

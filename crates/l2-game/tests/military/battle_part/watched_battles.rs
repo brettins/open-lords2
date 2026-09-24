@@ -100,6 +100,36 @@ fn answering_a_watched_battle_settles_it_and_does_not_end_the_turn() {
 #[test]
 fn two_ai_armies_meeting_while_the_player_watches_open_nothing() {
     let (mut g, a, mut m) = on_the_map();
+    ai_marches_on_a_town(&mut g);
+    for _ in 0..8 {
+        tick(&mut m, &mut g, &a);
+    }
+    somebody_elses_war_opened_nothing(&m, &g);
+    assert!(!l2_game::turn::turn_in_flight(&g), "and nothing left suspended");
+}
+
+/// Battle_ChooseSettlement 0x004A6A30 returns 0 in phases 1-3 too: no screen 0x13 [V].
+/// Ablated by setting `unseen` for a `Silently` report in `turn::engine::battle::record`.
+#[test]
+fn two_ai_armies_meeting_in_phases_1_to_3_open_nothing() {
+    let (mut g, a) = world();
+    let mut m = Machine::new(ScreenId::Campaign);
+    let attacker = ai_marches_on_a_town(&mut g);
+    let mut fought_early = false;
+    for _ in 0..2_000 {
+        if g.kingdom.turn.phase == l2_kingdom::phase::Phase::PlayersTurn {
+            break;
+        }
+        tick(&mut m, &mut g, &a);
+        assert_ne!(m.top_id(), Some(ScreenId::BattleResult), "somebody else's war reported");
+        fought_early |= l2_game::turn::turn_opening(&g)
+            && g.kingdom.campaign.units.get(attacker).is_none_or(|u| u.men != 400);
+    }
+    assert!(fought_early, "the battle fell in phases 1-3");
+    somebody_elses_war_opened_nothing(&m, &g);
+}
+
+fn ai_marches_on_a_town(g: &mut Game) -> usize {
     g.kingdom.counties[3].owner = 3;
     g.kingdom.realms[3].in_play = true;
     g.kingdom.realms[3].strength = 5;
@@ -107,7 +137,7 @@ fn two_ai_armies_meeting_while_the_player_watches_open_nothing() {
     g.kingdom.campaign.map.set_flags(town.0, town.1, flags::CASTLE);
     g.kingdom.counties[2].anchor_x = town.0;
     g.kingdom.counties[2].anchor_y = town.1;
-    let attacker = army_at(&mut g, 3, 3, 400, mine);
+    let attacker = army_at(g, 3, 3, 400, mine);
     let map = g.kingdom.campaign.map.clone();
     l2_kingdom::movement::order_move(
         &map,
@@ -117,10 +147,10 @@ fn two_ai_armies_meeting_while_the_player_watches_open_nothing() {
         l2_kingdom::movement::Routing::Direct,
     )
     .expect("a path one tile long");
+    attacker
+}
 
-    for _ in 0..8 {
-        tick(&mut m, &mut g, &a);
-    }
+fn somebody_elses_war_opened_nothing(m: &Machine, g: &Game) {
     assert_ne!(
         m.top_id(),
         Some(ScreenId::BattlePrompt),
@@ -136,9 +166,8 @@ fn two_ai_armies_meeting_while_the_player_watches_open_nothing() {
         "unexpected screen {:?} for somebody else's war",
         m.top_id(),
     );
-    assert!(l2_game::turn::pending_question(&g).is_none());
-    assert!(l2_game::turn::pending_report(&g).is_none());
-    assert!(!l2_game::turn::turn_in_flight(&g), "and nothing left suspended");
+    assert!(l2_game::turn::pending_question(g).is_none());
+    assert!(l2_game::turn::pending_report(g).is_none());
 }
 
 

@@ -473,7 +473,7 @@ mod tests {
     #[test]
     fn a_human_realm_is_always_done_and_an_ai_realm_is_not_until_it_says_so() {
         let mut r = Realm::new();
-        r.in_play = true;
+        r.strength = 1;
         r.is_human = true;
         assert!(r.turn_done());
         r.is_human = false;

@@ -123,9 +123,15 @@ pub(crate) fn play(game: &mut Game, turns: usize, label: &str) -> Census {
         panic!("{label}: broken before a single turn was played: {why}");
     }
     for turn in 1..=turns {
-        let Some(outcome) = l2_game::turn::end_turn(game) else {
+        // Season_Advance's secession (phase 7) is measured before phase 2's sieges (C247).
+        let Some(mut outcome) = l2_game::turn::end_turn_to_autosave(game) else {
             panic!("{label}: the turn machine stopped to ask a question on turn {turn}");
         };
+        census.observe_blocks(&game.kingdom, turn);
+        let Some(opened) = l2_game::turn::end_turn_opening(game) else {
+            panic!("{label}: phases 1-3 stopped to ask a question on turn {turn}");
+        };
+        outcome.battles.extend(opened);
         match outcome.outcome {
             l2_kingdom::victory::Outcome::InPlay => {}
             l2_kingdom::victory::Outcome::Won => census.fire("THE GAME WAS WON", turn),

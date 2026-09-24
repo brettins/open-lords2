@@ -37,6 +37,19 @@ impl Census {
         self.first.contains_key(what)
     }
 
+    /// `Realm_SecedeIsolatedCounties` (`0x0044AE3C`) leaves every realm one block a
+    /// season; read at the autosave, before phase 2's sieges can cut one again.
+    fn observe_blocks(&mut self, k: &Kingdom, turn: usize) {
+        let blocks = l2_kingdom::territory::build_blocks(&k.counties, k.county_count);
+        for r in 1..l2_kingdom::MAX_REALMS {
+            let held = blocks.of_realm(r as u8).count();
+            self.max_blocks = self.max_blocks.max(held);
+            if held > 1 {
+                self.fire("a realm left cut in two", turn);
+            }
+        }
+    }
+
     fn observe(&mut self, k: &Kingdom, messages: &[Message], turn: usize) {
         for m in messages {
             match m {
@@ -108,17 +121,6 @@ impl Census {
             }
         }
 
-        // `Realm_SecedeIsolatedCounties` (`0x0044AE3C`) leaves every realm one
-        // block a season. Two after a turn means the pass did not run; no
-        // `SECESSION` means only that nobody was ever split.
-        let blocks = l2_kingdom::territory::build_blocks(&k.counties, k.county_count);
-        for r in 1..l2_kingdom::MAX_REALMS {
-            let held = blocks.of_realm(r as u8).count();
-            self.max_blocks = self.max_blocks.max(held);
-            if held > 1 {
-                self.fire("a realm left cut in two", turn);
-            }
-        }
 
         for r in 1..l2_kingdom::MAX_REALMS {
             let realm = &k.realms[r];

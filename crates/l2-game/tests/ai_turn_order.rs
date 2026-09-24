@@ -48,7 +48,6 @@ fn tick(m: &mut Machine, game: &mut Game, assets: &Assets) {
 fn the_ai_realms_take_their_steps_while_the_person_is_still_deciding() {
     let (mut game, assets) = world();
     let mut m = Machine::new(ScreenId::Campaign);
-    let phase_before = game.kingdom.turn.phase;
 
     for _ in 0..40 {
         tick(&mut m, &mut game, &assets);
@@ -61,7 +60,8 @@ fn the_ai_realms_take_their_steps_while_the_person_is_still_deciding() {
         game.kingdom.realms[2].ai_step
     );
     assert_eq!(game.kingdom.realms[1].ai_step, 1, "the person parks at 1 until Turn_End");
-    assert_eq!(game.kingdom.turn.phase, phase_before, "the machine is parked between turns");
+    // Turn_Tick 0x0049A010 ran phases 1-3 and waits in 4 for Turn_End.
+    assert_eq!(game.kingdom.turn.phase, l2_kingdom::Phase::PlayersTurn, "the machine waits in phase 4");
 }
 
 #[test]

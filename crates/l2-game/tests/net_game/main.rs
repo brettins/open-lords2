@@ -60,7 +60,7 @@ fn two_copies_fed_the_same_orders_hash_alike_every_tick() {
     assert!(script.reports > 0, "the declined battle left no report to dismiss");
     let units = &a.game.kingdom.campaign.units;
     assert!(
-        units.get(script.theirs).is_none_or(|u| u.men < 60),
+        script.theirs_at_report.is_none_or(|men| men < 60),
         "the autocalc left realm {foe}'s army whole"
     );
     assert!(script.ended >= SEASONS, "fewer EndTurns than seasons");
