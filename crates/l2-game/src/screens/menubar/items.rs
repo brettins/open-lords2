@@ -118,7 +118,9 @@ pub fn title_boxes(captions: &[String; 3], measure: impl Fn(&str) -> i32) -> [Re
     let mut out = [Rect::new(0, 0, 0, 0); 3];
     let mut pen = BAR_X;
     for (slot, caption) in out.iter_mut().zip(captions) {
-        let w = measure(caption);
+        // Ui_DrawText 0x00402637 00400000.c:1191 `g_penAdvance += 4` after the last glyph;
+        // Ui_DrawMenuTitles 0x0040C5B0 stores that pen as measuredX (`items[1]`) [V].
+        let w = measure(caption) + font::SPACE_ADVANCE;
         *slot = Rect::new(pen, BAR_Y, w, TITLE_H);
         pen += w + TITLE_GAP;
     }

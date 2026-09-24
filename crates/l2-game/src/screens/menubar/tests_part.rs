@@ -151,6 +151,8 @@ mod tests {
             assert_eq!(b.x - (a.x + a.w), 32, "g_penAdvance += 0x20 between titles");
         }
         assert!(boxes[1].w > boxes[2].w, "Options must be wider than Help");
+        // Ui_DrawText 0x00402637 `g_penAdvance += 4`: Options sits 4 px right of File + gap.
+        assert_eq!(boxes[1].x, 10 + font.width("File") + 4 + 32, "measuredX takes the trailing 4");
         let fallback = title_boxes(&captions, l2_view::text::width);
         assert_ne!(fallback[1].w, boxes[1].w, "the 5 x 7 font must not measure Fntl2_14's widths");
     }
