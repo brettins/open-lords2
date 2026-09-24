@@ -76,18 +76,83 @@ impl Run {
         self.machine.traced_screen_byte(&self.game).map_or(-1, i64::from)
     }
 
-    fn until(&mut self, max: u64, what: &str, done: impl Fn(&Run) -> bool) {
+    fn page(&self) -> i64 {
+        match self.machine.top_id() {
+            Some(ScreenId::Setup(p)) => i64::from(p.number()),
+            _ => -1,
+        }
+    }
+
+    /// A wait that runs out writes a `failed` record and ends the scenario, as trace-run.ps1 does.
+    fn until(&mut self, max: u64, what: &str, done: impl Fn(&Run) -> bool) -> bool {
         for _ in 0..max {
             if done(self) {
-                return;
+                return true;
             }
             self.frame();
         }
-        panic!("{what} not reached in {max} frames; {:#x} {:?}", self.screen(), self.machine.ids());
+        let step = format!("{what} {:#x} {:?}", self.screen(), self.machine.ids());
+        l2_net::trace!("failed", 0, "Scenario", step = step);
+        false
     }
 
-    pub fn play(&mut self, steps: &[Step]) {
+    /// trace-run.ps1 `$NewGameSteps` + `$NewGameTail`, the same clicks.
+    fn new_game_steps(new: bool) -> Vec<Step> {
+        let max = script::MAX_FRAMES;
+        vec![
+            Step::WaitPage(1, max), Step::WaitIdle(5, max), Step::Click(320, 103, false, false),
+            Step::WaitPage(2, max), Step::WaitIdle(5, max), Step::Click(320, 103, false, false),
+            Step::WaitPage(5, max), Step::Advance(20),
+            Step::Click(if new { 448 } else { 192 }, 129, false, false),
+            Step::WaitPage(4, max), Step::Advance(20), Step::Click(432, 227, false, false),
+            Step::WaitScreenNot(0x1F, max), Step::Advance(300),
+        ]
+    }
+
+    pub fn play(&mut self, steps: &[Step]) -> bool {
         for step in steps {
+            let ok = match step {
+                Step::NewGame(new) => self.play(&Run::new_game_steps(*new)),
+                Step::Films(play) => {
+                    if !play {
+                        self.assets.films = l2_game::movie::FilmFiles::default();
+                    }
+                    true
+                }
+                Step::WaitPage(p, max) => self.until(*max, "page", |r| r.page() == *p),
+                Step::WaitScreenNot(id, max) => self.until(*max, "screen-not", |r| r.screen() != *id),
+                Step::Peek => true,
+                // trace-run.ps1 `dismiss`: while g_screenId is 0x27, one frame, OK at
+                // Ui_OkButton + (24, 16), 60 frames. A tip over the map (screen 0) stays up.
+                Step::Dismiss => {
+                    for _ in 0..20 {
+                        if self.screen() != 0x27 {
+                            break;
+                        }
+                        let ctx = Ctx { game: &mut self.game, assets: &self.assets };
+                        let open = ctx.game.messages.open().cloned();
+                        let at = |r| l2_game::screens::message::window_frame(&ctx, r);
+                        let Some(f) = open.as_ref().and_then(at) else { break };
+                        self.frame();
+                        let (x, y) = f.ok_button();
+                        self.play(&[Step::Click(x + 24, y + 16, false, false), Step::Advance(60)]);
+                    }
+                    true
+                }
+                _ => {
+                    self.step(step);
+                    true
+                }
+            };
+            if !ok {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn step(&mut self, step: &Step) -> bool {
+        {
             match step {
                 Step::Load(name) => {
                     let save = l2_testkit::fixture_save(name).expect("the save loads");
@@ -95,8 +160,8 @@ impl Run {
                         .expect("the save plays");
                     self.machine = Machine::new(ScreenId::Campaign);
                 }
-                Step::NewGame => self.game = new_game(&self.assets, self.tables.clone()),
-                Step::Click(x, y, right) => {
+                Step::Click(.., true) => {}
+                Step::Click(x, y, right, false) => {
                     let (x, y) = (*x, *y);
                     self.send(Event::Pointer { x, y });
                     if *right {
@@ -110,23 +175,30 @@ impl Run {
                     }
                 }
                 Step::Key(k) => self.send(key(k)),
-                Step::WaitScreen(id, max) => self.until(*max, "screen", |r| r.screen() == *id),
-                Step::WaitPhase(p, max) => {
-                    self.until(*max, "phase", |r| r.game.kingdom.turn.phase as i64 == *p)
+                Step::WaitScreen(id, max) => {
+                    return self.until(*max, "screen", |r| r.screen() == *id)
                 }
-                Step::WaitIdle(quiet, max) => self.wait_idle(*quiet, *max),
+                Step::WaitPhase(p, max) => {
+                    return self.until(*max, "phase", |r| r.game.kingdom.turn.phase as i64 == *p)
+                }
+                Step::WaitIdle(quiet, max) => return self.wait_idle(*quiet, *max),
                 Step::Advance(n) => (0..*n).for_each(|_| self.frame()),
+                // trace-run.ps1 `snap`: one frame drawn, then the hash.
                 Step::Snap => {
+                    self.machine.mark_dirty();
+                    self.frame();
                     let hash = fnv(&self.canvas.pixels);
                     l2_net::trace!("snap", 0, "Canvas", hash = hash as i64);
                 }
                 Step::Anchor(label) => l2_net::trace!("anchor", 0, "Scenario", label = label),
+                _ => unreachable!("play handles {step:?}"),
             }
         }
+        true
     }
 
     /// Idle: `quiet` frames in a row with no record but `draw`/`text`/`rand`.
-    fn wait_idle(&mut self, quiet: u64, max: u64) {
+    fn wait_idle(&mut self, quiet: u64, max: u64) -> bool {
         let mut still = 0;
         let mut last = Vec::new();
         for _ in 0..max {
@@ -138,10 +210,11 @@ impl Run {
                 last = trace::kinds_from(at);
             }
             if still >= quiet {
-                return;
+                return true;
             }
         }
-        panic!("not idle for {quiet} frames in {max}: {last:?}");
+        l2_net::trace!("failed", 0, "Scenario", step = format!("wait-idle {quiet}: {last:?}"));
+        false
     }
 }
 
@@ -188,6 +261,17 @@ pub fn trace_scenario(name: &str) -> Option<(Vec<trace::Record>, PathBuf)> {
     let body: String = records.iter().map(|r| r.to_json() + "\n").collect();
     std::fs::write(&out, body).expect("the trace writes");
     Some((records, out))
+}
+
+/// The scenarios `tools/oracle/trace-diff.js` reads: `L2_TRACE_OUT=dir cargo test ... -- --ignored`.
+#[test]
+#[ignore = "minutes of frames; run for the differ"]
+fn the_differs_scenarios_write_traces() {
+    for name in ["launch", "newgame-original", "newgame-new", "zoom-map"] {
+        let Some((records, out)) = trace_scenario(name) else { return };
+        let failed = records.iter().find(|r| r.kind == "failed").map(|r| r.to_json());
+        eprintln!("{name}: {} records -> {} {failed:?}", records.len(), out.display());
+    }
 }
 
 #[test]
