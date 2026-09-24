@@ -327,7 +327,9 @@ pub struct LiveBattle {
     pub outcome_ticks: u32,
     /// `DAT_00553F14` / `DAT_00553F18`: the ordered cell, and `DAT_00553F84`, the
     /// ticks its marker stays up (Battle_OrderSelection 0x0043C634 stores 0x1E).
+    /// not-encoded: per-seat order marker (FUN_004BE33F), 30 ticks of display.
     pub order_mark: (u8, u8),
+    /// not-encoded: the marker's countdown (DAT_00553F84), display only.
     pub order_mark_ticks: u8,
     /// **`DAT_0057A0F0` — this battle is a skirmish.** `Skirmish_Setup`
     /// (`0x0042B7F7`) raises it and `FUN_0043D649` (*Back*) lowers it. The end
