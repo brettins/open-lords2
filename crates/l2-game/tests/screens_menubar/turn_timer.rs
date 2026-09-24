@@ -28,6 +28,8 @@ fn the_turn_timer_is_up_for_the_players_own_turn_and_ends_it_when_it_runs_out() 
     let (mut game, assets) = world!();
     let ch = assets.chrome.as_ref().expect("the install has Misc_cty.pl8");
     game.kingdom.options.time_limit = 30;
+    // Turn_Tick 0x0049A010 counts the timer in phase 4 only; the save opens in phase 1.
+    l2_game::turn::reach_players_turn(&mut game).expect("phases 1-3 settle");
     let human = game.player as usize;
     for id in 1..game.kingdom.realms.len() {
         game.kingdom.realms[id].ai_step = l2_kingdom::AI_STEP_DONE + 1;

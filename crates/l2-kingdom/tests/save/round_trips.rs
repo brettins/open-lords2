@@ -128,7 +128,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +2 at version 32 for `g_battleApproachLane` and `g_battleRallyGroup`.
     //
     // +40 at version 33 for the marker tables, `DAT_00544050`/`70` and `g_rallyWaypoints`/`DAT_00522D60`.
-    assert_eq!(c.finish().len, 67_664, "the state encoding changed - bump VERSION?");
+    //
+    // +1 at version 34 for DAT_0057C944, the AI_RunTurnStep 0x0049A581 realm cursor.
+    assert_eq!(c.finish().len, 67_665, "the state encoding changed - bump VERSION?");
 }
 
 /// The other half of the same property the census covers. A field can go

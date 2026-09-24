@@ -25,21 +25,25 @@ fn a_turn_walks_the_whole_phase_machine_and_runs_the_season_once() {
         "every pass, in the order the pipeline is written in"
     );
     assert_eq!(g.kingdom.turn_count, before + 1, "exactly one season ran");
-    assert_eq!(g.kingdom.turn.phase, Phase::NeutralCounties, "and phase 7 wrapped to 1");
+    // Turn_Tick 0x0049A010: 7 wraps to 1, and 1-3 run on to the wait in phase 4.
+    assert_eq!(g.kingdom.turn.phase, Phase::PlayersTurn, "and phase 7 wrapped round to 4");
     assert!(outcome.ticks < turn::MAX_TICKS, "{} ticks", outcome.ticks);
     assert_eq!(g.turns_played, 1);
     assert!(g.last_report.is_some());
 }
 
+/// Turn_AllRealmsDone gates 4 -> 5, and Turn_BeginPlayersTurn (0x0049B6D3) on the wrap
+/// into 1 zeroes every counter, the human's too; the next phase 4 opens them all at 1.
 #[test]
-fn every_ai_realm_finishes_its_turn_and_the_human_realm_never_starts_one() {
+fn every_realm_finishes_its_turn_and_every_realm_starts_the_next_one() {
     let mut g = five_realms();
+    let before = g.kingdom.turn_count;
     turn::end_turn(&mut g).expect("the AI must finish or the turn cannot end");
+    assert_eq!(g.kingdom.turn_count, before + 1, "phase 4 was left, so every realm reached 999");
+    // The prologue leaves the human at 1; an AI's first AI_RunTurnStep call takes it 0 -> 1.
     for realm in 1..=5usize {
-        assert!(
-            g.kingdom.realms[realm].ai_step >= AI_STEP_DONE,
-            "realm {realm} did not finish its turn"
-        );
+        let want = if g.kingdom.realms[realm].is_human { 1 } else { 0 };
+        assert_eq!(g.kingdom.realms[realm].ai_step, want, "realm {realm} did not open the new turn");
     }
 }
 
@@ -154,7 +158,10 @@ fn the_unowned_counties_are_taxed_on_the_neutral_ladder_every_turn() {
     assert_eq!(g.kingdom.counties[14].tax_rate, 0, "and starts untaxed");
     assert_eq!(g.kingdom.counties[14].happiness, 65);
 
-    turn::end_turn(&mut g).unwrap();
+    // Season_Advance (phase 7) moves happiness before phase 1's AI_SetTaxRates(0) [V 0x0049A010].
+    turn::end_turn_to_autosave(&mut g).unwrap();
+    g.kingdom.counties[14].happiness = 65;
+    turn::reach_players_turn(&mut g).unwrap();
     assert_eq!(g.kingdom.counties[14].tax_rate, 4, "65 is on the fifth rung");
     assert_eq!(g.kingdom.counties[1].tax_rate, 0, "the player's county is not touched");
 }

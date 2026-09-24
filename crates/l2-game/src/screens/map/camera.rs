@@ -90,6 +90,10 @@ impl MapScreen {
         if ctx.game.messages.is_open() {
             crate::message::dismiss(ctx.game);
         }
+        if turn::turn_opening(ctx.game) && !ctx.game.net.lockstep {
+            ctx.game.turn_clock.defer_end_turn();
+            return Transition::Stay;
+        }
         if turn::turn_in_flight(ctx.game) || self.fading.is_some() {
             return Transition::Stay;
         }

@@ -31,7 +31,8 @@ impl Screen for MapScreen {
     }
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
-        if (turn::turn_in_flight(ctx.game) || self.fading.is_some())
+        // Turn_Tick 0x0049A010 phases 1-3 run under a live map: no input test in them [I].
+        if ((turn::turn_in_flight(ctx.game) && !turn::turn_opening(ctx.game)) || self.fading.is_some())
             && !matches!(event, Event::Pointer { .. } | Event::PointerLeft | Event::Release { .. })
         {
             return Transition::Stay;

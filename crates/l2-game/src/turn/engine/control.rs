@@ -19,34 +19,59 @@ use crate::game::Game;
 /// Headless End Turn, player's turn to player's turn: phases 4-7, then 1-3 to the
 /// wait in phase 4 (`Turn_Tick` `0x0049A010`); prompts take `field_policy`.
 pub fn end_turn(game: &mut Game) -> Option<TurnOutcome> {
-    reach_players_turn(game)?;
-    let outcome = match advance(game, Resume::Start, false) {
+    let before = open_headless(game)?;
+    let mut outcome = match advance(game, Resume::Start, false) {
         TurnStep::Done(outcome) => *outcome,
         _ => return None,
     };
-    reach_players_turn(game)?;
+    let after = open_headless(game)?;
+    for p in [before, after].into_iter().flatten() {
+        merge(&mut outcome, p);
+    }
     Some(outcome)
+}
+
+/// Turn_Tick 0x0049A010 phase 2's Siege_TickPhase fights inside the call too; kept.
+fn merge(outcome: &mut TurnOutcome, p: TurnProgress) {
+    outcome.ticks += p.ticks;
+    outcome.steps += p.steps;
+    outcome.contacts.extend(p.contacts);
+    outcome.pending_battles.extend(p.pending_battles);
+    outcome.battles.extend(p.reports);
 }
 
 /// Headless, to the instant `Season_FinishFade` (`0x0049A3E6`) calls
 /// `Save_RotateAndWrite`: after phase 7's `Turn_AdvancePhase`, `g_turnPhase == 1` [V].
 pub fn end_turn_to_autosave(game: &mut Game) -> Option<TurnOutcome> {
-    reach_players_turn(game)?;
-    match advance(game, Resume::Start, false) {
-        TurnStep::Done(outcome) => Some(*outcome),
-        _ => None,
+    let before = open_headless(game)?;
+    let TurnStep::Done(mut outcome) = advance(game, Resume::Start, false) else { return None };
+    if let Some(p) = before {
+        merge(&mut outcome, p);
     }
+    Some(*outcome)
 }
 
 /// Runs phases 1-3 headless if the machine is short of phase 4.
 pub fn reach_players_turn(game: &mut Game) -> Option<()> {
+    open_headless(game).map(|_| ())
+}
+
+/// Headless, the autosave to the wait in phase 4 (`Turn_Tick` `0x0049A010` phases 1-3); the battles fought.
+pub fn end_turn_opening(game: &mut Game) -> Option<Vec<BattleReport>> {
+    Some(open_headless(game)?.map(|p| p.reports).unwrap_or_default())
+}
+
+fn open_headless(game: &mut Game) -> Option<Option<TurnProgress>> {
     if game.kingdom.turn.phase == Phase::PlayersTurn && !turn_opening(game) {
-        return Some(());
+        return Some(None);
     }
     if game.turn.is_none() {
         game.turn = Some(TurnProgress { opening: true, ..TurnProgress::default() });
     }
-    matches!(advance(game, Resume::Start, false), TurnStep::Running).then_some(())
+    if !matches!(advance(game, Resume::Start, false), TurnStep::Running) {
+        return None;
+    }
+    Some(game.turn.take())
 }
 
 pub fn begin_turn(game: &mut Game) -> TurnStep {
@@ -264,7 +289,12 @@ fn advance(game: &mut Game, resume: Resume, interactive: bool) -> TurnStep {
                     p.opening && p.stage == Stage::Begin && p.question.is_none() && p.unseen.is_none()
                 });
                 if opened && game.kingdom.turn.phase == Phase::PlayersTurn {
-                    game.turn = None;
+                    // Units_Tick runs in every phase (C35): a march that met an own army in
+                    // phases 1-3 still asks to combine [V]. Headless keeps the progress.
+                    if interactive {
+                        let contacts = game.turn.take().map(|p| p.contacts).unwrap_or_default();
+                        ask_combine(game, &contacts);
+                    }
                     open_players_turn(game);
                     return TurnStep::Running;
                 }

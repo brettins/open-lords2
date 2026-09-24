@@ -19,6 +19,15 @@ use l2_kingdom::unit::{Unit, UnitKind};
 #[test]
 fn an_army_ordered_through_the_game_actually_moves_when_the_turn_is_ended() {
     let mut g = with_a_map();
+    // AI_RunTurnStep 0x0049A581 steps one realm a tick, so phase 4 is long enough for the
+    // march to reach realm 3's army at (12, 10); the test is about the march, not that war.
+    let others: Vec<usize> = g.kingdom.campaign.units.iter().filter(|(_, u)| u.owner != 1).map(|(i, _)| i).collect();
+    for i in others {
+        g.kingdom.campaign.units.remove(i);
+    }
+    for r in 2..=5 {
+        g.kingdom.realms[r].in_play = false;
+    }
     let id = army(&mut g, 1, 5, 10);
     let from = g.kingdom.campaign.units.get(id).unwrap().tile();
 

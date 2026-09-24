@@ -162,17 +162,15 @@ fn the_menu_bar_shields_are_the_realms_still_to_move() {
         band(&c)
     };
 
-    game.kingdom.realms[human].ai_step = l2_kingdom::AI_STEP_DONE;
-    for &id in &ais {
-        game.kingdom.realms[id].ai_step = l2_kingdom::AI_STEP_DONE + 1;
+    // Turn_BeginPlayersTurn 0x0049B6D3 zeroed them all; the phase-4 prologue leaves each at 1.
+    for &id in &live {
+        game.kingdom.realms[id].ai_step = 1;
     }
     assert!(!l2_game::turn::turn_in_flight(&game));
     let idle = draw(&mut screen, &mut game, &assets);
     assert!(
         band(&idle) == expected(&live),
-        "during the person's own turn every living realm's shield is up, in realm order \
-         ({live:?}) - a literal `aiStep < 999` draws none here, because a finished turn \
-         leaves every counter at 999 or 1000",
+        "during the person's own turn every living realm's shield is up, in realm order ({live:?})",
     );
 
     send(&mut screen, &mut game, &assets, Event::Click { x: 500, y: 470 });
@@ -189,13 +187,12 @@ fn the_menu_bar_shields_are_the_realms_still_to_move() {
         game.kingdom.realms[id].ai_step =
             if id == still { 3 } else { l2_kingdom::AI_STEP_DONE + 1 };
     }
-    game.kingdom.realms[human].ai_step = 0;
+    assert_eq!(game.kingdom.realms[human].ai_step, l2_kingdom::AI_STEP_DONE, "Turn_End 0x0043AC23 wrote 999");
     let running = draw(&mut screen, &mut game, &assets);
     assert!(
         band(&running) == expected(&[still]),
         "with End Turn pressed only realm {still}'s shield is up, and it is in slot 0 - \
-         the person's has gone although his record's counter reads 0, and the row closes \
-         up over every realm that has finished",
+         the row closes up over every realm that has finished",
     );
 
     game.kingdom.realms[still].ai_step = l2_kingdom::AI_STEP_DONE;

@@ -78,7 +78,8 @@ fn a_frame_of_a_turn_is_exactly_one_turn_tick() {
     let frames = trail[0].len() as u32;
 
     let mut at_once = england!();
-    let outcome = l2_game::turn::end_turn(&mut at_once).expect("the machine comes round");
+    // end_turn runs on through the next turn's phases 1-3 (Turn_Tick 0x0049A010); the frames stop at the save.
+    let outcome = l2_game::turn::end_turn_to_autosave(&mut at_once).expect("the machine comes round");
 
     assert_eq!(
         frames,
