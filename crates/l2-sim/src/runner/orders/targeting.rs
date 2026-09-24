@@ -24,7 +24,8 @@ impl BattleRunner {
             let chosen = self.chase_target(i);
             self.sim.figures[sim].target = chosen;
             if let Some(t) = chosen {
-                self.sim.figures[t].targeted = self.sim.figures[t].targeted.saturating_add(2);
+                // 00490000.c:2043 `targeted + 2`: a byte, wraps [V]
+                self.sim.figures[t].targeted = self.sim.figures[t].targeted.wrapping_add(2);
             }
         }
         // :1665-1669 `if (target.state == 2) target = 0; if (target == 0) {Anim_Stand(); state = 5;}`

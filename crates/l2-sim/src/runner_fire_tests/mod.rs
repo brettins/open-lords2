@@ -3,6 +3,7 @@ mod oil_and_rampart_tests;
 mod bridge_and_tower_tests;
 mod wood_and_proving_tests;
 mod ground_fire_tests;
+mod order_tests;
 use ground_fire_tests::*;
 
 use super::*;

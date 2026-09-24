@@ -38,6 +38,7 @@ pub(crate) fn field_missile(w: &mut World, cur: usize) {
         } else {
             let orders = w.units.get(cur).orders;
             if orders < 10 {
+                l2_net::trace!("call", 0x0048B37B, "Order_DoNothing",);
             } else if orders < 0x12 {
                 w.halfway_to_unit(cur, nearest);
             } else if orders < 0x15 {
@@ -98,7 +99,9 @@ fn field_foot_or_melee(
         } else {
             let orders = w.units.get(cur).orders;
             if orders < march_until {
-                if orders >= silent_until {
+                if orders < silent_until {
+                    l2_net::trace!("call", 0x0048B37B, "Order_DoNothing",);
+                } else {
                     let slot = if w.ai.season & 1 == 0 {
                         (cur & 1) + w.ai.approach_lane
                     } else {

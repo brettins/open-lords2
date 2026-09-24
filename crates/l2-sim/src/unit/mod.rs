@@ -209,6 +209,28 @@ impl Units {
         self.slots.get(i).map_or(0, |u| u.owner)
     }
 
+    /// `BattleUnit_Order` (`0x00479E90`) after its destination arms, one path for AI and
+    /// player orders: `orderLock = 0x40` if in melee (00470000.c:4324), `movStraff = 0`
+    /// (:4337), `targX/Y`, `reTarg = 0x14`, `field_0x13` (:4403-4406, :4413), then
+    /// `BattleUnits_RebuildFromFigures()` (:4412). No reform here: `BattleUnit_Reform`'s
+    /// one caller is `Battle_UpdateAllUnits` 00480000.c:3656. [V]
+    pub fn order(&mut self, figures: &mut [Figure], unit: usize, to: (i16, i16), surface: Option<u8>) {
+        let u = &mut self.slots[unit];
+        if u.in_melee {
+            u.order_lock = ORDER_LOCK;
+        }
+        u.target_x = to.0;
+        u.target_y = to.1;
+        u.reform = REFORM_ON_ORDER;
+        u.reform_gate = !(surface == Some(2) && !u.human);
+        for f in figures.iter_mut() {
+            if f.unit as usize == unit {
+                f.straffed = false;
+            }
+        }
+        self.rebuild_from_figures(figures);
+    }
+
     /// `BattleUnits_RebuildFromFigures` (`0x00488DFE`), once per frame.
     pub fn rebuild_from_figures(&mut self, figures: &mut [Figure]) {
         for i in 1..=MAX_UNITS {

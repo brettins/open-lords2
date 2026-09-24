@@ -234,6 +234,8 @@ pub struct Ai {
     /// not-encoded: a trace of the last handler to run, read by
     /// `crate::ai::tests` and by nothing the simulation branches on.
     pub last_action: Vec<Action>,
+    /// not-encoded: every `BattleUnit_Order` of this sweep, drained by the runner's pour.
+    pub orders: Vec<(usize, i16, i16)>,
 }
 
 impl Ai {
@@ -295,6 +297,7 @@ impl Ai {
             inner_slot_cursor: 0,
             defence_post_owner: [0; 20],
             last_action: vec![Action::NoThink; MAX_UNITS + 1],
+            orders: Vec::new(),
         }
     }
 
@@ -350,6 +353,7 @@ impl Ai {
         if !self.multiplayer {
             self.strength_advantage += (self.rng.next_u32() & 0x1F) as i32 - 10;
         }
+        l2_net::trace!("ai", 0x0047FC01, "Battle_UpdateStrengthAdvantage", ai = ai_men, human = human_men, advantage = self.strength_advantage);
     }
 
     pub(super) fn record(&mut self, unit: usize, action: Action) {

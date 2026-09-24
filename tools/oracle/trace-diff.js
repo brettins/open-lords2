@@ -1,4 +1,4 @@
-// Diffs two FORMAT.md traces: node trace-diff.js <a.orig.jsonl> <b.ours.jsonl> [--md] [--context N]
+// Diffs two FORMAT.md traces: node trace-diff.js <a.orig.jsonl> <b.ours.jsonl> [--md] [--context N] [--orders [--rel LABEL]]
 // Steps are the spans between anchors (screen changes when neither side has one); within a step,
 // each category's ordered subsequence is compared and its first divergence printed. C246.
 // Both files stream: a 1.7 GB field-battle-manual.ours.jsonl overflows a string.
@@ -11,7 +11,7 @@ const pixels = require('./pixel-diff');
 const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => { const i = args.indexOf(n); return i < 0 ? d : args[i + 1]; };
-const [origFile, oursFile] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && ['--context', '--png-dir'].includes(args[i - 1])));
+const [origFile, oursFile] = args.filter((a, i) => !a.startsWith('--') && !(i > 0 && ['--context', '--png-dir', '--rel'].includes(args[i - 1])));
 // Side-by-side PNGs of differing shots (pixel-diff.js); default <trace dir>/pixels.
 const PNG_DIR = opt('--png-dir', null);
 const CONTEXT = Number(opt('--context', 3));
@@ -264,10 +264,41 @@ function render(name, d) {
   return out.join('\n');
 }
 
-// --dir D --a orig --b ours s1 s2 ...: diffs D/<s>.<a>.jsonl against D/<s>.<b>.jsonl for each s.
+// --orders [--rel LABEL]: the battle's order calls (hooktable cat order, and BattleUnit_Order) of
+// both sides by frame since the anchor LABEL (default charge), and the first that differs in name
+// or arguments. The original's args are its raw list; ours, its values in emit order.
+function orders(file, rel) {
+  const out = [];
+  let at = null;
+  for (const l of lines(file)) {
+    if (!l.includes('"anchor"') && !/"name":"(Order_[A-Za-z]+|BattleUnit_Order)"/.test(l)) continue;
+    const r = JSON.parse(l);
+    if (r.kind === 'anchor') { if (r.args.label === rel) at = r.frame; continue; }
+    if (r.kind !== 'call') continue;
+    const a = Array.isArray(r.args.args) ? r.args.args : Object.values(r.args);
+    out.push({ frame: r.frame, key: `${r.name}(${a.join(',')})` });
+  }
+  return out.map((o) => ({ ...o, t: at == null ? o.frame : o.frame - at }));
+}
+function orderDiff(origPath, oursPath, rel) {
+  const a = orders(origPath, rel), b = orders(oursPath, rel);
+  const i = firstDiff(a, b);
+  const line = (e) => (e ? `t${e.t} (f${e.frame}) ${e.key}` : '(end)');
+  const lo = Math.max(0, i - CONTEXT);
+  console.log(`orders since anchor ${rel}: original ${a.length}, ours ${b.length}`);
+  if (i < 0) return console.log('No divergence.'), 0;
+  console.log(`first divergence at #${i}
+  original:`);
+  for (let k = lo; k <= i + CONTEXT; k++) console.log(`    ${k === i ? '>' : ' '} ${line(a[k])}`);
+  console.log('  ours:');
+  for (let k = lo; k <= i + CONTEXT; k++) console.log(`    ${k === i ? '>' : ' '} ${line(b[k])}`);
+  return 1;
+}
 
 // --dir D --a orig --b ours s1 s2 ...: diffs D/<s>.<a>.jsonl against D/<s>.<b>.jsonl for each s.
-if (require.main === module && flag('--dir')) {
+if (require.main === module && flag('--orders')) {
+  process.exit(orderDiff(origFile, oursFile, opt('--rel', 'charge')));
+} else if (require.main === module && flag('--dir')) {
   const dir = opt('--dir'), a = opt('--a', 'orig'), b = opt('--b', 'ours');
   const names = args.filter((x, i) => !x.startsWith('--') && !['--dir', '--a', '--b', '--context', '--png-dir'].includes(args[i - 1]));
   let any = 0;

@@ -24,7 +24,8 @@ impl BattleRunner {
             if WEAPON_CLASS[f.troop.index()] != 0 {
                 score /= 2;
             }
-            score += f.targeted as i32;
+            // 00490000.c:2031 `local_c + (char)targeted`: read signed [V]
+            score += f.targeted as i8 as i32;
             if best.is_none_or(|(bs, _)| score < bs) {
                 best = Some((score, sim));
             }

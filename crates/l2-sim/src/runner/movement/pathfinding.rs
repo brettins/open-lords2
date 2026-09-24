@@ -273,13 +273,10 @@ impl BattleRunner {
         if unit == 0 || unit > MAX_UNITS || !self.units.get(unit).is_live() {
             return;
         }
+        l2_net::trace!("call", 0x00479E90, "BattleUnit_Order", unit = unit, x = x, y = y, a = target.map_or(0, |t| self.fighters[t].sim + 1), b = woodland as i64, c = formation.orientation().map_or(0, |o| o as i64 + 1));
         {
             let u = self.units.get_mut(unit);
             u.withdrawing = false;
-            if u.in_melee {
-                u.order_lock = crate::unit::ORDER_LOCK;
-            }
-            u.reform = crate::unit::REFORM_ON_ORDER;
             if !woodland {
                 u.target_cell = 0;
             }
@@ -325,22 +322,17 @@ impl BattleRunner {
             }
         }
         self.pour_on_order(unit, dest.0 as i16, dest.1 as i16);
-        {
-            let u = self.units.get_mut(unit);
-            u.target_x = dest.0 as i16;
-            u.target_y = dest.1 as i16;
-        }
+        // BattleUnit_Order 0x00479E90 00470000.c:4381 reads the surface at the ordered cell,
+        // before the facing arm (:4407-4411) moves targX/targY [V].
+        let c = |v: i32| v.clamp(0, DIM as i32 - 1) as usize;
+        let surface = self.field.at(c(dest.0), c(dest.1)).surface;
         if let Some(o) = formation.orientation() {
             self.units.get_mut(unit).orientation = o;
-            let (hx, hy) = {
-                let u = self.units.get(unit);
-                (u.x, u.y)
-            };
-            let u = self.units.get_mut(unit);
-            u.target_x = hx;
-            u.target_y = hy;
+            let u = self.units.get(unit);
+            dest = (u.x as i32, u.y as i32);
         }
-        self.reform_unit(unit);
+        // 00470000.c:4403 `targX = x` then BattleUnit_Order's tail
+        self.units.order(&mut self.sim.figures, unit, (dest.0 as i16, dest.1 as i16), Some(surface));
     }
 
     /// `FUN_0047A76D` (`0x0047A76D`) — **the charge button**, battle button 3.
