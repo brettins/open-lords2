@@ -6532,7 +6532,7 @@ way is the one C119 already named.
 
 **Three — the defect, and it is the same mistake one argument to the left.** Our
 `Pen::number_centred` built `" {value} "` for every caller. The suffix is *inside what gets
-measured* (**corrected by CNEW-number-suffix-never-drawn:** it is not; no caller draws it): `FUN_004025D7` is `x + max(0, (width − FUN_004014F0(buffer)) / 2)` and
+measured* (**corrected by C248:** it is not; no caller draws it): `FUN_004025D7` is `x + max(0, (width − FUN_004014F0(buffer)) / 2)` and
 `FUN_004014F0` charges four pixels for a space wherever it sits and trims nothing. So an
 invented trailing space widens the measure by four and moves the digits **two pixels left**.
 
@@ -12506,7 +12506,7 @@ Presentation code (screens, the frame driver, the letter ring, sound, the app sh
 
 The differ (row trace-harness) needs our game to emit what `native/l2-trace` records from the original: sound, screen, message, phase, ai, order, rand, draw, text, film, each under the original's address and `docs/symbols.md` name. `l2-kingdom` and `l2-sim` may not gain dependencies and `l2-net` is already a zero-dependency dependency of both, so the sink is `l2_net::trace` (a thread-local `Vec<Record>`) and the sites use `l2_net::trace!`, `trace_changed!` and `trace_do!`, which expand to nothing, arguments unevaluated, without the feature. A new `l2-trace` crate was the alternative: one more manifest line in every emitting crate for the same result. `l2-view` names `l2-net` directly for the draw events; it was already below it through `l2-sim`. Only `l2-game`'s `[dev-dependencies]` enables `l2-net/trace`, and resolver 2 keeps dev-dependency features out of `cargo build --release`: the release `l2-game.exe` built from this change and from its parent is the same size, every PE section is the same size, and neither holds any trace string (`Pl8_DrawFrame`, `Msg_Enqueue`, `"caller"`, …). The bytes are not identical: `L2_BUILD_ID` stamps the commit, and `[I]` the rest is layout moved by crate hashes (`l2-view`'s manifest and `Cargo.lock` changed). The record and scenario formats are `tools/oracle/scenarios/FORMAT.md`; the runner is `crates/l2-game/tests/trace`. `order` and `rand` carry no address: an order is a direct call in the original, and `Pcg32` is not `Rand_Advance` (`docs/netcode.md` D-3a).
 
-**CNEW-number-suffix-never-drawn — `Ui_DrawNumberRight` never draws its suffix; C140 part Three was wrong.**
+**C248 — `Ui_DrawNumberRight` never draws its suffix; C140 part Three was wrong.**
 
 `Ui_DrawNumberRight` (`0x004030C6`, 00400000.c:1500-1509) finds the string end with a `do … while (*p != 0)` that leaves its index one past the NUL, and writes the suffix there. `Ui_NumberToBuffer` (`0x004022BD`) zeroes the buffer first, so `FUN_004025D7` measures and draws `lead + digits` only [V]. The drop is inside the callee, so it holds for all twenty call sites C140 lists. Our `number_centred` and `body_number_centred` drop the suffix; herd, grain, siege seasons, turn timer, ratings and court numbers move two pixels right (pixel diff: side panel 515 → 0 px). C140's ration-panel measurement stands (its suffixes are NULs); its *Armies Eat* paragraph is about `Ui_DrawNumber` and is not judged here. Record: `docs/oracle-checks/pixel-fixes.json`.
 
