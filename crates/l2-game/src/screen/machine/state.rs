@@ -64,7 +64,7 @@ impl Machine {
     }
 
     /// `g_screenId` (`0x004EAC50`) for the trace: the tip table, then `turn_clock::screen_byte`
-    /// where the tip table has no row. CNEW-trace-sink.
+    /// where the tip table has no row. C246.
     pub fn traced_screen_byte(&self, game: &Game) -> Option<u8> {
         let s = self.stack.iter().rev().find(|s| s.id() != ScreenId::Message)?;
         s.mode_screen_id()

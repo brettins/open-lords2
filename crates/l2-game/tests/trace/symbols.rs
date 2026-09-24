@@ -1,4 +1,4 @@
-//! Every (address, name) an emit site cites is a row of `docs/symbols.md`. CNEW-trace-sink.
+//! Every (address, name) an emit site cites is a row of `docs/symbols.md`. C246.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

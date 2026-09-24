@@ -64,7 +64,7 @@ impl Machine {
         self.run_tooltips(ctx);
     }
 
-    /// A write to `g_screenId` (`0x004EAC50`), as the detour on it sees it. CNEW-trace-sink.
+    /// A write to `g_screenId` (`0x004EAC50`), as the detour on it sees it. C246.
     pub(super) fn trace_screen(&self, game: &crate::Game) {
         let _ = game;
         l2_net::trace_changed!(self.traced_screen_byte(game).map_or(-1, i64::from); "screen", 0x004EAC50, "g_screenId", id = self.traced_screen_byte(game).map_or(-1, i64::from), ours = format!("{:?}", self.top_id()));

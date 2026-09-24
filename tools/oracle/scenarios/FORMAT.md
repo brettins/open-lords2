@@ -2,7 +2,7 @@
 
 One scenario drives both games: `native/l2-trace` (the original) and
 `crates/l2-game/tests/trace` (ours, `cargo test -p l2-game --test trace`). Each writes
-`<scenario>.orig.jsonl` / `<scenario>.ours.jsonl`; a differ compares them. Decision CNEW-trace-sink.
+`<scenario>.orig.jsonl` / `<scenario>.ours.jsonl`; a differ compares them. Decision C246.
 
 ## Scenario: `<name>.jsonl`, one step a line
 

@@ -1,5 +1,5 @@
 ﻿//! Our side of the trace differ: a scenario played headless, every `l2_net::trace!` site
-//! written as `<scenario>.ours.jsonl`. CNEW-trace-sink; `tools/oracle/scenarios/FORMAT.md`.
+//! written as `<scenario>.ours.jsonl`. C246; `tools/oracle/scenarios/FORMAT.md`.
 
 mod script;
 mod sink;

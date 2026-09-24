@@ -51,6 +51,6 @@ description = "Deterministic primitives, lockstep session core and transport sea
 # construction rather than by audit.
 [dependencies]
 
-# CNEW-trace-sink: only l2-game's dev-dependency turns it on.
+# C246: only l2-game's dev-dependency turns it on.
 [features]
 trace = []

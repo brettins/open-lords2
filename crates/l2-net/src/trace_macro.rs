@@ -1,4 +1,4 @@
-//! Emit macros: without `--features trace` each expands to nothing, arguments unevaluated. CNEW-trace-sink.
+//! Emit macros: without `--features trace` each expands to nothing, arguments unevaluated. C246.
 
 #[cfg(feature = "trace")]
 #[macro_export]

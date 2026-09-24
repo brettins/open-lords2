@@ -1,4 +1,4 @@
-//! The event sink the differ reads (CNEW-trace-sink). Only with `--features trace`.
+//! The event sink the differ reads (C246). Only with `--features trace`.
 //! `tools/oracle/scenarios/FORMAT.md` is the record's shape, shared with `native/l2-trace`.
 
 use std::cell::RefCell;

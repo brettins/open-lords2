@@ -1,4 +1,4 @@
-//! `l2_net::trace`, the sink: the record line `FORMAT.md` fixes, one `rand` a frame. CNEW-trace-sink.
+//! `l2_net::trace`, the sink: the record line `FORMAT.md` fixes, one `rand` a frame. C246.
 
 use l2_net::rng::Pcg32;
 use l2_net::trace::{self, Arg};
