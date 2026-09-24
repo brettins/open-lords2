@@ -139,6 +139,7 @@ crates/l2-game/tests/newgame/realm_fields.rs other 3
 crates/l2-game/tests/newgame/start_game.rs install 2
 crates/l2-game/tests/newgame/start_game.rs other 3
 crates/l2-game/tests/overlay_palette/overlay_palette.rs install 2
+crates/l2-game/tests/pacing/pacing/frame_order.rs england 1
 crates/l2-game/tests/pacing/pacing/pacing_tests.rs england 5
 crates/l2-game/tests/placeholders/main.rs england 1
 crates/l2-game/tests/press.rs executable 1
