@@ -349,9 +349,16 @@ impl CountyScreen {
         let pen = self.pen(ctx);
         let ink = &ctx.assets.ink;
         pen.box_interior(canvas, 220, SLIDER_KNOB_Y, 8, 2);
-        canvas.fill_rect(SLIDER_TRACK_X, 229, SLIDER_TRACK_W, 1, TRACK_TOP);
-        canvas.fill_rect(SLIDER_TRACK_X, 230, SLIDER_TRACK_W, 4, TRACK_FILL);
-        canvas.fill_rect(SLIDER_TRACK_X, 234, SLIDER_TRACK_W, 1, TRACK_BOTTOM);
+        let (x0, x1) = (SLIDER_TRACK_X, SLIDER_TRACK_X + SLIDER_TRACK_W - 1);
+        l2_net::trace_leaf!("draw", 0x00403A8F, "FUN_00403a8f", a0 = x0, a1 = 229, a2 = x1, a3 = 229; {
+            canvas.fill_rect(SLIDER_TRACK_X, 229, SLIDER_TRACK_W, 1, TRACK_TOP)
+        });
+        l2_net::trace_leaf!("draw", 0x0040437D, "FUN_0040437d", a0 = x0, a1 = 230, a2 = SLIDER_TRACK_W, a3 = 4, a4 = TRACK_FILL; {
+            canvas.fill_rect(SLIDER_TRACK_X, 230, SLIDER_TRACK_W, 4, TRACK_FILL)
+        });
+        l2_net::trace_leaf!("draw", 0x00403A8F, "FUN_00403a8f", a0 = x0, a1 = 234, a2 = x1, a3 = 234; {
+            canvas.fill_rect(SLIDER_TRACK_X, 234, SLIDER_TRACK_W, 1, TRACK_BOTTOM)
+        });
         let caps = {
             let l = pen.system_frame(
                 canvas,

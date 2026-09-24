@@ -92,7 +92,7 @@ pub(crate) fn draw_flags(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
             clip,
         );
     }
-    let lit = |tile: &usize| !ctx.game.hides_tile(*tile);
+    let lit = |tile: &usize| !ctx.game.hides_tile(*tile) && in_view(screen, *tile);
     for id in k.county_ids() {
         let county = &k.counties[id];
         let shield = k.realms.get(county.owner as usize).map_or(0, |r| r.shield_index);
@@ -185,6 +185,16 @@ pub(super) fn draw_besieger_mark(
     pen.number_centred(canvas, nx, ny, w, seasons, ' ', " ", campaign::BESIEGER_COUNT_INK);
 }
 
+/// Sprite_TopIt 0x004071A0 runs per tile Map_RenderIso 0x0040526E draws: rows
+/// `view.row ..= +rows`, `cols` (+1 on an odd row) from `view.col`, as `campaign::draw`.
+pub(crate) fn in_view(screen: &MapScreen, tile: usize) -> bool {
+    let (x, y) = l2_kingdom::map::coords(tile);
+    let (row, col) = campaign::tile_to_cell(x as usize, y as usize);
+    let (v, z) = (screen.view, &screen.zoom);
+    let span = if row & 1 == 1 { z.cols + 1 } else { z.cols };
+    (v.row..=v.row + z.rows).contains(&row) && (v.col..v.col + span).contains(&col)
+}
+
 /// **`FUN_004071A0`'s farm arm — the cattle in the pastures.**
 pub(crate) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, clip: Clip) {
     let map = &ctx.game.kingdom.campaign.map;
@@ -192,7 +202,7 @@ pub(crate) fn draw_herds(screen: &MapScreen, canvas: &mut Canvas, ctx: &Ctx, cli
         if map.flags[tile] & l2_kingdom::map::flags::FARMLAND == 0 {
             continue;
         }
-        if ctx.game.hides_tile(tile) {
+        if ctx.game.hides_tile(tile) || !in_view(screen, tile) {
             continue;
         }
         let (x, y) = l2_kingdom::map::coords(tile);
