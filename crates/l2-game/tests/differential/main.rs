@@ -263,9 +263,9 @@ const BASELINE: &[(&str, &str, usize)] = &[
     ("siege 13->14", "realm.gold", 1),
 ];
 
-const COMPARED_TOTAL: usize = 1185;
+const COMPARED_TOTAL: usize = 1200;
 
-const AGREE_TOTAL: usize = 1172;
+const AGREE_TOTAL: usize = 1187;
 
 const MOVED_TOTAL: usize = 352;
 

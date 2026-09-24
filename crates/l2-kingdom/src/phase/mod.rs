@@ -114,15 +114,13 @@ pub struct TurnMachine {
     /// `g_turnPhaseStep` (`0x0053F658`), counted up on every call and reset on
     /// every phase change.
     pub step: u32,
-    /// **Phase 4 has already been opened and run for this turn.** No original
-    /// field: the original is in phase 4 *while the person deliberates*, so
-    /// `Turn_BeginPlayersTurn` (`0x0049B6D3`) and `AI_RunTurnStep`
-    /// (`0x0049A581`) both run on the frames before End Turn. Our phase machine
-    /// parks between turns instead — `g_turnPhase = 1`, where the original's
-    /// autosave is taken — so the interactive frames run phase 4's arm ahead of
-    /// the machine and this says so, and `Kingdom::tick` then does not open the
-    /// phase a second time when the wind-on reaches it.
+    /// Phase 4's step 0s have run (`l2_game::turn::open_players_turn`), so the
+    /// End Turn wind-on does not rerun them. No original field [D]: ours runs the
+    /// step-0 prologue for every realm at once.
     pub players_turn_open: bool,
+    /// `DAT_0057C944`, `AI_RunTurnStep` (`0x0049A581`)'s round-robin cursor over
+    /// realms 1..5; `Turn_AdvancePhase` (`0x0049CE51`) sets it to 1 [V].
+    pub ai_cursor: u8,
 }
 
 impl Default for TurnMachine {
@@ -133,7 +131,7 @@ impl Default for TurnMachine {
 
 impl TurnMachine {
     pub fn new() -> TurnMachine {
-        TurnMachine { phase: Phase::NeutralCounties, step: 0, players_turn_open: false }
+        TurnMachine { phase: Phase::NeutralCounties, step: 0, players_turn_open: false, ai_cursor: 1 }
     }
 
     pub fn tick(&mut self, settled: bool) -> PhaseTick {
@@ -153,6 +151,7 @@ impl TurnMachine {
         if done {
             self.phase = phase.next();
             self.step = 0;
+            self.ai_cursor = 1;
             PhaseTick { phase, started, advanced_to: Some(self.phase) }
         } else {
             PhaseTick { phase, started, advanced_to: None }

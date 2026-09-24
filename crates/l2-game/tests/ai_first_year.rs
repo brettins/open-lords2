@@ -161,6 +161,8 @@ fn a_winning_lord_taunts_the_person() {
     r.taunt_timer = 7;
     r.lord = 1;
     r.ai_step = l2_kingdom::ai::AiStep::Taunt.counter();
+    // AI_RunTurnStep 0x0049A581 steps the realm at DAT_0057C944 alone, the human's turn included [V].
+    game.kingdom.turn.ai_cursor = 2;
     let mut granted = true;
     let mut letters = Vec::new();
     l2_game::turn::drive_ai(&mut game.kingdom, &mut granted, &mut letters);

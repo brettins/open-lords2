@@ -126,7 +126,7 @@ crates/l2-game/src/setup/settings.rs	C21	67cbc3ad95cc	f7bf296341ff
 crates/l2-game/src/shell/drawing/pen.rs	C140	778708d1d01e	e3a1ede42a95
 crates/l2-game/src/shell/drawing/pen.rs	C155	13064b8b51f4	03caee7e7f69
 crates/l2-game/src/shell/drawing/pen.rs	C155	a38f8bbc1d65	03caee7e7f69
-crates/l2-game/src/shell/drawing/pen.rs	C61	4852635e7bff	60611046b40d
+crates/l2-game/src/shell/drawing/pen.rs	C61	1de8fede98b5	60611046b40d
 crates/l2-game/src/shell/drawing/primitives.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/shell/font/mod.rs	C155	1131e8b61df1	03caee7e7f69
 crates/l2-game/src/turn/ai_part.rs	C113	83692a3b18af	6fbe8ffeb1fb
@@ -792,6 +792,7 @@ docs/decisions.md	C221	1eae9de6abcd	f24ff4b039ef
 docs/decisions.md	C221	c895407b0407	f24ff4b039ef
 docs/decisions.md	C23	99e73b072814	6ac2f322c3bd
 docs/decisions.md	C24	b6deda781733	52e202e041ab
+docs/decisions.md	C247	c93f872aac4b	a700ccc7c11e
 docs/decisions.md	C25	04e93d465fea	5d466f0cb89c
 docs/decisions.md	C25	1cb6c94e684e	5d466f0cb89c
 docs/decisions.md	C25	279621d20313	5d466f0cb89c

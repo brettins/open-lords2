@@ -72,7 +72,7 @@ pub(crate) fn draw_menu_bar(canvas: &mut Canvas, ctx: &Ctx, battle: bool) {
                 if battle {
                     break;
                 }
-                if !k.realms[id].in_play || turn::realm_turn_ended(game, id) {
+                if turn::realm_turn_ended(game, id) {
                     continue;
                 }
                 let raw = game.realm_colour.get(id).copied().unwrap_or(0);

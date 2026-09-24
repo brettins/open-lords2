@@ -130,7 +130,9 @@ fn the_body_covers_a_fixed_and_known_number_of_bytes() {
     // +40 at version 33 for the marker tables, `DAT_00544050`/`70` and `g_rallyWaypoints`/`DAT_00522D60`.
     //
     // +4 at version 34 for the tile frame plane's length; the plane is empty unless imported.
-    assert_eq!(c.finish().len, 67_668, "the state encoding changed - bump VERSION?");
+    //
+    // +1 at version 35 for DAT_0057C944, the AI_RunTurnStep 0x0049A581 realm cursor.
+    assert_eq!(c.finish().len, 67_669, "the state encoding changed - bump VERSION?");
 }
 
 /// The other half of the same property the census covers. A field can go

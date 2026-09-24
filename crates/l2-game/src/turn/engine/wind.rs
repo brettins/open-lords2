@@ -45,6 +45,10 @@ pub fn wind(game: &mut Game) -> Wound {
         }
         return Wound::Stepped(tick_turn(game));
     }
+    // Turn_Tick 0x0049A010: phases 1-3 run before the phase-4 arm that waits for the person [V].
+    if game.kingdom.turn.phase != l2_kingdom::phase::Phase::PlayersTurn {
+        return Wound::Stepped(open_turn(game));
+    }
     // `Turn_Tick`'s phase-4 arm: `AI_RunTurnStep` (`0x0049A581`) every frame.
     tick_ai_frame(game);
     Wound::Idle { stepped: tick_units_only(game) }
@@ -57,6 +61,7 @@ pub fn encode_progress(game: &Game, out: &mut Canonical) {
     out.section("turn");
     out.option(game.turn.as_ref(), |c, p| {
         c.bool(p.idle);
+        c.bool(p.opening);
         c.u32(p.ticks);
         c.len32(p.steps);
         c.bool(p.granted);

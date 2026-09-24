@@ -25,6 +25,7 @@ pub(crate) fn furnished(seed: u64) -> Kingdom {
     k.weather_county = 9;
     k.turn.phase = l2_kingdom::Phase::Merchants;
     k.turn.step = 5;
+    k.turn.ai_cursor = 3;
     k.rng.next_u32();
     k.options = Options {
         difficulty: 2,

@@ -62,6 +62,12 @@ impl TurnClock {
         self.end_turn
     }
 
+    /// Turn_End 0x0043AC23 pressed in phases 1-3: its 999 outlives them, since
+    /// Turn_BeginPlayersTurn 0x0049B6D3 ran at the wrap, before them [V].
+    pub fn defer_end_turn(&mut self) {
+        self.end_turn = true;
+    }
+
     pub fn take_end_turn(&mut self) -> bool {
         core::mem::take(&mut self.end_turn)
     }
