@@ -830,8 +830,8 @@ function inventories(base) {
     };
   });
 
-  attempt({ track: 'play', system: 'turns', name: 'End Turn differential', source: 'crates/l2-game/tests/differential.rs' }, () => {
-    const text = src.read('crates/l2-game/tests/differential.rs');
+  attempt({ track: 'play', system: 'turns', name: 'End Turn differential', source: 'crates/l2-game/tests/differential/main.rs' }, () => {
+    const text = src.read('crates/l2-game/tests/differential/main.rs');
     const c = (name) => {
       const m = text.match(new RegExp(`const ${name}: usize = (\\d+);`));
       if (!m) throw new Error(`${name} is not in differential.rs in ${src.where} -- this rollup reads it rather than restating it, so find where it went`);

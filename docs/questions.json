@@ -89,6 +89,33 @@
       "ask": "Reply: Q10 saved, or Q10 with the message shown",
       "answer": "saved, about three seconds",
       "outcome": "The refusal did not recur. The three-second wait is filed and in flight; the original saves near instantly."
+    },
+    {
+      "state": "open",
+      "q": "Q11",
+      "row": "stale-move-cost-after-load",
+      "title": "After loading a save, should armies and merchants stand still for the first turn?",
+      "inplay": "In the original, when you start the program and load a save, merchants take one step at most and the AI's new armies do not march until the end of that first turn; from the second turn on everything moves normally. It is a defect in the original (the route data is not rebuilt on load); its own recordings show it. Ours now does the same. Loading a second save in the same session does not show it.",
+      "todo": "Choose: keep it (closer to the original), or fix it so everything moves on the first turn after a load.",
+      "ask": "Reply: Q11 keep, or Q11 fix"
+    },
+    {
+      "state": "open",
+      "q": "Q12",
+      "row": "trace-rng-parity",
+      "title": "How should we compare battles once dice are rolled?",
+      "inplay": "The AI's first decision in a battle rolls a die. The original and ours use different dice (ours is modern, which the new netcode needs), so from that first roll the two battles drift apart and one may win where the other loses. Everything up to the first roll now matches.",
+      "todo": "Choose: (a) during comparisons only, run our battles on the original's dice so whole battles can be compared move for move; (b) steer the original's dice to ours instead; (c) compare many battles and check the outcomes come out in the same proportions. (a) finds the most bugs and does not change the game you play.",
+      "ask": "Reply: Q12 a, b or c"
+    },
+    {
+      "state": "open",
+      "q": "Q13",
+      "row": "mouse-pointer-rate",
+      "title": "Does the choppy pointer depend on its size?",
+      "inplay": "Both the original and ours use the Windows pointer. Ours is drawn at the window's scale, 128 pixels square on your 4K screen, where the original's is 32. Windows can fall back to drawing a pointer that large itself, which can look choppy.",
+      "todo": "Play full screen and note whether the pointer is choppy; then run in a smaller window (so the pointer is smaller) and compare.",
+      "ask": "Reply: Q13 same, or Q13 smoother when small"
     }
   ],
   "reports": [
@@ -151,6 +178,48 @@
       "text": "Esc does not say \"Exit the game, my lord?\"",
       "row": "exit-confirm-voice-line",
       "outcome": "The original speaks one of sixteen recorded lines when a confirm opens; ours now does on Esc. Same branch."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "The welcome line plays immediately at launch.",
+      "row": "blind-welcome",
+      "outcome": "Merged: it waits for the main menu to be the screen on top, as the original does. The trace diff missed it at first and caught it once it keyed sounds by the film before them."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "No red X when ordering troops to move in battle.",
+      "row": "blind-battle-move-red-x",
+      "outcome": "Found blind by the trace diff and merged: the move marker, 30 ticks."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "The AI lord's shield does not disappear when it is done.",
+      "row": "blind-ai-turn-at-turn-start",
+      "outcome": "Found blind by the pixel diff and merged: the shield rule, and the AI taking extra steps after the original would have finished (armies now ordered first and walking later, as the original)."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "Zoomed-out map has water artifacts beyond the play square.",
+      "row": "blind-zoomed-out-water",
+      "outcome": "Found blind by the pixel diff and merged: the coast and margin passes the original draws."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "A sad trumpet when winning a county.",
+      "row": "blind-sad-trumpet-county-win",
+      "outcome": "Found blind by the trace diff and merged: we had it backwards. The original plays the losing fanfare to the side that lost and nothing on a win; the victory fanfare file ships but is never played."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "Army wages and expected tax numbers are misaligned from their text.",
+      "row": "blind-army-screen-text",
+      "outcome": "Found blind by the pixel diff on the Court screen: the two numbers sat about 100 px right of their labels. Fixed; every Court row now matches the original pixel for pixel. Merging."
+    },
+    {
+      "date": "2026-09-23",
+      "text": "The mouse pointer moves at a reduced frame rate.",
+      "row": "mouse-pointer-rate",
+      "outcome": "Not measurable overnight (the machine was locked). Both games use the Windows pointer, so frame rate is not the cause. Lead: our pointer is 128x128 on your 4K screen, large enough that Windows may draw it in software. Q13 asks you to try it."
     }
   ]
 }
