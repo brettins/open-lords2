@@ -350,6 +350,7 @@ impl Ai {
         if !self.multiplayer {
             self.strength_advantage += (self.rng.next_u32() & 0x1F) as i32 - 10;
         }
+        l2_net::trace!("ai", 0x0047FC01, "Battle_UpdateStrengthAdvantage", ai = ai_men, human = human_men, advantage = self.strength_advantage);
     }
 
     pub(super) fn record(&mut self, unit: usize, action: Action) {

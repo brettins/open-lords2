@@ -273,6 +273,7 @@ impl BattleRunner {
         if unit == 0 || unit > MAX_UNITS || !self.units.get(unit).is_live() {
             return;
         }
+        l2_net::trace!("call", 0x00479E90, "BattleUnit_Order", unit = unit, x = x, y = y, a = target.map_or(0, |t| self.fighters[t].sim + 1), b = woodland as i64, c = formation.orientation().map_or(0, |o| o as i64 + 1));
         {
             let u = self.units.get_mut(unit);
             u.withdrawing = false;
