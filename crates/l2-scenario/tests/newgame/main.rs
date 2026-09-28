@@ -99,6 +99,7 @@ const JUDGED: &[&str] = &[
     "dryness",
     "grain",
     "herd",
+    "grain_available",
     "labour",
     "labour_wanted",
     "labour_useful",

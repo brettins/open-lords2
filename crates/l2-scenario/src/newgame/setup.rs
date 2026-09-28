@@ -152,6 +152,7 @@ pub(crate) fn county_reset(id: usize) -> CountyState {
         dryness: reset::DRYNESS,
         grain: reset::GRAIN,
         herd: reset::HERD,
+        grain_available: reset::GRAIN,
         labour: [0; JOB_COUNT],
         labour_wanted: [0; JOB_COUNT],
         labour_useful: [0; JOB_COUNT],

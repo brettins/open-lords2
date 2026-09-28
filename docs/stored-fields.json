@@ -93,7 +93,7 @@
     {"id": "County+0x16C", "name": "rationPanelFigures", "type": "i32", "count": 3, "status": "derived", "why": "Ration_Apply's dairy, grain and meat people fed, which ration::people_fed recomputes from +0x250, +0x178 and +0x17C and Panel_Ration draws; equal in every county of every save"},
     {"id": "County+0x178", "name": "grainEaten", "type": "i32", "status": "imported"},
     {"id": "County+0x17C", "name": "herdEaten", "type": "i32", "status": "imported"},
-    {"id": "County+0x180", "name": "grainAvailable", "type": "i32", "status": "derived", "why": "set from +0x224, which it equals in every county of every save"},
+    {"id": "County+0x180", "name": "grainAvailable", "type": "i32", "status": "imported"},
     {"id": "County+0x184", "name": "herdAvailable", "type": "i32", "status": "derived", "why": "set from +0x250, which it equals in every county of every save"},
     {"id": "County+0x188", "name": "rationScratch", "type": "i32", "status": "excluded", "why": "written by Ration_Apply and read by nothing"},
     {"id": "County+0x18C", "name": "grainEatenCopy", "type": "i32", "status": "excluded", "why": "not imported: our ration pass rewrites the shadow before the season tick reads it. Ration_Apply (0x0044DF5F) never debits a store; Ration_ApplyAll (0x0044BF04) copies +0x178 here and Grain_SeasonTick (0x0044C8AE) opens grain -= +0x18C eleven passes later. County::grain_eaten_shadow, save VERSION 30. Not derivable from +0x178, which the next-season preview has overwritten by then (C20): it differs from the stored +0x178 in 12 counties"},

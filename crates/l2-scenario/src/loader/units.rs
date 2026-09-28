@@ -277,6 +277,7 @@ impl Scenario {
                 dryness: c.dryness as i32,
                 grain: c.grain,
                 herd: c.herd,
+                grain_available: county_i32(save, c.index, 0x180)?,
                 labour: read_labour(save, c.index, 0)?,
                 labour_wanted: read_labour(save, c.index, 4)?,
                 labour_useful: read_labour(save, c.index, 8)?,
@@ -482,7 +483,22 @@ impl Scenario {
 
         let mut units = Vec::new();
         for u in save.units()?.iter().filter(|u| u.is_live()) {
-            units.push((u.index, read_unit(u)?));
+            let mut unit = read_unit(u)?;
+            // Unit `+0x182..+0x193`: three (ordered, percent, work done) i16
+            // records, catapult, tower, ram. `Siege_BuildTick` (`0x004A8507`)
+            // recomputes `+0x19C` from them every phase 2, so the countdown
+            // alone is not enough.
+            let base = l2_formats::save::UNIT_BASE + (u.index * l2_formats::save::UNIT_STRIDE) as u32;
+            for (k, e) in unit.engines.iter_mut().enumerate() {
+                let at = base + 0x182 + 6 * k as u32;
+                e.ordered = save.i16_at(at)?;
+                e.percent = save.i16_at(at + 2)?;
+                e.work_done = save.i16_at(at + 4)?;
+            }
+            unit.siege_seasons_left = u.siege_seasons_left;
+            unit.mission = save.u8_at(base + 0x1A)?;
+            unit.mission_county = save.u8_at(base + 0x19B)?;
+            units.push((u.index, unit));
         }
         let mercenaries = read_mercenaries(save, county_count, &units)?;
         for (id, c) in counties.iter().enumerate() {
@@ -594,6 +610,7 @@ impl Scenario {
                 herd_eaten,
                 grain,
                 herd,
+                grain_available,
                 owner: _,
                 anchor: _,
                 neighbours: _,
@@ -802,7 +819,9 @@ impl Scenario {
             c.ration_achieved = *ration_achieved;
             c.grain_eaten = *grain_eaten;
             c.herd_eaten = *herd_eaten;
-            c.grain_available = *grain;
+            // `+0x180`, not `+0x224`: in season 4 `Ration_Apply` stores the
+            // store less the seed reserve, and the loaded game reads it as is.
+            c.grain_available = *grain_available;
             c.herd_available = *herd;
         }
 

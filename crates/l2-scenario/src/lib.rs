@@ -457,6 +457,10 @@ pub struct CountyState {
     pub dryness: i32,
     pub grain: i32,
     pub herd: i32,
+    /// `+0x180` — the grain `Ration_Apply` (`0x0044DF5F`) left available to
+    /// eat: the `+0x224` store less the seed it reserves for sowing when the
+    /// season is 4. Equal to `grain` in the other three seasons.
+    pub grain_available: i32,
     /// `+0xC4 + job * 0x0C` — the nine job records' worker counts.
     pub labour: [i32; JOB_COUNT],
     /// `+0xC4 + job * 0x0C + 0x04` and `+ 0x08` — the wanted floor and the
