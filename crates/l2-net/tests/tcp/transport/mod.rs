@@ -3,6 +3,7 @@
 mod framing;
 pub use framing::*;
 mod connection;
+mod added;
 pub use connection::*;
 
 use super::*;

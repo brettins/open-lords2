@@ -54,6 +54,18 @@ impl TcpTransport {
         })
     }
 
+    /// An already-connected stream as a new peer, numbered and reported through
+    /// `take_joined` like an accepted one (C254: the relay hands the host one).
+    pub fn add(&mut self, stream: TcpStream) -> Result<PeerId, TransportError> {
+        let id = PeerId(self.next_id);
+        self.next_id = self.next_id.wrapping_add(1);
+        let conn = Connection::new(id, stream)?;
+        self.conns.push(conn);
+        self.conns.sort_by_key(|c| c.id);
+        self.joined.push(id);
+        Ok(id)
+    }
+
     pub fn local_addr(&self) -> Option<SocketAddr> {
         self.listener.as_ref().and_then(|l| l.local_addr().ok())
     }
