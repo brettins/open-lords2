@@ -5,12 +5,13 @@ use super::{new_game, Setup};
 use crate::game::{Assets, Game};
 use l2_kingdom::tables::Tables;
 use l2_kingdom::Quirks;
+use super::link::PortMap;
 use l2_net::{
-    decode_all, Canonical, Hello, Lobby, LobbyError, LobbyEvent, Message, PeerId, PlayerSlot,
-    Role, Roster, Start, TcpTransport, Transport,
+    decode_all, Canonical, Hello, Lobby, LobbyError, LobbyEvent, Mapping, Message, NatError,
+    PeerId, PlayerSlot, Role, Roster, Start, TcpTransport, Transport,
 };
 use std::io::ErrorKind;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream, ToSocketAddrs, UdpSocket};
+use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 use std::time::Duration;
 
@@ -28,6 +29,10 @@ pub struct Driver {
     quirks: Quirks,
     /// Where the others reach this host; empty for a client.
     reach: Vec<SocketAddr>,
+    /// The router's answer, on its way (C252); a loopback host never asks.
+    mapping: Option<Receiver<Result<Mapping, NatError>>>,
+    mapped: Option<Mapping>,
+    port: PortMap,
 }
 
 impl Driver {
@@ -42,11 +47,30 @@ impl Driver {
         quirks: Quirks,
     ) -> Result<Driver, String> {
         let transport = TcpTransport::listen(addr).map_err(|e| e.to_string())?;
-        let reach = transport.local_addr().map_or_else(Vec::new, reach_of);
+        let bound = transport.local_addr();
+        let reach = bound.map_or_else(Vec::new, reach_of);
         let lobby = Lobby::host(hello, name).map_err(|e| e.to_string())?;
         let lobby = lobby.with_shield(shield).with_unseated_gold(unseated_gold);
         let lobby = lobby.with_setup(setup.encode());
-        Ok(Driver { transport: Some(transport), connecting: None, lobby, quirks, reach })
+        let mut d = Driver {
+            transport: Some(transport),
+            connecting: None,
+            lobby,
+            quirks,
+            reach,
+            mapping: None,
+            mapped: None,
+            port: PortMap::Off,
+        };
+        if let Some(bound) = bound.filter(|b| b.ip().is_unspecified()) {
+            let (tx, rx) = mpsc::channel();
+            std::thread::spawn(move || {
+                let _ = tx.send(l2_net::open_port(bound.port()));
+            });
+            d.mapping = Some(rx);
+            d.port = PortMap::Asking;
+        }
+        Ok(d)
     }
 
     /// Returns at once; the connect (at most `CONNECT_TIMEOUT`) runs on a thread
@@ -65,7 +89,16 @@ impl Driver {
         std::thread::spawn(move || {
             let _ = tx.send(connect(&address));
         });
-        Ok(Driver { transport: None, connecting: Some(rx), lobby, quirks, reach: Vec::new() })
+        Ok(Driver {
+            transport: None,
+            connecting: Some(rx),
+            lobby,
+            quirks,
+            reach: Vec::new(),
+            mapping: None,
+            mapped: None,
+            port: PortMap::Off,
+        })
     }
 
     pub fn is_connecting(&self) -> bool {
@@ -79,6 +112,23 @@ impl Driver {
     /// The host's addresses to give the others: the LAN's when bound to all.
     pub fn reach(&self) -> &[SocketAddr] {
         &self.reach
+    }
+
+    /// The router's port mapping, for the lobby screen.
+    pub fn port(&self) -> &PortMap {
+        &self.port
+    }
+
+    /// Closes the router's port; after `Start` the lease is left to lapse
+    /// (`l2_net::nat::LEASE`), the session taking no one new.
+    pub fn release(&mut self) {
+        self.mapping = None;
+        if let Some(mapping) = self.mapped.take() {
+            std::thread::spawn(move || {
+                let _ = l2_net::close_port(&mapping);
+            });
+        }
+        self.port = PortMap::Off;
     }
 
     pub fn lobby(&self) -> &Lobby {
@@ -122,6 +172,28 @@ impl Driver {
                 Ok(result) => {
                     self.connecting = None;
                     self.transport = Some(result?);
+                }
+            }
+        }
+        if let Some(rx) = &self.mapping {
+            match rx.try_recv() {
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    self.mapping = None;
+                    self.port = PortMap::Shut("the port mapping attempt failed".into());
+                }
+                Ok(Err(why)) => {
+                    self.mapping = None;
+                    self.port = PortMap::Shut(why.to_string());
+                }
+                Ok(Ok(mapping)) => {
+                    self.mapping = None;
+                    self.port = PortMap::Open {
+                        public: SocketAddr::V4(mapping.external),
+                        via: mapping.via.name(),
+                        lifetime: mapping.lifetime,
+                    };
+                    self.mapped = Some(mapping);
                 }
             }
         }
@@ -203,13 +275,9 @@ fn reach_of(bound: SocketAddr) -> Vec<SocketAddr> {
     if !bound.ip().is_unspecified() {
         return vec![bound];
     }
-    // The route to TEST-NET-1 names the LAN interface; UDP connect sends nothing.
-    let lan = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))
-        .and_then(|s| s.connect((Ipv4Addr::new(192, 0, 2, 1), 9)).map(|_| s))
-        .and_then(|s| s.local_addr());
-    match lan {
-        Ok(a) if !a.ip().is_unspecified() => vec![SocketAddr::new(a.ip(), bound.port())],
-        _ => vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), bound.port())],
+    match l2_net::nat::lan_ip() {
+        Some(ip) => vec![SocketAddr::new(IpAddr::V4(ip), bound.port())],
+        None => vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), bound.port())],
     }
 }
 

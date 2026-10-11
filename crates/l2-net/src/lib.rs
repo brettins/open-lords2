@@ -60,6 +60,7 @@ pub mod fixed;
 pub mod hash;
 pub mod lobby;
 pub mod lockstep;
+pub mod nat;
 pub mod packet;
 pub mod quirks;
 pub mod replay;
@@ -85,6 +86,7 @@ pub use hash::{xxhash64, XxHash64};
 pub use lobby::{
     Join, Lobby, LobbyError, LobbyEvent, Outgoing, Player, Role, Roster, Start, MAX_NAME,
 };
+pub use nat::{close_port, open_port, Mapping, NatError, Via};
 pub use lockstep::{
     state_digest, state_hash, state_snapshot, Advance, Config, Session, SessionError, Simulation,
 };

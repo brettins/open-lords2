@@ -74,3 +74,22 @@ fn a_host_is_shown_the_address_others_type() {
     let link = Link { phase: Phase::Lobby, hosting: true, reach: vec![lan], ..Link::default() };
     assert!(LobbyScreen::message(&link)[0].starts_with("Others join at 192.168.1.20:4712."));
 }
+
+/// Ablation: `link.port = d.port()` in `net::lobby`; the `PortMap` arms of
+/// `LobbyScreen::message` (C252).
+#[test]
+fn a_host_is_told_what_its_router_did_with_the_port() {
+    use l2_game::net::PortMap;
+    let lan: std::net::SocketAddr = "192.168.1.20:4712".parse().unwrap();
+    let at = |port: PortMap| {
+        let link = Link { phase: Phase::Lobby, hosting: true, reach: vec![lan], port, ..Link::default() };
+        LobbyScreen::message(&link).join(" ")
+    };
+    assert!(at(PortMap::Asking).contains("Asking your router to open port 4712"), "{}", at(PortMap::Asking));
+    let open = at(PortMap::Open { public: "203.0.113.7:4712".parse().unwrap(), via: "NAT-PMP", lifetime: 7200 });
+    assert!(open.starts_with("On your network, others join at 192.168.1.20:4712. Over the internet, at 203.0.113.7:4712 (NAT-PMP opened the port for 2 hours)."), "{open}");
+    assert!(open.contains("firewall"));
+    let shut = at(PortMap::Shut("no router answered NAT-PMP or UPnP".into()));
+    assert!(shut.contains("Over the internet: no router answered NAT-PMP or UPnP. Forward TCP port 4712"), "{shut}");
+    assert_eq!(Link::default().port, PortMap::Off);
+}

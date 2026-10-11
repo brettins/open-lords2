@@ -12542,3 +12542,14 @@ only, where the old latch stays [D] netcode (`docs/netcode.md`; not an oracle qu
 Tests: `a_single_player_map_takes_orders_and_keeps_panels_while_the_turn_is_running`,
 `a_single_player_release_after_end_turn_clears_the_latch`; the two old refusals now run
 with `multiplayer` set.
+
+**C252 — The host opens its own port: NAT-PMP, then UPnP, std-only, best effort.**
+`docs/netcode.md` §7 requirement 5 ("two people on ordinary home connections") was blocked
+on NAT with the honest status "unknown". The cheapest half that needs no server is the host
+asking its router: `crates/l2-net/src/nat/` (RFC 6886 first, UPnP IGD 1.0 `WANIPConnection`
+second), run off the loop by `Driver::host`, with the lobby naming the public address or
+the router's refusal. [V] live once against this house's router: NAT-PMP mapped TCP 4712 in
+0.2 s and closed it. Not done, and said so: relay and invite code stay in
+`lobby-modern-ux-idea`; CGNAT and routers with both protocols off still need a hand-forwarded
+port. Tests: `l2-net/tests/nat.rs` (fake gateways on loopback), `net_game`
+`a_host_is_told_what_its_router_did_with_the_port`.

@@ -28,6 +28,18 @@ pub enum Phase {
     Started,
 }
 
+/// The host's port on its router (C252): asked of NAT-PMP, then UPnP, off the loop.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub enum PortMap {
+    /// Not hosting, or hosting on loopback.
+    #[default]
+    Off,
+    Asking,
+    Open { public: std::net::SocketAddr, via: &'static str, lifetime: u32 },
+    /// No router opened it; why, in the router's words.
+    Shut(String),
+}
+
 /// Who this seat is, set by the setup screen before the lobby opens.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identity {
@@ -46,6 +58,7 @@ pub struct Link {
     pub hosting: bool,
     /// Where the others reach this host, for the lobby screen.
     pub reach: Vec<std::net::SocketAddr>,
+    pub port: PortMap,
     /// What a replay rebuilds the world from.
     pub origin: Option<Box<super::replay::Origin>>,
     /// A lockstep session runs this world: `Game::issue` queues into `outbox`.
@@ -135,6 +148,9 @@ pub fn lobby(
             (Request::Ready(r), Some(d), _) => d.set_ready(r),
             (Request::Start, Some(d), _) => d.start().map(|_| ()),
             (Request::Leave, _, _) => {
+                if let Some(d) = driver.as_mut() {
+                    d.release();
+                }
                 *driver = None;
                 link.phase = Phase::Idle;
                 Ok(())
@@ -163,6 +179,7 @@ pub fn lobby(
     link.me = d.me();
     link.hosting = d.lobby().role() == l2_net::Role::Host;
     link.reach = d.reach().to_vec();
+    link.port = d.port().clone();
     // The host's own `start` is not echoed back to it.
     started.or_else(|| d.lobby().started().cloned().filter(|_| link.hosting))
 }

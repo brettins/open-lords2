@@ -38,8 +38,9 @@ description = "Deterministic primitives, lockstep session core and transport sea
 #   reference vectors in tests/hash.rs are for.
 #
 # Nothing here uses `std::fs` or `std::thread`. `std::net` and
-# `std::time::Duration` appear in exactly one module — `src/tcp.rs`,
-# which is docs/netcode.md §7's TCP transport — and in `tests/tcp.rs`.
+# `std::time::Duration` appear in two modules — `src/tcp.rs`, which is
+# docs/netcode.md §7's TCP transport, and `src/nat/`, the host's port
+# mapping (C252; it alone reads `/proc/net/route`) — and in their tests.
 # Nowhere else in the crate may touch a socket or a clock: that boundary
 # is what keeps the determinism tests free of the scheduler. See the
 # "What is not here" section of src/lib.rs and the module docs of

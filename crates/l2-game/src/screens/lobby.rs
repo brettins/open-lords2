@@ -6,7 +6,7 @@
 use l2_view::Canvas;
 
 use crate::input::{Event, Key, Rect};
-use crate::net::{Link, Phase, Request, DEFAULT_PORT};
+use crate::net::{Link, Phase, PortMap, Request, DEFAULT_PORT};
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
 use crate::screens::setup::SetupPage;
 use crate::shell::{self, font, Pen};
@@ -215,10 +215,24 @@ impl LobbyScreen {
             Phase::Connecting(to) => format!("Connecting to {to}..."),
             Phase::Lobby if link.hosting => {
                 let at: Vec<String> = link.reach.iter().map(|a| a.to_string()).collect();
-                format!(
-                    "Others join at {}. If Windows asks, allow the game through its firewall.",
-                    at.join(" or ")
-                )
+                let at = at.join(" or ");
+                let port = link.reach.first().map_or(DEFAULT_PORT, |a| a.port());
+                const FIREWALL: &str = "If Windows asks, allow the game through its firewall.";
+                match &link.port {
+                    PortMap::Off => format!("Others join at {at}. {FIREWALL}"),
+                    PortMap::Asking => format!(
+                        "On your network, others join at {at}. Asking your router to open port {port} for the internet..."
+                    ),
+                    PortMap::Open { public, via, lifetime } => {
+                        let span = if *lifetime == 0 { "until you leave".to_string() } else { format!("for {} hours", lifetime / 3600) };
+                        format!(
+                            "On your network, others join at {at}. Over the internet, at {public} ({via} opened the port {span}). {FIREWALL}"
+                        )
+                    }
+                    PortMap::Shut(why) => format!(
+                        "On your network, others join at {at}. Over the internet: {why}. Forward TCP port {port} on your router to this machine by hand, then give your public address. {FIREWALL}"
+                    ),
+                }
             }
             _ => return Vec::new(),
         };

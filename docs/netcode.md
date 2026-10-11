@@ -45,7 +45,7 @@ That list sat on the status page as untested. Taken one at a time, it deserves a
 | **Head-of-line blocking** | **Tested.** One peer stalls for hundreds of iterations while its packets are held; the other reports `Waiting` naming the absent slot, does not advance a single tick, and both reach identical checksums once it resumes. This is the one that could corrupt a game. |
 | **MTU / fragmentation** | **Tested**, in the only form this layer can see: framing must not care where the stream was cut. A frame is delivered **one byte at a time**, 64 frames arrive glued into a single read, and a message at `MAX_FRAME` crosses a real socket intact. |
 | **Loss and reordering** | **Not testable here, because TCP has already handled them.** A byte stream does not lose or reorder; it delivers in order or it fails. A test that "drops packets" through `TcpTransport` would be theatre — the code under test never sees it. The failure that replaces them, the connection breaking, is covered in `tests/tcp.rs`; reordering at the *session* layer, where packets from different peers arrive in any order, is covered in `tests/lockstep.rs`. |
-| **NAT** | **Not tested, and not testable on one machine.** Two peers on loopback traverse nothing. This is a real gap and nothing in `tests/resilience.rs` should be read as covering it. It needs two machines on different networks, and until that happens the honest status is "unknown". |
+| **NAT** | **Half answered (C252).** Two peers on loopback traverse nothing, so nothing in `tests/resilience.rs` covers it. What a host can do alone is open its own port: `nat::open_port` asks the router by NAT-PMP (RFC 6886) and then UPnP IGD, and the lobby shows the public address it got back. Exercised against fake gateways on loopback in `tests/nat.rs`, and once live against the home router (`LORDS2_NAT_LIVE=1`: NAT-PMP, 0.2 s). A joiner behind its own NAT needs nothing; two hosts behind CGNAT, or a router with both protocols off, still need a hand-forwarded port or the deferred relay. The two-machine game remains untested. |
 
 > **Fidelity is this project's method everywhere except here.** Everywhere else, where our
 > engine and `Lords2.exe` disagree the binary is right; in this document it is not an
@@ -1076,6 +1076,22 @@ waiting for an ACK, which is the wrong behaviour for one small
   point in the tick and never ask "has anything arrived yet?" mid-tick: how much
   has arrived by any given instant is exactly the sort of scheduler-dependent
   value D-5 forbids from reaching `step()`.
+
+### Reaching the host through a home router (C252)
+
+Requirement 5 is mostly a NAT problem: the joiner's connection is outbound and every router
+allows it; the host's port is inbound and no router does. `crates/l2-net/src/nat/` opens it
+from the host's side, best effort and off the app loop (`Driver::host` spawns the thread,
+`pump` collects the answer): NAT-PMP first, because it is one UDP exchange and answers in a
+quarter of a second, then UPnP IGD (SSDP discovery, the description XML, `AddPortMapping`
+by SOAP over a sixty-line HTTP client). Both are `std::net` only, which is requirement 2.
+The lease is two hours (`nat::LEASE`), which is enough because the host takes no one new
+after `Start`; leaving the lobby deletes the mapping, ending a game lets it lapse.
+
+What it does not do, on purpose: no relay and no invite code (the deferred
+`lobby-modern-ux-idea`), no IPv6, no NAT-PMP renewal, no retry on a port conflict. The
+lobby line names the outcome in the router's words, so a host whose router said no is told
+to forward the port by hand rather than left to wonder.
 
 ### The alternatives, and why none of them wins today
 
