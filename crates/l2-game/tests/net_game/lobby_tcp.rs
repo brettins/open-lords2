@@ -101,7 +101,11 @@ fn a_mismatched_ruleset_is_refused_on_the_joining_screen() {
     let (_, client) = two_peers(modded);
     let why = client.expect_err("a modded client joined");
     assert!(why.contains("mod set differs"), "{why}");
-    let link = Link { phase: Phase::Failed(why), ..Link::default() };
-    let items = l2_game::screens::lobby::LobbyScreen::items(&link);
-    assert_eq!(items[0], l2_game::screens::lobby::Item::Host, "the screen offers Host/Join again");
+    let mut game = Game::new(1);
+    game.net = Link { phase: Phase::Failed(why), ..Link::default() };
+    let mut screen = l2_game::screens::lobby::LobbyScreen::new();
+    let assets = l2_game::game::Assets::placeholder();
+    l2_game::screen::Screen::update(&mut screen, &mut l2_game::screen::Ctx { game: &mut game, assets: &assets });
+    let items = screen.items(&game.net);
+    assert_eq!(items[0], l2_game::screens::lobby::Item::Connect, "the join page offers Join again");
 }

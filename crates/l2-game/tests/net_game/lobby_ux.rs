@@ -3,6 +3,7 @@
 
 use crate::seats::setup;
 use l2_game::net::{self, Driver, Identity, Link, Phase, Request};
+use l2_game::screen::Screen;
 use l2_game::screens::lobby::{Item, LobbyScreen};
 use l2_game::Game;
 use l2_kingdom::tables::Tables;
@@ -40,7 +41,10 @@ fn a_join_to_a_closed_port_connects_off_the_ui_thread_and_says_why_it_failed() {
     let mut driver: Option<Driver> = None;
     let _ = net::lobby(&mut driver, &mut game, None, Tables::DEFAULT);
     assert!(matches!(game.net.phase, Phase::Connecting(_)), "{:?}", game.net.phase);
-    assert_eq!(LobbyScreen::items(&game.net), vec![Item::Leave], "only Leave while connecting");
+    let mut screen = LobbyScreen::new();
+    let assets = l2_game::game::Assets::placeholder();
+    screen.update(&mut l2_game::screen::Ctx { game: &mut game, assets: &assets });
+    assert_eq!(screen.items(&game.net), vec![Item::Back], "only Back while connecting");
     assert!(LobbyScreen::message(&game.net)[0].starts_with("Connecting to 127.0.0.1:"));
     let (why, longest) = until_failed(&mut game, &mut driver);
     assert!(longest < Duration::from_millis(250), "one pass held the window {longest:?}");

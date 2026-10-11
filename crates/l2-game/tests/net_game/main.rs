@@ -9,6 +9,7 @@ mod live_tcp;
 mod live_desync;
 mod live_drop;
 mod lobby_ux;
+mod lobby_room;
 mod loopback;
 mod seat_view;
 mod live_siege;

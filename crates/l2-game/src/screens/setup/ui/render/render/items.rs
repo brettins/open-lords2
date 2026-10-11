@@ -32,9 +32,8 @@ impl SetupScreen {
                 //
                 // arm: 0x00432B05/multiplayer-clears-campaign left-release
                 self.campaign = false;
-                // 00430000.c:558 `DAT_0055302c = 2`.
-                (self.network, self.via_skirmish) = (true, false);
-                self.go(SetupPage::Shield)
+                // [D] C255: the lobby's entry page first; Host a game opens page 4 as `SetupScreen::new(Shield)`.
+                Transition::Push(ScreenId::Lobby)
             }
             // `FUN_00432B05`'s hotspot 4 — *"Lords of Magic?"* — is the THIRD
             // record of `DAT_004DCB48` and carries hotspot id 4, which is what
@@ -171,6 +170,10 @@ impl SetupScreen {
     ///
     /// `docs/decisions.md` C117.
     pub(crate) fn go(&mut self, page: SetupPage) -> Transition {
+        // [D] C255: the host path's Back and Escape return to the lobby's entry page, not page 1.
+        if page == SetupPage::Title && self.network {
+            return Transition::Replace(ScreenId::Lobby);
+        }
         if page == SetupPage::Shield && self.page != SetupPage::Shield {
             // arm: 0x00432B05/name-field-open left-release
             self.name = begin_name(&self.saved_name);

@@ -36,7 +36,9 @@ impl SetupScreen {
             failure: None,
             campaign: false,
             via_skirmish: false,
-            network: false,
+            // [D] C255: `FUN_00432B05` 00430000.c:558 `DAT_0055302c = 2` on the title's arm; ours is
+            // set when the lobby's Host a game builds a screen at page 4, the title's own path being `go`.
+            network: page == SetupPage::Shield,
             autosave: false,
             track: crate::victory::Track::First,
             name: begin_name(text::DEFAULT_PLAYER_NAME),
