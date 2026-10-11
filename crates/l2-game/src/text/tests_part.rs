@@ -45,6 +45,20 @@ mod tests {
         assert_eq!(f.text(), "abcd");
     }
 
+    /// Ablation: the `0x3A if self.kind == Kind::Address` arm of `type_char`.
+    #[test]
+    fn an_address_field_takes_the_colon_a_name_field_refuses() {
+        let mut f = TextField::begin("127.0.0.1:4712", 40, 10_000, Kind::Address);
+        typed(&mut f, "192.168.1.20:4712");
+        assert_eq!(f.text(), "192.168.1.20:4712");
+        let mut code = TextField::begin("", 40, 10_000, Kind::Address);
+        typed(&mut code, "ABCDEF");
+        assert_eq!(code.text(), "ABCDEF");
+        let mut name = text("", 40);
+        typed(&mut name, "a:b");
+        assert_eq!(name.text(), "ab");
+    }
+
     #[test]
     fn the_filter_is_the_originals_seven_ranges() {
         let mut f = text("", 64);
