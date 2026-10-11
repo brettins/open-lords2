@@ -6,6 +6,7 @@ use crate::game::{Assets, Game};
 use l2_kingdom::tables::Tables;
 use l2_kingdom::Quirks;
 use super::link::PortMap;
+use super::relay;
 use l2_net::{
     decode_all, Canonical, Hello, Lobby, LobbyError, LobbyEvent, Mapping, Message, NatError,
     PeerId, PlayerSlot, Role, Roster, Start, TcpTransport, Transport,
@@ -33,6 +34,8 @@ pub struct Driver {
     mapping: Option<Receiver<Result<Mapping, NatError>>>,
     mapped: Option<Mapping>,
     port: PortMap,
+    /// The join-code service's control connection (C254); a client has none.
+    relay: Option<relay::Host>,
 }
 
 impl Driver {
@@ -61,6 +64,7 @@ impl Driver {
             mapping: None,
             mapped: None,
             port: PortMap::Off,
+            relay: None,
         };
         if let Some(bound) = bound.filter(|b| b.ip().is_unspecified()) {
             let (tx, rx) = mpsc::channel();
@@ -73,8 +77,16 @@ impl Driver {
         Ok(d)
     }
 
+    /// A host asks the join-code service for a code (C254); off the loop.
+    pub fn with_relay(mut self, relay: Option<String>) -> Driver {
+        if let Some(at) = relay.filter(|_| self.lobby.role() == Role::Host) {
+            self.relay = Some(relay::Host::open(at));
+        }
+        self
+    }
+
     /// Returns at once; the connect (at most `CONNECT_TIMEOUT`) runs on a thread
-    /// and [`Driver::pump`] picks it up.
+    /// and [`Driver::pump`] picks it up. A code goes through `relay::configured()`.
     pub fn join(
         address: &str,
         hello: Hello,
@@ -82,12 +94,34 @@ impl Driver {
         shield: u8,
         quirks: Quirks,
     ) -> Result<Driver, String> {
+        Driver::join_via(address, relay::configured().as_deref(), hello, name, shield, quirks)
+    }
+
+    /// `address` as six symbols of the code alphabet is a join code (C254):
+    /// `JOIN 1 <code>` at `relay`, else the address path.
+    pub fn join_via(
+        address: &str,
+        relay: Option<&str>,
+        hello: Hello,
+        name: &str,
+        shield: u8,
+        quirks: Quirks,
+    ) -> Result<Driver, String> {
+        let code = l2_relay::as_code(address);
+        let relay = match (&code, relay) {
+            (Some(_), None) => return Err(relay::NOT_CONFIGURED.into()),
+            (_, relay) => relay.map(String::from),
+        };
         let mut lobby = Lobby::join(hello, name).map_err(|e| e.to_string())?.with_shield(shield);
         lobby.greet().map_err(|e| e.to_string())?;
         let (tx, rx) = mpsc::channel();
         let address = address.trim().to_string();
         std::thread::spawn(move || {
-            let _ = tx.send(connect(&address));
+            let _ = tx.send(match (code, relay) {
+                (Some(code), Some(at)) => relay::join(&at, &code)
+                    .and_then(|s| TcpTransport::adopt(s, HOST).map_err(|e| e.to_string())),
+                _ => connect(&address),
+            });
         });
         Ok(Driver {
             transport: None,
@@ -98,7 +132,18 @@ impl Driver {
             mapping: None,
             mapped: None,
             port: PortMap::Off,
+            relay: None,
         })
+    }
+
+    /// The host's join code, once the service answered (C254).
+    pub fn code(&self) -> Option<&str> {
+        self.relay.as_ref()?.code()
+    }
+
+    /// Why there is no code, in the player's words (C254).
+    pub fn relay_status(&self) -> Option<&str> {
+        self.relay.as_ref()?.status()
     }
 
     pub fn is_connecting(&self) -> bool {
@@ -199,6 +244,12 @@ impl Driver {
         }
         let mut started = None;
         let Some(transport) = self.transport.as_mut() else { return Ok(None) };
+        if let Some(relay) = self.relay.as_mut() {
+            for stream in relay.pump() {
+                // A stream the relay paired: `add` numbers it like an accepted one (C254).
+                let _ = transport.add(stream);
+            }
+        }
         while let Some((peer, bytes)) = transport.poll() {
             let Ok(message) = decode_all::<Message>(&bytes) else { continue };
             match self.lobby.receive(peer, message) {

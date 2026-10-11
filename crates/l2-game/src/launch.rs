@@ -45,6 +45,8 @@ pub(crate) fn args() -> Args {
                 n.host = Some(port.unwrap_or(l2_game::net::DEFAULT_PORT));
             }
             "--join" => n.join = Some(it.next().unwrap_or_else(|| crate::usage()).clone()),
+            // `--relay host:port` is read where `Driver` asks for it (C254).
+            "--relay" => l2_game::net::configure_relay(it.next().unwrap_or_else(|| crate::usage())),
             "--players" => {
                 n.players = it.next().and_then(|v| v.parse().ok()).or_else(|| crate::usage())
             }

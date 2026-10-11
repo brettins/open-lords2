@@ -49,7 +49,8 @@ pub(super) fn translate(key: &WinitKey, ctrl: bool) -> Option<Key> {
 
 pub(crate) fn usage() -> ! {
     eprintln!("usage: l2-game <game dir> [--mods <dir>] [--no-sound] [--verify-replay <file>]");
-    eprintln!("               [--host [port] | --join <addr>] [--players <n>] [--name <text>] [--shield <1-5>]");
+    eprintln!("               [--host [port] | --join <addr|code>] [--relay <host:port>] [--players <n>]");
+    eprintln!("               [--name <text>] [--shield <1-5>]");
     eprintln!();
     eprintln!("  <game dir>   a Lords of the Realm II install: Lords2.exe, L2_maps.dat,");
     eprintln!("               the fonts, the artwork and the tile sets. Never written to.");
@@ -60,7 +61,10 @@ pub(crate) fn usage() -> ! {
     eprintln!("               replay a recorded network game (.l2nr) and check every");
     eprintln!("               tick's checksum; exits 0 when bit-exact, 1 otherwise.");
     eprintln!("  --host [port]  open the lobby hosting on every interface (default port 4712).");
-    eprintln!("  --join <addr>  open the lobby and join the host at host:port.");
+    eprintln!("  --join <addr|code>  open the lobby and join the host at host:port, or by");
+    eprintln!("               its six-letter join code.");
+    eprintln!("  --relay <host:port>  the join-code service (else LORDS2_RELAY, else the");
+    eprintln!("               build's default); a host shows a code, a joiner may type one.");
     eprintln!("  --players <n>  a host presses Start when n seats are ready; a joiner");
     eprintln!("               presses Ready at once.");
     eprintln!("  --name, --shield  this seat's name and shield (1-5); else the preferences'.");

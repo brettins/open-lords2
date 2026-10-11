@@ -817,6 +817,7 @@ dependencies = [
  "l2-kingdom",
  "l2-mods",
  "l2-net",
+ "l2-relay",
  "l2-scenario",
  "l2-sim",
  "l2-smk",
@@ -850,6 +851,10 @@ dependencies = [
 
 [[package]]
 name = "l2-net"
+version = "0.1.0"
+
+[[package]]
+name = "l2-relay"
 version = "0.1.0"
 
 [[package]]

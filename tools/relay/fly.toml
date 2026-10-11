@@ -1,0 +1,21 @@
+# fly.io app for l2-relay (C254). Deploy from the repo root:
+#   flyctl deploy --config tools/relay/fly.toml --ha=false --yes
+app = "open-lords2-relay"
+primary_region = "yyz"
+
+[build]
+  dockerfile = "tools/relay/Dockerfile"
+
+[[services]]
+  internal_port = 4714
+  protocol = "tcp"
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[services.ports]]
+    port = 4714
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

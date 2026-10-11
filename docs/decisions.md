@@ -12562,3 +12562,32 @@ desktop shortcut can carry a friend straight to a host. Found on the way: the lo
 marked itself dirty when the roster or the router's answer changed, so a host launched this way
 sat on the idle page while listening; `pump_net` now compares what the page shows before and
 after `net::service`. Tests: `net_game` `players_n_readies_a_joiner_and_starts_the_host_at_n_seats`.
+
+**C254 — A join code instead of an address: `l2-relay`, a std-only TCP relay, and the
+lobby's `Join code: ABCDEF`.** Ours; the original had DirectPlay's lobby and it is dead
+(`docs/netcode.md` Appendix A). C252 left the two cases a host cannot fix alone: CGNAT, and a
+router with NAT-PMP and UPnP both off. The cheapest server that closes them is a relay that
+knows nothing: `crates/l2-relay` (protocol v1 in `docs/netcode.md` §7 *Join codes and the
+relay*) issues a six-symbol code to a host's control connection, tells the host when a joiner
+names it, pairs the host's `ACCEPT` with the waiting joiner and copies bytes until either side
+closes. Zero crates.io dependencies, every file under 300 lines, one binary, a Dockerfile and a
+systemd unit under `tools/relay/`. On the game's side `TcpTransport::add` grows the host's
+transport by an already-connected stream, numbered and reported like an accepted one, so the
+lobby, the roster and the lockstep session never learn the peer came through a relay; a joiner
+whose typed text is six symbols of the alphabet (`l2_relay::as_code`) goes `JOIN 1 <code>` and
+then `TcpTransport::adopt` exactly as the address path does. The relay address is `--relay`,
+then `LORDS2_RELAY`, then `l2_game::net::DEFAULT_RELAY`, which stays `""` until one is deployed;
+with none configured nothing changes, and a code typed anyway is told to type an address.
+Considered: iroh and libp2p give real hole punching and public relays, but each is a large
+dependency tree in front of a transport that is five hundred lines of `std::net`
+(`docs/netcode.md` §7 requirement 2); OpenTTD's Game Coordinator is the model (invite code,
+STUN, relay) and the relay is its half we can run for nothing. A direct connection first,
+using the C252 port mapping and falling back to the relay, is the follow-up. What the relay
+sees is what §8 always said a stranger on the path sees: the game's bytes, unencrypted, and
+it logs none of them. Tests: `l2-relay/tests/relay.rs` (ten, against an in-process relay on
+127.0.0.1: code, wrong code, pairing both ways through a 64 KiB pipe, close propagation, the
+10 s answer timeout, the dead code, the 64-byte line, PING/PONG and the silence drop, the
+alphabet), `l2-net` `an_added_stream_is_a_peer_like_an_accepted_one`, `net_game` `relay`
+(host gets a code, joiner by code reaches Start with it; no relay configured; a wrong code;
+a relay that is down leaves the host hosting by address; the code line is the host's and
+comes first).

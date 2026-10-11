@@ -1,0 +1,23 @@
+# systemd unit for l2-relay, the join-code relay (docs/netcode.md §7, C254).
+# Install: copy the binary to /usr/local/bin/l2-relay, this file to
+# /etc/systemd/system/, then `systemctl enable --now l2-relay`.
+[Unit]
+Description=lords2 join-code relay (TCP 4714)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/local/bin/l2-relay --listen 0.0.0.0:4714
+Restart=always
+RestartSec=2
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+RestrictAddressFamilies=AF_INET AF_INET6
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

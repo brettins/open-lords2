@@ -165,9 +165,9 @@ impl App {
     pub(super) fn pump_net(&mut self) {
         let tables = self.game.kingdom.tables;
         let game = &mut self.game;
-        // The lobby page shows the roster and the router's answer as they come (C253).
+        // The lobby page shows the roster, the router's answer (C253) and the join code (C254) as they come.
         let shown = |l: &l2_game::net::Link| {
-            (l.phase.clone(), l.roster.clone(), l.me, l.hosting, l.reach.clone(), l.port.clone())
+            (l.phase.clone(), l.roster.clone(), l.me, l.hosting, l.reach.clone(), l.port.clone(), l.code.clone(), l.relay.clone())
         };
         let before = shown(&game.net);
         let started = l2_game::net::service(&mut self.net, game, &self.assets, tables);

@@ -45,7 +45,7 @@ That list sat on the status page as untested. Taken one at a time, it deserves a
 | **Head-of-line blocking** | **Tested.** One peer stalls for hundreds of iterations while its packets are held; the other reports `Waiting` naming the absent slot, does not advance a single tick, and both reach identical checksums once it resumes. This is the one that could corrupt a game. |
 | **MTU / fragmentation** | **Tested**, in the only form this layer can see: framing must not care where the stream was cut. A frame is delivered **one byte at a time**, 64 frames arrive glued into a single read, and a message at `MAX_FRAME` crosses a real socket intact. |
 | **Loss and reordering** | **Not testable here, because TCP has already handled them.** A byte stream does not lose or reorder; it delivers in order or it fails. A test that "drops packets" through `TcpTransport` would be theatre — the code under test never sees it. The failure that replaces them, the connection breaking, is covered in `tests/tcp.rs`; reordering at the *session* layer, where packets from different peers arrive in any order, is covered in `tests/lockstep.rs`. |
-| **NAT** | **Half answered (C252).** Two peers on loopback traverse nothing, so nothing in `tests/resilience.rs` covers it. What a host can do alone is open its own port: `nat::open_port` asks the router by NAT-PMP (RFC 6886) and then UPnP IGD, and the lobby shows the public address it got back. Exercised against fake gateways on loopback in `tests/nat.rs`, and once live against the home router (`LORDS2_NAT_LIVE=1`: NAT-PMP, 0.2 s). A joiner behind its own NAT needs nothing; two hosts behind CGNAT, or a router with both protocols off, still need a hand-forwarded port or the deferred relay. The two-machine game remains untested. |
+| **NAT** | **Half answered (C252).** Two peers on loopback traverse nothing, so nothing in `tests/resilience.rs` covers it. What a host can do alone is open its own port: `nat::open_port` asks the router by NAT-PMP (RFC 6886) and then UPnP IGD, and the lobby shows the public address it got back. Exercised against fake gateways on loopback in `tests/nat.rs`, and once live against the home router (`LORDS2_NAT_LIVE=1`: NAT-PMP, 0.2 s). A joiner behind its own NAT needs nothing; two hosts behind CGNAT, or a router with both protocols off, still need a hand-forwarded port or a join code through the relay (C254, below). The two-machine game remains untested. |
 
 > **Fidelity is this project's method everywhere except here.** Everywhere else, where our
 > engine and `Lords2.exe` disagree the binary is right; in this document it is not an
@@ -1088,10 +1088,60 @@ by SOAP over a sixty-line HTTP client). Both are `std::net` only, which is requi
 The lease is two hours (`nat::LEASE`), which is enough because the host takes no one new
 after `Start`; leaving the lobby deletes the mapping, ending a game lets it lapse.
 
-What it does not do, on purpose: no relay and no invite code (the deferred
-`lobby-modern-ux-idea`), no IPv6, no NAT-PMP renewal, no retry on a port conflict. The
-lobby line names the outcome in the router's words, so a host whose router said no is told
-to forward the port by hand rather than left to wonder.
+What it does not do, on purpose: no IPv6, no NAT-PMP renewal, no retry on a port conflict.
+The lobby line names the outcome in the router's words, so a host whose router said no is told
+to forward the port by hand rather than left to wonder. The relay and the invite code it left
+to `lobby-modern-ux-idea` are the next subsection.
+
+### Join codes and the relay (C254)
+
+The two cases C252 cannot reach, CGNAT and a router with both protocols off, need a third
+machine both sides can connect *out* to. `crates/l2-relay` is that machine and nothing more:
+a std-only TCP relay that issues codes and copies bytes. It keeps no accounts and writes
+nothing to disk; a code lives exactly as long as the host's control connection.
+
+**Protocol v1.** TCP, ASCII lines ending in `\n` for the handshake (at most 64 bytes a line),
+then raw bytes piped. The alphabet is `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, 32 symbols with no
+`0`/`O` and no `1`/`I`; a code is 6 of them, a token 8, both random
+(`/dev/urandom`, else the OS-seeded `RandomState` over the clock and a counter).
+
+| Who | Sends | Relay answers |
+|---|---|---|
+| Host, *control* connection | `HOST 1` | `CODE ABCDEF`; later `JOIN <token>` once per joiner; `PING` after 20 s idle |
+| Either side of a control connection | `PING` | `PONG` (the relay drops a control connection silent for 90 s) |
+| Joiner | `JOIN 1 ABCDEF` | `OK` once paired, then bytes; `NO unknown code`; `NO host did not answer` after 10 s; `NO too many waiting` past 4 |
+| Host, a *new* connection per joiner | `ACCEPT 1 <token>` | `OK`, then bytes; `NO unknown token` |
+
+Anything else, an over-long line or an unknown version is closed without an answer. Limits:
+256 live codes, 4 joiners waiting on one code (the game seats 5), 64 KiB buffered per
+direction (one buffer, `write_all` before the next read). The pair closes when either side
+does. The binary logs one line per event, `code issued`, `join`, `pair`, `close`, with the
+code and the host's IP; never a token, never a game byte.
+
+**The game's side** (`l2-game/src/net/relay.rs`, `Driver`). The relay address is `--relay
+host:port`, else `LORDS2_RELAY`, else `l2_game::net::DEFAULT_RELAY`, which is `""` until one
+is deployed; empty is "no code service", and nothing below runs. `Driver::host` listens as
+before and, on a thread, opens the control connection and sends `HOST 1`; the lobby shows
+`Join code: ABCDEF` above the address lines once `CODE` comes back. `pump` reads the control
+connection without blocking (D-5): `PING` is answered, `JOIN <token>` starts a thread that
+connects, sends `ACCEPT 1 <token>`, waits for `OK` and hands the stream to
+`TcpTransport::add`, which numbers it and reports it through `take_joined` like a peer the
+listener accepted. Nothing above the transport learns the peer came through a relay. A relay
+that is unreachable or closes costs the host its code and nothing else; the lobby says
+*"The join-code service at X did not answer. Others can still join by address."*
+`Driver::join` treats six symbols of the alphabet, trimmed and upper-cased, as a code:
+`JOIN 1 <code>` at the relay, `OK` within 12 s, then `TcpTransport::adopt` as the address
+path does. `--join ABCDEF` goes the same way. Refusals are in the player's words: *"No game
+has the code ABCDEF. Check it with the host."*; with no relay configured, *"No join-code
+service is configured. Type the host's address instead."*
+
+**What it does not do.** No hole punching and no direct connection: every byte of a code
+game crosses the relay, one hop of latency on a 10 Hz tick layer that never notices. The
+follow-up is to try the C252 public address first and fall back to the relay. No listing of
+open games, no chat, no persistence: a relay restart drops every code and the lobby shows
+none. The relay sees the game's bytes, unencrypted, which §8 states for anyone on the path;
+`tools/relay/README.md` says so to whoever runs one, and how (VPS with the systemd unit,
+fly.io or Docker with the two-stage Dockerfile, or locally for a LAN).
 
 ### The alternatives, and why none of them wins today
 
@@ -1190,8 +1240,14 @@ have enabled.
   exchanged an address out of band. If this ever ships to strangers, it becomes
   a `Transport` concern and is solved there, not by sprinkling it through the
   simulation.
-- **No matchmaking or lobby service.** The original had one; it is dead (Appendix
-  A), which is a reasonably strong argument about the lifespan of such things.
+- **No matchmaking or lobby service, but a code service (C254).** The original had a
+  lobby service; it is dead (Appendix A), which is a reasonably strong argument about the
+  lifespan of such things. What we run instead is the smallest thing that turns an address
+  into a six-letter code: `l2-relay` issues codes, pairs connections and copies bytes. It
+  lists no games, matches nobody with anybody, keeps no accounts and nothing on disk, and
+  when it dies the game plays by address exactly as before (`DEFAULT_RELAY` is `""` until
+  one is deployed). It sees the game's unencrypted bytes, as the bullet below says anyone on
+  the path does.
 - **No in-session AI takeover of a dropped seat** (C240). A seat whose
   connection closes, or that is silent for sixty seconds (`net::TIMEOUT`), halts the
   session: survivors would have to agree on the tick the seat stopped, and with three

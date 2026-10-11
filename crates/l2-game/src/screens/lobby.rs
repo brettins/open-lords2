@@ -243,6 +243,16 @@ impl LobbyScreen {
             }
             _ => return Vec::new(),
         };
-        crate::net::wrap(&text, MESSAGE_COLS)
+        // C254: the code, or why there is none, before the address lines.
+        let mut lines = Vec::new();
+        if link.phase == Phase::Lobby && link.hosting {
+            if let Some(code) = &link.code {
+                lines.push(format!("Join code: {code}"));
+            } else if let Some(why) = &link.relay {
+                lines.extend(crate::net::wrap(why, MESSAGE_COLS));
+            }
+        }
+        lines.extend(crate::net::wrap(&text, MESSAGE_COLS));
+        lines
     }
 }
