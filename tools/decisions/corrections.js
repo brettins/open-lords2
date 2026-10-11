@@ -302,14 +302,18 @@ function analyse() {
 
   const numbers = [...headings.keys()].sort((a, b) => a - b);
   // One counter above SHARED_FROM: the highest number any series or the ledger has used.
-  const shared = Math.max(ledgerMax(), ...[...series.values()].map(x => x.max));
+  // A tree whose C series has not reached SHARED_FROM (the tool's own test trees)
+  // numbers per series, as before 46d32c4a, and never touches the ledger.
+  const cMax = numbers.length ? Math.max(...numbers) : 0;
+  const sharedMode = cMax >= SHARED_FROM;
+  const shared = sharedMode ? Math.max(ledgerMax(), ...[...series.values()].map(x => x.max)) : cMax;
   const nextFree = shared + 1;
 
   // A gap is not an error — a withdrawn correction leaves one — but say so.
   // Above SHARED_FROM the C, D and Q series draw one counter (~/.claude/ids),
   // so a number spent on a D or a Q is a gap here by design; those are not listed.
   const gaps = [];
-  for (let n = 1; n <= Math.min(SHARED_FROM, shared); n++) if (!headings.has(n)) gaps.push('C' + n);
+  for (let n = 1; n <= (sharedMode ? SHARED_FROM : cMax); n++) if (!headings.has(n)) gaps.push('C' + n);
 
   // ---- rule 2: citations anywhere in the tree ------------------------------
 
@@ -383,7 +387,7 @@ function analyse() {
     }
   })(repo);
 
-  return { defs, malformed, dupes, series, headings, headingFp, numbers, shared, nextFree, gaps, citations, placeholders };
+  return { defs, malformed, dupes, series, headings, headingFp, numbers, shared, sharedMode, nextFree, gaps, citations, placeholders };
 }
 
 // ---- rule 7: every entry-shaped line is an entry ------------------------------
@@ -416,7 +420,9 @@ function reportDupes(A) {
     console.error(`  ${ds[0].id} (${s.name}) is used ${ds.length} times:`);
     for (const d of ds)
       console.error(`    ${d.file}:${d.line}  ${d.title.slice(0, 84)}`);
-    if (!/NEW-/.test(ds[0].id)) console.error(`    the next free number is ${s.letter}${A.nextFree} (one counter for every series)`);
+    if (!/NEW-/.test(ds[0].id)) console.error(A.sharedMode
+      ? `    the next free number is ${s.letter}${A.nextFree} (one counter for every series)`
+      : `    the next free number in that series is ${s.letter}${s.max + 1}`);
   }
   console.error('\nRenumber the LATER arrival: change its heading, then grep the tree for');
   console.error('citations of the old number and move them with it —');
@@ -739,7 +745,7 @@ function assign(A, tag) {
   }
   const def = defs[0];                       // rule 1 has already refused two
   const s = A.series.get(def.file + '\t' + def.letter);
-  const id = def.letter + A.nextFree;   // one counter for every series
+  const id = def.letter + (A.sharedMode ? A.nextFree : s.max + 1);   // one counter for every series above SHARED_FROM
 
   // --assign relocks, and a relock is how a drag is accepted. So a drag already
   // in the tree has to be looked at by a person first, not swept into the lock.
@@ -778,7 +784,7 @@ function assign(A, tag) {
   console.log(`corrections: ${tag} -> ${id}, the next free ${s.name} number in ${def.file}: `
     + `${uses.length} occurrence(s) in ${writes.length} file(s)`);
   for (const [file, n] of perFile) console.log(`  ${file}  ×${n}`);
-  ledgerBump(A.nextFree);
+  if (A.sharedMode) ledgerBump(A.nextFree);
   writeLock(B);
   stageDuringMerge([...perFile.keys(), 'tools/decisions/citations.lock']);
   const left = placeholderPlan(B);
@@ -824,7 +830,12 @@ if (check) {
   if (A.gaps.length) console.log(`  gaps (withdrawn or never written): ${A.gaps.join(', ')}`);
   if (hist) console.log(`  ${hist} citation(s) exempt as deliberately historical`);
   console.log(`  cited nowhere outside the log: ${uncited.map(n => 'C' + n).join(' ') || '(none)'}`);
-  console.log(`  next free number: ${A.nextFree}, with any letter (one counter for every series above C${SHARED_FROM}; ledger ${ledgerFile()})`);
   const others = [...A.series.values()].filter(s => !(s.file === 'docs/decisions.md' && s.letter === 'C'));
-  console.log('  the other series: ' + others.map(s => `${s.letter} (${s.name}, ${s.count} entries, last ${s.letter}${s.max})`).join(', '));
+  if (A.sharedMode) {
+    console.log(`  next free number: ${A.nextFree}, with any letter (one counter for every series above C${SHARED_FROM}; ledger ${ledgerFile()})`);
+    console.log('  the other series: ' + others.map(s => `${s.letter} (${s.name}, ${s.count} entries, last ${s.letter}${s.max})`).join(', '));
+  } else {
+    console.log(`  next free number: C${A.nextFree}`);
+    console.log('  and in the other series: ' + others.map(s => `${s.letter}${s.max + 1} (${s.name}, ${s.count} entries)`).join(', '));
+  }
 }
