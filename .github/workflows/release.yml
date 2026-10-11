@@ -1,0 +1,74 @@
+name: Release
+
+# Player downloads for a friend on either OS. A tag `v*` publishes a GitHub
+# release; "Run workflow" builds the same archives as artifacts without one.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            package: powershell -File tools/run/package.ps1
+            pattern: dist/*.zip
+          # 22.04 for its older glibc: a binary built here runs on anything newer.
+          - name: linux
+            os: ubuntu-22.04
+            package: sh tools/run/package.sh
+            pattern: dist/*.tar.gz
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      # cpal's ALSA back end and winit's keyboard map are the only system
+      # libraries l2-game links on Linux (crates/l2-game/Cargo.toml).
+      - name: Linux build dependencies
+        if: matrix.name == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libx11-dev pkg-config
+
+      - name: Build and package
+        run: ${{ matrix.package }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-lords2-${{ matrix.name }}
+          path: ${{ matrix.pattern }}
+          if-no-files-found: error
+
+  release:
+    name: publish the release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          body: |
+            The engine only: it contains none of the original game's art, sound or data.
+            You need your own copy of Lords of the Realm II (GOG's edition works).
+            Unpack, then run l2-game (l2-game.exe on Windows) and point it at the game folder.
+            See README.txt inside the archive.

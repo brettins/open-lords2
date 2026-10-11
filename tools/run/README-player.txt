@@ -27,7 +27,8 @@ Where your files go
 
 Saves, settings (prefs.ini) and crash reports (crash-<date>-<time>.log) are in
 
-  %APPDATA%\open-lords2\saves
+  %APPDATA%\open-lords2\saves            on Windows
+  ~/.local/share/open-lords2/saves       on Linux
 
 Set LORDS2_SAVES to put them elsewhere. If the game stops unexpectedly, the
 crash report there is what to attach to a bug report.
@@ -44,13 +45,28 @@ Everything else is the original's controls; its manual applies.
 Multiplayer
 -----------
 
-Games are hosted over TCP, port 4712 by default. The host must allow that port
-through its firewall (and forward it on the router for play over the internet).
+Setup -> Multiple players -> Start opens the lobby. Games are hosted over TCP,
+port 4712 by default. The host must allow that port through its firewall; the
+game asks the router to open it (NAT-PMP or UPnP) and the lobby shows the
+address to give the others, on the network and over the internet. If the
+router says no, forward TCP 4712 to the host by hand.
+
+Both players need the same build of this engine and their own copy of the game.
 
 Command line
 ------------
 
-  l2-game.exe [<game folder>] [--mods <dir>] [--no-sound]
+  l2-game [<game folder>] [--mods <dir>] [--no-sound]
+          [--host [port] | --join <host:port>] [--players <n>]
+          [--name <text>] [--shield <1-5>]
+
+  --host opens the lobby hosting at once; --join opens it joining that host.
+  With --players, a host presses Start when that many seats are ready and a
+  joiner presses Ready at once, so a shortcut can carry a friend straight in.
+
+On Linux the binary is l2-game; give it the game folder the same way:
+
+  ./l2-game "/path/to/Lords of the Realm II"
 
 Licence
 -------
