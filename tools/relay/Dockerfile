@@ -10,4 +10,5 @@ FROM debian:bookworm-slim
 COPY --from=build /src/target/release/l2-relay /usr/local/bin/l2-relay
 USER nobody
 EXPOSE 4714
-ENTRYPOINT ["/usr/local/bin/l2-relay", "--listen", "0.0.0.0:4714"]
+# `[::]` is dual-stack on Linux (bindv6only=0): v4 and v6 on one socket.
+ENTRYPOINT ["/usr/local/bin/l2-relay", "--listen", "[::]:4714"]
