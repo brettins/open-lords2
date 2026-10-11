@@ -81,7 +81,7 @@ fn main() {
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let launch::Args { dir, mods, sound, verify } = launch::args();
+    let launch::Args { dir, mods, sound, verify, net } = launch::args();
     let prefs = l2_game::prefs::load();
     let dir = launch::install_dir(dir, &prefs);
     if let Some(path) = verify {
@@ -134,7 +134,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     // **And over it, the intro** — `App_WinMain`'s `FUN_004B3571(0)`, which
     // chains to the Impressions logo and the credits before the title page is
     // seen. A missing film goes straight to the title page.
-    l2_game::movie::start_up(&mut machine);
+    match &net {
+        Some(flags) => {
+            launch::open_lobby(&mut game, flags);
+            machine.push(ScreenId::Lobby);
+        }
+        None => l2_game::movie::start_up(&mut machine),
+    }
 
     let mut app = App {
         game,

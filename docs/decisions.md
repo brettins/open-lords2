@@ -12553,3 +12553,12 @@ the router's refusal. [V] live once against this house's router: NAT-PMP mapped 
 `lobby-modern-ux-idea`; CGNAT and routers with both protocols off still need a hand-forwarded
 port. Tests: `l2-net/tests/nat.rs` (fake gateways on loopback), `net_game`
 `a_host_is_told_what_its_router_did_with_the_port`.
+
+**C253 — `--host [port]` and `--join <addr>` open the lobby from the command line; `--players n`
+plays the lobby's buttons.** Ours. A host with `--players 2` presses Start when two seats are
+ready; a joiner with `--players` presses Ready at once. Two instances on one machine reached
+Winter 1268 together from a shell, which is how a two-machine game gets rehearsed and how a
+desktop shortcut can carry a friend straight to a host. Found on the way: the lobby page never
+marked itself dirty when the roster or the router's answer changed, so a host launched this way
+sat on the idle page while listening; `pump_net` now compares what the page shows before and
+after `net::service`. Tests: `net_game` `players_n_readies_a_joiner_and_starts_the_host_at_n_seats`.

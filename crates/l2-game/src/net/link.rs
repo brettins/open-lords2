@@ -59,6 +59,8 @@ pub struct Link {
     /// Where the others reach this host, for the lobby screen.
     pub reach: Vec<std::net::SocketAddr>,
     pub port: PortMap,
+    /// `--players n` (C253): a host starts at n ready seats, a joiner readies at once.
+    pub auto: Option<u8>,
     /// What a replay rebuilds the world from.
     pub origin: Option<Box<super::replay::Origin>>,
     /// A lockstep session runs this world: `Game::issue` queues into `outbox`.
@@ -180,6 +182,17 @@ pub fn lobby(
     link.hosting = d.lobby().role() == l2_net::Role::Host;
     link.reach = d.reach().to_vec();
     link.port = d.port().clone();
+    if let Some(n) = link.auto {
+        let me = link.me.and_then(|s| link.roster.get(s));
+        let all_ready = link.roster.players.iter().all(|p| p.is_host || p.ready);
+        if link.hosting && link.roster.len() >= n as usize && all_ready {
+            link.requests.push(Request::Start);
+            link.auto = None;
+        } else if !link.hosting && me.is_some_and(|p| !p.ready) {
+            link.requests.push(Request::Ready(true));
+            link.auto = None;
+        }
+    }
     // The host's own `start` is not echoed back to it.
     started.or_else(|| d.lobby().started().cloned().filter(|_| link.hosting))
 }

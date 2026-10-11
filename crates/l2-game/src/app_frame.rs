@@ -165,7 +165,16 @@ impl App {
     pub(super) fn pump_net(&mut self) {
         let tables = self.game.kingdom.tables;
         let game = &mut self.game;
-        if let Some(world) = l2_game::net::service(&mut self.net, game, &self.assets, tables) {
+        // The lobby page shows the roster and the router's answer as they come (C253).
+        let shown = |l: &l2_game::net::Link| {
+            (l.phase.clone(), l.roster.clone(), l.me, l.hosting, l.reach.clone(), l.port.clone())
+        };
+        let before = shown(&game.net);
+        let started = l2_game::net::service(&mut self.net, game, &self.assets, tables);
+        if shown(&game.net) != before {
+            self.machine.mark_dirty();
+        }
+        if let Some(world) = started {
             self.game = world;
             self.machine.mark_dirty();
             // `[I]` the replay's seed; the world carries its own from `Start`.

@@ -14,16 +14,44 @@ pub(crate) struct Args {
     pub mods: Option<PathBuf>,
     pub sound: bool,
     pub verify: Option<PathBuf>,
+    pub net: Option<NetFlags>,
+}
+
+/// `--host [port]` or `--join <addr>` opens the lobby at once (C253).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct NetFlags {
+    pub host: Option<u16>,
+    pub join: Option<String>,
+    /// Host: Start when this many seats are ready. Joiner: Ready at once.
+    pub players: Option<u8>,
+    pub name: Option<String>,
+    pub shield: Option<u8>,
 }
 
 pub(crate) fn args() -> Args {
-    let mut a = Args { dir: None, mods: None, sound: true, verify: None };
+    let mut a = Args { dir: None, mods: None, sound: true, verify: None, net: None };
+    let mut n = NetFlags { host: None, join: None, players: None, name: None, shield: None };
     let argv: Vec<String> = std::env::args().skip(1).collect();
-    let mut it = argv.iter();
+    let mut it = argv.iter().peekable();
     while let Some(s) = it.next() {
         match s.as_str() {
             "--mods" => a.mods = Some(PathBuf::from(it.next().unwrap_or_else(|| crate::usage()))),
             "--no-sound" => a.sound = false,
+            "--host" => {
+                let port = it.peek().and_then(|p| p.parse::<u16>().ok());
+                if port.is_some() {
+                    it.next();
+                }
+                n.host = Some(port.unwrap_or(l2_game::net::DEFAULT_PORT));
+            }
+            "--join" => n.join = Some(it.next().unwrap_or_else(|| crate::usage()).clone()),
+            "--players" => {
+                n.players = it.next().and_then(|v| v.parse().ok()).or_else(|| crate::usage())
+            }
+            "--name" => n.name = Some(it.next().unwrap_or_else(|| crate::usage()).clone()),
+            "--shield" => {
+                n.shield = it.next().and_then(|v| v.parse().ok()).filter(|v| (1..=5).contains(v)).or_else(|| crate::usage())
+            }
             "--verify-replay" => {
                 a.verify = Some(PathBuf::from(it.next().unwrap_or_else(|| crate::usage())))
             }
@@ -31,7 +59,34 @@ pub(crate) fn args() -> Args {
             other => a.dir = Some(PathBuf::from(other)),
         }
     }
+    if n.host.is_some() && n.join.is_some() {
+        crate::usage();
+    }
+    if n.host.is_some() || n.join.is_some() {
+        a.net = Some(n);
+    }
     a
+}
+
+/// The lobby as the flags asked for it, instead of the title page and the intro.
+pub(crate) fn open_lobby(game: &mut l2_game::Game, flags: &NetFlags) {
+    use l2_game::net::{Identity, Request, Setup};
+    let name = flags
+        .name
+        .clone()
+        .unwrap_or_else(|| game.prefs.kept.player_name.as_str().to_string());
+    game.net.identity = Some(Identity {
+        name,
+        shield: flags.shield.unwrap_or(1),
+        setup: Setup { map: 0, options: game.prefs.kept.setup },
+    });
+    game.net.auto = flags.players;
+    let request = match (&flags.host, &flags.join) {
+        (Some(port), _) => Request::Host { addr: Request::every_interface(*port) },
+        (None, Some(address)) => Request::Join { address: address.clone() },
+        (None, None) => return,
+    };
+    game.net.requests.push(request);
 }
 
 pub(crate) fn fatal(text: &str) -> ! {

@@ -93,3 +93,30 @@ fn a_host_is_told_what_its_router_did_with_the_port() {
     assert!(shut.contains("Over the internet: no router answered NAT-PMP or UPnP. Forward TCP port 4712"), "{shut}");
     assert_eq!(Link::default().port, PortMap::Off);
 }
+
+/// Ablation: the `link.auto` block in `net::lobby` (C253).
+#[test]
+fn players_n_readies_a_joiner_and_starts_the_host_at_n_seats() {
+    let mut host = Game::new(1);
+    host.net.identity = Some(Identity { name: "Richard".into(), shield: 4, setup: setup() });
+    host.net.auto = Some(2);
+    host.net.requests.push(Request::Host { addr: crate::loopback::ANY_PORT });
+    let mut hd: Option<Driver> = None;
+    let _ = net::lobby(&mut hd, &mut host, None, Tables::DEFAULT);
+    let bound = hd.as_ref().and_then(|d| d.local_addr()).expect("listening");
+    let mut joiner = Game::new(1);
+    joiner.net.identity = Some(Identity { name: "John".into(), shield: 2, setup: setup() });
+    joiner.net.auto = Some(1);
+    joiner.net.requests.push(Request::Join { address: bound.to_string() });
+    let mut jd: Option<Driver> = None;
+    let until = Instant::now() + Duration::from_secs(10);
+    let (mut hs, mut js) = (None, None);
+    while Instant::now() < until && (hs.is_none() || js.is_none()) {
+        hs = hs.or(net::lobby(&mut hd, &mut host, None, Tables::DEFAULT));
+        js = js.or(net::lobby(&mut jd, &mut joiner, None, Tables::DEFAULT));
+        assert!(!matches!(joiner.net.phase, Phase::Failed(_)), "{:?}", joiner.net.phase);
+        std::thread::sleep(Duration::from_millis(5));
+    }
+    assert!(hs.is_some(), "host never started: {:?}", host.net.roster);
+    assert_eq!(hs.map(|s| s.seed), js.map(|s| s.seed), "both seats start the same game");
+}
