@@ -65,7 +65,20 @@ fn pump_until(
 /// `relay::join`'s arm in `join_via`, or of `link.code = d.code()` in `net::lobby`.
 #[test]
 fn a_host_gets_a_code_and_a_joiner_by_code_reaches_start_with_it() {
-    let at = relay_at();
+    host_and_join_through(relay_at());
+}
+
+/// The same path against the deployed relay (`DEFAULT_RELAY`), when asked:
+/// `LORDS2_RELAY_LIVE=1`. The first connection may wait for the machine to wake.
+#[test]
+fn the_live_relay_pairs_a_host_and_a_joiner_by_code_when_asked() {
+    if std::env::var_os("LORDS2_RELAY_LIVE").is_none() {
+        return;
+    }
+    host_and_join_through(relay::DEFAULT_RELAY.to_string());
+}
+
+fn host_and_join_through(at: String) {
     let (mut host, host_id) = seat("Richard", 4, Some(2));
     let mut hd = Some(host_driver(&host_id, host.chosen_gold, Some(at.clone())));
     pump_until(&mut host, &mut hd, |g| g.net.code.is_some());
@@ -76,6 +89,7 @@ fn a_host_gets_a_code_and_a_joiner_by_code_reaches_start_with_it() {
     let shown = LobbyScreen::message(&host.net);
     assert_eq!(shown[0], format!("Join code: {code}"));
     assert!(shown[1].starts_with("Others join at 127.0.0.1:"), "{shown:?}");
+    eprintln!("relay {at}: code {code}");
 
     let (mut joiner, joiner_id) = seat("John", 2, Some(1));
     let typed = format!(" {} ", code.to_ascii_lowercase());
