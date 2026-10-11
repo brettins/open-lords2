@@ -25,7 +25,8 @@ const MESSAGE_Y: i32 = 0x130;
 const MESSAGE_COLS: usize = 44;
 const LINE: i32 = 14;
 const ADDRESS_LEN: usize = 40;
-const ADDRESS_PX: i32 = 0x100;
+const ADDRESS_PX: i32 = 0xC0;
+const FIELD_X: i32 = LEFT + 0x50;
 /// DAT_00553114's pick, as the setup pages paint it: 0xF9 over 0x3F.
 const SELECTED: u8 = 0xF9;
 
@@ -45,7 +46,7 @@ pub struct LobbyScreen {
 
 impl LobbyScreen {
     pub fn new() -> LobbyScreen {
-        let address = TextField::begin(&Link::default_address(), ADDRESS_LEN, ADDRESS_PX, Kind::Text);
+        let address = TextField::begin(&Link::default_address(), ADDRESS_LEN, ADDRESS_PX, Kind::Address);
         LobbyScreen { address, selected: 0 }
     }
 
@@ -186,8 +187,12 @@ impl Screen for LobbyScreen {
                 }
             }
             _ => {
-                let text = format!("Address: {}", self.address.text());
-                pen.body(canvas, LEFT, ADDRESS_Y, &text, font::TEXT);
+                // Page 7's name plate (`setup/ui/input.rs`): a recess, the text, the caret.
+                pen.body(canvas, LEFT, ADDRESS_Y, "Address:", font::TEXT);
+                shell::button_recess(canvas, FIELD_X - 4, ADDRESS_Y - 4, ADDRESS_PX + 8, ROW + 2);
+                pen.body(canvas, FIELD_X, ADDRESS_Y, &self.address.text(), font::TEXT);
+                let ink = if pen.assets.body.is_some() { font::TEXT } else { pen.ink.text };
+                self.address.draw_caret(canvas, FIELD_X, ADDRESS_Y, ink, &FontMetrics::of(pen.assets));
             }
         }
         for (i, item) in Self::items(link).iter().enumerate() {
@@ -210,8 +215,10 @@ impl Screen for LobbyScreen {
 impl LobbyScreen {
     /// The lines under the items: why a join failed, where the host is reached.
     pub fn message(link: &Link) -> Vec<String> {
+        const HOW: &str = "Type the host's address as host:port and press Join, or press Host a game and give the others the address it shows.";
         let text = match &link.phase {
-            Phase::Failed(why) => why.clone(),
+            Phase::Idle => HOW.to_string(),
+            Phase::Failed(why) => format!("{why} {HOW}"),
             Phase::Connecting(to) => format!("Connecting to {to}..."),
             Phase::Lobby if link.hosting => {
                 let at: Vec<String> = link.reach.iter().map(|a| a.to_string()).collect();

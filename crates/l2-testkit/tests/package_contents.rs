@@ -43,11 +43,13 @@ fn violations(list: &[(String, String)]) -> Vec<String> {
 
 #[test]
 fn the_package_list_holds_no_game_asset() {
-    let script = std::fs::read_to_string(root().join("tools/run/package.ps1")).unwrap();
-    let list = entries(&script);
-    assert_eq!(list.len(), 4, "exe, LICENSE, NOTICE, README: {list:?}");
-    assert!(list.iter().any(|(_, n)| n == "l2-game.exe"));
-    assert_eq!(violations(&list), Vec::<String>::new());
+    for (script, exe) in [("tools/run/package.ps1", "l2-game.exe"), ("tools/run/package.sh", "l2-game")] {
+        let text = std::fs::read_to_string(root().join(script)).unwrap();
+        let list = entries(&text);
+        assert_eq!(list.len(), 4, "{script}: exe, LICENSE, NOTICE, README: {list:?}");
+        assert!(list.iter().any(|(_, n)| n == exe), "{script}: {list:?}");
+        assert_eq!(violations(&list), Vec::<String>::new(), "{script}");
+    }
 }
 
 /// The check itself: an asset, or a foreign exe, in the list is caught.

@@ -61,6 +61,9 @@ pub enum Kind {
     /// `1` — a DOS file name. `,` `.` `?` `!` are refused and `A`–`Z` are
     /// lower-cased by `0x004011B0`.
     Filename,
+    /// `[D]` ours, the lobby's `host:port` or join code: `Text` plus `:`,
+    /// which `0x004011B0` has no case for (C253).
+    Address,
 }
 
 /// `g_editState` (`0x005CD408`) after `Edit_Clamp`.
@@ -202,12 +205,13 @@ impl TextField {
         let b = c as u32;
         let accepted = match b {
             0x20 => Some(c),
-            0x2C | 0x2E | 0x3F | 0x21 if self.kind == Kind::Text => Some(c),
+            0x2C | 0x2E | 0x3F | 0x21 if self.kind != Kind::Filename => Some(c),
+            0x3A if self.kind == Kind::Address => Some(c),
             0x2D => Some(c),
             0x30..=0x39 => Some(c),
             0x61..=0x7A => Some(c),
             // `0x004011B0`: `if ('A' <= ch && ch <= 'Z') ch += 0x20`.
-            0x41..=0x5A => Some(if self.kind == Kind::Text { c } else { c.to_ascii_lowercase() }),
+            0x41..=0x5A => Some(if self.kind == Kind::Filename { c.to_ascii_lowercase() } else { c }),
             0x80..=0x9A | 0xA0..=0xA7 | 0xE1 => Some(c),
             _ => None,
         };
