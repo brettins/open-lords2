@@ -23,8 +23,13 @@ fn the_name_and_its_caret_are_painted() {
     let mut screen = SetupScreen::new(SetupPage::Title);
     {
         let mut ctx = Ctx { game: &mut game, assets: &assets };
-        screen.handle(Event::KeyDown(Key::Down), &mut ctx);
+        // C255: *Multiple players* opens the lobby; page 4 is reached through page 2's custom game.
         screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
+        for _ in 0..3 {
+            screen.handle(Event::KeyDown(Key::Down), &mut ctx);
+        }
+        screen.handle(Event::KeyDown(Key::Enter), &mut ctx);
+        assert_eq!(screen.page(), SetupPage::Shield);
         for c in "Aethelred".chars() {
             screen.handle(Event::Text(c), &mut ctx);
         }

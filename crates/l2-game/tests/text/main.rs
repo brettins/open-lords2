@@ -43,9 +43,13 @@ fn press(m: &mut SetupScreen, game: &mut Game, assets: &Assets, key: Key) -> Tra
 fn name_page(game: &mut Game, assets: &Assets) -> SetupScreen {
     let mut m = SetupScreen::new(SetupPage::Title);
     let mut ctx = Ctx { game, assets };
-    m.handle(Event::KeyDown(Key::Down), &mut ctx);
+    // C255: *Multiple players* opens the lobby; page 4 is reached through page 2's custom game.
     m.handle(Event::KeyDown(Key::Enter), &mut ctx);
-    assert_eq!(m.page(), SetupPage::Shield, "the title menu's second item opens page 4");
+    for _ in 0..3 {
+        m.handle(Event::KeyDown(Key::Down), &mut ctx);
+    }
+    m.handle(Event::KeyDown(Key::Enter), &mut ctx);
+    assert_eq!(m.page(), SetupPage::Shield, "page 2's custom game opens page 4");
     m
 }
 

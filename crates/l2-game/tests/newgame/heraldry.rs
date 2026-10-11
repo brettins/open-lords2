@@ -23,10 +23,13 @@ fn walk_taking(assets: &Assets, game: &mut Game, shield: u8) -> (SetupScreen, Tr
     assert!((1..=5).contains(&shield));
 
     let mut screen = SetupScreen::new(SetupPage::Title);
-    let r = item_rect(1);
-    click(&mut screen, game, assets, r.x + 20, r.y + r.h / 2);
+    // C255: *Multiple players* opens the lobby; page 4 is reached through page 2's custom game.
+    for i in [0, 3] {
+        let r = item_rect(i);
+        click(&mut screen, game, assets, r.x + 20, r.y + r.h / 2);
+    }
     screen.set_network(false);
-    assert_eq!(screen.page(), SetupPage::Shield, "the title menu did not open page 4");
+    assert_eq!(screen.page(), SetupPage::Shield, "the options menu did not open page 4");
 
     // The shield itself. `FUN_0041F1DD` lays the five out at
     // x = 0x70 + 0x58 i, y = 0x8C.
@@ -181,8 +184,11 @@ fn re_picking_the_same_shield_changes_nothing() {
     let assets = assets!();
     let mut game = Game::new(scenario::SEED);
     let mut screen = SetupScreen::new(SetupPage::Title);
-    let r = item_rect(1);
-    click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
+    // C255: *Multiple players* opens the lobby; page 4 is reached through page 2's custom game.
+    for i in [0, 3] {
+        let r = item_rect(i);
+        click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
+    }
     screen.set_network(false);
 
     assert_eq!(screen.shield(), 1, "page 4 opens on red");

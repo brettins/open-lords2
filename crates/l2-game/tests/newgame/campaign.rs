@@ -140,8 +140,11 @@ fn continue_without_a_campaign_opens_the_custom_page() {
     let before = game.map_slot;
 
     let mut screen = SetupScreen::new(SetupPage::Title);
-    let r = item_rect(1);
-    click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
+    // C255: *Multiple players* opens the lobby; page 4 is reached through page 2's custom game.
+    for i in [0, 3] {
+        let r = item_rect(i);
+        click(&mut screen, &mut game, &assets, r.x + 20, r.y + r.h / 2);
+    }
     screen.set_network(false);
     assert_eq!(screen.page(), SetupPage::Shield);
 
