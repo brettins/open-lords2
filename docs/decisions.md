@@ -12591,3 +12591,40 @@ alphabet), `l2-net` `an_added_stream_is_a_peer_like_an_accepted_one`, `net_game`
 (host gets a code, joiner by code reaches Start with it; no relay configured; a wrong code;
 a relay that is down leaves the host hosting by address; the code line is the host's and
 comes first).
+
+**C255 — The lobby is three pages: an entry page, a join page with a six-symbol code box,
+and a room.** Ours; no `L2.eng` group covers a lobby (`docs/formats/eng.md` §5: the original's
+pages 8 and 11 ran DirectPlay's own dialogs, Appendix A of `docs/netcode.md`), so every word
+on the three pages is ours except the entry page's heading, group 11 index 3 *"Multiple
+players"*. The owner's words on the one-page lobby of C253/C254: *"This interface is not great.
+It's very debug open source interface. Like you have to guess where to click. 'Start' is
+nonsense for hosting / joining. I asked you to rebuild this with modern sensibilities."* The
+flow is the one Jackbox, Among Us and Stardew co-op share. *Multiple players* now pushes
+`ScreenId::Lobby` on its **entry page**: two large buttons, *Host a game* and *Join a game*,
+and *Back*. *Host a game* replaces it with `SetupScreen::new(SetupPage::Shield)`, which is the
+host path by construction (page 4, the map and options pages, their strings untouched; *Start*
+on page 7 sends `Request::Host` and pushes the room); its Back and Escape return to the entry
+page, not page 1. *Join a game* is one page, one thing: six recessed cells focused from the
+start, `l2_relay::ALPHABET` only, upper-cased as typed (`JoinPage::type_event`), a *Join*
+button that Enter also presses, a small *use an address instead* link that swaps the cells
+for the C253 `host:port` plate, and under them one sentence: *Connecting...*, the
+`Phase::Failed` text as the driver wrote it, or nothing. The joiner's name and shield sit on
+the join page (*Playing as*, page 4's plate and shield frame, click to retype or cycle) because
+`l2_net::Lobby` takes them only in `join`/`with_shield`; a rename after the join would need a
+protocol message, not written. The **room** shows the code in the heading font under *Tell
+your friends this code* when `Link::code` is `Some`, the C252/C254 sentences (`room::reach_text`,
+unchanged wording) under it, a roster row per seat (the shield's own field colour from
+`Panels2.pl8`, the name, *(you)*, *host*, a green tick or *not ready yet*), and two buttons:
+the host's *Start game*, greyed with *Waiting for <name>* until every other seat is ready;
+the joiner's *I'm ready* / *Not ready*; *Leave*. Enter presses the selected button (the main
+one until Up/Down moves), Escape is Back or Leave, typing goes to the page's field without a
+click. The hand pointer was not added: `Machine::pointer` is one lookup in `g_cursorByScreen`
+by screen byte and has no per-rectangle hover outside a battle. Files:
+`crates/l2-game/src/screens/lobby/{mod,item,entry,join,room,draw}.rs`, each under 300 lines.
+Tests: `net_game` `lobby_room` (entry page's three items and Host's transition; the box
+upper-cases and refuses `0 O 1 I !`; Enter sends `Request::Join` with the code and sets the
+identity from `prefs.kept.player_name`; the address swap and Back's `Request::Leave`; *Start
+game* greyed with *Waiting for John* until John is ready; the joiner's toggle; the code line;
+a `--join` already on the link; the shield cycle), `lobby_ux` and `relay` kept on the C252/C254
+sentences. Three `newgame` tests that used *Multiple players* as a shortcut to page 4 now go
+through page 2's custom game.

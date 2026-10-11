@@ -34,7 +34,10 @@ seed, and `Start` carries the host's (`new_game_seed` reads only that). The lobb
 `Mismatch::Seed` too; a reseated client finds its slot by its name, which the roster keeps
 unique. `Start::setup` carries the host's map slot and twelve options (`l2_game::net::Setup`),
 so a joiner's own setup page never reaches the world. `l2_game::net::Driver` owns the
-`TcpTransport` and the lobby and is pumped by the app loop between ticks (D-5).
+`TcpTransport` and the lobby and is pumped by the app loop between ticks (D-5). The screen
+over it is `crates/l2-game/src/screens/lobby/`: an entry page (*Host a game*, *Join a game*),
+a join page whose one field is the six-symbol code box, and the room with the code, the
+roster and *Start game* / *I'm ready* (C255).
 
 ### What "real loss, NAT, MTU, head-of-line blocking" amounts to
 
