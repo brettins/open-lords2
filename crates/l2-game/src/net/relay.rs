@@ -11,7 +11,8 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 /// Empty until a relay is deployed; the lead sets it once (C254).
-pub const DEFAULT_RELAY: &str = "";
+/// `open-lords2-relay` on fly.io (yyz), its dedicated IPv4: `tools/relay/README.md`.
+pub const DEFAULT_RELAY: &str = "37.16.14.84:4714";
 pub const RELAY_VAR: &str = "LORDS2_RELAY";
 const CONNECT: Duration = Duration::from_secs(5);
 /// A joiner waits this long for the host's ACCEPT (C254: the relay's own limit is 10 s).

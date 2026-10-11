@@ -66,7 +66,10 @@ flyctl status --app open-lords2-relay
 Raw TCP needs a dedicated IPv4 (`flyctl ips allocate-v4 --app open-lords2-relay --yes`,
 $2/month; a v6 is free with `ips allocate-v6`). Players use the IPv4 literally,
 `<v4>:4714`: the `open-lords2-relay.fly.dev` name resolves to the shared address, which
-serves HTTP only. One machine is more than enough: a five-seat game is a few kilobytes a
+serves HTTP only. Deployed 2026-10-11: machine `897359a2724048`, IPv4 `37.16.14.84`, IPv6
+`2a09:8280:1::1b2:214:0`; `l2_game::net::DEFAULT_RELAY` is `37.16.14.84:4714`. Smoke test
+that day over the public address: `HOST 1` answered in 0.3 s, a joiner's code paired,
+bytes crossed both ways, `JOIN 1 ZZZZZZ` got `NO unknown code`. One machine is more than enough: a five-seat game is a few kilobytes a
 second through two threads.
 
 ### Docker, anywhere
