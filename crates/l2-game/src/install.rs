@@ -97,7 +97,9 @@ mod tests {
         }
     }
 
+    // Windows paths: on Linux `PathBuf::from(r"D:\PF86\Steam")` is one component.
     #[test]
+    #[cfg(windows)]
     fn the_common_list_names_gog_steam_and_sierra() {
         let c = common(Some(r"D:\PF86"), "C:");
         assert!(c.contains(&PathBuf::from(r"C:\").join("GOG Games").join("Lords of the Realm II")));

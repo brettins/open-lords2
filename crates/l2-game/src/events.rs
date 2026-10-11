@@ -27,6 +27,14 @@ impl ApplicationHandler for App {
             .with_title("Lords of the Realm II")
             .with_inner_size(winit::dpi::LogicalSize::new(CANVAS_W as f64, CANVAS_H as f64))
             .with_fullscreen(self.fullscreen());
+        // [D] ours: app_id / WM_CLASS = `saves::APP_DIR`, so a desktop entry and a
+        // compositor rule can name the window. The original has one WndClass.
+        #[cfg(target_os = "linux")]
+        let attrs = winit::platform::wayland::WindowAttributesExtWayland::with_name(
+            attrs,
+            l2_game::saves::APP_DIR,
+            l2_game::saves::APP_DIR,
+        );
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         let size = window.inner_size();
         let surface =

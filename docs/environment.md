@@ -222,6 +222,36 @@ $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
 
 `DecompileFunc.java` takes any number of hex addresses as script arguments.
 
+### On Linux (the same machine, booted into CachyOS)
+
+The Windows drives are NTFS mounts and the game is where F: was:
+
+| Windows | Linux |
+|---|---|
+| `E:\dev\lords2` | `/mnt/e/dev/lords2` |
+| `F:\games\Lords of the Realm II` | `/mnt/bigfast/games/Lords of the Realm II` |
+| `F:\games\LORDS2` | `/mnt/bigfast/games/LORDS2` |
+| `E:\dev\lords2-fixtures` | `/mnt/e/dev/lords2-fixtures` |
+
+Rust comes from rustup into `~/.cargo/bin`. `l2-game` builds and runs as is
+(winit on Wayland, cpal on ALSA; `os.rs` has the non-Windows shim, so no message
+box, no folder picker, no registry: pass the game dir on the command line or in
+`LORDS2_DIR`). Build into a Linux-local target - the 22 GB `target/` on the NTFS
+mount is the Windows build and sharing it forces full rebuilds on every switch:
+
+```bash
+export CARGO_TARGET_DIR=~/.cache/lords2-target
+tools/run/play.sh --release "/mnt/bigfast/games/Lords of the Realm II"   # build, then play
+LORDS2_DIR="/mnt/bigfast/games/Lords of the Realm II" \
+LORDS2_FIXTURES=/mnt/e/dev/lords2-fixtures \
+LORDS2_DOS_DIR=/mnt/bigfast/games/LORDS2 cargo test --workspace
+```
+
+What stays on Windows: everything that runs or reads the original *live* -
+`tools/oracle/trace*.ps1`, `runtime.ps1`, `probe.ps1`, `native/` (the DirectDraw
+and DirectPlay proxies), Ghidra headless. Those want the Windows boot or a VM;
+decompilation already on disk under `tools/oracle/decomp` reads fine from here.
+
 ## Keys of ours
 
 **Ctrl+D — the debug overlay, off by default.** It shows everything we draw that
