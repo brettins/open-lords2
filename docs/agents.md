@@ -735,7 +735,8 @@ branch lives. The suffix is the agent's own word, needs to be unique only within
 exists so that one branch can add several corrections.
 
 At merge, `node tools/decisions/corrections.js --assign <TAG>` numbers **one** placeholder: it
-takes the next free number in that placeholder's own series, rewrites **every occurrence across
+takes the next free number — since C249 one counter shared by every series, and by the Q-numbers of
+questions, kept in `~/.claude/ids/` and bumped by the tool — rewrites **every occurrence across
 the whole tree** — headings, prose, `symbols.json` comments, Rust doc comments, test names — and
 relocks the citations. One command per tag, run in the order `--check` lists them. *(This
 paragraph described a tag-less `--assign` that walked every heading at once for a long time

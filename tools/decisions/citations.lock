@@ -130,7 +130,7 @@ crates/l2-game/src/shell/drawing/pen.rs	C61	1de8fede98b5	60611046b40d
 crates/l2-game/src/shell/drawing/primitives.rs	C61	bf7c15012e16	60611046b40d
 crates/l2-game/src/shell/font/mod.rs	C155	1131e8b61df1	03caee7e7f69
 crates/l2-game/src/turn/ai_part.rs	C113	83692a3b18af	6fbe8ffeb1fb
-crates/l2-game/src/turn/battle.rs	C149	19d630b11086	138117948441
+crates/l2-game/src/turn/battle.rs	C149	7588578a023b	138117948441
 crates/l2-game/src/turn/battle.rs	C35	2873352f07b0	193a1920e229
 crates/l2-game/src/turn/battle.rs	C35	dcd60927a9fb	193a1920e229
 crates/l2-game/src/turn/engine/battle.rs	C27	c9af8ead8bd4	1db64332cb22
@@ -478,6 +478,7 @@ docs/agents.md	C2	4cd0dda988e6	ad2188f047fa
 docs/agents.md	C22	4e7765192dba	0364b53a921d
 docs/agents.md	C22	c74401dd4df6	0364b53a921d
 docs/agents.md	C23	1b5ecc6ab314	6ac2f322c3bd
+docs/agents.md	C249	8f9b3463ddbe	6c6ead17d4c3
 docs/agents.md	C25	9ed8ddd2fdbf	5d466f0cb89c
 docs/agents.md	C26	7697f324cec8	e8179d1f76a8
 docs/agents.md	C28	7e1aab197fa6	df5936ad8492
