@@ -52,23 +52,22 @@ home, no writable system and no devices beyond the pseudo ones; it needs none of
 
 ### On fly.io
 
-```
-fly launch --no-deploy --name lords2-relay --dockerfile tools/relay/Dockerfile
-```
+The app is `open-lords2-relay` in `yyz` (Toronto), personal org; `tools/relay/fly.toml`
+describes it: one raw TCP service on 4714 (no handlers), one `shared-cpu-1x` 256 MB machine
+that stops when idle and starts on the first connection (allow a few seconds), built from
+`tools/relay/Dockerfile` with the repo root as context. Deploy and redeploy from the repo root:
 
-Then in `fly.toml`, replace the generated `[http_service]` with a raw TCP service:
-
-```toml
-[[services]]
-  internal_port = 4714
-  protocol = "tcp"
-  [[services.ports]]
-    port = 4714
+```
+flyctl deploy --config tools/relay/fly.toml --ha=false --yes
+flyctl logs --app open-lords2-relay
+flyctl status --app open-lords2-relay
 ```
 
-`fly deploy`, `fly ips allocate-v4` if the app has only a shared v4, and give players
-`lords2-relay.fly.dev:4714`. One shared-cpu-1x machine is more than enough: a five-seat
-game is a few kilobytes a second through two threads.
+Raw TCP needs a dedicated IPv4 (`flyctl ips allocate-v4 --app open-lords2-relay --yes`,
+$2/month; a v6 is free with `ips allocate-v6`). Players use the IPv4 literally,
+`<v4>:4714`: the `open-lords2-relay.fly.dev` name resolves to the shared address, which
+serves HTTP only. One machine is more than enough: a five-seat game is a few kilobytes a
+second through two threads.
 
 ### Docker, anywhere
 

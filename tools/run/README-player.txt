@@ -45,12 +45,12 @@ Everything else is the original's controls; its manual applies.
 Multiplayer
 -----------
 
-Multiple players -> Host a game opens the lobby. Games are hosted over TCP,
-port 4712 by default. The host must allow that port through its firewall; the
-game asks the router to open it (NAT-PMP or UPnP) and the lobby shows the
-address to give the others, on the network and over the internet. If the
-router says no, forward TCP 4712 to the host by hand. With a join-code service
-configured (--relay host:port or LORDS2_RELAY), the host's lobby shows a
+Multiple players opens the lobby. Games are hosted over TCP, port 4712 by
+default. The host must allow that port through its firewall; the game asks the
+router to open it (NAT-PMP or UPnP) and the lobby shows the address to give the
+others, on the network and over the internet. If the router says no, forward
+TCP 4712 to the host by hand. With a join-code service configured (--relay
+host:port or LORDS2_RELAY, or the build's default), the host's lobby shows a
 six-letter code and a joiner types it instead of an address.
 
 Both players need the same build of this engine and their own copy of the game.
@@ -58,13 +58,14 @@ Both players need the same build of this engine and their own copy of the game.
 Command line
 ------------
 
-  l2-game.exe [<game folder>] [--mods <dir>] [--no-sound]
-              [--host [port] | --join <addr|code>] [--relay <host:port>]
-              [--players <n>] [--name <text>] [--shield <1-5>]
+  l2-game [<game folder>] [--mods <dir>] [--no-sound]
+          [--host [port] | --join <addr|code>] [--relay <host:port>]
+          [--players <n>] [--name <text>] [--shield <1-5>]
 
-  --host opens the lobby hosting at once; --join opens it joining that host or
-  code. With --players, a host starts when that many seats are ready and a
-  joiner readies at once, so a shortcut can carry a friend straight in.
+  --host opens the lobby hosting at once; --join opens it joining that host,
+  by address or by code. With --players, a host presses Start when that many
+  seats are ready and a joiner presses Ready at once, so a shortcut can carry
+  a friend straight in.
 
 On Linux the binary is l2-game; give it the game folder the same way:
 

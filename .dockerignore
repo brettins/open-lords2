@@ -1,0 +1,7 @@
+# The relay image (tools/relay/Dockerfile) needs the workspace manifests and
+# the crates and nothing else; without this the context was 25 GB of target/.
+*
+!Cargo.toml
+!Cargo.lock
+!crates/
+crates/**/target/
