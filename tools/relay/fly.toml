@@ -4,7 +4,7 @@ app = "open-lords2-relay"
 primary_region = "yyz"
 
 [build]
-  dockerfile = "tools/relay/Dockerfile"
+  dockerfile = "Dockerfile"
 
 [[services]]
   internal_port = 4714
