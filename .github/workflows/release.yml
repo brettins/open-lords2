@@ -67,6 +67,7 @@ jobs:
         with:
           files: dist/*
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           body: |
             The engine only: it contains none of the original game's art, sound or data.
             You need your own copy of Lords of the Realm II (GOG's edition works).
