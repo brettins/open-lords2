@@ -91,40 +91,70 @@
       "outcome": "The refusal did not recur. The three-second wait is filed and in flight; the original saves near instantly."
     },
     {
-      "state": "open",
+      "state": "answered",
       "q": "Q11",
       "row": "stale-move-cost-after-load",
       "title": "After loading a save, should armies and merchants stand still for the first turn?",
       "inplay": "In the original, when you start the program and load a save, merchants take one step at most and the AI's new armies do not march until the end of that first turn; from the second turn on everything moves normally. It is a defect in the original (the route data is not rebuilt on load); its own recordings show it. Ours now does the same. Loading a second save in the same session does not show it.",
       "todo": "Choose: keep it (closer to the original), or fix it so everything moves on the first turn after a load.",
-      "ask": "Reply: Q11 keep, or Q11 fix"
+      "ask": "Reply: Q11 keep, or Q11 fix",
+      "answer": "keep & fix: the original's behaviour stays; a fix sits behind the fixes menu, switchable on its own or with every fix at once.",
+      "outcome": "Row stale-move-cost-after-load stays as merged (keep). The fix is an entry for the fixes menu (docs/bugs.md §6)."
     },
     {
-      "state": "open",
+      "state": "answered",
       "q": "Q12",
       "row": "trace-rng-parity",
       "title": "How should we compare battles once dice are rolled?",
       "inplay": "The AI's first decision in a battle rolls a die. The original and ours use different dice (ours is modern, which the new netcode needs), so from that first roll the two battles drift apart and one may win where the other loses. Everything up to the first roll now matches.",
       "todo": "Choose: (a) during comparisons only, run our battles on the original's dice so whole battles can be compared move for move; (b) steer the original's dice to ours instead; (c) compare many battles and check the outcomes come out in the same proportions. (a) finds the most bugs and does not change the game you play.",
-      "ask": "Reply: Q12 a, b or c"
+      "ask": "Reply: Q12 a, b or c",
+      "answer": "two sets of dice: ours for play, the original's for comparison runs. That is option (a).",
+      "outcome": "Row trace-rng-parity proceeds with (a): a comparison mode that runs our battle on the original's generator."
     },
     {
-      "state": "open",
+      "state": "answered",
       "q": "Q13",
       "row": "mouse-pointer-rate",
       "title": "Does the choppy pointer depend on its size?",
       "inplay": "Both the original and ours use the Windows pointer. Ours is drawn at the window's scale, 128 pixels square on your 4K screen, where the original's is 32. Windows can fall back to drawing a pointer that large itself, which can look choppy.",
       "todo": "Play full screen and note whether the pointer is choppy; then run in a smaller window (so the pointer is smaller) and compare.",
-      "ask": "Reply: Q13 same, or Q13 smoother when small"
+      "ask": "Reply: Q13 same, or Q13 smoother when small",
+      "answer": "the cursor looks fine (2026-10-11, Linux/Wayland). Choppy meant the pointer moving in visible steps; the 2026-09-23 report was on Windows at 4K.",
+      "outcome": "Row mouse-pointer-rate: not reproducible by the player now; keep only as a Windows 4K check, or close."
     },
     {
       "q": "Q14",
       "row": "dead-archers-keep-shooting",
-      "state": "open",
+      "state": "answered",
       "title": "Should a freshly killed archer keep shooting?",
       "inplay": "In the original, when the computer orders its archers to fire back, it can pick an archer who has just died and whose body is still on the field. That archer gets up, walks and keeps shooting at half strength until he is hit again. It is a defect in the original, read from its code, not yet seen on screen. Ours treats a dead archer as dead.",
       "todo": "Choose: keep the original's behaviour (closer to the original), or leave dead archers dead.",
-      "ask": "Reply: Q14 keep, or Q14 dead"
+      "ask": "Reply: Q14 keep, or Q14 dead",
+      "answer": "keep. Standing rule from the player (2026-10-11): the original's bugs are reproduced; fixes go behind a \"fix bugs in original\" menu, one switch per bug, never inline.",
+      "outcome": "Row stays open as work: copy the behaviour (Order_ShootAtUnit's owner-only test), list it in docs/bugs.md §2."
+    },
+    {
+      "q": "Q250",
+      "row": "sidebar-tax-health-meter",
+      "state": "answered",
+      "title": "What looks wrong about the sidebar tax rate and health meter?",
+      "inplay": "You said the population, tax rate, happiness and health thermometer looked like easy wins. Population and happiness were fixed. Tax rate and health were checked draw for draw against the original's CountyStrip_Draw and match, so nobody can see what you saw.",
+      "todo": "Take a screenshot of the sidebar in ours and, if you can, the same county in the original, and say what differs.",
+      "ask": "Reply: Q250 with the screenshot(s), or Q250 fine (it looks right now)",
+      "answer": "long ago resolved by some other pass.",
+      "outcome": "Row sidebar-tax-health-meter closed."
+    },
+    {
+      "q": "Q251",
+      "row": "play-session-differential",
+      "state": "answered",
+      "title": "Thirty recorded turns of England in the original",
+      "inplay": "Your session today gave the last three turns only (the original keeps three autosaves). Those three already found the AI conquering an empty county on a turn where ours did not. A full chain finds every such divergence from turn one.",
+      "todo": "Start the original with /home/brett/.local/bin/lords2-original --record, start England, End Turn about thirty times with no orders, quit. The recorder keeps every turn in ~/Games/l2-chain.",
+      "ask": "Reply: Q251 done",
+      "answer": "withdrawn by the player: the headless original (native/l2-trace + tools/oracle/trace-run.ps1) ends turns itself; a person should not do this by hand.",
+      "outcome": "Row play-session-differential: run an End-Turn chain scenario in the harness instead. The harness is Windows-only today (DLL injection, PowerShell Win32); it needs the Windows boot or a port to Wine."
     }
   ],
   "reports": [
@@ -229,6 +259,12 @@
       "text": "The mouse pointer moves at a reduced frame rate.",
       "row": "mouse-pointer-rate",
       "outcome": "Not measurable overnight (the machine was locked). Both games use the Windows pointer, so frame rate is not the cause. Lead: our pointer is 128x128 on your 4K screen, large enough that Windows may draw it in software. Q13 asks you to try it."
+    },
+    {
+      "date": "2026-10-11",
+      "text": "Played about 27 turns in the original under Wine on Linux (six-county map, one AI lord).",
+      "row": "play-session-differential",
+      "outcome": "Turns 25-27 captured. Chain differential: 25->26 agrees 323/324; 26->27 agrees 274/324, the original's AI took the empty county (owner 0->2, population 528->276, fields replanted) and ours did not; deaths also collapse across every county that turn. Q251 asks for the full chain."
     }
   ]
 }
