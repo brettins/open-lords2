@@ -102,16 +102,17 @@ fn a_code_with_no_relay_configured_says_to_type_an_address() {
     let why = joiner_driver(&id, "ABCDEF", None).err().expect("refused at once");
     assert_eq!(why, relay::NOT_CONFIGURED);
     assert!(why.contains("Type the host's address instead."));
+    // With a relay configured (DEFAULT_RELAY, LORDS2_RELAY) the request would
+    // reach the internet from a test; the offline refusal is the case checked.
+    if relay::configured().is_some() {
+        return;
+    }
     let (mut game, _) = seat("Matilda", 4, None);
     game.net.requests.push(Request::Join { address: "abcdef".into() });
     let mut driver: Option<Driver> = None;
     let _ = net::lobby(&mut driver, &mut game, None, Tables::DEFAULT);
-    if std::env::var(relay::RELAY_VAR).is_ok_and(|v| !v.trim().is_empty()) {
-        assert!(matches!(game.net.phase, Phase::Connecting(_)), "{:?}", game.net.phase);
-    } else {
-        assert_eq!(game.net.phase, Phase::Failed(relay::NOT_CONFIGURED.into()));
-        assert!(driver.is_none());
-    }
+    assert_eq!(game.net.phase, Phase::Failed(relay::NOT_CONFIGURED.into()));
+    assert!(driver.is_none());
 }
 
 /// Red on ablation of the `"unknown code"` arm of `relay::join`.
@@ -172,5 +173,6 @@ fn the_code_line_is_the_hosts_and_comes_first() {
     let none = Link { code: None, ..link };
     assert!(LobbyScreen::message(&none)[0].starts_with("Others join at"));
     assert_eq!(Link::default().code, None);
-    assert_eq!(relay::DEFAULT_RELAY, "", "the lead sets it once a relay is deployed");
+    let deployed: Result<std::net::SocketAddr, _> = relay::DEFAULT_RELAY.parse();
+    assert!(deployed.is_ok(), "DEFAULT_RELAY is the deployed relay's host:port: {:?}", relay::DEFAULT_RELAY);
 }
