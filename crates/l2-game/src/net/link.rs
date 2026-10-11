@@ -59,6 +59,10 @@ pub struct Link {
     /// Where the others reach this host, for the lobby screen.
     pub reach: Vec<std::net::SocketAddr>,
     pub port: PortMap,
+    /// The host's join code (C254), once the service answered.
+    pub code: Option<String>,
+    /// Why there is no code, in the player's words (C254).
+    pub relay: Option<String>,
     /// `--players n` (C253): a host starts at n ready seats, a joiner readies at once.
     pub auto: Option<u8>,
     /// What a replay rebuilds the world from.
@@ -135,7 +139,7 @@ pub fn lobby(
                 let hello = super::hello(&settings, &tables, seed, PlayerSlot::new(0));
                 let gold = game.chosen_gold;
                 Driver::host(addr, hello, &id.name, id.shield, &id.setup, gold, quirks)
-                    .map(|d| *driver = Some(d))
+                    .map(|d| *driver = Some(d.with_relay(super::relay::configured())))
             }
             (Request::Join { address }, None, Some(id)) => {
                 let settings = id.setup.settings(1, quirks);
@@ -182,6 +186,8 @@ pub fn lobby(
     link.hosting = d.lobby().role() == l2_net::Role::Host;
     link.reach = d.reach().to_vec();
     link.port = d.port().clone();
+    link.code = d.code().map(String::from);
+    link.relay = d.relay_status().map(String::from);
     if let Some(n) = link.auto {
         let me = link.me.and_then(|s| link.roster.get(s));
         let all_ready = link.roster.players.iter().all(|p| p.is_host || p.ready);

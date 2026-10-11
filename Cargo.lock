@@ -817,6 +817,7 @@ dependencies = [
  "l2-kingdom",
  "l2-mods",
  "l2-net",
+ "l2-relay",
  "l2-scenario",
  "l2-sim",
  "l2-smk",

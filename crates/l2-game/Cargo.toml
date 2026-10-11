@@ -37,6 +37,9 @@ l2-mods = { path = "../l2-mods" }
 # disagree about how an integer is spelled. It brings in no dependencies of its
 # own - `l2-net` has none, deliberately (docs/netcode.md D-3).
 l2-net = { path = "../l2-net" }
+# The join-code relay's protocol and its blocking client calls (C254);
+# std-only, like `l2-net`.
+l2-relay = { path = "../l2-relay" }
 # The films. Ours, MIT and dependency-free (`crates/l2-smk`); here and not in
 # `l2-view` because a film is a clock and a sound track as well as pictures,
 # and `l2-view` draws a decoded frame from a plain `&[u8]` without knowing

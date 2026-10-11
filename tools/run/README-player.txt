@@ -46,11 +46,15 @@ Multiplayer
 
 Games are hosted over TCP, port 4712 by default. The host must allow that port
 through its firewall (and forward it on the router for play over the internet).
+With a join-code service configured (--relay host:port or LORDS2_RELAY), the
+host's lobby shows a six-letter code and a joiner types it instead of an address.
 
 Command line
 ------------
 
   l2-game.exe [<game folder>] [--mods <dir>] [--no-sound]
+              [--host [port] | --join <addr|code>] [--relay <host:port>]
+              [--players <n>] [--name <text>] [--shield <1-5>]
 
 Licence
 -------
