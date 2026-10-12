@@ -91,7 +91,7 @@ pub fn carry_out(choice: Choice, ctx: &mut Ctx) -> Transition {
         Choice::Leave => Leaving::Leave,
         Choice::EndWithoutSaving => Leaving::EndForEveryone,
         Choice::SaveAndEnd => {
-            let name = save_name(ctx);
+            let name = save_name(ctx.game);
             if let Err(e) = crate::saves::write(&name, ctx.game) {
                 eprintln!("save before ending: {e}");
             }
@@ -108,15 +108,12 @@ impl Default for LeaveScreen {
     }
 }
 
-/// `[D]` the host's name and the season: it lists under *Continue a saved game*.
-pub fn save_name(ctx: &Ctx) -> String {
-    let g = &ctx.game;
-    let host = g.player_names[g.player as usize].as_str().to_string();
-    let season = crate::screens::map::season_name(g.kingdom.season);
-    let name = format!("{host}, {season} {}", g.kingdom.year);
-    let name: String = name.chars().filter(|c| crate::saves::is_valid_name(&c.to_string()) || *c == ' ').collect();
-    let name = name.trim().to_string();
-    if crate::saves::is_valid_name(&name) { name } else { "Network game".into() }
+/// `[D]` C262: "net", the season and the year, narrow enough for one column of the
+/// load list (`SaveLoad_DrawStatus` `0x004149EC`, columns `0x78` apart).
+pub fn save_name(game: &crate::Game) -> String {
+    let season: String = crate::screens::map::season_name(game.kingdom.season).chars().take(3).collect();
+    let name = format!("net {season} {}", game.kingdom.year);
+    if crate::saves::is_valid_name(&name) { name } else { "net game".into() }
 }
 
 impl Screen for LeaveScreen {
