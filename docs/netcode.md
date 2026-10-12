@@ -1311,7 +1311,11 @@ play. The original eliminated a departing realm (`Net_OnSessionEvent` `0x0043E6A
 waiting box, *"Waiting for Matilda"* (`ScreenId::NetWait`, held on top of the stack like the
 stopped box). The host's way on is *Let the computer play*, the same handover as a leave; a
 joiner's is to leave. There is no countdown: the host is there, and a friend whose router
-hiccupped should not come back to find the computer spent their treasury.
+hiccupped should not come back to find the computer spent their treasury. A seat that goes
+silent on an open connection (a laptop asleep, a frozen process) is named in the same box
+after five seconds (`net::QUIET`, C262), *"Nothing has arrived from Matilda for a few
+seconds."*, and the box goes when it answers; past `TIMEOUT` the host drops the connection
+and waits for a rejoin as above. A joiner whose host is the silent one names the host alone.
 
 **Rejoin by install.** The lobby's `Join` carries the install id from `prefs.ini`. After `Start`
 the host keeps its port and code; a `Join` from a dropped seat's install gets

@@ -12795,3 +12795,30 @@ joiner's leave, close, crash, sleep and rejoin (relaunched, or from the join pag
 game), two joiners down at once, a crash at the start, *Let the computer play*, a joiner leaving
 the waiting box, the host's *Save, then end* and crash with *Continue alone* and *Leave game*,
 and the season save loaded single-player; every seat's hashes agreed after each.
+
+**C262 — A silent seat is named after five seconds; the network game's leftovers from C261's runs.**
+(1) A seat with an open connection that sends nothing for `net::QUIET` (five seconds of ticks) is
+named in the waiting box on every seat (`Link::quiet`), *"Nothing has arrived from Matilda for a
+few seconds."*, and the box goes when its packets come again; before, the host saw only the stall
+glyph until `TIMEOUT` (60 s) moved it to `waiting`. Five seconds is past TCP's first retransmits
+(1 s, then 3 s) and a Windows window drag, which stops a seat's loop for as long as the button is
+held; shorter shows the box for hitches nobody need act on, longer leaves a player looking at a
+glyph. `TIMEOUT` stays: past it the host drops the connection, so a frozen seat that wakes reads
+the stopped box and rejoins. A joiner names a silent host alone (its forwarding stopped too), and
+the host's *Let the computer play* takes a silent seat as it takes a dropped one. `[D]` ours; the
+original has no equivalent screen (C243). (2) The host's *Save, then end* names its save
+`"net Spr 1268"`: `"Richard, Spring 1268"` measured 175 px against the load list's 120 px columns
+(`SaveLoad_DrawStatus` `0x004149EC`) and ran into the next name; `net-lastturn` and its two
+siblings fit (87–101 px) and keep their names. (3) The Load page's backdrop in the campaign palette
+after a network game, seen once on 2026-10-12, was not reproduced: seven `g_save_load.py` runs and
+the `halt_box` test of the same path present `Gateway.256` on every frame; the one shot came
+from an uncommitted build of `remote.rs` that is not on record, and its cause is unknown. That test found a real defect on the way: a tip up when
+the game ended followed the player to the title, where its host took every click;
+`leave::to_front_end` unhosts it, as `FUN_0043441C`'s `g_screenId = 0x1F` overwrites `0x27`.
+(4) A rejoined seat's tips were a new run's, so the campaign map's opening tips (206, 200–202)
+posted over the game it came back to; `Tips::resume` marks them shown on a world built from
+`Rejoin`. Tests: `net_game` `a_joiner_silent_a_few_seconds_is_named_in_the_waiting_box_and_goes_when_it_answers`,
+`a_joiner_names_its_silent_host`, `a_network_saves_name_fits_one_column_of_the_load_list`,
+`the_front_end_after_the_hosts_end_presents_in_its_own_palette`,
+`a_dropped_joiner_pauses_every_seat_then_rejoins_and_later_hashes_agree` (no tip after the rejoin);
+`tools/net/e2e/h_sleep_rejoin_in_game.py` waits for the named box.

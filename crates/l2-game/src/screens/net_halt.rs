@@ -8,7 +8,6 @@ use l2_view::Canvas;
 use crate::input::{Event, Key, Rect};
 use crate::net::AfterHalt;
 use crate::screen::{Ctx, Screen, ScreenId, Transition};
-use crate::screens::setup::SetupPage;
 use crate::shell::{self, font, Pen};
 
 const X: i32 = 0xA0;
@@ -49,7 +48,7 @@ impl NetHaltScreen {
             // C257's leave: the app closes the session between ticks.
             ctx.game.net.after_halt = Some(AfterHalt::Leave);
             ctx.game.leaving = Some(crate::screens::leave::Leaving::Leave);
-            Transition::Goto(ScreenId::Setup(SetupPage::Title))
+            crate::screens::leave::to_front_end(ctx)
         }
     }
 }

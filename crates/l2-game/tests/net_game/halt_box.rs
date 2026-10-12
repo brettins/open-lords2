@@ -2,11 +2,13 @@
 //! nothing under it answered. A real pair, the host ends the game (C260), and the
 //! joiner's screens are driven as a player drives them.
 
+use crate::kit;
 use crate::live_tcp::{pair, Peer};
 use crate::seats::assets;
 use l2_game::input::{Event, Key};
 use l2_game::net::{continue_alone, AfterHalt};
 use l2_game::screen::{Ctx, Machine, ScreenId};
+use l2_game::screens::leave::LeaveScreen;
 use l2_game::screens::net_halt::NetHaltScreen;
 use l2_game::screens::setup::SetupPage;
 use l2_view::Canvas;
@@ -67,6 +69,47 @@ fn the_stopped_box_takes_every_click_and_continue_alone_keeps_the_game_running()
     }
     assert!(!m.ids().contains(&ScreenId::NetHalt), "the box came back");
     assert_eq!(m.top_id(), top, "something replaced the screen the player was answering");
+}
+
+/// mp-seat-polish (3): after the host's *Save, then end*, with a tip up, the title, options
+/// and load pages present in `Gateway.256` on every frame. Ablations: `SetupScreen::palette`
+/// returning `None` (the campaign palette, as the one 2026-10-12 shot showed);
+/// `tips.unhost()` in `leave::to_front_end` (a tip host over the title takes every click).
+#[test]
+fn the_front_end_after_the_hosts_end_presents_in_its_own_palette() {
+    kit::big_stack(front_end_palette);
+}
+
+fn front_end_palette() {
+    let Some(assets) = assets() else { l2_testkit::skip!("no install") };
+    let _scope = kit::scope("palette");
+    let (mut seats, _) = kit::game(&assets, 2);
+    let mut m = Machine::new(ScreenId::Campaign);
+    let mut frame = |seats: &mut Vec<kit::Seat>, m: &mut Machine, e: Option<Event>| {
+        kit::run(seats, &assets, 1);
+        let mut ctx = Ctx { game: &mut seats[0].game, assets: &assets };
+        if let Some(e) = e {
+            m.handle(e, &mut ctx);
+        }
+        m.update(&mut ctx);
+        m.ids()
+    };
+    while !seats[0].game.tips.hosting() {
+        frame(&mut seats, &mut m, None);
+    }
+    m.push(ScreenId::Leave);
+    let end = LeaveScreen::rects(&Ctx { game: &mut seats[0].game, assets: &assets })[0];
+    let mut seen = Vec::new();
+    for (x, y) in [(end.x + 4, end.y + 4), (320, 103), (320, 138)] {
+        frame(&mut seats, &mut m, Some(Event::Click { x, y }));
+        for _ in 0..60 {
+            let ids = frame(&mut seats, &mut m, None);
+            let shown = (m.palette_name(), m.live_palette().is_some(), m.fade());
+            assert_eq!(shown, (Some("Gateway.256"), false, None), "{ids:?}");
+            seen.push(ids);
+        }
+    }
+    assert_eq!(seen.last().unwrap(), &vec![ScreenId::Setup(SetupPage::Load)]);
 }
 
 /// Ablation: `Transition::Replace(ScreenId::Setup(SetupPage::Title))` in `answer`.

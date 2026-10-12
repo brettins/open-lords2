@@ -216,6 +216,16 @@ impl Tips {
         self.hosting = false;
     }
 
+    /// `[D]` C262: a seat taken back into a game under way has met `Tip_Update`'s
+    /// campaign-map arm (206, 200, 201, 202); the original has no rejoin.
+    pub fn resume(&mut self) {
+        for g in [group::KINGDOM_OVERVIEW, group::OBJECTIVES, group::GETTING_STARTED, group::FOOD_AND_HAPPINESS] {
+            if let Some(i) = index(g) {
+                self.shown[i] = true;
+            }
+        }
+    }
+
     /// Whether `g_tipShown[group]` is set.
     pub fn shown(&self, group: u16) -> bool {
         index(group).is_some_and(|i| self.shown[i])

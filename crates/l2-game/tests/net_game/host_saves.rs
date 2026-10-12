@@ -6,7 +6,7 @@ use crate::live_tcp::connect;
 use crate::seats::{assets, two_worlds};
 use l2_game::command::{self as cmd, Answer};
 use l2_game::net::{self, InstallId, Live};
-use l2_game::screens::leave::Leaving;
+use l2_game::screens::leave::{save_name, Leaving};
 use l2_game::{saves, turn, Game};
 use l2_kingdom::tables::Tables;
 use l2_net::PlayerSlot;
@@ -149,4 +149,27 @@ fn end_game_for_everyone_stops_the_joiner() {
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
     assert!(seats[1].game.net.halted.is_some(), "the joiner was not told");
+}
+
+/// C262: every name a network game writes fits one column of the load list, with a
+/// space before the next. Ablation: the old `"{host}, {season} {year}"` in
+/// `leave::save_name` ("Richard, Spring 1268", 175 px of 116).
+#[test]
+fn a_network_saves_name_fits_one_column_of_the_load_list() {
+    let Some(assets) = assets() else { l2_testkit::skip!("no install") };
+    let font = assets.shell.body.as_ref().expect("the body font");
+    let room = l2_game::screens::saveload::COL_W - font.width(" ");
+    let mut g = Game::new(1);
+    let mut names: Vec<String> = saves::NET_AUTOSAVES.iter().map(|s| s.to_string()).collect();
+    for year in 1268..1400 {
+        for season in 1..=4 {
+            (g.kingdom.season, g.kingdom.year) = (season, year);
+            names.push(save_name(&g));
+        }
+    }
+    for n in &names {
+        assert!(font.width(n) <= room, "{n:?}: {} px of {room}", font.width(n));
+    }
+    (g.kingdom.season, g.kingdom.year) = (1, 1268);
+    assert_eq!(save_name(&g), "net Spr 1268");
 }

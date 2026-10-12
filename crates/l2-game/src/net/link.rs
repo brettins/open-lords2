@@ -93,6 +93,8 @@ pub struct Link {
     pub installs: Vec<(PlayerSlot, super::InstallId)>,
     /// C260: dropped players the game waits for, by name.
     pub waiting: Vec<String>,
+    /// C262: seats silent past `QUIET` on an open connection, by name.
+    pub quiet: Vec<String>,
     /// C260: the host's answer on the waiting box; `Live` hands those realms over.
     pub computer_plays: bool,
     /// C260: the host's `Rejoin` this world was built from; the app starts its session from it.
@@ -150,6 +152,7 @@ fn rejoined(driver: &mut Option<Driver>, game: &mut Game, tables: Tables) -> Opt
             world.net = Link { phase: Phase::Started, requests: Vec::new(), roster, rejoin: Some(r), ..game.net.clone() };
             world.prefs = game.prefs;
             world.tips = game.tips;
+            world.tips.resume();
             Some(world)
         }
         Err(why) => {

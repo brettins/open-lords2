@@ -9,5 +9,7 @@ seat still agrees.
     cargo build -p l2-game --bin l2-game   # and -p l2-relay for the relay runs
     python3 tools/net/e2e/b_close_rejoin.py
 
-Output (screenshots as `shots/*.png`, each seat's stderr) goes to `out/e2e/`. Coordinates are
+Output (screenshots as `shots/*.png`, each seat's stderr) goes to `out/e2e/` (`LORDS2_E2E_OUT`
+moves it; `LORDS2_E2E_BIN` runs another binary, such as a copy, so a shared target's rebuild
+cannot swap it mid-run). Coordinates are
 the 640 × 480 canvas; the halt box grows with its text, so it is answered by keyboard.
