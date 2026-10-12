@@ -74,3 +74,4 @@ native/**/*.pdb
 
 # The player zip (tools/run/package.ps1).
 /dist/
+__pycache__/
