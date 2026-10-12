@@ -184,12 +184,14 @@ impl Screen for DropdownScreen {
             PLATE_SET,
         );
 
+        // [D] C257: a network File menu's rows sit on the table's own y column, 0, 20.
+        debug_assert!(rows.iter().enumerate().all(|(i, r)| r.0 == MENUS[self.menu].items[i].0));
         for i in 0..rows.len() {
             let picked = self.hover == Some(i);
             if picked {
                 canvas.fill_rect(
                     plate.x + HIGHLIGHT_DX,
-                    BAR_Y + rows[i].0 + HIGHLIGHT_DY,
+                    BAR_Y + MENUS[self.menu].items[i].0 + HIGHLIGHT_DY,
                     HIGHLIGHT_W,
                     HIGHLIGHT_H,
                     font::TEXT,
@@ -200,7 +202,7 @@ impl Screen for DropdownScreen {
             pen.body(
                 canvas,
                 plate.x + CAPTION_DX,
-                BAR_Y + rows[i].0 + CAPTION_DY,
+                BAR_Y + MENUS[self.menu].items[i].0 + CAPTION_DY,
                 &caption,
                 colour,
             );

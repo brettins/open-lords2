@@ -37,7 +37,6 @@ pub const OURS: usize = usize::MAX;
 pub const HOST_FILE: &[(i32, usize, Item)] = &[(0, 3, Item::Save), (20, OURS, Item::EndGame)];
 pub const JOINER_FILE: &[(i32, usize, Item)] = &[(0, OURS, Item::LeaveGame)];
 
-/// The items menu `menu` shows in this game.
 pub fn rows(game: &crate::Game, menu: usize) -> &'static [(i32, usize, Item)] {
     match (menu, game.net.lockstep, game.net.hosting) {
         (0, true, true) => HOST_FILE,
@@ -176,7 +175,6 @@ pub fn item_rect(titles: &[Rect; 3], menu: usize, item: usize) -> Rect {
     row_rect(titles, menu, MENUS[menu].items[item].0)
 }
 
-/// [`item_rect`] for a row at `y` of whichever table is shown.
 pub fn row_rect(titles: &[Rect; 3], menu: usize, y: i32) -> Rect {
     Rect::new(titles[menu].x, BAR_Y + y + ITEM_TOP, ITEM_W, ITEM_H)
 }

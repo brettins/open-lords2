@@ -22,12 +22,9 @@ const BUTTON_H: i32 = 0x18;
 const ROWS_Y: i32 = 0xD8;
 const ROW_STEP: i32 = 0x1C;
 
-/// What the box asked for; `net::end_session` carries it out between ticks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Leaving {
-    /// A joiner leaves; `Live::leave` closes its connection.
     Leave,
-    /// The host ends the game for everyone the same way.
     EndForEveryone,
 }
 
@@ -60,7 +57,6 @@ impl LeaveScreen {
         LeaveScreen { selected: 0, redraw: true }
     }
 
-    /// The host's three, a joiner's two; Back last, which Escape presses.
     pub fn choices(ctx: &Ctx) -> Vec<Choice> {
         if ctx.game.net.hosting {
             vec![Choice::SaveAndEnd, Choice::EndWithoutSaving, Choice::Back]
@@ -69,7 +65,6 @@ impl LeaveScreen {
         }
     }
 
-    /// The question and, for a joiner, what happens to its realm.
     pub fn lines(ctx: &Ctx) -> Vec<&'static str> {
         if ctx.game.net.hosting {
             vec!["End the game for everyone?"]

@@ -37,7 +37,6 @@ fn seats() -> Option<[Seat; 2]> {
 }
 
 impl Seat {
-    /// Ends its turn when idle and answers its own questions, as a player would.
     fn play(&mut self) {
         let g = &mut self.game;
         let me = g.player;
