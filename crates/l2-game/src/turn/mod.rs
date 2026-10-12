@@ -28,6 +28,9 @@ mod battle;
 pub use battle::*;
 mod ai_part;
 pub use ai_part::*;
+pub mod sync;
+#[cfg(test)]
+mod sync_tests;
 mod tests;
 
 use l2_kingdom::units_tick::{Contact, Encounter};

@@ -2,6 +2,7 @@
 mod battle;
 mod codec;
 use codec::*;
+pub(crate) use codec::{decode_report, encode_report};
 
 #[cfg(test)]
 use l2_kingdom::industry::BankruptcyAction;

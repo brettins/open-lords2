@@ -91,7 +91,7 @@ pub use lockstep::{
     state_digest, state_hash, state_snapshot, Advance, Config, Session, SessionError, Simulation,
 };
 pub use packet::{
-    Ack, HaltReason, Hello, Message, Mismatch, TickPacket, DEFAULT_PORT, MAX_ACKS,
+    Ack, HaltReason, Hello, Message, Mismatch, Resync, TickPacket, DEFAULT_PORT, MAX_ACKS,
     PROTOCOL_VERSION,
 };
 pub use quirks::{Group, Quirk, Quirks};

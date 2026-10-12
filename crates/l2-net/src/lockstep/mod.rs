@@ -75,6 +75,8 @@ impl Default for Config {
 pub enum Advance {
     Stepped { tick: Tick, hash: u64 },
     Waiting { tick: Tick, missing: Vec<PlayerSlot> },
+    /// C256: held at the barrier until the host's state for `at` is in.
+    Resyncing { at: Tick },
     Halted(HaltReason),
 }
 

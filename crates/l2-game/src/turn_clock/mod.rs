@@ -158,6 +158,30 @@ pub struct TurnClock {
     gate_shut: bool,
 }
 
+impl TurnClock {
+    /// C256: the clock a resync carries; `gate_shut` is the seat's.
+    pub fn encode_sync(&self, out: &mut l2_net::Canonical) {
+        out.bool(self.started);
+        out.i32(self.remaining);
+        out.i64(self.elapsed_ms);
+        out.bool(self.restart_pending);
+        out.option(self.battle_saved.as_ref(), |o, v| o.i32(*v));
+        out.bool(self.was_ended);
+        out.bool(self.end_turn);
+    }
+
+    pub fn adopt_sync(&mut self, input: &mut l2_net::Reader<'_>) -> Result<(), l2_net::CodecError> {
+        self.started = input.bool()?;
+        self.remaining = input.i32()?;
+        self.elapsed_ms = input.i64()?;
+        self.restart_pending = input.bool()?;
+        self.battle_saved = input.option(|r| r.i32())?;
+        self.was_ended = input.bool()?;
+        self.end_turn = input.bool()?;
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

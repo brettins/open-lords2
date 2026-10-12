@@ -5,6 +5,7 @@ mod link;
 mod live;
 pub mod relay;
 pub mod replay;
+pub mod resync;
 mod status;
 mod setup;
 mod sim;

@@ -576,8 +576,8 @@ somebody could reasonably make the other way:
   that his *rules* differ, and send him looking in the wrong place.
 * **The per-tick digest covers the**
   same value: `Options` is in the save body and the save body is what
-  `Canonical::hash_of(kingdom)` hashes, so a mismatch does eventually halt the
-session. But only at the first tick a quirk *touches* — for the
+  `Canonical::hash_of(kingdom)` hashes, so a mismatch does eventually show as a
+divergence (dumped, then resynced: C256). But only at the first tick a quirk *touches* — for the
   harvest rule, the end of the first Winter. The handshake refuses before a seed
   is chosen. **Both, and neither alone.**
 * **A *presentation* quirk is not here and must not be** (`docs/bugs.md` §6.3a).
@@ -816,23 +816,41 @@ profiling ever says otherwise, the fallback is to keep hashing every tick but
 exchange every fourth — the ring buffer still localises the divergence to a
 window.
 
-### When it diverges
+### When it diverges (C256)
 
-**Halt.** Do not try to resynchronise, do not let one peer "catch up" from the
-other's state. Once the two simulations differ, everything either of them says
-about the game is suspect, and continuing turns a reproducible bug into an
-unreproducible one.
+**Resync from the host and keep playing.** The owner's call, reversing the halt this
+section used to argue for: a game that ends on a desync is not acceptable. On a checksum
+mismatch:
 
-Both peers then write a **desync dump**:
+1. Every seat that sees it writes its **desync dump** at once, before anything is
+   replaced, and its replay beside it. The dump is a diagnostic now, not a game-ender.
+2. The host names a barrier `R`, the last tick it has sealed, in `Message::ResyncAt`,
+   ahead of any further tick packet. TCP keeps the order, so no seat can have run past `R`.
+3. Every seat runs to `R` and holds (`Advance::Resyncing`). The host sends
+   `Message::Resync`: its world after `R` and that world's digest. The world is
+   `net::resync::encode`, the save codec plus what a save leaves out (the turn in flight,
+   the whole turn clock, `battle_county`, `move_cost`). A joiner replaces the digest's
+   fields with it, keeps its own per-seat view (C210), and checks the digest it now
+   computes against the host's.
+4. Claims at or before `R` describe a replaced world and are ignored; lockstep resumes.
+   The player sees *"Resynced with the host."* for three seconds; nothing blocks.
+
+A later divergence is resynced the same way. There is no cap: the barrier keeps one
+resync in flight, so a world that will not hold still costs a state message per round
+trip, not the game. A `Resync` that does not decode is a protocol error and halts, as any
+malformed message does; leaving and timing out (C240) are unchanged.
+
+The dump holds:
 
 - initial state and seed,
 - the full command stream from the start of the session,
 - the last 256 state hashes,
-- the canonical state at the last agreed tick and at the diverged tick,
+- the canonical state at the moment of divergence,
 - per-subsystem hashes for the diverged tick (see below).
 
 Two dumps plus the command stream are enough to reproduce the divergence offline,
-on one machine, with no network.
+on one machine, with no network. The dump carries the replay up to the divergence: a seat
+that took a resync writes a replay on exit that does not verify past it.
 
 ### Localising it
 
@@ -902,15 +920,14 @@ and only on the fourth does it reload the turn autosave and post *"Com-link erro
 snapshot to do it, which is what group 14's *"The master machine will resync the game."*
 describes.
 
-**We halt.**
-A resynchronised session hides the bug that caused the divergence; the original's own
-shipped `status.txt` counts `Net play divergance count` and `Net play wipe outs` as
-routine telemetry, which is evidence that it diverged **often enough to need a policy** —
-and that is the symptom being designed out, not a feature to reproduce. Rollback, retry,
-state resend and turn reload are explicitly **not** on this project's roadmap. What changes
-with this reading is only that our halt is now a considered disagreement with a known
-design; the position itself is unchanged and does not depend on
-what the original did.
+**We resync, and do not roll back** (C256). The argument this section used to make for
+halting was that a resynchronised session hides the bug that caused the divergence. Writing
+the dump before the resync answers that without ending the game. The original's shipped
+`status.txt` counts `Net play divergance count` and `Net play wipe outs` as routine
+telemetry, which says it diverged often enough to need a policy. Ours aims to make a
+divergence rare (§3, and C39's coverage derived from the struct definitions), and makes the
+one that happens a recorded event the players can play through. Rollback and turn reload
+are still not on the roadmap.
 
 The two things above that *are* worth taking — a digest whose completeness is structural,
 and a frame tag that distinguishes "not everybody is here yet" from "divergence" — are
@@ -1267,7 +1284,7 @@ have enabled.
 ### Recorded games (net-replay-hardening)
 
 Every network game the app plays is written to `<data dir>/replays/net-<seed>-slot<n>.l2nr`
-on halt and on exit: `Start`, the lobby's quirks, the seat, the tables hash and the
+on halt, at a divergence (C256) and on exit: `Start`, the lobby's quirks, the seat, the tables hash and the
 session's `Replay`. `l2-game <install> --verify-replay <file>` rebuilds the world from
 `Start` in a fresh process and checks every tick's hash; exit 0 is bit-exact
 (`net_game` `a_recorded_network_game_replays_bit_exact_in_a_fresh_process`).

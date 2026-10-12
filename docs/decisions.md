@@ -12628,3 +12628,46 @@ game* greyed with *Waiting for John* until John is ready; the joiner's toggle; t
 a `--join` already on the link; the shield cycle), `lobby_ux` and `relay` kept on the C252/C254
 sentences. Three `newgame` tests that used *Multiple players* as a shortcut to page 4 now go
 through page 2's custom game.
+
+**C256 — A checksum divergence resyncs from the host; it no longer ends the game.** The
+owner's call, reversing `docs/netcode.md` §6's old *"Halt. Do not try to resynchronise"*:
+ending a multiplayer game on a desync is unacceptable. Lockstep stays. On a mismatch every
+seat that sees it writes its desync dump and replay first (the evidence, unchanged), the host
+broadcasts `Message::ResyncAt(R)` with `R` the last tick it has sealed, every seat runs to `R`
+and holds (`Advance::Resyncing`), and the host sends `Message::Resync` with its world after
+`R` and that world's digest. The world is `net::resync::encode`: `save::encode` plus what a
+save leaves out (`TurnProgress` through the new `turn::sync` codec, the whole `TurnClock`
+but `gate_shut`, `ai_granted`, the seats, `battle_county`, `move_cost`, the malformed count).
+A joiner takes the digest's fields (`resync::adopt`), keeps its C210 per-seat view (a live
+battle's camera, selection, groups, outbox), and `Session::resynced` checks the digest it now
+computes against the host's. Claims at or before `R` are ignored, so a seat's stale acks do
+not reopen it. The player reads *"Resynced with the host."* (the host: *"Resynced the other
+players."*) for three seconds, drawn without blocking. No cap: the barrier keeps one resync
+in flight, and a world that keeps diverging costs a state message per round trip, not the
+game. Leave and timeout (C240) and protocol errors still halt; `HaltReason::Desync` is gone
+and `PROTOCOL_VERSION` is 3. The original's equivalent is `Sync_Rollback` (`0x0043F5C5`) and
+`Sync_ResendState` (`0x0043F939`, 80,000 bytes from the master machine); it rolled back and
+retried before resending, we resend at once and never roll back. Networking is the one area
+where the original is not the authority.
+**Found on the way, measured:** `Campaign::move_cost` (`g_moveCost`, B108) is neither saved
+nor hashed (`[D]` in `l2-kingdom`), yet the units tick and the movers read it. A first resync
+that carried only the save agreed on the digest at `R` and diverged again at tick 3,155. The
+payload carries it now, and the map test runs 3,600 ticks past its resync to hold that (its
+ablation fails the test). `battle_county`, the other unsaved, unhashed process value, is
+carried too; its only reader is the skirmish set-up, and no test fails without it. Whether
+`move_cost` belongs in the digest (C39's rule: a field a simulation read depends on is in) is
+left open; it is rebuilt by `Move_BuildCostMap` from the map on every peer alike, so two seats
+that never resynced cannot disagree about it [I].
+**Weighed and rejected: host-authoritative state sync** (the host simulates, the others
+draw what it sends). StarCraft II and Age of Empires are lockstep, and our scale (a kingdom
+turn, a battle at 10 Hz) is theirs. The case for state sync is a digest that silently misses
+fields; C39 and its `l2-sim` twin now derive the coverage from the struct definitions, so a
+hole like C30 is a test failure, not a desync found in play. What would reopen it: dumps from
+real games repeatedly naming nondeterminism we cannot stamp out.
+Tests: `net_game` `an_rng_slip_on_the_map_is_dumped_then_resynced_from_the_host` and
+`an_rng_slip_in_a_live_battle_is_resynced_and_the_battle_goes_on` (a draw from one seat's
+world stream outside any tick; both seats dump, the dumps name `rng` alone, one resync, no
+halt, every later tick agrees); `l2-net` `a_divergence_is_resynced_from_the_authority_and_play_goes_on`;
+`turn` `a_turn_in_flight_round_trips_every_field`; `status`
+`a_resync_notice_is_drawn_without_the_stopped_box`. The old halt tests now assert the
+divergence is recorded and nothing halts.

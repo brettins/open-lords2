@@ -31,7 +31,13 @@ pub struct Session {
     replay: Option<Replay>,
     halt: Option<HaltReason>,
     divergence: Option<Divergence>,
+    divergences: u32,
     last_agreed: Option<Tick>,
+    authority: PlayerSlot,
+    /// C256: the tick no seat steps past until the host's state is in.
+    barrier: Option<Tick>,
+    /// C256: claims at or before this tick describe a world a resync replaced.
+    floor: Option<Tick>,
 }
 
 impl Session {
@@ -50,6 +56,7 @@ impl Session {
 
         let replay = if config.record { Some(Replay::start(seed, &slots, sim)) } else { None };
         let history = History::new(config.history);
+        let authority = slots[0];
         Session {
             config,
             local,
@@ -67,7 +74,11 @@ impl Session {
             replay,
             halt: None,
             divergence: None,
+            divergences: 0,
             last_agreed: None,
+            authority,
+            barrier: None,
+            floor: None,
         }
     }
 
@@ -111,29 +122,70 @@ impl Session {
         self.divergence.as_ref()
     }
 
+    /// Divergences noticed so far; each is resynced, none halts (C256).
+    pub fn divergences(&self) -> u32 {
+        self.divergences
+    }
+
+    pub fn authority(&self) -> PlayerSlot {
+        self.authority
+    }
+
+    /// The seat whose state wins a resync: the host (C256). Defaults to the lowest slot.
+    pub fn set_authority(&mut self, slot: PlayerSlot) {
+        assert!(self.slots.contains(&slot), "the authority must be one of the session's slots");
+        self.authority = slot;
+    }
+
+    pub fn resync_barrier(&self) -> Option<Tick> {
+        self.barrier
+    }
+
+    /// The host's half of C256: the tick its state will be sent for, the last it has
+    /// sealed, so no seat can already have run past it. `None` off the host, with no
+    /// divergence, or with a resync already under way.
+    pub fn plan_resync(&mut self) -> Option<Tick> {
+        if self.local != self.authority || self.divergence.is_none() || self.barrier.is_some() {
+            return None;
+        }
+        let at = Tick(self.next_seal.saturating_sub(1)).max(self.simulated.unwrap_or(Tick::ZERO));
+        self.resync_announced(at);
+        Some(at)
+    }
+
+    pub fn resync_announced(&mut self, at: Tick) {
+        self.barrier = Some(at);
+        self.floor = Some(self.floor.map_or(at, |f| f.max(at)));
+    }
+
+    pub fn resync_sent(&mut self) {
+        if let Some(at) = self.barrier.take() {
+            self.settle(at);
+        }
+    }
+
+    /// C256: false when the joiner's load did not reproduce the host's digest.
+    pub fn resynced(&mut self, at: Tick, hash: u64, sim: &impl Simulation) -> bool {
+        let digest = state_digest(sim);
+        let agrees = digest.hash == hash;
+        self.history.replace(at, digest);
+        if self.barrier == Some(at) {
+            self.barrier = None;
+        }
+        self.settle(at);
+        agrees
+    }
+
+    fn settle(&mut self, at: Tick) {
+        self.divergence = None;
+        self.claims.retain(|&(t, _), _| t > at.0);
+        self.last_agreed = Some(at);
+    }
+
     pub fn halt(&mut self, reason: HaltReason) {
         if self.halt.is_none() {
             self.halt = Some(reason);
         }
-    }
-
-    /// A peer's halt. The desync it names is recorded from our own history, so
-    /// this peer writes its half of the dump too. `docs/netcode.md` §6.
-    pub fn halted_by_peer(&mut self, from: PlayerSlot, reason: HaltReason) {
-        if let HaltReason::Desync { tick } = reason {
-            if let (None, Some(ours)) = (&self.divergence, self.history.hash_at(tick)) {
-                let theirs = self.claims.get(&(tick.0, from.index())).copied().unwrap_or(0);
-                self.divergence = Some(Divergence {
-                    tick,
-                    peer: from,
-                    ours,
-                    theirs,
-                    last_agreed: self.last_agreed,
-                    sections: self.history.get(tick).map(|d| d.sections.clone()).unwrap_or_default(),
-                });
-            }
-        }
-        self.halt(reason);
     }
 
     pub fn issue(&mut self, payload: Vec<u8>) {
@@ -247,6 +299,9 @@ impl Session {
         }
 
         let tick = self.tick;
+        if let Some(at) = self.barrier.filter(|&at| tick > at) {
+            return Advance::Resyncing { at };
+        }
         let missing: Vec<PlayerSlot> = self
             .slots
             .iter()
@@ -292,6 +347,9 @@ impl Session {
         let Some(ours) = self.history.hash_at(tick) else {
             return;
         };
+        if self.floor.is_some_and(|f| tick <= f) {
+            return;
+        }
         let mut compared = 0;
         let mut agreed = true;
         for slot in self.slots.clone() {
@@ -305,6 +363,7 @@ impl Session {
             if theirs != ours {
                 agreed = false;
                 if self.divergence.is_none() {
+                    self.divergences += 1;
                     self.divergence = Some(Divergence {
                         tick,
                         peer: slot,
@@ -317,7 +376,6 @@ impl Session {
                             .map(|d| d.sections.clone())
                             .unwrap_or_default(),
                     });
-                    self.halt(HaltReason::Desync { tick });
                 }
             }
         }

@@ -235,7 +235,7 @@ fn one_peer_whose_generator_slipped_is_caught() {
     run_to(&mut peers, AI_TICKS, no_orders);
 
     assert!(
-        peers.iter().any(|p| p.session.is_halted()),
+        peers.iter().any(|p| p.session.divergence().is_some()),
         "a divergent generator ran to completion undetected"
     );
     let split = peers[0]

@@ -38,7 +38,7 @@ fn two_sessions_fed_identical_commands_agree_on_every_tick() {
 }
 
 #[test]
-fn a_perturbed_peer_is_caught_and_both_sides_halt() {
+fn a_perturbed_peer_is_caught_by_both_sides_and_neither_halts() {
     let mut table = Table::new(Config::battle(), 2, 7);
     table.peers[1].sim.bias = 1;
 
@@ -49,11 +49,8 @@ fn a_perturbed_peer_is_caught_and_both_sides_halt() {
     table.run(12);
 
     let divergence = table.peers[0].session.divergence().expect("peer 0 must notice");
-    assert_eq!(
-        table.peers[0].session.halt_reason(),
-        Some(&HaltReason::Desync { tick: divergence.tick })
-    );
-    assert!(table.peers[1].session.is_halted(), "the other peer must notice too");
+    assert!(table.peers[1].session.divergence().is_some(), "the other peer must notice too");
+    assert!(table.peers.iter().all(|p| !p.session.is_halted()), "C256: a divergence is resynced");
     assert_eq!(divergence.peer, PlayerSlot::new(1));
     assert_ne!(divergence.ours, divergence.theirs);
     assert_eq!(
@@ -66,9 +63,8 @@ fn a_perturbed_peer_is_caught_and_both_sides_halt() {
 #[test]
 fn a_halted_session_never_steps_again() {
     let mut table = Table::new(Config::battle(), 2, 7);
-    table.peers[1].sim.bias = 1;
-    table.peers[0].session.issue(Order::Attack { unit: 0 }.payload());
-    table.run(12);
+    table.run(4);
+    table.peers[0].session.halt(HaltReason::Left);
     assert!(table.peers[0].session.is_halted());
 
     let frozen = table.peers[0].session.tick();
@@ -81,9 +77,8 @@ fn a_halted_session_never_steps_again() {
 #[test]
 fn the_first_halt_reason_wins() {
     let mut table = Table::new(Config::battle(), 2, 7);
-    table.peers[1].sim.bias = 1;
-    table.peers[0].session.issue(Order::Attack { unit: 0 }.payload());
-    table.run(12);
+    table.run(4);
+    table.peers[0].session.halt(HaltReason::Timeout);
     let reason = table.peers[0].session.halt_reason().cloned().unwrap();
     table.peers[0].session.halt(HaltReason::Left);
     assert_eq!(table.peers[0].session.halt_reason(), Some(&reason));

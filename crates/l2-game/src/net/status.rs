@@ -1,13 +1,15 @@
 //! A network game's notices, drawn over every screen: a peer is late
-//! (`docs/netcode.md` §4 *Stalling*), the game has stopped (§6), and the
-//! heartbeat. The stopped box and the in-battle wait box are ours [D]: `L2.eng`
-//! has no group for either (C243).
+//! (`docs/netcode.md` §4 *Stalling*), the game has stopped, a resync (§6, C256),
+//! and the heartbeat. The stopped box, the in-battle wait box and the resync line
+//! are ours [D]: `L2.eng` has no group for any of them (C243).
 
 use crate::screen::Ctx;
 use crate::shell::{font, Pen};
 use l2_view::Canvas;
 
 const BOX: (i32, i32, i32) = (160, 200, 20);
+/// C256's one line, clear of the menu bar and the centre box. [D]
+const NOTICE_BOX: (i32, i32, i32) = (160, 40, 20);
 
 /// `FUN_0042476B` (`0x0042476B`, 00420000.c:1396) `(10, 0x1E)` from `Battle_Frame` (`004b0000.c:6786`):
 /// `Pl8_DrawFrame(&g_panelsSheet, 0x105, 10, 30)`. [V]
@@ -51,6 +53,11 @@ pub fn draw(ctx: &Ctx, canvas: &mut Canvas) {
     // once a session runs a world. [I]
     if link.lockstep && link.beat.drawn {
         heartbeat(ctx, canvas);
+    }
+    if let (Some((text, _)), None) = (&link.notice, &link.halted) {
+        let (x, y, cols) = NOTICE_BOX;
+        pen(ctx).window(canvas, x, y, cols, 3, 1);
+        pen(ctx).body(canvas, x + 16, y + 16, text, font::TEXT);
     }
     let in_battle = ctx.game.battle.is_some();
     let lines: Vec<String> = match (&link.halted, link.stalled) {
@@ -156,6 +163,19 @@ mod tests {
         assert_eq!((c.at(1, 475), c.at(10, 479)), (0x3F, 0x3F), "the rim");
         game.net.beat.frame(1);
         assert_eq!(drawn(&mut game).at(2, 476), 0, "drawn on the resample frame only");
+    }
+
+    /// Ablation: the `link.notice` arm in `draw`.
+    #[test]
+    fn a_resync_notice_is_drawn_without_the_stopped_box() {
+        let mut game = Game::new(1);
+        let blank = drawn(&mut game);
+        game.net.notice = Some(("Resynced with the host.".into(), 5));
+        let c = drawn(&mut game);
+        let (x, y, _) = NOTICE_BOX;
+        let inside = (x as usize + 4..x as usize + 300).any(|px| c.at(px, y as usize + 20) != blank.at(px, y as usize + 20));
+        assert!(inside, "nothing drawn at the notice line");
+        assert_eq!(c.at(BOX.0 as usize + 8, BOX.1 as usize + 8), 0, "not the stopped box");
     }
 
     /// Ablation: the `!in_battle` arm; the glyph gives way to our box in a battle.

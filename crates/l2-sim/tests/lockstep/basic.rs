@@ -80,15 +80,11 @@ fn a_peer_running_different_rules_is_caught() {
     peers[1].sim.perturb_at = Some(Tick(30));
     run_to(&mut peers, TICKS, schedule);
 
-    assert!(
-        peers.iter().any(|p| p.session.is_halted()),
-        "a divergence ran to completion undetected"
-    );
     let caught = peers
         .iter()
         .filter_map(|p| p.session.divergence())
         .next()
-        .expect("halted without recording a divergence");
+        .expect("a divergence ran to completion undetected");
     assert!(
         caught.tick >= Tick(30),
         "reported {:?}, before the perturbation could have had an effect",
