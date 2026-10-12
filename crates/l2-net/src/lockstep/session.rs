@@ -8,6 +8,8 @@ use crate::desync::{DesyncDump, Divergence, History, HISTORY};
 use crate::packet::{Ack, HaltReason, TickPacket, MAX_ACKS};
 use crate::replay::Replay;
 
+mod seats;
+
 #[derive(Debug)]
 pub struct Session {
     config: Config,
@@ -38,6 +40,8 @@ pub struct Session {
     barrier: Option<Tick>,
     /// C256: claims at or before this tick describe a world a resync replaced.
     floor: Option<Tick>,
+    /// C260: a slot that sends nothing from this tick on.
+    retired: BTreeMap<u8, u32>,
 }
 
 impl Session {
@@ -79,6 +83,7 @@ impl Session {
             authority,
             barrier: None,
             floor: None,
+            retired: BTreeMap::new(),
         }
     }
 
@@ -259,6 +264,9 @@ impl Session {
         if !self.slots.contains(&from) {
             return Err(SessionError::UnknownSlot(from));
         }
+        if self.is_retired(from, packet.tick) {
+            return Ok(());
+        }
         for command in &packet.commands {
             if command.slot != from {
                 return Err(SessionError::ForgedCommand {
@@ -306,6 +314,7 @@ impl Session {
             .slots
             .iter()
             .copied()
+            .filter(|slot| !self.is_retired(*slot, tick))
             .filter(|slot| !self.inbox.contains_key(&(tick.0, slot.index())))
             .collect();
         if !missing.is_empty() {

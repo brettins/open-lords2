@@ -65,6 +65,7 @@ pub mod packet;
 pub mod quirks;
 pub mod replay;
 pub mod rng;
+pub mod seat;
 pub mod tcp;
 #[cfg(feature = "trace")]
 pub mod trace;
@@ -97,6 +98,7 @@ pub use packet::{
 pub use quirks::{Group, Quirk, Quirks};
 pub use replay::{Replay, ReplayMismatch, REPLAY_MAGIC, REPLAY_VERSION};
 pub use rng::{Pcg32, DEFAULT_STREAM};
+pub use seat::{NoSeat, Rejoin};
 pub use tcp::{TcpTransport, MAX_OUTBOX};
 pub use transport::{
     frame, Endpoint, FrameReader, Loopback, PeerId, Transport, TransportError, MAX_FRAME,
