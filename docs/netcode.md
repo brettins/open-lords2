@@ -1275,11 +1275,26 @@ have enabled.
   frozen world gives the absent realms to the AI (`is_human = false`, which
   `ai::steps` skips) and names the leaver; saving it goes on as a single-player game.
 - **No loading in a network game** (C245). Replacing the world is one
-  peer's act, so the save box's Load refuses under `net.lockstep` and says so;
-  saving stays per seat. Resuming a saved network game is out of scope for now. F4's
-  debug `add_hits` is off in a network game; a skirmish is local (`setup/`), never
-  deferred, and `debug_assert`s it. `command/purity_tests.rs` holds presentation code
-  to commands, with each gated exception named.
+  peer's act, so the save box's Load refuses under `net.lockstep`, and the File menu no
+  longer offers Load or New Game (C257). F4's debug `add_hits` is off in a network game; a
+  skirmish is local (`setup/`), never deferred, and `debug_assert`s it.
+  `command/purity_tests.rs` holds presentation code to commands, with each gated exception
+  named.
+
+### The host's save (C257)
+
+**The host's save is the game's.** Only the host's File menu has Save, and the host autosaves
+every season: `net::frame` encodes the world at the tick the season ends, and the app writes it
+between ticks (`saves::NET_AUTOSAVES`). One local write is a consistent snapshot because under
+lockstep every seat's world at a tick is the same world, which the digest checks every tick;
+the season's tick is a clean boundary, with no turn in flight. Joiners keep no copy. The
+original had every seat write its own at one tick instead (net command `0x17`,
+`NetCmd_WriteSaveGame` `0x00442D00`) and resume by every seat reading its own copy (`0x1D`).
+The save records which install played the host's realm (`Game::owners`, an id each install
+keeps in `prefs.ini`); it is not on the wire, and continuing a saved game from the lobby is
+not built. In game, Quit is *Leave game* for a joiner and *End game for all* for the host
+(with a save first); both close the session through `Live::leave`, so the other seat stops
+as the bullet above says.
 
 ### Recorded games (net-replay-hardening)
 

@@ -12671,3 +12671,42 @@ halt, every later tick agrees); `l2-net` `a_divergence_is_resynced_from_the_auth
 `turn` `a_turn_in_flight_round_trips_every_field`; `status`
 `a_resync_notice_is_drawn_without_the_stopped_box`. The old halt tests now assert the
 divergence is recorded and nothing halts.
+
+**C257 — A network game's saves are the host's; the in-game menu fits a network game.**
+Phase A of row `mp-host-saves` (the owner's spec, agreed 2026-10-12; narrowed the same day:
+resuming in the lobby, seating by install, reassignment, rules in the room and the reconnect
+pause are deferred). Networking is the one area where the original is not the authority
+(`docs/netcode.md`, §6 *What the original did*).
+**What the original did, verified from the decompilation:** every seat saved and loaded.
+`Menu_SaveGame` (`0x00433F49`) and `Menu_LoadGame` (`0x00433E93`) glob `.sva` on the master and
+`.svb` on a client; `SaveLoad_Tick` (`0x004AD9F0`) turns a save into net command `0x17`
+(`NetCmd_WriteSaveGame` `0x00442D00`: deferred action 3, `Save_Write` on every peer at one tick)
+and a load into `0x18`; the front end's resume is `0x1D` (`NetCmd_Read_1D` `0x00443143`), each
+peer reading its own copy by name, then `Net_WaitForPreload` (`0x004ADCF6`).
+`Save_RotateAndWrite` (`0x0049A453`) autosaves on every seat. Quit's yes in a network game is
+`Net_LeaveGameChecked` then setup page 1 (`FUN_0043441C`).
+**Ours.** (1) Save is in the host's File menu only, and the save box refuses a joiner (`[D]`).
+(2) The host autosaves every season: `net::frame` encodes the world at the tick the season ends
+when `net.hosting` (`Game::season_save`), and the app writes it between ticks
+(`net::end_session` → `saves::write_season`, names `saves::NET_AUTOSAVES`, apart from single
+player's as the original's `.sva` triple is). The map fade's autosave writes nothing under
+lockstep. A host-local write is enough: every seat's world at a tick is the same world (the
+digest checks it every tick), so one copy needs no agreement round, and the season's tick is a
+clean boundary (no turn in flight). A joiner holds no copy. (3) The save records realm →
+install (`Game::owners`, save `VERSION` 11); each install makes a 16-byte id once and keeps it
+in `prefs.ini` (`net::InstallId`). Data only: the id is not on the wire, so a save names the
+host's realm alone; a network save loaded by one player gives every other human realm to the
+computer. (4) In game: no New Game, no Load; Quit is *Leave game* for a joiner and *End game for
+all* for the host (the menu plate is the original's 192 px; the box says "for everyone"), one
+box on `ExitConfirm_Draw`'s geometry (`0x00414790`, whose group 48 no caller reaches); the
+host's offers *Save, then end the game*. Its yes is `Live::leave`, the existing API, and the
+title page: the other seat stops as C240 says. Escape in a network game opens the same box.
+Advanced farming no longer changes in game under lockstep: the host chose it in setup.
+**Not done, and what it needs:** a joiner's leave still halts the host (C240) rather than
+playing on with the computer in that realm, and *End game for all* reaches the joiner as *"…left
+the game … save the game to go on alone"*, though a joiner cannot save. Both are `net/live.rs`
+(a goodbye message and an in-session handover, and the halt text), which phase A may not edit.
+Tests: `net_game` `only_the_host_writes_the_seasons_autosave_and_it_records_the_hosts_install`,
+`leave_game_closes_the_joiners_session_and_the_computer_takes_its_realm`,
+`end_game_for_everyone_stops_the_joiner` (TCP); `menubar::net_tests`, `saves::tests`,
+`saveload::tests`, `net::install::tests`, `prefs::tests`, `save::tests`.
