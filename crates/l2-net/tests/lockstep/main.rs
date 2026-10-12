@@ -2,6 +2,7 @@
 mod session_tests;
 mod flow_tests;
 mod divergence_tests;
+mod seat_tests;
 
 #[path = "../common/mod.rs"]
 mod common;

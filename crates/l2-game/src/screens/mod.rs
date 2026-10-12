@@ -51,6 +51,7 @@ pub mod battlefield;
 pub mod castle;
 pub mod confirm;
 pub mod net_halt;
+pub mod net_wait;
 pub mod slider;
 pub mod conquest;
 pub mod county;

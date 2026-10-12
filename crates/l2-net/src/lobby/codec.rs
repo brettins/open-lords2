@@ -11,6 +11,8 @@ pub struct Join {
     pub hello: Hello,
     pub name: String,
     pub shield: u8,
+    /// C260: the joiner's install id, by which a dropped player gets its seat back.
+    pub install: [u8; 16],
 }
 
 impl Encode for Join {
@@ -18,6 +20,7 @@ impl Encode for Join {
         self.hello.encode(out);
         out.str(&self.name);
         out.u8(self.shield);
+        out.raw(&self.install);
     }
 }
 
@@ -27,6 +30,7 @@ impl Decode for Join {
             hello: Hello::decode(input)?,
             name: input.str()?.to_string(),
             shield: input.u8()?,
+            install: input.raw(16)?.try_into().expect("sixteen bytes"),
         })
     }
 }

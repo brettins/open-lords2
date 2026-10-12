@@ -2,7 +2,7 @@
 use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 use crate::command::{Command, PlayerSlot, Tick};
 
-pub const PROTOCOL_VERSION: u16 = 3;
+pub const PROTOCOL_VERSION: u16 = 4;
 
 pub const DEFAULT_PORT: u16 = 27962;
 
@@ -160,6 +160,8 @@ pub enum HaltReason {
     Left,
     Timeout,
     Protocol { detail: String },
+    /// C260: the host ended the game for everyone.
+    Ended,
 }
 
 impl core::fmt::Display for HaltReason {
@@ -168,6 +170,7 @@ impl core::fmt::Display for HaltReason {
             HaltReason::Left => write!(f, "the player left"),
             HaltReason::Timeout => write!(f, "a peer stopped responding"),
             HaltReason::Protocol { detail } => write!(f, "protocol error: {detail}"),
+            HaltReason::Ended => write!(f, "the host ended the game"),
         }
     }
 }
@@ -185,6 +188,17 @@ pub enum Message {
     /// C256: the host's state is replaced in at this tick; no seat steps past it until it has.
     ResyncAt(Tick),
     Resync(Resync),
+    /// C260: a joiner leaves on purpose; what it sealed before is already sent.
+    Leaving,
+    /// C260: the host expects nothing from `slot` from tick `from` on.
+    Retire { slot: PlayerSlot, from: Tick },
+    /// C260: the host lost `slot` without a goodbye and waits for it.
+    Away(PlayerSlot),
+    /// C260: `slot` is back on a new connection.
+    Back(PlayerSlot),
+    Rejoin(Box<crate::seat::Rejoin>),
+    /// C260: a game under way has no seat for this join.
+    NoSeat(crate::seat::NoSeat),
 }
 
 /// C256: the host's world after `tick`, and its digest, which the joiner's load must reproduce.
@@ -245,8 +259,10 @@ impl Encode for Message {
                         out.u8(3);
                         out.str(detail);
                     }
+                    HaltReason::Ended => out.u8(4),
                 }
             }
+            seat => crate::seat::encode(seat, out),
         }
     }
 }
@@ -274,12 +290,14 @@ impl Decode for Message {
                     1 => HaltReason::Left,
                     2 => HaltReason::Timeout,
                     3 => HaltReason::Protocol { detail: input.str()?.to_string() },
+                    4 => HaltReason::Ended,
                     tag => {
                         return Err(CodecError::BadTag { tag, expected: "halt reason", at });
                     }
                 };
                 Ok(Message::Halt(reason))
             }
+            tag @ crate::seat::TAG_LEAVING..=crate::seat::TAG_NO_SEAT => crate::seat::decode(tag, input),
             tag => Err(CodecError::BadTag { tag, expected: "message kind", at }),
         }
     }

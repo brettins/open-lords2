@@ -145,6 +145,7 @@ pub struct Lobby {
     shield: u8,
     unseated_gold: i32,
     setup: Vec<u8>,
+    install: [u8; 16],
 }
 
 fn check_name(name: String, roster: &Roster) -> Result<String, LobbyError> {

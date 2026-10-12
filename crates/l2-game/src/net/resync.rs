@@ -95,3 +95,18 @@ fn keep_view(mine: &mut LiveBattle, theirs: &mut LiveBattle) {
     swap(&mut theirs.outbox, &mut mine.outbox);
     swap(&mut theirs.awaiting, &mut mine.awaiting);
 }
+
+/// C260: a dropped seat's world from the host's `Rejoin`: the save inside C256's
+/// payload as a load decodes it, then the rest of the payload over it.
+pub fn rebuild(r: &l2_net::Rejoin, tables: l2_kingdom::tables::Tables) -> Result<Game, String> {
+    let bytes = Reader::new(&r.state).bytes().map_err(|e| e.to_string())?;
+    let mut game = save::decode(bytes, tables).map_err(|e| e.to_string())?;
+    let mut malformed = 0;
+    adopt(&mut game, &mut malformed, &r.state)?;
+    game.net.me = Some(r.slot);
+    game.player = game.realm_of(r.slot).ok_or("the host gave this seat no realm")?;
+    let (k, mine) = (&game.kingdom, game.player);
+    game.selected = k.county_ids().find(|&c| k.counties[c].owner == mine).map_or(0, |c| c as u8);
+    game.multiplayer = true;
+    Ok(game)
+}

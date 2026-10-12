@@ -9,8 +9,9 @@ use super::link::PortMap;
 use super::relay;
 use l2_net::{
     decode_all, Canonical, Hello, Lobby, LobbyError, LobbyEvent, Mapping, Message, NatError,
-    PeerId, PlayerSlot, Role, Roster, Start, TcpTransport, Transport,
+    NoSeat, PeerId, PlayerSlot, Rejoin, Role, Roster, Start, TcpTransport, Transport,
 };
+use super::InstallId;
 use std::io::ErrorKind;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpStream, ToSocketAddrs};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
@@ -36,6 +37,10 @@ pub struct Driver {
     port: PortMap,
     /// The join-code service's control connection (C254); a client has none.
     relay: Option<relay::Host>,
+    /// C260: each seat's install, as its `Join` said; the host's own first.
+    installs: Vec<(PlayerSlot, InstallId)>,
+    /// C260: the host took this client back into a game under way.
+    rejoined: Option<Box<Rejoin>>,
 }
 
 impl Driver {
@@ -65,6 +70,8 @@ impl Driver {
             mapped: None,
             port: PortMap::Off,
             relay: None,
+            installs: Vec::new(),
+            rejoined: None,
         };
         if let Some(bound) = bound.filter(|b| b.ip().is_unspecified()) {
             let (tx, rx) = mpsc::channel();
@@ -112,8 +119,7 @@ impl Driver {
             (Some(_), None) => return Err(relay::NOT_CONFIGURED.into()),
             (_, relay) => relay.map(String::from),
         };
-        let mut lobby = Lobby::join(hello, name).map_err(|e| e.to_string())?.with_shield(shield);
-        lobby.greet().map_err(|e| e.to_string())?;
+        let lobby = Lobby::join(hello, name).map_err(|e| e.to_string())?.with_shield(shield);
         let (tx, rx) = mpsc::channel();
         let address = address.trim().to_string();
         std::thread::spawn(move || {
@@ -133,7 +139,27 @@ impl Driver {
             mapped: None,
             port: PortMap::Off,
             relay: None,
+            installs: Vec::new(),
+            rejoined: None,
         })
+    }
+
+    /// C260: this install's id; a client's goes out in its `Join` once connected.
+    pub fn with_install(mut self, install: InstallId) -> Driver {
+        self.lobby = self.lobby.with_install(install.0);
+        if self.lobby.role() == Role::Host {
+            self.installs = vec![(self.lobby.local_slot(), install)];
+        }
+        self
+    }
+
+    pub fn installs(&self) -> &[(PlayerSlot, InstallId)] {
+        &self.installs
+    }
+
+    /// C260: the host's `Rejoin`, once.
+    pub fn take_rejoin(&mut self) -> Option<Box<Rejoin>> {
+        self.rejoined.take()
     }
 
     /// The host's join code, once the service answered (C254).
@@ -217,6 +243,7 @@ impl Driver {
                 Ok(result) => {
                     self.connecting = None;
                     self.transport = Some(result?);
+                    self.lobby.greet().map_err(|e| e.to_string())?;
                 }
             }
         }
@@ -252,8 +279,19 @@ impl Driver {
         }
         while let Some((peer, bytes)) = transport.poll() {
             let Ok(message) = decode_all::<Message>(&bytes) else { continue };
+            let install = match &message {
+                Message::Join(j) => InstallId(j.install),
+                // C260: the tick packets after it are the session's; they stay queued.
+                Message::Rejoin(r) if self.lobby.role() == Role::Client => {
+                    self.rejoined = Some(r.clone());
+                    break;
+                }
+                Message::NoSeat(why) if self.lobby.role() == Role::Client => return Err(no_seat(*why)),
+                _ => InstallId::NIL,
+            };
             match self.lobby.receive(peer, message) {
                 Ok(LobbyEvent::Started(s)) => started = Some(s),
+                Ok(LobbyEvent::Joined(slot)) => self.installs.push((slot, install)),
                 Ok(_) => {}
                 Err(LobbyError::Incompatible(why)) if self.lobby.role() == Role::Client => {
                     return Err(refusal(&LobbyError::Incompatible(why)));
@@ -266,7 +304,9 @@ impl Driver {
             if self.lobby.role() == Role::Client && peer == HOST {
                 return Err("The host has left the game.".into());
             }
-            self.lobby.peer_left(peer);
+            if let LobbyEvent::Left(slot) = self.lobby.peer_left(peer) {
+                self.installs.retain(|&(s, _)| s != slot);
+            }
         }
         self.flush()?;
         Ok(started)
@@ -278,12 +318,14 @@ impl Driver {
         new_game(assets, start, me, self.quirks, tables).map_err(|e| e.to_string())
     }
 
-    /// For the lockstep session that follows the lobby; after `Start` the host
-    /// takes no one new (net-live-leftovers: a stranger was accepted).
+    /// For the lockstep session that follows the lobby. C260: the host keeps its
+    /// port and code, and `Live` takes back a dropped player or refuses the join.
+    pub fn into_session(self) -> Option<(TcpTransport, Option<relay::Host>)> {
+        Some((self.transport?, self.relay))
+    }
+
     pub fn into_transport(self) -> Option<TcpTransport> {
-        let mut t = self.transport?;
-        t.stop_listening();
-        Some(t)
+        self.into_session().map(|(t, _)| t)
     }
 
     fn flush(&mut self) -> Result<(), String> {
@@ -329,6 +371,14 @@ fn reach_of(bound: SocketAddr) -> Vec<SocketAddr> {
     match l2_net::nat::lan_ip() {
         Some(ip) => vec![SocketAddr::new(IpAddr::V4(ip), bound.port())],
         None => vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), bound.port())],
+    }
+}
+
+/// C260: `[D]` ours, in the joining player's words.
+fn no_seat(why: NoSeat) -> String {
+    match why {
+        NoSeat::Retired => "That game went on without you: the computer plays your realm now.".into(),
+        NoSeat::Started => "That game has already started without you.".into(),
     }
 }
 

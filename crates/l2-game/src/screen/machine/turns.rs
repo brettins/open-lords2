@@ -21,14 +21,25 @@ impl Machine {
 
     /// `[D]` a stopped network game's box opens over everything and stays there:
     /// a battle prompt opened the same frame buried it (2026-10-11, `halt_box`).
+    /// C260: the waiting box is held the same way, and goes when nobody is awaited.
     pub(crate) fn keep_halt_on_top(&mut self, game: &Game) {
         let net = &game.net;
-        let at = self.stack.iter().position(|s| s.id() == ScreenId::NetHalt);
-        match at {
-            None if net.halted.is_some() && net.after_halt.is_none() => self.push(ScreenId::NetHalt),
+        let halt = net.halted.is_some() && net.after_halt.is_none();
+        let wait = !halt && net.lockstep && !net.waiting.is_empty() && game.leaving.is_none();
+        self.keep_on_top(ScreenId::NetWait, wait);
+        self.keep_on_top(ScreenId::NetHalt, halt);
+    }
+
+    fn keep_on_top(&mut self, id: ScreenId, wanted: bool) {
+        match self.stack.iter().position(|s| s.id() == id) {
+            None if wanted => self.push(id),
+            Some(i) if !wanted => {
+                self.stack.remove(i);
+                self.dirty = true;
+            }
             Some(i) if i + 1 < self.stack.len() => {
-                let halt = self.stack.remove(i);
-                self.stack.push(halt);
+                let screen = self.stack.remove(i);
+                self.stack.push(screen);
                 self.dirty = true;
             }
             _ => {}

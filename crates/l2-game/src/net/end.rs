@@ -1,7 +1,8 @@
 //! C257: between ticks, the app carries out what this seat asked of its network
 //! game: the season's save on the host, and a leave. `FUN_0043441C`'s network arm
-//! is `Net_LeaveGameChecked()` then the front end; ours closes the connections
-//! through `Live::leave`, and the others see the seat go (C240's halt).
+//! is `Net_LeaveGameChecked()` then the front end; ours says goodbye and closes the
+//! connections through `Live::leave` (C260): a joiner's realm goes to the computer,
+//! a host's leave ends the game for everyone.
 
 use super::Live;
 use crate::game::Game;

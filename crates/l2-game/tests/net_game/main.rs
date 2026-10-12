@@ -18,6 +18,9 @@ mod relay;
 mod host_saves;
 mod relay_play;
 mod halt_box;
+mod kit;
+mod leave_tcp;
+mod rejoin_tcp;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;

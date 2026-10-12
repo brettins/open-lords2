@@ -89,6 +89,14 @@ pub struct Link {
     pub done: Option<Box<crate::turn::TurnOutcome>>,
     /// `FUN_0041A844`'s heartbeat, per seat.
     pub beat: super::status::Beat,
+    /// C260: each seat's install, known to the host from the lobby's `Join`s.
+    pub installs: Vec<(PlayerSlot, super::InstallId)>,
+    /// C260: dropped players the game waits for, by name.
+    pub waiting: Vec<String>,
+    /// C260: the host's answer on the waiting box; `Live` hands those realms over.
+    pub computer_plays: bool,
+    /// C260: the host's `Rejoin` this world was built from; the app starts its session from it.
+    pub rejoin: Option<Box<l2_net::Rejoin>>,
 }
 
 impl Link {
@@ -112,7 +120,9 @@ pub fn service(
     assets: &Assets,
     tables: Tables,
 ) -> Option<Game> {
-    let start = lobby(driver, game, assets.wall_clock, tables)?;
+    let Some(start) = lobby(driver, game, assets.wall_clock, tables) else {
+        return rejoined(driver, game, tables);
+    };
     let built = driver.as_ref()?.build(assets, &start, tables);
     match built {
         Ok(mut world) => {
@@ -126,6 +136,25 @@ pub fn service(
         Err(why) => {
             *driver = None;
             game.net.phase = Phase::Failed(why);
+            None
+        }
+    }
+}
+
+/// C260: the host took this seat back; its world is the host's, from the `Rejoin`.
+fn rejoined(driver: &mut Option<Driver>, game: &mut Game, tables: Tables) -> Option<Game> {
+    let r = driver.as_mut()?.take_rejoin()?;
+    match super::resync::rebuild(&r, tables) {
+        Ok(mut world) => {
+            let roster = r.roster.clone();
+            world.net = Link { phase: Phase::Started, requests: Vec::new(), roster, rejoin: Some(r), ..game.net.clone() };
+            world.prefs = game.prefs;
+            world.tips = game.tips;
+            Some(world)
+        }
+        Err(why) => {
+            *driver = None;
+            game.net.phase = Phase::Failed(format!("Could not rejoin the game: {why}"));
             None
         }
     }
@@ -149,8 +178,9 @@ pub fn lobby(
                 let seed = crate::scenario::new_game_seed(wall_clock, None);
                 let hello = super::hello(&settings, &tables, seed, PlayerSlot::new(0));
                 let gold = game.chosen_gold;
+                let install = game.prefs.install;
                 Driver::host(addr, hello, &id.name, id.shield, &id.setup, gold, quirks)
-                    .map(|d| *driver = Some(d.with_relay(super::relay::configured())))
+                    .map(|d| *driver = Some(d.with_install(install).with_relay(super::relay::configured())))
             }
             (Request::Join { address }, None, Some(id)) => {
                 let settings = id.setup.settings(1, quirks);
@@ -158,7 +188,7 @@ pub fn lobby(
                 let hello = super::hello(&settings, &tables, 0, PlayerSlot::new(0));
                 let joined = Driver::join(&address, hello, &id.name, id.shield, quirks);
                 joined.map(|d| {
-                    *driver = Some(d);
+                    *driver = Some(d.with_install(game.prefs.install));
                     link.phase = Phase::Connecting(address);
                 })
             }
@@ -199,6 +229,7 @@ pub fn lobby(
     link.port = d.port().clone();
     link.code = d.code().map(String::from);
     link.relay = d.relay_status().map(String::from);
+    link.installs = d.installs().to_vec();
     if let Some(n) = link.auto {
         let me = link.me.and_then(|s| link.roster.get(s));
         let all_ready = link.roster.players.iter().all(|p| p.is_host || p.ready);

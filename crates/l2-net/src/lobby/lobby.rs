@@ -28,6 +28,7 @@ impl Lobby {
             shield: 1,
             unseated_gold: 0,
             setup: Vec::new(),
+            install: [0; 16],
         })
     }
 
@@ -44,6 +45,7 @@ impl Lobby {
             shield: 0,
             unseated_gold: 0,
             setup: Vec::new(),
+            install: [0; 16],
         })
     }
 
@@ -57,6 +59,12 @@ impl Lobby {
             let me = Player { slot, name: self.name.clone(), ready: true, is_host: true, shield };
             self.roster.insert_sorted(me);
         }
+        self
+    }
+
+    /// C260: the install id a client's `Join` carries.
+    pub fn with_install(mut self, install: [u8; 16]) -> Lobby {
+        self.install = install;
         self
     }
 
@@ -102,6 +110,7 @@ impl Lobby {
                 hello: self.identity.clone(),
                 name: self.name.clone(),
                 shield: self.shield,
+                install: self.install,
             }),
         });
         Ok(())

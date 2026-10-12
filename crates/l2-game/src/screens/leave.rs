@@ -80,21 +80,26 @@ impl LeaveScreen {
     }
 
     fn press(&mut self, choice: Choice, ctx: &mut Ctx) -> Transition {
-        let leaving = match choice {
-            Choice::Back => return Transition::Pop,
-            Choice::Leave => Leaving::Leave,
-            Choice::EndWithoutSaving => Leaving::EndForEveryone,
-            Choice::SaveAndEnd => {
-                let name = save_name(ctx);
-                if let Err(e) = crate::saves::write(&name, ctx.game) {
-                    eprintln!("save before ending: {e}");
-                }
-                Leaving::EndForEveryone
-            }
-        };
-        ctx.game.leaving = Some(leaving);
-        Transition::Goto(ScreenId::Setup(SetupPage::Title))
+        carry_out(choice, ctx)
     }
+}
+
+/// C257's answers; C260's waiting box gives the same ones.
+pub fn carry_out(choice: Choice, ctx: &mut Ctx) -> Transition {
+    let leaving = match choice {
+        Choice::Back => return Transition::Pop,
+        Choice::Leave => Leaving::Leave,
+        Choice::EndWithoutSaving => Leaving::EndForEveryone,
+        Choice::SaveAndEnd => {
+            let name = save_name(ctx);
+            if let Err(e) = crate::saves::write(&name, ctx.game) {
+                eprintln!("save before ending: {e}");
+            }
+            Leaving::EndForEveryone
+        }
+    };
+    ctx.game.leaving = Some(leaving);
+    Transition::Goto(ScreenId::Setup(SetupPage::Title))
 }
 
 impl Default for LeaveScreen {
