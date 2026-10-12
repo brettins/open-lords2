@@ -113,7 +113,8 @@ crates/l2-game/src/screens/setup/mod.rs	C117	6f7a2f21a38d	b20f3a227f0f
 crates/l2-game/src/screens/setup/screen.rs	C117	2629e4046f2a	b20f3a227f0f
 crates/l2-game/src/screens/setup/screen.rs	C21	dc29584cf8bc	f7bf296341ff
 crates/l2-game/src/screens/setup/ui/input.rs	C21	263ca73b332b	f7bf296341ff
-crates/l2-game/src/screens/setup/ui/render/render/items.rs	C117	05e9d62185a6	b20f3a227f0f
+crates/l2-game/src/screens/setup/ui/render/render/items.rs	C117	a2c559892a55	b20f3a227f0f
+crates/l2-game/src/screens/setup/ui/render/render/items.rs	C255	1a1e4186ceb7	5828b98be06b
 crates/l2-game/src/screens/setup/ui/render/render/launch.rs	C21	0d2dc87693aa	f7bf296341ff
 crates/l2-game/src/screens/setup/ui/skirmish_custom.rs	C140	229fc56c436a	e3a1ede42a95
 crates/l2-game/src/screens/shells.rs	C45	205dec2f122d	4d770bef92bd
@@ -811,8 +812,15 @@ docs/decisions.md	C25	de5babed763b	5d466f0cb89c
 docs/decisions.md	C25	efa209f1694a	5d466f0cb89c
 docs/decisions.md	C25	faa4dd8295f4	5d466f0cb89c
 docs/decisions.md	C25	fcf38cc5919b	5d466f0cb89c
+docs/decisions.md	C252	04688d3ac7cf	1c5665934638
+docs/decisions.md	C252	058c6fe8c112	1c5665934638
 docs/decisions.md	C252	1eb5d55b50b3	1c5665934638
 docs/decisions.md	C252	7d740926734c	1c5665934638
+docs/decisions.md	C253	05b806ac68a2	bf93aabc1001
+docs/decisions.md	C253	ae84808a4718	bf93aabc1001
+docs/decisions.md	C254	4e090b2fd63b	e5553d10ca00
+docs/decisions.md	C254	8918e6a186de	e5553d10ca00
+docs/decisions.md	C254	ed833281c980	e5553d10ca00
 docs/decisions.md	C26	1824d81774d5	e8179d1f76a8
 docs/decisions.md	C26	5357aea2a649	e8179d1f76a8
 docs/decisions.md	C26	8f6a35ed9d62	e8179d1f76a8

@@ -20,7 +20,7 @@ use l2_kingdom::unit::{TroopType, Unit, UnitKind};
 fn the_application_opens_on_the_intro_over_the_title_page() {
     let src = include_str!("../../../src/main.rs");
     assert!(
-        src.contains("l2_game::movie::start_up(&mut machine);"),
+        src.contains("None => l2_game::movie::start_up(&mut machine),"),
         "main.rs no longer plays the intro at start-up"
     );
     let mut m = Machine::new(ScreenId::Setup(setup::SetupPage::Title));
