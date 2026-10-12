@@ -58,6 +58,7 @@ fn drop_and_rejoin() {
     m.update(&mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::NetWait), "John is shown the wait");
     assert_eq!(NetWaitScreen::heading(&ctx), "Waiting for Matilda");
+    kit::shot(&mut m, &ctx, "wait-joiner");
     m.handle(Event::KeyDown(Key::Escape), &mut ctx);
     m.update(&mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::NetWait), "Escape reached under the box");
@@ -96,6 +97,7 @@ fn computer_plays() {
         let mut ctx = Ctx { game: &mut seats[0].game, assets: &assets };
         m.update(&mut ctx);
         assert_eq!(m.top_id(), Some(ScreenId::NetWait));
+        kit::shot(&mut m, &ctx, "wait-host");
         let stack = m.ids();
         for e in [Event::Click { x: 30, y: 8 }, Event::KeyDown(Key::Escape)] {
             m.handle(e, &mut ctx);

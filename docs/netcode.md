@@ -838,7 +838,7 @@ mismatch:
 A later divergence is resynced the same way. There is no cap: the barrier keeps one
 resync in flight, so a world that will not hold still costs a state message per round
 trip, not the game. A `Resync` that does not decode is a protocol error and halts, as any
-malformed message does; leaving and timing out (C240) are unchanged.
+malformed message does; a seat that leaves or drops is §8's *A seat that goes* (C260).
 
 The dump holds:
 
@@ -1268,12 +1268,11 @@ have enabled.
   when it dies the game plays by address exactly as before (`DEFAULT_RELAY` is `""` until
   one is deployed). It sees the game's unencrypted bytes, as the bullet below says anyone on
   the path does.
-- **No in-session AI takeover of a dropped seat** (C240). A seat whose
-  connection closes, or that is silent for sixty seconds (`net::TIMEOUT`), halts the
-  session: survivors would have to agree on the tick the seat stopped, and with three
-  or more peers each may have heard a different last packet. Instead each survivor's
-  frozen world gives the absent realms to the AI (`is_human = false`, which
-  `ai::steps` skips) and names the leaver; saving it goes on as a single-player game.
+- **No host migration** (C260). A joiner that leaves or drops is handed to the computer
+  or waited for (*A seat that goes*, below); a host that leaves, ends, or goes silent for
+  sixty seconds (`net::TIMEOUT`) stops every joiner's game. Each joiner's frozen world gives
+  every other seat's realm to the AI (`is_human = false`, which `ai::steps` skips), and the
+  stopped box offers *Continue alone* or *Leave game*. C240's halt on any seat's drop is gone.
 - **No loading in a network game** (C245). Replacing the world is one
   peer's act, so the save box's Load refuses under `net.lockstep`, and the File menu no
   longer offers Load or New Game (C257). F4's debug `add_hits` is off in a network game; a
@@ -1293,8 +1292,34 @@ original had every seat write its own at one tick instead (net command `0x17`,
 The save records which install played the host's realm (`Game::owners`, an id each install
 keeps in `prefs.ini`); it is not on the wire, and continuing a saved game from the lobby is
 not built. In game, Quit is *Leave game* for a joiner and *End game for all* for the host
-(with a save first); both close the session through `Live::leave`, so the other seat stops
-as the bullet above says.
+(with a save first); both close the session through `Live::leave`: a joiner's goodbye
+hands its realm over (C260, below), the host's `Halt(Ended)` stops the others.
+
+### A seat that goes (C260)
+
+**A joiner that leaves is handed to the computer, and everyone else plays on.** *Leave game*
+sends `Message::Leaving` after the packets the seat sealed. The host runs
+`Session::retire(slot, from)` with `from` the first tick it has no packet for (TCP keeps one
+seat's packets in order, so it has the rest), tells every joiner `Retire { slot, from }`,
+and issues `GameCommand::ToComputer`, which clears `is_human` at one tick on every seat. Joiners
+connect only to the host, and the host forwards each joiner's tick packets to the others,
+so every seat holds what the host held when it retired the seat, and three or more seats
+play. The original eliminated a departing realm (`Net_OnSessionEvent` `0x0043E6A2`).
+
+**A joiner that drops is waited for.** A connection closed without a goodbye, or silent past
+`TIMEOUT` at the host, pauses the game: the host sends `Away(slot)`, and every seat shows the
+waiting box, *"Waiting for Matilda"* (`ScreenId::NetWait`, held on top of the stack like the
+stopped box). The host's way on is *Let the computer play*, the same handover as a leave; a
+joiner's is to leave. There is no countdown: the host is there, and a friend whose router
+hiccupped should not come back to find the computer spent their treasury.
+
+**Rejoin by install.** The lobby's `Join` carries the install id from `prefs.ini`. After `Start`
+the host keeps its port and code; a `Join` from a dropped seat's install gets
+`Message::Rejoin`, C256's resync payload for the tick the host is held at, then every packet
+the host holds for later ticks; the seat starts its session there (`Session::rejoin`, no
+replay) and the others hear `Back(slot)`. A seat the computer already took gets
+`NoSeat::Retired` (*"That game went on without you"*), any other install `NoSeat::Started`.
+The id is not authentication (v1 has none, above).
 
 ### Recorded games (net-replay-hardening)
 

@@ -25,7 +25,8 @@ impl Machine {
     pub(crate) fn keep_halt_on_top(&mut self, game: &Game) {
         let net = &game.net;
         let halt = net.halted.is_some() && net.after_halt.is_none();
-        self.keep_on_top(ScreenId::NetWait, !halt && net.lockstep && !net.waiting.is_empty());
+        let wait = !halt && net.lockstep && !net.waiting.is_empty() && game.leaving.is_none();
+        self.keep_on_top(ScreenId::NetWait, wait);
         self.keep_on_top(ScreenId::NetHalt, halt);
     }
 

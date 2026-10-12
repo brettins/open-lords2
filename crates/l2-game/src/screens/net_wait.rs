@@ -15,6 +15,7 @@ const X: i32 = 0x80;
 const Y: i32 = 0xA0;
 const COLS: i32 = 0x12;
 const INSET: i32 = 0x10;
+const FOOT: i32 = 0x18;
 const TEXT_W: i32 = COLS * 16 - 2 * INSET;
 const BUTTON_H: i32 = 0x18;
 const ROW_STEP: i32 = 0x1C;
@@ -72,7 +73,7 @@ impl NetWaitScreen {
     pub fn buttons(ctx: &Ctx) -> Vec<Rect> {
         let (_, h) = layout(ctx);
         let n = NetWaitScreen::answers(ctx).len() as i32;
-        let top = Y + h - INSET - (n - 1) * ROW_STEP - BUTTON_H;
+        let top = Y + h - FOOT - (n - 1) * ROW_STEP - BUTTON_H;
         (0..n).map(|i| Rect::new(X + INSET, top + i * ROW_STEP, TEXT_W, BUTTON_H)).collect()
     }
 
@@ -110,7 +111,7 @@ fn line(ctx: &Ctx) -> i32 {
 fn layout(ctx: &Ctx) -> (Vec<String>, i32) {
     let lines = pen(ctx).wrap(&NetWaitScreen::text(ctx), TEXT_W);
     let n = NetWaitScreen::answers(ctx).len() as i32;
-    let body = INSET + 2 * line(ctx) + lines.len() as i32 * line(ctx) + 12 + (n - 1) * ROW_STEP + BUTTON_H + INSET;
+    let body = INSET + 2 * line(ctx) + lines.len() as i32 * line(ctx) + 12 + (n - 1) * ROW_STEP + BUTTON_H + FOOT;
     (lines, (body + 15) / 16 * 16)
 }
 

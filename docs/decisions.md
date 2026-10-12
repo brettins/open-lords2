@@ -12482,6 +12482,9 @@ The refusal is `[D]` ours on screen: *"This save was made by an older (or newer)
 **C240 — a dropped network seat halts the session; the survivor's save goes on with the AI in that realm.**
 
 A closed connection or sixty seconds of silence (`net::TIMEOUT`, `[I]` ours) halts lockstep for everyone. An in-session AI takeover was rejected: every survivor would have to agree on the tick the seat stopped, which needs a consensus round the protocol does not have. Instead `Live::report` (`net/live.rs` `hand_to_ai`) clears `is_human` on the absent seats' realms and units in the frozen world and names the leaver; `ai::steps` skips `is_human` realms, so a save of that world, which loads with `multiplayer` false, is played on by the AI. `net_game` `live_drop`. Netcode is ours, not the oracle's (`docs/netcode.md` section 8).
+> **Superseded by C260:** a joiner that leaves is handed to the computer at one tick and the
+> others play on; a dropped joiner is waited for; only a seat that loses its host still stops.
+
 **C241 — *Start game help* opens our own help window, not Windows'.**
 
 `Opt_GameHelpContents` (`0x00434942`, Help options row 3) is one call, `WinHelpA(hwnd, "l2help.hlp", HELP_CONTENTS, 1)`: the viewer is Windows', and `winhlp32` has not shipped since Vista. Ours reads `L2help.hlp` itself (`l2-formats/src/hlp.rs`: text, the 0xE2/0xE3 hotspots, `|CONTEXT`; `[V]` 168 of 168 context offsets land on a topic header) and shows a topic in the game's window, body font and the save box's scroll arrows (System.pl8 35/37), with OK and a Back labelled `L2.eng` 11/9. All of it is `[D]`: no function of the binary draws a help viewer. Scrolling is by the arrows only, as nothing in the original scrolls by wheel or key. A popup hotspot (0xE2) opens its topic like a jump; fonts and the 41 bitmaps are not drawn. The DOS release has no `L2help.hlp`, and the screen closes at once. `g_screenId` stays `0x31` under WinHelp, so tooltips and the tip view read `ScreenId::Help` as `0x31` `[I]`.
@@ -12738,3 +12741,44 @@ original's frame spacing and size. `Fntl2_9` (codes, status lines) is drawn trip
 Presentation only: not in the digest, not on the wire. Owner's caution: *"I'm a little worried
 about putting this in if it doesn't work out exactly, could mess up some game elements"*; so
 it ships behind a setting, off until the screens have been checked.
+
+**C260 — A joiner that leaves is handed to the computer and the game goes on; a dropped joiner is waited for and rejoins by install.**
+Phase B1 of row `mp-host-saves` (the owner's spec, agreed 2026-10-12). Networking is the one
+area where the original is not the authority (`docs/netcode.md` §8 *A seat that goes*); the
+original eliminated a departing realm (`Net_OnSessionEvent` `0x0043E6A2`, event 2 in play,
+`Realm_Eliminate`). Built from the parked prototype on `agent/mp-host-saves-deferred`, its
+lobby half (resume, saved realms, reassignment) left for B2.
+**Ours.** (1) *Leave game* sends `Message::Leaving`; the host retires the seat from the first
+tick it holds no packet for (`Session::retire`, `first_missing`), sends `Retire { slot, from }`
+and issues `GameCommand::ToComputer` (37), which on every seat at one tick clears `is_human`,
+drops the seat from `game.seats`, and ends the season if every remaining seat had pressed End
+Turn. (2) Joiners connect only to the host, which now forwards each joiner's tick packets to
+the rest; so the retire tick is every seat's, and three or more seats play over TCP (the
+prototype's two-seat limit). (3) A connection lost without a goodbye, or a joiner silent past
+`TIMEOUT` at the host, is waited for: `Away(slot)` to the others, and every seat shows the
+waiting box (`ScreenId::NetWait`), a real screen `Machine::keep_halt_on_top` holds over
+anything opened under it and which takes Escape, never an overlay (the owner's first relay game
+was trapped by one). The host's choices are *Let the computer play* (the handover of (1)) and
+*Save, then end the game*; a joiner's is *Leave the game*. No countdown: the host is present,
+the game is paused anyway, and a friend whose router hiccupped should not come back to find
+the computer spent their treasury. A joiner times out only when its host's packet is the one
+missing. (4) `Join` carries the install id (`l2_net::Join::install`, `PROTOCOL_VERSION` 4); the
+host keeps its port and code after `Start` and seats each `Join` by it: a dropped install gets
+`Message::Rejoin` (C256's payload for the tick it is held at, then every packet it holds from
+there) and starts at that tick (`Session::rejoin`, no replay); one the computer took gets
+`NoSeat::Retired`, *"That game went on without you: the computer plays your realm now."*;
+anyone else *"That game has already started without you."* (5) The host's leave sends
+`HaltReason::Ended` (*"Richard ended the game."*); a joiner that loses its host reads *"The
+connection to Richard's game was lost. To play on together, leave and join it again with the
+same code or address."* and every other seat's realm goes to the AI, as C240's survivor's did.
+**Not done:** a rejoin by join code goes through the relay control connection `Live` now keeps
+(`Live::keep_relay`), untested; a dropped peer whose first tick packet never arrived is not
+known by slot and is not waited for; no host migration.
+Tests: `net_game` `a_joiner_that_leaves_hands_its_realm_to_the_computer_and_the_host_plays_on`
+(the host's replay verifies past the handover), `three_seats_one_leaves_and_the_other_two_play_on_in_step`,
+`a_dropped_joiner_pauses_every_seat_then_rejoins_and_later_hashes_agree`,
+`the_host_lets_the_computer_play_from_the_waiting_box_and_play_resumes`,
+`a_rejoin_after_the_computer_took_the_realm_is_refused_in_plain_words`,
+`a_joiner_silent_past_the_timeout_is_waited_for`, `a_host_silent_past_the_timeout_stops_the_joiner`,
+`a_joiner_that_loses_its_host_stops_and_saves_with_the_ai_in_its_realm`, all over TCP;
+`l2-net` `seat_tests`; `command::seat_tests`.
