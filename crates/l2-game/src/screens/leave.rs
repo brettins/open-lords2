@@ -99,6 +99,13 @@ pub fn carry_out(choice: Choice, ctx: &mut Ctx) -> Transition {
         }
     };
     ctx.game.leaving = Some(leaving);
+    to_front_end(ctx)
+}
+
+/// `FUN_0043441C`'s `g_screenId = 0x1F` writes over a tip's `0x27`, so no tip host
+/// follows the player to the title (`Tips::unhost`); it seated over it and took every click.
+pub fn to_front_end(ctx: &mut Ctx) -> Transition {
+    ctx.game.tips.unhost();
     Transition::Goto(ScreenId::Setup(SetupPage::Title))
 }
 
