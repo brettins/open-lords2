@@ -48,7 +48,23 @@ jobs:
         run: cargo build --workspace --all-targets
 
       - name: Test
-        run: cargo test --workspace
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --workspace --no-fail-fast 2>&1 | tee test.log
+
+      # Job logs need a GitHub login; annotations do not
+      # (`/check-runs/<id>/annotations`). One annotation, lines joined by %0A,
+      # because a step may raise only ten.
+      - name: Name the failing tests
+        if: failure()
+        shell: bash
+        run: |
+          [ -f test.log ] || exit 0
+          body=$(sed -e 's/\x1b\[[0-9;]*m//g' -e 's/\r//g' test.log \
+            | grep -E -A8 "panicked at|^test .* FAILED$|^error: " | head -150 \
+            | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=failing tests::${body}"
 
       # Two documents state measurements about this tree - README's test and
       # function counts, status.html's gauges. Nothing recomputed them, so they
