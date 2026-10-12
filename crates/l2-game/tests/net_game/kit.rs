@@ -193,7 +193,7 @@ pub fn shot(m: &mut l2_game::screen::Machine, ctx: &l2_game::screen::Ctx, name: 
     let mut canvas = l2_view::Canvas::screen();
     m.draw(ctx, &mut canvas);
     let mut rgba = vec![0u8; 640 * 480 * 4];
-    canvas.to_rgba(&ctx.assets.palette, &mut rgba);
+    m.present(ctx.assets, &canvas, &mut rgba);
     let mut out = b"P6 640 480 255\n".to_vec();
     out.extend(rgba.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]));
     std::fs::write(format!("{dir}/{name}.ppm"), out).unwrap();

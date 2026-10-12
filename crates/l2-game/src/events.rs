@@ -47,7 +47,7 @@ impl ApplicationHandler for App {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        if self.machine.should_quit() {
+        if self.machine.should_quit() || self.remote_frame() {
             event_loop.exit();
             return;
         }

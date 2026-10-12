@@ -12782,3 +12782,16 @@ Tests: `net_game` `a_joiner_that_leaves_hands_its_realm_to_the_computer_and_the_
 `a_joiner_silent_past_the_timeout_is_waited_for`, `a_host_silent_past_the_timeout_stops_the_joiner`,
 `a_joiner_that_loses_its_host_stops_and_saves_with_the_ai_in_its_realm`, all over TCP;
 `l2-net` `seat_tests`; `command::seat_tests`.
+
+**C261 — Network games are tested as real processes, and a joiner keeps the tick packets that arrive with `Start`.**
+`LORDS2_REMOTE=<dir>` (`crates/l2-game/src/remote.rs`, unset in play) lets a script click, press
+keys, take screenshots through `Machine::present` and read a status file and a hash every 25
+ticks; `tools/net/e2e/` runs three seats in a headless KWin and closes, kills, freezes (SIGSTOP
+past `TIMEOUT`) and relaunches them, by address and by join code through a local and the live
+relay. Its first run found `Driver::pump` feeding the lobby every frame of a read: tick packets
+that landed with `Start` were dropped, the joiner waited at tick 0 and the host dropped it after
+60 s (1 start in 6; 0 in 10 after the `break`, test `start_burst`). **Verified on 2026-10-12:** a
+joiner's leave, close, crash, sleep and rejoin (relaunched, or from the join page in the
+game), two joiners down at once, a crash at the start, *Let the computer play*, a joiner leaving
+the waiting box, the host's *Save, then end* and crash with *Continue alone* and *Leave game*,
+and the season save loaded single-player; every seat's hashes agreed after each.

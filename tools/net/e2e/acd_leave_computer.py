@@ -1,0 +1,56 @@
+from e2e import *
+# A: a joiner leaves through the menu; then tries to come back.
+h, a, b = three("47311")
+menu_leave(b); b.shot("A1-leave-box")
+b.click(*LEAVE_BOX["leave"])
+b.wait(lambda st: st["live"] == "false" and "Title" in st["screens"].split(", ")[-1], "John at the title page", 20)
+note(f"A: John -> {b.status()['screens']} live={b.status()['live']}")
+seen = {}
+t0 = time.time()
+while len(seen) < 2 and time.time() - t0 < 20:
+    for s in (h, a):
+        n = s.status().get("notice", "None")
+        if "John" in n: seen.setdefault(s.name, n)
+    time.sleep(0.05)
+note(f"A: notices {seen}")
+for s in (h, a): note(f"A: {s.name} waiting={s.status()['waiting']} frozen={frozen(s, 2)}")
+h.shot("A2-host-after-leave")
+advancing(h); advancing(a); time.sleep(3)
+in_sync([h, a], "A after John left")
+b.kill(); b.launch("--join", "127.0.0.1:47311")
+time.sleep(5); st = b.status()
+note(f"A: John rejoins after leaving -> phase={st['phase']} screens={st['screens']} live={st['live']}")
+b.shot("A3-john-tries-again")
+for s in (h, a, b): s.kill()
+
+# C: a joiner crashes; the host lets the computer play; the crashed player tries again.
+h, a, b = three("47312")
+b.kill()
+for s in (h, a): s.wait(lambda st: "John" in st["waiting"], f"{s.name} waits for John", 30)
+h.click(*WAIT_HOST_COMPUTER)
+for s in (h, a):
+    s.wait(lambda st: st["waiting"] == "[]" and not st["screens"].endswith("NetWait]"), f"{s.name} plays on", 20)
+    note(f"C: {s.name} notice={s.status()['notice']}")
+advancing(h); advancing(a); time.sleep(3)
+in_sync([h, a], "C after computer took John")
+b.launch("--join", "127.0.0.1:47312")
+time.sleep(5); st = b.status()
+note(f"C: John relaunches -> phase={st['phase']} screens={st['screens']} live={st['live']}")
+b.shot("C1-john-after-retired")
+for s in (h, a, b): s.kill()
+
+# D: a joiner crashes; the other joiner gives up waiting and leaves; the crashed one comes back.
+h, a, b = three("47313")
+b.kill()
+a.wait(lambda st: "John" in st["waiting"], "Matilda waits for John", 30)
+a.click(*WAIT_JOINER_LEAVE)
+a.wait(lambda st: st["live"] == "false", "Matilda out", 20)
+note(f"D: Matilda -> {a.status()['screens']}")
+time.sleep(2); st = h.status()
+note(f"D: host waiting={st['waiting']} notice={st['notice']} screens={st['screens']}")
+b.launch("--join", "127.0.0.1:47313")
+for s in (h, b): s.wait(lambda st: st["live"] == "true" and st["waiting"] == "[]" and not st["screens"].endswith("NetWait]"), f"{s.name} resumed", 60)
+advancing(h); advancing(b); time.sleep(3)
+in_sync([h, b], "D after John back, Matilda gone")
+h.shot("D1-host-after")
+for s in (h, a, b): s.kill()

@@ -11,6 +11,7 @@ mod events;
 mod app;
 mod launch;
 mod os;
+mod remote;
 use app::*;
 
 use std::sync::Arc;
@@ -71,6 +72,7 @@ struct App {
     net: Option<l2_game::net::Driver>,
     /// The lockstep session after `Start`, pumped before each tick (D-5).
     live: Option<l2_game::net::Live>,
+    remote: Option<remote::Remote>,
 }
 
 fn main() {
@@ -175,6 +177,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         cursor_scale: 0,
         net: None,
         live: None,
+        remote: remote::Remote::from_env(),
     };
 
     let event_loop = EventLoop::new()?;

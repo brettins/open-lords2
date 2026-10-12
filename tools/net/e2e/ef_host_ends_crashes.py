@@ -1,0 +1,27 @@
+from e2e import *
+def after_halt(a, b, tag, click=True):
+    for s in (a, b): s.wait(lambda st: st["screens"].endswith("NetHalt]"), f"{s.name} halt box", 75)
+    note(f"{tag}: joiner sees: {a.status()['halted']}")
+    a.click(*HALT_ALONE) if click else a.key("enter")
+    a.wait(lambda st: not st["screens"].endswith("NetHalt]") and st["live"] == "false", "Matilda continues alone", 20)
+    t = int(a.status()["turns"]); settle(a); a.click(*END_TURN)
+    a.wait(lambda st: int(st["turns"]) > t, "Matilda's solo game reaches the next season", 180)
+    note(f"{tag}: Matilda alone: screens={a.status()['screens']} turns {t} -> {a.status()['turns']}")
+    a.shot(f"{tag}-matilda-alone")
+    if click: b.click(*HALT_LEAVE)
+    else: b.key("right"); b.key("enter")
+    b.wait(lambda st: st["screens"] == "[Setup(Title)]", "John at title", 20)
+    note(f"{tag}: John -> {b.status()['screens']}")
+
+h, a, b = three("47322")
+settle(h); h.click(*FILE); time.sleep(0.5); h.click(*HOST_END_ITEM); time.sleep(0.6); h.click(*LEAVE_BOX["save_end"])
+h.wait(lambda st: st["screens"] == "[Setup(Title)]", "host at title", 20)
+note(f"E: host saves: {[f for f in os.listdir(h.saves) if f.endswith('.l2sav')]}")
+after_halt(a, b, "E")
+h.shot("E3-host-title")
+for s in (h, a, b): s.kill()
+
+h, a, b = three("47323")
+h.kill()
+after_halt(a, b, "F", click=False)
+for s in (a, b): s.kill()
