@@ -35,6 +35,11 @@ impl CostMap {
         self.cost[i] == MOVE_COST_IMPASSABLE as i16
     }
 
+    /// C256: a resync carries `g_moveCost`, which no save holds.
+    pub fn from_slice(cost: &[i16]) -> CostMap {
+        CostMap { cost: cost.to_vec() }
+    }
+
     pub fn as_slice(&self) -> &[i16] {
         &self.cost
     }

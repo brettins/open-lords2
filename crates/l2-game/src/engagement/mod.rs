@@ -23,6 +23,7 @@ pub use report::*;
 mod fight;
 pub use fight::*;
 mod siege;
+pub(crate) mod sync;
 pub use siege::*;
 mod tests;
 #[cfg(test)]

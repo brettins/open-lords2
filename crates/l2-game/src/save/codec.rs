@@ -291,13 +291,13 @@ fn bad_count(input: &Reader<'_>, found: usize, expected: &'static str) -> LoadEr
 }
 
 
-fn encode_report(out: &mut Canonical, report: &SeasonReport) {
+pub(crate) fn encode_report(out: &mut Canonical, report: &SeasonReport) {
     out.seq(&report.passes, |o, pass| o.u32(pass.order() as u32));
     out.seq(&report.messages, encode_message);
     out.bytes(&report.revolts);
 }
 
-fn decode_report(input: &mut Reader<'_>) -> Result<Result<SeasonReport, LoadError>, CodecError> {
+pub(crate) fn decode_report(input: &mut Reader<'_>) -> Result<Result<SeasonReport, LoadError>, CodecError> {
     let passes = input.seq(|r| {
         let index = r.u32()?;
         Ok(SEASON_PIPELINE.get(index as usize).copied().ok_or(LoadError::BadPass(index)))
