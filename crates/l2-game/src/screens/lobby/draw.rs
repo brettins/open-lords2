@@ -10,7 +10,7 @@ use crate::shell::{self, font, Pen};
 use crate::text::{FontMetrics, TextField};
 
 /// `Ui_DrawBoxStyle1` (`0x004093E0`) at (0x60, 0x40), 0x1C by 0x14 cells: x 96..544, y 64..384.
-pub(super) const WINDOW: (i32, i32, i32, i32) = (0x60, 0x40, 0x1C, 0x14);
+pub(super) const LOBBY_WINDOW: (i32, i32, i32, i32) = (0x60, 0x40, 0x1C, 0x14);
 pub(super) const LEFT: i32 = 0x80;
 pub(super) const WIDTH: i32 = 0x180;
 pub(super) const HEAD_Y: i32 = 0x50;
@@ -70,7 +70,7 @@ pub(super) fn backdrop(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, heading: Hea
     if !shell::background(canvas, &ctx.assets.shell, SetupPage::Custom.background()) {
         canvas.clear(ctx.assets.ink.background);
     }
-    let (x, y, cols, rows) = WINDOW;
+    let (x, y, cols, rows) = LOBBY_WINDOW;
     pens.body.window(canvas, x, y, cols, rows, 1);
     match heading {
         Heading::Eng(g, i) => pens.head.eng_heading_centred(canvas, g, i, x, HEAD_Y, cols * 16, font::TEXT),
