@@ -131,7 +131,7 @@ impl Machine {
         let leaving = self.ids().contains(&ScreenId::Leave);
         if event == Event::KeyDown(crate::input::Key::Escape)
             && !leaving
-            && self.top_id() != Some(ScreenId::NetHalt)
+            && !matches!(self.top_id(), Some(ScreenId::NetHalt | ScreenId::NetWait))
             && self.ids().iter().any(|id| matches!(id, ScreenId::Campaign | ScreenId::Battlefield))
         {
             // C257: FUN_0043441C's network arm leaves the game; ours asks first.

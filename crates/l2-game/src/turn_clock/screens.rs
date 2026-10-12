@@ -59,7 +59,7 @@ pub fn screen_byte(id: ScreenId) -> Option<u8> {
         ScreenId::Castle(_) => 0x1B,
         ScreenId::Conquest => 0x1C,
         ScreenId::Siege(_) => 0x1D,
-        ScreenId::Confirm(_) | ScreenId::Leave | ScreenId::NetHalt => 0x1E,
+        ScreenId::Confirm(_) | ScreenId::Leave | ScreenId::NetHalt | ScreenId::NetWait => 0x1E,
         ScreenId::Slider(_) => 0x21,
         ScreenId::Setup(_) | ScreenId::Lobby => 0x1F,
         ScreenId::Nobles => 0x20,

@@ -1,6 +1,8 @@
 //! The lockstep session under a played game: the app loop's half, run between
 //! frames (D-5). `docs/netcode.md` §4 (input delay, stalling), §6 (dump, resync,
-//! C256), §8 *A dropped seat* (C240).
+//! C256), §8 *A seat that goes* (C260, which replaced C240's halt).
+
+mod seats;
 
 use super::replay::{self, Origin, Recording};
 use super::sim::{encode_net, step_game};
@@ -10,6 +12,7 @@ use l2_net::{
     decode_all, state_hash, Advance, Canonical, Command, Config, DesyncDump, HaltReason, Message,
     PeerId, PlayerSlot, Resync, Session, Simulation, TcpTransport, Tick, Transport,
 };
+pub use seats::name_of;
 use std::path::PathBuf;
 
 /// Pumps waiting before the stall is shown. `[I]` ours: §4's "short grace period".
@@ -43,8 +46,6 @@ pub struct Live {
     peers: Vec<(PeerId, PlayerSlot)>,
     malformed: u32,
     stalled: u32,
-    /// Seats whose connection closed, or who were silent past [`TIMEOUT`].
-    absent: Vec<PlayerSlot>,
     reported: bool,
     /// Where a desync dump goes; `None` is the data dir.
     pub dump_dir: Option<PathBuf>,
@@ -59,6 +60,14 @@ pub struct Live {
     /// Set by [`Live::record_to`]; the replay is written there on halt and drop.
     replay_dir: Option<PathBuf>,
     pub replay_path: Option<PathBuf>,
+    /// C260: the join-code service, kept so a dropped player can come back by code.
+    relay: Option<super::relay::Host>,
+    /// C260: connections opened after `Start` that have not been seated.
+    strangers: Vec<PeerId>,
+    /// C260: a dropped player back on a new connection, until the host can seat it.
+    rejoining: Vec<(PeerId, PlayerSlot)>,
+    /// C260: dropped seats the game waits for.
+    waiting: Vec<PlayerSlot>,
 }
 
 impl Live {
@@ -79,13 +88,17 @@ impl Live {
         if let Some(h) = host.filter(|h| slots.contains(h)) {
             session.set_authority(h);
         }
-        Some(Live {
+        Some(Live::with(session, transport, malformed, origin))
+    }
+
+    fn with(session: Session, mut transport: TcpTransport, malformed: u32, origin: Option<(Origin, PlayerSlot, u64)>) -> Live {
+        let _ = transport.take_joined();
+        Live {
             session,
             transport,
             peers: Vec::new(),
             malformed,
             stalled: 0,
-            absent: Vec::new(),
             reported: false,
             dump_dir: None,
             dump: None,
@@ -96,7 +109,11 @@ impl Live {
             origin,
             replay_dir: None,
             replay_path: None,
-        })
+            relay: None,
+            strangers: Vec::new(),
+            rejoining: Vec::new(),
+            waiting: Vec::new(),
+        }
     }
 
     /// Every network game the app plays is recorded (net-replay-hardening).
@@ -120,15 +137,9 @@ impl Live {
         Some(written)
     }
 
-    /// Closes every connection: the others see this seat leave.
-    pub fn leave(&mut self) {
-        for peer in self.transport.peers() {
-            self.transport.disconnect(peer);
-        }
-    }
-
     /// One pass: orders out, packets both ways, up to [`CATCH_UP`] ticks run.
     pub fn pump(&mut self, game: &mut Game) {
+        self.control(game);
         if !self.session.is_halted() {
             self.stage(game);
             for _ in 0..CATCH_UP {
@@ -139,14 +150,16 @@ impl Live {
             }
             self.exchange(game);
             self.diverged(game);
+            self.admit(game);
         }
+        game.net.waiting = self.waiting.iter().map(|&s| name_of(game, s)).collect();
         if let Some((_, left)) = &mut game.net.notice {
             *left = left.saturating_sub(1);
             if *left == 0 {
                 game.net.notice = None;
             }
         }
-        game.net.stalled = self.stalled >= STALL_GRACE;
+        game.net.stalled = self.stalled >= STALL_GRACE && self.waiting.is_empty();
         game.net.beat.frame(self.session.tick().0);
         if let Some(reason) = self.session.halt_reason().cloned() {
             self.report(game, reason);
@@ -172,36 +185,76 @@ impl Live {
             self.evidence(game);
         }
         if let Some(at) = self.session.plan_resync() {
-            let _ = self.transport.broadcast(&Canonical::bytes_of(&Message::ResyncAt(at)));
+            self.send_all(&Message::ResyncAt(at));
         }
     }
 
     fn exchange(&mut self, game: &mut Game) {
         self.diverged(game);
         while let Some(packet) = self.session.next_packet() {
-            let _ = self.transport.broadcast(&Canonical::bytes_of(&Message::Tick(packet)));
+            self.send_all(&Message::Tick(packet));
         }
-        while let Some((peer, bytes)) = self.transport.poll() {
-            match decode_all::<Message>(&bytes) {
-                Ok(Message::Tick(packet)) => {
-                    if !self.peers.iter().any(|&(p, _)| p == peer) {
-                        self.peers.push((peer, packet.from));
-                    }
-                    if let Err(e) = self.session.receive(packet) {
-                        self.session.halt(HaltReason::Protocol { detail: e.to_string() });
-                    }
-                }
-                Ok(Message::Halt(reason)) => self.session.halt(reason),
-                Ok(Message::ResyncAt(at)) if !self.is_host() => self.session.resync_announced(at),
-                Ok(Message::Resync(r)) if !self.is_host() => self.pending = Some(r),
-                _ => {}
+        loop {
+            self.note_strangers();
+            let Some((peer, bytes)) = self.transport.poll() else { break };
+            let Ok(message) = decode_all::<Message>(&bytes) else { continue };
+            if self.is_host() {
+                self.from_joiner(game, peer, message, &bytes);
+            } else {
+                self.from_host(game, peer, message);
             }
         }
         let gone = self.transport.take_disconnected();
         if !gone.is_empty() {
-            let seats = self.peers.iter().filter(|(p, _)| gone.contains(p)).map(|&(_, s)| s);
-            self.absent.extend(seats);
-            self.session.halt(HaltReason::Left);
+            self.dropped(&gone);
+        }
+    }
+
+    /// C260: the host forwards each joiner's packets to the others (a star, not a mesh).
+    fn from_joiner(&mut self, game: &mut Game, peer: PeerId, message: Message, bytes: &[u8]) {
+        match message {
+            Message::Tick(packet) if self.is_seated(peer) => {
+                if !self.peers.iter().any(|&(p, _)| p == peer) {
+                    self.peers.push((peer, packet.from));
+                }
+                let retired = self.session.is_retired(packet.from, packet.tick);
+                match self.session.receive(packet) {
+                    Ok(()) if !retired => self.send_but(peer, bytes),
+                    Ok(()) => {}
+                    Err(e) => self.session.halt(HaltReason::Protocol { detail: e.to_string() }),
+                }
+            }
+            Message::Halt(reason @ HaltReason::Protocol { .. }) => self.session.halt(reason),
+            Message::Join(j) => self.knock(game, peer, &j),
+            Message::Leaving => self.leaving(game, peer),
+            _ => {}
+        }
+    }
+
+    fn from_host(&mut self, game: &mut Game, peer: PeerId, message: Message) {
+        match message {
+            Message::Tick(packet) => {
+                if self.peers.is_empty() {
+                    self.peers.push((peer, self.session.authority()));
+                }
+                if let Err(e) = self.session.receive(packet) {
+                    self.session.halt(HaltReason::Protocol { detail: e.to_string() });
+                }
+            }
+            Message::Halt(reason) => self.session.halt(reason),
+            Message::ResyncAt(at) => self.session.resync_announced(at),
+            Message::Resync(r) => self.pending = Some(r),
+            Message::Retire { slot, from } => {
+                self.session.retire(slot, from);
+                self.waiting.retain(|&s| s != slot);
+                game.net.notice = Some((format!("The computer now plays {}'s realm.", name_of(game, slot)), NOTICE));
+            }
+            Message::Away(slot) if !self.waiting.contains(&slot) => self.waiting.push(slot),
+            Message::Back(slot) => {
+                self.waiting.retain(|&s| s != slot);
+                game.net.notice = Some((format!("{} is back.", name_of(game, slot)), NOTICE));
+            }
+            _ => {}
         }
     }
 
@@ -213,20 +266,12 @@ impl Live {
                 true
             }
             Advance::Waiting { missing, .. } => {
-                self.stalled += 1;
-                if self.stalled >= TIMEOUT {
-                    self.absent.extend(missing);
-                    self.session.halt(HaltReason::Timeout);
-                }
+                self.silent(&missing);
                 false
             }
             Advance::Resyncing { at } => self.resync(game, at),
             Advance::Halted(_) => false,
         }
-    }
-
-    fn is_host(&self) -> bool {
-        self.session.local_slot() == self.session.authority()
     }
 
     /// `Sync_Rollback` (`0x0043F5C5`) / `Sync_ResendState` (`0x0043F939`) are the
@@ -235,8 +280,7 @@ impl Live {
         if self.is_host() {
             let state = super::resync::encode(game, self.malformed);
             let hash = state_hash(&Stepper { game: &mut *game, malformed: &mut self.malformed });
-            let r = Message::Resync(Resync { tick: at, hash, state });
-            let _ = self.transport.broadcast(&Canonical::bytes_of(&r));
+            self.send_all(&Message::Resync(Resync { tick: at, hash, state }));
             self.session.resync_sent();
             self.resynced(game, at, "Resynced the other players.");
             return true;
@@ -244,7 +288,6 @@ impl Live {
         let Some(r) = self.pending.take_if(|r| r.tick == at) else {
             self.stalled += 1;
             if self.stalled >= TIMEOUT {
-                self.absent.push(self.session.authority());
                 self.session.halt(HaltReason::Timeout);
             }
             return false;
@@ -280,19 +323,22 @@ impl Live {
         }
     }
 
-    /// A halt (C240's leave and timeout, a protocol error): tell the others, keep the replay.
+    /// A halt: the host gone or ended (C260), or a protocol error. Tell the others, keep the replay.
     fn report(&mut self, game: &mut Game, reason: HaltReason) {
         if std::mem::replace(&mut self.reported, true) {
             return;
         }
-        let _ = self.transport.broadcast(&Canonical::bytes_of(&Message::Halt(reason.clone())));
+        self.send_all(&Message::Halt(reason.clone()));
         let _ = self.write_replay();
+        let host = name_of(game, self.session.authority());
         let text = match reason {
             HaltReason::Left | HaltReason::Timeout => {
-                let names = hand_to_ai(game, &self.absent);
-                let who = if names.is_empty() { "A player".to_string() } else { names.join(" and ") };
-                let how = if reason == HaltReason::Left { "left the game" } else { "stopped answering" };
-                format!("{who} {how}.")
+                hand_to_ai(game);
+                format!("The connection to {host}'s game was lost. To play on together, leave and join it again with the same code or address.")
+            }
+            HaltReason::Ended => {
+                hand_to_ai(game);
+                format!("{host} ended the game.")
             }
             HaltReason::Protocol { detail } => format!("The connection to the other players failed ({detail})."),
         };
@@ -307,18 +353,17 @@ impl Drop for Live {
     }
 }
 
-/// C240: the survivor's frozen world gives the absent seats' realms
-/// to the AI (`ai::steps` skips `is_human`), so its save goes on single-player.
-fn hand_to_ai(game: &mut Game, absent: &[PlayerSlot]) -> Vec<String> {
-    let realms: Vec<u8> =
-        game.seats.iter().filter(|(s, _)| absent.contains(s)).map(|&(_, r)| r).collect();
+/// C240: a seat that lost its host gives every other seat's realm to the AI
+/// (`ai::steps` skips `is_human`), so its world goes on single-player.
+fn hand_to_ai(game: &mut Game) {
+    let me = game.local_realm();
+    let realms: Vec<u8> = game.seats.iter().map(|&(_, r)| r).filter(|&r| r != me).collect();
     for &r in &realms {
         game.kingdom.realms[r as usize].is_human = false;
         for (_, u) in game.kingdom.campaign.units.iter_mut().filter(|(_, u)| u.owner == r) {
             u.owner_is_human = false;
         }
     }
-    realms.iter().map(|&r| game.player_names[r as usize].as_str().to_string()).collect()
 }
 
 /// Clicks on this peer queue; the seat's own side is the one it draws.

@@ -1,7 +1,6 @@
 //! net-replay-hardening: a network game is recorded and replays bit-exact in a
-//! fresh process; a dropped or silent peer halts the survivor with its name,
-//! and the survivor's save goes on with the computer in that realm
-//! (`docs/netcode.md` §8 *A dropped seat*, C240).
+//! fresh process. A joiner that loses its host stops, and its save goes on with the
+//! computer in the other realms (C240); a silent joiner is waited for (C260).
 
 use crate::live_tcp::{connect, pair, Peer};
 use crate::seats::{assets, two_worlds};
@@ -21,41 +20,41 @@ fn only(p: &mut Peer) {
     p.live.pump(&mut p.game);
 }
 
-/// Ablations: `hand_to_ai`'s `is_human = false`; `self.absent.extend(seats)` in
-/// `Live::exchange` (the message says "A player").
+/// Ablations: `hand_to_ai`'s `is_human = false`; the joiner's `HaltReason::Left` in
+/// `Live::dropped` (it waits for a host that is gone).
 #[test]
-fn a_peer_that_leaves_halts_the_survivor_who_saves_with_the_ai_in_its_realm() {
+fn a_joiner_that_loses_its_host_stops_and_saves_with_the_ai_in_its_realm() {
     let Some(mut peers) = pair() else { l2_testkit::skip!("no install") };
     let dir = scratch("drop");
     for _ in 0..60 {
         peers.iter_mut().for_each(only);
     }
     assert!(peers[0].live.session.tick().0 > 20, "the pair never ran");
-    peers[1].live.leave();
-    let a = &mut peers[0];
+    let [host, mut b] = peers;
+    drop(host);
     for _ in 0..2_000 {
-        a.live.pump(&mut a.game);
-        if a.game.net.halted.is_some() {
+        b.live.pump(&mut b.game);
+        if b.game.net.halted.is_some() {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
-    assert_eq!(a.live.session.halt_reason(), Some(&HaltReason::Left));
-    let said = a.game.net.halted.clone().expect("the survivor is told");
-    assert!(said.starts_with("Matilda left the game."), "{said}");
-    assert!(!a.game.kingdom.realms[2].is_human, "realm 2 still waits for its player");
-    assert!(a.game.kingdom.realms[1].is_human, "the survivor's own realm");
+    assert_eq!(b.live.session.halt_reason(), Some(&HaltReason::Left));
+    let said = b.game.net.halted.clone().expect("the joiner is told");
+    assert!(said.starts_with("The connection to Richard's game was lost."), "{said}");
+    assert!(!b.game.kingdom.realms[1].is_human, "realm 1 still waits for its player");
+    assert!(b.game.kingdom.realms[2].is_human, "the joiner's own realm");
     let _scope = l2_game::saves::scoped_dir(&dir);
-    let path = l2_game::saves::write("dropped", &a.game).expect("the survivor saves");
-    let tables = a.game.kingdom.tables;
+    let path = l2_game::saves::write("dropped", &b.game).expect("the joiner saves");
+    let tables = b.game.kingdom.tables;
     let loaded = l2_game::saves::read_path(&path, tables).expect("the save loads");
-    assert!(!loaded.multiplayer && !loaded.kingdom.realms[2].is_human);
+    assert!(!loaded.multiplayer && !loaded.kingdom.realms[1].is_human);
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// Ablation: the `TIMEOUT` arm in `Live::advance` (the survivor waits forever).
+/// C260. Ablation: `self.away(slot)` in `Live::silent` (the host stalls with no box).
 #[test]
-fn a_peer_silent_past_the_timeout_is_dropped() {
+fn a_joiner_silent_past_the_timeout_is_waited_for() {
     let Some(mut peers) = pair() else { l2_testkit::skip!("no install") };
     for _ in 0..30 {
         peers.iter_mut().for_each(only);
@@ -64,9 +63,25 @@ fn a_peer_silent_past_the_timeout_is_dropped() {
         only(&mut peers[0]);
     }
     let a = &peers[0];
-    assert_eq!(a.live.session.halt_reason(), Some(&HaltReason::Timeout));
-    let said = a.game.net.halted.clone().expect("the survivor is told");
-    assert!(said.starts_with("Matilda stopped answering."), "{said}");
+    assert_eq!(a.live.session.halt_reason(), None);
+    assert_eq!(a.game.net.waiting, vec!["Matilda".to_string()]);
+    assert!(!a.game.net.stalled, "the stall glyph drawn over the waiting box");
+}
+
+/// Ablation: the joiner's `HaltReason::Timeout` in `Live::silent` (it waits forever).
+#[test]
+fn a_host_silent_past_the_timeout_stops_the_joiner() {
+    let Some(mut peers) = pair() else { l2_testkit::skip!("no install") };
+    for _ in 0..30 {
+        peers.iter_mut().for_each(only);
+    }
+    for _ in 0..TIMEOUT + 50 {
+        only(&mut peers[1]);
+    }
+    let b = &peers[1];
+    assert_eq!(b.live.session.halt_reason(), Some(&HaltReason::Timeout));
+    let said = b.game.net.halted.clone().expect("the joiner is told");
+    assert!(said.starts_with("The connection to Richard's game was lost."), "{said}");
 }
 
 /// §6 *The replay harness*. Ablations: `rebuild` given `Start` with another

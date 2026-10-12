@@ -183,8 +183,22 @@ impl App {
             self.machine.mark_dirty();
             // `[I]` the replay's seed; the world carries its own from `Start`.
             let seed = self.game.turns_played as u64;
-            let transport = self.net.take().and_then(|d| d.into_transport());
-            self.live = transport.and_then(|t| l2_game::net::Live::new(t, &mut self.game, seed));
+            let session = self.net.take().and_then(|d| d.into_session());
+            self.live = session.and_then(|(t, relay)| {
+                // C260: a world built from the host's `Rejoin` takes up its session.
+                let mut live = match self.game.net.rejoin.take() {
+                    Some(r) => match l2_game::net::Live::rejoin(t, &mut self.game, &r) {
+                        Ok(live) => Some(live),
+                        Err(e) => {
+                            self.game.net.halted = Some(format!("Your seat could not be taken back: {e}."));
+                            None
+                        }
+                    },
+                    None => l2_game::net::Live::new(t, &mut self.game, seed),
+                }?;
+                live.keep_relay(relay);
+                Some(live)
+            });
             let home = l2_game::net::replay::home();
             if let (Some(live), Some(dir)) = (self.live.as_mut(), home) {
                 live.record_to(dir);

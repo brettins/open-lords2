@@ -56,6 +56,7 @@ fn samples() -> Vec<GameCommand> {
         EndAllianceReply { with: 5 }.into(),
         SetWeaponType { county: 6, weapon: 4 }.into(),
         SetIndustryShare { county: 7, share: 55 }.into(),
+        ToComputer { realm: 3 }.into(),
     ]
 }
 

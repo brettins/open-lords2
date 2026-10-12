@@ -9,7 +9,7 @@ use l2_game::net::{self, InstallId, Live};
 use l2_game::screens::leave::Leaving;
 use l2_game::{saves, turn, Game};
 use l2_kingdom::tables::Tables;
-use l2_net::{HaltReason, PlayerSlot};
+use l2_net::PlayerSlot;
 
 const HOST: InstallId = InstallId([0xA1; 16]);
 const JOINER: InstallId = InstallId([0xB2; 16]);
@@ -103,9 +103,8 @@ fn only_the_host_writes_the_seasons_autosave_and_it_records_the_hosts_install() 
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// *Leave game*: the joiner's session closes and the host's world gives the realm to
-/// the computer (C240's halt, `Live::leave`). Ablation: the `game.leaving` check in
-/// `end_session` (nothing leaves).
+/// *Leave game*: the joiner says goodbye, and the host hands its realm to the computer
+/// and plays on (C260). Ablation: the `game.leaving` check in `end_session` (nothing leaves).
 #[test]
 fn leave_game_closes_the_joiners_session_and_the_computer_takes_its_realm() {
     let Some(mut seats) = seats() else { l2_testkit::skip!("no install") };
@@ -119,13 +118,13 @@ fn leave_game_closes_the_joiners_session_and_the_computer_takes_its_realm() {
     assert!(seats[1].live.is_none() && !seats[1].game.net.lockstep, "the joiner is out of the game");
     for _ in 0..2_000 {
         seats[0].pass();
-        if seats[0].game.net.halted.is_some() {
+        if !seats[0].game.kingdom.realms[2].is_human {
             break;
         }
         std::thread::sleep(std::time::Duration::from_millis(1));
     }
     let host = &seats[0];
-    assert_eq!(host.live.as_ref().unwrap().session.halt_reason(), Some(&HaltReason::Left));
+    assert_eq!(host.live.as_ref().unwrap().session.halt_reason(), None, "the host plays on");
     assert!(!host.game.kingdom.realms[2].is_human, "the computer plays the leaver's realm");
 }
 

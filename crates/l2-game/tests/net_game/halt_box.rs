@@ -1,6 +1,6 @@
 //! The owner's dropped game (2026-10-11): the stopped box could not be closed and
-//! nothing under it answered. A real pair, one seat leaves, and the survivor's
-//! screens are driven as a player drives them.
+//! nothing under it answered. A real pair, the host ends the game (C260), and the
+//! joiner's screens are driven as a player drives them.
 
 use crate::live_tcp::{pair, Peer};
 use crate::seats::assets;
@@ -16,8 +16,8 @@ fn halted() -> Option<Peer> {
     for _ in 0..60 {
         peers.iter_mut().for_each(|p| p.live.pump(&mut p.game));
     }
-    peers[1].live.leave();
-    let [mut a, _] = peers;
+    peers[0].live.leave();
+    let [_, mut a] = peers;
     for _ in 0..2_000 {
         a.live.pump(&mut a.game);
         if a.game.net.halted.is_some() {
@@ -39,7 +39,7 @@ fn the_stopped_box_takes_every_click_and_continue_alone_keeps_the_game_running()
     m.update(&mut ctx);
     assert_eq!(m.top_id(), Some(ScreenId::NetHalt), "the halt opens the box");
     let said = ctx.game.net.halted.clone().unwrap();
-    assert!(said.starts_with("Matilda left the game."), "{said}");
+    assert_eq!(said, "Richard ended the game.");
 
     let mut canvas = Canvas::screen();
     m.draw(&ctx, &mut canvas);

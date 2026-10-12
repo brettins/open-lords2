@@ -83,3 +83,33 @@ pub(crate) fn concerns(game: &Game, sides: Option<(u8, u8)>) -> bool {
     let seated = |r: u8| game.seats.iter().any(|&(_, realm)| realm == r);
     !game.seated() || game.player == a || game.player == d || !(seated(a) || seated(d))
 }
+
+/// C260: the host hands a seat's realm to the computer, on every seat at one tick.
+/// `[D]` `Net_OnSessionEvent` (`0x0043E6A2`) eliminates a departed realm instead.
+impl Order for ToComputer {
+    type Reply = bool;
+    fn run(self, game: &mut Game) -> bool {
+        // [I] the host is slot 0: `Driver::host` seats it there.
+        if game.realm_of(l2_net::PlayerSlot::new(0)) != Some(game.player) || self.realm == game.player {
+            return false;
+        }
+        let before = game.seats.len();
+        game.seats.retain(|&(_, r)| r != self.realm);
+        if game.seats.len() == before {
+            return false;
+        }
+        if let Some(r) = game.kingdom.realms.get_mut(self.realm as usize) {
+            r.is_human = false;
+        }
+        for (_, u) in game.kingdom.campaign.units.iter_mut().filter(|(_, u)| u.owner == self.realm) {
+            u.owner_is_human = false;
+        }
+        // [D] the seats still here had all pressed End Turn: the season goes on.
+        let open = game.kingdom.turn.players_turn_open && !turn::turn_in_flight(game);
+        if open && turn::every_seat_ready(game) {
+            turn::end_players_turn(game);
+            let _ = turn::begin_turn(game);
+        }
+        true
+    }
+}
