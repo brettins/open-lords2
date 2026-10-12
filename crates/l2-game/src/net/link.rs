@@ -74,6 +74,8 @@ pub struct Link {
     pub stalled: bool,
     /// Why the session stopped, for the dialog.
     pub halted: Option<String>,
+    /// C256: a passing line, such as a resync; counts down in pumps.
+    pub notice: Option<(String, u32)>,
     /// The season `net::frame` finished, for the campaign screen to show.
     pub done: Option<Box<crate::turn::TurnOutcome>>,
     /// `FUN_0041A844`'s heartbeat, per seat.

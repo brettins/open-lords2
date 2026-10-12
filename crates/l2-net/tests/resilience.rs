@@ -167,6 +167,7 @@ fn a_stalled_peer_blocks_the_other_and_then_both_catch_up() {
                         }
                         break;
                     }
+                    Advance::Resyncing { at } => panic!("no divergence, yet a resync at {at}"),
                     Advance::Halted(r) => panic!("halted: {r}"),
                 }
             }
@@ -215,6 +216,7 @@ fn waiting_is_indefinite_and_never_becomes_a_timeout_on_its_own() {
                     "the absent peer must be named: {missing:?}"
                 );
             }
+            Advance::Resyncing { at } => panic!("no divergence, yet a resync at {at}"),
             Advance::Halted(r) => panic!("this crate has no clock, so it cannot time out: {r}"),
         }
     }

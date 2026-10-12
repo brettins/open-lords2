@@ -1,14 +1,14 @@
 //! The lockstep session under a played game: the app loop's half, run between
-//! frames (D-5). `docs/netcode.md` §4 (input delay, stalling), §6 (halt, dump),
-//! §8 *A dropped seat* (C240).
+//! frames (D-5). `docs/netcode.md` §4 (input delay, stalling), §6 (dump, resync,
+//! C256), §8 *A dropped seat* (C240).
 
 use super::replay::{self, Origin, Recording};
 use super::sim::{encode_net, step_game};
 use crate::command::GameCommand;
 use crate::game::Game;
 use l2_net::{
-    decode_all, Advance, Canonical, Command, Config, DesyncDump, HaltReason, Message, PeerId,
-    PlayerSlot, Session, Simulation, TcpTransport, Tick, Transport,
+    decode_all, state_hash, Advance, Canonical, Command, Config, DesyncDump, HaltReason, Message,
+    PeerId, PlayerSlot, Resync, Session, Simulation, TcpTransport, Tick, Transport,
 };
 use std::path::PathBuf;
 
@@ -18,6 +18,8 @@ pub const STALL_GRACE: u32 = 30;
 pub const TIMEOUT: u32 = (60_000_000_000 / crate::clock::TICK_NS) as u32;
 /// Ticks one pump may run to catch a peer up. `[I]` ours.
 pub const CATCH_UP: u32 = 4;
+/// Pumps a resync notice stays up: three seconds. `[I]` ours, C256.
+pub const NOTICE: u32 = (3_000_000_000 / crate::clock::TICK_NS) as u32;
 
 /// The world as the session steps it: the game and the dropped-payload count.
 pub struct Stepper<'a> {
@@ -47,6 +49,12 @@ pub struct Live {
     /// Where a desync dump goes; `None` is the data dir.
     pub dump_dir: Option<PathBuf>,
     pub dump: Option<(PathBuf, DesyncDump)>,
+    dumped: u32,
+    /// C256: the host's state for a barrier this joiner has not reached.
+    pending: Option<Resync>,
+    /// Resyncs this seat took part in, and the tick of the last (C256).
+    pub resyncs: u32,
+    pub resynced_at: Option<Tick>,
     origin: Option<(Origin, PlayerSlot, u64)>,
     /// Set by [`Live::record_to`]; the replay is written there on halt and drop.
     replay_dir: Option<PathBuf>,
@@ -62,10 +70,15 @@ impl Live {
         let tables = Canonical::hash_of(&game.kingdom.tables);
         let origin = game.net.origin.as_deref().map(|o| (o.clone(), me, tables));
         let mut malformed = 0;
-        let session = {
+        let host = game.net.roster.players.iter().find(|p| p.is_host).map(|p| p.slot);
+        let host = host.or(game.net.hosting.then_some(me));
+        let mut session = {
             let sim = Stepper { game, malformed: &mut malformed };
             Session::new(Config::battle(), me, &slots, seed, &sim)
         };
+        if let Some(h) = host.filter(|h| slots.contains(h)) {
+            session.set_authority(h);
+        }
         Some(Live {
             session,
             transport,
@@ -76,6 +89,10 @@ impl Live {
             reported: false,
             dump_dir: None,
             dump: None,
+            dumped: 0,
+            pending: None,
+            resyncs: 0,
+            resynced_at: None,
             origin,
             replay_dir: None,
             replay_path: None,
@@ -115,12 +132,19 @@ impl Live {
         if !self.session.is_halted() {
             self.stage(game);
             for _ in 0..CATCH_UP {
-                self.exchange();
+                self.exchange(game);
                 if !self.advance(game) {
                     break;
                 }
             }
-            self.exchange();
+            self.exchange(game);
+            self.diverged(game);
+        }
+        if let Some((_, left)) = &mut game.net.notice {
+            *left = left.saturating_sub(1);
+            if *left == 0 {
+                game.net.notice = None;
+            }
         }
         game.net.stalled = self.stalled >= STALL_GRACE;
         game.net.beat.frame(self.session.tick().0);
@@ -140,7 +164,20 @@ impl Live {
         }
     }
 
-    fn exchange(&mut self) {
+    /// A new divergence is written out at once; the host then names the tick its
+    /// state will be sent for, before it seals another packet (C256).
+    fn diverged(&mut self, game: &mut Game) {
+        if self.session.divergences() > self.dumped {
+            self.dumped = self.session.divergences();
+            self.evidence(game);
+        }
+        if let Some(at) = self.session.plan_resync() {
+            let _ = self.transport.broadcast(&Canonical::bytes_of(&Message::ResyncAt(at)));
+        }
+    }
+
+    fn exchange(&mut self, game: &mut Game) {
+        self.diverged(game);
         while let Some(packet) = self.session.next_packet() {
             let _ = self.transport.broadcast(&Canonical::bytes_of(&Message::Tick(packet)));
         }
@@ -154,12 +191,9 @@ impl Live {
                         self.session.halt(HaltReason::Protocol { detail: e.to_string() });
                     }
                 }
-                Ok(Message::Halt(reason)) => {
-                    let from = self.peers.iter().find(|&&(p, _)| p == peer).map(|&(_, s)| s);
-                    let local = self.session.local_slot();
-                    let from = from.or_else(|| self.session.slots().iter().copied().find(|&s| s != local));
-                    self.session.halted_by_peer(from.unwrap_or(local), reason);
-                }
+                Ok(Message::Halt(reason)) => self.session.halt(reason),
+                Ok(Message::ResyncAt(at)) if !self.is_host() => self.session.resync_announced(at),
+                Ok(Message::Resync(r)) if !self.is_host() => self.pending = Some(r),
                 _ => {}
             }
         }
@@ -186,20 +220,74 @@ impl Live {
                 }
                 false
             }
+            Advance::Resyncing { at } => self.resync(game, at),
             Advance::Halted(_) => false,
         }
     }
 
-    /// §6 *When it diverges*: halt the others, then write our half of the dump.
+    fn is_host(&self) -> bool {
+        self.session.local_slot() == self.session.authority()
+    }
+
+    /// `Sync_Rollback` (`0x0043F5C5`) / `Sync_ResendState` (`0x0043F939`) are the
+    /// original's; it rolled back first, we do not (`docs/netcode.md` §6).
+    fn resync(&mut self, game: &mut Game, at: Tick) -> bool {
+        if self.is_host() {
+            let state = super::resync::encode(game, self.malformed);
+            let hash = state_hash(&Stepper { game: &mut *game, malformed: &mut self.malformed });
+            let r = Message::Resync(Resync { tick: at, hash, state });
+            let _ = self.transport.broadcast(&Canonical::bytes_of(&r));
+            self.session.resync_sent();
+            self.resynced(game, at, "Resynced the other players.");
+            return true;
+        }
+        let Some(r) = self.pending.take_if(|r| r.tick == at) else {
+            self.stalled += 1;
+            if self.stalled >= TIMEOUT {
+                self.absent.push(self.session.authority());
+                self.session.halt(HaltReason::Timeout);
+            }
+            return false;
+        };
+        if let Err(e) = super::resync::adopt(game, &mut self.malformed, &r.state) {
+            self.session.halt(HaltReason::Protocol { detail: format!("the host's state: {e}") });
+            return false;
+        }
+        seat_battle(game);
+        let sim = Stepper { game: &mut *game, malformed: &mut self.malformed };
+        let _ = self.session.resynced(at, r.hash, &sim);
+        self.stalled = 0;
+        self.resynced(game, at, "Resynced with the host.");
+        true
+    }
+
+    fn resynced(&mut self, game: &mut Game, at: Tick, text: &str) {
+        self.resyncs += 1;
+        self.resynced_at = Some(at);
+        game.net.notice = Some((text.to_string(), NOTICE));
+    }
+
+    /// C256: the replay and this seat's half of the dump, before the resync replaces
+    /// the world they describe.
+    fn evidence(&mut self, game: &mut Game) {
+        let _ = self.write_replay();
+        let sim = Stepper { game: &mut *game, malformed: &mut self.malformed };
+        let Some(dump) = self.session.dump(&sim) else { return };
+        match self.dump_dir.clone().or_else(dump_home).map(|d| write_dump(&d, &dump)) {
+            Some(Ok(path)) => self.dump = Some((path, dump)),
+            Some(Err(e)) => eprintln!("desync dump not written: {e}"),
+            None => eprintln!("desync dump not written: no data directory"),
+        }
+    }
+
+    /// A halt (C240's leave and timeout, a protocol error): tell the others, keep the replay.
     fn report(&mut self, game: &mut Game, reason: HaltReason) {
         if std::mem::replace(&mut self.reported, true) {
             return;
         }
         let _ = self.transport.broadcast(&Canonical::bytes_of(&Message::Halt(reason.clone())));
         let _ = self.write_replay();
-        let sim = Stepper { game: &mut *game, malformed: &mut self.malformed };
-        let dump = self.session.dump(&sim);
-        let mut text = match reason {
+        let text = match reason {
             HaltReason::Left | HaltReason::Timeout => {
                 let names = hand_to_ai(game, &self.absent);
                 let who = if names.is_empty() { "A player".to_string() } else { names.join(" and ") };
@@ -208,17 +296,6 @@ impl Live {
             }
             reason => format!("{reason}. You can save the game and quit."),
         };
-        if let Some(dump) = dump {
-            let dir = self.dump_dir.clone().or_else(dump_home);
-            match dir.map(|d| write_dump(&d, &dump)) {
-                Some(Ok(path)) => {
-                    text = format!("{text} Dump written to {}.", path.display());
-                    self.dump = Some((path, dump));
-                }
-                Some(Err(e)) => text = format!("{text} The dump could not be written: {e}."),
-                None => text = format!("{text} No data directory for the dump."),
-            }
-        }
         game.net.halted = Some(text);
     }
 }

@@ -24,6 +24,14 @@ impl History {
         self.entries.push_back((tick, digest));
     }
 
+    /// C256: the digest of the world a resync put in place of ours.
+    pub fn replace(&mut self, tick: Tick, digest: Digest) {
+        match self.entries.iter_mut().find(|(t, _)| *t == tick) {
+            Some(entry) => entry.1 = digest,
+            None => self.push(tick, digest),
+        }
+    }
+
     pub fn get(&self, tick: Tick) -> Option<&Digest> {
         self.entries.iter().find(|(t, _)| *t == tick).map(|(_, d)| d)
     }

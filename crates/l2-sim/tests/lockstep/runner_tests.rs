@@ -75,7 +75,7 @@ fn a_peer_whose_figure_stepped_wrong_is_caught() {
     run_to(&mut peers, RUNNER_TICKS, player_order);
 
     assert!(
-        peers.iter().any(|p| p.session.is_halted()),
+        peers.iter().any(|p| p.session.divergence().is_some()),
         "a figure standing somewhere else ran to completion undetected"
     );
     let split = peers[0]

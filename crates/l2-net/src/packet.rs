@@ -2,7 +2,7 @@
 use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 use crate::command::{Command, PlayerSlot, Tick};
 
-pub const PROTOCOL_VERSION: u16 = 2;
+pub const PROTOCOL_VERSION: u16 = 3;
 
 pub const DEFAULT_PORT: u16 = 27962;
 
@@ -157,7 +157,6 @@ impl Decode for Hello {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HaltReason {
-    Desync { tick: Tick },
     Left,
     Timeout,
     Protocol { detail: String },
@@ -166,7 +165,6 @@ pub enum HaltReason {
 impl core::fmt::Display for HaltReason {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            HaltReason::Desync { tick } => write!(f, "state checksums diverged at {tick}"),
             HaltReason::Left => write!(f, "the player left"),
             HaltReason::Timeout => write!(f, "a peer stopped responding"),
             HaltReason::Protocol { detail } => write!(f, "protocol error: {detail}"),
@@ -184,6 +182,17 @@ pub enum Message {
     Roster(crate::lobby::Roster),
     Start(crate::lobby::Start),
     Refused(Vec<Mismatch>),
+    /// C256: the host's state is replaced in at this tick; no seat steps past it until it has.
+    ResyncAt(Tick),
+    Resync(Resync),
+}
+
+/// C256: the host's world after `tick`, and its digest, which the joiner's load must reproduce.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Resync {
+    pub tick: Tick,
+    pub hash: u64,
+    pub state: Vec<u8>,
 }
 
 impl Encode for Message {
@@ -217,13 +226,19 @@ impl Encode for Message {
                 out.u8(TAG_REFUSED);
                 out.seq(reasons, |c, m| m.encode(c));
             }
+            Message::ResyncAt(tick) => {
+                out.u8(TAG_RESYNC_AT);
+                out.u32(tick.0);
+            }
+            Message::Resync(r) => {
+                out.u8(TAG_RESYNC);
+                out.u32(r.tick.0);
+                out.u64(r.hash);
+                out.bytes(&r.state);
+            }
             Message::Halt(reason) => {
                 out.u8(TAG_HALT);
                 match reason {
-                    HaltReason::Desync { tick } => {
-                        out.u8(0);
-                        out.u32(tick.0);
-                    }
                     HaltReason::Left => out.u8(1),
                     HaltReason::Timeout => out.u8(2),
                     HaltReason::Protocol { detail } => {
@@ -247,10 +262,15 @@ impl Decode for Message {
             TAG_ROSTER => Ok(Message::Roster(crate::lobby::Roster::decode(input)?)),
             TAG_START => Ok(Message::Start(crate::lobby::Start::decode(input)?)),
             TAG_REFUSED => Ok(Message::Refused(input.seq(Mismatch::decode)?)),
+            TAG_RESYNC_AT => Ok(Message::ResyncAt(Tick(input.u32()?))),
+            TAG_RESYNC => Ok(Message::Resync(Resync {
+                tick: Tick(input.u32()?),
+                hash: input.u64()?,
+                state: input.bytes()?.to_vec(),
+            })),
             TAG_HALT => {
                 let at = input.position();
                 let reason = match input.u8()? {
-                    0 => HaltReason::Desync { tick: Tick(input.u32()?) },
                     1 => HaltReason::Left,
                     2 => HaltReason::Timeout,
                     3 => HaltReason::Protocol { detail: input.str()?.to_string() },
@@ -273,6 +293,8 @@ const TAG_READY: u8 = 5;
 const TAG_ROSTER: u8 = 6;
 const TAG_START: u8 = 7;
 const TAG_REFUSED: u8 = 8;
+const TAG_RESYNC_AT: u8 = 9;
+const TAG_RESYNC: u8 = 10;
 
 impl Encode for Mismatch {
     fn encode(&self, out: &mut Canonical) {

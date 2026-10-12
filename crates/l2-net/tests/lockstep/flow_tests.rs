@@ -103,7 +103,7 @@ fn a_sparser_exchange_still_catches_a_divergence() {
     table.peers[0].session.issue(Order::Attack { unit: 0 }.payload());
     table.run(30);
 
-    assert!(table.peers[0].session.is_halted());
+    assert!(!table.peers[0].session.is_halted(), "a divergence never halts (C256)");
     let divergence = table.peers[0].session.divergence().unwrap();
     assert_eq!(divergence.tick.0 % 4, 0, "only exchanged ticks can be compared");
     let history = table.peers[0].session.history();

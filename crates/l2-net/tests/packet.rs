@@ -67,7 +67,8 @@ fn a_command_round_trips() {
 fn every_message_kind_round_trips() {
     round_trip(&Message::Tick(sample_packet()));
     round_trip(&Message::Hello(sample_hello()));
-    round_trip(&Message::Halt(HaltReason::Desync { tick: Tick(9) }));
+    round_trip(&Message::ResyncAt(Tick(9)));
+    round_trip(&Message::Resync(l2_net::Resync { tick: Tick(9), hash: 7, state: vec![1, 2, 3] }));
     round_trip(&Message::Halt(HaltReason::Left));
     round_trip(&Message::Halt(HaltReason::Timeout));
     round_trip(&Message::Halt(HaltReason::Protocol { detail: "bad tag".to_string() }));
@@ -153,10 +154,6 @@ fn mismatches_explain_themselves() {
 
 #[test]
 fn halt_reasons_explain_themselves() {
-    assert_eq!(
-        HaltReason::Desync { tick: Tick(412) }.to_string(),
-        "state checksums diverged at tick 412"
-    );
     assert_eq!(HaltReason::Left.to_string(), "the player left");
 }
 
