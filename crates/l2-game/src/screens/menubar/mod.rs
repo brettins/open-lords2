@@ -142,6 +142,8 @@ pub use dropdown::*;
 mod render;
 pub use render::*;
 mod tests_part;
+#[cfg(test)]
+mod net_tests;
 
 
 

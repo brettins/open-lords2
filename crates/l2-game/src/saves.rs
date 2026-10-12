@@ -154,13 +154,17 @@ pub fn list() -> Vec<Entry> {
 }
 
 pub fn write(name: &str, game: &Game) -> Result<PathBuf, Error> {
+    write_bytes(name, &save::encode(game))
+}
+
+/// [`write`] of a world already encoded, as the host's season save is (C257).
+pub fn write_bytes(name: &str, bytes: &[u8]) -> Result<PathBuf, Error> {
     let path = path_for(name)?;
     let dir = path.parent().expect("path_for joins a directory").to_path_buf();
     std::fs::create_dir_all(&dir).map_err(|e| io(&dir, e))?;
 
-    let bytes = save::encode(game);
     let temp = path.with_extension(format!("{EXTENSION}.part"));
-    std::fs::write(&temp, &bytes).map_err(|e| io(&temp, e))?;
+    std::fs::write(&temp, bytes).map_err(|e| io(&temp, e))?;
     std::fs::rename(&temp, &path).map_err(|e| {
         let _ = std::fs::remove_file(&temp);
         io(&path, e)
@@ -180,7 +184,26 @@ pub fn read_path(path: &Path, tables: Tables) -> Result<Game, Error> {
     // `Save_Read` (`0x004ADFE6`) closes the file and calls `FUN_004976A1` —
     // `004a0000.c:5952-5956`. The blocks are the codec; this is the loader.
     save::resume(&mut game);
+    alone(&mut game);
     Ok(game)
+}
+
+/// C257: a network game's save (it names an owner) loaded by one player: every
+/// other human realm is the computer's, as C240's survivor's were.
+fn alone(game: &mut Game) {
+    if game.owners.is_empty() {
+        return;
+    }
+    let realms = game.kingdom.realms.iter().enumerate();
+    let others: Vec<u8> = realms.filter(|(r, x)| x.is_human && *r != game.player as usize).map(|(r, _)| r as u8).collect();
+    for r in others {
+        if let Some(realm) = game.kingdom.realms.get_mut(r as usize) {
+            realm.is_human = false;
+        }
+        for (_, u) in game.kingdom.campaign.units.iter_mut().filter(|(_, u)| u.owner == r) {
+            u.owner_is_human = false;
+        }
+    }
 }
 
 /// **`Save_RotateAndWrite`'s three names** (`0x0049A453`), newest first.
@@ -213,12 +236,27 @@ pub const AUTOSAVES: [&str; 3] = ["lastturn", "old_turn", "safeturn"];
 /// of the window*. `FUN_0043F01D`, the network bring-up, zeroes it. In a single
 /// player game it is zero and the rotation always runs. `[V]` on both writers.
 pub fn rotate_and_write(game: &Game) -> Result<PathBuf, Error> {
-    let [newest, middle, oldest] = AUTOSAVES;
+    rotate_and_write_as(AUTOSAVES, &save::encode(game))
+}
+
+/// C257: a network host's three, apart from single player's as the original's `.sva`
+/// triple is (`Save_RotateAndWrite` `0x0049A453`, `g_netIsMaster`).
+pub const NET_AUTOSAVES: [&str; 3] = ["net-lastturn", "net-old_turn", "net-safeturn"];
+
+pub fn rotate_and_write_as(names: [&str; 3], bytes: &[u8]) -> Result<PathBuf, Error> {
+    let [newest, middle, oldest] = names;
     let (newest, middle, oldest) = (path_for(newest)?, path_for(middle)?, path_for(oldest)?);
     let _ = std::fs::remove_file(&oldest);
     let _ = std::fs::rename(&middle, &oldest);
     let _ = std::fs::rename(&newest, &middle);
-    write(AUTOSAVES[0], game)
+    write_bytes(names[0], bytes)
+}
+
+/// C257: the host's season save, encoded by `net::frame` at the tick the season
+/// ended, written between ticks (D-5). A joiner never holds one.
+pub fn write_season(game: &mut Game) -> Option<Result<PathBuf, Error>> {
+    let bytes = game.season_save.take()?;
+    Some(rotate_and_write_as(NET_AUTOSAVES, &bytes))
 }
 
 /// **`FUN_0049A3E6`'s last statement, pumped** — the machine's standing autosave
@@ -227,7 +265,8 @@ pub fn run_pending(
     machine: &mut crate::screen::Machine,
     game: &Game,
 ) -> Option<Result<PathBuf, Error>> {
-    machine.take_autosave().then(|| rotate_and_write(game))
+    // C257: a network game's is the host's, written by `net::Live` at the season's tick.
+    (machine.take_autosave() && !game.net.lockstep).then(|| rotate_and_write(game))
 }
 
 pub fn remove(name: &str) -> Result<(), Error> {
@@ -272,6 +311,21 @@ mod tests {
         }
         assert!(!is_valid_name(&"x".repeat(MAX_NAME + 1)), "longer than the list can show");
         assert!(is_valid_name(&"x".repeat(MAX_NAME)));
+    }
+
+    /// C257: the fade's autosave is single player's; a network game's is the host's.
+    /// Ablation: `!game.net.lockstep` in `run_pending`.
+    #[test]
+    fn the_screens_autosave_request_writes_nothing_in_a_network_game() {
+        let dir = std::env::temp_dir().join(format!("l2-c257-fade-{}", std::process::id()));
+        let _scope = scoped_dir(&dir);
+        let mut machine = crate::screen::Machine::new(crate::screen::ScreenId::Campaign);
+        machine.autosave = true;
+        let mut game = Game::new(1);
+        game.net.lockstep = true;
+        assert!(run_pending(&mut machine, &game).is_none(), "a seat wrote the fade's autosave");
+        assert!(!machine.autosave, "the request is spent all the same");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

@@ -60,6 +60,7 @@ pub mod help;
 pub mod index;
 pub mod info;
 pub mod job;
+pub mod leave;
 pub mod lobby;
 pub mod map;
 pub mod menu;

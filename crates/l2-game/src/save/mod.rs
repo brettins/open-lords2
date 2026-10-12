@@ -20,7 +20,7 @@ use crate::screens::setup::MAP_COUNT;
 
 pub const MAGIC: [u8; 8] = *b"L2GSAVE\x01";
 
-pub const VERSION: u32 = 10;
+pub const VERSION: u32 = 11;
 
 /// The oldest version this build reads. [D] ours, C239: raised to `VERSION` unless the
 /// change is a pure addition with defaults and the previous release's reader is kept.
@@ -236,6 +236,7 @@ mod tests {
         g.turns_played = 11;
         g.realm_colour = [0, 1, 2, 3, 4, 5];
         g.gold_last = [0, 1500, -20, 3, 4, 5];
+        g.owners = vec![(1, crate::net::InstallId([3; 16])), (2, crate::net::InstallId([4; 16]))];
         g
     }
 

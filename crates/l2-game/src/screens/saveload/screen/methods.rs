@@ -46,6 +46,11 @@ impl SaveLoadScreen {
         self.entries = entries;
     }
 
+    #[cfg(test)]
+    pub(crate) fn set_name(&mut self, name: &str) {
+        self.name = begin_name(name);
+    }
+
     pub fn is_front_end(&self) -> bool {
         self.shift != (0, 0)
     }
@@ -247,6 +252,11 @@ impl SaveLoadScreen {
                 // tests `g_battlePhase` — and the original's `.sav` is a memory
                 // dump, so the battle goes into it. `crate::save::battle` now
                 // writes it, and the refusal that stood here is gone.
+                // [D] C257: the host's save is the game's; a joiner keeps no copy.
+                if ctx.game.net.lockstep && !ctx.game.net.hosting {
+                    self.status = Status::NetworkGame;
+                    return Transition::Stay;
+                }
                 let name = self.name.text().trim().to_string();
                 // SaveLoad_Tick 0x004AD9F0 :5756-5760: `g_screenId = g_screenIdSaved;
                 // DAT_00591548 = Save_Write(..)`; Menu_SaveGame 0x00433F49 clears that latch

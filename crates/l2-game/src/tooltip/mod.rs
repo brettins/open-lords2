@@ -160,7 +160,8 @@ pub fn screen_byte(id: ScreenId, game: &Game, mode: Option<u8>) -> Option<u8> {
         S::Options(page) => page.screen_id(),
         // WinHelpA leaves g_screenId at 0x31 (Opt_GameHelpContents 0x00434942) [I].
         S::Help => Some(0x31),
-        S::Confirm(_) => Some(0x1E),
+        // C257: `Menu_Quit`'s box is 0x1E; the leave box stands in its place.
+        S::Confirm(_) | S::Leave => Some(0x1E),
         S::Slider(_) => Some(0x21),
         S::Message | S::Index => None,
     }

@@ -70,6 +70,7 @@ impl ApplicationHandler for App {
                 }
             }
             self.tick();
+            self.end_session();
         }
         self.persist_prefs();
 

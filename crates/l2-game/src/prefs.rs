@@ -235,6 +235,9 @@ pub fn encode(p: &Prefs) -> String {
         out.push_str(&format!("{key}={}\t; {origin}\n", value_of(p, key)));
     }
     encode_kept(&p.kept, &mut out);
+    if !p.install.is_nil() {
+        out.push_str(&format!("InstallId={}\n", p.install.to_hex()));
+    }
     out
 }
 
@@ -247,6 +250,10 @@ pub fn decode(text: &str) -> Prefs {
         let Some((key, value)) = line.split_once('=') else { continue };
         let key = key.trim();
         if key.starts_with(['[', ';']) || set_text(&mut p.kept, key, value) {
+            continue;
+        }
+        if key == "InstallId" {
+            p.install = crate::net::InstallId::from_hex(value).unwrap_or_default();
             continue;
         }
         let value = value.split(';').next().unwrap_or("").trim();
@@ -335,6 +342,7 @@ mod tests {
                 campaign_map: 8,
                 campaign_track: crate::victory::Track::Second,
             },
+            install: crate::net::InstallId([0xA5; 16]),
             ..Prefs::default()
         }
     }
@@ -361,7 +369,7 @@ mod tests {
         let p = flipped();
         assert_eq!(decode(&encode(&p)), p);
         let keys = KEYS.iter().map(|(k, _)| *k).chain(SETUP_KEYS.iter().map(|(k, _)| *k));
-        let kept = ["PlayerName", "LetterDraft2", "LetterDraft4", "CampaignMap", "CampaignTrack"];
+        let kept = ["PlayerName", "LetterDraft2", "LetterDraft4", "CampaignMap", "CampaignTrack", "InstallId"];
     for key in keys.chain(kept) {
             assert!(encode(&p).contains(&format!("\n{key}=")), "{key} is not written");
         }

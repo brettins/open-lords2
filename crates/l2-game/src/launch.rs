@@ -159,6 +159,25 @@ fn remembered(d: PathBuf, prefs: &l2_game::game::Prefs) -> PathBuf {
     d
 }
 
+/// C257: this install's id, made once and kept in `prefs.ini`. Not a secret
+/// (`docs/netcode.md` §8): the process's hash seed, the clock and the process id.
+pub(crate) fn install_id(prefs: &mut l2_game::game::Prefs) {
+    use std::hash::{BuildHasher, Hasher};
+    if !prefs.install.is_nil() {
+        return;
+    }
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_nanos());
+    let mut id = [0u8; 16];
+    for (i, half) in id.chunks_mut(8).enumerate() {
+        let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+        h.write_u128(now);
+        h.write_u32(std::process::id());
+        h.write_usize(i);
+        half.copy_from_slice(&h.finish().to_le_bytes());
+    }
+    prefs.install = l2_game::net::InstallId(id);
+}
+
 /// Crash log beside the saves, then a box. `crate::crash` formats it.
 pub(crate) fn panic_hook() {
     let default = std::panic::take_hook();

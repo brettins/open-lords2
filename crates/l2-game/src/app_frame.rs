@@ -185,6 +185,15 @@ impl App {
             if let (Some(live), Some(dir)) = (self.live.as_mut(), home) {
                 live.record_to(dir);
             }
+            l2_game::net::own_seat(&mut self.game);
+        }
+    }
+
+    /// C257: the host's season save, and a seat that left or ended its game; the
+    /// leave box has already put the front end up.
+    pub(super) fn end_session(&mut self) {
+        if l2_game::net::end_session(&mut self.live, &mut self.game) {
+            self.machine.mark_dirty();
         }
     }
 

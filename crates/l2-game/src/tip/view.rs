@@ -83,6 +83,7 @@ pub fn screen_byte(id: ScreenId, game: &Game) -> Option<u8> {
         | S::Rank
         | S::Info(_)
         | S::Confirm(_)
+        | S::Leave
         | S::Slider(_) => None,
     }
 }

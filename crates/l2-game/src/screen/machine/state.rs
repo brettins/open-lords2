@@ -123,10 +123,18 @@ impl Machine {
         // g_appPhase == 3 is a game in play, a skirmish battlefield too (Battle_Start callers,
         // 00430000.c:7890); Ui_OpenConfirm 00400000.c:8019 has no guard for a box already up.
         // arm: 0x004B29BE/escape-quits-outside-the-game key
+        let leaving = self.ids().contains(&ScreenId::Leave);
         if event == Event::KeyDown(crate::input::Key::Escape)
+            && !leaving
             && self.ids().iter().any(|id| matches!(id, ScreenId::Campaign | ScreenId::Battlefield))
         {
-            self.push(ScreenId::Confirm(crate::screens::confirm::Ask::Quit));
+            // C257: FUN_0043441C's network arm leaves the game; ours asks first.
+            let ask = if ctx.game.net.lockstep {
+                ScreenId::Leave
+            } else {
+                ScreenId::Confirm(crate::screens::confirm::Ask::Quit)
+            };
+            self.push(ask);
             self.trace_screen(ctx.game);
             return;
         }

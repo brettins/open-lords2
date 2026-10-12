@@ -1,6 +1,8 @@
 //! The game under lockstep. `docs/netcode.md` §5.
 
 mod driver;
+mod end;
+mod install;
 mod link;
 mod live;
 pub mod relay;
@@ -12,6 +14,8 @@ mod sim;
 mod start;
 
 pub use driver::{Driver, DEFAULT_PORT};
+pub use end::{end_session, own_seat};
+pub use install::InstallId;
 pub use relay::{configure as configure_relay, DEFAULT_RELAY};
 pub use link::{lobby, service, Identity, Link, Phase, PortMap, Request};
 pub use live::{Live, Stepper, CATCH_UP, STALL_GRACE, TIMEOUT};

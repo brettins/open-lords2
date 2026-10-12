@@ -58,6 +58,8 @@ pub enum ScreenId {
     /// (`Menu_RestoreBackdrop`, `0x0040C928`) only puts the 400 × 180 band at
     /// (0, 24) back. See [`crate::screens::menubar`].
     MenuBar(usize),
+    /// Ours, C257: leaving or ending a network game. [`crate::screens::leave`].
+    Leave,
     About,
     Court,
     /// The category being looked at is **not** part of the identity, for
@@ -160,6 +162,7 @@ impl ScreenId {
             ScreenId::Job(id, job) => Box::new(crate::screens::job::JobScreen::new(id, job)),
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
             ScreenId::Lobby => Box::new(crate::screens::lobby::LobbyScreen::new()),
+            ScreenId::Leave => Box::new(crate::screens::leave::LeaveScreen::new()),
             ScreenId::Confirm(ask) => Box::new(crate::screens::confirm::ConfirmScreen::new(ask)),
             ScreenId::Slider(spin) => Box::new(crate::screens::slider::SliderScreen::new(spin)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),

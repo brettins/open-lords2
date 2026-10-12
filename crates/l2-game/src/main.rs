@@ -114,6 +114,7 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     // before `App_InitWindow`: `Options_Load` `0x004AE1B8`. `l2_game::prefs`.
     let mut game = game;
     game.prefs = prefs;
+    launch::install_id(&mut game.prefs);
     println!(
         "{} counties, {} owned by realm {}, {} {} - a NEW world; the front end starts the real one",
         game.kingdom.county_count,
