@@ -21,6 +21,7 @@ fn an_out_of_order_roster_is_rejected_by_the_decoder() {
                 ready: true,
                 is_host: true,
                 shield: 1,
+                realm: 0,
             },
             l2_net::Player {
                 slot: PlayerSlot::new(2),
@@ -28,8 +29,10 @@ fn an_out_of_order_roster_is_rejected_by_the_decoder() {
                 ready: true,
                 is_host: false,
                 shield: 2,
+                realm: 0,
             },
         ],
+        saved: vec![],
     };
     let bytes = Canonical::bytes_of(&Message::Roster(good.clone()));
     assert_eq!(decode_all::<Message>(&bytes).unwrap(), Message::Roster(good.clone()));
@@ -57,7 +60,9 @@ fn every_lobby_message_round_trips() {
             ready: true,
             is_host: true,
             shield: 3,
+            realm: 2,
         }],
+        saved: vec![l2_net::SavedRealm { realm: 2, name: "Richard".into(), shield: 3, owner: [0xA1; 16] }],
     };
     let messages = vec![
         Message::Join(l2_net::Join { hello: hello(2), name: "Matilda".into(), shield: 4, install: [0xB2; 16] }),
@@ -82,7 +87,7 @@ fn every_lobby_message_round_trips() {
         Message::Ready(true),
         Message::Ready(false),
         Message::Roster(roster.clone()),
-        Message::Start(l2_net::Start { seed: SEED, roster, unseated_gold: -7, setup: vec![] }),
+        Message::Start(l2_net::Start { seed: SEED, roster, unseated_gold: -7, setup: vec![], save: vec![9; 300] }),
         Message::Refused(vec![
             Mismatch::Protocol { ours: 1, theirs: 2 },
             Mismatch::Engine { ours: "a".into(), theirs: "b".into() },

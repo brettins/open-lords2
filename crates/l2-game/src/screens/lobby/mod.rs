@@ -18,7 +18,7 @@ use crate::screens::setup::SetupPage;
 use crate::text::FontMetrics;
 
 pub use item::{Item, Page};
-pub use room::{message, reach_text, waiting_for, CODE_CAPTION};
+pub use room::{blocker, message, next_holder, reach_text, realm_at, waiting_for, CODE_CAPTION};
 
 pub struct LobbyScreen {
     page: Page,
@@ -28,6 +28,10 @@ pub struct LobbyScreen {
     join: join::JoinPage,
     lit: bool,
     redraw: bool,
+    /// C263: *Continue a saved game*'s file box, open over the entry page.
+    pick: Option<crate::screens::saveload::SaveLoadScreen>,
+    /// Where the room's roster rows began when last drawn.
+    roster_top: i32,
 }
 
 impl LobbyScreen {
@@ -40,6 +44,8 @@ impl LobbyScreen {
             join: join::JoinPage::new(crate::text::DEFAULT_PLAYER_NAME),
             lit: false,
             redraw: false,
+            pick: None,
+            roster_top: 0,
         }
     }
 
@@ -77,7 +83,36 @@ impl LobbyScreen {
     }
 
     pub fn enabled(&self, item: Item, link: &Link) -> bool {
-        item != Item::Start || waiting_for(link).is_none()
+        item != Item::Start || blocker(link).is_none()
+    }
+
+    pub fn picking(&self) -> bool {
+        self.pick.is_some()
+    }
+
+    /// The room's roster rows begin here.
+    pub fn roster_top(&self) -> i32 {
+        self.roster_top
+    }
+
+    /// C263: the picker closed; with a save chosen, host it.
+    fn picked(&mut self, t: Transition, ctx: &mut Ctx) -> Transition {
+        if t == Transition::Stay {
+            return Transition::Stay;
+        }
+        self.pick = None;
+        self.redraw = true;
+        let Some(resume) = ctx.game.net.resume.as_deref() else { return Transition::Stay };
+        let prefs = &ctx.game.prefs;
+        let shield = resume.mine(prefs.install).map_or(1, |r| r.shield);
+        let name = prefs.kept.player_name.as_str().to_string();
+        let name = if name.trim().is_empty() { crate::text::DEFAULT_PLAYER_NAME.to_string() } else { name };
+        let setup = crate::net::Setup { map: 0, options: prefs.kept.setup };
+        ctx.game.net.identity = Some(crate::net::Identity { name, shield, setup });
+        let addr = Request::every_interface(crate::net::DEFAULT_PORT);
+        ctx.game.net.requests.push(Request::Host { addr });
+        self.host = true;
+        self.turn(Page::Room)
     }
 
     pub fn rects(&self, link: &Link) -> Vec<Rect> {
@@ -124,6 +159,11 @@ impl LobbyScreen {
         match item {
             Item::Host => Transition::Replace(ScreenId::Setup(SetupPage::Shield)),
             Item::Join => self.turn(Page::Join),
+            Item::Resume => {
+                ctx.game.net.resume = None;
+                self.pick = Some(crate::screens::saveload::SaveLoadScreen::for_resume());
+                Transition::Stay
+            }
             Item::Connect => {
                 if let Some(request) = self.join.request(&mut ctx.game.prefs) {
                     ctx.game.net.identity = Some(self.join.identity(&ctx.game.prefs));
@@ -144,7 +184,7 @@ impl LobbyScreen {
                 self.turn(Page::Entry)
             }
             Item::Start => {
-                if waiting_for(link).is_none() {
+                if blocker(link).is_none() {
                     link.requests.push(Request::Start);
                 }
                 Transition::Stay
@@ -201,6 +241,11 @@ impl Screen for LobbyScreen {
 
     fn update(&mut self, ctx: &mut Ctx) -> Transition {
         self.settle(ctx.game);
+        if let Some(pick) = self.pick.as_mut() {
+            let t = pick.update(ctx);
+            self.redraw |= pick.take_redraw();
+            return self.picked(t, ctx);
+        }
         self.join.tick();
         let link = &ctx.game.net;
         match &link.phase {
@@ -226,6 +271,14 @@ impl Screen for LobbyScreen {
 
     fn handle(&mut self, event: Event, ctx: &mut Ctx) -> Transition {
         self.settle(ctx.game);
+        if let Some(pick) = self.pick.as_mut() {
+            self.redraw = true;
+            let t = match event {
+                Event::KeyDown(Key::Escape) | Event::RightClick { .. } => Transition::Pop,
+                e => pick.handle(e, ctx),
+            };
+            return self.picked(t, ctx);
+        }
         let items = self.items(&ctx.game.net);
         let n = items.len().max(1);
         match event {
@@ -253,6 +306,11 @@ impl Screen for LobbyScreen {
                     if self.page == Page::Join {
                         self.join.click(x, y);
                     }
+                    let link = &ctx.game.net;
+                    let realm = realm_at(link, self.roster_top, x, y).filter(|_| self.page == Page::Room && self.host);
+                    if let Some(request) = realm.and_then(|r| next_holder(link, r)) {
+                        ctx.game.net.requests.push(request);
+                    }
                     Transition::Stay
                 }
             },
@@ -270,7 +328,10 @@ impl Screen for LobbyScreen {
         match self.page {
             Page::Entry => entry::draw(ctx, canvas, &pens, self.selected),
             Page::Join => self.join.draw(ctx, canvas, &pens, self.selected),
-            Page::Room => room::draw(ctx, canvas, &pens, self.host, self.selected),
+            Page::Room => self.roster_top = room::draw(ctx, canvas, &pens, self.host, self.selected),
+        }
+        if let Some(pick) = self.pick.as_mut() {
+            pick.draw(ctx, canvas);
         }
     }
 }

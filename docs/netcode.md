@@ -1289,9 +1289,8 @@ lockstep every seat's world at a tick is the same world, which the digest checks
 the season's tick is a clean boundary, with no turn in flight. Joiners keep no copy. The
 original had every seat write its own at one tick instead (net command `0x17`,
 `NetCmd_WriteSaveGame` `0x00442D00`) and resume by every seat reading its own copy (`0x1D`).
-The save records which install played the host's realm (`Game::owners`, an id each install
-keeps in `prefs.ini`); it is not on the wire, and continuing a saved game from the lobby is
-not built. In game, Quit is *Leave game* for a joiner and *End game for all* for the host
+The save records which install played each realm (`Game::owners`, an id each install keeps
+in `prefs.ini`; the host knows every seat's from its `Join`). In game, Quit is *Leave game* for a joiner and *End game for all* for the host
 (with a save first); both close the session through `Live::leave`: a joiner's goodbye
 hands its realm over (C260, below), the host's `Halt(Ended)` stops the others.
 
@@ -1324,6 +1323,20 @@ the host holds for later ticks; the seat starts its session there (`Session::rej
 replay) and the others hear `Back(slot)`. A seat the computer already took gets
 `NoSeat::Retired` (*"That game went on without you"*), any other install `NoSeat::Started`.
 The id is not authentication (v1 has none, above).
+
+### Continuing a saved game (C263)
+
+**The host's save rides in `Start`, and every seat builds from those bytes.** The lobby's
+*Continue a saved game* opens the file box; the save chosen goes to the room, which lists its
+realms in play (`Roster::saved`) instead of the players. Each player is seated on the realm
+its install played (`Lobby::claim`, from the `Join`); the host clicks a realm to hand it to
+the next player still without one, or, with nobody waiting, to the computer. *Start game*
+waits until everyone is seated (`LobbyError::Unseated`). On `Start` every seat runs
+`net::resume::build`: `save::decode` and `save::resume` as a single-player load, then every
+seated realm is a person's and every other the computer's, and the cost map the save leaves
+out is rebuilt (B108). The original's resume was net command `0x1D`, each seat reading its own
+copy (`NetCmd_Read_1D` `0x00443143`); here only the host holds one. A save of about 70 KB fits
+one frame (`MAX_FRAME` is 1 MiB). `PROTOCOL_VERSION` 5.
 
 ### Recorded games (net-replay-hardening)
 

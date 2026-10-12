@@ -121,7 +121,7 @@ impl App {
             n.quiet,
             n.after_halt,
             n.notice.as_ref().map(|(s, _)| s),
-            n.roster.players.iter().map(|p| format!("{}{}", p.name, if p.ready { "+" } else { "" })).collect::<Vec<_>>(),
+            n.roster.players.iter().map(|p| format!("{}{}@{}", p.name, if p.ready { "+" } else { "" }, p.realm)).collect::<Vec<_>>(),
             n.computer_plays,
             self.game.leaving,
             self.game.turns_played,
@@ -134,7 +134,13 @@ impl App {
             }
             r.last = s;
         }
-        let Some(live) = self.live.as_ref() else { return };
+        let Some(live) = self.live.as_ref() else {
+            // C263: the next game in this process counts from tick 0 again.
+            if core::mem::take(&mut r.hashed) > 0 {
+                let _ = std::fs::remove_file(r.dir.join("hashes"));
+            }
+            return;
+        };
         let t = live.session.tick().0.saturating_sub(2) / 25 * 25;
         if t > r.hashed {
             if let Some(h) = live.session.hash_at(l2_net::Tick(t)) {

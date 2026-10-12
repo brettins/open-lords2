@@ -94,7 +94,13 @@ impl Seat {
 
 /// The host and its port, once its listener is up.
 pub fn host(assets: &Assets) -> (Seat, u16) {
+    host_of(assets, None)
+}
+
+/// C263: the host, continuing `resume` if given.
+pub fn host_of(assets: &Assets, resume: Option<net::Resume>) -> (Seat, u16) {
     let mut h = Seat::new("Richard", install(0), Request::Host { addr: crate::loopback::ANY_PORT }, 30);
+    h.game.net.resume = resume.map(Box::new);
     let t0 = Instant::now();
     while t0.elapsed() < PATIENCE {
         h.pump(assets);

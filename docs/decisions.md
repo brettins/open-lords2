@@ -12822,3 +12822,22 @@ posted over the game it came back to; `Tips::resume` marks them shown on a world
 `the_front_end_after_the_hosts_end_presents_in_its_own_palette`,
 `a_dropped_joiner_pauses_every_seat_then_rejoins_and_later_hashes_agree` (no tip after the rejoin);
 `tools/net/e2e/h_sleep_rejoin_in_game.py` waits for the named box.
+
+**C263 — A saved network game continues from the lobby; the host's save rides in `Start`.**
+B2 of `mp-host-saves`, built on the current lobby screens (the owner, 2026-10-12: *"Interface
+does not block features"*). The multiple-players page gains *Continue a saved game*, which
+opens the save box; the room then shows the save's realms in play, each with the player
+seated on it. A player whose install played a realm is seated there on joining (`Lobby::claim`;
+`net::own_seat` now records every seat's install, from the `Join`s). The host clicks a realm to
+hand it to the next player without one, or with nobody waiting to the computer; *Start game*
+stays greyed, *"Choose a realm for Eleanor"*, until every player has one. `Start::save` carries
+the file's bytes; every seat runs `net::resume::build` (`save::decode`, `save::resume`, seated
+realms human, the rest the computer's, `rebuild_move_cost`), so a replay rebuilds a resumed
+game from `Start` as it does a new one. `Player::realm`, `Roster::saved`, `Start::save`:
+`PROTOCOL_VERSION` 5. **Not done:** advanced farming and the other rules are the save's, not
+editable in the room; a resumed save taken mid-battle is untested.
+Tests: `l2-net` `lobby_tests::resume` (claim by install, the host's assign, the unseated
+refusal); `net_game` `a_saved_game_continues_with_its_players_seated_by_install_and_a_newcomer_placed`
+(four seats saved, three resume over TCP, hashes agree a season on),
+`the_host_clicks_a_saved_realm_to_pass_it_round_the_room_and_start_waits_for_seats`;
+`tools/net/e2e/m_resume.py` as real processes.

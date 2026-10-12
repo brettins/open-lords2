@@ -26,6 +26,7 @@ impl SaveLoadScreen {
             latched: false,
             redraw: false,
             shift: (0, 0),
+            resume: false,
         };
         if mode == Mode::Load {
             screen.select(0);
@@ -38,6 +39,13 @@ impl SaveLoadScreen {
     pub fn front_end() -> SaveLoadScreen {
         let mut s = SaveLoadScreen::new(Mode::Load);
         s.shift = (FRONT_END.0 - BOX_X, FRONT_END.1 - BOX_Y);
+        s
+    }
+
+    /// C263: the lobby's picker; [`Self::confirm`] hands the save to the room.
+    pub fn for_resume() -> SaveLoadScreen {
+        let mut s = SaveLoadScreen::new(Mode::Load);
+        s.resume = true;
         s
     }
 
@@ -186,6 +194,7 @@ impl SaveLoadScreen {
     /// a [`Status`] and the screen stays open; only success closes it.
     pub(crate) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {
         match self.mode {
+            Mode::Load if self.resume => self.pick_resume(ctx),
             Mode::Load => {
                 // [D] C245: the swap below would change one peer's world only.
                 if ctx.game.net.lockstep {
@@ -267,6 +276,29 @@ impl SaveLoadScreen {
                 }
                 Transition::Pop
             }
+        }
+    }
+
+    /// C263: the lobby's picker. The typed name's save goes to the room, not into this
+    /// world; a failed read keeps the box up with its line, as the front end's does.
+    fn pick_resume(&mut self, ctx: &mut Ctx) -> Transition {
+        let name = self.name.text().trim().to_string();
+        let Some(path) = self.entries.iter().find(|e| e.name == name).map(|e| e.path.clone()) else {
+            return Transition::Pop;
+        };
+        let read = saves::read_path(&path, ctx.game.kingdom.tables);
+        match (read, std::fs::read(&path)) {
+            (Ok(game), Ok(bytes)) => {
+                ctx.game.net.resume = Some(Box::new(crate::net::Resume::of(&game, bytes)));
+                Transition::Pop
+            }
+            (Err(e), _) => {
+                self.latched = true;
+                self.working = FAIL_TICKS;
+                self.status = load_failure(&e, true).unwrap_or(Status::Idle);
+                Transition::Stay
+            }
+            (Ok(_), Err(_)) => Transition::Pop,
         }
     }
 

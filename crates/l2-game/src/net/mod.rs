@@ -7,6 +7,7 @@ mod link;
 mod live;
 pub mod relay;
 pub mod replay;
+pub mod resume;
 pub mod resync;
 mod status;
 mod setup;
@@ -23,4 +24,5 @@ pub use status::{draw as draw_status, wrap, Beat};
 pub use setup::Setup;
 
 pub use sim::{encode_state, frame, NetGame};
+pub use resume::Resume;
 pub use start::{hello, new_game, seats};

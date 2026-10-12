@@ -1,6 +1,6 @@
 import os, subprocess, time, shutil, signal
 ROOT = os.path.dirname(os.path.abspath(__file__))
-RUNS = os.environ.get("LORDS2_E2E_OUT", os.path.join(ROOT, "..", "..", "..", "out", "e2e"))
+RUNS = os.environ.get("LORDS2_E2E_OUT", os.path.expanduser("~/.cache/lords2-e2e"))
 BIN = os.environ.get("LORDS2_E2E_BIN", os.path.expanduser("~/.cache/lords2-target/debug/l2-game"))
 GAME = os.environ.get("LORDS2_DIR", "/mnt/bigfast/games/Lords of the Realm II")
 PREFS = os.path.expanduser("~/.local/share/open-lords2/saves/prefs.ini")

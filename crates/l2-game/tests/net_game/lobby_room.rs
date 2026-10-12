@@ -27,7 +27,7 @@ fn typed(screen: &mut LobbyScreen, game: &mut Game, assets: &Assets, s: &str) {
 }
 
 fn player(slot: u8, name: &str, is_host: bool, ready: bool) -> Player {
-    Player { slot: PlayerSlot::new(slot), name: name.into(), ready, is_host, shield: slot + 1 }
+    Player { slot: PlayerSlot::new(slot), name: name.into(), ready, is_host, shield: slot + 1, realm: 0 }
 }
 
 fn room(hosting: bool, me: u8, players: Vec<Player>) -> Game {
@@ -35,7 +35,7 @@ fn room(hosting: bool, me: u8, players: Vec<Player>) -> Game {
     game.net = Link {
         phase: Phase::Lobby,
         hosting,
-        roster: Roster { players },
+        roster: Roster { players, saved: vec![] },
         me: Some(PlayerSlot::new(me)),
         ..Link::default()
     };
@@ -45,17 +45,17 @@ fn room(hosting: bool, me: u8, players: Vec<Player>) -> Game {
 /// Red on ablation of`entry::ITEMS`; `Item::Host => Transition::Replace(...)` in `press`;
 /// `network: page == SetupPage::Shield` in `SetupScreen::new`.
 #[test]
-fn the_entry_page_offers_host_join_and_back_and_nothing_else() {
+fn the_entry_page_offers_host_join_continue_and_back_and_nothing_else() {
     let (mut game, assets) = (Game::new(1), Assets::placeholder());
     let mut screen = LobbyScreen::new();
     settle(&mut screen, &mut game, &assets);
     assert_eq!(screen.page(), Page::Entry);
     let items = screen.items(&game.net);
-    assert_eq!(items, vec![Item::Host, Item::Join, Item::Back]);
+    assert_eq!(items, vec![Item::Host, Item::Join, Item::Resume, Item::Back]);
     let labels: Vec<&str> = items.iter().map(|i| i.label()).collect();
-    assert_eq!(labels, vec!["Host a game", "Join a game", "Back"]);
+    assert_eq!(labels, vec!["Host a game", "Join a game", "Continue a saved game", "Back"]);
     let rects = screen.rects(&game.net);
-    assert_eq!(rects.len(), 3, "every button has a hit area");
+    assert_eq!(rects.len(), 4, "every button has a hit area");
     let host = rects[0].click();
     assert_eq!(send(&mut screen, &mut game, &assets, host), Transition::Replace(ScreenId::Setup(SetupPage::Shield)));
     assert!(SetupScreen::new(SetupPage::Shield).network(), "page 4 opened by Host a game is the host path");
@@ -211,4 +211,38 @@ fn clicking_the_shield_on_the_join_page_cycles_through_the_five() {
         seen.push(screen.shield());
     }
     assert_eq!(seen, vec![2, 3, 4, 5, 1]);
+}
+
+/// C263. Red on ablation of `realm_at` in `handle`'s click arm (a click on a realm
+/// does nothing); `roster.unseated()` in `blocker` (Start lit with John unseated).
+#[test]
+fn the_host_clicks_a_saved_realm_to_pass_it_round_the_room_and_start_waits_for_seats() {
+    use l2_game::screens::lobby::blocker;
+    let assets = Assets::placeholder();
+    let mut players = vec![player(0, "Richard", true, true), player(1, "John", false, true)];
+    players[0].realm = 1;
+    let mut game = room(true, 0, players);
+    let realm = |realm, name: &str| l2_net::SavedRealm { realm, name: name.into(), shield: realm, owner: [0; 16] };
+    game.net.roster.saved = vec![realm(1, "Richard"), realm(3, "Baron")];
+    let mut screen = LobbyScreen::new();
+    settle(&mut screen, &mut game, &assets);
+    let mut canvas = l2_view::Canvas::screen();
+    screen.draw(&Ctx { game: &mut game, assets: &assets }, &mut canvas);
+    assert!(!screen.enabled(Item::Start, &game.net));
+    assert_eq!(blocker(&game.net).as_deref(), Some("Choose a realm for John"));
+    let baron = Event::Click { x: 0x90, y: screen.roster_top() + 22 + 5 };
+    send(&mut screen, &mut game, &assets, baron);
+    let john = Request::Assign { slot: PlayerSlot::new(1), realm: 3 };
+    assert_eq!(game.net.requests, vec![john], "an empty realm goes to the player without one, not the host");
+    game.net.requests.clear();
+    game.net.roster.players[1].realm = 3;
+    assert_eq!(blocker(&game.net), None);
+    send(&mut screen, &mut game, &assets, baron);
+    let computer = Request::Assign { slot: PlayerSlot::new(1), realm: 0 };
+    assert_eq!(game.net.requests, vec![computer], "with nobody waiting, to the computer");
+    game.net.requests.clear();
+    game.net.roster.players[0].realm = 0;
+    send(&mut screen, &mut game, &assets, baron);
+    let richard = Request::Assign { slot: PlayerSlot::new(0), realm: 3 };
+    assert_eq!(game.net.requests, vec![richard], "a holder gives way to whoever waits");
 }

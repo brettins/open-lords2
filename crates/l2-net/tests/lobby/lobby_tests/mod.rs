@@ -7,6 +7,7 @@ pub use compatibility::*;
 mod readiness;
 pub use readiness::*;
 mod codec_and_transport;
+mod resume;
 pub use codec_and_transport::*;
 
 use super::*;

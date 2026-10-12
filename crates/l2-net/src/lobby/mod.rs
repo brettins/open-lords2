@@ -1,7 +1,9 @@
 
 mod lobby;
 mod codec;
+mod resume;
 pub use codec::*;
+pub use resume::SavedRealm;
 
 use crate::command::PlayerSlot;
 use crate::packet::{Hello, Mismatch};
@@ -18,6 +20,8 @@ pub struct Player {
     /// The colour claimed on setup page 4, 1..=5; the host arbitrates it as
     /// `FUN_00432FAB` (`0x00432FAB`) does its claim table. `docs/netcode.md` D-3b.
     pub shield: u8,
+    /// C263: the saved realm a resumed game seats this player on; 0 for none.
+    pub realm: u8,
 }
 
 pub const SHIELDS: u8 = 5;
@@ -25,6 +29,8 @@ pub const SHIELDS: u8 = 5;
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Roster {
     pub players: Vec<Player>,
+    /// C263: a resumed game's realms; empty for a new one.
+    pub saved: Vec<SavedRealm>,
 }
 
 impl Roster {
@@ -75,6 +81,8 @@ pub struct Start {
     pub unseated_gold: i32,
     /// The host's map slot and options, opaque here; `l2_game::net::Setup` reads it.
     pub setup: Vec<u8>,
+    /// C263: the host's save every peer builds from; empty for a new game.
+    pub save: Vec<u8>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -86,6 +94,10 @@ pub enum LobbyError {
     WrongRole,
     Unknown(PeerId),
     AlreadyStarted,
+    /// C263: no saved realm of that number.
+    NoRealm(u8),
+    /// C263: a resumed game cannot start with this player unseated.
+    Unseated(String),
 }
 
 impl core::fmt::Display for LobbyError {
@@ -107,6 +119,8 @@ impl core::fmt::Display for LobbyError {
             LobbyError::WrongRole => write!(f, "that message is not the sender's to send"),
             LobbyError::Unknown(p) => write!(f, "no player joined from {p:?}"),
             LobbyError::AlreadyStarted => write!(f, "the game has already started"),
+            LobbyError::NoRealm(r) => write!(f, "the saved game has no realm {r}"),
+            LobbyError::Unseated(n) => write!(f, "{n} has no realm in the saved game"),
         }
     }
 }
@@ -146,6 +160,7 @@ pub struct Lobby {
     unseated_gold: i32,
     setup: Vec<u8>,
     install: [u8; 16],
+    save: Vec<u8>,
 }
 
 fn check_name(name: String, roster: &Roster) -> Result<String, LobbyError> {

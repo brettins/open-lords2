@@ -2,7 +2,7 @@
 use crate::canonical::{Canonical, CodecError, Decode, Encode, Reader};
 use crate::command::{Command, PlayerSlot, Tick};
 
-pub const PROTOCOL_VERSION: u16 = 4;
+pub const PROTOCOL_VERSION: u16 = 5;
 
 pub const DEFAULT_PORT: u16 = 27962;
 
