@@ -56,7 +56,7 @@ A launcher that finds the install for you is on its way. Saves live in
 `Lords2.exe` is an oracle, not a target: we read the original binary to answer what the game
 does, and where it disagrees with us it is right. Of its
 <!--fig:binary-functions-->2,452<!--/fig--> functions we have named
-**<!--fig:functions-->1,464<!--/fig-->**, and **<!--fig:tests-->3,311<!--/fig--> tests pass**.
+**<!--fig:functions-->1,464<!--/fig-->**, and **<!--fig:tests-->3,323<!--/fig--> tests pass**.
 
 ## Playing
 

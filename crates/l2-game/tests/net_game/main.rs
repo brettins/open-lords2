@@ -15,6 +15,7 @@ mod seat_view;
 mod live_siege;
 mod letter;
 mod relay;
+mod host_saves;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;

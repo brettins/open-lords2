@@ -133,6 +133,24 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// C257. Ablation: the `lockstep && !hosting` gate in `confirm`'s Save arm.
+    #[test]
+    fn a_joiner_writes_no_save_and_the_host_does() {
+        let dir = std::env::temp_dir().join(format!("l2-netsave-{}", std::process::id()));
+        let _scope = saves::scoped_dir(&dir);
+        let assets = crate::game::Assets::placeholder();
+        for hosting in [false, true] {
+            let mut game = crate::Game::new(7);
+            (game.net.lockstep, game.net.hosting) = (true, hosting);
+            let mut s = SaveLoadScreen::new(Mode::Save);
+            s.set_name(if hosting { "hosts" } else { "joiners" });
+            let _ = s.confirm(&mut Ctx { game: &mut game, assets: &assets });
+        }
+        let names: Vec<String> = saves::list().into_iter().map(|e| e.name).collect();
+        assert_eq!(names, vec!["hosts".to_string()]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// FUN_004148E4 / Widget_Draw(0x60, 10, g_saveLoadWidgets, 4), 004b0000.c:7067:
     /// ablate `s.shift = ..` in `front_end` and it fails.
     #[test]

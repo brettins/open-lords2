@@ -117,6 +117,7 @@ crates/l2-game/tests/movies/playback/timing_and_sound.rs install 4
 crates/l2-game/tests/movies/triggers/gameplay.rs install 3
 crates/l2-game/tests/movies/triggers/validation.rs install 1
 crates/l2-game/tests/net_game/diplomacy.rs other 3
+crates/l2-game/tests/net_game/host_saves.rs other 3
 crates/l2-game/tests/net_game/letter.rs other 1
 crates/l2-game/tests/net_game/live_desync.rs other 2
 crates/l2-game/tests/net_game/live_drop.rs install 1

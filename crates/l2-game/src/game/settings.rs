@@ -117,6 +117,8 @@ pub struct Prefs {
     pub full_screen: bool,
     /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
     pub kept: crate::prefs::Kept,
+    /// [D] ours, C257: this install's id, generated once; a resumed network game seats by it.
+    pub install: crate::net::InstallId,
 }
 
 impl Default for Prefs {
@@ -135,6 +137,7 @@ impl Default for Prefs {
             debug_overlay: false,
             full_screen: true,
             kept: crate::prefs::Kept::default(),
+            install: crate::net::InstallId::NIL,
         }
     }
 }

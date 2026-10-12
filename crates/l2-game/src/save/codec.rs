@@ -82,6 +82,13 @@ pub(super) fn encode_prefix(game: &Game, out: &mut Canonical) {
     // `noorders-start.sav`. Ours carries the same thing behind one tag.
     out.section("battle");
     out.option(game.battle.as_deref(), |c, b| b.encode(c));
+
+    // C257: who played each realm of a network game, for the room to seat by.
+    out.section("network");
+    out.seq(&game.owners, |c, &(realm, install)| {
+        c.u8(realm);
+        c.raw(&install.0);
+    });
     out.end_section();
 }
 
@@ -226,6 +233,12 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
     let battle = input
         .option(crate::battlefield::LiveBattle::decode)?
         .map(Box::new);
+    let owners = input.seq(|r| {
+        let realm = r.u8()?;
+        let mut id = [0u8; 16];
+        id.copy_from_slice(r.raw(16)?);
+        Ok((realm, crate::net::InstallId(id)))
+    })?;
 
     Ok(Game {
         kingdom,
@@ -234,6 +247,9 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         multiplayer: false,
         game_type,
         seats: Vec::new(),
+        owners,
+        leaving: None,
+        season_save: None,
         net: Default::default(),
         ai_granted: false,
         player,

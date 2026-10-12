@@ -40,7 +40,7 @@ pub fn mismatch_lines(found: u32, expected: u32) -> [String; 2] {
 
 /// [D] C245: no L2.eng string says this.
 pub const NETWORK_LINES: [&str; 2] =
-    ["A network game cannot load a save.", "Saving is allowed; resuming one is not, yet."];
+    ["Only the host saves a network game.", "Continue one from Multiple players."];
 
 /// What a failed load leaves on the box; `None` closes it.
 pub fn load_failure(e: &saves::Error, front: bool) -> Option<Status> {

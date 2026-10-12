@@ -19,8 +19,8 @@ crates/l2-formats/src/save/save.rs	C83	69ef8566a965	88ac11ea6de0
 crates/l2-formats/tests/battle_fixtures.rs	C23	634b1b959f18	6ac2f322c3bd
 crates/l2-formats/tests/save/main.rs	C1	ec5142ef074c	6b7e8edb019e
 crates/l2-formats/tests/save_england_turn1/main.rs	C12	5ab868eddbc5	bb0dd488f9d2
-crates/l2-game/build.rs	C154	1141d2d05a74	4f820bfd08c8
 crates/l2-game/build.rs	C154	27ee8cb13b5f	4f820bfd08c8
+crates/l2-game/build.rs	C154	cff4f8af66a3	4f820bfd08c8
 crates/l2-game/src/app_frame.rs	C193	1ab0747243bb	ded1409ebea0
 crates/l2-game/src/audio/director/engine/director.rs	C133	8c4a7bfa0332	91fcca97cc98
 crates/l2-game/src/audio/names/audio_tables.rs	C133	cdef544c10db	91fcca97cc98
@@ -799,6 +799,8 @@ docs/decisions.md	C221	c895407b0407	f24ff4b039ef
 docs/decisions.md	C23	99e73b072814	6ac2f322c3bd
 docs/decisions.md	C24	b6deda781733	52e202e041ab
 docs/decisions.md	C240	6e7239337abc	838388e6b50b
+docs/decisions.md	C240	bb7787c8914d	838388e6b50b
+docs/decisions.md	C240	bee7c36c3f9d	838388e6b50b
 docs/decisions.md	C247	c93f872aac4b	a700ccc7c11e
 docs/decisions.md	C248	bfe5a21eb978	9a28a8f1ed87
 docs/decisions.md	C25	04e93d465fea	5d466f0cb89c

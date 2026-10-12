@@ -84,13 +84,16 @@ impl DropdownScreen {
             }
             // arm: 0x0040DECA/help-about left-press
             Item::About => Transition::Replace(ScreenId::About),
+            // C257: `Menu_Quit`'s place in a network game, its own box.
+            Item::LeaveGame | Item::EndGame => Transition::Replace(ScreenId::Leave),
         }
     }
 
     /// `FUN_0040E099` against the pointer, for the menu that is open.
     fn item_at(&self, ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
         let t = titles(ctx);
-        (0..MENUS[self.menu].items.len()).find(|&i| item_rect(&t, self.menu, i).contains(x, y))
+        let rows = rows(ctx.game, self.menu);
+        (0..rows.len()).find(|&i| row_rect(&t, self.menu, rows[i].0).contains(x, y))
     }
 }
 
@@ -133,7 +136,7 @@ impl Screen for DropdownScreen {
                 match self.hover {
                     // arm: 0x0040DD92/pick-item left-press
                     Some(i) => {
-                        let item = MENUS[self.menu].items[i].2;
+                        let item = rows(ctx.game, self.menu)[i].2;
                         let t = self.run(ctx, item);
                         return match t {
                             Transition::Stay => Transition::Stay,
@@ -170,7 +173,8 @@ impl Screen for DropdownScreen {
         // `FUN_00409429(x, y + 0x12, 0x0C, (count * 0x15) / 16 + 2)` — the
         // original's own plate. It used to be a `widget::panel` of ours, on the
         // belief that the original drew the captions onto the bare map.
-        let plate = plate_rect(&t, self.menu);
+        let rows = rows(ctx.game, self.menu);
+        let plate = plate_rect_of(&t, self.menu, rows.len());
         pen.window(
             canvas,
             plate.x,
@@ -180,7 +184,9 @@ impl Screen for DropdownScreen {
             PLATE_SET,
         );
 
-        for i in 0..MENUS[self.menu].items.len() {
+        // [D] C257: a network File menu's rows sit on the table's own y column, 0, 20.
+        debug_assert!(rows.iter().enumerate().all(|(i, r)| r.0 == MENUS[self.menu].items[i].0));
+        for i in 0..rows.len() {
             let picked = self.hover == Some(i);
             if picked {
                 canvas.fill_rect(

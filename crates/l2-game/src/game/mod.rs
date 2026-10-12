@@ -354,6 +354,12 @@ pub struct Game {
     /// slot 0 is [`Self::player`]. `docs/netcode.md` §5. Not in the save.
     /// not-encoded: dealt from the lobby's Start on every peer; turn::wind's encode_progress hashes it.
     pub seats: Vec<(l2_net::PlayerSlot, u8)>,
+    /// C257: realm and the install that played it, so a resumed network game seats by it.
+    pub owners: Vec<(u8, crate::net::InstallId)>,
+    /// not-encoded: C257, a seat's ask to leave or end its network game; the app answers it.
+    pub leaving: Option<crate::screens::leave::Leaving>,
+    /// not-encoded: C257, the host's season autosave, encoded at the tick; the app writes it.
+    pub season_save: Option<Vec<u8>>,
     /// not-encoded: the lobby screen's mailbox, presentation. [`crate::net::Link`].
     pub net: crate::net::Link,
     /// **The turn timer** — `DAT_005440C8` and the three globals beside it. See

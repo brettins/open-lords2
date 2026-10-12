@@ -139,6 +139,8 @@ pub fn toggle(setting: Setting, ctx: &mut Ctx) {
     use crate::command::{GameOption, ToggleOption};
     let rule = |option| ToggleOption { option };
     match setting {
+        // [D] C257: in a network game the host set it in the room; here it only shows.
+        Setting::AdvancedFarming if ctx.game.net.lockstep => {}
         Setting::AdvancedFarming => ctx.issue(rule(GameOption::AdvancedFarming)),
         Setting::ArmyForaging => ctx.issue(rule(GameOption::ArmyForaging)),
         Setting::Exploration => ctx.issue(rule(GameOption::Exploration)),

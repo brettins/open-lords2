@@ -20,6 +20,39 @@ pub enum Item {
     Slider(crate::screens::slider::Spin),
     Help(u32),
     About,
+    /// C257: a joiner's Quit.
+    LeaveGame,
+    /// C257: the host's Quit.
+    EndGame,
+}
+
+/// C257: an item with no `L2.eng` string; [`ours`] says it.
+pub const OURS: usize = usize::MAX;
+
+/// C257: a network game's File menu. No New Game and no Load (C245: a load would
+/// change one seat's world); Save is the host's alone; Quit is *Leave game* for a
+/// joiner and *End game for everyone* for the host. `[D]` ours: the original kept
+/// all four on every seat (`Menu_SaveGame` `0x00433F49` globs `.sva`/`.svb` by
+/// `g_netIsMaster`; `SaveLoad_Tick` `0x004AD9F0` sends net command `0x17`/`0x18`).
+pub const HOST_FILE: &[(i32, usize, Item)] = &[(0, 3, Item::Save), (20, OURS, Item::EndGame)];
+pub const JOINER_FILE: &[(i32, usize, Item)] = &[(0, OURS, Item::LeaveGame)];
+
+pub fn rows(game: &crate::Game, menu: usize) -> &'static [(i32, usize, Item)] {
+    match (menu, game.net.lockstep, game.net.hosting) {
+        (0, true, true) => HOST_FILE,
+        (0, true, false) => JOINER_FILE,
+        _ => MENUS[menu].items,
+    }
+}
+
+/// C257's captions; title case as `L2.eng` group 1 is.
+pub fn ours(item: Item) -> &'static str {
+    match item {
+        Item::LeaveGame => "Leave game",
+        // [D] the plate is the original's 192 px; the box it opens says "for everyone".
+        Item::EndGame => "End game for all",
+        _ => "",
+    }
 }
 
 /// One drop-down: its `L2.eng` group and its items, `(y, stringIndex, handler)`.
@@ -98,9 +131,14 @@ pub fn title_text(ctx: &Ctx, menu: usize) -> String {
 
 pub fn item_text(ctx: &Ctx, menu: usize, item: usize) -> String {
     let m = &MENUS[menu];
-    let s = ctx.assets.shell.text(m.group, m.items[item].1);
+    let (_, index, what) = rows(ctx.game, menu)[item];
+    if index == OURS {
+        return ours(what).to_string();
+    }
+    let s = ctx.assets.shell.text(m.group, index);
     if s.is_empty() {
-        m.item_fallbacks[item].to_string()
+        let n = m.items.iter().position(|r| r.1 == index).unwrap_or(0);
+        m.item_fallbacks[n].to_string()
     } else {
         s.to_string()
     }
@@ -134,13 +172,21 @@ pub fn title_at(ctx: &Ctx, x: i32, y: i32) -> Option<usize> {
 
 /// The rectangle one item of an open drop-down occupies — `FUN_0040E099`.
 pub fn item_rect(titles: &[Rect; 3], menu: usize, item: usize) -> Rect {
-    let row = MENUS[menu].items[item].0;
-    Rect::new(titles[menu].x, BAR_Y + row + ITEM_TOP, ITEM_W, ITEM_H)
+    row_rect(titles, menu, MENUS[menu].items[item].0)
+}
+
+pub fn row_rect(titles: &[Rect; 3], menu: usize, y: i32) -> Rect {
+    Rect::new(titles[menu].x, BAR_Y + y + ITEM_TOP, ITEM_W, ITEM_H)
 }
 
 /// **The plate `FUN_00409429(x, y + 0x12, 0x0C, h)` draws**, in pixels:
 pub fn plate_rect(titles: &[Rect; 3], menu: usize) -> Rect {
-    let rows = plate_rows(MENUS[menu].items.len());
+    plate_rect_of(titles, menu, MENUS[menu].items.len())
+}
+
+/// `FUN_00409429`'s plate for `count` items: `(count * 0x15) / 16 + 2` cells.
+pub fn plate_rect_of(titles: &[Rect; 3], menu: usize, count: usize) -> Rect {
+    let rows = plate_rows(count);
     Rect::new(
         titles[menu].x,
         BAR_Y + PLATE_DY,

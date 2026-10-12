@@ -43,6 +43,10 @@ pub fn frame(game: &mut Game) {
     };
     if let turn::TurnStep::Done(outcome) = step {
         game.net.done = Some(outcome);
+        // C257: the host's autosave is this tick's world; `Save_RotateAndWrite` 0x0049A453.
+        if game.net.lockstep && game.net.hosting {
+            game.season_save = Some(crate::save::encode(game));
+        }
     }
 }
 
