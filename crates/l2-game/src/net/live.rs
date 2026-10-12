@@ -17,6 +17,9 @@ use std::path::PathBuf;
 
 /// Pumps waiting before the stall is shown. `[I]` ours: §4's "short grace period".
 pub const STALL_GRACE: u32 = 30;
+/// Pumps a seat with an open connection stays silent before the waiting box names it:
+/// five seconds. `[D]` ours, C262: past TCP's first retransmits and a window drag.
+pub const QUIET: u32 = (5_000_000_000 / crate::clock::TICK_NS) as u32;
 /// Pumps waiting before a silent peer is dropped: sixty seconds of ticks. `[I]` ours.
 pub const TIMEOUT: u32 = (60_000_000_000 / crate::clock::TICK_NS) as u32;
 /// Ticks one pump may run to catch a peer up. `[I]` ours.
@@ -68,6 +71,8 @@ pub struct Live {
     rejoining: Vec<(PeerId, PlayerSlot)>,
     /// C260: dropped seats the game waits for.
     waiting: Vec<PlayerSlot>,
+    /// C262: seats silent past [`QUIET`] whose connection is still open.
+    quiet: Vec<PlayerSlot>,
 }
 
 impl Live {
@@ -113,6 +118,7 @@ impl Live {
             strangers: Vec::new(),
             rejoining: Vec::new(),
             waiting: Vec::new(),
+            quiet: Vec::new(),
         }
     }
 
@@ -153,13 +159,14 @@ impl Live {
             self.admit(game);
         }
         game.net.waiting = self.waiting.iter().map(|&s| name_of(game, s)).collect();
+        game.net.quiet = self.quiet.iter().map(|&s| name_of(game, s)).collect();
         if let Some((_, left)) = &mut game.net.notice {
             *left = left.saturating_sub(1);
             if *left == 0 {
                 game.net.notice = None;
             }
         }
-        game.net.stalled = self.stalled >= STALL_GRACE && self.waiting.is_empty();
+        game.net.stalled = self.stalled >= STALL_GRACE && self.waiting.is_empty() && self.quiet.is_empty();
         game.net.beat.frame(self.session.tick().0);
         if let Some(reason) = self.session.halt_reason().cloned() {
             self.report(game, reason);
@@ -247,6 +254,7 @@ impl Live {
             Message::Retire { slot, from } => {
                 self.session.retire(slot, from);
                 self.waiting.retain(|&s| s != slot);
+                self.quiet.retain(|&s| s != slot);
                 game.net.notice = Some((format!("The computer now plays {}'s realm.", name_of(game, slot)), NOTICE));
             }
             Message::Away(slot) if !self.waiting.contains(&slot) => self.waiting.push(slot),
@@ -263,6 +271,7 @@ impl Live {
         match self.session.advance(&mut sim) {
             Advance::Stepped { .. } => {
                 self.stalled = 0;
+                self.quiet.clear();
                 true
             }
             Advance::Waiting { missing, .. } => {

@@ -63,9 +63,12 @@ impl ApplicationHandler for App {
 
         for _ in 0..owed {
             if let Some(live) = &mut self.live {
-                let before = (self.game.net.stalled, self.game.net.halted.is_some(), self.game.net.beat.live, self.game.net.notice.is_some());
+                let shown = |n: &l2_game::net::Link| {
+                    (n.stalled, n.halted.is_some(), n.beat.live, n.notice.is_some(), n.waiting.len(), n.quiet.len())
+                };
+                let before = shown(&self.game.net);
                 live.pump(&mut self.game);
-                if before != (self.game.net.stalled, self.game.net.halted.is_some(), self.game.net.beat.live, self.game.net.notice.is_some()) {
+                if before != shown(&self.game.net) {
                     self.machine.mark_dirty();
                 }
             }

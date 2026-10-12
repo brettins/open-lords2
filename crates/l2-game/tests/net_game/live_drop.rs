@@ -5,7 +5,9 @@
 use crate::live_tcp::{connect, pair, Peer};
 use crate::seats::{assets, two_worlds};
 use l2_game::command as cmd;
-use l2_game::net::{Live, TIMEOUT};
+use l2_game::net::{Live, QUIET, STALL_GRACE, TIMEOUT};
+use l2_game::screen::{Ctx, Machine, ScreenId};
+use l2_game::screens::net_wait::NetWaitScreen;
 use l2_net::{HaltReason, PlayerSlot};
 use std::path::PathBuf;
 use std::process::Command;
@@ -66,6 +68,55 @@ fn a_joiner_silent_past_the_timeout_is_waited_for() {
     assert_eq!(a.live.session.halt_reason(), None);
     assert_eq!(a.game.net.waiting, vec!["Matilda".to_string()]);
     assert!(!a.game.net.stalled, "the stall glyph drawn over the waiting box");
+}
+
+/// C262. Ablations: the `self.quiet = …` assignment in `Live::silent` (only the stall
+/// glyph until `TIMEOUT`); `self.quiet.clear()` on `Advance::Stepped` (the box stays).
+#[test]
+fn a_joiner_silent_a_few_seconds_is_named_in_the_waiting_box_and_goes_when_it_answers() {
+    let Some(mut peers) = pair() else { l2_testkit::skip!("no install") };
+    let assets = assets().unwrap();
+    for _ in 0..30 {
+        peers.iter_mut().for_each(only);
+    }
+    for _ in 0..STALL_GRACE + 30 {
+        only(&mut peers[0]);
+    }
+    assert!(peers[0].game.net.stalled && peers[0].game.net.quiet.is_empty(), "named before QUIET");
+    for _ in 0..QUIET {
+        only(&mut peers[0]);
+    }
+    let a = &mut peers[0];
+    assert_eq!(a.game.net.quiet, vec!["Matilda".to_string()]);
+    assert!(a.game.net.waiting.is_empty() && !a.game.net.stalled && a.live.session.halt_reason().is_none());
+    let mut m = Machine::new(ScreenId::Campaign);
+    let mut ctx = Ctx { game: &mut a.game, assets: &assets };
+    m.update(&mut ctx);
+    assert_eq!(m.top_id(), Some(ScreenId::NetWait), "the host sees only the glyph");
+    assert_eq!(NetWaitScreen::heading(&ctx), "Waiting for Matilda");
+    let said = NetWaitScreen::text(&ctx);
+    assert!(said.starts_with("Nothing has arrived from Matilda for a few seconds."), "{said}");
+    for _ in 0..200 {
+        peers.iter_mut().for_each(only);
+    }
+    let a = &mut peers[0];
+    assert!(a.game.net.quiet.is_empty(), "{:?}", a.game.net.quiet);
+    let mut ctx = Ctx { game: &mut a.game, assets: &assets };
+    m.update(&mut ctx);
+    assert!(!m.ids().contains(&ScreenId::NetWait), "the box outlived the silence");
+}
+
+/// C262: a joiner names its silent host alone, whose forwarding stopped too.
+#[test]
+fn a_joiner_names_its_silent_host() {
+    let Some(mut peers) = pair() else { l2_testkit::skip!("no install") };
+    for _ in 0..30 {
+        peers.iter_mut().for_each(only);
+    }
+    for _ in 0..QUIET + 50 {
+        only(&mut peers[1]);
+    }
+    assert_eq!(peers[1].game.net.quiet, vec!["Richard".to_string()]);
 }
 
 /// Ablation: the joiner's `HaltReason::Timeout` in `Live::silent` (it waits forever).

@@ -1,4 +1,4 @@
-//! C260: a network game waits for a dropped player. Every seat sees who and why; the
+//! C260: a network game waits for a dropped player (C262: or a silent one). Every seat sees who and why; the
 //! host's way on is *Let the computer play*, a joiner's is to leave. `[D]` ours:
 //! `L2.eng` has no group for it (C243). The leave box's frame (`ExitConfirm_Draw`
 //! `0x00414790`, [`super::leave::BOX`]), grown to its text; it takes every event,
@@ -59,15 +59,27 @@ impl NetWaitScreen {
         format!("Waiting for {}", names(ctx))
     }
 
+    /// C262: a silent seat still has its connection, so it is waited for until it answers.
     pub fn text(ctx: &Ctx) -> String {
-        let who = names(ctx);
-        let rest = if ctx.game.net.hosting {
-            format!("The game is paused until they join again with the same code or address.")
-        } else {
-            let host = ctx.game.net.roster.players.iter().find(|p| p.is_host).map_or("The host".to_string(), |p| p.name.clone());
-            format!("The game is paused until they join again, or {host} lets the computer play.")
+        let net = &ctx.game.net;
+        let host = net.roster.players.iter().find(|p| p.is_host).map_or("The host".to_string(), |p| p.name.clone());
+        let mut said = Vec::new();
+        if !net.waiting.is_empty() {
+            said.push(format!("{} lost the connection.", net.waiting.join(" and ")));
+        }
+        if !net.quiet.is_empty() {
+            said.push(format!("Nothing has arrived from {} for a few seconds.", net.quiet.join(" and ")));
+        }
+        let until = match (net.waiting.is_empty(), net.hosting) {
+            (true, _) => "they answer",
+            (false, true) => "they join again with the same code or address",
+            (false, false) => "they join again",
         };
-        format!("{who} lost the connection. {rest}")
+        said.push(match net.hosting || net.quiet.contains(&host) {
+            true => format!("The game is paused until {until}."),
+            false => format!("The game is paused until {until}, or {host} lets the computer play."),
+        });
+        said.join(" ")
     }
 
     pub fn buttons(ctx: &Ctx) -> Vec<Rect> {
@@ -90,7 +102,8 @@ impl NetWaitScreen {
 }
 
 fn names(ctx: &Ctx) -> String {
-    ctx.game.net.waiting.join(" and ")
+    let net = &ctx.game.net;
+    net.waiting.iter().chain(&net.quiet).cloned().collect::<Vec<_>>().join(" and ")
 }
 
 fn pen<'a>(ctx: &'a Ctx) -> Pen<'a> {

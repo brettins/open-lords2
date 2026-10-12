@@ -107,7 +107,7 @@ impl App {
         let n = &self.game.net;
         let tick = self.live.as_ref().map(|l| l.session.tick().0);
         let s = format!(
-            "screens {:?}\nphase {:?}\nhosting {}\nme {:?}\nplayer {}\nlive {}\ntick {}\nhalted {:?}\nstalled {}\nwaiting {:?}\nafter_halt {:?}\nnotice {:?}\nroster {:?}\ncomputer_plays {}\nleaving {:?}\nturns {}\ncode {}\n",
+            "screens {:?}\nphase {:?}\nhosting {}\nme {:?}\nplayer {}\nlive {}\ntick {}\nhalted {:?}\nstalled {}\nwaiting {:?}\nquiet {:?}\nafter_halt {:?}\nnotice {:?}\nroster {:?}\ncomputer_plays {}\nleaving {:?}\nturns {}\ncode {}\n",
             self.machine.ids(),
             n.phase,
             n.hosting,
@@ -118,6 +118,7 @@ impl App {
             n.halted,
             n.stalled,
             n.waiting,
+            n.quiet,
             n.after_halt,
             n.notice.as_ref().map(|(s, _)| s),
             n.roster.players.iter().map(|p| format!("{}{}", p.name, if p.ready { "+" } else { "" })).collect::<Vec<_>>(),

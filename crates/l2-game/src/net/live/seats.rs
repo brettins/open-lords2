@@ -93,10 +93,10 @@ impl Live {
         let _ = self.transport.send(peer, &Canonical::bytes_of(m));
     }
 
-    /// C260: the waiting box's *Let the computer play*, drained here.
+    /// C260: the waiting box's *Let the computer play*, drained here; C262 a silent seat too.
     pub(super) fn control(&mut self, game: &mut Game) {
         if std::mem::take(&mut game.net.computer_plays) && self.is_host() {
-            for slot in self.waiting.clone() {
+            for slot in self.waiting.clone().into_iter().chain(self.quiet.clone()) {
                 self.to_computer(game, slot);
             }
         }
@@ -126,14 +126,23 @@ impl Live {
         self.send_all(&Message::Away(slot));
     }
 
-    /// Silent past [`TIMEOUT`]: the host waits for that seat as for a drop; a joiner
-    /// stops only when its host's packet is the one missing (C240).
+    /// Silent past [`QUIET`]: every seat names it (C262; a joiner names a silent host
+    /// alone, whose forwarding stopped too). Past [`TIMEOUT`]: the host waits for that
+    /// seat as for a drop; a joiner stops only when its host's packet is the one missing (C240).
     pub(super) fn silent(&mut self, missing: &[PlayerSlot]) {
         if missing.iter().all(|s| self.waiting.contains(s)) {
             self.stalled = 0;
+            self.quiet.clear();
             return;
         }
         self.stalled += 1;
+        if self.stalled >= QUIET {
+            let host = self.session.authority();
+            self.quiet = match self.is_host() || !missing.contains(&host) {
+                true => missing.iter().copied().filter(|s| !self.waiting.contains(s)).collect(),
+                false => vec![host],
+            };
+        }
         if self.stalled < TIMEOUT {
             return;
         }
@@ -150,6 +159,7 @@ impl Live {
             self.peers.retain(|&(_, s)| s != slot);
             self.away(slot);
         }
+        self.quiet.clear();
         self.stalled = 0;
     }
 
@@ -167,6 +177,7 @@ impl Live {
         self.session.retire(slot, from);
         self.send_all(&Message::Retire { slot, from });
         self.waiting.retain(|&s| s != slot);
+        self.quiet.retain(|&s| s != slot);
         if let Some(realm) = game.realm_of(slot) {
             game.issue(ToComputer { realm });
             game.net.notice = Some((format!("The computer now plays {}'s realm.", name_of(game, slot)), NOTICE));
