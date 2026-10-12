@@ -12729,7 +12729,11 @@ placed flush, advancing ink width x 2 + 3 physical px (body's 1 px gap, tripled)
 12 physical px (body's 4, tripled). The owner chose 3 px over 2 px: *"I think 3px gap matches
 the closest"*. Measured against body tripled: 3 px gives 0.898 to 1.034 (mean 0.996), 2 px gives
 0.878 to 0.997 (mean 0.963). So a string that would cross its box at 3 px is drawn at 2 px,
-which no measured string exceeds: nothing the original fits in a box can overflow. Titles keep the
+which no measured string exceeds: nothing the original fits in a box can overflow.
+**Punctuation:** `Fntl2_22`'s marks hang below its baseline (row 18): `.` ends 2 rows under it, `!` 3,
+`?` and `,` `;` 4, where `Fntl2_14` ends `. ! ?` one row above and `, ;` one below. As body text
+they are lifted, in heading rows: `.` `,` `;` 3, `!` 3, `?` 4 (the owner: *"the period is weirdly
+low in the heading text"*). `:` already sits right. Titles keep the
 original's frame spacing and size. `Fntl2_9` (codes, status lines) is drawn tripled.
 Presentation only: not in the digest, not on the wire. Owner's caution: *"I'm a little worried
 about putting this in if it doesn't work out exactly, could mess up some game elements"*; so
