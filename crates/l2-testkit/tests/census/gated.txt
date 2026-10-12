@@ -131,6 +131,7 @@ crates/l2-game/tests/net_game/main.rs england 3
 crates/l2-game/tests/net_game/rejoin_tcp.rs install 3
 crates/l2-game/tests/net_game/relay_play.rs other 2
 crates/l2-game/tests/net_game/seat_view.rs england 1
+crates/l2-game/tests/net_game/start_burst.rs install 1
 crates/l2-game/tests/net_game/seats.rs install 1
 crates/l2-game/tests/net_game/two_seats.rs england 1
 crates/l2-game/tests/net_game/two_seats.rs install 1

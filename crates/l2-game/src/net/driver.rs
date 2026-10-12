@@ -290,7 +290,11 @@ impl Driver {
                 _ => InstallId::NIL,
             };
             match self.lobby.receive(peer, message) {
-                Ok(LobbyEvent::Started(s)) => started = Some(s),
+                // C261: as after `Rejoin`, the tick packets behind `Start` stay queued.
+                Ok(LobbyEvent::Started(s)) => {
+                    started = Some(s);
+                    break;
+                }
                 Ok(LobbyEvent::Joined(slot)) => self.installs.push((slot, install)),
                 Ok(_) => {}
                 Err(LobbyError::Incompatible(why)) if self.lobby.role() == Role::Client => {
