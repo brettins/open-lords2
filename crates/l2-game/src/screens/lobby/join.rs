@@ -228,7 +228,7 @@ impl JoinPage {
             let x = r.x + i * CELL_W;
             crate::shell::button_recess(canvas, x, r.y, CELL_W, CELL_H);
             if let Some(c) = typed.get(i as usize) {
-                pens.head.heading_centred(canvas, x, r.y + 8, CELL_W, &c.to_string(), font::TEXT);
+                draw::symbol(canvas, pens, Rect::new(x, r.y, CELL_W, CELL_H), *c, font::TEXT);
             }
             if focused && self.code.caret_lit() && self.code.caret() as i32 == i {
                 canvas.fill_rect(x + 8, r.y + CELL_H - 8, CELL_W - 16, 2, font::TEXT);

@@ -13,8 +13,10 @@ use crate::shell::font;
 pub const CODE_CAPTION: &str = "Tell your friends this code";
 const MESSAGE_COLS: usize = 44;
 const CODE_Y: i32 = 0x66;
-const CODE_CELL: i32 = 36;
-const REACH_Y: i32 = 0x98;
+const CODE_CELL: i32 = 32;
+const CODE_CELL_H: i32 = 24;
+const REACH_Y: i32 = 0x9C;
+const CODE_HINT: &str = "They choose Join a game and type it.";
 const ROSTER_Y: i32 = 0xC4;
 const ROW: i32 = 22;
 const STATE_X: i32 = LEFT + 0x110;
@@ -106,22 +108,29 @@ pub(super) fn draw(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, host: bool, sele
         None => "Joining".to_string(),
     };
     draw::backdrop(ctx, canvas, pens, Heading::Text(&heading));
-    let mut y = CODE_Y;
-    if let (Some(code), true) = (&link.code, host) {
-        pens.body.body_centred(canvas, LEFT, y, WIDTH, CODE_CAPTION, font::TEXT);
-        let x0 = LEFT + (WIDTH - CODE_CELL * code.len() as i32) / 2;
-        for (i, c) in code.chars().enumerate() {
-            pens.head.heading_centred(canvas, x0 + i as i32 * CODE_CELL, y + 0x10, CODE_CELL, &c.to_string(), font::TEXT);
-        }
-        y = REACH_Y;
-    }
+    let mut roster_y = ROSTER_Y;
     if let Phase::Failed(why) = &link.phase {
         pens.body.body_wrapped(canvas, LEFT, ROSTER_Y, WIDTH, why, font::TEXT);
     } else {
-        if let Some(text) = reach_text(link) {
-            pens.body.body_wrapped(canvas, LEFT, y, WIDTH, &text, font::TEXT);
+        match (&link.code, host) {
+            (Some(code), true) => {
+                pens.body.body_centred(canvas, LEFT, CODE_Y, WIDTH, CODE_CAPTION, font::TEXT);
+                let x0 = LEFT + (WIDTH - CODE_CELL * code.len() as i32) / 2;
+                for (i, c) in code.chars().enumerate() {
+                    let cell = Rect::new(x0 + i as i32 * CODE_CELL, CODE_Y + 0x10, CODE_CELL - 4, CODE_CELL_H);
+                    crate::shell::button_recess(canvas, cell.x, cell.y, cell.w, cell.h);
+                    draw::symbol(canvas, pens, cell, c, font::TEXT);
+                }
+                pens.body.body_centred(canvas, LEFT, REACH_Y, WIDTH, CODE_HINT, font::TEXT);
+            }
+            _ => {
+                if let Some(text) = reach_text(link) {
+                    let height = pens.body.body_wrapped(canvas, LEFT, CODE_Y, WIDTH, &text, font::TEXT);
+                    roster_y = roster_y.max(CODE_Y + height + 8);
+                }
+            }
         }
-        draw_roster(canvas, pens, link);
+        draw_roster(canvas, pens, link, roster_y);
     }
     for (i, (item, r)) in items(link, host).iter().zip(rects(link, host)).enumerate() {
         let enabled = *item != Item::Start || waiting_for(link).is_none();
@@ -140,9 +149,9 @@ pub(super) fn draw(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, host: bool, sele
     }
 }
 
-fn draw_roster(canvas: &mut Canvas, pens: &Pens, link: &Link) {
+fn draw_roster(canvas: &mut Canvas, pens: &Pens, link: &Link, top: i32) {
     for (i, p) in link.roster.players.iter().enumerate() {
-        let y = ROSTER_Y + ROW * i as i32;
+        let y = top + ROW * i as i32;
         let mine = Some(p.slot) == link.me;
         let ink = if mine { font::HIGHLIGHT } else { font::TEXT };
         draw::plaque(canvas, &pens.body, p.shield, LEFT, y + 1);

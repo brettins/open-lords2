@@ -20,7 +20,7 @@ fn main() {
     // is why the launcher is the primary mechanism and this rename is only the
     // safety net —
     // `docs/environment.md`, `docs/decisions.md` C154.
-    for name in ["HEAD", "index"] {
+    for name in ["HEAD", "index", "refs/tags", "packed-refs"] {
         if let Some(dir) = git_dir() {
             let p = dir.join(name);
             if p.exists() {
@@ -38,16 +38,28 @@ fn stamp() -> String {
         .is_some_and(|s| !s.trim().is_empty());
     let date = git(&["log", "-1", "--format=%cd", "--date=format:%Y-%m-%d"])
         .unwrap_or_else(|| "?".into());
-    let time = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-Command", "Get-Date -Format HH:mm"])
-        .output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|t| !t.is_empty()).unwrap_or_else(|| "??:??".into());
+    // powershell alone left `??:??` on Linux and the Linux release job.
+    let clock = |cmd: &str, args: &[&str]| {
+        Command::new(cmd).args(args).output().ok()
+            .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+            .filter(|t| t.len() == 5)
+    };
+    let time = if cfg!(windows) {
+        clock("powershell", &["-NoProfile", "-Command", "Get-Date -Format HH:mm"])
+    } else {
+        clock("date", &["+%H:%M"])
+    }
+    .unwrap_or_else(|| "??:??".into());
+    let tag = git(&["describe", "--tags", "--exact-match", "HEAD"])
+        .map(|t| format!(" {}", t.to_uppercase()))
+        .unwrap_or_default();
     format!(
-        "{}{} {} {}",
+        "{}{} {} {}{}",
         commit.to_uppercase(),
         if dirty { "-DIRTY" } else { "" },
         date,
-        time
+        time,
+        tag
     )
 }
 

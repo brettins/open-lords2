@@ -45,13 +45,18 @@ Everything else is the original's controls; its manual applies.
 Multiplayer
 -----------
 
-Multiple players opens the lobby. Games are hosted over TCP, port 4712 by
-default. The host must allow that port through its firewall; the game asks the
-router to open it (NAT-PMP or UPnP) and the lobby shows the address to give the
-others, on the network and over the internet. If the router says no, forward
-TCP 4712 to the host by hand. With a join-code service configured (--relay
-host:port or LORDS2_RELAY, or the build's default), the host's lobby shows a
-six-letter code and a joiner types it instead of an address.
+Multiple players opens the lobby: Host a game, or Join a game.
+
+  Host     pick your shield and the map, press Start. The room shows a
+           six-letter code; tell it to your friends. Start game lights up
+           once everyone has pressed I'm ready.
+  Join     type the code your host gave you and press Join, then I'm ready.
+
+Codes go through our join-code service, which only pairs the two
+connections; no ports to open. Without it, "use an address instead" on the
+join page takes the host's address (TCP port 4712 by default; the game asks
+the host's router to open it, or forward it by hand). --relay host:port or
+LORDS2_RELAY picks another service.
 
 Both players need the same build of this engine and their own copy of the game.
 
