@@ -182,7 +182,7 @@ countable: `docs/arms.json` is the inventory of the original's input
 
    **The other <!--fig:draws-screens-->52<!--/fig--> screens** make
    <!--fig:draws-original-->1,080<!--/fig--> draw calls and we make
-   <!--fig:draws-ours-->712<!--/fig-->: <!--fig:draws-pct-->66<!--/fig-->%.
+   <!--fig:draws-ours-->710<!--/fig-->: <!--fig:draws-pct-->66<!--/fig-->%.
    <!--fig:draws-missing-->41<!--/fig--> things the original draws are enumerated as missing,
    and **<!--fig:draws-inventions-->25<!--/fig--> things we draw that it does not** — the
 figure that answers row 2 for pictures, not gestures; the one nobody had.
@@ -198,7 +198,7 @@ figure that answers row 2 for pictures, not gestures; the one nobody had.
    them?"*, *"the title screen is illegible"* — **none of which is an arm.**
 
    200: **And the half a call count cannot see.** Of our marks on those 51 screens,
-   <!--fig:draws-real-->732<!--/fig--> go through the game's own artwork and
+   <!--fig:draws-real-->730<!--/fig--> go through the game's own artwork and
    <!--fig:draws-placeholder-->72<!--/fig--> are our 5 × 7 debug font and our own rectangles
    — <!--fig:draws-real-pct-->91<!--/fig-->% real — with
    <!--fig:draws-literals-->15<!--/fig--> English captions written in our own source where the
@@ -952,7 +952,7 @@ did not exist on CI and nothing said so.**
 **The figures are generated.** `tools/figures/figures.js` rewrites the marked numbers in
 `README.md`, `docs/status.html`, `docs/method.md` and this file, and `--check` fails CI on a
 stale one. Twelve stale figures were found in a day, one document claiming 542 tests against
-<!--fig:tests-->3,257<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
+<!--fig:tests-->3,307<!--/fig-->. **Do not quote a count here that nothing recomputes**: mark
 it, or label it frozen and say what it records.
 
 ---
