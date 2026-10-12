@@ -179,7 +179,10 @@ function fileSource(file) {
   if (top === null) {
     return { path: file, checkout: null, branch: null, commit: null, state: 'outside', label: `${file}, a file outside any git checkout` };
   }
-  const p = path.relative(top, file).replace(/\\/g, '/');
+  // realpath: on the Windows runner the file arrives as RUNNER~1 and git spells the
+  // toplevel runneradmin; relative() across the two named no file (CI run 38195065814).
+  const real = (f) => { try { return fs.realpathSync.native(f); } catch { return path.resolve(f); } };
+  const p = path.relative(real(top), real(file)).replace(/\\/g, '/');
   const head = git(['rev-parse', '--abbrev-ref', 'HEAD'], top);
   const branch = !head || head === 'HEAD' ? 'a detached HEAD' : head;
   const tracked = git(['ls-files', '--error-unmatch', '--', p], top) !== null;
