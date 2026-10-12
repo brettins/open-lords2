@@ -23,8 +23,12 @@ pub fn hello(settings: &Settings, tables: &Tables, seed: u64, slot: PlayerSlot) 
     }
 }
 
-/// `[I]` the roster's k-th seat, in slot order, plays realm k + 1.
+/// `[I]` the roster's k-th seat, in slot order, plays realm k + 1; C263: in a
+/// resumed game, the realm the host seated it on.
 pub fn seats(start: &Start) -> Vec<(PlayerSlot, u8)> {
+    if !start.save.is_empty() {
+        return super::resume::seats(start);
+    }
     let players = start.roster.players.iter().take(MAX_REALMS - 1);
     players.enumerate().map(|(k, p)| (p.slot, k as u8 + 1)).collect()
 }
@@ -39,6 +43,9 @@ pub fn new_game(
     quirks: Quirks,
     tables: Tables,
 ) -> Result<Game, Error> {
+    if !start.save.is_empty() {
+        return super::resume::build(start, me, tables);
+    }
     let setup = Setup::decode(&start.setup).ok_or_else(|| Error::Missing {
         name: "Start".into(),
         detail: "the host's setup did not decode".into(),

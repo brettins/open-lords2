@@ -7,10 +7,17 @@
 use super::Live;
 use crate::game::Game;
 
-/// C257: the save records this seat's realm and install; the others' are not on
-/// the wire yet, so a save names the host alone.
+/// C257: the save records each seat's realm and install; C263 seats a resumed game by
+/// them. A joiner knows only its own install (C260's `Join`s reach the host).
 pub fn own_seat(game: &mut Game) {
-    game.owners = vec![(game.player, game.prefs.install)];
+    let install = |slot| game.net.installs.iter().find(|&&(s, _)| s == slot).map(|&(_, i)| i);
+    let mut owners: Vec<(u8, super::InstallId)> =
+        game.seats.iter().filter_map(|&(slot, realm)| install(slot).map(|i| (realm, i))).collect();
+    if !owners.iter().any(|&(r, _)| r == game.player) {
+        owners.push((game.player, game.prefs.install));
+    }
+    owners.sort();
+    game.owners = owners;
 }
 
 pub fn end_session(live: &mut Option<Live>, game: &mut Game) -> bool {

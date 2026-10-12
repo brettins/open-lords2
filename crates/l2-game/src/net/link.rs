@@ -12,6 +12,8 @@ pub enum Request {
     Host { addr: std::net::SocketAddr },
     Join { address: String },
     Ready(bool),
+    /// C263: the host seats `slot` on saved realm `realm`, 0 for none.
+    Assign { slot: PlayerSlot, realm: u8 },
     Start,
     Leave,
 }
@@ -97,6 +99,8 @@ pub struct Link {
     pub computer_plays: bool,
     /// C260: the host's `Rejoin` this world was built from; the app starts its session from it.
     pub rejoin: Option<Box<l2_net::Rejoin>>,
+    /// C263: the save the host's next `Request::Host` continues.
+    pub resume: Option<Box<super::Resume>>,
 }
 
 impl Link {
@@ -179,8 +183,14 @@ pub fn lobby(
                 let hello = super::hello(&settings, &tables, seed, PlayerSlot::new(0));
                 let gold = game.chosen_gold;
                 let install = game.prefs.install;
-                Driver::host(addr, hello, &id.name, id.shield, &id.setup, gold, quirks)
-                    .map(|d| *driver = Some(d.with_install(install).with_relay(super::relay::configured())))
+                let resume = link.resume.take();
+                Driver::host(addr, hello, &id.name, id.shield, &id.setup, gold, quirks).map(|d| {
+                    let d = d.with_install(install).with_relay(super::relay::configured());
+                    *driver = Some(match resume {
+                        Some(r) => d.with_save(*r),
+                        None => d,
+                    })
+                })
             }
             (Request::Join { address }, None, Some(id)) => {
                 let settings = id.setup.settings(1, quirks);
@@ -193,6 +203,7 @@ pub fn lobby(
                 })
             }
             (Request::Ready(r), Some(d), _) => d.set_ready(r),
+            (Request::Assign { slot, realm }, Some(d), _) => d.assign(slot, realm),
             (Request::Start, Some(d), _) => d.start().map(|_| ()),
             (Request::Leave, _, _) => {
                 if let Some(d) = driver.as_mut() {
@@ -233,7 +244,7 @@ pub fn lobby(
     if let Some(n) = link.auto {
         let me = link.me.and_then(|s| link.roster.get(s));
         let all_ready = link.roster.players.iter().all(|p| p.is_host || p.ready);
-        if link.hosting && link.roster.len() >= n as usize && all_ready {
+        if link.hosting && link.roster.len() >= n as usize && all_ready && link.roster.unseated().is_none() {
             link.requests.push(Request::Start);
             link.auto = None;
         } else if !link.hosting && me.is_some_and(|p| !p.ready) {

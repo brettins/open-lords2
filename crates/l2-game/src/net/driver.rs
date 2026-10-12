@@ -227,6 +227,18 @@ impl Driver {
         self.flush()
     }
 
+    /// C263: the host continues a saved game.
+    pub fn with_save(mut self, resume: super::Resume) -> Driver {
+        self.lobby = self.lobby.with_save(resume.saved, resume.save);
+        self
+    }
+
+    /// C263: the host seats a player on a saved realm, 0 for none.
+    pub fn assign(&mut self, slot: PlayerSlot, realm: u8) -> Result<(), String> {
+        self.lobby.assign(slot, realm).map_err(|e| e.to_string())?;
+        self.flush()
+    }
+
     pub fn start(&mut self) -> Result<Start, String> {
         let start = self.lobby.start().map_err(|e| e.to_string())?;
         self.flush()?;

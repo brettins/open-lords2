@@ -76,6 +76,35 @@ pub fn waiting_for(link: &Link) -> Option<String> {
     link.roster.players.iter().find(|p| !p.is_host && !p.ready).map(|p| p.name.clone())
 }
 
+/// What keeps Start greyed, as its caption: a player not ready, or C263's unseated one.
+pub fn blocker(link: &Link) -> Option<String> {
+    if let Some(name) = waiting_for(link) {
+        return Some(format!("Waiting for {name}"));
+    }
+    link.roster.unseated().map(|p| format!("Choose a realm for {}", p.name))
+}
+
+/// C263: the saved realm row at (x, y), rows from `top`.
+pub fn realm_at(link: &Link, top: i32, x: i32, y: i32) -> Option<u8> {
+    let row = (y - top).div_euclid(ROW);
+    let hit = x >= LEFT && x < LEFT + WIDTH && y >= top;
+    link.roster.saved.get(row as usize).filter(|_| hit).map(|r| r.realm)
+}
+
+/// C263: the host's click on a realm hands it to the next player waiting for one, in
+/// slot order after its holder; with nobody waiting, to the computer. `[D]` ours.
+pub fn next_holder(link: &Link, realm: u8) -> Option<crate::net::Request> {
+    let holder = link.roster.holder(realm);
+    let after = holder.map_or(0, |h| h.slot.index() + 1);
+    let waiting: Vec<_> = link.roster.players.iter().filter(|p| p.realm == 0).collect();
+    let next = waiting.iter().find(|p| p.slot.index() >= after).or(waiting.first());
+    match (next, holder) {
+        (Some(p), _) => Some(crate::net::Request::Assign { slot: p.slot, realm }),
+        (None, Some(h)) => Some(crate::net::Request::Assign { slot: h.slot, realm: 0 }),
+        (None, None) => None,
+    }
+}
+
 fn host_name(link: &Link) -> Option<String> {
     link.roster.players.iter().find(|p| p.is_host).map(|p| p.name.clone())
 }
@@ -100,7 +129,8 @@ pub(super) fn rects(link: &Link, host: bool) -> Vec<Rect> {
     }
 }
 
-pub(super) fn draw(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, host: bool, selected: usize) {
+/// Returns where the roster's rows begin, for [`realm_at`].
+pub(super) fn draw(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, host: bool, selected: usize) -> i32 {
     let link = &ctx.game.net;
     let heading = match host_name(link) {
         _ if host => "Your game".to_string(),
@@ -130,10 +160,14 @@ pub(super) fn draw(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, host: bool, sele
                 }
             }
         }
-        draw_roster(canvas, pens, link, roster_y);
+        if link.roster.saved.is_empty() {
+            draw_roster(canvas, pens, link, roster_y);
+        } else {
+            draw_saved(canvas, pens, link, roster_y);
+        }
     }
     for (i, (item, r)) in items(link, host).iter().zip(rects(link, host)).enumerate() {
-        let enabled = *item != Item::Start || waiting_for(link).is_none();
+        let enabled = *item != Item::Start || blocker(link).is_none();
         let look = match (enabled, i == selected) {
             (false, _) => Look::Disabled,
             (true, true) => Look::Selected,
@@ -141,9 +175,33 @@ pub(super) fn draw(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, host: bool, sele
         };
         draw::button(canvas, &pens.body, r, item.label(), look);
         if *item == Item::Start {
-            if let Some(name) = waiting_for(link) {
-                let caption = format!("Waiting for {name}");
+            if let Some(caption) = blocker(link) {
                 pens.body.body_centred(canvas, r.x, CAPTION_Y, r.w, &caption, font::TEXT);
+            }
+        }
+    }
+    roster_y
+}
+
+/// C263: the saved game's realms, each with the player the host seated on it.
+fn draw_saved(canvas: &mut Canvas, pens: &Pens, link: &Link, top: i32) {
+    for (i, r) in link.roster.saved.iter().enumerate() {
+        let y = top + ROW * i as i32;
+        let holder = link.roster.holder(r.realm);
+        let mine = holder.is_some_and(|p| Some(p.slot) == link.me);
+        let ink = if mine { font::HIGHLIGHT } else { font::TEXT };
+        draw::plaque(canvas, &pens.body, r.shield, LEFT, y + 1);
+        pens.body.body(canvas, LEFT + 22, y + 2, &r.name, ink);
+        match holder {
+            Some(p) => {
+                let who = if mine { format!("{} (you)", p.name) } else { p.name.clone() };
+                if p.ready || p.is_host {
+                    draw::tick(canvas, STATE_X - 20, y + 1);
+                }
+                pens.body.body(canvas, STATE_X, y + 2, &who, ink);
+            }
+            None => {
+                pens.body.body(canvas, STATE_X, y + 2, "computer", ink);
             }
         }
     }

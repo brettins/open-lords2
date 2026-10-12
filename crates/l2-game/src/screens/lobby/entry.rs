@@ -1,4 +1,5 @@
-//! The first page of *Multiple players*: Host a game, Join a game, Back (C255).
+//! The first page of *Multiple players*: Host a game, Join a game, Back (C255);
+//! C263's Continue a saved game.
 
 use l2_view::Canvas;
 
@@ -12,18 +13,20 @@ use crate::shell::font;
 pub(super) const HEADING: (usize, usize) = (11, 3);
 const HOST_Y: i32 = 0x7C;
 const JOIN_Y: i32 = 0xBC;
+const RESUME_Y: i32 = 0xF8;
 const BACK_Y: i32 = 0x130;
 const CAPTION: i32 = BIG_H + 4;
 const HOST_CAPTION: &str = "You choose the map; friends join with a code or your address.";
 const JOIN_CAPTION: &str = "Type the code the host gave you.";
 
-pub(super) const ITEMS: [Item; 3] = [Item::Host, Item::Join, Item::Back];
+pub(super) const ITEMS: [Item; 4] = [Item::Host, Item::Join, Item::Resume, Item::Back];
 
 pub(super) fn rects() -> Vec<Rect> {
     let big_x = LEFT + (WIDTH - BIG_W) / 2;
     vec![
         Rect::new(big_x, HOST_Y, BIG_W, BIG_H),
         Rect::new(big_x, JOIN_Y, BIG_W, BIG_H),
+        Rect::new(LEFT + (WIDTH - BUTTON_W) / 2, RESUME_Y, BUTTON_W, BUTTON_H),
         Rect::new(LEFT + (WIDTH - BUTTON_W) / 2, BACK_Y, BUTTON_W, BUTTON_H),
     ]
 }

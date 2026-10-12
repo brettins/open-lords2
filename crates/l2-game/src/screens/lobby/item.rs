@@ -11,6 +11,7 @@ pub enum Page {
 pub enum Item {
     Host,
     Join,
+    Resume,
     Connect,
     UseAddress,
     UseCode,
@@ -26,6 +27,7 @@ impl Item {
         match self {
             Item::Host => "Host a game",
             Item::Join => "Join a game",
+            Item::Resume => "Continue a saved game",
             Item::Connect => "Join",
             Item::UseAddress => "use an address instead",
             Item::UseCode => "use a code instead",
