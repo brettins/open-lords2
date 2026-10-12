@@ -72,12 +72,34 @@ pub(super) fn backdrop(ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, heading: Hea
     }
     let (x, y, cols, rows) = LOBBY_WINDOW;
     pens.body.window(canvas, x, y, cols, rows, 1);
-    match heading {
-        Heading::Eng(g, i) => pens.head.eng_heading_centred(canvas, g, i, x, HEAD_Y, cols * 16, font::TEXT),
-        Heading::Text(s) => {
-            pens.head.heading_centred(canvas, x, HEAD_Y, cols * 16, s, font::TEXT);
-        }
-    }
+    let text = match heading {
+        Heading::Eng(g, i) => ctx.assets.shell.text(g, i).to_string(),
+        Heading::Text(s) => s.to_string(),
+    };
+    storybook(canvas, pens, x, HEAD_Y, cols * 16, &text, font::TEXT);
+}
+
+/// `[D]` the heading face is a drop capital, never a reading face (owner, C257):
+/// the first letter in it, the rest in the body face on the capital's foot.
+pub(super) fn storybook(canvas: &mut Canvas, pens: &Pens, x: i32, y: i32, width: i32, s: &str, ink: u8) {
+    let assets = pens.body.assets;
+    let (Some(head), Some(body), Some(first)) = (&assets.heading, &assets.body, s.chars().next()) else {
+        pens.body.body_centred(canvas, x, y, width, s, ink);
+        return;
+    };
+    let cap = first.to_string();
+    let rest = &s[first.len_utf8()..];
+    let (cap_w, rest_w) = (head.width(&cap) + 1, body.width(rest));
+    let x0 = x + ((width - cap_w - rest_w) / 2).max(0);
+    pens.head.heading(canvas, x0, y, &cap, ink);
+    let foot = y + head.height(&cap) - body.height(rest).max(1);
+    pens.body.body(canvas, x0 + cap_w, foot, rest, ink);
+}
+
+/// `[D]` one code symbol, body face, centred in its cell (owner, C257).
+pub(super) fn symbol(canvas: &mut Canvas, pens: &Pens, r: Rect, c: char, ink: u8) {
+    let h = pens.body.assets.body.as_ref().map_or(7, |f| f.height(&c.to_string()));
+    pens.body.body_centred(canvas, r.x, r.y + (r.h - h) / 2, r.w, &c.to_string(), ink);
 }
 
 pub(super) fn button(canvas: &mut Canvas, pen: &Pen, r: Rect, label: &str, look: Look) {
@@ -87,7 +109,7 @@ pub(super) fn button(canvas: &mut Canvas, pen: &Pen, r: Rect, label: &str, look:
 
 pub(super) fn big_button(canvas: &mut Canvas, pens: &Pens, r: Rect, label: &str, look: Look) {
     shell::button_recess(canvas, r.x, r.y, r.w, r.h);
-    pens.head.heading_centred(canvas, r.x, r.y + 8, r.w, label, look.ink());
+    storybook(canvas, pens, r.x, r.y + 8, r.w, label, look.ink());
 }
 
 /// Page 4's name plate (`FUN_0041F321`): a recess, the text, the caret when `field` has focus.

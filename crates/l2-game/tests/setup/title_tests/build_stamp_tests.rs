@@ -29,11 +29,14 @@ fn the_build_stamp_names_a_commit_rather_than_a_version() {
         return; // A tarball build. Honest, and there is nothing else to check.
     }
 
-    let mut parts = id.splitn(3, ' ');
+    let mut parts = id.split(' ');
     let (commit, date, time) = match (parts.next(), parts.next(), parts.next()) {
         (Some(c), Some(d), Some(t)) => (c, d, t),
-        _ => panic!("the stamp is `<commit>[-DIRTY] <date> <HH:MM>`, got {id:?}"),
+        _ => panic!("the stamp is `<commit>[-DIRTY] <date> <HH:MM>[ <TAG>]`, got {id:?}"),
     };
+    if let Some(tag) = parts.next() {
+        assert!(tag.starts_with('V') && parts.next().is_none(), "a release tag, last: {id:?}");
+    }
     let hex = commit.strip_suffix("-DIRTY").unwrap_or(commit);
     assert_eq!(hex.len(), 9, "nine hex digits of commit, got {hex:?}");
     assert!(
