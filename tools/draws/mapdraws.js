@@ -3,6 +3,7 @@
 //
 //   node tools/draws/mapdraws.js            # the table
 //   node tools/draws/mapdraws.js --sites    # every call site, one per line
+//   node tools/draws/mapdraws.js --write    # store the totals CI reads in map.json
 //
 // # What a "draw call" is here
 //
@@ -65,10 +66,25 @@ function corpus() {
   // lives only in the main checkout.
   const main = 'E:/dev/lords2/tools/oracle/decomp';
   if (fs.existsSync(main)) return main;
-  throw new Error('no decomp corpus found');
+  return null;
 }
 
+// CI has no corpus (gitignored; CI run 38195522454 died here): `--figures` reads the
+// listing's totals as `--write` last stored them, the way screendraws.js keeps screens.json.
+const STORED = path.join(__dirname, 'map.json');
 const DIR = corpus();
+if (!DIR) {
+  if (!process.argv.includes('--figures')) throw new Error('no decomp corpus found');
+  const s = JSON.parse(fs.readFileSync(STORED, 'utf8'));
+  const o = ours();
+  if (o.live !== s.live) {
+    console.error(`mapdraws: map.json counts ${s.live} live calls and docs/draws-map.md accounts for ${o.live}.`);
+    process.exit(1);
+  }
+  console.error('mapdraws: no decomp corpus; the listing totals are tools/draws/map.json');
+  console.log(JSON.stringify({ ...s, ours: o.mine, pct: Math.round((o.mine / o.live) * 100) }));
+  process.exit(0);
+}
 const bodies = new Map(); // name -> {addr, name, text}
 for (const f of fs.readdirSync(DIR).filter(f => f.endsWith('.c'))) {
   const text = fs.readFileSync(path.join(DIR, f), 'utf8');
@@ -240,6 +256,13 @@ if (o.live !== live) {
 }
 const pct = Math.round((o.mine / o.live) * 100);
 console.log(`reproduced ${o.mine} of ${o.live} live (${pct}%)`);
+
+const listing = JSON.stringify({ total, live, debug, dead });
+if (process.argv.includes('--write')) fs.writeFileSync(STORED, listing + '\n');
+else if (!fs.existsSync(STORED) || fs.readFileSync(STORED, 'utf8').trim() !== listing) {
+  console.error('mapdraws: tools/draws/map.json is stale; run: node tools/draws/mapdraws.js --write');
+  process.exit(1);
+}
 
 if (process.argv.includes('--figures')) {
   console.log(JSON.stringify({ total, live, debug, dead, ours: o.mine, pct }));
