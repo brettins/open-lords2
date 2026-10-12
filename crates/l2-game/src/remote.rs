@@ -55,7 +55,6 @@ fn key(name: &str) -> Option<Key> {
 }
 
 impl App {
-    /// Returns true when the script closed the window.
     pub(crate) fn remote_frame(&mut self) -> bool {
         let Some(mut r) = self.remote.take() else { return false };
         let mut close = false;
