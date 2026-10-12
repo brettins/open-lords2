@@ -152,6 +152,7 @@ fn rejoined(driver: &mut Option<Driver>, game: &mut Game, tables: Tables) -> Opt
             world.net = Link { phase: Phase::Started, requests: Vec::new(), roster, rejoin: Some(r), ..game.net.clone() };
             world.prefs = game.prefs;
             world.tips = game.tips;
+            world.tips.resume();
             Some(world)
         }
         Err(why) => {

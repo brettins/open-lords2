@@ -43,7 +43,8 @@ fn knock(seats: &mut Vec<Seat>, assets: &Assets, seat: Seat) -> Result<(), Strin
 
 /// Ablations: `self.away(slot)` in `Live::dropped` (only the silence timeout notices);
 /// `self.waiting.contains(&s)` in `Live::knock` (refused); the `unsimulated` resend in
-/// `Live::admit` (the seats stall apart); the `NetWait` hold in `Machine::keep_halt_on_top`.
+/// `Live::admit` (the seats stall apart); the `NetWait` hold in `Machine::keep_halt_on_top`;
+/// C262 `world.tips.resume()` in `link::rejoined` (the Objectives scroll again).
 #[test]
 fn a_dropped_joiner_pauses_every_seat_then_rejoins_and_later_hashes_agree() {
     kit::big_stack(drop_and_rejoin);
@@ -72,6 +73,15 @@ fn drop_and_rejoin() {
     knock(&mut seats, &assets, Seat::joiner("Matilda", 1, port)).expect("taken back");
     let back = seats.last().unwrap();
     assert_eq!(back.game.player, realm, "back on its own realm");
+    let mut seen = Machine::new(ScreenId::Campaign);
+    for _ in 0..60 {
+        kit::run(&mut seats, &assets, 1);
+        let back = seats.last_mut().unwrap();
+        seen.update(&mut Ctx { game: &mut back.game, assets: &assets });
+    }
+    let back = seats.last().unwrap();
+    assert!(back.game.prefs.tip_screens, "tips off proves nothing");
+    assert_eq!(back.game.tips.shows(), 0, "the rejoined seat was shown {:?}", seen.ids());
     let at = frozen[0];
     kit::until(&mut seats, &assets, "all three run on", |s| s.iter().all(|x| x.tick() > at + 200));
     let t = kit::common_tick(&seats);
