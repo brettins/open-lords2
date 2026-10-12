@@ -39,7 +39,7 @@ crates/l2-game/src/game/quirk_set.rs	C62	1f489b238ce0	ebb6a7ec3711
 crates/l2-game/src/game/tests.rs	C125	643069422225	6084e87aec70
 crates/l2-game/src/input.rs	C61	39c868ef7985	60611046b40d
 crates/l2-game/src/main.rs	C117	81e769c79475	b20f3a227f0f
-crates/l2-game/src/main.rs	C193	022f277f8e1a	ded1409ebea0
+crates/l2-game/src/main.rs	C193	58bce4c90316	ded1409ebea0
 crates/l2-game/src/message/queue/actions.rs	C210	3aa50ebfb906	38024f0b559c
 crates/l2-game/src/movie/player.rs	C193	921629355a9c	ded1409ebea0
 crates/l2-game/src/save/codec.rs	C113	ef879d2261ff	6fbe8ffeb1fb
@@ -802,6 +802,7 @@ docs/decisions.md	C240	15f4473cd76e	838388e6b50b
 docs/decisions.md	C240	6e7239337abc	838388e6b50b
 docs/decisions.md	C240	bb7787c8914d	838388e6b50b
 docs/decisions.md	C240	bee7c36c3f9d	838388e6b50b
+docs/decisions.md	C243	b482adfce146	7a91977d742e
 docs/decisions.md	C247	c93f872aac4b	a700ccc7c11e
 docs/decisions.md	C248	bfe5a21eb978	9a28a8f1ed87
 docs/decisions.md	C25	04e93d465fea	5d466f0cb89c
@@ -831,6 +832,7 @@ docs/decisions.md	C26	1824d81774d5	e8179d1f76a8
 docs/decisions.md	C26	5357aea2a649	e8179d1f76a8
 docs/decisions.md	C26	8f6a35ed9d62	e8179d1f76a8
 docs/decisions.md	C260	f9b917892e33	cfeb55039a95
+docs/decisions.md	C261	85853898dfc2	edf33465a7b1
 docs/decisions.md	C27	12183fbed103	1db64332cb22
 docs/decisions.md	C27	251c3e5931bb	1db64332cb22
 docs/decisions.md	C27	6c197dcf7e68	1db64332cb22

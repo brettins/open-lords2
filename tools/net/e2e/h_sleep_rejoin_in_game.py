@@ -1,10 +1,11 @@
 from e2e import *
 h, a, b = three("47341")
 a.p.send_signal(signal.SIGSTOP); note("Matilda: frozen (laptop asleep)")
+t0 = time.time()
 for s in (h, b):
-    s.wait(lambda st: st["stalled"] == "true" or "Matilda" in st["waiting"], f"{s.name} notices", 30)
-note(f"H: after a few s: host stalled={h.status()['stalled']} waiting={h.status()['waiting']} screens={h.status()['screens']}")
-h.shot("H0-host-stalled")
+    s.wait(lambda st: "Matilda" in st["quiet"] and st["screens"].endswith("NetWait]"), f"{s.name} names Matilda (C262)", 15)
+note(f"H: {time.time() - t0:.1f} s: host quiet={h.status()['quiet']} screens={h.status()['screens']}")
+h.shot("H0-host-stalled"); b.shot("H0-joiner-stalled")
 h.wait(lambda st: "Matilda" in st["waiting"], "host gives up on Matilda's connection", 90)
 note(f"H: host waits for Matilda: {h.status()['screens']}")
 a.p.send_signal(signal.SIGCONT); note("Matilda: wakes")
