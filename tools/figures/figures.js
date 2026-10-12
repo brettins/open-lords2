@@ -333,7 +333,9 @@ for (const rel of TARGETS) {
     used.add(name);
     if (!(name in values)) fail(`${rel} marks an unknown figure "${name}" - known: ${Object.keys(values).join(', ')}`);
     const want = values[name];
-    if (current !== want) stale.push({ rel, name, current, want });
+    // `updated` is the clock's date, so --check failed every later day and in UTC
+    // after 18:00 MDT (CI run 38196561820); regeneration still stamps it.
+    if (current !== want && !(check && name === 'updated')) stale.push({ rel, name, current, want });
     return `<!--fig:${name}-->${want}<!--/fig-->`;
   });
   if (rel.endsWith('status.html') && (before.match(new RegExp(BAR.source, 'g')) || []).length !== 1)
