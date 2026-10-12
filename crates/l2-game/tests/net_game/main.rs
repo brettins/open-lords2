@@ -16,6 +16,8 @@ mod live_siege;
 mod letter;
 mod relay;
 mod host_saves;
+mod relay_play;
+mod halt_box;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;

@@ -17,6 +17,8 @@ pub enum ScreenId {
     Setup(crate::screens::setup::SetupPage),
     /// Ours: the network lobby. [`crate::screens::lobby`].
     Lobby,
+    /// Ours: a network game stopped. [`crate::screens::net_halt`].
+    NetHalt,
     /// `g_screenId` `0x1E` — **the yes/no box** `Ui_OpenConfirm`
     /// (`0x0040E6F2`) opens. The question is part of the identity because in
     /// the original it is `g_confirmCallback`, and two questions are two
@@ -163,6 +165,7 @@ impl ScreenId {
             ScreenId::Setup(page) => Box::new(crate::screens::setup::SetupScreen::new(page)),
             ScreenId::Lobby => Box::new(crate::screens::lobby::LobbyScreen::new()),
             ScreenId::Leave => Box::new(crate::screens::leave::LeaveScreen::new()),
+            ScreenId::NetHalt => Box::new(crate::screens::net_halt::NetHaltScreen::new()),
             ScreenId::Confirm(ask) => Box::new(crate::screens::confirm::ConfirmScreen::new(ask)),
             ScreenId::Slider(spin) => Box::new(crate::screens::slider::SliderScreen::new(spin)),
             ScreenId::Conquest => Box::new(crate::screens::conquest::ConquestScreen::new()),

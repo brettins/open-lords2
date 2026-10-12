@@ -292,10 +292,11 @@ impl Live {
                 let names = hand_to_ai(game, &self.absent);
                 let who = if names.is_empty() { "A player".to_string() } else { names.join(" and ") };
                 let how = if reason == HaltReason::Left { "left the game" } else { "stopped answering" };
-                format!("{who} {how}. The computer now plays their realm: save the game to go on alone.")
+                format!("{who} {how}.")
             }
-            reason => format!("{reason}. You can save the game and quit."),
+            HaltReason::Protocol { detail } => format!("The connection to the other players failed ({detail})."),
         };
+        eprintln!("network game stopped at tick {}: {text}", self.session.tick().0);
         game.net.halted = Some(text);
     }
 }

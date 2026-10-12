@@ -173,8 +173,12 @@ impl App {
         let started = l2_game::net::service(&mut self.net, game, &self.assets, tables);
         if shown(&game.net) != before {
             self.machine.mark_dirty();
+            let l = &game.net;
+            let seats: Vec<String> = l.roster.players.iter().map(|p| format!("{}{}", p.name, if p.ready { "+" } else { "" })).collect();
+            eprintln!("net: {:?} hosting={} code={:?} seats=[{}]", l.phase, l.hosting, l.code, seats.join(", "));
         }
         if let Some(world) = started {
+            eprintln!("net: started, seed {:#x}", world.turns_played);
             self.game = world;
             self.machine.mark_dirty();
             // `[I]` the replay's seed; the world carries its own from `Start`.

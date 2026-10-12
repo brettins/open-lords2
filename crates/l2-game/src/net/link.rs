@@ -16,6 +16,13 @@ pub enum Request {
     Leave,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AfterHalt {
+    /// The computer keeps the absent realms; the game goes on single-player (C240).
+    Alone,
+    Leave,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub enum Phase {
     #[default]
@@ -74,6 +81,8 @@ pub struct Link {
     pub stalled: bool,
     /// Why the session stopped, for the dialog.
     pub halted: Option<String>,
+    /// `[D]` the halt box's answer; the app ends the session on it.
+    pub after_halt: Option<AfterHalt>,
     /// C256: a passing line, such as a resync; counts down in pumps.
     pub notice: Option<(String, u32)>,
     /// The season `net::frame` finished, for the campaign screen to show.
@@ -203,4 +212,11 @@ pub fn lobby(
     }
     // The host's own `start` is not echoed back to it.
     started.or_else(|| d.lobby().started().cloned().filter(|_| link.hosting))
+}
+
+/// `[D]` the session is over: this world is single-player from here (C240).
+pub fn continue_alone(game: &mut Game) {
+    let identity = game.net.identity.take();
+    game.net = Link { identity, ..Link::default() };
+    game.multiplayer = false;
 }

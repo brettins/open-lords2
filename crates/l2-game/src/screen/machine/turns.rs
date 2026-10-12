@@ -15,6 +15,27 @@ impl Machine {
 /// test inside it is a test of `g_screenId`
     /// message knows: see [`Machine::pump_messages`].
     pub fn update(&mut self, ctx: &mut Ctx) {
+        self.update_screens(ctx);
+        self.keep_halt_on_top(ctx.game);
+    }
+
+    /// `[D]` a stopped network game's box opens over everything and stays there:
+    /// a battle prompt opened the same frame buried it (2026-10-11, `halt_box`).
+    pub(crate) fn keep_halt_on_top(&mut self, game: &Game) {
+        let net = &game.net;
+        let at = self.stack.iter().position(|s| s.id() == ScreenId::NetHalt);
+        match at {
+            None if net.halted.is_some() && net.after_halt.is_none() => self.push(ScreenId::NetHalt),
+            Some(i) if i + 1 < self.stack.len() => {
+                let halt = self.stack.remove(i);
+                self.stack.push(halt);
+                self.dirty = true;
+            }
+            _ => {}
+        }
+    }
+
+    fn update_screens(&mut self, ctx: &mut Ctx) {
         self.trace_screen(ctx.game);
         // Battle_Frame 004b0000.c:6707 ticksDue, the ticks (6940), then on loop exit
         // Tip_Update/Msg_Pump (6783-6784), Event_Post (6867), Screen_FrameInput (6871) [V].

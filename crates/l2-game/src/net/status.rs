@@ -61,11 +61,7 @@ pub fn draw(ctx: &Ctx, canvas: &mut Canvas) {
     }
     let in_battle = ctx.game.battle.is_some();
     let lines: Vec<String> = match (&link.halted, link.stalled) {
-        (Some(why), _) => {
-            let mut v = vec!["THE GAME HAS STOPPED".to_string()];
-            v.extend(wrap(why, 36));
-            v
-        }
+        (Some(_), _) => return,
         // `FUN_0042476B`'s `g_battlePhase == 0` guard. [V] Its 1,600 ms expiry
         // (`0x640 < now - DAT_00553C6C`) is not ours: `stalled` ends with the stall. [I]
         (None, true) if !in_battle => return wait_glyph(ctx, canvas),

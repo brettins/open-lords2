@@ -72,6 +72,12 @@ impl ApplicationHandler for App {
             self.tick();
             self.end_session();
         }
+        if self.game.net.after_halt == Some(l2_game::net::AfterHalt::Alone) {
+            // `[D]` the halt box answered: the replay is written as `Live` drops.
+            self.live = None;
+            l2_game::net::continue_alone(&mut self.game);
+            self.machine.mark_dirty();
+        }
         self.persist_prefs();
 
         if self.machine.take_dirty() {

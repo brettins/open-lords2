@@ -101,6 +101,11 @@ impl Machine {
     }
 
     pub fn handle(&mut self, event: Event, ctx: &mut Ctx) {
+        self.handle_event(event, ctx);
+        self.keep_halt_on_top(ctx.game);
+    }
+
+    fn handle_event(&mut self, event: Event, ctx: &mut Ctx) {
         // Chosen because the original answers it with nothing at all: the
         // window procedure (`0x004B29BE`) has `WM_KEYDOWN` arms for Backspace,
         // Enter, Control, Escape, End, Home, the arrows, Insert, Delete, the
@@ -126,6 +131,7 @@ impl Machine {
         let leaving = self.ids().contains(&ScreenId::Leave);
         if event == Event::KeyDown(crate::input::Key::Escape)
             && !leaving
+            && self.top_id() != Some(ScreenId::NetHalt)
             && self.ids().iter().any(|id| matches!(id, ScreenId::Campaign | ScreenId::Battlefield))
         {
             // C257: FUN_0043441C's network arm leaves the game; ours asks first.
