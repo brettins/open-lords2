@@ -12710,3 +12710,25 @@ Tests: `net_game` `only_the_host_writes_the_seasons_autosave_and_it_records_the_
 `leave_game_closes_the_joiners_session_and_the_computer_takes_its_realm`,
 `end_game_for_everyone_stops_the_joiner` (TCP); `menubar::net_tests`, `saves::tests`,
 `saveload::tests`, `net::install::tests`, `prefs::tests`, `save::tests`.
+
+**C259 — Sharp text: a 3x canvas, body text in the heading face at 2x, spaced by its ink.**
+Decided, not built. The owner, 2026-10-12, after mockups on `agent/mp-lobby-page8`
+(`docs/handoff/lobby-c258-and-2x-text.md` there): *"we certainly should not restrict ourselves
+to drawing at 640x480"*, and of the heading face *"I feel like heading is just the body text
+but bigger"*. `Fntl2_14` and `Fntl2_22` are one blackletter at two sizes. Measured from the
+glyph pixels: cap height 14 / 22, x-height 8 / 13, line step 16 / 24, baseline row 12 / 18,
+descender 2 / 4. **At 3x the two agree:** body tripled has a line step of 48 and a baseline at
+36; the heading face doubled has 48 and 36. Capitals are 44 against 42. Art is tripled, a whole
+number, so the original's pixels stay crisp; layout coordinates stay logical 640 x 480, so the
+draw audits and every oracle comparison are untouched. At 2x the heading face at 1:1 is 0.8 of
+body (the owner: *"at 2x the header font is smaller than the other font"*), which is why 3x.
+**Spacing:** `Fntl2_22`'s frames carry 1 to 3 blank columns (`m` 3 right; `i n u t` 1 left and
+2 right; `a g r d` none), which the original's `Ui_DrawText` advance of frame width + 1 keeps,
+and which read as *"gam e"* at body size. As body text the face is spaced by its ink: each glyph
+placed flush, advancing ink width x 2 + 2 physical px; a space is 12 physical px (body's 4,
+tripled). With the 2 px gap no measured string is wider than body tripled (ratio 0.878 to
+0.997, mean 0.963), so nothing the original fits in a box can overflow it. Titles keep the
+original's frame spacing and size. `Fntl2_9` (codes, status lines) is drawn tripled.
+Presentation only: not in the digest, not on the wire. Owner's caution: *"I'm a little worried
+about putting this in if it doesn't work out exactly, could mess up some game elements"*; so
+it ships behind a setting, off until the screens have been checked.
