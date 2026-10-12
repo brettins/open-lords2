@@ -6,7 +6,7 @@ use crate::kit::{self, Seat};
 use crate::seats::assets;
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};
-use l2_game::net::Phase;
+use l2_game::net::{Phase, TIMEOUT};
 use l2_game::screen::{Ctx, Machine, ScreenId};
 use l2_game::screens::net_wait::NetWaitScreen;
 use std::time::{Duration, Instant};
@@ -16,8 +16,14 @@ fn drop_seat(seats: &mut Vec<Seat>, assets: &Assets, i: usize) -> String {
     let name = seats[i].game.net.identity.as_ref().unwrap().name.clone();
     drop(seats.remove(i));
     let want = vec![name.clone()];
-    kit::until(seats, assets, "every seat waits", |s| s.iter().all(|x| x.game.net.waiting == want));
-    name
+    for _ in 0..TIMEOUT / 4 {
+        if seats.iter().all(|x| x.game.net.waiting == want) {
+            return name;
+        }
+        kit::run(seats, assets, 1);
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    panic!("the drop was not noticed before the silence timeout");
 }
 
 /// Pumps everyone until `seat` has a session or its join failed.
@@ -35,9 +41,9 @@ fn knock(seats: &mut Vec<Seat>, assets: &Assets, seat: Seat) -> Result<(), Strin
     Ok(())
 }
 
-/// Ablations: `self.away(slot)` in `Live::dropped` (no wait, C240's halt is gone so the
-/// host stalls silently); `self.waiting.contains(&s)` in `Live::knock` (refused);
-/// the `unsimulated` resend in `Live::admit` (the seats stall apart).
+/// Ablations: `self.away(slot)` in `Live::dropped` (only the silence timeout notices);
+/// `self.waiting.contains(&s)` in `Live::knock` (refused); the `unsimulated` resend in
+/// `Live::admit` (the seats stall apart); the `NetWait` hold in `Machine::keep_halt_on_top`.
 #[test]
 fn a_dropped_joiner_pauses_every_seat_then_rejoins_and_later_hashes_agree() {
     kit::big_stack(drop_and_rejoin);
@@ -79,8 +85,7 @@ fn drop_and_rejoin() {
 }
 
 /// Ablations: the `ComputerPlays` arm of `NetWaitScreen::press`; `self.session.retire`
-/// in `Live::to_computer` (the host still waits); `Transition::Stay` for a click
-/// outside the buttons.
+/// in `Live::to_computer` (the host still waits).
 #[test]
 fn the_host_lets_the_computer_play_from_the_waiting_box_and_play_resumes() {
     kit::big_stack(computer_plays);
