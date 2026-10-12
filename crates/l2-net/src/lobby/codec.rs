@@ -42,6 +42,7 @@ impl Encode for Player {
         out.bool(self.ready);
         out.bool(self.is_host);
         out.u8(self.shield);
+        out.u8(self.realm);
     }
 }
 
@@ -56,6 +57,7 @@ impl Decode for Player {
             ready: input.bool()?,
             is_host: input.bool()?,
             shield: input.u8()?,
+            realm: input.u8()?,
         })
     }
 }
@@ -63,6 +65,7 @@ impl Decode for Player {
 impl Encode for Roster {
     fn encode(&self, out: &mut Canonical) {
         out.seq(&self.players, |c, p| p.encode(c));
+        out.seq(&self.saved, |c, r| r.encode(c));
     }
 }
 
@@ -76,7 +79,8 @@ impl Decode for Roster {
                 at: 0,
             });
         }
-        Ok(Roster { players })
+        let saved = input.seq(SavedRealm::decode)?;
+        Ok(Roster { players, saved })
     }
 }
 
@@ -86,6 +90,7 @@ impl Encode for Start {
         self.roster.encode(out);
         out.i32(self.unseated_gold);
         out.bytes(&self.setup);
+        out.bytes(&self.save);
     }
 }
 
@@ -96,6 +101,7 @@ impl Decode for Start {
             roster: Roster::decode(input)?,
             unseated_gold: input.i32()?,
             setup: input.bytes()?.to_vec(),
+            save: input.bytes()?.to_vec(),
         })
     }
 }

@@ -85,7 +85,7 @@ pub use desync::{DesyncDump, Divergence, DumpComparison, History, HISTORY};
 pub use fixed::{Fixed, FRAC_BITS};
 pub use hash::{xxhash64, XxHash64};
 pub use lobby::{
-    Join, Lobby, LobbyError, LobbyEvent, Outgoing, Player, Role, Roster, Start, MAX_NAME,
+    Join, Lobby, LobbyError, LobbyEvent, Outgoing, Player, Role, Roster, SavedRealm, Start, MAX_NAME,
 };
 pub use nat::{close_port, open_port, Mapping, NatError, Via};
 pub use lockstep::{

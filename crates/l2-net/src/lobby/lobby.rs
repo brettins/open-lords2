@@ -16,6 +16,7 @@ impl Lobby {
             ready: true,
             is_host: true,
             shield: 1,
+            realm: 0,
         });
         Ok(Lobby {
             role: Role::Host,
@@ -29,6 +30,7 @@ impl Lobby {
             unseated_gold: 0,
             setup: Vec::new(),
             install: [0; 16],
+            save: Vec::new(),
         })
     }
 
@@ -46,6 +48,7 @@ impl Lobby {
             unseated_gold: 0,
             setup: Vec::new(),
             install: [0; 16],
+            save: Vec::new(),
         })
     }
 
@@ -56,7 +59,8 @@ impl Lobby {
             let slot = self.identity.slot;
             self.roster.players.retain(|p| p.slot != slot);
             let shield = self.roster.free_shield(shield);
-            let me = Player { slot, name: self.name.clone(), ready: true, is_host: true, shield };
+            let realm = self.roster.get(slot).map_or(0, |p| p.realm);
+            let me = Player { slot, name: self.name.clone(), ready: true, is_host: true, shield, realm };
             self.roster.insert_sorted(me);
         }
         self
@@ -65,6 +69,7 @@ impl Lobby {
     /// C260: the install id a client's `Join` carries.
     pub fn with_install(mut self, install: [u8; 16]) -> Lobby {
         self.install = install;
+        self.claim(self.identity.slot, install);
         self
     }
 
@@ -158,11 +163,15 @@ impl Lobby {
         if !self.roster.all_ready() {
             return Err(LobbyError::WrongRole);
         }
+        if let Some(p) = self.roster.unseated() {
+            return Err(LobbyError::Unseated(p.name.clone()));
+        }
         let start = Start {
             seed: self.identity.seed,
             roster: self.roster.clone(),
             unseated_gold: self.unseated_gold,
             setup: self.setup.clone(),
+            save: self.save.clone(),
         };
         self.started = Some(start.clone());
         self.outbox.push(Outgoing {
@@ -257,8 +266,9 @@ impl Lobby {
         };
 
         let shield = self.roster.free_shield(join.shield);
-        self.roster.insert_sorted(Player { slot, name, ready: false, is_host: false, shield });
+        self.roster.insert_sorted(Player { slot, name, ready: false, is_host: false, shield, realm: 0 });
         self.seats.push((peer, slot));
+        self.claim(slot, join.install);
         self.broadcast_roster();
         Ok(LobbyEvent::Joined(slot))
     }
@@ -277,7 +287,7 @@ impl Lobby {
         Ok(LobbyEvent::ReadyChanged(slot))
     }
 
-    fn broadcast_roster(&mut self) {
+    pub(super) fn broadcast_roster(&mut self) {
         if self.role == Role::Host {
             self.outbox.push(Outgoing {
                 to: None,
