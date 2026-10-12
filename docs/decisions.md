@@ -12725,9 +12725,11 @@ body (the owner: *"at 2x the header font is smaller than the other font"*), whic
 **Spacing:** `Fntl2_22`'s frames carry 1 to 3 blank columns (`m` 3 right; `i n u t` 1 left and
 2 right; `a g r d` none), which the original's `Ui_DrawText` advance of frame width + 1 keeps,
 and which read as *"gam e"* at body size. As body text the face is spaced by its ink: each glyph
-placed flush, advancing ink width x 2 + 2 physical px; a space is 12 physical px (body's 4,
-tripled). With the 2 px gap no measured string is wider than body tripled (ratio 0.878 to
-0.997, mean 0.963), so nothing the original fits in a box can overflow it. Titles keep the
+placed flush, advancing ink width x 2 + 3 physical px (body's 1 px gap, tripled); a space is
+12 physical px (body's 4, tripled). The owner chose 3 px over 2 px: *"I think 3px gap matches
+the closest"*. Measured against body tripled: 3 px gives 0.898 to 1.034 (mean 0.996), 2 px gives
+0.878 to 0.997 (mean 0.963). So a string that would cross its box at 3 px is drawn at 2 px,
+which no measured string exceeds: nothing the original fits in a box can overflow. Titles keep the
 original's frame spacing and size. `Fntl2_9` (codes, status lines) is drawn tripled.
 Presentation only: not in the digest, not on the wire. Owner's caution: *"I'm a little worried
 about putting this in if it doesn't work out exactly, could mess up some game elements"*; so
