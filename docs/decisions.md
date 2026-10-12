@@ -12732,8 +12732,8 @@ the closest"*. Measured against body tripled: 3 px gives 0.898 to 1.034 (mean 0.
 which no measured string exceeds: nothing the original fits in a box can overflow.
 **Punctuation:** `Fntl2_22`'s marks hang below its baseline (row 18): `.` ends 2 rows under it, `!` 3,
 `?` and `,` `;` 4, where `Fntl2_14` ends `. ! ?` one row above and `, ;` one below. As body text
-they are lifted, in heading rows: `.` `,` `;` 3, `!` 3, `?` 4 (the owner: *"the period is weirdly
-low in the heading text"*). `:` already sits right. Titles keep the
+they are lifted, in heading rows: `.` 3, `?` 3, `!` 2, `,` 2, `;` 2 (the owner: *"the period is weirdly
+low in the heading text"*; a first try of `!` 3, `?` 4, `,` `;` 3 was *"too high"*). `:` already sits right. Titles keep the
 original's frame spacing and size. `Fntl2_9` (codes, status lines) is drawn tripled.
 Presentation only: not in the digest, not on the wire. Owner's caution: *"I'm a little worried
 about putting this in if it doesn't work out exactly, could mess up some game elements"*; so
