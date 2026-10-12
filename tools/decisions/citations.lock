@@ -786,6 +786,7 @@ docs/decisions.md	C21	8ab6f5823eaf	f7bf296341ff
 docs/decisions.md	C21	cf853a4e6a34	f7bf296341ff
 docs/decisions.md	C21	de0bb3510417	f7bf296341ff
 docs/decisions.md	C21	e643c79f1b0f	f7bf296341ff
+docs/decisions.md	C210	2e3b2916ad6f	38024f0b559c
 docs/decisions.md	C213	3f788329cda3	39c3c5a8963d
 docs/decisions.md	C214	8c1f759b3212	90f835ed14b3
 docs/decisions.md	C214	8c927f7df17e	90f835ed14b3
@@ -797,6 +798,7 @@ docs/decisions.md	C221	1eae9de6abcd	f24ff4b039ef
 docs/decisions.md	C221	c895407b0407	f24ff4b039ef
 docs/decisions.md	C23	99e73b072814	6ac2f322c3bd
 docs/decisions.md	C24	b6deda781733	52e202e041ab
+docs/decisions.md	C240	6e7239337abc	838388e6b50b
 docs/decisions.md	C247	c93f872aac4b	a700ccc7c11e
 docs/decisions.md	C248	bfe5a21eb978	9a28a8f1ed87
 docs/decisions.md	C25	04e93d465fea	5d466f0cb89c
@@ -846,6 +848,7 @@ docs/decisions.md	C3	82d67eae856b	35bf3a86555f
 docs/decisions.md	C3	dbf6bd203d7e	35bf3a86555f
 docs/decisions.md	C3	ee5ed618429c	35bf3a86555f
 docs/decisions.md	C3	fb2fbc1e9f23	35bf3a86555f
+docs/decisions.md	C30	0b4acd1bfe67	50fdf5e17ba0
 docs/decisions.md	C30	0c304a8c0967	50fdf5e17ba0
 docs/decisions.md	C30	10744c48b4db	50fdf5e17ba0
 docs/decisions.md	C30	3c37996daf9c	50fdf5e17ba0
@@ -872,11 +875,13 @@ docs/decisions.md	C35	d51ccf1cf570	193a1920e229
 docs/decisions.md	C36	77721e6dffe1	4367c93c1b02
 docs/decisions.md	C36	de01d7ee6d17	4367c93c1b02
 docs/decisions.md	C38	8adae0dd7352	cd66a8ec76e7
+docs/decisions.md	C39	36ba199d5096	9a04e88ad74b
 docs/decisions.md	C39	4c573c6aebc6	9a04e88ad74b
 docs/decisions.md	C39	6a5f6cc77f33	9a04e88ad74b
 docs/decisions.md	C39	a1f20175dd3a	9a04e88ad74b
 docs/decisions.md	C39	b900cd987da2	9a04e88ad74b
 docs/decisions.md	C39	bafbbde7c92a	9a04e88ad74b
+docs/decisions.md	C39	d1ab1b11338e	9a04e88ad74b
 docs/decisions.md	C40	dd07d41c363e	d344563abef8
 docs/decisions.md	C41	31c16a7144fe	df664f2e9ea9
 docs/decisions.md	C41	ce61a32481ef	df664f2e9ea9
@@ -1308,6 +1313,8 @@ docs/symbols.md	C99	82dd842500a1	b890db1f6d4a
 docs/symbols.md	C99	92b9f0821e7b	b890db1f6d4a
 docs/symbols.md	C99	e60728affba9	b890db1f6d4a
 docs/symbols.md	C99	ebbc33755102	b890db1f6d4a
+docs/work.json	C256	7633faeb09f3	857f3fc4489c
+docs/work.json	C39	7c155c6df53f	9a04e88ad74b
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611	35bf3a86555f
 tools/audit/rva.js	C14	99231cda993c	687f69afd1c6
 tools/audit/rva.js	C16	e4312831d7d6	2e6270fa32a9
