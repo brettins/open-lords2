@@ -18,7 +18,7 @@ const INSET: i32 = 16;
 const BUTTON_W: i32 = 136;
 const BUTTON_H: i32 = 24;
 const HEADING: &str = "The game has stopped";
-const ALONE_TEXT: &str = "Continue alone and the computer plays their realm.";
+const ALONE_TEXT: &str = "Continue alone: the computer plays the other realms.";
 pub const ALONE: &str = "Continue alone";
 pub const LEAVE: &str = "Leave game";
 
