@@ -15,7 +15,6 @@ use crate::text::{self, FontMetrics, Kind, Metrics, TextField};
 
 const HEADING: &str = "Join a game";
 const CAPTION_Y: i32 = 0x70;
-const CODE_CAPTION: &str = "Type the code the host gave you.";
 const ADDRESS_CAPTION: &str = "Type the host's address as 192.168.1.20:4712.";
 const CELLS: i32 = l2_relay::CODE_LEN as i32;
 const CELL_W: i32 = 44;
@@ -191,8 +190,9 @@ impl JoinPage {
     pub(super) fn draw(&self, ctx: &Ctx, canvas: &mut Canvas, pens: &Pens, selected: usize) {
         let link = &ctx.game.net;
         draw::backdrop(ctx, canvas, pens, Heading::Text(HEADING));
-        let caption = if self.by_address { ADDRESS_CAPTION } else { CODE_CAPTION };
-        pens.body.body_centred(canvas, LEFT, CAPTION_Y, WIDTH, caption, font::TEXT);
+        if self.by_address {
+            pens.body.body_centred(canvas, LEFT, CAPTION_Y, WIDTH, ADDRESS_CAPTION, font::TEXT);
+        }
         let focused = self.focus == Focus::Target;
         if self.by_address {
             draw::plate(canvas, &pens.body, self.target_rect(), &self.address, focused);
