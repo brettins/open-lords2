@@ -94,11 +94,12 @@ impl App {
 
     fn remote_shot(&mut self, dir: &std::path::Path, name: &str) {
         let mut canvas = Canvas::screen();
+        let k = if self.game.prefs.sharp_text { canvas.enable_sharp(); l2_view::sharp::SCALE } else { 1 };
         let App { game, assets, machine, .. } = self;
         machine.draw(&Ctx { game, assets }, &mut canvas);
-        let mut rgba = vec![0u8; 640 * 480 * 4];
+        let mut rgba = vec![0u8; 640 * 480 * 4 * k * k];
         self.machine.present(&self.assets, &canvas, &mut rgba);
-        let mut out = b"P6 640 480 255\n".to_vec();
+        let mut out = format!("P6 {} {} 255\n", 640 * k, 480 * k).into_bytes();
         out.extend(rgba.chunks_exact(4).flat_map(|p| [p[0], p[1], p[2]]));
         let _ = std::fs::write(dir.join(format!("{name}.ppm")), out);
     }

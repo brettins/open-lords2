@@ -41,7 +41,13 @@ impl ShellAssets {
                 .into_iter()
                 .filter_map(|n| read(&n).map(|b| (n, b)))
                 .collect(),
-            body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()).map(Font::raising_accents),
+            body: read(font::BODY).and_then(|b| Font::new(b, 16).ok()).map(Font::raising_accents).map(|f| {
+                // C259: the heading face stands in for body text on a sharp canvas.
+                match read(font::HEADING).and_then(|b| Font::new(b, 24).ok()) {
+                    Some(h) => f.with_sharp(h),
+                    None => f,
+                }
+            }),
             heading: read(font::HEADING).and_then(|b| Font::new(b, 24).ok()),
             small: read(font::SMALL).and_then(|b| Font::new(b, 12).ok()),
             eight: read(font::EIGHT).and_then(|b| Font::new(b, 12).ok()),

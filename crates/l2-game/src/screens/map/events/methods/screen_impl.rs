@@ -532,7 +532,7 @@ impl Screen for MapScreen {
         let k = &game.kingdom;
         let clip = self.map_clip();
 
-        canvas.pixels.copy_from_slice(&self.base.pixels);
+        canvas.copy_plane(&self.base);
         l2_net::trace_do!(l2_net::trace_draw::replay("map-base"););
 
 

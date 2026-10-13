@@ -68,7 +68,12 @@ impl Machine {
         // palette and lets the unchanged plane of indices resolve darker. See
         // `l2_view::fade` and [`Screen::fade`].
         let faded = self.fade().map(|phase| l2_view::fade::at(palette, phase));
-        canvas.to_rgba(faded.as_ref().unwrap_or(palette), rgba);
+        // C259: a sharp canvas fills a buffer `k` x the logical size.
+        let k = ((rgba.len() / 4 / (canvas.width * canvas.height)) as f64).sqrt().round() as usize;
+        match (canvas.is_sharp(), k) {
+            (false, 1) => canvas.to_rgba(faded.as_ref().unwrap_or(palette), rgba),
+            _ => canvas.to_rgba_at(faded.as_ref().unwrap_or(palette), k, rgba),
+        }
     }
 
     pub fn live_palette(&self) -> Option<l2_formats::Palette> {

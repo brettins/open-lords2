@@ -30,6 +30,11 @@ impl App {
         }
     }
 
+    /// C259: a sharp canvas presents at the window's whole scale; a plain one at 1.
+    pub(super) fn buffer_scale(&self, w: u32, h: u32) -> u32 {
+        if self.canvas.is_sharp() { window::scale(w.max(1), h.max(1)) } else { 1 }
+    }
+
     pub(crate) fn redraw(&mut self) {
         self.assets.quirks = self.game.presentation_quirks;
         self.sample_wall_clock();

@@ -115,6 +115,8 @@ pub struct Prefs {
     /// `g_optFullScreen` (`0x0053F228`). `Display_Init` (`0x0042E5C0`) forces 1
     /// on any desktop that is not 8bpp. Our windowed mode is [D], C238.
     pub full_screen: bool,
+    /// C259, `[D]` ours: body text in the heading face on a 3x plane. Off by default.
+    pub sharp_text: bool,
     /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
     pub kept: crate::prefs::Kept,
     /// [D] ours, C257: this install's id, generated once; a resumed network game seats by it.
@@ -136,6 +138,7 @@ impl Default for Prefs {
             // Ours, and off: see the field.
             debug_overlay: false,
             full_screen: true,
+            sharp_text: false,
             kept: crate::prefs::Kept::default(),
             install: crate::net::InstallId::NIL,
         }

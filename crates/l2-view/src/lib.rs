@@ -10,6 +10,7 @@ pub mod ink;
 pub mod missiles;
 pub mod scene;
 pub mod sheet;
+pub mod sharp;
 pub mod text;
 pub mod village;
 

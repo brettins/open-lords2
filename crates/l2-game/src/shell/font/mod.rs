@@ -29,6 +29,7 @@
 
 mod glyph;
 pub use glyph::*;
+pub mod sharp;
 
 use l2_view::sheet::Sheet;
 
@@ -125,7 +126,7 @@ impl Style {
         Style { colour, shadow: Some(SHADOW), caps: None }
     }
 
-    fn colour_of(&self, c: char) -> u8 {
+    pub(super) fn colour_of(&self, c: char) -> u8 {
         match self.caps {
             Some(k) if c.is_ascii_uppercase() => k,
             _ => self.colour,
@@ -139,6 +140,8 @@ pub struct Font {
     raises_accents: bool,
     /// Each frame record's height (`+0x02`), without the overhang rows.
     rect_heights: Vec<u16>,
+    /// C259: the face drawn in this one's place on a sharp canvas.
+    sharp: Option<Box<Font>>,
 }
 
 pub const BODY: &str = "Fntl2_14.pl8";

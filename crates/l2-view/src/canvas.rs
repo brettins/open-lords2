@@ -107,11 +107,13 @@ pub struct Canvas {
     pub width: usize,
     pub height: usize,
     pub pixels: Vec<u8>,
+    /// C259: `None` unless the sharp-text setting is on.
+    pub sharp: Option<Box<crate::sharp::Sharp>>,
 }
 
 impl Canvas {
     pub fn new(width: usize, height: usize) -> Self {
-        Canvas { width, height, pixels: vec![TRANSPARENT; width * height] }
+        Canvas { width, height, pixels: vec![TRANSPARENT; width * height], sharp: None }
     }
 
     pub fn screen() -> Self {
@@ -120,6 +122,9 @@ impl Canvas {
 
     pub fn clear(&mut self, index: u8) {
         self.pixels.fill(index);
+        if let Some(s) = self.sharp.as_mut() {
+            s.on.fill(false);
+        }
     }
 
     #[inline]
@@ -132,6 +137,7 @@ impl Canvas {
         let (w, h) = (self.width, self.height);
         if x < w && y < h {
             self.pixels[y * w + x] = index;
+            self.touch(y * w + x);
         }
     }
 
@@ -204,6 +210,9 @@ impl Canvas {
                 let from = (x0 - ox) as usize;
                 self.pixels[dst + x0 as usize..dst + x1 as usize]
                     .copy_from_slice(&src[from..from + (x1 - x0) as usize]);
+                for i in dst + x0 as usize..dst + x1 as usize {
+                    self.touch(i);
+                }
             }
         }
     }
@@ -213,6 +222,9 @@ impl Canvas {
     pub fn remap(&mut self, table: &[u8; 256]) {
         for p in self.pixels.iter_mut() {
             *p = table[*p as usize];
+        }
+        if let Some(s) = self.sharp.as_mut() {
+            s.hi.iter_mut().for_each(|p| *p = table[*p as usize]);
         }
     }
 
@@ -246,6 +258,7 @@ impl Canvas {
                     continue;
                 }
                 self.pixels[cy as usize * self.width + cx as usize] = frame.indices[src];
+                self.touch(cy as usize * self.width + cx as usize);
                 if let Some((tags, id)) = tags.as_mut() {
                     let (tw, th) = (tags.width, tags.height);
                     if (cx as usize) < tw && (cy as usize) < th {
@@ -260,6 +273,7 @@ impl Canvas {
         for yy in y.max(0)..(y + h).min(self.height as i32) {
             for xx in x.max(0)..(x + w).min(self.width as i32) {
                 self.pixels[yy as usize * self.width + xx as usize] = index;
+                self.touch(yy as usize * self.width + xx as usize);
             }
         }
     }

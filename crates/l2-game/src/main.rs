@@ -145,13 +145,17 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
         None => l2_game::movie::start_up(&mut machine),
     }
 
+    let mut canvas = Canvas::screen();
+    if game.prefs.sharp_text {
+        canvas.enable_sharp();
+    }
     let mut app = App {
         game,
         assets,
         audio,
         director: l2_game::audio::Director::new(),
         machine,
-        canvas: Canvas::screen(),
+        canvas,
         window: None,
         pixels: None,
         started: Instant::now(),

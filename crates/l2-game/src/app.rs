@@ -98,6 +98,29 @@ impl super::App {
         }
         self.persist_prefs();
     }
+
+    // C259, `[D]` ours: F9 swaps the body face for the sharp one and back.
+    // arm: ours/sharp-text-toggle key
+    pub(super) fn toggle_sharp_text(&mut self) {
+        self.game.prefs.sharp_text = !self.game.prefs.sharp_text;
+        if self.game.prefs.sharp_text {
+            self.canvas.enable_sharp();
+        } else {
+            self.canvas.sharp = None;
+        }
+        if let Some(w) = self.window.clone() {
+            let size = w.inner_size();
+            let k = self.buffer_scale(size.width, size.height);
+            if let Some(p) = self.pixels.as_mut() {
+                if let Err(e) = p.resize_buffer(CANVAS_W * k, CANVAS_H * k) {
+                    eprintln!("resize failed: {e}");
+                }
+            }
+            w.request_redraw();
+        }
+        self.machine.mark_dirty();
+        self.persist_prefs();
+    }
 }
 
 pub(crate) fn platform(

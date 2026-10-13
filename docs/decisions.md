@@ -12715,7 +12715,7 @@ Tests: `net_game` `only_the_host_writes_the_seasons_autosave_and_it_records_the_
 `saveload::tests`, `net::install::tests`, `prefs::tests`, `save::tests`.
 
 **C259 — Sharp text: a 3x canvas, body text in the heading face at 2x, spaced by its ink.**
-Decided, not built. The owner, 2026-10-12, after mockups on `agent/mp-lobby-page8`
+Built 2026-10-12, off by default, F9 to swap (see the end). The owner, 2026-10-12, after mockups on `agent/mp-lobby-page8`
 (`docs/handoff/lobby-c258-and-2x-text.md` there): *"we certainly should not restrict ourselves
 to drawing at 640x480"*, and of the heading face *"I feel like heading is just the body text
 but bigger"*. `Fntl2_14` and `Fntl2_22` are one blackletter at two sizes. Measured from the
@@ -12740,7 +12740,16 @@ they are lifted, in heading rows (1 row = 2 px at 3x), as the owner set them on 
 original's frame spacing and size. `Fntl2_9` (codes, status lines) is drawn tripled.
 Presentation only: not in the digest, not on the wire. Owner's caution: *"I'm a little worried
 about putting this in if it doesn't work out exactly, could mess up some game elements"*; so
-it ships behind a setting, off until the screens have been checked.
+it ships behind a setting, off until the screens have been checked. **Built** as a plane beside the 640 x 480 one, not a
+tripled canvas: `l2_view::sharp` keeps a 3x `hi` plane and an `on` flag per logical pixel; the
+body face draws its 1x text as before (so measures, layout, draw audits and every pixel test
+are unchanged), then `shell::font::sharp` seeds, claims and draws the heading face into `hi`.
+Any later canvas write turns its pixel's block off, so whatever covers text covers it. The
+presenter fills a buffer at the window's whole scale `k`: art as `k` x `k` blocks, `on` blocks
+from `hi`, area-averaged when `k` is not 3. Text drawn on an off-screen canvas first (the map's
+cached base) stays 1x. **The owner's verdict on seeing it in play:** *"the nicer font is too busy
+for the game itself"*, and of the toggle *"F9 is great, leave that in, default to the lower res"*.
+So `Prefs::sharp_text` (`SharpText=`) is off by default and F9 (`ours/sharp-text-toggle`) swaps.
 
 **C260 — A joiner that leaves is handed to the computer and the game goes on; a dropped joiner is waited for and rejoins by install.**
 Phase B1 of row `mp-host-saves` (the owner's spec, agreed 2026-10-12). Networking is the one

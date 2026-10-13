@@ -39,7 +39,8 @@ impl ApplicationHandler for App {
         let size = window.inner_size();
         let surface =
             SurfaceTexture::new(size.width.max(1), size.height.max(1), Arc::clone(&window));
-        let pixels = Pixels::new(CANVAS_W, CANVAS_H, surface).expect("create pixels");
+        let k = self.buffer_scale(size.width, size.height);
+        let pixels = Pixels::new(CANVAS_W * k, CANVAS_H * k, surface).expect("create pixels");
         self.window = Some(window);
         self.pixels = Some(pixels);
         self.build_cursors(event_loop);
@@ -100,6 +101,12 @@ impl ApplicationHandler for App {
                         eprintln!("resize failed: {e}");
                     }
                 }
+                let k = self.buffer_scale(size.width, size.height);
+                if let Some(p) = self.pixels.as_mut().filter(|p| p.texture().width() != CANVAS_W * k) {
+                    if let Err(e) = p.resize_buffer(CANVAS_W * k, CANVAS_H * k) {
+                        eprintln!("resize failed: {e}");
+                    }
+                }
                 self.build_cursors(event_loop);
                 self.machine.mark_dirty();
             }
@@ -114,6 +121,8 @@ impl ApplicationHandler for App {
                     if !self.game.prefs.full_screen {
                         self.snap_to_whole_scale();
                     }
+                } else if event.logical_key == WinitKey::Named(NamedKey::F9) {
+                    self.toggle_sharp_text();
                 } else if self.alt && event.logical_key == WinitKey::Named(NamedKey::Enter) {
                     self.toggle_full_screen();
                 } else {

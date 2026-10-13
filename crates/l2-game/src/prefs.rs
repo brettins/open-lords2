@@ -73,6 +73,8 @@ const KEYS: &[(&str, &str)] = &[
     // draws it, so nothing in the image persists it.
     ("DebugOverlay", "ours"),
     ("FullScreen", "g_optFullScreen 0x0053F228"),
+    // [D] ours: C259 sharp text.
+    ("SharpText", "ours"),
 ];
 
 /// `g_diploLetterDraft` (`0x0053F2B8`): four buffers of 200 bytes.
@@ -193,6 +195,7 @@ fn value_of(p: &Prefs, key: &str) -> i32 {
         "GameSpeed" => p.game_speed,
         "DebugOverlay" => i32::from(p.debug_overlay),
         "FullScreen" => i32::from(p.full_screen),
+        "SharpText" => i32::from(p.sharp_text),
         _ => 0,
     }
 }
@@ -209,6 +212,7 @@ fn set(p: &mut Prefs, key: &str, v: i32) {
         "GameSpeed" => p.game_speed = clamp_speed(v),
         "DebugOverlay" => p.debug_overlay = v != 0,
         "FullScreen" => p.full_screen = v != 0,
+        "SharpText" => p.sharp_text = v != 0,
         "CampaignMap" => p.kept.campaign_map = v.max(0) as usize,
         "CampaignTrack" => {
             p.kept.campaign_track =
@@ -329,6 +333,7 @@ mod tests {
             game_speed: 40,
             debug_overlay: true,
             full_screen: false,
+            sharp_text: true,
             kept: Kept {
                 player_name: PlayerName::new("Ed; the Bold"),
                 setup: {

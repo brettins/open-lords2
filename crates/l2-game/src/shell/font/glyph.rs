@@ -87,7 +87,7 @@ impl Font {
             .map(|f| f.height)
             .collect();
         let sheet = Sheet::new(bytes).map_err(|e| e.to_string())?;
-        Ok(Font { sheet, line, raises_accents: false, rect_heights })
+        Ok(Font { sheet, line, raises_accents: false, rect_heights, sharp: None })
     }
 
     /// This font, as `&g_fontBody`: [`ACCENT_RAISE`]'s characters one pixel
@@ -97,6 +97,15 @@ impl Font {
     pub fn raising_accents(mut self) -> Font {
         self.raises_accents = true;
         self
+    }
+
+    pub fn with_sharp(mut self, face: Font) -> Font {
+        self.sharp = Some(Box::new(face));
+        self
+    }
+
+    fn sharp_on(&self, canvas: &Canvas) -> Option<&Font> {
+        self.sharp.as_deref().filter(|_| canvas.is_sharp())
     }
 
     pub fn raises_accents(&self) -> bool {
@@ -111,7 +120,7 @@ impl Font {
         }
     }
 
-    fn glyph(&self, c: char) -> Option<DecodedFrame> {
+    pub(super) fn glyph(&self, c: char) -> Option<DecodedFrame> {
         let code = c as u32;
         if code < GLYPH_MAP_BASE as u32 {
             return None;
@@ -126,7 +135,7 @@ impl Font {
 
     /// `Glyph_Draw` 0x00402A14 adds record +0x0D to y, but `FUN_004B41B7` copies only
     /// width x record height from `g_spriteDataOffset`: the inked overhangs of `v`, `w` never draw. [V] pixels, army-panel
-    fn overhang(&self, c: char, frame: &DecodedFrame) -> i32 {
+    pub(super) fn overhang(&self, c: char, frame: &DecodedFrame) -> i32 {
         let slot = (c as u32).wrapping_sub(GLYPH_MAP_BASE as u32) as usize;
         let rect = GLYPH_MAP
             .get(slot)
@@ -182,6 +191,17 @@ impl Font {
     }
 
     pub fn draw(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, style: &Style) -> i32 {
+        self.draw_at(canvas, x, y, s, style, sharp::Anchor::Left)
+    }
+
+    fn draw_at(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, style: &Style, at: sharp::Anchor) -> i32 {
+        match self.sharp_on(canvas) {
+            Some(face) => sharp::draw(self, face, canvas, x, y, s, sharp::Ink::Style(style), at),
+            None => self.draw_plain(canvas, x, y, s, style),
+        }
+    }
+
+    pub(super) fn draw_plain(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, style: &Style) -> i32 {
         let mut pen = x;
         for c in s.chars() {
             let Some(frame) = self.glyph(c) else {
@@ -205,6 +225,13 @@ impl Font {
     /// in `colour`. Returns the pen advance, like [`Font::draw`]. **[V]**, see
     /// [`DROP_SHADOW_COLOUR`] for the arm and the eight painters that take it.
     pub fn draw_dropped(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
+        match self.sharp_on(canvas) {
+            Some(face) => sharp::draw(self, face, canvas, x, y, s, sharp::Ink::Dropped(colour), sharp::Anchor::Left),
+            None => self.dropped_plain(canvas, x, y, s, colour),
+        }
+    }
+
+    pub(super) fn dropped_plain(&self, canvas: &mut Canvas, x: i32, y: i32, s: &str, colour: u8) -> i32 {
         let mut pen = x;
         for c in s.chars() {
             let Some(frame) = self.glyph(c) else {
@@ -234,7 +261,7 @@ impl Font {
         style: &Style,
     ) -> i32 {
         let offset = ((width - self.width(s)) / 2).max(0);
-        self.draw(canvas, x + offset, y, s, style)
+        self.draw_at(canvas, x + offset, y, s, style, sharp::Anchor::Mid)
     }
 
     pub fn draw_right(
@@ -245,7 +272,7 @@ impl Font {
         s: &str,
         style: &Style,
     ) -> i32 {
-        self.draw(canvas, right - self.width(s), y, s, style)
+        self.draw_at(canvas, right - self.width(s), y, s, style, sharp::Anchor::Right)
     }
 }
 
