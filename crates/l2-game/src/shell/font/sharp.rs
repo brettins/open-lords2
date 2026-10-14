@@ -1,6 +1,9 @@
 //! C259: on a sharp canvas the body face's text is drawn a second time, in
-//! `Fntl2_22.pl8` at 2x on the 3x plane, spaced by ink. The 1x draw still
-//! happens beneath, so layout, measures and draw audits are unchanged.
+//! `Fntl2_22.pl8` at [`SIZE`] hundredths on the 3x plane, spaced by ink. The 1x draw
+//! still happens beneath, so layout, measures and draw audits are unchanged. Column i
+//! covers [round(i*s), round((i+1)*s)); frame row r covers 36 + [round((r-18)*s),
+//! round((r-17)*s)) from the line's top, so the face's baseline row 18 lands on body's
+//! tripled baseline at any size. The owner's tuner draws by the same rule.
 
 use super::*;
 use l2_formats::DecodedFrame;
@@ -8,10 +11,20 @@ use l2_view::sharp::SCALE;
 use l2_view::Canvas;
 
 const S: i32 = SCALE as i32;
-/// C259: body's 1 px gap, tripled; 2 px when 3 would outrun the 1x run.
-pub const GAP: i32 = 3;
-pub const GAP_TIGHT: i32 = 2;
-pub const WORD: i32 = 10;
+/// The owner's tuner values, 2026-10-14: size 1.85, gap 4 px (3 when 4 would outrun
+/// the 1x run), word space 14 px.
+pub const SIZE: i32 = 185;
+pub const GAP: i32 = 4;
+pub const GAP_TIGHT: i32 = 3;
+pub const WORD: i32 = 14;
+/// `Fntl2_22`'s baseline row, and body's tripled baseline in plane pixels.
+const BASE_ROW: i32 = 18;
+const BASE_PX: i32 = 36;
+
+/// `n / 100`, rounded half up, as the tuner's `Math.round`.
+fn hundredths(n: i32) -> i32 {
+    (n + 50).div_euclid(100)
+}
 
 #[derive(Clone, Copy)]
 pub(super) enum Anchor {
@@ -63,22 +76,28 @@ fn layout(face: &Font, s: &str, gap: i32) -> (Vec<Placed>, i32) {
         let from = face.overhang(c, &frame);
         let (left, right) = ink_cols(&frame, from).unwrap_or((0, frame.width as i32 - 1));
         out.push(Placed { frame, from, left, dx: pen, c });
-        end = pen + (right - left + 1) * 2;
+        end = pen + hundredths((right - left + 1) * SIZE);
         pen = end + gap;
     }
     (out, end.max(pen - gap).max(0))
 }
 
-fn blit2x(canvas: &mut Canvas, p: &Placed, x: i32, y: i32, colour: u8) {
+/// `y` is the line's top on the plane; `lift` in face rows.
+fn blit_scaled(canvas: &mut Canvas, p: &Placed, x: i32, y: i32, lift: i32, colour: u8) {
     let w = p.frame.width as i32;
+    let row_y = |r: i32| y + BASE_PX + hundredths((r - lift - BASE_ROW) * SIZE);
     for row in p.from..p.frame.height as i32 {
+        let (y0, y1) = (row_y(row), row_y(row + 1));
         for col in 0..w {
             if !p.frame.opaque[(row * w + col) as usize] {
                 continue;
             }
-            let (px, py) = (x + (col - p.left) * 2, y + row * 2);
-            for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
-                canvas.sharp_set(px + dx, py + dy, colour);
+            let i = col - p.left;
+            let (x0, x1) = (x + hundredths(i * SIZE), x + hundredths((i + 1) * SIZE));
+            for py in y0..y1 {
+                for px in x0..x1 {
+                    canvas.sharp_set(px, py, colour);
+                }
             }
         }
     }
@@ -105,18 +124,18 @@ pub(super) fn draw(body: &Font, face: &Font, canvas: &mut Canvas, x: i32, y: i32
     };
     canvas.sharp_claim(x0, y0, x1, y1);
     for p in &placed {
-        let (gx, gy) = (sx + p.dx, y * S - lift(p.c) * 2);
+        let (gx, gy, up) = (sx + p.dx, y * S, lift(p.c));
         match ink {
             Ink::Style(style) => {
-                if let Some((up, down)) = style.shadow {
-                    blit2x(canvas, p, gx, gy - 2, up);
-                    blit2x(canvas, p, gx, gy + 2, down);
+                if let Some((hi, lo)) = style.shadow {
+                    blit_scaled(canvas, p, gx, gy - 2, up, hi);
+                    blit_scaled(canvas, p, gx, gy + 2, up, lo);
                 }
-                blit2x(canvas, p, gx, gy, style.colour_of(p.c));
+                blit_scaled(canvas, p, gx, gy, up, style.colour_of(p.c));
             }
             Ink::Dropped(colour) => {
-                blit2x(canvas, p, gx + 2, gy + 2, DROP_SHADOW_COLOUR);
-                blit2x(canvas, p, gx, gy, colour);
+                blit_scaled(canvas, p, gx + 2, gy + 2, up, DROP_SHADOW_COLOUR);
+                blit_scaled(canvas, p, gx, gy, up, colour);
             }
         }
     }

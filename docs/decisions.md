@@ -12749,7 +12749,7 @@ presenter fills a buffer at the window's whole scale `k`: art as `k` x `k` block
 from `hi`, area-averaged when `k` is not 3. Text drawn on an off-screen canvas first (the map's
 cached base) stays 1x. **The owner's verdict on seeing it in play:** *"the nicer font is too busy
 for the game itself"*, and of the toggle *"F9 is great, leave that in, default to the lower res"*.
-So `Prefs::sharp_text` (`SharpText=`) is off by default and F9 (`ours/sharp-text-toggle`) swaps.
+So `Prefs::sharp_text` (`SharpText=`) is off by default and F9 (`ours/sharp-text-toggle`) swaps. **Retuned 2026-10-14** on the tuner's new size slider: the face at **1.85**, not 2 (*"a bit smaller"*), letter gap **4** px (3 when 4 would outrun the 1x run), word space **14** px, lifts unchanged. Non-integer sizes are nearest-neighbour by one rule, column `i` over `[round(i*s), round((i+1)*s))` and frame row `r` over `36 + [round((r-18)*s), round((r-17)*s))`, which the tuner draws identically.
 
 **C260 — A joiner that leaves is handed to the computer and the game goes on; a dropped joiner is waited for and rejoins by install.**
 Phase B1 of row `mp-host-saves` (the owner's spec, agreed 2026-10-12). Networking is the one
