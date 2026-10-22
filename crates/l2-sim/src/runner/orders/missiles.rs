@@ -135,7 +135,7 @@ impl BattleRunner {
         }
     }
 
-    fn missile_cell_tests(&mut self, slot: usize) -> bool {
+    pub(crate) fn missile_cell_tests(&mut self, slot: usize) -> bool {
         if self.missiles.get(slot).ttl != 0 {
             return true;
         }
@@ -198,12 +198,12 @@ impl BattleRunner {
         if self.missiles.get(slot).class >= 3 {
             return true;
         }
-        let Some(victim) = self.occupant[cell] else {
+        let Some(victim) = self.occupant[cell].map(usize::from).or_else(|| self.risen_at(cell)) else {
             return true;
         };
-        let victim = victim as usize;
         let vsim = self.fighters[victim].sim;
-        if !self.sim.figures[vsim].is_alive() {
+        // Missile_Step 0x00492C8B 00490000.c:1353 `state != 2`, not `men` [V]
+        if self.sim.figures[vsim].state == State::Dead {
             return true;
         }
         let (owner, shooter, power, class) = {
@@ -243,6 +243,19 @@ impl BattleRunner {
         }
         self.missiles.get_mut(slot).ttl = missile::HIT_TTL;
         true
+    }
+
+    /// [I] 00490000.c:1353 reads `g_battlefield.figure`, which keeps a body;
+    /// ours frees the cell at death, so a body that stood up
+    /// (BNEW-dead-archer-shoots) is found where it stands.
+    fn risen_at(&self, cell: usize) -> Option<usize> {
+        self.fighters.iter().position(|f| {
+            let fig = &self.sim.figures[f.sim];
+            f.y as usize * DIM + f.x as usize == cell
+                && fig.men == 0
+                && fig.owner != 0
+                && fig.state != State::Dead
+        })
     }
 }
 

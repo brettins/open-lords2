@@ -6,6 +6,7 @@ pub use marching::*;
 mod siege;
 pub use siege::*;
 mod reform;
+mod dead_archer;
 pub use reform::*;
 
 use super::*;

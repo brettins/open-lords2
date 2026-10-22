@@ -18,6 +18,7 @@ impl Quirk {
         Quirk::EmptyGameIsWonBySlotZero,
         Quirk::DeadHumanCanStillWin,
         Quirk::MutualDestructionIsAWin,
+        Quirk::DeadArcherKeepsShooting,
     ];
 
     pub const fn bit(self) -> u32 {
@@ -39,6 +40,7 @@ impl Quirk {
             Quirk::EmptyGameIsWonBySlotZero => "B51",
             Quirk::DeadHumanCanStillWin => "B52",
             Quirk::MutualDestructionIsAWin => "B53",
+            Quirk::DeadArcherKeepsShooting => "BNEW-dead-archer-shoots",
         }
     }
 
@@ -61,6 +63,7 @@ impl Quirk {
             Quirk::EmptyGameIsWonBySlotZero => "EmptyGameIsWonBySlotZero",
             Quirk::DeadHumanCanStillWin => "DeadHumanCanStillWin",
             Quirk::MutualDestructionIsAWin => "MutualDestructionIsAWin",
+            Quirk::DeadArcherKeepsShooting => "DeadArcherKeepsShooting",
         }
     }
 
@@ -99,6 +102,7 @@ impl Quirk {
             Quirk::EmptyGameIsWonBySlotZero => "An empty game is won by nobody",
             Quirk::DeadHumanCanStillWin => "You can win a game you died in",
             Quirk::MutualDestructionIsAWin => "Mutual destruction counts as a win",
+            Quirk::DeadArcherKeepsShooting => "An archer who has just died can still be ordered to fire",
         }
     }
 }

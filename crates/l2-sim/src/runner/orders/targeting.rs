@@ -89,7 +89,9 @@ impl BattleRunner {
         let Some(target) = self.sim.figures[sim].target else {
             return;
         };
-        if !self.sim.figures[target].is_alive() {
+        // [D] the original spawns while `owner != 0` (00480000.c:1478); a body
+        // that stood back up (BNEW-dead-archer-shoots) is shot at, a corpse is not
+        if self.sim.figures[target].state == State::Dead {
             return;
         }
         let Some(t) = self.fighters.iter().position(|f| f.sim == target) else {
@@ -220,7 +222,8 @@ impl BattleRunner {
         for j in 0..self.fighters.len() {
             let sim = self.fighters[j].sim;
             let f = &self.sim.figures[sim];
-            if !f.is_alive() || f.owner == mine || f.owner == 0 {
+            // Missile_FindTarget 0x004956CC: `state != 2`, not men > 0 [V]
+            if f.state == State::Dead || f.owner == mine || f.owner == 0 {
                 continue;
             }
             let (dx, dy) = (

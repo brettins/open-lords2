@@ -181,6 +181,10 @@ pub enum Quirk {
     /// **B53** — dying at the same moment as the last opponent is scored a
     /// win, because the opponents test is checked before the is-it-me test.
     MutualDestructionIsAWin = 13,
+
+    /// **BNEW-dead-archer-shoots** — `Order_ShootAtUnit` (`0x0048C974`) tests
+    /// `owner != 0` only, so a body still counting down stands up and shoots.
+    DeadArcherKeepsShooting = 14,
 }
 
 /// **Which of the original's defects this game reproduces.**
@@ -256,6 +260,7 @@ mod tests {
         assert_eq!(Quirk::EmptyGameIsWonBySlotZero.bit(), 11);
         assert_eq!(Quirk::DeadHumanCanStillWin.bit(), 12);
         assert_eq!(Quirk::MutualDestructionIsAWin.bit(), 13);
+        assert_eq!(Quirk::DeadArcherKeepsShooting.bit(), 14);
     }
 
     /// `ALL` is the enum, not a hand-kept copy of it that drifts. Rust cannot

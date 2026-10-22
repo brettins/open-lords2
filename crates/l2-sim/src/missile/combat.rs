@@ -99,6 +99,11 @@ pub fn apply_hit(target: &mut Figure, power: u16) -> u16 {
     let threshold = target.hits_per_casualty;
     target.hits = target.hits.saturating_add(power);
     if target.hits < threshold {
+        // Missile_Step 0x00492C8B 00490000.c:1443-1446 `men < 1` sits outside the
+        // threshold test and writes men, state, sound only. BNEW-dead-archer-shoots [V]
+        if target.men == 0 {
+            target.state = crate::figure::State::Dead;
+        }
         return 0;
     }
     let multiples = (target.hits / threshold).min(4);

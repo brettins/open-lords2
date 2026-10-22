@@ -176,6 +176,8 @@ pub struct Ai {
     /// cyclically instead of at random: the original's own answer to "this is a
     /// networked game, so nothing may diverge". `[V]`.
     pub multiplayer: bool,
+    /// `Options::quirks`, set by the caller; not in the battle save.
+    pub quirks: l2_net::Quirks,
     pub rng: Pcg32,
     /// The mechanism is read; the names are **[I]**.
     pub approach_score: i32,
@@ -277,6 +279,7 @@ impl Ai {
             rally_group: group,
             is_siege: false,
             multiplayer,
+            quirks: l2_net::Quirks::FAITHFUL,
             rng: Pcg32::from_seed(seed),
             approach_score: 0,
             breach_score: 0,

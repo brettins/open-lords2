@@ -100,6 +100,7 @@ pub fn begin_fight_in(
     };
     // `Battle_Start` `00470000.c:3104-3118` writes the pair at the start, so an
     // autocalc or a retreat after it still leaves them stepped.
+    runner.ai.quirks = kingdom.options.quirks;
     let s = runner.session();
     kingdom.campaign.battle_selectors = (s.lane as u8, s.rally as u8);
     kingdom.campaign.battle_markers = s.markers;
