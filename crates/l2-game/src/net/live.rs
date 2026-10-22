@@ -93,7 +93,9 @@ impl Live {
         if let Some(h) = host.filter(|h| slots.contains(h)) {
             session.set_authority(h);
         }
-        Some(Live::with(session, transport, malformed, origin))
+        let mut live = Live::with(session, transport, malformed, origin);
+        live.peers = game.net.seat_peers.clone();
+        Some(live)
     }
 
     fn with(session: Session, mut transport: TcpTransport, malformed: u32, origin: Option<(Origin, PlayerSlot, u64)>) -> Live {

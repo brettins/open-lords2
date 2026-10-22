@@ -93,6 +93,9 @@ pub struct Link {
     pub beat: super::status::Beat,
     /// C260: each seat's install, known to the host from the lobby's `Join`s.
     pub installs: Vec<(PlayerSlot, super::InstallId)>,
+    /// The host's connection per seat, from the lobby: a seat lost before its first
+    /// packet is waited for at once (mp-leftovers).
+    pub seat_peers: Vec<(l2_net::PeerId, PlayerSlot)>,
     /// C260: dropped players the game waits for, by name.
     pub waiting: Vec<String>,
     /// C262: seats silent past `QUIET` on an open connection, by name.
@@ -130,11 +133,12 @@ pub fn service(
         return rejoined(driver, game, tables);
     };
     let built = driver.as_ref()?.build(assets, &start, tables);
+    let seat_peers = driver.as_ref()?.lobby().seats().to_vec();
     match built {
         Ok(mut world) => {
             let quirks = game.kingdom.options.quirks;
             let origin = Some(Box::new(super::replay::Origin { start, quirks }));
-            world.net = Link { phase: Phase::Started, requests: Vec::new(), origin, ..game.net.clone() };
+            world.net = Link { phase: Phase::Started, requests: Vec::new(), origin, seat_peers, ..game.net.clone() };
             world.prefs = game.prefs;
             world.tips = game.tips;
             Some(world)

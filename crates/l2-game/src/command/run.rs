@@ -182,6 +182,15 @@ macro_rules! via_game {
     )*};
 }
 
+/// Map_BeginMoveSelection 00430000.c:4033 `Move_BuildCostMap();` rebuilds the shared
+/// g_moveCost [V]: a command, so every seat rebuilds it at one tick (move-cost-local-rebuild).
+impl Order for BeginMove {
+    type Reply = ();
+    fn run(self, game: &mut Game) {
+        game.kingdom.campaign.rebuild_move_cost();
+    }
+}
+
 via_game! {
     SetTaxRate -> bool = |g, o| g.set_tax_rate(o.county, o.rate);
     SetRation -> bool = |g, o| g.set_ration(o.county, o.level);

@@ -75,4 +75,5 @@ orders! {
     SetWeaponType { county: usize, weapon: usize }
     SetIndustryShare { county: usize, share: i32 }
     ToComputer { realm: u8 }
+    BeginMove {}
 }

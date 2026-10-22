@@ -42,6 +42,7 @@ const FORBIDDEN: &[&str] = &[
     "ctx.game.leave_castle(",
     "ctx.game.disband_army(",
     "ctx.game.order_unit_move(",
+    "rebuild_move_cost(",
     "ctx.game.move_labour(",
     "ctx.game.balance_labour(",
     "ctx.game.balance_all_labour(",
