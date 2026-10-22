@@ -93,6 +93,10 @@ impl Lobby {
         &self.roster
     }
 
+    pub fn seats(&self) -> &[(PeerId, PlayerSlot)] {
+        &self.seats
+    }
+
     pub fn name(&self) -> &str {
         &self.name
     }

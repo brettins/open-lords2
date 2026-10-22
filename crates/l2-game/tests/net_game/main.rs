@@ -23,6 +23,7 @@ mod leave_tcp;
 mod rejoin_tcp;
 mod start_burst;
 mod resume_tcp;
+mod drop_early;
 
 use l2_game::net::NetGame;
 use l2_kingdom::tables::Tables;
