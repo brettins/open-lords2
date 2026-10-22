@@ -160,6 +160,8 @@ pub(crate) fn world() -> (Game, Assets) {
         m.county[i] = if x < BORDER_1_2 { 1 } else { 2 };
     }
     g.kingdom.campaign.map = m;
+    // Game_NewGame 0x00497CED 00490000.c:3385 `Move_BuildCostMap();`: a world never holds a zero g_moveCost [V]
+    g.kingdom.campaign.rebuild_move_cost();
     g.kingdom.campaign.mercenaries = MercenaryBands::init(2);
     g.player = 1;
     g.selected = 1;

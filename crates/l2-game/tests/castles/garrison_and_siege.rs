@@ -57,6 +57,8 @@ fn a_castle_refuses_more_men_than_it_can_barrack() {
     // 0x1E is outside DAT_004E31B0 (FUN_004BB978), so Units_Tick runs under the confirm and
     // FUN_00467196 steps the stacked army aside; its `moving = 2` (00460000.c:4833) stands [V].
     assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.dest != Some(here) && u.moving));
+    // Move_FloodFill/Move_ExtractPath over the stored g_moveCost, 00460000.c:4837-4840: it reaches the free tile [V]
+    assert!(g.kingdom.campaign.units.get(id).is_some_and(|u| u.dest == Some(u.tile())), "walked aside");
     tick(&mut m, &mut g, &a);
     assert_eq!(g.messages.open().map(|r| r.group), Some(0xA6));
 
