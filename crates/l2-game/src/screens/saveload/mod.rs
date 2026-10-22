@@ -152,6 +152,9 @@ pub const HEADING: (i32, i32) = (0x20, 0xA0);
 /// `FUN_00403CF4(…, 0x3F)`, four times, with no second colour anywhere.
 pub const OUTLINE: u8 = 0x3F;
 
+/// `Res_LoadButtons(0)` (0x00499A1C) in FUN_00497A34, the front end's entry; frames 29-42 and 51 only. [V]
+pub const FRONT_END_SYSTEM: &str = "System2.pl8";
+
 /// The four `FUN_00403CF4(x, y, w, h, 0x3F)` calls, in the painter's order.
 pub const INSETS: [(i32, i32, i32, i32); 4] = [
     (0x20, 200, 400, 0x100),

@@ -135,23 +135,10 @@ pub(super) fn shield(canvas: &mut Canvas, pen: &Pen, shield: u8, x: i32, y: i32)
     }
 }
 
-/// `[D]` the frame's commonest opaque index, the field colour under the live
-/// palette: no realm-colour table exists in the data we read (C255).
-pub(super) fn shield_ink(pen: &Pen, shield: u8) -> Option<u8> {
-    let frame = shield.clamp(1, 5) as usize * 2 + 0xCB;
-    let f = pen.assets.sheet(BOX_SHEET)?.frame(frame)?;
-    let mut counts = [0u32; 256];
-    for (i, &on) in f.opaque.iter().enumerate() {
-        if on {
-            counts[f.indices[i] as usize] += 1;
-        }
-    }
-    let (best, n) = counts.iter().enumerate().max_by_key(|(_, &n)| n)?;
-    (*n > 0).then_some(best as u8)
-}
-
+/// `[V]` the realm pen `Realms_AssignLords` (`0x0049CAAA`) writes from the shield,
+/// `g_realmColour` table at `0x004DC1D0`; same indices under `Custom.256`. CNEW-lobby-shield-ink.
 pub(super) fn plaque(canvas: &mut Canvas, pen: &Pen, shield: u8, x: i32, y: i32) {
-    match shield_ink(pen, shield) {
+    match l2_view::chrome::realm_pen(shield) {
         Some(ink) => {
             canvas.fill_rect(x, y, 14, 16, ink);
             pen.outline(canvas, x, y, 14, 16, font::TEXT);

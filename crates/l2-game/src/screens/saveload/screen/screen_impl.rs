@@ -169,7 +169,7 @@ impl SaveLoadScreen {
 // This module drew a
                 // six-pixel tick until the primitive was read. See
                 // [`HIGHLIGHT_CELL`].
-                canvas.fill_rect(r.x - 2, r.y - 1, HIGHLIGHT_W, ROW_H, ink.highlight);
+                canvas.fill_rect(r.x - 2, r.y - 1, HIGHLIGHT_W, ROW_H, OUTLINE);
                 pen.body(canvas, r.x, r.y, &entry.name, font::DISABLED);
             } else {
                 pen.body(canvas, r.x, r.y, &entry.name, font::TEXT);
@@ -203,11 +203,13 @@ impl SaveLoadScreen {
 
         for (i, w) in [CONFIRM, CANCEL, SCROLL_UP, SCROLL_DOWN].into_iter().enumerate() {
             let frame = w.2 + usize::from(self.press.is_pressed(i));
-            let drawn = ctx
-                .assets
-                .chrome
-                .as_ref()
-                .is_some_and(|c| c.draw_system(canvas, frame, w.0 + dx, w.1 + dy));
+            // `Widget_Draw` 0x0040CFD2: g_systemSheet, which the front end fills from System2.pl8. [V]
+            let drawn = if self.is_front_end() {
+                let f = a.sheet(FRONT_END_SYSTEM).and_then(|s| s.frame(frame));
+                f.map(|f| canvas.blit(&f, w.0 + dx, w.1 + dy)).is_some()
+            } else {
+                ctx.assets.chrome.as_ref().is_some_and(|c| c.draw_system(canvas, frame, w.0 + dx, w.1 + dy))
+            };
             if !drawn {
                 shell::button_recess(canvas, w.0 + dx, w.1 + dy, w.3, w.3);
             }

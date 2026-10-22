@@ -12850,3 +12850,15 @@ refusal); `net_game` `a_saved_game_continues_with_its_players_seated_by_install_
 (four seats saved, three resume over TCP, hashes agree a season on),
 `the_host_clicks_a_saved_realm_to_pass_it_round_the_room_and_start_waits_for_seats`;
 `tools/net/e2e/m_resume.py` as real processes.
+
+**CNEW-lobby-shield-ink — A lobby roster plaque is the shield's realm pen, not the shield art's commonest colour.**
+C255 filled the plaque with `Panels2.pl8`'s commonest opaque index in the shield frame, on the
+claim that no realm-colour table exists. One does: `g_realmColour` at `0x004DC1D0`
+(`l2_view::chrome::REALM_PEN`, `[V]` against eleven saves), five `(pen, highlight)` pairs that
+`Realms_AssignLords` (`0x0049CAAA`) copies to realm `+0x08`/`+0x09` from the shield. The shield
+frames are heraldic pictures with no single field: under `Custom.256` the commonest index of
+frames `0xCF` and `0xD1` (shields 2 and 3) is the black outline `0x3F`, so both drew as black
+squares. The pens are red, yellow, (36,36,36), purple, blue; their indices read the same in
+`Custom.256` as in the campaign palette, so the lobby shows the colour the realm flies on the
+map. Shield 3's realm is the dark one, and its plaque stays dark by design. Test: `net_game`
+`each_roster_plaque_is_filled_with_its_shields_realm_pen`.
