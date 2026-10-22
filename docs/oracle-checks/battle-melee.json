@@ -1,0 +1,55 @@
+{
+  "reviewed": "5055fe83ef663616ec989e48e0fb2a9f77dbd74d",
+  "date": "2026-10-21",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 23,
+      "address": "0x0048F1DD",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/melee.rs",
+      "line": 15,
+      "address": "0x00494908",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 196,
+      "address": "0x004831D8",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/combat/melee.rs",
+      "line": 69,
+      "address": "0x0048F1DD",
+      "verdict": "match",
+      "note": "fixed: step_at_enemy writes the stepped-at figure and JoinMelees its unit only if it is not in state 4 (00480000.c:6489); both 999 arms (enter_cell, the adjacent-oil arm) call it, via melee::engage_stepped"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 310,
+      "address": "0x004972F9",
+      "verdict": "match",
+      "note": "fixed: the adjacent-oil check runs before next_step, as Melee_AdjacentEnemyDir precedes the path direction (00480000.c:6416-6421)"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/combat/melee.rs",
+      "line": 191,
+      "address": "0x0048F1DD",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-game/tests/castles/main.rs",
+      "line": 163,
+      "address": "0x00497CED",
+      "verdict": "match",
+      "note": ""
+    }
+  ]
+}
