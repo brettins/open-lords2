@@ -228,7 +228,7 @@ impl BattleRunner {
 
     /// Battle_UpdateAllMen 0x004822ED 00480000.c:873 skips `owner == 0` and runs state 2
     /// as BattleMan_StateDead; `men` is not read, so a body ordered back to
-    /// state 17 steps as a shooter. BNEW-dead-archer-shoots [V]
+    /// state 17 steps as a shooter. B267 [V]
     pub fn is_corpse(&self, i: usize) -> bool {
         let f = &self.sim.figures[self.fighters[i].sim];
         f.state == State::Dead || f.owner == 0

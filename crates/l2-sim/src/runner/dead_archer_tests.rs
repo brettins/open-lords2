@@ -12,7 +12,7 @@ fn fight() -> BattleRunner {
 }
 
 /// Battle_UpdateAllMen 00480000.c:873 dispatches by state: a body ordered to
-/// state 17 (BNEW-dead-archer-shoots) no longer runs BattleMan_StateDead, so
+/// state 17 (B267) no longer runs BattleMan_StateDead, so
 /// `+0x173` stops and the slot is never freed. Ablation: `is_corpse` as `!is_alive`.
 #[test]
 fn a_body_that_stood_up_stops_counting_down() {

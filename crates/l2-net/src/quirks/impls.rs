@@ -40,7 +40,7 @@ impl Quirk {
             Quirk::EmptyGameIsWonBySlotZero => "B51",
             Quirk::DeadHumanCanStillWin => "B52",
             Quirk::MutualDestructionIsAWin => "B53",
-            Quirk::DeadArcherKeepsShooting => "BNEW-dead-archer-shoots",
+            Quirk::DeadArcherKeepsShooting => "B267",
         }
     }
 

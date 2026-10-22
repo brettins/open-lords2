@@ -90,7 +90,7 @@ impl BattleRunner {
             return;
         };
         // [D] the original spawns while `owner != 0` (00480000.c:1478); a body
-        // that stood back up (BNEW-dead-archer-shoots) is shot at, a corpse is not
+        // that stood back up (B267) is shot at, a corpse is not
         if self.sim.figures[target].state == State::Dead {
             return;
         }

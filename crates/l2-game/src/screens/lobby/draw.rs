@@ -136,7 +136,7 @@ pub(super) fn shield(canvas: &mut Canvas, pen: &Pen, shield: u8, x: i32, y: i32)
 }
 
 /// `[V]` the realm pen `Realms_AssignLords` (`0x0049CAAA`) writes from the shield,
-/// `g_realmColour` table at `0x004DC1D0`; same indices under `Custom.256`. CNEW-lobby-shield-ink.
+/// `g_realmColour` table at `0x004DC1D0`; same indices under `Custom.256`. C266.
 pub(super) fn plaque(canvas: &mut Canvas, pen: &Pen, shield: u8, x: i32, y: i32) {
     match l2_view::chrome::realm_pen(shield) {
         Some(ink) => {

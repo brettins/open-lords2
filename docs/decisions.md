@@ -12851,7 +12851,7 @@ refusal); `net_game` `a_saved_game_continues_with_its_players_seated_by_install_
 `the_host_clicks_a_saved_realm_to_pass_it_round_the_room_and_start_waits_for_seats`;
 `tools/net/e2e/m_resume.py` as real processes.
 
-**CNEW-lobby-shield-ink — A lobby roster plaque is the shield's realm pen, not the shield art's commonest colour.**
+**C266 — A lobby roster plaque is the shield's realm pen, not the shield art's commonest colour.**
 C255 filled the plaque with `Panels2.pl8`'s commonest opaque index in the shield frame, on the
 claim that no realm-colour table exists. One does: `g_realmColour` at `0x004DC1D0`
 (`l2_view::chrome::REALM_PEN`, `[V]` against eleven saves), five `(pen, highlight)` pairs that

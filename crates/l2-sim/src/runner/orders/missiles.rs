@@ -247,7 +247,7 @@ impl BattleRunner {
 
     /// [I] 00490000.c:1353 reads `g_battlefield.figure`, which keeps a body;
     /// ours frees the cell at death, so a body that stood up
-    /// (BNEW-dead-archer-shoots) is found where it stands.
+    /// (B267) is found where it stands.
     fn risen_at(&self, cell: usize) -> Option<usize> {
         self.fighters.iter().position(|f| {
             let fig = &self.sim.figures[f.sim];

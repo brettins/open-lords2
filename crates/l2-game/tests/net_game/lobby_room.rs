@@ -247,7 +247,7 @@ fn the_host_clicks_a_saved_realm_to_pass_it_round_the_room_and_start_waits_for_s
     assert_eq!(game.net.requests, vec![richard], "a holder gives way to whoever waits");
 }
 
-/// Red on ablation of `l2_view::chrome::realm_pen(shield)` in `draw::plaque` (CNEW-lobby-shield-ink).
+/// Red on ablation of `l2_view::chrome::realm_pen(shield)` in `draw::plaque` (C266).
 #[test]
 fn each_roster_plaque_is_filled_with_its_shields_realm_pen() {
     let assets = Assets::placeholder();

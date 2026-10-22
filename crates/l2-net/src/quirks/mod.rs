@@ -182,7 +182,7 @@ pub enum Quirk {
     /// win, because the opponents test is checked before the is-it-me test.
     MutualDestructionIsAWin = 13,
 
-    /// **BNEW-dead-archer-shoots** — `Order_ShootAtUnit` (`0x0048C974`) tests
+    /// **B267** — `Order_ShootAtUnit` (`0x0048C974`) tests
     /// `owner != 0` only, so a body still counting down stands up and shoots.
     DeadArcherKeepsShooting = 14,
 }

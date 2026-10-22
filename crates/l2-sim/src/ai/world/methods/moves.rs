@@ -196,7 +196,7 @@ impl World<'_> {
         let mut all_found = true;
         for f in 0..self.figures.len() {
             // 00480000.c:5137 tests `owner != 0` only: a state-2 body still counting
-            // down is ordered too and stands up to shoot. BNEW-dead-archer-shoots [V]
+            // down is ordered too and stands up to shoot. B267 [V]
             let ordered = if self.ai.quirks.reproduces(Quirk::DeadArcherKeepsShooting) {
                 self.figures[f].owner != 0
             } else {

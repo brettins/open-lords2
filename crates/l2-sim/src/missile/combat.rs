@@ -100,7 +100,7 @@ pub fn apply_hit(target: &mut Figure, power: u16) -> u16 {
     target.hits = target.hits.saturating_add(power);
     if target.hits < threshold {
         // Missile_Step 0x00492C8B 00490000.c:1443-1446 `men < 1` sits outside the
-        // threshold test and writes men, state, sound only. BNEW-dead-archer-shoots [V]
+        // threshold test and writes men, state, sound only. B267 [V]
         if target.men == 0 {
             target.state = crate::figure::State::Dead;
         }
