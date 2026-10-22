@@ -155,6 +155,17 @@
       "ask": "Reply: Q251 done",
       "answer": "withdrawn by the player: the headless original (native/l2-trace + tools/oracle/trace-run.ps1) ends turns itself; a person should not do this by hand.",
       "outcome": "Row play-session-differential: run an End-Turn chain scenario in the harness instead. The harness is Windows-only today (DLL injection, PowerShell Win32); it needs the Windows boot or a port to Wine."
+    },
+    {
+      "q": "Q265",
+      "row": "trace-rng-parity",
+      "state": "answered",
+      "title": "How battle traces are compared past the first random draw",
+      "inplay": "A hand-fought battle ends with a different winner than the original; the first divergence is the AI first think, decided by a random draw (original Rand_Advance, ours Pcg32).",
+      "todo": "Choose: (a) trace builds only draw from Rand_Advance; (b) pin the original LFSR live; (c) compare outcome distributions over many seeds; or switch the game to Rand_Advance.",
+      "ask": "Reply: Q265 a|b|c|switch",
+      "answer": "(a) the original generator under the trace feature only; the shipped game keeps Pcg32.",
+      "outcome": "agent/trace-rng ports Rand_Advance 0x00404A46 behind l2-net/trace and re-diffs field-battle-manual (row battle-manual-outcome)."
     }
   ],
   "reports": [
