@@ -230,9 +230,12 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
     let game_type = crate::victory::GameType::from_value(type_byte)
         .ok_or_else(|| bad_count(input, type_byte as usize, "game type"))?;
     let messages = decode_messages(input)?;
-    let battle = input
+    let mut battle = input
         .option(crate::battlefield::LiveBattle::decode)?
         .map(Box::new);
+    if let Some(b) = battle.as_mut() {
+        b.runner.ai.quirks = kingdom.options.quirks;
+    }
     let owners = input.seq(|r| {
         let realm = r.u8()?;
         let mut id = [0u8; 16];

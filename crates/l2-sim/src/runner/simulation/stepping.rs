@@ -45,7 +45,7 @@ impl BattleRunner {
         for i in 0..self.fighters.len() {
             self.update_man(i);
             // Battle_UpdateAllMen 0x004822ED dispatches the state in the man's own slot, 00480000.c:899 [V]
-            if self.is_alive(i) {
+            if !self.is_corpse(i) {
                 self.step_one(i);
             } else {
                 self.state_dead(i);
@@ -65,7 +65,7 @@ impl BattleRunner {
         // Melee_Tick is per man, in step_one: BattleMan_StateMelee 0x004831D8, 00480000.c:1395
         self.sim.tick += 1;
         for i in 0..self.fighters.len() {
-            if !self.is_alive(i) && self.fighters[i].anim != Motion::Dying {
+            if self.is_corpse(i) && self.fighters[i].anim != Motion::Dying {
                 let f = &self.fighters[i];
                 let cell = f.y as usize * DIM + f.x as usize;
                 if self.occupant[cell] == Some(i as u16) {

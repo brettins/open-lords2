@@ -108,7 +108,7 @@ impl BattleRunner {
 
 
     pub(crate) fn step_one(&mut self, i: usize) {
-        if !self.is_alive(i) {
+        if self.is_corpse(i) {
             // **State 2 does not step `animPhase`.** `BattleMan_StateDead`
             // (`0x004830E9`) is `Anim_Collapse(); if (0x50 < ++field_0x173)
             // Destroy();`, and `Anim_CollapseA2` reads that death timer —

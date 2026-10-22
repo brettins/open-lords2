@@ -9,7 +9,7 @@ use super::super::tests::*;
 use crate::figure::{Figure, State};
 use crate::troop::Troop;
 use crate::unit::{chebyshev, pct_of, Units, MAX_UNITS, REFORM_INTERVAL};
-use l2_net::Pcg32;
+use l2_net::{Pcg32, Quirk};
 
 #[allow(clippy::wrong_self_convention)]
 impl World<'_> {
@@ -195,7 +195,14 @@ impl World<'_> {
         l2_net::trace!("call", 0x0048C974, "Order_ShootAtUnit", unit = unit);
         let mut all_found = true;
         for f in 0..self.figures.len() {
-            if !self.figures[f].is_alive() || self.figures[f].unit as usize != cur {
+            // 00480000.c:5137 tests `owner != 0` only: a state-2 body still counting
+            // down is ordered too and stands up to shoot. BNEW-dead-archer-shoots [V]
+            let ordered = if self.ai.quirks.reproduces(Quirk::DeadArcherKeepsShooting) {
+                self.figures[f].owner != 0
+            } else {
+                self.figures[f].is_alive()
+            };
+            if !ordered || self.figures[f].unit as usize != cur {
                 continue;
             }
             let Some(target) = self.find_missile_target(f, 40, unit) else {

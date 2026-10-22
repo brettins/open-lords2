@@ -99,6 +99,12 @@ pub fn apply_hit(target: &mut Figure, power: u16) -> u16 {
     let threshold = target.hits_per_casualty;
     target.hits = target.hits.saturating_add(power);
     if target.hits < threshold {
+        // 00490000.c:1443 `men < 1` sits outside the threshold test: a body that
+        // stood back up falls on any hit. BNEW-dead-archer-shoots [V]
+        if target.men == 0 {
+            target.state = crate::figure::State::Dead;
+            target.opponent = None;
+        }
         return 0;
     }
     let multiples = (target.hits / threshold).min(4);

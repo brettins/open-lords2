@@ -14,7 +14,7 @@ use l2_net::Pcg32;
 impl World<'_> {
     /// `Missile_FindTarget` (`0x004956CC`), reduced to what the order handlers
     /// need of it.
-    pub(super) fn find_missile_target(&self, shooter: usize, range: i32, restrict: usize) -> Option<usize> {
+    pub(crate) fn find_missile_target(&self, shooter: usize, range: i32, restrict: usize) -> Option<usize> {
         let me = &self.figures[shooter];
         let mine = me.owner;
         let melee_only = !matches!(me.troop, Troop::Crossbowmen | Troop::Archers | Troop::Catapults);
@@ -22,7 +22,8 @@ impl World<'_> {
         let (sx, sy) = (sx as i32, sy as i32);
         let mut best: Option<(i32, usize)> = None;
         for (i, f) in self.figures.iter().enumerate() {
-            if !f.is_alive() || f.owner == mine || f.owner == 0 {
+            // Missile_FindTarget 0x004956CC: owner != 0, other owner, `state != 2` [V]
+            if f.state == State::Dead || f.owner == mine || f.owner == 0 {
                 continue;
             }
             if restrict != 0 && f.unit as usize != restrict {

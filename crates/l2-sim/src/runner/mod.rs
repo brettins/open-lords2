@@ -21,6 +21,8 @@ mod anim;
 mod anim_tests;
 #[cfg(test)]
 mod dying_tests;
+#[cfg(test)]
+mod dead_archer_tests;
 mod fighter;
 mod save;
 mod import;

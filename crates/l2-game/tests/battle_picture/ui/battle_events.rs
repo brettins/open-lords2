@@ -225,6 +225,8 @@ fn a_corpse_is_cleared_away_after_eighty_frames() {
 
     let sim_index = live(&g).runner.fighters[pot].sim;
     g.battle.as_mut().unwrap().runner.sim.figures[sim_index].men = 0;
+    // every writer of men 0 writes state 2 with it; Battle_UpdateAllMen dispatches on state
+    g.battle.as_mut().unwrap().runner.sim.figures[sim_index].state = l2_sim::State::Dead;
 
     let mut first_gone = None;
     let mut pour_seen = false;
