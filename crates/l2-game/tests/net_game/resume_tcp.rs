@@ -46,13 +46,15 @@ fn resume() {
     seats[0].game.net.requests.push(Request::Assign { slot: eleanor, realm: realms[2] });
     kit::start(&mut seats, &assets, 3);
 
+    let mut seated = realms[..3].to_vec();
+    seated.sort_unstable();
     for s in &seats {
         let g = &s.game;
         assert_eq!(g.turns_played, turns, "the world is the save's");
         let c = &g.kingdom.campaign;
         assert!(c.move_cost == c.map.cost_map(), "every seat builds the cost map the save leaves out");
         let human: Vec<u8> = (1..6u8).filter(|&r| g.kingdom.realms[r as usize].is_human).collect();
-        assert_eq!(human, realms[..3].to_vec(), "Geoffrey's realm {} is the computer's", realms[3]);
+        assert_eq!(human, seated, "Geoffrey's realm {} is the computer's", realms[3]);
     }
     assert_eq!(seats[1].game.player, realms[2], "Eleanor plays John's realm");
     assert_eq!(seats[2].game.player, realms[1]);
