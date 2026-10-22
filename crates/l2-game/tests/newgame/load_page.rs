@@ -42,3 +42,37 @@ fn the_front_end_load_box_takes_a_typed_name() {
     assert_eq!(screen.page(), SetupPage::Load, "typing stays on page 3");
     assert!(screen.load_name().contains("zq"), "{:?}", screen.load_name());
 }
+
+/// SaveLoad_DrawStatus 0x004149EC `FUN_004b414a(x - 2, y - 1, 0x3f)`; Widget_Draw from g_systemSheet,
+/// System2.pl8 on the front end (`Res_LoadButtons(0)`). Red on ablation of `OUTLINE` as the bar's
+/// colour, or of the `is_front_end` arm in `draw_status`.
+#[test]
+fn the_front_end_load_box_draws_a_0x3f_bar_and_system2_buttons() {
+    use l2_game::screens::saveload::{CONFIRM, FRONT_END_SYSTEM, OUTLINE, SCROLL_UP};
+    let assets = assets!();
+    let dir = std::env::temp_dir().join(format!("l2-screen-fixes-load-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join(format!("a.{}", l2_game::save::EXTENSION)), b"x").unwrap();
+    let _scope = l2_game::saves::scoped_dir(&dir);
+    let mut game = Game::new(scenario::SEED);
+    let mut screen = to_load_page(&assets, &mut game);
+    click(&mut screen, &mut game, &assets, FRONT_END.0 + 0x24, FRONT_END.1 + 0x70);
+    let mut canvas = l2_view::Canvas::screen();
+    screen.draw(&Ctx { game: &mut game, assets: &assets }, &mut canvas);
+    let _ = std::fs::remove_dir_all(&dir);
+    let row = (FRONT_END.0 + 0x20, FRONT_END.1 + 0x6C);
+    assert_eq!(canvas.at((row.0 - 2) as usize, (row.1 - 1) as usize), OUTLINE);
+    let (dx, dy) = (FRONT_END.0 - 0x10, FRONT_END.1 - 0x90);
+    let sheet = assets.shell.sheet(FRONT_END_SYSTEM).expect("System2.pl8 is in the install");
+    for w in [CONFIRM, SCROLL_UP] {
+        let f = sheet.frame(w.2).unwrap();
+        let (fw, fh) = (f.width as usize, f.height as usize);
+        let mut seen = 0;
+        for (i, _) in f.opaque.iter().enumerate().filter(|(_, &o)| o) {
+            let (x, y) = ((w.0 + dx) as usize + i % fw, (w.1 + dy) as usize + i / fw);
+            assert_eq!(canvas.at(x, y), f.indices[i], "frame {} at ({x}, {y}) of {fw}x{fh}", w.2);
+            seen += 1;
+        }
+        assert!(seen > 0, "frame {} has art", w.2);
+    }
+}

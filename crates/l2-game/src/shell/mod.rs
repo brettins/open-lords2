@@ -40,6 +40,8 @@ pub const SHEETS: &[&str] = &[
     "Misc_sel.pl8",
     // g_miscCtySheet on setup pages 11-13: FUN_00498DCB (00490000.c:3999).
     "Misc_ske.PL8",
+    // g_systemSheet on the front end: FUN_00497A34's `Res_LoadButtons(0)` (00490000.c:3262).
+    "System2.pl8",
     "Merchant.pl8",
     "Mercgrid.pl8",
     "Icontrad.pl8",
