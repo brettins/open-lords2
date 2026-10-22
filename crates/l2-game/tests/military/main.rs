@@ -4,6 +4,7 @@ pub use battle_part::*;
 mod raising;
 mod marching;
 mod division;
+mod move_cost;
 
 use l2_game::game::Assets;
 use l2_game::input::{Event, Key};

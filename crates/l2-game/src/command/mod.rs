@@ -104,6 +104,7 @@ commands! {
     35 SetWeaponType,
     36 SetIndustryShare,
     37 ToComputer,
+    38 BeginMove,
 }
 
 /// The slot this machine issues from. `[I]` one seat until the lobby's

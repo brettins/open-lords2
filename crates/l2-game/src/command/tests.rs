@@ -57,6 +57,7 @@ fn samples() -> Vec<GameCommand> {
         SetWeaponType { county: 6, weapon: 4 }.into(),
         SetIndustryShare { county: 7, share: 55 }.into(),
         ToComputer { realm: 3 }.into(),
+        BeginMove {}.into(),
     ]
 }
 
