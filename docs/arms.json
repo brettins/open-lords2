@@ -4037,6 +4037,17 @@
       "ours": "crates/l2-game/src/screens/setup/mod.rs"
     },
     {
+      "id": "ours/sharp-text-toggle",
+      "status": "invention",
+      "removed": false,
+      "group": "campaign-map",
+      "screen": "every screen",
+      "gesture": "key",
+      "what": "F9 swaps body text between the original's Fntl2_14 and C259's sharp text (Fntl2_22 at 2x on a 3x plane) and back, at once; Prefs::sharp_text (SharpText= in prefs.ini) remembers it, off by default.",
+      "why": "Decision C259; the owner, 2026-10-12: 'F9 is great, leave that in, default to the lower res'. App_WndProc 0x004B29BE case 0x78 (004b0000.c:2040) toggles DAT_0052EFF8 only on screen 0x20 with g_multiplayer set: the switch for Net_DrawDebugOverlay 0x00423BA4, a developer sync read-out we do not draw, so F9 shadows nothing a player sees [V].",
+      "ours": "crates/l2-game/src/app.rs"
+    },
+    {
       "id": "ours/shell-any-click-closes",
       "status": "invention",
       "removed": true,
@@ -4110,17 +4121,6 @@
       "gesture": "key",
       "what": "Alt+Enter switches between borderless full screen (the default) and a window, and Prefs::full_screen (FullScreen= in prefs.ini) remembers it. F5's snap acts only in the window.",
       "why": "Kept by decision C238. Display_Init 0x0042E5C0 forces g_optFullScreen = 1 on any desktop that is not 8bpp, and Opt_ToggleFullScreen 0x00434B10 then refuses (message 0x104), so on a modern desktop the original cannot be windowed; that refusal stays ours too (0x00434B10/opt-full-screen). Alt+Enter collides with nothing [I]: Windows delivers it as WM_SYSKEYDOWN, and App_WndProc 0x004B29BE's VK_RETURN arm is in its WM_KEYDOWN switch.",
-      "ours": "crates/l2-game/src/app.rs"
-    },
-    {
-      "id": "ours/sharp-text-toggle",
-      "status": "invention",
-      "removed": false,
-      "group": "campaign-map",
-      "screen": "every screen",
-      "gesture": "key",
-      "what": "F9 swaps body text between the original's Fntl2_14 and C259's sharp text (Fntl2_22 at 2x on a 3x plane) and back, at once; Prefs::sharp_text (SharpText= in prefs.ini) remembers it, off by default.",
-      "why": "Decision C259; the owner, 2026-10-12: 'F9 is great, leave that in, default to the lower res'. App_WndProc 0x004B29BE case 0x78 (004b0000.c:2040) toggles DAT_0052EFF8 only on screen 0x20 with g_multiplayer set: the switch for Net_DrawDebugOverlay 0x00423BA4, a developer sync read-out we do not draw, so F9 shadows nothing a player sees [V].",
       "ours": "crates/l2-game/src/app.rs"
     }
   ]

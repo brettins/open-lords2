@@ -119,7 +119,7 @@ impl Machine {
         }
         let before = crate::turn_clock::shown(ctx.game);
         let frame = crate::turn_clock::Frame::of(ctx.game);
-        // Battle_Frame 004b0000.c:6707-6940: Turn_Tick only inside the ticksDue loop [V].
+        // Battle_Frame 0x004B99C0 004b0000.c:6707-6940: Turn_Tick only inside the ticksDue loop [V].
         if withheld {
             ctx.game.turn_clock.withheld();
         } else if ctx.game.turn_clock.tick(frame) == crate::turn_clock::Tick::Expired

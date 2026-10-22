@@ -117,6 +117,7 @@ crates/l2-game/tests/movies/playback/timing_and_sound.rs install 4
 crates/l2-game/tests/movies/triggers/gameplay.rs install 3
 crates/l2-game/tests/movies/triggers/validation.rs install 1
 crates/l2-game/tests/net_game/diplomacy.rs other 3
+crates/l2-game/tests/net_game/drop_early.rs install 1
 crates/l2-game/tests/net_game/halt_box.rs install 3
 crates/l2-game/tests/net_game/host_saves.rs install 1
 crates/l2-game/tests/net_game/host_saves.rs other 3
@@ -198,7 +199,7 @@ crates/l2-game/tests/screens_map/view_tests/view_tests/town.rs england 3
 crates/l2-game/tests/screens_map/view_tests/view_tests/units.rs england 3
 crates/l2-game/tests/screens_menubar/dropdown_shot.rs england 1
 crates/l2-game/tests/screens_menubar/menu_bar.rs england 5
-crates/l2-game/tests/screens_menubar/turn_timer.rs england 2
+crates/l2-game/tests/screens_menubar/turn_timer.rs england 3
 crates/l2-game/tests/screens_menubar/turn_timer.rs executable 1
 crates/l2-game/tests/screens_shoot.rs england 1
 crates/l2-game/tests/screens_village/animation.rs england 1
