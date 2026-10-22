@@ -92,8 +92,14 @@ fn the_turn_timer_is_up_for_the_players_own_turn_and_ends_it_when_it_runs_out() 
         n += 1;
         assert!(n < 4000, "the turn the timer ended never came round");
     }
-    game.kingdom.realms[human].ai_step = l2_kingdom::AI_STEP_DONE;
-    tick_stack(&mut m, &mut game, &assets, 1);
+    // FUN_004B0CB4's fade bytes 0x23/0x24 withhold Turn_Tick (DAT_004E31B0), so the restart waits for it [V].
+    let mut fade = 0;
+    while game.turn_clock.remaining() != 30 {
+        game.kingdom.realms[human].ai_step = l2_kingdom::AI_STEP_DONE;
+        tick_stack(&mut m, &mut game, &assets, 1);
+        fade += 1;
+        assert!(fade < 400, "the count never restarted");
+    }
     let next = draw_stack(&mut m, &mut game, &assets);
     assert_eq!(
         timer_digits(&next, &assets, 30),
@@ -170,3 +176,31 @@ fn the_turn_timers_screen_table_and_suffix_are_the_images_own() {
     assert_eq!(l2_game::turn_clock::SUFFIX, " ");
 }
 
+
+/// FUN_004BB978 0x004BB978 withholds Turn_Tick under a tip (`DAT_004E31B0[0x27]` = 1), so
+/// the count freezes and the turn cannot end; `_DAT_00568D9C` stands, so the first tick
+/// after the dismissal ends it [V] 00490000.c:4787. Ablate: run_turn_clock's `if withheld`.
+#[test]
+fn a_tip_freezes_the_count_and_the_turn_ends_on_the_first_tick_after_it() {
+    let (mut game, assets) = world!();
+    game.kingdom.options.time_limit = 30;
+    l2_game::turn::reach_players_turn(&mut game).expect("phases 1-3 settle");
+    let human = game.player as usize;
+    for id in 1..game.kingdom.realms.len() {
+        game.kingdom.realms[id].ai_step = l2_kingdom::AI_STEP_DONE + 1;
+    }
+    game.kingdom.realms[human].ai_step = 1;
+    let mut m = Machine::new(ScreenId::Campaign);
+    tick_stack(&mut m, &mut game, &assets, 1000);
+    assert_eq!(game.turn_clock.remaining(), 14, "16 s of a 30 s limit");
+
+    assert!(l2_game::tip::show(&mut game, 200), "a tip is up: g_screenId is 0x27");
+    tick_stack(&mut m, &mut game, &assets, 1000);
+    assert!(game.tips.hosting());
+    assert_eq!(game.turn_clock.remaining(), 14, "Turn_Tick did not run under the tip");
+    assert!(!l2_game::turn::players_turn_ended(&game), "32 s, and the turn stands");
+
+    l2_game::message::dismiss(&mut game);
+    tick_stack(&mut m, &mut game, &assets, 1);
+    assert!(l2_game::turn::players_turn_ended(&game), "the time under the tip counted");
+}

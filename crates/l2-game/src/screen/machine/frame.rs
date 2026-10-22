@@ -113,13 +113,16 @@ impl Machine {
     /// follow:
     ///
     // arm: 0x0049A010/turn-time-limit timer
-    pub(super) fn run_turn_clock(&mut self, ctx: &mut Ctx) {
+    pub(super) fn run_turn_clock(&mut self, ctx: &mut Ctx, withheld: bool) {
         if !self.stack.iter().any(|s| s.id() == ScreenId::Campaign) {
             return;
         }
         let before = crate::turn_clock::shown(ctx.game);
         let frame = crate::turn_clock::Frame::of(ctx.game);
-        if ctx.game.turn_clock.tick(frame) == crate::turn_clock::Tick::Expired
+        // Battle_Frame 004b0000.c:6707-6940: Turn_Tick only inside the ticksDue loop [V].
+        if withheld {
+            ctx.game.turn_clock.withheld();
+        } else if ctx.game.turn_clock.tick(frame) == crate::turn_clock::Tick::Expired
             && ctx.game.messages.is_open()
         {
             crate::message::dismiss(ctx.game);

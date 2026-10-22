@@ -46,3 +46,18 @@ fn a_file_picked_this_frame_swallows_the_right_release() {
     screen.load_event(Event::RightClick { x: 300, y: 300 }, &mut ctx);
     assert_eq!(screen.page, SetupPage::Custom, "next frame: DAT_00553e5c");
 }
+
+/// FUN_004335F0 0x004335F0 00430000.c:981 latches the map click; FUN_00432CC8 :625-637 does not.
+/// Ablate: `ctx.game.map_click_latch = true;` in the Custom pages' Load arm.
+#[test]
+fn the_skirmish_pages_load_latches_the_map_click_and_the_options_pages_does_not() {
+    let assets = Assets::placeholder();
+    for (opener, item, latched) in [(SetupPage::Custom, 3, true), (SetupPage::CustomMulti, 3, true), (SetupPage::Options, 1, false)] {
+        let mut game = Game::new(crate::scenario::SEED);
+        let mut ctx = Ctx { game: &mut game, assets: &assets };
+        let mut screen = SetupScreen::new(opener);
+        screen.item(item, &mut ctx);
+        assert_eq!(screen.page, SetupPage::Load, "{opener:?}");
+        assert_eq!(ctx.game.map_click_latch, latched, "{opener:?}");
+    }
+}

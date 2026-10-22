@@ -1,6 +1,7 @@
 #![allow(unused_imports)]
 
 mod division_tests;
+mod latch_tests;
 pub use division_tests::*;
 
 use super::*;

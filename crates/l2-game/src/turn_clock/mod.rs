@@ -370,6 +370,19 @@ mod tests {
         assert!(c.end_turn_pending());
     }
 
+    /// Ablate: `TurnClock::withheld`'s `elapsed_ms +=`.
+    #[test]
+    fn withheld_time_freezes_the_count_and_lands_on_the_next_tick() {
+        let mut c = TurnClock::default();
+        run(&mut c, players(30), ticks_for(16_000));
+        assert_eq!(c.remaining(), 14);
+        for _ in 0..ticks_for(16_000) {
+            c.withheld();
+        }
+        assert_eq!((c.remaining(), c.end_turn_pending()), (14, false), "Turn_Tick did not run");
+        assert_eq!(c.tick(players(30)), Tick::Expired, "_DAT_00568D9C was not rebased");
+    }
+
     #[test]
     fn the_timer_is_drawn_over_the_map_and_its_insets_and_not_over_the_pages() {
         use crate::screens::county::Panel;
