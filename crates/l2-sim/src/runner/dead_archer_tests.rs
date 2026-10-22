@@ -42,3 +42,24 @@ fn any_hit_lays_him_down_again() {
     assert_eq!(apply_hit(f, 1), 0);
     assert_eq!(f.state, State::Dead);
 }
+
+/// Missile_Step 0x00492C8B 00490000.c:1353 hits a man whose state is not 2, whatever
+/// his `men`. Ablation: `!is_alive()` as the victim guard, or no `risen_at`.
+#[test]
+fn an_enemy_arrow_lays_the_risen_archer_down_again() {
+    let mut r = fight();
+    let sim = r.fighters[0].sim;
+    r.sim.figures[sim].men = 0;
+    r.sim.figures[sim].state = State::Dead;
+    r.step();
+    r.sim.figures[sim].state = State::Shooting;
+    let owner = r.sim.figures[sim].owner;
+    let enemy = r.fighters.iter().position(|f| r.sim.figures[f.sim].owner != owner).unwrap();
+    let (at, from) = ((r.fighters[0].x, r.fighters[0].y), (r.fighters[enemy].x, r.fighters[enemy].y));
+    let foe = r.sim.figures[r.fighters[enemy].sim].owner;
+    let slot = crate::missile::spawn(&mut r.missiles, foe, WeaponClass::Bow, enemy, from, at, 50, 0).unwrap();
+    let m = r.missiles.get_mut(slot);
+    (m.cell_x, m.cell_y, m.ttl) = (at.0.into(), at.1.into(), 0);
+    r.missile_cell_tests(slot);
+    assert_eq!(r.sim.figures[sim].state, State::Dead);
+}

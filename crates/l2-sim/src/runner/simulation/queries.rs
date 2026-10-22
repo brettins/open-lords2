@@ -226,7 +226,7 @@ impl BattleRunner {
         self.sim.figures[self.fighters[i].sim].is_alive()
     }
 
-    /// Battle_UpdateAllMen 00480000.c:873 skips `owner == 0` and runs state 2
+    /// Battle_UpdateAllMen 0x004822ED 00480000.c:873 skips `owner == 0` and runs state 2
     /// as BattleMan_StateDead; `men` is not read, so a body ordered back to
     /// state 17 steps as a shooter. BNEW-dead-archer-shoots [V]
     pub fn is_corpse(&self, i: usize) -> bool {

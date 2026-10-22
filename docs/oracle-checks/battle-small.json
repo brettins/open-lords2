@@ -1,0 +1,62 @@
+{
+  "reviewed": "1b365f9993611fc7be398d15fa6557c5b008d86e",
+  "date": "2026-10-21",
+  "behaviours": [
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/moves.rs",
+      "line": 201,
+      "address": "0x0048C974",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/ai/world/methods/targets.rs",
+      "line": 26,
+      "address": "0x004956CC",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 226,
+      "address": "0x004956CC",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/targeting.rs",
+      "line": 94,
+      "address": "0x00483337",
+      "verdict": "departure",
+      "note": "[D] labelled: original spawns at any target with owner != 0 (00480000.c:1478), ours refuses state 2"
+    },
+    {
+      "file": "crates/l2-sim/src/runner/simulation/stepping.rs",
+      "line": 48,
+      "address": "0x004822ED",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/movement.rs",
+      "line": 111,
+      "address": "0x004830E9",
+      "verdict": "match",
+      "note": ""
+    },
+    {
+      "file": "crates/l2-sim/src/runner/orders/missiles.rs",
+      "line": 206,
+      "address": "0x00492C8B",
+      "verdict": "match",
+      "note": "fixed: victim guard tests state != 2 (00490000.c:1353), and a risen body is found where it stands; test an_enemy_arrow_lays_the_risen_archer_down_again"
+    },
+    {
+      "file": "crates/l2-sim/src/missile/combat.rs",
+      "line": 104,
+      "address": "0x00492C8B",
+      "verdict": "match",
+      "note": "fixed: the opponent write is removed; 00490000.c:1443-1446 writes men, state and the sound only"
+    }
+  ]
+}

@@ -65,6 +65,8 @@ impl BattleRunner {
         // Melee_Tick is per man, in step_one: BattleMan_StateMelee 0x004831D8, 00480000.c:1395
         self.sim.tick += 1;
         for i in 0..self.fighters.len() {
+            // [I] the original appears to keep a body in its cell's figure byte:
+            // Missile_Step 00490000.c:1353 reads g_battlefield.figure, then tests state != 2
             if self.is_corpse(i) && self.fighters[i].anim != Motion::Dying {
                 let f = &self.fighters[i];
                 let cell = f.y as usize * DIM + f.x as usize;
