@@ -12,12 +12,17 @@ fn pair_mut(figs: &mut [Figure], a: usize, b: usize) -> (&mut Figure, &mut Figur
     }
 }
 
+/// Melee_Tick 0x00494908 00490000.c:1801.
+pub const MELEE_HITS_PER_MAN: u16 = 100;
+
 pub fn engage(figs: &mut [Figure], a: usize, b: usize) {
     let (fa, fb) = pair_mut(figs, a, b);
     if !fa.is_alive() || !fb.is_alive() {
         return;
     }
-    if fa.troop.is_siege() || fb.troop.is_siege() {
+    // BattleMan_Step 0x0048F1DD 00480000.c:6474 refuses a mover of troop 10; an engine mover never
+    // gets 999 from Cell_TryEnterEngineOrtho 0x00490FA2. The one stepped at may be any troop [V]
+    if fa.troop.is_siege() {
         return;
     }
     fa.state = State::Melee;
@@ -59,7 +64,12 @@ pub fn tick(figs: &mut [Figure], idx: usize) {
         me.recovery_counter += me.stats().recovery as i32;
     }
     // 00490000.c:1801: one `if (99 < me.hits)` a tick, after the attack is added [V]
-    me.take_hits(0);
+    // `99 < hits` then `hits -= 100`, a literal: an engine dies here at 100, not its 160 [V]
+    if me.troop.is_siege() {
+        me.take_hits_at(0, MELEE_HITS_PER_MAN);
+    } else {
+        me.take_hits(0);
+    }
 
     // Melee_Tick 0x00494908 00490000.c:1817-1825: only cur dies, `state = 2` [V]
     if !me.is_alive() {

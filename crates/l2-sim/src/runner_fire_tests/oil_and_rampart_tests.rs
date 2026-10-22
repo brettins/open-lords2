@@ -146,3 +146,41 @@ fn a_man_who_steps_at_a_pot_of_oil_is_poured_on() {
 }
 
 
+
+/// The 999 arm (00480000.c:6476-6498) locks both into state 4; the pot's own
+/// Melee_Tick (00490000.c:1788) pours, so a pot earlier in the array pours a
+/// frame after the contact and one later in the array on the contact frame.
+#[test]
+fn a_pot_pours_on_its_own_melee_tick_after_the_man_engages_it() {
+    for pot_first in [true, false] {
+        let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+        let (pot, man) = if pot_first {
+            let p = stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40));
+            (p, stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 44)))
+        } else {
+            let m = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 44));
+            (stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40)), m)
+        };
+        r.fighters[man].target = (40, 36);
+        r.settle();
+        let (ps, ms) = (r.fighters[pot].sim, r.fighters[man].sim);
+        let mut contact = false;
+        for _ in 0..400 {
+            r.step();
+            if r.sim.figures[ms].opponent == Some(ps) {
+                contact = true;
+                break;
+            }
+        }
+        assert!(contact, "he engaged the pot (pot first: {pot_first})");
+        if pot_first {
+            assert!(r.is_alive(pot), "not poured at the contact");
+            assert_eq!(r.sim.figures[ps].state, State::Melee);
+            assert_eq!(r.sim.figures[ps].opponent, Some(ms));
+            assert_eq!(r.sim.cues.oil_poured(), 0);
+            r.step();
+        }
+        assert!(!r.is_alive(pot), "FUN_0047A814 writes state 2 (pot first: {pot_first})");
+        assert_eq!(r.sim.cues.oil_poured(), 1);
+    }
+}

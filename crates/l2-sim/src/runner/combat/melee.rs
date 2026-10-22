@@ -188,20 +188,7 @@ impl BattleRunner {
                     let (ua, ub) = (self.unit_of(i), self.unit_of(other));
                     self.join_melee(ua);
                     self.join_melee(ub);
-                    // `BattleMan_Step`'s 999 arm locks the pot into state 4
-                    // with him as its opponent — it tests the walker's troop,
-                    // not the pot's —
-                    // with `if (troopType == 10) FUN_0047A814(pot,
-                    // opponent.mapX, opponent.mapY)`. Poured here at the
-// contact: the
-                    // walker has not moved, so the cell is the same. `[D]` on
-                    // the frame. A walker that is itself oil, or an engine,
-                    // never reaches the 999 arm.
-                    if self.fighters[other].troop == Troop::Oil && self.fighters[i].troop.index() < 7 {
-                        let at = (self.fighters[i].x, self.fighters[i].y);
-                        self.pour_oil(other, at);
-                        return;
-                    }
+                    // The 999 arm puts a pot in state 4 like anyone; it pours on its own Melee_Tick, step_one [V]
                     let (a, b) = (self.fighters[i].sim, self.fighters[other].sim);
                     self.sim.engage(a, b);
                     let facing = self.fighters[i].facing;
