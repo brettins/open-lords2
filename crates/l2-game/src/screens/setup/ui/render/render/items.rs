@@ -19,7 +19,7 @@ use crate::text::{self, TextField};
 use crate::screens::setup::skirmish::ROWS_SHOWN;
 
 impl SetupScreen {
-    pub(super) fn item(&mut self, i: usize, ctx: &mut Ctx) -> Transition {
+    pub(crate) fn item(&mut self, i: usize, ctx: &mut Ctx) -> Transition {
         match (self.page, i) {
             (SetupPage::Title, 0) => {
                 self.network = false;
@@ -138,7 +138,11 @@ impl SetupScreen {
                 self.unhonoured.clear();
                 Transition::Stay
             }
-            (SetupPage::Custom | SetupPage::CustomMulti, _) => self.go(SetupPage::Load),
+            (SetupPage::Custom | SetupPage::CustomMulti, _) => {
+                // FUN_004335F0 0x004335F0 00430000.c:981 `DAT_0052afa4 = 1`; FUN_00432CC8's has none [V]
+                ctx.game.map_click_latch = true;
+                self.go(SetupPage::Load)
+            }
             // ***Back* is `FUN_0043D649` and it goes to page 1**, not page 2:
             //
             // `g_setupPage = 1`, `DAT_0057A0F0 = 0` — the skirmish flag down

@@ -132,6 +132,8 @@ impl Screen for InfoScreen {
                         };
                         let _ = ctx.issue(crate::command::PaintField { county, tile, kind });
                     }
+                    // FUN_00438B02 0x00438B02 00430000.c:4707 `DAT_0052afa4 = 0` [V]
+                    ctx.game.map_click_latch = false;
                     return Transition::Pop;
                 }
             }
@@ -243,6 +245,13 @@ impl Screen for InfoScreen {
                     // unit panel to go back to". There is one now.
                     //
                     // arm: 0x004378B3/info-split left-press
+                    // Panel_SplitButton 0x004378B3 00430000.c:4249,4288-4293: movesUsed >= 1 ->
+                    // Msg_Enqueue 0x95, g_screenId = 0, DAT_0052afa4 = 1; 0x11 never opens [V]
+                    (2, _) if ctx.game.kingdom.campaign.units.get(id).is_some_and(|u| u.moves_used >= 1) => {
+                        crate::message::tell_player(ctx.game, crate::message::group::ALREADY_MARCHED);
+                        ctx.game.map_click_latch = true;
+                        Transition::Pop
+                    }
                     (2, _) => Transition::Push(ScreenId::Divide(id)),
                     _ => Transition::Stay,
                 };

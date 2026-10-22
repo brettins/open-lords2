@@ -118,6 +118,8 @@ pub mod group {
     pub const CASTLE_STRONGER: u16 = 0x122;
     /// `0x91` — `L2.eng` 145; `Panel_DisbandButton` 0x0043733A.
     pub const CANNOT_DISBAND: u16 = 0x91;
+    /// `0x95` — `L2.eng` 149; `Panel_SplitButton` 0x004378B3, `movesUsed >= 1`.
+    pub const ALREADY_MARCHED: u16 = 0x95;
     /// `0x94` — `L2.eng` 148; `Army_RaiseConfirm`, `Army_SplitConfirm` 0x00437AFB.
     pub const UNDER_FIFTY: u16 = 0x94;
     /// `0xA8` — `L2.eng` 168; `Army_RaiseConfirm`, a levy of zero.
