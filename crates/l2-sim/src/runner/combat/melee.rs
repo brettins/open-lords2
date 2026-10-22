@@ -66,6 +66,20 @@ impl BattleRunner {
     ///   it read *before* the fire cleared them. So the fire is lit after the
     ///   decision here, which is the same answer. Engines use
     ///   `Cell_TryEnterEngine`, which has no such test.
+    /// BattleMan_Step 0x0048F1DD 00480000.c:6476-6498: JoinMelee for the stepped-at unit only
+    /// `if (other.state != 4)` (:6489) [V].
+    pub(crate) fn step_at_enemy(&mut self, i: usize, other: usize) {
+        let (a, b) = (self.fighters[i].sim, self.fighters[other].sim);
+        let fighting = self.sim.figures[b].state == State::Melee;
+        let ua = self.unit_of(i);
+        self.join_melee(ua);
+        if !fighting {
+            let ub = self.unit_of(other);
+            self.join_melee(ub);
+        }
+        self.sim.engage_stepped(a, b);
+    }
+
     pub(crate) fn enter(&mut self, i: usize, next: Pos) {
         let troop = self.fighters[i].troop;
         if troop == Troop::SiegeTowers && self.tower_step(i, next) {
@@ -185,25 +199,8 @@ impl BattleRunner {
                     // `00480000.c:6442-6463`.
                     self.friendly_step(i, other);
                 } else if self.is_alive(other) {
-                    let (ua, ub) = (self.unit_of(i), self.unit_of(other));
-                    self.join_melee(ua);
-                    self.join_melee(ub);
-                    // `BattleMan_Step`'s 999 arm locks the pot into state 4
-                    // with him as its opponent — it tests the walker's troop,
-                    // not the pot's —
-                    // with `if (troopType == 10) FUN_0047A814(pot,
-                    // opponent.mapX, opponent.mapY)`. Poured here at the
-// contact: the
-                    // walker has not moved, so the cell is the same. `[D]` on
-                    // the frame. A walker that is itself oil, or an engine,
-                    // never reaches the 999 arm.
-                    if self.fighters[other].troop == Troop::Oil && self.fighters[i].troop.index() < 7 {
-                        let at = (self.fighters[i].x, self.fighters[i].y);
-                        self.pour_oil(other, at);
-                        return;
-                    }
-                    let (a, b) = (self.fighters[i].sim, self.fighters[other].sim);
-                    self.sim.engage(a, b);
+                    // The 999 arm puts a pot in state 4 like anyone; it pours on its own Melee_Tick, step_one [V]
+                    self.step_at_enemy(i, other);
                     let facing = self.fighters[i].facing;
                     self.strike(i, facing);
                 } else {

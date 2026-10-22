@@ -193,6 +193,14 @@ impl BattleRunner {
                 self.fighters[i].phase = phase;
             } else {
                 // `else if (other.state == 4) { Melee_Tick();` 0x004831D8 00480000.c:1395 [V]
+                if self.fighters[i].troop == Troop::Oil {
+                    // Melee_Tick 00490000.c:1788 `if (troopType == 10) FUN_0047A814(cur, other.mapX, other.mapY)` [V]
+                    if let Some(o) = self.opponent_of(i) {
+                        let at = (self.fighters[o].x, self.fighters[o].y);
+                        self.pour_oil(i, at);
+                        return;
+                    }
+                }
                 self.sim.duel(sim);
                 if !self.is_alive(i) {
                     // killed or not, `if ((stepFlags & 1) == 0 && BattleMan_Step(1))` 00480000.c:1396 [V]
@@ -299,6 +307,22 @@ impl BattleRunner {
             return;
         }
 
+        // Melee_AdjacentEnemyDir 0x004972F9 runs before the path direction, 00480000.c:6416-6421 [V]
+        if troop.index() < 7 {
+            if let Some(pot) = self.adjacent_oil(i) {
+                // Cell_TryEnter gives 999, 00480000.c:6476-6498 [V]
+                let (px, py) = (self.fighters[pot].x as i32, self.fighters[pot].y as i32);
+                let f = &mut self.fighters[i];
+                if let Some(fc) = facing_from_delta(px - f.x as i32, py - f.y as i32) {
+                    f.facing = fc;
+                }
+                self.step_at_enemy(i, pot);
+                let facing = self.fighters[i].facing;
+                self.strike(i, facing);
+                return;
+            }
+        }
+
         let Some(next) = self.next_step(i) else {
             self.stand(i);
             return;
@@ -312,16 +336,6 @@ impl BattleRunner {
             // `FUN_00488436`, every frame a tower walks.
             if f.troop == Troop::SiegeTowers {
                 f.polar = crate::siege::tower_polar(f.facing, f.polar);
-            }
-        }
-        if troop.index() < 7 {
-            if let Some(pot) = self.adjacent_oil(i) {
-                let (ua, ub) = (self.unit_of(i), self.unit_of(pot));
-                self.join_melee(ua);
-                self.join_melee(ub);
-                let at = (self.fighters[i].x, self.fighters[i].y);
-                self.pour_oil(pot, at);
-                return;
             }
         }
         self.stand(i);

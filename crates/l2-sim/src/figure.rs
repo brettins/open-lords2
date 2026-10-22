@@ -207,7 +207,10 @@ impl Figure {
     }
 
     pub fn take_hits(&mut self, amount: u16) -> u16 {
-        let threshold = self.hits_per_casualty;
+        self.take_hits_at(amount, self.hits_per_casualty)
+    }
+
+    pub fn take_hits_at(&mut self, amount: u16, threshold: u16) -> u16 {
         self.hits = self.hits.saturating_add(amount);
         let mut killed = 0;
         // Melee_Tick 0x00494908 00490000.c:1801: one `if`, one man a tick [V]

@@ -34,6 +34,10 @@ impl Battle {
         melee::engage(&mut self.figures, a, b);
     }
 
+    pub fn engage_stepped(&mut self, a: usize, b: usize) {
+        melee::engage_stepped(&mut self.figures, a, b);
+    }
+
     pub fn step(&mut self) {
         for i in 0..self.figures.len() {
             self.duel(i);
@@ -129,6 +133,29 @@ mod tests {
         bt
     }
 
+    /// `BattleMan_Step` 00480000.c:6474: the mover's troop is tested, not the one stepped at.
+    #[test]
+    fn a_man_duels_an_engine_but_an_engine_never_starts_one() {
+        let bt = duel(Troop::Swordsmen, Troop::Catapults, 4);
+        assert_eq!(bt.figures[1].state, State::Melee, "the catapult is locked into state 4");
+        assert_eq!(bt.figures[1].opponent, Some(0));
+        let bt = duel(Troop::Catapults, Troop::Swordsmen, 4);
+        assert_ne!(bt.figures[0].state, State::Melee, "an engine mover never gets 999");
+        let bt = duel(Troop::Oil, Troop::Swordsmen, 4);
+        assert_ne!(bt.figures[0].state, State::Melee, "`if (troopType == 10) return 0`");
+    }
+
+    /// Melee_Tick 00490000.c:1801 `if (99 < hits) hits -= 100`, whatever the troop.
+    #[test]
+    fn an_engine_in_melee_loses_a_man_at_100_hits_not_160() {
+        let mut bt = duel(Troop::Swordsmen, Troop::Catapults, 4);
+        bt.figures[1].hits = 90;
+        bt.figures[1].recovery_counter = 0;
+        bt.duel(1);
+        assert_eq!(bt.figures[1].men, 3, "90 + the swordsman's 15 crosses 100");
+        assert_eq!(bt.figures[0].hits, 0, "a catapult's melee attack is 0 (TroopTick_Catapult)");
+    }
+
     #[test]
     fn a_supplied_troop_table_decides_the_battle_instead_of_the_default() {
         let stock = {
@@ -205,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    fn siege_engines_are_never_drawn_into_melee() {
+    fn an_engine_that_steps_at_a_man_is_never_drawn_into_melee() {
         let mut bt = Battle::new();
         bt.add(Troop::Catapults, SIDE_A, 4).unwrap();
         bt.add(Troop::Swordsmen, SIDE_B, 4).unwrap();

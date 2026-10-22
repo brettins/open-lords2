@@ -112,12 +112,8 @@ fn an_oil_fire_goes_out_and_the_wall_comes_back() {
     assert!(fire_at(&r, 35, 30).is_none(), "and the record is gone a frame later");
 }
 
-/// **A green ablation, and it is the finding.** Returning `None` from
-/// `adjacent_oil` alone leaves this green: the swordsman then commits the step
-/// into the pot's cell, and `enter_cell`'s contact arm pours on the same frame
-/// at the same cell. The two paths are the original's one road seen from both
-/// ends — the direction chosen, and the step refused with 999 — so only
-/// ablating **both** turns it red, which it does.
+/// Green with `adjacent_oil` returning `None`: `enter_cell`'s 999 arm engages
+/// the pot instead. Red with the pour in `step_one` ablated.
 #[test]
 fn a_man_who_steps_at_a_pot_of_oil_is_poured_on() {
     let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
@@ -146,3 +142,73 @@ fn a_man_who_steps_at_a_pot_of_oil_is_poured_on() {
 }
 
 
+
+/// The 999 arm (00480000.c:6476-6498) locks both into state 4; the pot's own
+/// Melee_Tick (00490000.c:1788) pours, so a pot earlier in the array pours a
+/// frame after the contact and one later in the array on the contact frame.
+#[test]
+fn a_pot_pours_on_its_own_melee_tick_after_the_man_engages_it() {
+    for pot_first in [true, false] {
+        let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+        let (pot, man) = if pot_first {
+            let p = stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40));
+            (p, stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 44)))
+        } else {
+            let m = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 44));
+            (stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40)), m)
+        };
+        r.fighters[man].target = (40, 36);
+        r.settle();
+        let (ps, ms) = (r.fighters[pot].sim, r.fighters[man].sim);
+        let mut contact = false;
+        for _ in 0..400 {
+            r.step();
+            if r.sim.figures[ms].opponent == Some(ps) {
+                contact = true;
+                break;
+            }
+        }
+        assert!(contact, "he engaged the pot (pot first: {pot_first})");
+        if pot_first {
+            assert!(r.is_alive(pot), "not poured at the contact");
+            assert_eq!(r.sim.figures[ps].state, State::Melee);
+            assert_eq!(r.sim.figures[ps].opponent, Some(ms));
+            assert_eq!(r.sim.cues.oil_poured(), 0);
+            r.step();
+        }
+        assert!(!r.is_alive(pot), "FUN_0047A814 writes state 2 (pot first: {pot_first})");
+        assert_eq!(r.sim.cues.oil_poured(), 1);
+    }
+}
+
+/// 00480000.c:6489 `if (other.state != 4)`: a pot already fighting keeps its opponent.
+#[test]
+fn a_second_man_at_an_engaged_pot_does_not_turn_it() {
+    let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+    let pot = stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40));
+    let first = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (41, 40));
+    let second = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 41));
+    r.fighters[second].target = (40, 30);
+    r.settle();
+    let (ps, fs, ss) = (r.fighters[pot].sim, r.fighters[first].sim, r.fighters[second].sim);
+    r.sim.engage(fs, ps);
+    r.step_one(second);
+    assert_eq!(r.sim.figures[ss].opponent, Some(ps), "he engages the pot");
+    assert_eq!(r.sim.figures[ps].opponent, Some(fs), "it still pours at the first");
+}
+
+/// Melee_AdjacentEnemyDir is asked before the path direction, 00480000.c:6416-6421.
+#[test]
+fn a_man_with_no_next_step_still_engages_an_adjacent_pot() {
+    let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+    let pot = stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40));
+    let man = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 41));
+    r.fighters[man].target = (40, 30);
+    r.fighters[man].path = vec![Pos::new(40, 41)];
+    r.settle();
+    assert!(r.next_step(man).is_none(), "a waypoint on his own cell gives no direction");
+    r.step_one(man);
+    let (ps, ms) = (r.fighters[pot].sim, r.fighters[man].sim);
+    assert_eq!(r.sim.figures[ms].opponent, Some(ps));
+    assert_eq!(r.sim.figures[ps].state, State::Melee);
+}
