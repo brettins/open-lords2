@@ -110,6 +110,15 @@ impl TurnClock {
         self.restart_pending = false;
     }
 
+    /// A step whose ticks FUN_004BB978 0x004BB978 withholds: Turn_Tick does not run, so
+    /// `DAT_005440C8` and Turn_End wait; `_DAT_00568D9C` is not rebased (its 9 writers: start,
+    /// load, battle return, net resync), so the time counts at the next tick [V] 00490000.c:4787.
+    pub fn withheld(&mut self) {
+        if self.started && self.battle_saved.is_none() {
+            self.elapsed_ms += i64::from(crate::TICK_MS);
+        }
+    }
+
     pub fn tick(&mut self, f: Frame) -> Tick {
         if !self.started {
             // `Setup_StartGame` (`0x004329EC`), and the network game's two

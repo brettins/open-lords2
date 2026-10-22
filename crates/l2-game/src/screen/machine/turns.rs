@@ -57,7 +57,7 @@ impl Machine {
         // Turn_Tick 0x0049A010 00490000.c:4787 counts DAT_005440C8 down inside the tick [V].
         // A network game's clock is `net::frame`'s, on the session's tick.
         if !ctx.game.net.lockstep {
-            self.run_turn_clock(ctx);
+            self.run_turn_clock(ctx, withheld);
         } else {
             // Screen_FrameInput 0x0042FF10 force_close, per seat off the shared clock [I]
             self.dirty |= crate::turn_clock::seat_saw_expiry(ctx.game, &mut self.clock_seen);
