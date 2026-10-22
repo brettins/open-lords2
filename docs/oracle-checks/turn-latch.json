@@ -1,0 +1,16 @@
+{ "reviewed": "3f5d1f947905833097a7529a3b9aab683f24fa57",
+  "date": "2026-10-21",
+  "behaviours": [
+    { "file": "crates/l2-game/src/screen/machine/frame.rs", "line": 123,
+      "address": "0x004B99C0", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/turn_clock/clock.rs", "line": 116,
+      "address": "0x004BB978", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 136,
+      "address": "0x00438B02", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/info/screen/screen_impl.rs", "line": 250,
+      "address": "0x004378B3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/message/mod.rs", "line": 122,
+      "address": "0x004378B3", "verdict": "match", "note": "" },
+    { "file": "crates/l2-game/src/screens/setup/ui/render/render/items.rs", "line": 143,
+      "address": "0x004335F0", "verdict": "match", "note": "" }
+  ] }
