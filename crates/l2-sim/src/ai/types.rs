@@ -176,7 +176,8 @@ pub struct Ai {
     /// cyclically instead of at random: the original's own answer to "this is a
     /// networked game, so nothing may diverge". `[V]`.
     pub multiplayer: bool,
-    /// `Options::quirks`, set by the caller; not in the battle save.
+    /// not-encoded: copied from the encoded `kingdom.options.quirks` at battle start
+    /// (fight_session.rs) and on load (save/codec.rs), so the digest covers it there.
     pub quirks: l2_net::Quirks,
     pub rng: Pcg32,
     /// The mechanism is read; the names are **[I]**.
