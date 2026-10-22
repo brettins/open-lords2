@@ -112,12 +112,8 @@ fn an_oil_fire_goes_out_and_the_wall_comes_back() {
     assert!(fire_at(&r, 35, 30).is_none(), "and the record is gone a frame later");
 }
 
-/// **A green ablation, and it is the finding.** Returning `None` from
-/// `adjacent_oil` alone leaves this green: the swordsman then commits the step
-/// into the pot's cell, and `enter_cell`'s contact arm pours on the same frame
-/// at the same cell. The two paths are the original's one road seen from both
-/// ends — the direction chosen, and the step refused with 999 — so only
-/// ablating **both** turns it red, which it does.
+/// Green with `adjacent_oil` returning `None`: `enter_cell`'s 999 arm engages
+/// the pot instead. Red with the pour in `step_one` ablated.
 #[test]
 fn a_man_who_steps_at_a_pot_of_oil_is_poured_on() {
     let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
