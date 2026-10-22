@@ -35,6 +35,22 @@ pub fn engage(figs: &mut [Figure], a: usize, b: usize) {
     fb.exchange = fb.stats().exchange as i32;
 }
 
+/// BattleMan_Step's 999 arm 0x0048F1DD 00480000.c:6476-6498: the mover always, the one stepped at
+/// only `if (other.state != 4)` (:6489) [V].
+pub fn engage_stepped(figs: &mut [Figure], a: usize, b: usize) {
+    if figs[b].state != State::Melee {
+        return engage(figs, a, b);
+    }
+    let (fa, fb) = pair_mut(figs, a, b);
+    if !fa.is_alive() || !fb.is_alive() || fa.troop.is_siege() {
+        return;
+    }
+    fa.state = State::Melee;
+    fa.opponent = Some(b);
+    fa.role = Role::Attacking;
+    fa.exchange = fa.stats().exchange as i32;
+}
+
 pub fn tick(figs: &mut [Figure], idx: usize) {
     if figs[idx].state != State::Melee {
         return;

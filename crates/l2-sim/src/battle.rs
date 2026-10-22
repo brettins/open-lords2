@@ -34,6 +34,10 @@ impl Battle {
         melee::engage(&mut self.figures, a, b);
     }
 
+    pub fn engage_stepped(&mut self, a: usize, b: usize) {
+        melee::engage_stepped(&mut self.figures, a, b);
+    }
+
     pub fn step(&mut self) {
         for i in 0..self.figures.len() {
             self.duel(i);

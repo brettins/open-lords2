@@ -307,6 +307,22 @@ impl BattleRunner {
             return;
         }
 
+        // Melee_AdjacentEnemyDir 0x004972F9 runs before the path direction, 00480000.c:6416-6421 [V]
+        if troop.index() < 7 {
+            if let Some(pot) = self.adjacent_oil(i) {
+                // Cell_TryEnter gives 999, 00480000.c:6476-6498 [V]
+                let (px, py) = (self.fighters[pot].x as i32, self.fighters[pot].y as i32);
+                let f = &mut self.fighters[i];
+                if let Some(fc) = facing_from_delta(px - f.x as i32, py - f.y as i32) {
+                    f.facing = fc;
+                }
+                self.step_at_enemy(i, pot);
+                let facing = self.fighters[i].facing;
+                self.strike(i, facing);
+                return;
+            }
+        }
+
         let Some(next) = self.next_step(i) else {
             self.stand(i);
             return;
@@ -320,24 +336,6 @@ impl BattleRunner {
             // `FUN_00488436`, every frame a tower walks.
             if f.troop == Troop::SiegeTowers {
                 f.polar = crate::siege::tower_polar(f.facing, f.polar);
-            }
-        }
-        if troop.index() < 7 {
-            if let Some(pot) = self.adjacent_oil(i) {
-                // Melee_AdjacentEnemyDir 0x004972F9 aims the step, Cell_TryEnter gives 999, 00480000.c:6476-6498 [V]
-                let (ua, ub) = (self.unit_of(i), self.unit_of(pot));
-                self.join_melee(ua);
-                self.join_melee(ub);
-                let (px, py) = (self.fighters[pot].x as i32, self.fighters[pot].y as i32);
-                let f = &mut self.fighters[i];
-                if let Some(fc) = facing_from_delta(px - f.x as i32, py - f.y as i32) {
-                    f.facing = fc;
-                }
-                let (a, b) = (self.fighters[i].sim, self.fighters[pot].sim);
-                self.sim.engage(a, b);
-                let facing = self.fighters[i].facing;
-                self.strike(i, facing);
-                return;
             }
         }
         self.stand(i);

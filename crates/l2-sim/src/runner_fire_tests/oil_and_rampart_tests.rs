@@ -180,3 +180,35 @@ fn a_pot_pours_on_its_own_melee_tick_after_the_man_engages_it() {
         assert_eq!(r.sim.cues.oil_poured(), 1);
     }
 }
+
+/// 00480000.c:6489 `if (other.state != 4)`: a pot already fighting keeps its opponent.
+#[test]
+fn a_second_man_at_an_engaged_pot_does_not_turn_it() {
+    let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+    let pot = stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40));
+    let first = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (41, 40));
+    let second = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 41));
+    r.fighters[second].target = (40, 30);
+    r.settle();
+    let (ps, fs, ss) = (r.fighters[pot].sim, r.fighters[first].sim, r.fighters[second].sim);
+    r.sim.engage(fs, ps);
+    r.step_one(second);
+    assert_eq!(r.sim.figures[ss].opponent, Some(ps), "he engages the pot");
+    assert_eq!(r.sim.figures[ps].opponent, Some(fs), "it still pours at the first");
+}
+
+/// Melee_AdjacentEnemyDir is asked before the path direction, 00480000.c:6416-6421.
+#[test]
+fn a_man_with_no_next_step_still_engages_an_adjacent_pot() {
+    let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
+    let pot = stand(&mut r, Troop::Oil, SIDE_A, 1, false, (40, 40));
+    let man = stand(&mut r, Troop::Swordsmen, SIDE_B, 2, false, (40, 41));
+    r.fighters[man].target = (40, 30);
+    r.fighters[man].path = vec![Pos::new(40, 41)];
+    r.settle();
+    assert!(r.next_step(man).is_none(), "a waypoint on his own cell gives no direction");
+    r.step_one(man);
+    let (ps, ms) = (r.fighters[pot].sim, r.fighters[man].sim);
+    assert_eq!(r.sim.figures[ms].opponent, Some(ps));
+    assert_eq!(r.sim.figures[ps].state, State::Melee);
+}
