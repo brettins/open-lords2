@@ -36,7 +36,8 @@ fn until_failed(game: &mut Game, driver: &mut Option<Driver>) -> (String, Durati
 /// blocks for the connect); `Phase::Connecting` in `net::lobby`.
 #[test]
 fn a_join_to_a_closed_port_connects_off_the_ui_thread_and_says_why_it_failed() {
-    let port = std::net::TcpListener::bind(crate::loopback::ANY_PORT).unwrap().local_addr().unwrap().port();
+    // [I] below the ephemeral range: a freed ephemeral port went to another test's listener.
+    let port = 1;
     let mut game = joiner(format!("127.0.0.1:{port}"));
     let mut driver: Option<Driver> = None;
     let _ = net::lobby(&mut driver, &mut game, None, Tables::DEFAULT);
