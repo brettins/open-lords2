@@ -166,6 +166,8 @@ impl SetupScreen {
         if let Some(c) = campaign {
             ctx.game.campaign = c;
         }
+        // Game_NewGame 0x00497CED clears g_gameOutcome 0x0053F0C4 [V], `docs/symbols.md`.
+        ctx.game.campaign.outcome = l2_kingdom::victory::Outcome::InPlay;
         settings.apply_to(ctx.game);
         self.name_the_lords(ctx);
         ctx.game.last_report = Some(ctx.game.kingdom.start_new_game());
