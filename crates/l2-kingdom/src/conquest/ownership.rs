@@ -69,7 +69,7 @@ pub fn make_independent(
 /// `+0x1BC` and unit `+0x198` together, so the original can never hold a county
 /// pointing at an army that does not point back. [`leave_castle`] does test,
 /// and a half-link would otherwise survive the capture.
-fn hand_off(
+pub fn hand_off(
     map: &CampaignMap,
     counties: &mut [County; MAX_COUNTIES],
     realms: &[Realm; MAX_REALMS],

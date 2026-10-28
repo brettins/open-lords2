@@ -46,6 +46,43 @@ impl Kingdom {
         let r = self.restore();
         let Kingdom { counties, realms, campaign, tables, .. } = self;
         crate::conquest::make_independent(tables, counties, realms, county as u8, &campaign.map, r);
+        // `County_MakeIndependent`'s last statement, `if (garrison) FUN_00437535(garrison, county)`
+        // (`0x004AC3C6` tail). Without it a revolt left the old owner's garrison in a castle
+        // that is nobody's, and an army of the same realm could lay siege to it.
+        self.march_garrison_out(county);
+    }
+
+    /// `FUN_00437535` (`0x00437535`) for a county that changed owner without a capture.
+    /// [D] the sortie its tail can start is not fought: this crate cannot fight one, so the
+    /// men stand in the field and are no longer besieged.
+    fn march_garrison_out(&mut self, county: usize) {
+        let garrison = self.counties[county].garrison_unit;
+        if garrison == 0 {
+            return;
+        }
+        let Kingdom { counties, realms, campaign, .. } = self;
+        let units = &mut campaign.units;
+        crate::conquest::hand_off(&campaign.map, counties, realms, units, garrison, county as u8);
+        if let Some(u) = units.get_mut(garrison).filter(|u| u.garrison_county == 0) {
+            u.besieged_by = 0;
+        }
+    }
+
+    /// [D] ours: a save written before the hand-off above can hold a garrison whose owner is
+    /// not the county's. [I] the original never does: `Army_GarrisonApply` (`0x004A79A3`)
+    /// garrisons an owner's castle and every change of owner calls `FUN_00437535`. On load
+    /// the men march out. Returns the counties that lost a garrison.
+    pub fn release_foreign_garrisons(&mut self) -> Vec<u8> {
+        let mut released = Vec::new();
+        for id in 1..=self.county_count.min(MAX_COUNTIES - 1) {
+            let c = &self.counties[id];
+            let owner = self.campaign.units.get(c.garrison_unit).map(|u| u.owner);
+            if c.garrison_unit != 0 && owner.is_some_and(|o| o != c.owner) {
+                self.march_garrison_out(id);
+                released.push(id as u8);
+            }
+        }
+        released
     }
 
     /// The blacksmith's stockpile share ([`industry::weapon_shares`],

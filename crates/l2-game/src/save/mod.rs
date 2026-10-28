@@ -215,6 +215,11 @@ pub fn resume(game: &mut Game) {
         // `g_battleWithdrawal = 0` — `00470000.c:3220`.
         battle.runner.clear_withdrawal();
     }
+    // [D] ours: `Kingdom::release_foreign_garrisons`, for a save written before
+    // `County_MakeIndependent`'s garrison hand-off (`0x004AC3C6` tail) was reproduced.
+    for county in game.kingdom.release_foreign_garrisons() {
+        eprintln!("load: the garrison of county {county} was not its owner's and marched out");
+    }
 }
 
 
