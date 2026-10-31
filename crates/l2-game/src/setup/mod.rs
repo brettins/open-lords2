@@ -149,6 +149,8 @@ pub struct Settings {
     pub garrison: [i32; TROOP_TYPES],
     pub county: CountyStart,
     pub ai_lords: i32,
+    /// `DAT_0055302C == 1`: Setup_ChooseCampaign 0x00433461 `00430000.c:891`.
+    pub campaign: bool,
 }
 
 #[cfg(test)]

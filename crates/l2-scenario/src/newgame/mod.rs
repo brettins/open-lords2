@@ -201,6 +201,9 @@ pub struct NewGame {
     /// which is what lets two lockstep peers build the same world from the same
     /// lobby settings.
     pub seed: u64,
+    /// `DAT_0055302C == 1`; `Realms_AssignLords` (`0x0049CAAA`) then deals
+    /// from group 0 whatever the map. [V] live, C269.
+    pub campaign: bool,
 }
 
 impl Default for NewGame {
@@ -215,6 +218,7 @@ impl Default for NewGame {
             shield: 1,
             humans: [0; l2_kingdom::realm::MAX_REALMS],
             seed: 0,
+            campaign: false,
         }
     }
 }

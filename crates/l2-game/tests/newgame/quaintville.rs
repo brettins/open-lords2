@@ -83,3 +83,24 @@ fn a_network_game_deals_from_start_not_the_clock() {
     assert_eq!(new_game_seed(Some(1), Some(&start)), 0x5EED);
     assert_eq!(new_game_seed(Some(2), Some(&start)), 0x5EED);
 }
+
+/// **The campaign's first rival, measured in `Lords2.exe` 2026-10-30**: six
+/// Quaintville starts under wine, realm 2's `+0x07` and `+0x0A` read live.
+/// `Realms_AssignLords` (`0x0049CAAA`) deals group 0 when `DAT_0055302C == 1`.
+/// C269. Ablation: `assign_lords`' `if setup.campaign { 0 }`.
+#[test]
+fn quaintvilles_rival_is_the_knight_only_when_the_player_is_red() {
+    let assets = assets!();
+    let tables = Game::new(SEED).kingdom.tables;
+    let row = l2_game::victory::Campaign::new(l2_game::victory::Track::First);
+    let row = row.current().expect("the first campaign has a first map");
+    assert_eq!(row.scenario, QUAINTVILLE);
+    let settings = row.settings(l2_kingdom::Quirks::default());
+    // (player's shield, rival's shield, rival's lord): 1 Knight, 2 Baron.
+    for (shield, rival_shield, rival) in [(1, 2, 1), (2, 1, 2), (3, 1, 2), (4, 1, 2), (5, 1, 2)] {
+        let game = scenario::new_game(&assets, QUAINTVILLE, &settings, 1, shield, SEED, tables)
+            .expect("Quaintville builds");
+        let r = &game.kingdom.realms[2];
+        assert_eq!((r.shield_index, r.lord), (rival_shield, rival), "player shield {shield}");
+    }
+}

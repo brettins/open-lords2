@@ -12862,3 +12862,17 @@ squares. The pens are red, yellow, (36,36,36), purple, blue; their indices read 
 `Custom.256` as in the campaign palette, so the lobby shows the colour the realm flies on the
 map. Shield 3's realm is the dark one, and its plaque stays dark by design. Test: `net_game`
 `each_roster_plaque_is_filled_with_its_shields_realm_pen`.
+
+**C269 — The campaign deals its lords from `g_lordChoice` group 0, whatever the map.**
+`Realms_AssignLords` (`0x0049CAAA`) reads group 0 when `DAT_0055302C == 1` and
+`g_scenarioIndex & 3` otherwise; `assign_lords` took the second for every game, marked `[D]`
+because the flag was unread. `Setup_ChooseCampaign` (`0x00433461`, `00430000.c:891`) sets it
+to 1. **[V] live**: six Quaintville starts in `Lords2.exe` under wine on 2026-10-30, realm 2's
+`+0x07`, `+0x0A` and `g_playerNames` read from `/proc/<pid>/mem`, flag read as 1 and
+`g_scenarioIndex` as 17. The player's shield → the rival: no click or red → yellow, the
+Knight; yellow, black, magenta or blue → red, the Baron. Ours gave the Bishop for red and the
+Knight otherwise. This is the player's withheld Quaintville bug (`holdout-quaintville-lord`);
+his memory was Knight except on yellow, the measurement is the table above. Not changed:
+`g_multiplayer != 0` also reads group 0 `[D]`, unmeasured; a lobby game still deals by map.
+Test: `newgame` `quaintvilles_rival_is_the_knight_only_when_the_player_is_red`; ablating the
+`if setup.campaign { 0 }` arm turns red into the Bishop.

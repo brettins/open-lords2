@@ -45,14 +45,11 @@ pub(crate) struct Assignment {
 ///
 /// `docs/decisions.md` C130.
 ///
-/// **`[D]` on the group.** The original picks the deterministic group 0 when
-/// `DAT_0055302C == 1` and `(g_scenarioIndex & 3)` otherwise, and what
-/// `DAT_0055302C` is has not been read. The scenario-varying path is taken here
-/// because it is the one a single-player custom game reaches unless that flag
-/// is set, and because it is the only reading under which the four groups exist
-/// for a reason.
+/// Group: `DAT_0055302C == 1` (the campaign) reads group 0, else
+/// `g_scenarioIndex & 3`; `00490000.c` `Realms_AssignLords`. [V] live, C269.
+/// Not reproduced: `g_multiplayer != 0` also reads group 0 [D].
 pub(crate) fn assign_lords(setup: &NewGame, lords: usize) -> Assignment {
-    let group = setup.slot & 3;
+    let group = if setup.campaign { 0 } else { setup.slot & 3 };
     let human = setup.local_player as usize;
     let mut a = Assignment { shield: [0; MAX_REALMS], lord: [0; MAX_REALMS] };
     let mut shield_taken = [false; 6];

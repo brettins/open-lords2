@@ -117,6 +117,7 @@ impl CampaignMap {
             garrison: START_TROOPS[self.army_size()],
             county: COUNTY_STATUS[self.county_status()],
             ai_lords: self.ai_lords(),
+            campaign: true,
         }
     }
 }

@@ -90,6 +90,7 @@ impl SetupOptions {
             // stops handing out lords when it has handed out this many,
             // negative simply means.
             ai_lords: self.lords() as i32 - human_players as i32,
+            campaign: false,
         }
     }
 }

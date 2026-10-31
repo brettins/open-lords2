@@ -240,6 +240,7 @@ fn build(
         shield: people.get(local as usize).copied().unwrap_or(0),
         humans: *people,
         seed,
+        campaign: settings.campaign,
     };
     let scenario = Scenario::from_map(&map, &setup).map_err(Error::Map)?;
 

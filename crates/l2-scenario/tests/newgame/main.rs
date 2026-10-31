@@ -48,6 +48,7 @@ fn england_pair(save: &l2_formats::save::Save, maps: &[u8]) -> (Scenario, Scenar
         shield: from_save.realms[from_save.local_player as usize].shield_index,
         humans: [0; l2_kingdom::realm::MAX_REALMS],
         seed: SEED,
+        campaign: false,
         options: from_save.options,
     };
     let from_map = Scenario::from_map(&slot, &setup).expect("England builds");
