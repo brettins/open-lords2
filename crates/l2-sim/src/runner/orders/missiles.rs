@@ -163,7 +163,11 @@ impl BattleRunner {
                 m.blocked = true;
             }
         }
-        if self.blocked[cell] {
+        // `Missile_Step` reads `flags & 0x80` here, not the mover's `0x90`. A
+        // hill carries `0x80`; water, a moat, a rampart and a parapet carry
+        // only `0x10`, so a missile flies over them. `self.blocked` is the
+        // mover's map and stopped every arrow at a river or a wall. [V]
+        if self.field.cells[cell].flags & crate::terrain::flag::BLOCKED != 0 {
             self.missiles.get_mut(slot).blocked = true;
         }
         {

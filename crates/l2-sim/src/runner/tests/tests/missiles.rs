@@ -249,3 +249,50 @@ fn a_catapult_is_cued_as_it_fires_and_never_as_hitting_a_man() {
 }
 
 
+
+/// Set the cells `xs` of the firing row to `flags` and `elevation`, and keep
+/// the mover's map in step with them.
+fn paint(r: &mut BattleRunner, xs: std::ops::RangeInclusive<usize>, flags: u8, elevation: u8) {
+    for x in xs {
+        let c = 40 * DIM + x;
+        r.field.cells[c].flags |= flags;
+        r.field.cells[c].elevation = elevation;
+        r.sync_cell(c);
+    }
+}
+
+#[test]
+fn an_arrow_flies_over_a_river() {
+    let mut r = firing_line(Troop::Archers, Troop::Peasants, 10);
+    paint(&mut r, 23..=27, crate::terrain::flag::IMPASSABLE, 0);
+    r.run(600);
+    assert!(r.men_of_side(SIDE_B) < 4, "water stops a man, not an arrow");
+}
+
+#[test]
+fn an_archer_on_a_wall_shoots_over_the_parapet() {
+    let mut r = firing_line(Troop::Archers, Troop::Peasants, 10);
+    paint(&mut r, 20..=20, 0, 1);
+    paint(&mut r, 21..=22, crate::terrain::flag::IMPASSABLE | crate::siege::FLAG_WALL, 1);
+    paint(&mut r, 24..=25, crate::terrain::flag::IMPASSABLE, 0);
+    r.run(600);
+    assert!(r.men_of_side(SIDE_B) < 4, "the parapet and the moat let the arrow pass");
+}
+
+#[test]
+fn an_archer_on_the_ground_hits_a_man_on_the_wall() {
+    let mut r = firing_line(Troop::Archers, Troop::Peasants, 10);
+    paint(&mut r, 24..=25, crate::terrain::flag::IMPASSABLE, 0);
+    paint(&mut r, 28..=29, crate::terrain::flag::IMPASSABLE | crate::siege::FLAG_WALL, 1);
+    paint(&mut r, 30..=30, 0, 1);
+    r.run(600);
+    assert!(r.men_of_side(SIDE_B) < 4, "the moat and the wall face let the arrow pass");
+}
+
+#[test]
+fn a_hill_still_stops_an_arrow() {
+    let mut r = firing_line(Troop::Archers, Troop::Peasants, 10);
+    paint(&mut r, 24..=26, crate::terrain::flag::IMPASSABLE | crate::terrain::flag::BLOCKED, 0);
+    r.run(600);
+    assert_eq!(r.men_of_side(SIDE_B), 4, "a cell with flag 0x80 stops the arrow");
+}
