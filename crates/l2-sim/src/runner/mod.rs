@@ -25,6 +25,10 @@ mod dying_tests;
 mod dead_archer_tests;
 mod fighter;
 mod save;
+mod modern;
+pub use modern::{Modern, Queued, UnitMode, Verb, QUEUE_MAX};
+#[cfg(test)]
+mod modern_tests;
 mod import;
 pub use import::{FIELD_LEN, MEN_LEN};
 mod muster;
@@ -292,6 +296,8 @@ pub struct BattleRunner {
     /// fighter loop, so a decoded value never reaches `00480000.c:1484`.
     humans_in_woods: u32,
     pub tick: u32,
+    /// Modern battle controls' per-unit state (C272). Empty until a Modern seat commands.
+    pub modern: Modern,
 }
 
 const MEN_PER_FIGURE: u16 = 4;

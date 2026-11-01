@@ -186,6 +186,7 @@ impl BattleRunner {
             size_class: 0,
             wood_fire: false,
             humans_in_woods: 0,
+            modern: Modern::default(),
             tick: 0,
         }
     }

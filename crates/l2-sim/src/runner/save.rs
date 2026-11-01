@@ -4,7 +4,7 @@
 
 use l2_net::{Canonical, CodecError, Decode, Encode, Reader};
 
-use super::{BattleRunner, Conclusion, End, Fighter};
+use super::{BattleRunner, Conclusion, End, Fighter, Modern};
 use crate::ai::{Ai, AiField};
 use crate::battle::Battle;
 use crate::missile::Missiles;
@@ -193,6 +193,7 @@ impl Encode for BattleRunner {
         // `blocked_ticks` seed (`00480000.c:2088`), which is simulation state,
         // and `docs/netcode.md` does not let that come from process memory.
         out.u32(self.tick);
+        self.modern.encode(out);
         out.end_section();
     }
 }
@@ -240,6 +241,7 @@ impl Decode for BattleRunner {
             wood_fire: input.bool()?,
             humans_in_woods: 0,
             tick: input.u32()?,
+            modern: Modern::decode(input)?,
         })
     }
 }
