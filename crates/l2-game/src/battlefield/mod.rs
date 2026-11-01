@@ -371,6 +371,7 @@ pub struct LiveBattle {
     pub armed: bool,
     /// not-encoded: Modern's single-player speed, -1 (half), 0, 1 (double).
     pub speed: i8,
+    /// not-encoded: half speed's every-other-frame beat, local pacing like `speed`.
     pub speed_beat: bool,
 }
 

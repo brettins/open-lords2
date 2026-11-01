@@ -195,7 +195,7 @@ impl BattleRunner {
                 mode.passive = verb == Verb::Hold;
                 self.hold(unit);
             }
-            Verb::Line => self.order_formation(unit, Formation::Line),
+            Verb::Line => self.order_formation(unit, Formation::Line), // FUN_0043C77A 0x0043C77A per unit
             Verb::Column => self.order_formation(unit, Formation::Column),
             Verb::Merge => {}
         }

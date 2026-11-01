@@ -30,7 +30,7 @@ impl BattleRunner {
         for u in reform {
             self.reform_unit(u);
         }
-        self.modern_sweep();
+        self.modern_sweep(); // C272, after the units pass of `Battle_UpdateAllUnits` 0x00489401
 
         // `Battle_UpdateAllMen` (`0x004822ED`): `targeted` `:893-894` and
         // `firing` `:896-897`, each counted down to zero.
