@@ -125,13 +125,13 @@ pub(super) fn pick_merchant_starts(w: &mut MapWorld) {
 }
 
 
-/// `FUN_00497E65` (`0x00497E65`) — **the start table is shuffled, and that is
-/// why which realm you play is different every game.**
+/// `PlayerStart_Shuffle` (`0x00497E65`), first half: the start table is re-dealt,
+/// which is why the realm you play differs per game **[V]** `docs/symbols.md`.
 ///
-/// **`[D]`, and the function had no name until now.** Its second half deals a
-/// 48-entry table into `DAT_0057CAE0` and fills `DAT_00553080` with a value per
-/// entry (`0`, `100`, or `6 + 5n`); neither destination has been traced and
-/// neither is a player start, so neither is reproduced.
+/// **[D]** the draws are our `Pcg32`, not the shared `Rand_Advance` stream (C62).
+/// The second half, the 48-entry deal into `DAT_0057CAE0` and the `DAT_00553080`
+/// fill (`00490000.c:3455-3461`), is `l2_kingdom::field_playlist::FieldPlaylist::deal`,
+/// called from `Kingdom::new` (`kingdom/pipeline/.../setup.rs:53`).
 fn shuffle_starts(w: &MapWorld, seed: u64) -> Vec<u8> {
     let src: Vec<u8> = (1..w.player_start.len()).map(|m| w.player_start[m]).collect();
     let live = src.iter().filter(|&&c| c != 0).count();
