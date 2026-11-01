@@ -170,20 +170,22 @@
     {
       "q": "Q270",
       "row": "battle-controls-modern",
-      "state": "open",
+      "state": "answered",
       "title": "Which battle controls a player gets by default",
       "inplay": "The battle gets two control schemes. Classic is the original: a box regroups the picked men into one new unit, left-click moves, right-click deselects. Modern is StarCraft-style: left selects whole units, right commands, attack-move and hotkeys. Classic stays exact, and the comparisons with the original run on it.",
       "todo": "Choose: (recommend) Modern is an option until selection, right-click orders, groups and attack-move all work, then becomes the default; (modern-now) Modern is the default from its first build; (classic) Classic stays the default.",
-      "ask": "Reply: Q270 recommend|modern-now|classic"
+      "ask": "Reply: Q270 recommend|modern-now|classic",
+      "answer": "classic: Classic stays the default; Modern is a per-seat pref.",
+      "outcome": "docs/battle-controls.md §8 and §2: Modern is opt-in in prefs; no switch of the default is planned."
     },
     {
       "q": "Q271",
       "row": "battle-controls-modern",
       "state": "open",
-      "title": "Should your units pile into a fight on contact, as the computer's do?",
-      "inplay": "In the original, when a computer unit touches yours the whole unit charges in; when yours touches theirs, only the men in contact fight and the rest stand (BattleUnit_JoinMelee skips a player's unit). Modern controls can lift that for your units, the way StarCraft units fight back by themselves, with Hold to keep a unit standing.",
-      "todo": "Choose: (yes) modern units engage on contact and Hold stops it; (no) keep the original behaviour in both schemes; (stance) a per-unit switch, off by default.",
-      "ask": "Reply: Q271 yes|no|stance"
+      "title": "What a modern unit does when an enemy comes at it",
+      "inplay": "Contact in the original is one man stepping into an enemy's cell: those two duel, and only a computer unit then charges as a whole (BattleUnit_JoinMelee skips yours). Being shot only marks the unit hit for 50 frames, which only the AI reads. In StarCraft 2, a moving unit ignores enemies; an idle one attacks whatever comes within its acquire range or shoots it, and chases; attack-move does the same while walking; hold fights only what is in reach and never moves.",
+      "todo": "Choose: (sc2, recommend) stances from the last order: Move = the original's player behaviour; idle, Stop and attack-move engage when touched, when shot, or when an enemy unit is within the AI's own acquire radius (8 cells foot, 9 melee; bows and crossbows shoot in weapon range and do not walk), and stop when none is left within it; Hold = the original's player behaviour, standing. (touch) only a touch pulls the whole unit in. (no) the original's behaviour in both schemes.",
+      "ask": "Reply: Q271 sc2|touch|no"
     }
   ],
   "reports": [

@@ -1,7 +1,7 @@
 # Modern battle controls — plan
 
 **Proposal, 2026-11-01.** Owner's brief: bring the battle up to modern RTS controls, StarCraft II
-as the reference; redesign the interface; no new battlefield art. Open: Q270, Q271 (§8).
+as the reference; redesign the interface; no new battlefield art. Q270 answered (Classic stays the default); open: Q271 (§8).
 
 ## 0. Verdict
 
@@ -44,7 +44,8 @@ not join a melee on contact; an AI unit does** (`BattleUnit_JoinMelee` skips `hu
 
 ## 2. The principle (becomes a C-entry when agreed)
 
-Two schemes, `BattleControls=Classic|Modern` in prefs, chosen per seat.
+Two schemes, `BattleControls=Classic|Modern` in prefs, chosen per seat. **Classic is the
+default** (Q270); Modern is opt-in.
 
 1. **Classic stays 1:1.** It is what `arms.rs`, the oracle checks and the arms count in
    `CLAUDE.md` rule 5 measure. Nothing here edits a classic arm.
@@ -105,7 +106,7 @@ Verb = Move | AttackMove | Stop | Hold | Line | Column | Merge
 | **Attack-move** (A, click) | the move; each unit sweep, `Enemy_NearestUnit(unit, 9, 3)` (the AI's melee constants, a starting point) → melee `Order_ChargeNearest`, missile `Order_ShootAtUnit` in range; no enemy left, re-issue the move | a unit flag and one check in the sweep |
 | **Stop** (S) | `Order_HoldPosition` | none |
 | **Hold** (H) | `Order_HoldPosition`, and the unit's men do not enter the chase (state 8); bows still shoot, state 5 fires by itself (`docs/battle.md` §6.2) | a flag on chase entry |
-| **Engage on contact** | `BattleUnit_JoinMelee` without the `human` skip for that unit | a flag; Q271 |
+| **Stances** (Q271) | see §8: Move and Hold are the original's player behaviour; idle, Stop and attack-move engage on touch (`BattleUnit_JoinMelee` without the `human` skip), on a hit (unit `+0x0A`, `docs/battle-ai.md` §3.2) or within `Enemy_NearestUnit`'s 8/9 cells | a stance byte; the stop-when-clear radius is [I] ours |
 | **Queue** (Shift) | up to 8 orders a unit, the next taken when its men stand idle at the target | [I] ours: the one new rule |
 | **Line / column for every selected unit** | `FUN_0043C77A` per unit (classic turns one) | none |
 | **Merge** (M) | §3 | none |
@@ -206,7 +207,8 @@ SC2's key where SC2 has the verb; classic's where it does not collide.
 
 * **Balance.** The AI was tuned against classic hands: one unit at a time and no contact
   join. Attack-move and engage-on-contact make a player far stronger. Measure it with the
-  fought-battle harness after P2. It is not a reason to hold back.
+  fought-battle harness after P2. It is not a reason to hold back. **The battle AI is not
+  changed here** (owner, 2026-11-01: it needs strengthening, later).
 * **Multiplayer.** A modern seat can face a classic one with better tools. Recommended:
   allowed, and the host may lock one scheme for the room (P5).
 * **The new ops change the ruleset version** (D-12), as they should; recorded games replay
@@ -218,8 +220,19 @@ SC2's key where SC2 has the verb; classic's where it does not collide.
 
 ## 8. Open questions
 
-* **Q270 — the default scheme.** Recommended: Modern is an option until P1 and P2 land, then
-  the default; Classic stays one switch away and is what the oracle tests pin.
-* **Q271 — engage on contact.** Should modern units pile into a fight the way the computer's
-  do, with Hold to keep one standing? Recommended yes: it is SC2's auto-acquire, and it is the
-  original's own rule with one skip lifted.
+* **Q270 — answered: Classic.** Classic is the default; Modern is a pref. Nothing switches it.
+* **Q271 — what a modern unit does when an enemy comes at it.**
+  *Contact in the original* **[D]** (`docs/battle-ai.md` §4.2, `docs/battle.md` §7): a man's
+  step into an enemy's cell (`Cell_TryEnter` 999). The two duel; a computer unit then charges
+  whole (`BattleUnit_JoinMelee`), a player's does not, so only the men touching fight. Being
+  shot is not contact: it marks the unit hit for 50 frames, read only by the AI.
+  *StarCraft II*, as it plays: Move ignores enemies; an idle unit attacks what enters its
+  acquire range and chases it, and goes after a shooter it cannot see; attack-move is idle
+  behaviour while walking; Hold fights what is in reach and never moves.
+  *Recommended (`sc2`)*: the stance is the last order. Move: the original's player
+  behaviour. Idle, Stop, attack-move: engage when touched, when hit, or when an enemy unit is
+  within the AI's own acquire radius (`Enemy_NearestUnit`: 8 cells foot, 9 melee); melee
+  charges (`Order_ChargeNearest`), bows and crossbows shoot in weapon range and do not walk;
+  the unit stops and reforms when no enemy is left within that radius ([I] ours: a charged AI
+  unit's chase has no range limit, `Melee_ChooseChaseTarget`). Hold: the original's player
+  behaviour, standing. Alternatives: `touch` (a touch alone pulls the unit in), `no`.
