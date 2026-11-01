@@ -253,6 +253,7 @@ pub(super) fn decode_prefix(input: &mut Reader<'_>, kingdom: Kingdom) -> Result<
         owners,
         leaving: None,
         season_save: None,
+        shift_held: false,
         net: Default::default(),
         ai_granted: false,
         player,

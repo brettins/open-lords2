@@ -2,6 +2,7 @@
 //! once; in a network game it waits for its tick. `docs/netcode.md` §4.
 
 use super::*;
+pub use l2_sim::Verb;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BattleOp {
@@ -16,6 +17,9 @@ pub enum BattleOp {
     Sally,
     Autocalc,
     SkipOutcome,
+    /// C272: every Modern order. `units` are battle-unit ids; the sim refuses the whole op unless
+    /// each is live and the issuing seat's. `at` is the clicked cell, `target` an enemy figure.
+    Command { units: Vec<u8>, verb: Verb, at: (u8, u8), target: Option<usize>, queue: bool },
 }
 
 /// What a seat does when its own queued op lands, read from the applied
@@ -42,7 +46,7 @@ impl LiveBattle {
         let (_, follow) = self.awaiting.drain(..=i).last().expect("found");
         match follow {
             Follow::Cry { class, if_held } => {
-                if !if_held || self.runner.selected_count(self.owner) != 0 {
+                if !if_held || self.picked_count() != 0 {
                     self.cry(class);
                 }
             }
@@ -132,6 +136,16 @@ impl LiveBattle {
             }
             BattleOp::Autocalc => {
                 self.autocalc = true;
+                false
+            }
+            BattleOp::Command { units, verb, at, target, queue } => {
+                // No pause test: Tier 1 row 6, orders while paused, is the point of the scheme.
+                let Some(made) = self.runner.command(realm, &units, verb, at, target, queue) else {
+                    return false;
+                };
+                if verb == Verb::Merge && realm == self.owner && made != 0 {
+                    self.sel = vec![made as u8];
+                }
                 false
             }
             BattleOp::SkipOutcome => {

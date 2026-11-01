@@ -3,7 +3,7 @@
 
 use super::codec::Wire;
 use super::*;
-use crate::battlefield::BattleOp;
+use crate::battlefield::{BattleOp, Verb};
 use l2_net::{Canonical, CodecError, Reader};
 use l2_sim::runner::Formation;
 
@@ -13,6 +13,15 @@ impl Wire for Vec<usize> {
     }
     fn get(input: &mut Reader<'_>) -> Result<Self, CodecError> {
         input.seq(|r| usize::get(r))
+    }
+}
+
+impl Wire for Vec<u8> {
+    fn put(&self, out: &mut Canonical) {
+        out.seq(self, |c, b| c.u8(*b));
+    }
+    fn get(input: &mut Reader<'_>) -> Result<Self, CodecError> {
+        input.seq(|r| r.u8())
     }
 }
 
@@ -52,6 +61,14 @@ impl Wire for BattleOp {
             BattleOp::Sally => out.u8(8),
             BattleOp::Autocalc => out.u8(9),
             BattleOp::SkipOutcome => out.u8(10),
+            BattleOp::Command { units, verb, at, target, queue } => {
+                out.u8(11);
+                units.put(out);
+                out.u8(verb.tag());
+                at.put(out);
+                target.put(out);
+                queue.put(out);
+            }
         }
     }
 
@@ -83,6 +100,18 @@ impl Wire for BattleOp {
             8 => BattleOp::Sally,
             9 => BattleOp::Autocalc,
             10 => BattleOp::SkipOutcome,
+            11 => {
+                let units = Wire::get(input)?;
+                let tag = input.u8()?;
+                let verb = Verb::from_tag(tag).ok_or(bad(tag, "verb"))?;
+                BattleOp::Command {
+                    units,
+                    verb,
+                    at: Wire::get(input)?,
+                    target: Wire::get(input)?,
+                    queue: Wire::get(input)?,
+                }
+            }
             tag => return Err(bad(tag, "battle order")),
         })
     }

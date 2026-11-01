@@ -77,6 +77,9 @@ const KEYS: &[(&str, &str)] = &[
     ("SharpText", "ours"),
 ];
 
+/// [D] ours, C272: text-valued, so outside the integer `KEYS`.
+const CONTROLS_KEY: &str = "BattleControls";
+
 /// `g_diploLetterDraft` (`0x0053F2B8`): four buffers of 200 bytes.
 pub const LETTER_BYTES: usize = 200;
 pub type Letter = [u8; LETTER_BYTES];
@@ -238,6 +241,7 @@ pub fn encode(p: &Prefs) -> String {
     for (key, origin) in KEYS {
         out.push_str(&format!("{key}={}\t; {origin}\n", value_of(p, key)));
     }
+    out.push_str(&format!("{CONTROLS_KEY}={}\t; ours, C272\n", p.battle_controls.name()));
     encode_kept(&p.kept, &mut out);
     if !p.install.is_nil() {
         out.push_str(&format!("InstallId={}\n", p.install.to_hex()));
@@ -254,6 +258,11 @@ pub fn decode(text: &str) -> Prefs {
         let Some((key, value)) = line.split_once('=') else { continue };
         let key = key.trim();
         if key.starts_with(['[', ';']) || set_text(&mut p.kept, key, value) {
+            continue;
+        }
+        if key == CONTROLS_KEY {
+            let name = value.split(';').next().unwrap_or("");
+            p.battle_controls = crate::game::BattleControls::from_name(name).unwrap_or_default();
             continue;
         }
         if key == "InstallId" {
@@ -334,6 +343,7 @@ mod tests {
             debug_overlay: true,
             full_screen: false,
             sharp_text: true,
+            battle_controls: crate::game::BattleControls::Modern,
             kept: Kept {
                 player_name: PlayerName::new("Ed; the Bold"),
                 setup: {
@@ -379,6 +389,17 @@ mod tests {
             assert!(encode(&p).contains(&format!("\n{key}=")), "{key} is not written");
         }
         assert!(!encode(&p).contains("LetterDraft1="), "an untouched draft stays L2.eng's");
+    }
+
+    /// Ablate the `CONTROLS_KEY` arm in `decode`: Modern comes back Classic.
+    #[test]
+    fn battle_controls_default_to_classic_and_survive_the_file() {
+        assert_eq!(Prefs::default().battle_controls, crate::game::BattleControls::Classic);
+        assert!(encode(&Prefs::default()).contains("\nBattleControls=Classic"));
+        let modern = Prefs { battle_controls: crate::game::BattleControls::Modern, ..Prefs::default() };
+        assert_eq!(decode(&encode(&modern)).battle_controls, crate::game::BattleControls::Modern);
+        let junk = encode(&modern).replace("BattleControls=Modern", "BattleControls=Telepathy");
+        assert_eq!(decode(&junk).battle_controls, crate::game::BattleControls::Classic, "unknown: the default");
     }
 
     #[test]

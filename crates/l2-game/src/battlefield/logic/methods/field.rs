@@ -268,7 +268,7 @@ impl LiveBattle {
 
     /// Battle_OrderSelection 0x0043C634: `DAT_00553F84 = 0x1E` (10 in multiplayer),
     /// `DAT_00553F14 = x; DAT_00553F18 = y;` before BattleUnit_Order. [V]
-    fn mark_order(&mut self, cell: (u8, u8)) {
+    pub(crate) fn mark_order(&mut self, cell: (u8, u8)) {
         self.order_mark = cell;
         self.order_mark_ticks = if self.deferred { 10 } else { 0x1E };
     }

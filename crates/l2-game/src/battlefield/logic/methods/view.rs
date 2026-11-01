@@ -56,6 +56,15 @@ impl LiveBattle {
             deferred: false,
             outbox: Vec::new(),
             awaiting: Default::default(),
+            controls: crate::game::BattleControls::Classic,
+            latched: false,
+            announced: false,
+            sel: Vec::new(),
+            mgroups: Default::default(),
+            last_group: None,
+            armed: false,
+            speed: 0,
+            speed_beat: false,
         }
     }
 
@@ -74,7 +83,7 @@ impl LiveBattle {
     /// counts the living.
     pub fn cry_troop(&self) -> u8 {
         let mut count = [0usize; 11];
-        for f in self.runner.selected_fighters(self.owner) {
+        for f in self.picked_fighters() {
             count[self.runner.fighters[f].troop.index()] += 1;
         }
         let mut best = 0;
@@ -123,7 +132,7 @@ impl LiveBattle {
 
     /// The camera, clamped so the viewport never leaves the 80 × 80 field —
     /// `FUN_0047ED34`, which `Map_ScrollStep` and both centring paths call.
-    fn clamp_cam(&mut self) {
+    pub(crate) fn clamp_cam(&mut self) {
         self.cam.0 = self.cam.0.clamp(0, DIM as i32 - VIEW_COLS);
         self.cam.1 = self.cam.1.clamp(0, DIM as i32 - VIEW_ROWS);
     }
@@ -180,13 +189,9 @@ impl LiveBattle {
             return;
         }
         let cell = self.cell_at(x, y);
-        let picked = self.runner.selected_count(self.owner);
-        let picked_troops = self
-            .runner
-            .selected_fighters(self.owner)
-            .into_iter()
-            .filter(|&f| !self.runner.fighters[f].troop.is_siege())
-            .count();
+        let held = self.picked_fighters();
+        let picked = held.len();
+        let picked_troops = held.into_iter().filter(|&f| !self.runner.fighters[f].troop.is_siege()).count();
         let surface = self.runner.field.at(cell.0 as usize, cell.1 as usize).surface;
         self.hover = Hover {
             on_field: true,
@@ -222,7 +227,7 @@ impl LiveBattle {
         if self.hover.enemy.is_some() {
             return Cursor::Attack;
         }
-        let picked = self.runner.selected_count(self.owner);
+        let picked = self.picked_count();
         if picked == 0 {
             return if self.hover.friendly.is_some() { Cursor::Select } else { Cursor::Arrow };
         }

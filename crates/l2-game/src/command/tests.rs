@@ -77,6 +77,8 @@ fn every_battle_order_round_trips() {
         Sally,
         Autocalc,
         SkipOutcome,
+        Command { units: vec![3, 80], verb: Verb::AttackMove, at: (79, 0), target: Some(1000), queue: true },
+        Command { units: vec![], verb: Verb::Stop, at: (0, 0), target: None, queue: false },
     ];
     for op in ops {
         let cmd: GameCommand = super::BattleOrder { op }.into();
@@ -85,7 +87,7 @@ fn every_battle_order_round_trips() {
     }
 }
 
-use crate::battlefield::BattleOp;
+use crate::battlefield::{BattleOp, Verb};
 use l2_sim::runner::Formation;
 
 #[test]
@@ -212,4 +214,19 @@ fn a_battle_concerns_its_sides_seats_only() {
     g.seats.truncate(1);
     g.player = 2;
     assert!(super::turn::concerns(&g, Some((1, 3))), "single player is unguarded");
+}
+
+/// Ablate `Verb::from_tag` in the decoder (`unwrap_or` a default): a made-up verb is accepted.
+#[test]
+fn a_command_with_an_unknown_verb_does_not_decode_and_every_verb_has_its_own_tag() {
+    let op = BattleOp::Command { units: vec![1], verb: Verb::Merge, at: (1, 2), target: None, queue: false };
+    let mut bytes = Canonical::bytes_of(&GameCommand::from(super::BattleOrder { op }));
+    let verb_at = bytes.iter().position(|&b| b == Verb::Merge.tag()).expect("the verb byte");
+    bytes[verb_at] = 200;
+    assert!(decode_all::<GameCommand>(&bytes).is_err());
+    let tags: Vec<u8> = [Verb::Move, Verb::AttackMove, Verb::Stop, Verb::Hold, Verb::Line, Verb::Column, Verb::Merge]
+        .iter()
+        .map(|v| v.tag())
+        .collect();
+    assert_eq!(tags, (0..7).collect::<Vec<u8>>());
 }
