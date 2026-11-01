@@ -248,3 +248,21 @@ fn plus_and_minus_set_half_one_and_double_speed_in_single_player_only() {
     assert!(!shared.m_key(Key::Char('+'), false));
     assert_eq!(shared.ticks_this_frame(), 1);
 }
+
+/// Ablate the `moat` arm in `issue`: an order onto surface 2 cries the plain order cry.
+/// `Battle_OrderSelection` 00430000.c:7296-7297.
+#[test]
+fn an_order_onto_the_moat_cries_the_moat_cry() {
+    let mut b = seat();
+    let a = units_of(&b, ME)[0];
+    let p = man_px(&mut b, a);
+    click(&mut b, p, false);
+    let cell = ((b.cam.0 + 9) as u8, (b.cam.1 + 5) as u8);
+    b.runner.field.cells[cell.1 as usize * l2_sim::terrain::DIM + cell.0 as usize].surface = cry::MOAT_SURFACE;
+    let px = cell_px(&b, cell);
+    b.pointer = px;
+    b.update_hover();
+    b.cries.clear();
+    assert!(b.m_right_click(px.0, px.1, false));
+    assert_eq!(b.cries.last().map(|c| c.class), Some(cry::MOAT));
+}

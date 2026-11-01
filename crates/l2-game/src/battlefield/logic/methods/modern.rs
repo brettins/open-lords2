@@ -235,7 +235,15 @@ impl LiveBattle {
         if units.is_empty() {
             return false;
         }
-        let class = if target.is_some() { cry::ATTACK } else { cry::ORDERED };
+        // `Battle_OrderSelection` 00430000.c:7296-7297: an enemy under the pointer cries attack, an order
+        // onto surface 2 (the moat) cries `_M`, else the plain order cry. The ordered cell's own surface.
+        let moat = matches!(verb, Verb::Move | Verb::AttackMove)
+            && self.runner.field.at(at.0 as usize, at.1 as usize).surface == cry::MOAT_SURFACE;
+        let class = match (target.is_some(), moat) {
+            (true, _) => cry::ATTACK,
+            (false, true) => cry::MOAT,
+            (false, false) => cry::ORDERED,
+        };
         if !self.deferred {
             self.cry(class);
         }
