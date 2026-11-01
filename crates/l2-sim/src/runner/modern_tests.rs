@@ -4,11 +4,11 @@
 use super::*;
 use l2_net::{Canonical, Decode, Encode, Reader};
 
-const ME: u8 = 2;
-const FOE: u8 = 1;
+pub(super) const ME: u8 = 2;
+pub(super) const FOE: u8 = 1;
 
 /// Both armies human: no AI handler thinks, so the only mover is the order under test.
-fn duel(mine: &[(Troop, u16)], foe: &[(Troop, u16)]) -> BattleRunner {
+pub(super) fn duel(mine: &[(Troop, u16)], foe: &[(Troop, u16)]) -> BattleRunner {
     let mut r = BattleRunner::deploy_armies(
         blank_field(),
         DEFAULT_SEED,
@@ -19,12 +19,12 @@ fn duel(mine: &[(Troop, u16)], foe: &[(Troop, u16)]) -> BattleRunner {
     r
 }
 
-fn unit_of_troop(r: &BattleRunner, troop: Troop) -> usize {
+pub(super) fn unit_of_troop(r: &BattleRunner, troop: Troop) -> usize {
     r.unit_of(r.fighters.iter().position(|f| f.troop == troop).expect("troop deployed"))
 }
 
 /// The unit's men in a block four wide with its corner at `(x, y)`.
-fn put(r: &mut BattleRunner, unit: usize, x: u8, y: u8) {
+pub(super) fn put(r: &mut BattleRunner, unit: usize, x: u8, y: u8) {
     for (k, m) in r.members(unit).into_iter().enumerate() {
         let old = r.fighters[m].y as usize * DIM + r.fighters[m].x as usize;
         if r.occupant[old] == Some(m as u16) {
@@ -40,17 +40,17 @@ fn put(r: &mut BattleRunner, unit: usize, x: u8, y: u8) {
     r.settle();
 }
 
-fn announce(r: &mut BattleRunner) {
+pub(super) fn announce(r: &mut BattleRunner) {
     assert!(r.command(ME, &[], Verb::Stop, (0, 0), None, false).is_some());
 }
 
-fn bytes(r: &BattleRunner) -> Vec<u8> {
+pub(super) fn bytes(r: &BattleRunner) -> Vec<u8> {
     let mut out = Canonical::recording();
     r.encode(&mut out);
     out.finish().bytes.expect("a recording encoder keeps its bytes")
 }
 
-fn states(r: &BattleRunner, unit: usize) -> Vec<State> {
+pub(super) fn states(r: &BattleRunner, unit: usize) -> Vec<State> {
     r.members(unit).into_iter().map(|m| r.sim.figures[r.fighters[m].sim].state).collect()
 }
 

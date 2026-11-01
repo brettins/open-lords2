@@ -49,6 +49,9 @@ pub struct UnitMode {
     pub attack_move: Option<(u8, u8)>,
     /// The sweep has this unit in a fight and will release it when it is clear.
     pub engaged: bool,
+    /// The runner tick of the last order. A queued order waits for the reform that order's `reTarg`
+    /// (`0x14`) brings (`Battle_UpdateAllUnits` 0x00489401), or the men would look arrived at once.
+    pub issued: u32,
     pub queue: Vec<Queued>,
 }
 
@@ -168,15 +171,25 @@ impl BattleRunner {
     }
 
     fn run_verb(&mut self, unit: usize, verb: Verb, dest: (u8, u8), target: Option<usize>) {
-        self.units.get_mut(unit).halted = false;
+        // `BattleUnit_Order` 0x00479E90 never writes `halted` (+0x2A; 00470000.c:4297-4413): it is a
+        // charge's, the Charge button's (`FUN_0047A76D`, one shot) or this sweep's. Only a charge the
+        // sweep made (`engaged`) is undone by a new order. [I] ours, C272.
+        if self.modern.modes[unit].engaged {
+            self.units.get_mut(unit).halted = false;
+        }
+        let issued = self.tick;
         let mode = &mut self.modern.modes[unit];
         mode.engaged = false;
         mode.attack_move = None;
+        mode.issued = issued;
         match verb {
             Verb::Move | Verb::AttackMove => {
                 mode.passive = verb == Verb::Move;
                 mode.attack_move = (verb == Verb::AttackMove).then_some(dest);
-                self.order_full(unit, dest.0, dest.1, target, false, Formation::Keep);
+                // `Battle_OrderSelection` 00430000.c:7318 passes `DAT_0053E874`: the ordered cell's
+                // surface is 15 (`update_hover`). Here the unit's own destination cell.
+                let woodland = self.field.at(dest.0 as usize, dest.1 as usize).surface == 15;
+                self.order_full(unit, dest.0, dest.1, target, woodland, Formation::Keep);
             }
             Verb::Stop | Verb::Hold => {
                 mode.passive = verb == Verb::Hold;
@@ -186,10 +199,8 @@ impl BattleRunner {
             Verb::Column => self.order_formation(unit, Formation::Column),
             Verb::Merge => {}
         }
-        if matches!(verb, Verb::Line | Verb::Column) {
-            return;
-        }
-        self.reform_unit(unit);
+        // No reform here: `BattleUnit_Reform` has one caller, `Battle_UpdateAllUnits` when `reTarg`
+        // (set to 0x14 by the order) runs out, behind `BattleUnit_NeedsReform` (00480000.c:3651-3656).
     }
 
     /// `Order_HoldPosition` (`0x0048B386`): the AI's own stop, through its `World`.
@@ -226,6 +237,7 @@ impl BattleRunner {
         self.units.get(unit).figures > 0
             && !self.units.get(unit).in_melee
             && !self.modern.modes[unit].engaged
+            && self.tick > self.modern.modes[unit].issued + crate::unit::REFORM_ON_ORDER as u32
             && self.members(unit).into_iter().all(|m| {
                 let f = &self.fighters[m];
                 self.sim.figures[f.sim].state == State::Idle && (f.x, f.y) == f.target
@@ -262,6 +274,12 @@ impl BattleRunner {
     fn engage(&mut self, unit: usize) {
         let u = *self.units.get(unit);
         let missile = u.category == 1;
+        // Radius: the AI's charge radius, 8 (foot) / 9 (melee), `Enemy_NearestUnit(unit, 8|9, 3)`
+        // 00480000.c:4407, :4498 [V]. A bow's is `range - 2`, state 17's in-range test
+        // `range >> 3 < Dist_Chebyshev + 2` (`docs/battle.md` §14.2a, `closing.rs:72`): an idle Modern bow
+        // shoots what is in range, where the AI's field missile handler searches 80 cells
+        // (`Enemy_NearestUnit(unit, 80, 1)`, 00480000.c:4290) and walks. [I] ours, C272.
+        let min_figures = if missile { 1 } else { 3 };
         let radius = match (missile, u.category) {
             (true, _) => self.members(unit).first().map_or(9, |&m| {
                 WeaponClass::for_troop(self.fighters[m].troop).map_or(9, |c| c.stats().range as i32 - 2)
@@ -276,18 +294,24 @@ impl BattleRunner {
             field: &self.ai_field,
             ai: &mut self.ai,
         };
-        let near = w.nearest_enemy_unit(unit, radius, 1);
+        let near = w.nearest_enemy_unit(unit, radius, min_figures);
         let hit = u.hit_memory > 0 && w.units.get(u.last_attacker as usize).is_live();
         let engaged = self.modern.modes[unit].engaged;
         if missile {
+            // Not while a man is already shooting: `Order_ShootAtUnit` re-aims every figure, and the AI
+            // issues it once per 200-frame think, not every frame. [I] ours, C272.
             let firing = w.figures.iter().any(|f| f.unit as usize == unit && f.state == State::Shooting);
             if near != 0 && !firing {
                 w.shoot_at_unit(unit, near);
+                // So the unit does not walk to its range: state 17 sets `straffed` only once in range
+                // (`closing.rs:108`, 00480000.c:2050-2057, the one original writer). [I] ours, C272.
                 for f in w.figures.iter_mut().filter(|f| f.unit as usize == unit) {
                     f.straffed = true;
                 }
                 self.modern.modes[unit].engaged = true;
             }
+        // One charge per engagement; the release below ends it. The AI re-charges on its 200-frame
+        // think (00480000.c:4404-4407); this sweep runs every frame. [I] ours, C272.
         } else if (near != 0 || hit || u.in_melee) && !u.halted {
             w.charge_nearest(unit);
             self.modern.modes[unit].engaged = true;

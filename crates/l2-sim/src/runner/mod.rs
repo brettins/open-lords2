@@ -30,6 +30,8 @@ mod modern_save;
 pub use modern::{Modern, Queued, UnitMode, Verb, QUEUE_MAX};
 #[cfg(test)]
 mod modern_tests;
+#[cfg(test)]
+mod modern_order_tests;
 mod import;
 pub use import::{FIELD_LEN, MEN_LEN};
 mod muster;
