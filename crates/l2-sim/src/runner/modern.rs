@@ -253,9 +253,10 @@ impl BattleRunner {
         }
     }
 
-    /// Q271 `sc2`: touched (`BattleUnit_JoinMelee` without the `human` skip, in `join_melee`),
-    /// hit (unit `+0x0A`/`+0x0C`) or an enemy unit within `Enemy_NearestUnit`'s 8 cells (foot) / 9
-    /// (melee), the men go: melee `Order_ChargeNearest`, bows `Order_ShootAtUnit` without walking.
+    /// Q271 `sc2`: touched (`BattleUnit_JoinMelee` `0x0048F079` without the `human` skip, in `join_melee`),
+    /// hit (unit `+0x0A`/`+0x0C`) or an enemy unit within `Enemy_NearestUnit`'s (`0x0048EF45`) 8 cells
+    /// (foot) / 9 (melee, `docs/battle-ai.md` §2.3 `[V]`), the men go: melee `Order_ChargeNearest`
+    /// (`0x0048C8AF`), bows `Order_ShootAtUnit` (`0x0048C974`) held in place by `straffed`.
     /// Clear again, the unit stops and reforms: `[I]` ours, C272 (a charged chase has no range limit,
     /// `Melee_ChooseChaseTarget` `0x004954DD`).
     fn engage(&mut self, unit: usize) {

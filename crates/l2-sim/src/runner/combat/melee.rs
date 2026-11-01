@@ -42,7 +42,7 @@ impl BattleRunner {
             return;
         }
         let u = *self.units.get(unit);
-        // A Modern seat's engaging unit joins on contact like an AI unit's (Q271 `sc2`, C272).
+        // BattleUnit_JoinMelee 0x0048F079 skips `human`; a Modern seat's engaging unit does not (Q271 `sc2`, C272).
         let player = u.human && !self.engages(unit);
         if !u.is_live() || player || u.category == 1 || u.order_lock != 0 {
             return;
