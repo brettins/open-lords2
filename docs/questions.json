@@ -166,6 +166,24 @@
       "ask": "Reply: Q265 a|b|c|switch",
       "answer": "(a) the original generator under the trace feature only; the shipped game keeps Pcg32.",
       "outcome": "agent/trace-rng ports Rand_Advance 0x00404A46 behind l2-net/trace and re-diffs field-battle-manual (row battle-manual-outcome)."
+    },
+    {
+      "q": "Q270",
+      "row": "battle-controls-modern",
+      "state": "open",
+      "title": "Which battle controls a player gets by default",
+      "inplay": "The battle gets two control schemes. Classic is the original: a box regroups the picked men into one new unit, left-click moves, right-click deselects. Modern is StarCraft-style: left selects whole units, right commands, attack-move and hotkeys. Classic stays exact, and the comparisons with the original run on it.",
+      "todo": "Choose: (recommend) Modern is an option until selection, right-click orders, groups and attack-move all work, then becomes the default; (modern-now) Modern is the default from its first build; (classic) Classic stays the default.",
+      "ask": "Reply: Q270 recommend|modern-now|classic"
+    },
+    {
+      "q": "Q271",
+      "row": "battle-controls-modern",
+      "state": "open",
+      "title": "Should your units pile into a fight on contact, as the computer's do?",
+      "inplay": "In the original, when a computer unit touches yours the whole unit charges in; when yours touches theirs, only the men in contact fight and the rest stand (BattleUnit_JoinMelee skips a player's unit). Modern controls can lift that for your units, the way StarCraft units fight back by themselves, with Hold to keep a unit standing.",
+      "todo": "Choose: (yes) modern units engage on contact and Hold stops it; (no) keep the original behaviour in both schemes; (stance) a per-unit switch, off by default.",
+      "ask": "Reply: Q271 yes|no|stance"
     }
   ],
   "reports": [
