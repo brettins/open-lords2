@@ -1,7 +1,7 @@
 # Modern battle controls — plan
 
 **Proposal, 2026-11-01.** Owner's brief: bring the battle up to modern RTS controls, StarCraft II
-as the reference; redesign the interface; no new battlefield art. Q270 answered (Classic stays the default); open: Q271 (§8).
+as the reference; redesign the interface; no new battlefield art. Agreed 2026-11-01: C272; Q270 Classic stays the default, Q271 `sc2` (§8).
 
 ## 0. Verdict
 
@@ -42,7 +42,7 @@ Two facts about fighting, not controls, that a modern scheme runs into: **a play
 not join a melee on contact; an AI unit does** (`BattleUnit_JoinMelee` skips `human`,
 `docs/battle-ai.md` §4.2 [D]); and the view is 15 × 14 of 80 × 80 cells, 3 % of the field.
 
-## 2. The principle (becomes a C-entry when agreed)
+## 2. The principle (C272)
 
 Two schemes, `BattleControls=Classic|Modern` in prefs, chosen per seat. **Classic is the
 default** (Q270); Modern is opt-in.
@@ -221,7 +221,7 @@ SC2's key where SC2 has the verb; classic's where it does not collide.
 ## 8. Open questions
 
 * **Q270 — answered: Classic.** Classic is the default; Modern is a pref. Nothing switches it.
-* **Q271 — what a modern unit does when an enemy comes at it.**
+* **Q271 — answered: `sc2`, as recommended below.** What a modern unit does when an enemy comes at it.
   *Contact in the original* **[D]** (`docs/battle-ai.md` §4.2, `docs/battle.md` §7): a man's
   step into an enemy's cell (`Cell_TryEnter` 999). The two duel; a computer unit then charges
   whole (`BattleUnit_JoinMelee`), a player's does not, so only the men touching fight. Being

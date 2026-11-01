@@ -12876,3 +12876,19 @@ his memory was Knight except on yellow, the measurement is the table above. Not 
 `g_multiplayer != 0` also reads group 0 `[D]`, unmeasured; a lobby game still deals by map.
 Test: `newgame` `quaintvilles_rival_is_the_knight_only_when_the_player_is_red`; ablating the
 `if setup.campaign { 0 }` arm turns red into the Bishop.
+
+**C272 — The battle gets a second control scheme, Modern, that the original does not govern.**
+`BattleControls=Classic|Modern`, per seat; Classic is the default (Q270) and stays 1:1: it is
+what `arms.rs`, the oracle checks and rule 5's arms count measure, and no classic arm changes.
+Modern is ours, the second place after the netcode where the original is not the authority;
+its arms are `ours/…` in `docs/arms.json`. The scheme owns input, the quirk menu owns rules:
+B45–B50, B76 and B267 stay under `docs/bugs.md` §6 in both. Selection, control groups and the
+camera are presentation, out of the digest; every modern order is one `BattleOp::Command`
+naming its units, so classic's regroup on selection (`FUN_00478987`) does not run. Each new
+verb composes the original's primitives and names them (`Enemy_NearestUnit`,
+`Order_ChargeNearest`, `Order_ShootAtUnit`, `Order_HoldPosition`, `BattleUnit_JoinMelee`); what
+has no equivalent (shift-queue, group-move offsets, the stop-when-clear radius) is `[I]` ours
+and cites this entry. Stances follow StarCraft II (Q271 `sc2`): Move and Hold are the
+original's player behaviour; idle, Stop and attack-move engage on a touch, a hit (unit `+0x0A`)
+or an enemy unit within 8 cells (foot) or 9 (melee). The battle AI is unchanged. Plan:
+`docs/battle-controls.md`.

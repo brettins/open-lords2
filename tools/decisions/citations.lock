@@ -363,7 +363,8 @@ crates/l2-scenario/src/loader/units/restore.rs	C62	f2e78abb5311	ebb6a7ec3711
 crates/l2-scenario/src/newgame/build_part.rs	C25	caa1255a8607	5d466f0cb89c
 crates/l2-scenario/src/newgame/mod.rs	C25	e48d592ee071	5d466f0cb89c
 crates/l2-scenario/src/newgame/mod.rs	C41	481d57fc2f9f	df664f2e9ea9
-crates/l2-scenario/src/newgame/setup.rs	C130	d7be77a81c00	055c6c022450
+crates/l2-scenario/src/newgame/setup.rs	C130	605f0b06bc72	055c6c022450
+crates/l2-scenario/src/newgame/setup.rs	C269	7c398a15b2bf	31a862799751
 crates/l2-scenario/tests/import/economy/forecasts_and_events.rs	C128	daed159f4c99	3a8c5dae41c2
 crates/l2-scenario/tests/import/economy/forecasts_and_events.rs	C169	5a1a22d73172	4f087d2d4d89
 crates/l2-scenario/tests/import/economy/tax_and_happiness.rs	C26	6f02cf9f01c0	e8179d1f76a8
@@ -1321,6 +1322,7 @@ docs/symbols.md	C99	82dd842500a1	b890db1f6d4a
 docs/symbols.md	C99	92b9f0821e7b	b890db1f6d4a
 docs/symbols.md	C99	e60728affba9	b890db1f6d4a
 docs/symbols.md	C99	ebbc33755102	b890db1f6d4a
+docs/work.json	C266	2765753d2cef	29d76f4694a0
 ghidra_scripts/RecordProbe.java	C3	2f360a1e7611	35bf3a86555f
 tools/audit/rva.js	C14	99231cda993c	687f69afd1c6
 tools/audit/rva.js	C16	e4312831d7d6	2e6270fa32a9
