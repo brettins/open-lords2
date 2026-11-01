@@ -65,3 +65,35 @@ fn an_archer_with_neither_target_nor_ordered_cell_stands_down() {
     assert!(!r.wood_fire, "no targetCell, no shot");
     assert_eq!(r.sim.cues.closing_loosed(WeaponClass::Bow), 0);
 }
+
+/// `Battle_UpdateAllMen` (`0x004822ED`, `00480000.c:873`, `:888-890`) counts a human on
+/// woodland whatever its state: a corpse in the wood counts until `BattleMan_Destroy`
+/// frees it (`owner == 0`), and not after.
+///
+/// Ablation: put `&& self.sim.figures[sim].is_alive()` back in `update_man` and the
+/// count reads 3.
+#[test]
+fn a_human_corpse_in_the_wood_counts_until_it_is_freed() {
+    let mut field = blank_field();
+    for y in 40..=44 {
+        for x in 37..=43 {
+            field.cells[cell(x, y)].surface = SURFACE_WOODLAND;
+        }
+    }
+    let mut r = BattleRunner::empty(field, DEFAULT_SEED);
+    let men: Vec<usize> =
+        (0..5).map(|k| stand(&mut r, Troop::Peasants, SIDE_B, 1, true, (38 + k, 42))).collect();
+    let sim = |r: &BattleRunner, k: usize| r.fighters[men[k]].sim;
+    let corpse = sim(&r, 3);
+    r.sim.figures[corpse].state = State::Dead;
+    r.sim.figures[corpse].men = 0;
+    let freed = sim(&r, 4);
+    r.sim.figures[freed].state = State::Dead;
+    r.sim.figures[freed].men = 0;
+    r.sim.figures[freed].owner = 0;
+    r.humans_in_woods = 0;
+    for i in 0..r.fighters.len() {
+        r.update_man(i);
+    }
+    assert_eq!(r.humans_in_woods, 4, "three standing and one corpse; the freed record is skipped");
+}

@@ -50,7 +50,10 @@ impl BattleRunner {
     /// if (surface == 0x0F && man.ownerIsHuman) DAT_005530E8++;
     /// ```
     ///
-    /// `[D]`.
+    /// `Battle_UpdateAllMen` (`0x004822ED`) filters on `owner != 0` alone
+    /// (`00480000.c:873`), so a corpse counts until `BattleMan_Destroy` frees it
+    /// **[V]**: no test of state or `men` stands between `:873` and `:889`, and no
+    /// death handler writes `ownerIsHuman` (grep of `tools/oracle/decomp`).
     pub(crate) fn update_man(&mut self, i: usize) {
         let (sim, troop, side, cell) = {
             let f = &self.fighters[i];
@@ -65,7 +68,7 @@ impl BattleRunner {
         }
         if surface == fire::SURFACE_WOODLAND
             && self.sim.figures[sim].owner_is_human
-            && self.sim.figures[sim].is_alive()
+            && self.sim.figures[sim].owner != 0
         {
             self.humans_in_woods += 1;
         }
