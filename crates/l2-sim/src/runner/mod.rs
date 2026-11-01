@@ -26,6 +26,7 @@ mod dead_archer_tests;
 mod fighter;
 mod save;
 mod modern;
+mod modern_save;
 pub use modern::{Modern, Queued, UnitMode, Verb, QUEUE_MAX};
 #[cfg(test)]
 mod modern_tests;

@@ -230,3 +230,20 @@ fn the_same_commands_give_the_same_state() {
     };
     assert_eq!(run(), run());
 }
+
+/// Ablate `modern` in `save.rs`'s flag (`MODERN_BIT` always set): a Classic battle grows a block.
+#[test]
+fn a_classic_battle_encodes_without_the_modern_block_and_a_commanded_one_with_it() {
+    let mut r = duel(&[(Troop::Swordsmen, 4)], &[(Troop::Peasants, 1)]);
+    let classic = bytes(&r);
+    let mut same = r.clone();
+    same.modern = Modern::default();
+    assert_eq!(bytes(&same), classic);
+    announce(&mut r);
+    let flagged = bytes(&r);
+    assert!(flagged.len() > classic.len());
+    let back = BattleRunner::decode(&mut Reader::new(&classic)).expect("a classic encoding");
+    assert_eq!(back.modern, Modern::default());
+    assert_eq!(back.size_class, r.size_class, "the flag bit never reaches size_class");
+    assert_eq!(BattleRunner::decode(&mut Reader::new(&flagged)).expect("flagged").size_class, r.size_class);
+}
