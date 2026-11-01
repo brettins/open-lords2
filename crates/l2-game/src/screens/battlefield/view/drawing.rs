@@ -178,15 +178,14 @@ pub(super) fn draw_banner_plates(
         draw_banners(canvas, live, ink);
         return false;
     };
-    let picked = live.runner.selected_fighters(live.owner);
-    let layout = BannerLayout::for_count(picked.len());
-    for (slot, &f) in picked.iter().enumerate() {
+    let tiles = live.banner_tiles();
+    let layout = BannerLayout::for_count(tiles.len());
+    for (slot, &(f, men)) in tiles.iter().enumerate() {
         if slot >= layout.slots {
             break;
         }
         let r = layout.rect(slot);
         let fighter = &live.runner.fighters[f];
-        let men = live.runner.sim.figures[fighter.sim].men;
         if men == 0 {
             continue;
         }
@@ -231,7 +230,7 @@ pub(super) fn draw_selection_markers(
 ) {
     let cam = l2_view::scene::Camera::clamped(live.cam.0, live.cam.1);
     let class = live.runner.size_class();
-    for f in live.runner.selected_fighters(live.owner) {
+    for f in live.picked_fighters() {
         let fig = &live.runner.fighters[f];
         let (sx, sy) = l2_view::scene::figure_origin(fig, cam);
         if !VIEW.contains(sx, sy) {
@@ -266,7 +265,7 @@ pub(super) fn draw_order_mark(canvas: &mut Canvas, chrome: Option<&l2_view::chro
 pub(crate) const ORDER_MARK_FRAME: usize = 0x3F;
 
 pub(super) fn draw_banners(canvas: &mut Canvas, live: &LiveBattle, ink: &l2_view::Ink) {
-    let picked = live.runner.selected_fighters(live.owner);
+    let picked: Vec<usize> = live.banner_tiles().into_iter().map(|(f, _)| f).collect();
     let layout = BannerLayout::for_count(picked.len());
     for (slot, &f) in picked.iter().enumerate() {
         if slot >= layout.slots {

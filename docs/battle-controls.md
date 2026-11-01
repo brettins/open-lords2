@@ -236,3 +236,24 @@ SC2's key where SC2 has the verb; classic's where it does not collide.
   the unit stops and reforms when no enemy is left within that radius ([I] ours: a charged AI
   unit's chase has no range limit, `Melee_ChooseChaseTarget`). Hold: the original's player
   behaviour, standing. Alternatives: `touch` (a touch alone pulls the unit in), `no`.
+
+## 9. Built so far (branch `agent/battle-controls`)
+
+* **P0, P2 sim** — `l2-sim` `runner/modern.rs`: `BattleRunner::command` (Move, AttackMove, Stop, Hold,
+  Line, Column, Merge; Shift-queue of 8; SC2 group-move offsets), the engaging stance
+  (`modern_sweep` after `Battle_UpdateAllUnits`; `BattleUnit_JoinMelee` without the `human` skip for a
+  Modern realm's engaging unit), `Modern` in the runner's save and digest. Empty until a seat commands,
+  so a Classic frame is untouched. `BattleOp::Command` and its codec in `l2-game`.
+* **P1 core** — `methods/modern.rs`, `modern_keys.rs`: left selects whole units (click, box, Shift,
+  double-click = that troop on screen, F2), right commands (move, or attack the enemy under the
+  pointer), minimap left looks and right commands, SC2 control groups (Ctrl/Shift+N, N, N N), the §6
+  command keys, orders while paused, arrows pan, `+`/`-` speed (single player). Selection is
+  `LiveBattle::sel`, unit ids; `figure.selected` is never written. The right column shows one tile per
+  selected unit with its men.
+* **Not built:** pixel-smooth scroll and middle-drag pan, F5-F8 saved views, queued-waypoint drawing,
+  Backspace ping jump (P3), hover text, `docs/arms.json` records for the `ours/modern-*` arms, Shift+digit
+  on a non-US layout (the window reports the shifted glyph; rebinding is P5), `A` while Shift is
+  held as a queue modifier for hotkeys other than click.
+* **Unknown:** the bow trigger radius is `range - 2` of the unit's first man (`closing.rs`), measured
+  centre to centre, so a deep archer block may have its back rank out of range and idle; balance
+  against the AI is unmeasured (§7).

@@ -61,6 +61,11 @@ impl Screen for BattlefieldScreen {
             return Transition::Pop;
         }
         let mode = ctx.game.battle.as_ref().map(|b| b.mode).unwrap_or(Mode::Field);
+        let shift = ctx.game.shift_held;
+        let scheme = ctx.game.prefs.battle_controls;
+        if let Some(b) = ctx.game.battle.as_deref_mut() {
+            b.latch_controls(scheme);
+        }
         match event {
             Event::Pointer { x, y } => {
                 let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
@@ -68,7 +73,11 @@ impl Screen for BattlefieldScreen {
                 live.pointer_in = true;
                 live.update_hover();
                 if mode == Mode::Drag {
-                    live.drag_to(x, y);
+                    if live.is_modern() {
+                        live.m_drag_to(x, y);
+                    } else {
+                        live.drag_to(x, y);
+                    }
                     // // arm: 0x0042FF10/drag-leaves-field hover
                     if !live.hover.on_field {
                         live.mode = Mode::Field;
@@ -111,7 +120,15 @@ impl Screen for BattlefieldScreen {
                     let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
                     live.pointer = (x, y);
                     live.update_hover();
-                    if live.press_field(x, y) || live.click_banner(x, y) {
+                    // C272: Modern's left button selects, the overview looks, a tile keeps its unit.
+                    let taken = if live.is_modern() {
+                        live.m_press(x, y, shift)
+                            || live.m_click_banner(x, y, shift)
+                            || live.m_overview(x, y, false, shift)
+                    } else {
+                        live.press_field(x, y) || live.click_banner(x, y)
+                    };
+                    if taken {
                         self.redraw = true;
                         return Transition::Stay;
                     }
@@ -124,6 +141,10 @@ impl Screen for BattlefieldScreen {
                 let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
                 live.pointer = (x, y);
                 live.update_hover();
+                if live.is_modern() {
+                    self.redraw |= live.m_release(x, y, shift);
+                    return Transition::Stay;
+                }
                 // **The ladder short-circuits.** `FUN_0043BF07` runs first, and
                 // when it consumes the release — a committed box or a picked man
                 // — `Screen_FrameInput` jumps past `FUN_0043C57D`.
@@ -139,7 +160,12 @@ impl Screen for BattlefieldScreen {
             }
             Event::DoubleClick { x, y } => {
                 let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
-                live.double_click_field(x, y);
+                if live.is_modern() {
+                    live.update_hover();
+                    live.m_double_click(shift);
+                } else {
+                    live.double_click_field(x, y);
+                }
                 self.redraw = true;
                 Transition::Stay
             }
@@ -156,6 +182,11 @@ impl Screen for BattlefieldScreen {
                         live.mode = Mode::Field;
                         live.drag = None;
                     }
+                    Mode::Field if live.is_modern() => {
+                        if !live.m_right_click(x, y, shift) {
+                            BattlefieldScreen::epilogue(ctx, x, y, true);
+                        }
+                    }
                     Mode::Field => {
                         if !live.right_deselect(x, y) {
                             BattlefieldScreen::epilogue(ctx, x, y, true);
@@ -168,6 +199,7 @@ impl Screen for BattlefieldScreen {
             Event::KeyDown(key) => {
                 let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
                 let acted = match key {
+                    _ if live.is_modern() => live.m_key(key, shift),
                     Key::Char(c @ '1'..='9') => live.recall_group(c as u8),
                     Key::CtrlChar(c @ '1'..='9') => live.store_group(c as u8),
                     Key::Char('H') => live.key_formation(Formation::Line),
@@ -204,14 +236,19 @@ impl Screen for BattlefieldScreen {
             ctx.game.films.finished = None;
         }
         let speed = ctx.game.prefs.scroll_speed;
+        let scheme = ctx.game.prefs.battle_controls;
         let Some(live) = BattlefieldScreen::live(ctx) else { return Transition::Pop };
+        live.latch_controls(scheme);
+        live.announce_modern();
         if after_film {
             live.skip_outcome();
         }
         live.edge_scroll(speed);
         // In a network game `net::frame` steps the battle on its tick.
-        if !live.deferred {
-            live.tick();
+        for _ in 0..live.ticks_this_frame() {
+            if !live.deferred {
+                live.tick();
+            }
         }
         let done = live.mode == Mode::Outcome && live.outcome_ticks > battlefield::OUTCOME_FRAMES;
         {

@@ -4,7 +4,7 @@
 
 use l2_net::{Canonical, CodecError, Decode, Encode, Reader};
 
-use super::{BattleRunner, Conclusion, End, Fighter};
+use super::{BattleRunner, Conclusion, End, Fighter, Modern};
 use crate::ai::{Ai, AiField};
 use crate::battle::Battle;
 use crate::missile::Missiles;
@@ -19,6 +19,9 @@ use crate::unit::Units;
 /// index. Ours is a `Vec<Option<u16>>` beside the field, so the sentinel and
 /// the length check below are this format's and not the game's.
 const NO_OCCUPANT: u16 = u16::MAX;
+
+/// `size_class` is 0 … 9; the high bit of its byte is [`Modern`]'s presence flag.
+const MODERN_BIT: u8 = 0x80;
 
 #[cfg(test)]
 mod tests {
@@ -177,7 +180,10 @@ impl Encode for BattleRunner {
         out.option(self.withdrawn.as_ref(), |c, s| c.u8(*s));
         out.u16(self.men_per_figure[0]);
         out.u16(self.men_per_figure[1]);
-        out.u8(self.size_class);
+        // [D] ours, C272: bit 7 says a Modern block follows `tick`. No Classic battle sets it, so
+        // Classic's bytes, digest and older saves are unchanged.
+        let modern = !self.modern.is_default();
+        out.u8(self.size_class | if modern { MODERN_BIT } else { 0 });
         out.bool(self.wood_fire);
         // `humans_in_woods` is **not** here: `DAT_005530E8` is in no save block
         // (225 blocks, `node tools/kingdom/savedump.js layout`) because
@@ -193,6 +199,9 @@ impl Encode for BattleRunner {
         // `blocked_ticks` seed (`00480000.c:2088`), which is simulation state,
         // and `docs/netcode.md` does not let that come from process memory.
         out.u32(self.tick);
+        if modern {
+            self.modern.encode(out);
+        }
         out.end_section();
     }
 }
@@ -221,6 +230,14 @@ impl Decode for BattleRunner {
         // below, and both read only state decoded above.
         let positions = fighters.iter().map(|f| (f.x, f.y)).collect();
         let blocked = field.cells.iter().map(|c| c.impassable()).collect();
+        let wall_missile_latch = input.u8()?;
+        let withdrawn = input.option(|r| r.u8())?;
+        let men_per_figure = [input.u16()?, input.u16()?];
+        let size_byte = input.u8()?;
+        let wood_fire = input.bool()?;
+        let tick = input.u32()?;
+        let modern =
+            if size_byte & MODERN_BIT != 0 { Modern::decode(input)? } else { Modern::default() };
         Ok(BattleRunner {
             sim,
             field,
@@ -233,13 +250,14 @@ impl Decode for BattleRunner {
             missiles,
             blocked,
             siege,
-            wall_missile_latch: input.u8()?,
-            withdrawn: input.option(|r| r.u8())?,
-            men_per_figure: [input.u16()?, input.u16()?],
-            size_class: input.u8()?,
-            wood_fire: input.bool()?,
+            wall_missile_latch,
+            withdrawn,
+            men_per_figure,
+            size_class: size_byte & !MODERN_BIT,
+            wood_fire,
             humans_in_woods: 0,
-            tick: input.u32()?,
+            tick,
+            modern,
         })
     }
 }

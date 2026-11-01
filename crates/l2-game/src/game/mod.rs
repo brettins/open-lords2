@@ -360,6 +360,8 @@ pub struct Game {
     pub leaving: Option<crate::screens::leave::Leaving>,
     /// not-encoded: C257, the host's season autosave, encoded at the tick; the app writes it.
     pub season_save: Option<Vec<u8>>,
+    /// not-encoded: the Shift key as the window last reported it; a Modern battle reads it, C272.
+    pub shift_held: bool,
     /// not-encoded: the lobby screen's mailbox, presentation. [`crate::net::Link`].
     pub net: crate::net::Link,
     /// **The turn timer** — `DAT_005440C8` and the three globals beside it. See

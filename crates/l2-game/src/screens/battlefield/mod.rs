@@ -328,6 +328,9 @@ fn outcome_banner(game: &crate::Game, live: &LiveBattle) -> usize {
 }
 
 
+#[cfg(test)]
+mod modern_screen_tests;
+
 /// C245. Ablation: the `debug_assert!` in `settle`'s skirmish arm.
 #[cfg(test)]
 #[test]

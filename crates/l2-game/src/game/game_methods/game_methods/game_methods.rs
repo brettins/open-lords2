@@ -58,6 +58,7 @@ impl Game {
             owners: Vec::new(),
             leaving: None,
             season_save: None,
+            shift_held: false,
             net: Default::default(),
             turn_clock: crate::turn_clock::TurnClock::default(),
             films: crate::movie::Reel::default(),

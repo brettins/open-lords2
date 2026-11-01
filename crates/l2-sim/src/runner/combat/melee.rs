@@ -42,7 +42,9 @@ impl BattleRunner {
             return;
         }
         let u = *self.units.get(unit);
-        if !u.is_live() || u.human || u.category == 1 || u.order_lock != 0 {
+        // BattleUnit_JoinMelee 0x0048F079 skips `human`; a Modern seat's engaging unit does not (Q271 `sc2`, C272).
+        let player = u.human && !self.engages(unit);
+        if !u.is_live() || player || u.category == 1 || u.order_lock != 0 {
             return;
         }
         // `g_battleUnits[unit].withdrawing = 0` — 0x0048F079, 00480000.c:6340. [V]

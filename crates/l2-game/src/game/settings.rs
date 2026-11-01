@@ -117,10 +117,36 @@ pub struct Prefs {
     pub full_screen: bool,
     /// C259, `[D]` ours: body text in the heading face on a 3x plane. Off by default.
     pub sharp_text: bool,
+    /// C272, `[D]` ours: how this seat plays a battle. Classic is the original and the default (Q270).
+    pub battle_controls: BattleControls,
     /// The rest of `g_options` (`0x0053F1E0`, 0x468 bytes) we carry.
     pub kept: crate::prefs::Kept,
     /// [D] ours, C257: this install's id, generated once; a resumed network game seats by it.
     pub install: crate::net::InstallId,
+}
+
+/// `BattleControls=Classic|Modern` in `prefs.ini`: per seat, never in the save or the digest.
+/// Modern is ours (`docs/battle-controls.md`); Classic is 1:1 with `Screen_FrameInput`'s `0x29` arms.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum BattleControls {
+    #[default]
+    Classic,
+    Modern,
+}
+
+impl BattleControls {
+    pub fn name(self) -> &'static str {
+        match self {
+            BattleControls::Classic => "Classic",
+            BattleControls::Modern => "Modern",
+        }
+    }
+
+    pub fn from_name(name: &str) -> Option<BattleControls> {
+        [BattleControls::Classic, BattleControls::Modern]
+            .into_iter()
+            .find(|c| c.name().eq_ignore_ascii_case(name.trim()))
+    }
 }
 
 impl Default for Prefs {
@@ -139,6 +165,7 @@ impl Default for Prefs {
             debug_overlay: false,
             full_screen: true,
             sharp_text: false,
+            battle_controls: BattleControls::Classic,
             kept: crate::prefs::Kept::default(),
             install: crate::net::InstallId::NIL,
         }

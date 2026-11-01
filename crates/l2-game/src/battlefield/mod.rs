@@ -35,6 +35,8 @@ pub use view::*;
 mod tests;
 #[cfg(test)]
 mod landing_tests;
+#[cfg(test)]
+mod modern_tests;
 
 use l2_sim::runner::{BattleRunner, Conclusion};
 
@@ -353,6 +355,24 @@ pub struct LiveBattle {
     pub outbox: Vec<BattleOp>,
     /// not-encoded: what this seat does when its queued op lands. [`Follow`].
     pub awaiting: std::collections::VecDeque<(BattleOp, Follow)>,
+    /// not-encoded: C272, this seat's scheme, latched from the preferences when the battle opens.
+    pub controls: crate::game::BattleControls,
+    /// not-encoded: the scheme has been read from the preferences.
+    pub latched: bool,
+    /// not-encoded: a Modern seat has told the sim it plays Modern (an empty `Command`).
+    pub announced: bool,
+    /// not-encoded: C272, the battle units a Modern seat holds. Presentation: `figure.selected` is untouched.
+    pub sel: Vec<u8>,
+    /// not-encoded: Modern's nine control groups, as unit ids.
+    pub mgroups: [Vec<u8>; GROUPS],
+    /// not-encoded: the group key last pressed with nothing between, for the second press.
+    pub last_group: Option<usize>,
+    /// not-encoded: `A` was pressed and the next left click attack-moves.
+    pub armed: bool,
+    /// not-encoded: Modern's single-player speed, -1 (half), 0, 1 (double).
+    pub speed: i8,
+    /// not-encoded: half speed's every-other-frame beat, local pacing like `speed`.
+    pub speed_beat: bool,
 }
 
 /// `g_optScrollSpeed`'s default, written by the options-defaults routine at

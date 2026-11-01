@@ -38,7 +38,7 @@ impl LiveBattle {
     }
 
     pub(crate) fn look_at_selection(&mut self) {
-        if let Some(&first) = self.runner.selected_fighters(self.owner).first() {
+        if let Some(&first) = self.picked_fighters().first() {
             let f = &self.runner.fighters[first];
             self.look_at((f.x, f.y));
         }

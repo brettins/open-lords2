@@ -183,6 +183,15 @@ impl Decode for LiveBattle {
             deferred: false,
             outbox: Vec::new(),
             awaiting: Default::default(),
+            controls: crate::game::BattleControls::Classic,
+            latched: false,
+            announced: false,
+            sel: Vec::new(),
+            mgroups: Default::default(),
+            last_group: None,
+            armed: false,
+            speed: 0,
+            speed_beat: false,
         })
     }
 }

@@ -114,6 +114,7 @@ impl ApplicationHandler for App {
             WindowEvent::ModifiersChanged(mods) => {
                 self.ctrl = mods.state().control_key();
                 self.alt = mods.state().alt_key();
+                self.game.shift_held = mods.state().shift_key();
             }
             WindowEvent::KeyboardInput { event, .. } if event.state.is_pressed() => {
                 if event.logical_key == WinitKey::Named(NamedKey::F5) {
