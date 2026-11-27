@@ -84,6 +84,15 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      # docs/releases/README.md: every numbered release has hand-written notes.
+      - name: Release notes
+        run: |
+          notes="docs/releases/${GITHUB_REF_NAME}.md"
+          [ -f "$notes" ] || { echo "::error::$notes is missing: write the release notes, then tag"; exit 1; }
+          cat "$notes" docs/releases/footer.md > "$RUNNER_TEMP/notes.md"
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -92,13 +101,8 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
-          body: |
-            The engine only: it contains none of the original game's art, sound or data.
-            You need your own copy of Lords of the Realm II (GOG's edition works).
-            Unpack, then run l2-game (l2-game.exe on Windows) and point it at the game folder.
-            See README.txt inside the archive.
+          body_path: ${{ runner.temp }}/notes.md
 
   nightly:
     name: replace the nightly pre-release
@@ -106,22 +110,37 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
+      # The notes list what landed since the last numbered release, skipping the
+      # bookkeeping commits (ledger, census, figures, symbols, oracle checks).
       - env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
         run: |
+          last=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          short=$(git rev-parse --short HEAD)
+          {
+            echo "The newest build of main, rebuilt each night that main changes and its tests pass."
+            echo "Expect rough edges; numbered releases are steadier."
+            echo
+            if [ -n "$last" ]; then
+              echo "### Changes since $last"
+              echo
+              git log --no-merges --format='- %s' "$last..HEAD" \
+                | grep -viE '^- (ledger|census|figures|symbols|oracle check|questions|number the|merge fixes)' | head -40
+              echo
+              echo "[Every commit since $last](https://github.com/$REPO/compare/$last...$short)"
+            fi
+            cat docs/releases/footer.md
+          } > "$RUNNER_TEMP/notes.md"
           gh release delete nightly --repo "$REPO" --cleanup-tag --yes || true
-          short=$(echo "$GITHUB_SHA" | cut -c1-7)
           gh release create nightly dist/* --repo "$REPO" --target "$GITHUB_SHA" --prerelease \
-            --title "Nightly $(date -u +%Y-%m-%d) ($short)" \
-            --notes "The newest build of main, rebuilt each night that main changes and CI passes. Expect rough edges; tagged releases are steadier.
-
-          The engine only: it contains none of the original game's art, sound or data.
-          You need your own copy of Lords of the Realm II (GOG's edition works).
-          Unpack, then run l2-game (l2-game.exe on Windows) and point it at the game folder.
-          See README.txt inside the archive."
+            --title "Nightly $(date -u +%Y-%m-%d) ($short)" --notes-file "$RUNNER_TEMP/notes.md"
