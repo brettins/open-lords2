@@ -75,6 +75,7 @@ crates/l2-game/tests/cursor.rs england 3
 crates/l2-game/tests/cursor.rs install 1
 crates/l2-game/tests/differential/chain.rs fixture 2
 crates/l2-game/tests/differential/turns.rs fixture 3
+crates/l2-game/tests/ending.rs install 1
 crates/l2-game/tests/field_terrain.rs install 1
 crates/l2-game/tests/ground/army_and_confirm.rs install 2
 crates/l2-game/tests/ground/diplomacy_part.rs install 5

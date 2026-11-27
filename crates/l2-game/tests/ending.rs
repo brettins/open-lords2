@@ -200,3 +200,33 @@ fn the_second_campaign_starts_at_australia() {
     assert_eq!(g.campaign.map, 2, "DAT_0053F258 = 2, from FUN_00433461");
     assert_eq!(g.campaign.current().map(|m| m.scenario), Some(52));
 }
+
+/// Game_NewGame 0x00497CED clears g_gameOutcome 0x0053F0C4 [V], `docs/symbols.md`.
+#[test]
+fn the_next_map_of_a_campaign_starts_in_play() {
+    use l2_game::input::Event;
+    use l2_game::message::{self, category, Dismissal, Record};
+    let Some(dir) = l2_testkit::install_dir() else { l2_testkit::skip!("no game install") };
+    let platform = l2_mods::Platform::builder().base(&dir).build().expect("the install mounts");
+    let assets = l2_game::game::Assets::load(&platform.vfs).expect("assets load");
+    let mut g = five_realms();
+    g.kingdom.tables = platform.kingdom_tables().expect("tables");
+    g.campaign.outcome = Outcome::Won;
+    // Msg_Dismiss 0x00476768 on the victory letter: Campaign_EnterConquest 0x00497879.
+    g.campaign.enter_conquest_screen();
+
+    let mut ctx = Ctx { game: &mut g, assets: &assets };
+    let mut screen = ConquestScreen::new();
+    screen.update(&mut ctx);
+    let t = screen.handle(Event::Release { x: 0, y: 0 }, &mut ctx);
+    assert!(matches!(t, l2_game::screen::Transition::Replace(_)), "the next map starts: {t:?}");
+    assert_eq!(g.campaign.map, 1, "the win moved the campaign on once");
+    assert_eq!(g.outcome(), Outcome::InPlay, "and the new map is in play");
+
+    let player = g.player;
+    let tip = Record { to: 0, from: player, group: 0xE6, variant: 0, category: category::TIP, county: 0, spare: 0, payload: 0 };
+    g.messages.enqueue(tip, player);
+    assert!(g.messages.pull(), "the tip opens");
+    assert_eq!(message::dismiss(&mut g), Dismissal::Closed);
+    assert_eq!(g.campaign.map, 1, "closing a message does not end the new map");
+}
