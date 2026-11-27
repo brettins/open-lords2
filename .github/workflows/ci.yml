@@ -1,10 +1,16 @@
 name: CI
 
+# Every push: the full suite on Linux. Windows runs on pull requests, nightly
+# and by hand: its runner takes ten minutes, and the Windows-only code (install
+# lookup, folder picker, %APPDATA%) rarely changes.
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
 
 # A new push to the same branch cancels the run still in flight.
 concurrency:
@@ -18,8 +24,8 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  # A push that touches only prose (*.md, *.html) skips the ten-minute Windows
-  # build and test; the Linux job and the document checks still run. Two prose
+  # A push that touches only prose (*.md, *.html) skips the build and test;
+  # the document checks still run. Two prose
   # files are read by l2-game tests (sfx_tests.rs: bugs.md, trace/symbols.rs:
   # symbols.md) and count as code.
   changes:
@@ -35,6 +41,7 @@ jobs:
         env:
           BEFORE: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
+          if [ "${{ github.event_name }}" = schedule ] || [ "${{ github.event_name }}" = workflow_dispatch ]; then echo code=true >> "$GITHUB_OUTPUT"; exit 0; fi
           if ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then echo code=true >> "$GITHUB_OUTPUT"; exit 0; fi
           files=$(git diff --name-only "$BEFORE" "$GITHUB_SHA")
           code=$(printf '%s\n' "$files" | grep -vE '\.(md|html)$' | grep -c . || true)
@@ -42,8 +49,7 @@ jobs:
           echo "changed: $(printf '%s\n' "$files" | grep -c .) files, $code not prose"
           if [ "$code" -gt 0 ] || [ "$special" -gt 0 ]; then echo code=true >> "$GITHUB_OUTPUT"; else echo code=false >> "$GITHUB_OUTPUT"; fi
 
-  # The real gate. Windows is where this project is developed and where the
-  # game runs.
+  # Windows: pull requests, the nightly schedule and "Run workflow".
   #
   # Note there is no game install on the runner: the corpus tests read
   # LORDS2_DIR and skip when it is unset, which is deliberate — a checkout
@@ -52,7 +58,7 @@ jobs:
   test:
     name: test (windows)
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.code == 'true' && github.event_name != 'push'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,28 +98,13 @@ jobs:
             | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
           echo "::error title=failing tests::${body}"
 
-      # Two documents state measurements about this tree - README's test and
-      # function counts, status.html's gauges. Nothing recomputed them, so they
-      # drifted: README said 958 tests against 1,221, status.html said 230
-      # functions named against 465. A document quoting a measurement that
-      # nothing checks is a test that cannot fail, so these are generated and
-      # checked here. The workspace count is read from the Test step's log;
-      # re-running the suite here cost three minutes.
-      - name: Documented figures are current
-        env:
-          FIGURES_TEST_LOG: test.log
-        run: node tools/figures/figures.js --check
-
-  # Everything except `l2-game` is dependency-free on purpose: deterministic
-  # lockstep means no floats where ordering matters, a seeded PRNG frozen
-  # in-tree, and no iteration whose order depends on hashing (docs/netcode.md).
-  #
-  # `winit` and `pixels` live in `l2-game` and nowhere else. Building the other
-  # seven crates on a different OS turns that architectural claim into
-  # something checked rather than asserted: if a platform dependency creeps
-  # into the simulation, this job is what notices.
-  portable:
-    name: simulation is platform-independent (linux)
+  # The gate on every push: the whole workspace on Linux, l2-game included.
+  # `winit` and `pixels` live in `l2-game` and nowhere else, so the simulation
+  # building on a second OS also checks it took no platform dependency
+  # (docs/netcode.md).
+  linux:
+    name: test (linux)
+    needs: changes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -131,14 +122,38 @@ jobs:
       - name: Register the keyed JSON merge driver
         run: sh tools/symbols/install-merge-driver.sh
 
-      - name: Test everything but the windowing crate
-        run: cargo test --workspace --exclude l2-game
+      # cpal's ALSA back end and winit's keyboard map (release.yml installs the same).
+      - name: Linux build dependencies
+        if: needs.changes.outputs.code == 'true'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev libxkbcommon-dev libwayland-dev libx11-dev pkg-config
 
-      # The document checks run here on every push, prose-only ones included.
-      # The test count is skipped: the Windows job checks it against its run.
-      - name: Documented figures are current (all but the test count)
+      - name: Test
+        if: needs.changes.outputs.code == 'true'
+        run: |
+          set -o pipefail
+          cargo test --workspace --no-fail-fast 2>&1 | tee test.log
+
+      - name: Name the failing tests
+        if: failure()
+        run: |
+          [ -f test.log ] || exit 0
+          body=$(sed -e 's/\x1b\[[0-9;]*m//g' test.log \
+            | grep -E -A8 "panicked at|^test .* FAILED$|^error: " | head -150 \
+            | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+          echo "::error title=failing tests::${body}"
+
+      # Two documents state measurements about this tree - README's test and
+      # function counts, status.html's gauges. Nothing recomputed them, so they
+      # drifted: README said 958 tests against 1,221, status.html said 230
+      # functions named against 465. A document quoting a measurement that
+      # nothing checks is a test that cannot fail, so these are generated and
+      # checked here. The workspace count is read from the Test step's log;
+      # re-running the suite here cost three minutes.
+      # A prose-only push ran no tests, so the test count is skipped then.
+      - name: Documented figures are current
         env:
-          FIGURES_SKIP_TESTS: '1'
+          FIGURES_TEST_LOG: ${{ needs.changes.outputs.code == 'true' && 'test.log' || '' }}
+          FIGURES_SKIP_TESTS: ${{ needs.changes.outputs.code != 'true' && '1' || '' }}
         run: node tools/figures/figures.js --check
 
       # symbols.md is generated from symbols.json the same way, and for the same
