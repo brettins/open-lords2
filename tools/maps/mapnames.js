@@ -1,6 +1,6 @@
 // Dump L2.eng group 101 (campaign map names) next to the L2_maps.dat slot census.
 const fs=require('fs');
-const D=(process.argv[2]||'F:/games/Lords of the Realm II').replace(/[\/]+$/,'')+'/';
+const D=(process.argv[2]||require('../paths.js').game()).replace(/[\/]+$/,'')+'/';
 const e=fs.readFileSync(D+'L2.eng');
 const off=g=>e[8+g*4]|(e[9+g*4]<<8)|(e[10+g*4]<<16);
 const N=(off(1)-8)/4;

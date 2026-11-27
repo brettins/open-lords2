@@ -10,7 +10,7 @@ localiser would want to replace:
 | `BATTLES.ENG` | 7,150 / — | **plain text**, CR/LF-delimited, read as fixed triples |
 | `TROOPS.ENG` `TROOPS2.ENG` `TROOPS3.ENG` | 22,764 each / — | **plain text**, a commented numeric table |
 
-Only `L2.eng` exists in the DOS install (`F:\games\LORDS2\L2.ENG`); the other
+Only `L2.eng` exists in the DOS install (`$LORDS2_DOS_DIR\L2.ENG`); the other
 four shipped with the Windows release. `.eng` is also the extension the German
 and French builds would swap, so the container matters for a mod
 system.
@@ -320,12 +320,12 @@ All three files are the same size (22,764 bytes) and differ from each other in
 ## 4. Validation and reproduction
 
 ```powershell
-node E:/dev/lords2/tools/skr/eng.js validate "F:/games/Lords of the Realm II"
-node E:/dev/lords2/tools/skr/eng.js validate "F:/games/LORDS2"
+node tools/skr/eng.js validate "$LORDS2_DIR"
+node tools/skr/eng.js validate "$LORDS2_DOS_DIR"
 
-node E:/dev/lords2/tools/skr/eng.js l2      "F:/games/Lords of the Realm II/L2.eng"
-node E:/dev/lords2/tools/skr/eng.js battles "F:/games/Lords of the Realm II/BATTLES.ENG"
-node E:/dev/lords2/tools/skr/eng.js troops  "F:/games/Lords of the Realm II/TROOPS2.ENG"
+node tools/skr/eng.js l2      "$LORDS2_DIR/L2.eng"
+node tools/skr/eng.js battles "$LORDS2_DIR/BATTLES.ENG"
+node tools/skr/eng.js troops  "$LORDS2_DIR/TROOPS2.ENG"
 ```
 
 `validate` over the Windows install:

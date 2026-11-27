@@ -1,7 +1,7 @@
 'use strict';
 // Render shape-0 frames raw, side by side across files.
 const { parse, spans, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 const names = process.argv[3].split(',');
 const idxs = process.argv.slice(4).map(Number);
 const all = loadAll(DIR);

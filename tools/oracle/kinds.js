@@ -47,7 +47,7 @@ function opt(name, dflt) {
   const i = process.argv.indexOf('--' + name);
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : dflt;
 }
-const EXE = opt('exe', path.join(process.env.LORDS2_DIR || 'F:/games/Lords of the Realm II', 'Lords2.exe'));
+const EXE = opt('exe', path.join(process.env.LORDS2_DIR || require('../paths.js').game(), 'Lords2.exe'));
 if (!fs.existsSync(EXE)) {
   console.error(`no Lords2.exe at ${EXE}\nset LORDS2_DIR, or pass --exe <path>`);
   process.exit(1);

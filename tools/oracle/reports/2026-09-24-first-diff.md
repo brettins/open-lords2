@@ -1,14 +1,14 @@
 # First trace diff: the original against ours, four scenarios
 
 2026-09-24. `tools/oracle/trace-diff.js` over `launch`, `newgame-original`, `newgame-new`,
-`zoom-map`. Original side: `trace-run.ps1 -Runs 2` (hidden, own install `E:\games\l2-trace-b4`);
+`zoom-map`. Original side: `trace-run.ps1 -Runs 2` (hidden, own install `$LORDS2_TRACE_DIR-b4`);
 ours: `L2_TRACE_OUT=<dir> cargo test --release -p l2-game --test trace -- --ignored`. Frame
 numbers below are each side's own and are not compared. C246.
 
 Reproduce:
 
 ```
-powershell -File tools/oracle/trace-run.ps1 -Scenario tools/oracle/scenarios/<s>.jsonl -Out C:\Temp\t -Install E:\games\l2-trace-b4
+powershell -File tools/oracle/trace-run.ps1 -Scenario tools/oracle/scenarios/<s>.jsonl -Out C:\Temp\t -Install $LORDS2_TRACE_DIR-b4
 L2_TRACE_OUT=C:\Temp\t cargo test --release -p l2-game --test trace -- --ignored
 node tools/oracle/trace-diff.js --dir C:\Temp\t --a orig --b ours launch newgame-original newgame-new zoom-map
 ```

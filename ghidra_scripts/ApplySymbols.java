@@ -3,8 +3,8 @@
 // The script contains no knowledge of the binary: everything comes from the JSON.
 // Adding a name later is a one-line edit in docs/symbols.json, not a code change.
 //
-//   analyzeHeadless E:\dev\ghidra-projects lords2 -process Lords2.exe -noanalysis \
-//       -scriptPath E:\dev\lords2\ghidra_scripts -postScript ApplySymbols.java [path] [--dry-run]
+//   analyzeHeadless $GHIDRA_PROJECTS lords2 -process Lords2.exe -noanalysis \
+//       -scriptPath ghidra_scripts -postScript ApplySymbols.java [path] [--dry-run]
 //
 // With no path argument the script looks for ../docs/symbols.json beside its own source.
 //@category Lords2

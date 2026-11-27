@@ -14,8 +14,8 @@
 // layouts live in docs/records.json, checked against the widths
 // RecordProbe.java measures; adding a field is an edit to the JSON.
 //
-//   analyzeHeadless E:\dev\ghidra-projects lords2 -process Lords2.exe -noanalysis \
-//       -scriptPath E:\dev\lords2\ghidra_scripts -postScript ApplyRecords.java [path] [--dry-run]
+//   analyzeHeadless $GHIDRA_PROJECTS lords2 -process Lords2.exe -noanalysis \
+//       -scriptPath ghidra_scripts -postScript ApplyRecords.java [path] [--dry-run]
 //
 // With no path argument it looks for ../docs/records.json beside its own source.
 //@category Lords2

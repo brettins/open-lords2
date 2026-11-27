@@ -1,8 +1,8 @@
 'use strict';
 // Deterministic decode model (no "try both" fallbacks) + canvas-bounds check.
-//   node final.js "F:/games/Lords of the Realm II"
+//   node final.js "$LORDS2_DIR"
 const { parse, spans, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 
 // --- RLE rows: consume exactly n rows of width w, painting into `paint(y,x,v)`
 function rleRows(buf, p, w, n, paint) {

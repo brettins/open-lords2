@@ -1,8 +1,8 @@
 // Verify the plane-0/1/2/3/4 and lattice claims in docs/formats/maps-layers.md
 // over ALL used slots of L2_maps.dat. Reads the game files in place; writes nothing.
-//   node verify_layers.js ["F:/games/Lords of the Realm II"]
+//   node verify_layers.js ["$LORDS2_DIR"]
 const fs = require('fs');
-const D = (process.argv[2] || 'F:/games/Lords of the Realm II').replace(/[\\/]+$/, '') + '/';
+const D = (process.argv[2] || require('../paths.js').game()).replace(/[\\/]+$/, '') + '/';
 const b = fs.readFileSync(D + 'L2_maps.dat');
 const REC = 32961, PL = 4096, LW = 65, LH = 129, N = b.length / REC;
 const P = (r, p) => b.slice(r * REC + p * PL, r * REC + (p + 1) * PL);

@@ -70,7 +70,7 @@ proven. `g_saveBlocks` (`0x004DE960`) is a table of 225 `{address, length}` reco
 every block, and the tool that reads it already exists:
 
 ```
-$ node tools/kingdom/savedump.js layout "F:/games/Lords of the Realm II"
+$ node tools/kingdom/savedump.js layout "$LORDS2_DIR"
 save-block table at 0x4de960 in Lords2.exe
   0  0x00522f90    32768  @0        g_tiles
   3  0x0057bf00     2112  @84232    g_realms
@@ -79,7 +79,7 @@ save-block table at 0x4de960 in Lords2.exe
 ```
 
 ```
-$ node tools/kingdom/savedump.js county "F:/games/Lords of the Realm II"
+$ node tools/kingdom/savedump.js county "$LORDS2_DIR"
 idx owner healthBand healthMeter happiness ... neighbourCount ... castleType ... grain herd
   1     5          3          67        72 ...              1 ...         3 ...     0   74
   2     0          3          67        77 ...              3 ...         0 ...   100   67
@@ -368,7 +368,7 @@ every county record checked against the bytes.
 `safeturn.sav ← old_turn.sav ← lastturn.sav` at every turn boundary, so **one played turn
 produces a before/after pair** and the whole `SEASON_PIPELINE` becomes differentially
 testable against the original with no automation at all. Measured caveat: the install ships
-exactly one save — `find "F:/games/Lords of the Realm II" -iname '*.sav'` returns
+exactly one save — `find "$LORDS2_DIR" -iname '*.sav'` returns
 `lastturn.sav` only — so this asks the user to sit down and press End Turn once. That is not
 "launching the game" in method §3's sense; it is a one-time human action that buys a
 permanent oracle. Worth asking for.
@@ -445,9 +445,9 @@ for vendoring PCG32 and XXH64. Right call, well argued,
 export PATH="$USERPROFILE/.cargo/bin:$PATH"
 cargo test --workspace                                     # 727 pass, ~6 s warm
 
-node tools/kingdom/savedump.js layout "F:/games/Lords of the Realm II"
-node tools/kingdom/savedump.js county "F:/games/Lords of the Realm II"
-node tools/kingdom/savedump.js realm  "F:/games/Lords of the Realm II"
+node tools/kingdom/savedump.js layout "$LORDS2_DIR"
+node tools/kingdom/savedump.js county "$LORDS2_DIR"
+node tools/kingdom/savedump.js realm  "$LORDS2_DIR"
 # county owner bytes, read straight out of the save:
 #   b[86344 + i*0x300 + 5] for i in 0..17  ->  0,5,0,0,4,0,0,0,1,0,0,3,0,2,0,0,0
 

@@ -7,9 +7,9 @@ Files examined (read-only, never modified):
 
 | File | Size | Notes |
 |---|---|---|
-| `F:\games\Lords of the Realm II\L2_maps.dat` | 2,636,880 | Windows release, 80 slots |
-| `F:\games\LORDS2\L2_MAPS.DAT` | 1,318,440 | DOS release, 40 slots; byte-identical prefix of the above |
-| `F:\games\Lords of the Realm II\Lords2.exe` | 1,031,680 | contains the loader — the reference implementation |
+| `$LORDS2_DIR\L2_maps.dat` | 2,636,880 | Windows release, 80 slots |
+| `$LORDS2_DOS_DIR\L2_MAPS.DAT` | 1,318,440 | DOS release, 40 slots; byte-identical prefix of the above |
+| `$LORDS2_DIR\Lords2.exe` | 1,031,680 | contains the loader — the reference implementation |
 
 Status legend used throughout: **[V]** = verified against file bytes and/or
 disassembly; **[I]** = inferred, plausible but not proven.
@@ -344,17 +344,17 @@ documented above.
 
 ## 5. Validation and reproduction
 
-All scripts are in `E:\dev\lords2\tools\maps\` and read the game files in place.
+All scripts are in `tools\maps\` and read the game files in place.
 
 ```powershell
 # Container validation: slot count, used/empty census, plane alphabets, invariants
-node E:/dev/lords2/tools/maps/validate.js
-node E:/dev/lords2/tools/maps/validate.js "F:/games/LORDS2/L2_MAPS.DAT"   # DOS file
+node tools/maps/validate.js
+node tools/maps/validate.js "$LORDS2_DOS_DIR/L2_MAPS.DAT"   # DOS file
 
 # Render one map, and a contact sheet of all 44
-node E:/dev/lords2/tools/maps/export_png.js 0
-node E:/dev/lords2/tools/maps/export_png.js all
-# -> E:\dev\lords2\tools\maps\out\map0.png, all_maps.png
+node tools/maps/export_png.js 0
+node tools/maps/export_png.js all
+# -> tools\maps\out\map0.png, all_maps.png
 ```
 
 `validate.js` output (Windows file) confirms:
@@ -377,23 +377,23 @@ and for every used slot individually, `castle(0x40) tiles == 4 x counties`.
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" mapl2 -import "F:\games\Lords of the Realm II\Lords2.exe" `
+& "$GHIDRA_HEADLESS" `
+    "$GHIDRA_PROJECTS" mapl2 -import "$LORDS2_DIR\Lords2.exe" `
     -analysisTimeoutPerFile 2400
 
 # find the record size / filename references
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" mapl2 -process Lords2.exe -noanalysis `
-    -scriptPath "E:\dev\lords2\ghidra_scripts_maps" -postScript FindMapConsts.java
+& "$GHIDRA_HEADLESS" `
+    "$GHIDRA_PROJECTS" mapl2 -process Lords2.exe -noanalysis `
+    -scriptPath "ghidra_scripts_maps" -postScript FindMapConsts.java
 
 # decompile the loaders and consumers
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" mapl2 -process Lords2.exe -noanalysis `
-    -scriptPath "E:\dev\lords2\ghidra_scripts_maps" -postScript DecompileFunc.java `
+& "$GHIDRA_HEADLESS" `
+    "$GHIDRA_PROJECTS" mapl2 -process Lords2.exe -noanalysis `
+    -scriptPath "ghidra_scripts_maps" -postScript DecompileFunc.java `
     00467770 0046797d 004af8d9 00429153 0049bbe8 0046a037 004063c1 00467a36 0040526e 00429800
 ```
 
-Scripts in `E:\dev\lords2\ghidra_scripts_maps\`: `DecompileFunc.java` (copied
+Scripts in `ghidra_scripts_maps\`: `DecompileFunc.java` (copied
 from `ghidra_scripts/`), `FindMapConsts.java`, `XrefData.java`, `ScanRange.java`.
 
 ### Key addresses in `Lords2.exe`

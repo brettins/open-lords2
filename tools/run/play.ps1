@@ -46,7 +46,7 @@ param(
     # the call below splatted `@args` - which an advanced script (the
     # `[CmdletBinding()]` above) does not have. Every argument was a binding
     # error before the build even started, measured: *"A positional parameter
-    # cannot be found that accepts argument 'F:\games\Lords of the Realm II'"*.
+    # cannot be found that accepts argument '<LORDS2_DIR>'"*.
     # `l2-game` requires a game directory, so the launcher could never have
     # launched the game. `docs/decisions.md` C154.
     #

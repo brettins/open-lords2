@@ -36,7 +36,7 @@
 param(
   [ValidateSet('File','Live')]
   [string]$Source = 'File',
-  [string]$Exe = 'F:\games\Lords of the Realm II\Lords2.exe'
+  [string]$Exe = (Join-Path (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_DIR }) 'Lords2.exe')
 )
 
 $ErrorActionPreference = 'Stop'

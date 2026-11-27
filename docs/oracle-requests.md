@@ -115,7 +115,7 @@ quotation that must not be implemented. **A memory that fits is not evidence, an
 
 1. When the list says *save*, quit to the menu and **Save Game** under a name from the list
    below — the names matter, because our tests look them up by name.
-2. Copy the file out of the game folder into **`E:\dev\lords2-fixtures\`**. Do not leave it
+2. Copy the file out of the game folder into **`$LORDS2_FIXTURES\`**. Do not leave it
    in the install: `lastturn.sav` is a rolling autosave and ten minutes of further play
    destroys it.
 3. **You get a free before-and-after.** The game rotates `lastturn.sav` → `old_turn.sav` →

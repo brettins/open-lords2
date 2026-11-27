@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Dump every string of an L2.eng-format text file as "group index  text".
 // Used here only as an outside check on names read out of the binary.
-//   node tools/battleai/engdump.js "F:/games/Lords of the Realm II/L2.eng"
+//   node tools/battleai/engdump.js "$LORDS2_DIR/L2.eng"
 'use strict';
 const fs = require('fs');
 const b = fs.readFileSync(process.argv[2]);

@@ -8,8 +8,8 @@ agent, so it stays short. Read the linked document before working in that area.
 
 1. **Never commit game assets** — no `.pl8`, `.256`, `.smk`, `.wav`, or extracted images.
    `.gitignore` enforces it; don't weaken it.
-2. **The game installs are read-only.** Never write to `F:\games\Lords of the Realm II`
-   or `F:\games\LORDS2`.
+2. **The game installs are read-only.** Never write to `$LORDS2_DIR`
+   or `$LORDS2_DOS_DIR`.
 3. **This project is MIT; the useful prior art is GPL-3.** Format *facts* are free. Never
    copy, vendor or translate their code.
 4. **Label claims verified or inferred.** A plausible story assembled from decompiler

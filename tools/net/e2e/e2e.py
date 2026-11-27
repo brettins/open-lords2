@@ -2,7 +2,8 @@ import os, subprocess, time, shutil, signal
 ROOT = os.path.dirname(os.path.abspath(__file__))
 RUNS = os.environ.get("LORDS2_E2E_OUT", os.path.expanduser("~/.cache/lords2-e2e"))
 BIN = os.environ.get("LORDS2_E2E_BIN", os.path.expanduser("~/.cache/lords2-target/debug/l2-game"))
-GAME = os.environ.get("LORDS2_DIR", "/mnt/bigfast/games/Lords of the Realm II")
+GAME = subprocess.run(["node", os.path.join(ROOT, "../../paths.js"), "LORDS2_DIR"],
+                      capture_output=True, text=True, check=True).stdout.strip()
 PREFS = os.path.expanduser("~/.local/share/open-lords2/saves/prefs.ini")
 LOG = []
 

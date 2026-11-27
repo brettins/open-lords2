@@ -1,7 +1,7 @@
 'use strict';
 // Render the trailing block of every shape-0 frame that has one, as rows RLE rows.
 const { parse, spans, loadAll } = require('./pl8lib');
-const DIR = 'F:/games/Lords of the Realm II';
+const DIR = require('../paths.js').game();
 const want = process.argv[2];
 function decodeRows(buf, p, w, n) {
   const out = [];

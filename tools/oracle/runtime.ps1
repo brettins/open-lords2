@@ -56,7 +56,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Exe = 'F:\games\Lords of the Realm II\Lords2.exe',
+  [string]$Exe = (Join-Path (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_DIR }) 'Lords2.exe'),
   # Launch and hand the game the foreground. Pass -NoLaunch to only attach to a
   # game that is already running.
   [switch]$NoLaunch

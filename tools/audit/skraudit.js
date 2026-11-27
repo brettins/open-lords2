@@ -1,5 +1,5 @@
 const fs=require('fs');
-const p='F:/games/Lords of the Realm II/USER.SKR';const b=fs.readFileSync(p);
+const p=require('../paths.js').game('USER.SKR');const b=fs.readFileSync(p);
 console.log('size',b.length,'expected',20*2*44+20*183+328+20*6400, '= 1760+3660+328+128000');
 console.log('blocks: army',20*2*44,'text',20*183,'terrain',328+20*6400,'sum',20*2*44+20*183+328+20*6400);
 console.log('0x152C =',0x152C,' 0x1674 =',0x1674,' 0x1900 =',0x1900,' 0x20A74 =',0x20A74,' 0xB7 =',0xB7,' 0x6E0 =',0x6E0,' 0xE4C =',0xE4C,' 0x1F548 =',0x1F548);
@@ -41,6 +41,6 @@ console.log('  0x12 x range',Math.min(...xs),'-',Math.max(...xs),'y range',Math.
 const xs2=p10.map(c=>c[0]),ys2=p10.map(c=>c[1]);
 console.log('  0x10 x range',Math.min(...xs2),'-',Math.max(...xs2),'y range',Math.min(...ys2),'-',Math.max(...ys2));
 // L2MAP.INF
-const inf=fs.readFileSync('F:/games/Lords of the Realm II/L2MAP.INF');
+const inf=fs.readFileSync(require('../paths.js').game('L2MAP.INF'));
 console.log('L2MAP.INF size',inf.length,'u32[0..2]',inf.readUInt32LE(0),inf.readUInt32LE(4),inf.readUInt32LE(8),
  'w',inf.readUInt32LE(0x18),'h',inf.readUInt32LE(0x1C),'name',inf.subarray(0xC8,0xC8+14).toString('latin1').replace(/\0.*/,''));

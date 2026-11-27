@@ -1,4 +1,4 @@
-const fs=require('fs'),path=require('path');const D='F:/games/Lords of the Realm II';
+const fs=require('fs'),path=require('path');const D=require('../paths.js').game();
 const files=fs.readdirSync(D).filter(f=>/\.pl8$/i.test(f)).sort();
 function rle(b,p,w,rows){for(let y=0;y<rows;y++){let x=0;while(x<w){if(p>=b.length)return null;const op=b[p++];if(op===0){const s=b[p++];if(!s)return null;x+=s;}else{p+=op;x+=op;}}if(x!==w)return null;}return p;}
 const fam0WithIso=[], failOld=[], frames={};

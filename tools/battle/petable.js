@@ -15,9 +15,9 @@
 // When a u32 entry is the address of a function the corpus knows about, the
 // name is printed beside it - so a table of function pointers resolves itself.
 //
-//   node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9140 12
-//   node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9170 18
-//   node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d98f8 44 2
+//   node tools/battle/petable.js "$LORDS2_DIR/Lords2.exe" 4d9140 12
+//   node tools/battle/petable.js "$LORDS2_DIR/Lords2.exe" 4d9170 18
+//   node tools/battle/petable.js "$LORDS2_DIR/Lords2.exe" 4d98f8 44 2
 //
 // Node needs forward slashes on Windows; see docs/environment.md.
 const fs = require('fs');

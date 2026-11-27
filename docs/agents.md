@@ -101,7 +101,7 @@ repository whose working tree disagrees with its `main` on every inventory.
 ## Ghidra
 
 **Only one process may hold a Ghidra project at a time.** Concurrent agents must use
-separate project directories under `E:\dev\ghidra-projects` — e.g. `lords2` for the game
+separate project directories under `$GHIDRA_PROJECTS` — e.g. `lords2` for the game
 binary and `mapl2` for the shipped map editor. Say so explicitly in the agent's brief;
 106: this is not obvious and the failure mode is a lock error mid-run.
 

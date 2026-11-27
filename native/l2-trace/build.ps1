@@ -1,7 +1,7 @@
 <#
   Builds the headless-trace ddraw.dll and dsound.dll (x86; Lords2.exe is PE32) into -Out.
   Built DLLs are never committed. Then:
-    tools\oracle\trace-install.ps1          # E:\games\l2-trace from E:\games\l2-oracle
+    tools\oracle\trace-install.ps1          # <LORDS2_TRACE_DIR> from <LORDS2_ORACLE_DIR>
     tools\oracle\trace.ps1 -Demo            # launch hidden, title menu, one click; JSON line
   Switches the DLL reads from the environment (trace.ps1 sets the first three):
     L2TRACE_GATE=1        lockstep: block at each present until the controller raises `gate`

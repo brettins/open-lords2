@@ -3,7 +3,7 @@
 GOG Windows build, 21 Jul 2009, 1,031,680 bytes. `ImageBase = 0x400000`, **no ASLR**, so
 every address below is stable across runs and safe to hardcode.
 
-Ghidra project: `E:\dev\ghidra-projects\lords2`. The binary has no symbols; these names
+Ghidra project: `$GHIDRA_PROJECTS\lords2`. The binary has no symbols; these names
 are ours. Where a name is a guess, the confidence column says so.
 
 **Leads for the 1,235 functions still unnamed are in [`name-leads.json`](name-leads.json)**,
@@ -25,9 +25,9 @@ sees `Merchant_SpawnAll`, not `FUN_00427ed0`.
 ```powershell
 # apply everything in docs/symbols.json to the Ghidra database (idempotent; --dry-run to preview)
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" lords2 -process Lords2.exe -noanalysis `
-    -scriptPath "E:\dev\lords2\ghidra_scripts" -postScript ApplySymbols.java
+& "$GHIDRA_HEADLESS" `
+    "$GHIDRA_PROJECTS" lords2 -process Lords2.exe -noanalysis `
+    -scriptPath "ghidra_scripts" -postScript ApplySymbols.java
 ```
 
 ```bash
@@ -52,9 +52,9 @@ arrays — 334 of them, a tenth of the globals in the corpus.
 a field added to the JSON reaches the whole corpus on the next rebuild.
 
 ```powershell
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" lords2 -process Lords2.exe -noanalysis `
-    -scriptPath "E:\dev\lords2\ghidra_scripts" -postScript ApplyRecords.java --dry-run
+& "$GHIDRA_HEADLESS" `
+    "$GHIDRA_PROJECTS" lords2 -process Lords2.exe -noanalysis `
+    -scriptPath "ghidra_scripts" -postScript ApplyRecords.java --dry-run
 ```
 
 **A field goes in only when its width is measured.** `ghidra_scripts/RecordProbe.java`
@@ -392,7 +392,7 @@ to `l2_maps.dat` at all. The reference implementation for the campaign map forma
 | `0x004701AC` | `Move_ExtractPath(who, x, y)` | verified | The campaign path extractor (distinct from the battle's Path_Extract at 0x00472392). Greedy descent down a campaign distance field from (x, y) back to the source, appending (x, y) pairs into g_pathBuf[who] with the count in g_pathLen[who]. On a cost-1 road tile it steps the direction index by 2, orthogonals only, and falls back to all eight when that finds nothing. |
 | `0x004707BE` | `Path_CopyToUnit(slot, unit)` | verified | Copies g_pathBuf[slot] into the unit record: length to +0x1C and up to 150 (x, y) pairs to +0x1D. 150 * 2 = 300 bytes, ending exactly at +0x149. |
 | `0x004708D0` | `Path_ClearBuf(slot)` | verified | Zeroes one of the shared campaign path buffers and its length. |
-| `0x00497E65` | `PlayerStart_Shuffle()` | verified | Re-deals the live entries of g_playerStartTable into each other slots, from Game_NewGame between Mercenary_Init and PlayerStart_Compact. For each source entry i it draws a random offset, pos = (rand & 3) + 1 + i wrapping at the live count, then probes forward for a free destination. [V] THIS IS WHY WHICH REALM YOU PLAY IS DIFFERENT EVERY GAME: docs/environment.md records the realm-to-county assignment as rolled per game, from two independently created England turn-one saves disagreeing about it, and this is the code that rolls it. The start counties themselves never move - they are the map plane-4 markers. Its second half deals a 48-entry table into DAT_0057CAE0 and fills DAT_00553080 with 0, 100 or 6 + 5n per entry; that is the battlefield playlist and AI engagement budget, reproduced in l2_kingdom::field_playlist::FieldPlaylist::deal. The first half is reproduced in l2_scenario::newgame::shuffle_starts on our own Pcg32 - the shape is the original, the stream cannot be. See decisions.md C62. |
+| `0x00497E65` | `PlayerStart_Shuffle()` | verified | Re-deals the live entries of g_playerStartTable into each other slots, from Game_NewGame between Mercenary_Init and PlayerStart_Compact. For each source entry i it draws a random offset, pos = (rand & 3) + 1 + i wrapping at the live count, then probes forward for a free destination. [V] THIS IS WHY WHICH REALM YOU PLAY IS DIFFERENT EVERY GAME: docs/environment.md records the realm-to-county assignment as rolled per game, from two independently created England turn-one saves disagreeing about it, and this is the code that rolls it. The start counties themselves never move - they are the map plane-4 markers. Its second half deals a 48-entry table into DAT_0057CAE0 and fills DAT_00553080 with 0, 100 or 6 + 5n per entry; neither destination has been traced and neither is a player start. Reproduced in l2_scenario::newgame::shuffle_starts on our own Pcg32 - the shape is the original, the stream cannot be. See decisions.md C62. |
 | `0x0049BBE8` | `PlayerStart_Record(county, slot)` | verified | Writes {county, slot} into g_playerStartTable[slot] and counts non-zero slots into g_playerStartCount. Called from Map_LoadPlanes for settlement tiles with a non-zero plane 4: the player start table. See docs/formats/maps-layers.md 5.1. |
 | `0x004A4E3D` | `Units_AnyMovingOfKindForRealm(kind, realm)` | verified | As Units_AnyMovingOfKind but also requires owner == realm and ownerIsHuman == 0, and calls Siege_Break on any type-1 unit it starts. Two callers: turn phase 5's wait, as (2, 6) - so the phase waits only on realm 6's ownerless mobs - and the AI turn's finish test, as (1, realm), which is why a realm with armies still walking keeps stepping past its aiStep threshold. Promoted from the hypothesis Unit_AbandonOrders, whose name had it backwards: it starts orders, it does not abandon them. |
 | `0x004A4F5B` | `Units_AnyMovingOfKind(kind)` | verified | The wait predicate for turn phases 3 and 6. Walks slots 1..150 and, for every unit of this kind with moving != 0, sets moving = 2 and returns 1. It is not a read-only query: it promotes 'ordered' (1) to 'stepping' (2) as well as reporting that the phase is still busy, so one call both starts a phase's units and waits on them. |
@@ -1537,7 +1537,7 @@ at 480 in every case, which is what fixes the 160-pixel right column.
 | `0x00499A1C` | `Res_LoadButtons(skin)` | verified | Loads system2.pl8 (skin 0) or system.pl8 (skin 1) into g_systemSheet. Same size and same 84-frame layout, but 69 of System2.pl8s frames are entirely index 0 and none of System.pl8s are, and the kingdom screens ask for skin 1 - so the county panels button art is System.pl8. docs/screens-county.md section 4.2. |
 | `0x00499DC3` | `Setup_CommitOptions()` | verified | The step between the setup screen and the game, called from the Start button immediately before Setup_StartGame. Reads the twelve selections at 0x0053F288.. and writes the eleven values a game is played with: five straight through (advanced farming, exploration, armies eat, difficulty, fight humans only), one by arithmetic (the AI lord count), and five through a table - g_timeLimitSeconds, g_startingGold, g_startArmoury, g_startTroops and g_countyStatus. |
 | `0x00499E5D` | `Campaign_LoadEntry()` | verified | Loads campaign row g_campaignMap out of g_campaignTableA or g_campaignTableB (g_campaignTrack picks) into g_scenarioIndex, g_optDifficulty and six option globals, then Minimap_Load, Map_LoadPlanes and Map_BuildLattice on the new scenario. Forces g_optTimeLimit = 0, g_optFightHumansOnly = 1 and advanced farming, exploration and army eating off, so a campaign map ignores whatever the custom-game screen last set. On the eighth win it reads row 8, one past the eight real rows, and both tables are padded with two zeroed rows so that read is harmless. |
-| `0x004AE15F` | `Options_Save()` | verified | Writes the whole g_options block to the preferences file: __open("lords2.inf", 0x8301, 0x180) then __write(fd, &g_options, 0x468). [V] - the shipped F:\games\Lords of the Realm II\lords2.inf is exactly 0x468 bytes, matching the length operand byte for byte, and the file name string appears twice in.data (0x004DF154 here, 0x004DF170 in Options_Load). ONE call site, 0x0049767D, itself reached only from 0x0040EBFE after the message loop ends - so a crash loses every setting changed that session. docs/decisions.md C62. |
+| `0x004AE15F` | `Options_Save()` | verified | Writes the whole g_options block to the preferences file: __open("lords2.inf", 0x8301, 0x180) then __write(fd, &g_options, 0x468). [V] - the shipped $LORDS2_DIR\lords2.inf is exactly 0x468 bytes, matching the length operand byte for byte, and the file name string appears twice in.data (0x004DF154 here, 0x004DF170 in Options_Load). ONE call site, 0x0049767D, itself reached only from 0x0040EBFE after the message loop ends - so a crash loses every setting changed that session. docs/decisions.md C62. |
 | `0x004AE1B8` | `Options_Load()` | verified | Reads lords2.inf back over g_options at start-up, called once from 0x0040E9AB just after L2.eng loads and before App_InitWindow. Order, from the disassembly: stash the byte at g_options+0x20; FUN_004AECF0("*.sav", 0); Options_SetDefaults(); __open("lords2.inf", 0x8404) and bail on -1 leaving the defaults; __read(fd, &g_options, 0x468), which overwrites the defaults wholesale INCLUDING the magic; Options_Validate(); g_options+0x64 = 0; restore the stashed byte. [V]. The open flags 0x8301 and 0x8404 are reported raw - the runtime library was not identified, so they are not decomposed into _O_* constants. |
 | `0x004AE2BD` | `Options_Validate()` | verified | Checks g_optionsMagic AFTER Options_Load has already read the file over it: if it is 0x7EC the launch counter is incremented, otherwise Options_SetDefaults() runs a second time, the launch counter is zeroed and g_campaignMap is cleared. Then forces g_options+0x58 (the battle-pause flag) to 0 and g_options+0x74 to 1 regardless. [V] from the disassembly. |
 | `0x004AE310` | `Options_SetDefaults()` | verified | Fills g_options with the shipped defaults: the magic 0x7EC at g_optionsMagic, the 31-byte player name 'Player1' (string at 0x004DF17C), g_optGameSpeed = 90, g_optScrollSpeed = 60, and a run of about twelve flags set to 1. Two callers: 0x004AE228 unconditionally, and 0x004AE2D3 guarded by a comparison of g_optionsMagic against 0x7EC - [I] first run or a settings file from another build. It was unnamed until docs/decisions.md C59 needed the scroll speed's default. |

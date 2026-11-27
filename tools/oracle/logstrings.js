@@ -55,7 +55,7 @@ const argOf = k => { const i = process.argv.indexOf(k); return i > 0 ? process.a
 const DECOMP = argOf('--decomp') || process.env.LORDS2_DECOMP || path.join(__dirname, 'decomp');
 
 const exePath = argOf('--exe')
-  || path.join(process.env.LORDS2_DIR || 'F:/games/Lords of the Realm II', 'Lords2.exe');
+  || path.join(process.env.LORDS2_DIR || require('../paths.js').game(), 'Lords2.exe');
 if (!fs.existsSync(exePath)) {
   console.error(`logstrings: no Lords2.exe at ${exePath}\n  set LORDS2_DIR or pass --exe <path>`);
   process.exit(1);

@@ -33,9 +33,9 @@ param(
   # set in every invocation form.
   [string]$OutDir = (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) 'decomp'),
   [switch]$SkipSymbols,
-  [string]$GhidraProject = 'E:\dev\ghidra-projects',
+  [string]$GhidraProject = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path GHIDRA_PROJECTS }),
   [string]$ProjectName = 'lords2',
-  [string]$Headless = 'E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat',
+  [string]$Headless = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path GHIDRA_HEADLESS }),
   [string]$Jdk = 'C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot'
 )
 

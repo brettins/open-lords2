@@ -19,9 +19,9 @@ inferred — consistent with everything measured but not proven.
 Everything below reproduces with
 
 ```bash
-node E:/dev/lords2/tools/maps/verify_layers.js          # 15 checks, all exact
-node E:/dev/lords2/tools/maps/render_map.js 0 a         # -> tools/maps/out/ (gitignored)
-node E:/dev/lords2/tools/maps/mapnames.js               # slot names from L2.eng
+node tools/maps/verify_layers.js          # 15 checks, all exact
+node tools/maps/render_map.js 0 a         # -> tools/maps/out/ (gitignored)
+node tools/maps/mapnames.js               # slot names from L2.eng
 ```
 
 ---

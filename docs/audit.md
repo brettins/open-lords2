@@ -8,7 +8,7 @@ binaries.
 report, not a fix. Where two documents disagree I say which one the bytes support.
 
 Scripts: `tools/audit/` — see [§7](#7-how-to-reproduce). Everything marked *verified*
-below re-derives from `F:\games\Lords of the Realm II`, `F:\games\LORDS2` or the two
+below re-derives from `$LORDS2_DIR`, `$LORDS2_DOS_DIR` or the two
 shipped executables in a single run. [§6](#6-what-reproduced-exactly) lists what checked
 out; [§8](#8-what-i-could-not-check) lists what I had to take on trust and why.
 
@@ -37,7 +37,7 @@ no `l2_maps.dat` reference, the `DAT_005BB478` correction) checked out.
 Repeated in `eng.md` §5 ("absent from every shipped `L2.eng`").
 
 **This is false for the Windows release.** Group 41 of
-`F:\games\Lords of the Realm II\L2.eng` holds **30 strings** — the complete battle-map
+`$LORDS2_DIR\L2.eng` holds **30 strings** — the complete battle-map
 editor UI set — and indices 27, 28 and 29 are *exactly* the three strings the document
 says are missing:
 
@@ -51,7 +51,7 @@ says are missing:
 41[27..29]  My map | My battle map | A short description of the battle map, I have created.
 ```
 
-Group 41 **is** empty in the DOS `F:\games\LORDS2\L2.ENG`. The document was almost
+Group 41 **is** empty in the DOS `$LORDS2_DOS_DIR\L2.ENG`. The document was almost
 certainly checked against the DOS file. Its own §1.4 already contains the evidence: group
 41 is one of the 13 group ids that differ between the two releases (verified: ids
 11, 36, 37, 38, 39, 40, **41**, 59, 88, 100, 101, 259, 299).
@@ -470,9 +470,9 @@ retracted — plus rows for `pl8diff.ps1`, `pl8check.js` and `pl8dump.js`, none 
 exist. **Caveat:** `status.html` is lead-session-owned and is modified in the working tree
 right now, so this may already be in hand; listed for completeness only.
 
-### F23 — `skr.md`: "a recursive search of `F:\games` … found no others"
+### F23 — `skr.md`: "a recursive search of every game folder … found no others"
 
-There is now a second path, `F:\games\lords2-instrumented\USER.SKR` — the hard-link
+There is now a second path, `$LORDS2_SCRATCH\lords2-instrumented\USER.SKR` — the hard-link
 sibling directory from `decisions.md` D8. It is the **same inode** (verified:
 `844424930179566` for both), so the substance of "exactly one `.skr`" holds and the
 19-blank-maps argument is unaffected. Worth a line so nobody thinks a second corpus
@@ -561,7 +561,7 @@ scripts, and matched the documented value to the digit.
 **PL8** (`pl8audit.js`, `pl8claims.js`, `pl8m2.js`, `pl8scope.js`)
 
 * 291/291 files, **21,344**/21,344 frames, zero end-offset failures (GOG); 222/222 files,
-  **14,648**/14,648 frames (DOS `F:\games\LORDS2\PL8`).
+  **14,648**/14,648 frames (DOS `$LORDS2_DOS_DIR\PL8`).
 * `pl8-failures.md` §2's rule census, every cell: `rle` 9,603 · `raw` 7,636 ·
   `iso1/2/3/4` 2,425 / 812 / 432 / 362 · `raw`+overhang 70 · region grid 4. Sums to
   21,344.
@@ -698,11 +698,11 @@ output verbatim.
 Node is required; use forward-slash paths.
 
 ```bash
-node tools/audit/pl8audit.js "F:/games/Lords of the Realm II" "F:/games/LORDS2/PL8"
-node tools/audit/pl8claims.js "F:/games/Lords of the Realm II"   # F7 evidence, Base2a/Font_c2
-node tools/audit/pl8detail.js "F:/games/Lords of the Realm II"   # F10, F15 per-file
-node tools/audit/pl8scope.js  "F:/games/Lords of the Realm II"   # F8, type-4 apex scoping
-node tools/audit/pl8m2.js     "F:/games/Lords of the Realm II"   # mode-2 shape histogram
+node tools/audit/pl8audit.js "$LORDS2_DIR" "$LORDS2_DOS_DIR/PL8"
+node tools/audit/pl8claims.js "$LORDS2_DIR"   # F7 evidence, Base2a/Font_c2
+node tools/audit/pl8detail.js "$LORDS2_DIR"   # F10, F15 per-file
+node tools/audit/pl8scope.js  "$LORDS2_DIR"   # F8, type-4 apex scoping
+node tools/audit/pl8m2.js     "$LORDS2_DIR"   # mode-2 shape histogram
 node tools/audit/oldmodel.js                                     # F7, F8, F9
 
 node tools/audit/mapsaudit.js      # census, alphabets, invariants, F3
@@ -718,7 +718,7 @@ node tools/audit/troops.js         # §5 TROOPS overstatement
 
 node tools/audit/skraudit.js       # .skr container and terrain
 node tools/audit/mapl2.js          # mapl2.exe literals and dialog labels
-node tools/audit/pe.js "F:/games/Lords of the Realm II/Lords2.exe" 4DA050 40
+node tools/audit/pe.js "$LORDS2_DIR/Lords2.exe" 4DA050 40
 ```
 
 All are read-only against the installs and write nothing outside stdout.

@@ -7502,7 +7502,7 @@ minutes somebody has the game open. **The launcher is the primary mechanism** �
 4. **The launcher could not pass an argument.** `play.ps1` declared `[CmdletBinding()]`
    and ended in `& $copy @args`, and an advanced script has no `$args`. Every argument
    was a binding error before the build even started: *"A positional parameter cannot
-   be found that accepts argument 'F:\games\Lords of the Realm II'"*. `l2-game`
+   be found that accepts argument '$LORDS2_DIR'"*. `l2-game`
    requires a game directory, so **the launcher had never launched the game** — and it
    was one message from being handed to the player as a desktop-shortcut line.
    `docs/plan.md` §3.1 already says it: *a development tool that is quietly broken is

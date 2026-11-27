@@ -7,7 +7,7 @@ mod, start at §3 and treat everything before it as optional.
 
 ```bash
 cargo test -p l2-mods
-LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-mods -- --nocapture
+LORDS2_DIR="$LORDS2_DIR" cargo test -p l2-mods -- --nocapture
 ```
 
 The install-dependent tests skip when `LORDS2_DIR` is unset.

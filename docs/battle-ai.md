@@ -823,36 +823,36 @@ the Ghidra scripts open them relative to the JVM working directory, not the repo
 
 ```powershell
 # the three dispatch tables and the two tables above them, resolved to function names
-powershell -File tools/battleai/ghraw.ps1 -postScript BTable E:\dev\lords2\tools\battleai\out\tables.txt `
+powershell -File tools/battleai/ghraw.ps1 -postScript BTable tools\battleai\out\tables.txt `
     4d9140 12 4d9170 18 4d91b8 6 4d91d0 10 4d91f8 12
 
 # the 17 handlers
-powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp E:\dev\lords2\tools\battleai\out\field.c 0048a9d2 0048acd2 0048b02b
-powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp E:\dev\lords2\tools\battleai\out\siegeatt.c `
+powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp tools\battleai\out\field.c 0048a9d2 0048acd2 0048b02b
+powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp tools\battleai\out\siegeatt.c `
     0048d16e 0048d412 0048d6fc 0048d9ce 0048db84 0048ddc7 0048dfbb
-powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp E:\dev\lords2\tools\battleai\out\siegedef.c `
+powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp tools\battleai\out\siegedef.c `
     0048e097 0048e234 0048e2c8 0048e39c 0048e4cc 0048e774 0048e8b8
 
 # target selection
-powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp E:\dev\lords2\tools\battleai\out\tgt.c `
+powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp tools\battleai\out\tgt.c `
     0048ef45 004954dd 004956cc 00495956 00495c41
 
 # the pathfinder and its three template builders
-powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp E:\dev\lords2\tools\battleai\out\path.c `
+powershell -File tools/battleai/ghraw.ps1 -postScript BDecomp tools\battleai\out\path.c `
     0047095e 00471c1f 00471d30 00471da6 00472392 0047265d 00472227
 
 # who touches a unit field: range refs over unit[0]
-powershell -File tools/battleai/ghraw.ps1 -postScript BRefs E:\dev\lords2\tools\battleai\out\urefs.txt range 00566520 00566554
+powershell -File tools/battleai/ghraw.ps1 -postScript BRefs tools\battleai\out\urefs.txt range 00566520 00566554
 
 # the rule constants, as immediates
-powershell -File tools/battleai/ghraw.ps1 -postScript BDump E:\dev\lords2\tools\battleai\out\rules.txt disasm 004983b7 30
+powershell -File tools/battleai/ghraw.ps1 -postScript BDump tools\battleai\out\rules.txt disasm 004983b7 30
 
 # everything reachable from the handlers, two levels deep
-powershell -File tools/battleai/ghraw.ps1 -postScript BClosure E:\dev\lords2\tools\battleai\out\closure.txt 2 `
+powershell -File tools/battleai/ghraw.ps1 -postScript BClosure tools\battleai\out\closure.txt 2 `
     0048a9d2 0048acd2 0048b02b 0048d16e 0048e097
 
 # the per-frame passes, which is what fixes every "frames" figure above
-powershell -File tools/battleai/ghraw.ps1 -postScript BRefs E:\dev\lords2\tools\battleai\out\frame.txt callees 004b99c0
+powershell -File tools/battleai/ghraw.ps1 -postScript BRefs tools\battleai\out\frame.txt callees 004b99c0
 ```
 
 ```bash
@@ -860,7 +860,7 @@ powershell -File tools/battleai/ghraw.ps1 -postScript BRefs E:\dev\lords2\tools\
 node tools/battleai/annotate.js tools/battleai/out/field.c > tools/battleai/out/field.ann.c
 
 # dump every L2.eng string as "group<TAB>index<TAB>text"
-node tools/battleai/engdump.js "F:/games/Lords of the Realm II/L2.eng"
+node tools/battleai/engdump.js "$LORDS2_DIR/L2.eng"
 
 # merge the names in tools/battleai/newsymbols.json into docs/symbols.json
 node tools/battleai/merge.js --dry-run

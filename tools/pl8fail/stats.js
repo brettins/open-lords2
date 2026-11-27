@@ -1,7 +1,7 @@
 'use strict';
 // Where is byte 0x0D honoured on shape-0 frames, and where is it ignored?
 const { parse, spans, rleConsume, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 
 function rleRows(buf, p, w, n) {
   for (let r = 0; r < n; r++) {

@@ -1,7 +1,7 @@
 # Coverage trace diff: 69 scenarios, both sides fresh
 
 2026-09-24. Branch `agent/trace-coverage` on `integrate/w42`. Original: `trace-run.ps1 -Runs 2`
-(own install `E:\games\l2-trace-cov`, DLLs rebuilt from `native/l2-trace`), **69 of 69 reached their
+(own install `$LORDS2_TRACE_DIR-cov`, DLLs rebuilt from `native/l2-trace`), **69 of 69 reached their
 last step, identical x2**. Ours: `cargo test --release -p l2-game --test trace -- --ignored`, all 69
 written; three end in a `failed` record (below). Differ: `trace-diff.js --dir … --a orig --b ours`
 over all 69 (555 KB, not committed). Per-position draw comparisons below are from the same traces.

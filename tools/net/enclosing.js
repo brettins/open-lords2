@@ -1,7 +1,7 @@
 // Find the entry point of the function that contains a given address, without
 // Ghidra.
 //
-//   node tools/net/enclosing.js "F:/games/Lords of the Realm II/Lords2.exe" 4b7fce 4b826e
+//   node tools/net/enclosing.js "$LORDS2_DIR/Lords2.exe" 4b7fce 4b826e
 //
 // Method: every `call rel32` in .text names a function entry, so the set of
 // call targets is a (partial) list of function starts. The enclosing function

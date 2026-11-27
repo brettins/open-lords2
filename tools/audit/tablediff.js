@@ -13,7 +13,7 @@
 //
 // Usage: node tools/audit/tablediff.js
 const fs = require('fs'), path = require('path'), cp = require('child_process');
-const ROOT = 'E:/dev/lords2';
+const ROOT = require('../paths.js').ROOT;
 const files = [];
 (function walk(d) {
   for (const f of fs.readdirSync(d)) {
@@ -24,7 +24,7 @@ const files = [];
 })(path.join(ROOT, 'crates'));
 
 // PE mapping, same logic as rva.js.
-const EXE = process.env.LORDS2_EXE || 'F:/games/Lords of the Realm II/Lords2.exe';
+const EXE = process.env.LORDS2_EXE || require('../paths.js').game('Lords2.exe');
 const b = fs.readFileSync(EXE);
 const pe = b.readUInt32LE(0x3c), optOff = pe + 24, optSize = b.readUInt16LE(pe + 20);
 const BASE = b.readUInt32LE(optOff + 28), nsec = b.readUInt16LE(pe + 6);

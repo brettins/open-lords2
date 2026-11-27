@@ -72,7 +72,7 @@ pub const ENGLAND_COUNTIES: i32 = 14;
 pub fn england_turn1() -> FixtureState {
     let Some(dir) = fixtures_dir() else {
         return FixtureState::Absent(format!(
-            "{FIXTURES_VAR} is unset and {DEFAULT_FIXTURES} does not exist, so \
+            "{FIXTURES_VAR} is unset and {LOCAL_PATHS} names no existing folder for it, so \
              {ENGLAND_TURN1_FILE} cannot be found. See l2_testkit::england_turn1."
         ));
     };
@@ -154,7 +154,7 @@ pub fn england_county_of_realm(save: &Save, realm: u8) -> usize {
 
 pub fn fixture_save(name: &str) -> Result<Save, String> {
     let dir = fixtures_dir().ok_or_else(|| {
-        format!("{FIXTURES_VAR} is not set and {DEFAULT_FIXTURES} does not exist")
+        format!("{FIXTURES_VAR} is not set and {LOCAL_PATHS} names no existing folder for it")
     })?;
     let path = find(&dir, name).ok_or_else(|| format!("{} holds no {name}", dir.display()))?;
     let exe = executable().ok_or_else(|| "no Lords2.exe to read the block table from".to_string())?;

@@ -151,7 +151,7 @@
       "state": "answered",
       "title": "Thirty recorded turns of England in the original",
       "inplay": "Your session today gave the last three turns only (the original keeps three autosaves). Those three already found the AI conquering an empty county on a turn where ours did not. A full chain finds every such divergence from turn one.",
-      "todo": "Start the original with /home/brett/.local/bin/lords2-original --record, start England, End Turn about thirty times with no orders, quit. The recorder keeps every turn in ~/Games/l2-chain.",
+      "todo": "Start the original with lords2-original --record, start England, End Turn about thirty times with no orders, quit. The recorder keeps every turn in ~/Games/l2-chain.",
       "ask": "Reply: Q251 done",
       "answer": "withdrawn by the player: the headless original (native/l2-trace + tools/oracle/trace-run.ps1) ends turns itself; a person should not do this by hand.",
       "outcome": "Row play-session-differential: run an End-Turn chain scenario in the harness instead. The harness is Windows-only today (DLL injection, PowerShell Win32); it needs the Windows boot or a port to Wine."

@@ -252,7 +252,7 @@ Three things make this claim weaker than its use:
    render via PrintWindow."* A capability exists that nobody has pointed at the game.
 3. **The proxy makes screen capture the wrong technique anyway.** `native/ddraw-proxy/` is
    built (`ddraw.dll` present) and installed into the hard-link sibling
-   `F:\games\lords2-instrumented`. It is 112 lines that forward `DirectDrawCreate` and log.
+   `$LORDS2_SCRATCH\lords2-instrumented`. It is 112 lines that forward `DirectDrawCreate` and log.
    A proxy that also wraps the returned interface sees `Lock` / `Blt` / `Flip` on the primary
    surface — **the framebuffer arrives as a pointer inside the process**, with no focus, no
    screen grab, and nothing a screen lock can spoil. That is D8's own conclusion (*prefer
@@ -518,7 +518,7 @@ delete, or move the citation to the tree.
   candidate question — whether the original's framebuffer captures — and then found that the
 right technique for it is the ddraw proxy.
   measured the wrong thing. DxWnd, under which the existing screenshots were taken, is not on
-  this machine (`E:\dev\tools` holds only Ghidra).
+  this machine (`the tools folder` holds only Ghidra).
   and would have taken over the user's display. Nothing was started; nothing is running.
 * **I did not re-time `decompile-all.ps1`.** The "22 seconds / 2,452 functions / 3.0 MB"
   figure is quoted from the project. I verified the *output*: 13 files, 2,452 index entries,

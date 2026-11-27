@@ -13,38 +13,41 @@ pub const INSTALL_VAR: &str = "LORDS2_DIR";
 
 pub const FIXTURES_VAR: &str = "LORDS2_FIXTURES";
 
-pub const DEFAULT_INSTALL: &str = r"F:\games\Lords of the Realm II";
-
-pub const DEFAULT_FIXTURES: &str = r"E:\dev\lords2-fixtures";
+pub const LOCAL_PATHS: &str = "paths.local";
 
 pub const DOS_INSTALL_VAR: &str = "LORDS2_DOS_DIR";
 
-pub const DEFAULT_DOS_INSTALL: &str = r"F:\games\LORDS2";
-
 pub fn install_dir() -> Option<PathBuf> {
-    dir(INSTALL_VAR, DEFAULT_INSTALL)
+    dir(INSTALL_VAR)
 }
 
 pub fn fixtures_dir() -> Option<PathBuf> {
-    dir(FIXTURES_VAR, DEFAULT_FIXTURES)
+    dir(FIXTURES_VAR)
 }
 
 pub fn dos_install_dir() -> Option<PathBuf> {
-    dir(DOS_INSTALL_VAR, DEFAULT_DOS_INSTALL)
+    dir(DOS_INSTALL_VAR)
 }
 
-fn dir(var: &str, default: &str) -> Option<PathBuf> {
+fn dir(var: &str) -> Option<PathBuf> {
     match std::env::var(var) {
         Ok(v) if Path::new(&v).is_dir() => Some(PathBuf::from(v)),
         Ok(v) if !v.is_empty() => {
             eprintln!("{var} is set to {v:?}, which is not a directory - ignoring it");
             None
         }
-        _ => {
-            let p = PathBuf::from(default);
-            p.is_dir().then_some(p)
-        }
+        _ => local_path(var),
     }
+}
+
+pub fn local_path(var: &str) -> Option<PathBuf> {
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(LOCAL_PATHS);
+    let text = std::fs::read_to_string(file).ok()?;
+    text.lines()
+        .filter_map(|l| l.split_once('='))
+        .filter(|(k, _)| k.trim() == var)
+        .map(|(_, v)| PathBuf::from(v.trim()))
+        .find(|p| p.is_dir())
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

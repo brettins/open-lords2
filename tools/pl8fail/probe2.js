@@ -1,7 +1,7 @@
 'use strict';
 // Test hypothesis: the undershooting raw frames are actually RLE.
 const { parse, spans, rleConsume, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 const only = process.argv.slice(3);
 
 for (const { name, buf } of loadAll(DIR)) {

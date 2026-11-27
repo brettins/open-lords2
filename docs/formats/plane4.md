@@ -13,8 +13,8 @@ Status legend as elsewhere: **[V]** verified — read directly out of
 Everything below reproduces with
 
 ```bash
-node E:/dev/lords2/tools/maps/merchants.js                 # census + invariants, all 44 maps
-node E:/dev/lords2/tools/maps/merchants.js "F:/games/Lords of the Realm II" 0   # one slot, routes listed
+node tools/maps/merchants.js                 # census + invariants, all 44 maps
+node tools/maps/merchants.js "$LORDS2_DIR" 0   # one slot, routes listed
 ```
 
 ---

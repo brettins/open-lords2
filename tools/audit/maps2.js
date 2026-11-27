@@ -1,5 +1,5 @@
 const fs=require('fs');const SLOT=6*4096+65*129;
-const w=fs.readFileSync('F:/games/Lords of the Realm II/L2_maps.dat');
+const w=fs.readFileSync(require('../paths.js').game('L2_maps.dat'));
 const slot=i=>w.subarray(i*SLOT,(i+1)*SLOT);const plane=(s,p)=>s.subarray(p*4096,(p+1)*4096);const tail=s=>s.subarray(6*4096);
 const U=[...Array(24).keys()].concat([...Array(20).keys()].map(i=>i+40));
 // 1. plane3 nonzero without p0&0x08

@@ -7,9 +7,9 @@
 //   Merchant_PickStartCounties(0x004291b3) chooses one distinct start county per row
 //   Merchant_SpawnAll         (0x00427ed0) spawns merchants until a start county is 0
 //
-// Usage: node tools/maps/merchants.js ["F:/games/Lords of the Realm II"] [slot]
+// Usage: node tools/maps/merchants.js ["$LORDS2_DIR"] [slot]
 const fs = require('fs');
-const DIR = (process.argv[2] || 'F:/games/Lords of the Realm II').replace(/[\/]+$/, '') + '/';
+const DIR = (process.argv[2] || require('../paths.js').game()).replace(/[\/]+$/, '') + '/';
 const REC = 32961, PL = 4096;
 const buf = fs.readFileSync(DIR + 'L2_maps.dat');
 const NSLOT = buf.length / REC;

@@ -1,7 +1,7 @@
 'use strict';
 // (family, zoom) -> which per-frame size model fits shape-0 frames.
 const { parse, spans, rleConsume, loadAll } = require('./pl8lib');
-const DIR = 'F:/games/Lords of the Realm II';
+const DIR = require('../paths.js').game();
 const m = new Map();
 for (const { name, buf } of loadAll(DIR)) {
   const p = parse(buf);

@@ -31,7 +31,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Exe = 'F:\games\Lords of the Realm II\Lords2.exe',
+  [string]$Exe = (Join-Path (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_DIR }) 'Lords2.exe'),
   [uint32]$Function = 0x004983B7,
   [int]$MaxBytes = 600
 )

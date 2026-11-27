@@ -15,11 +15,11 @@ coding are publicly described, and those facts are what `crates/l2-smk` is writt
 Analysis scripts:
 
 ```bash
-node tools/media/smkinfo.js "F:/games/Lords of the Realm II"          # summary + validation
-node tools/media/smkinfo.js "F:/games/Lords of the Realm II" --csv    # per-file fields
-node tools/media/smkapi.js  "F:/games/Lords of the Realm II/Lords2.exe" \
-                            "F:/games/Lords of the Realm II/Smackw32.dll" smack
-LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-smk --test corpus
+node tools/media/smkinfo.js "$LORDS2_DIR"          # summary + validation
+node tools/media/smkinfo.js "$LORDS2_DIR" --csv    # per-file fields
+node tools/media/smkapi.js  "$LORDS2_DIR/Lords2.exe" \
+                            "$LORDS2_DIR/Smackw32.dll" smack
+LORDS2_DIR="$LORDS2_DIR" cargo test -p l2-smk --test corpus
 ```
 
 ## The corpus (verified)
@@ -75,7 +75,7 @@ So our loader is **case-insensitive and tolerant of missing videos**, as the ori
 
 ### The DOS install has no videos at all
 
-`F:\games\LORDS2` contains zero `.smk` files. The exe's string table holds the
+`$LORDS2_DOS_DIR` contains zero `.smk` files. The exe's string table holds the
 subdirectory names `PL8`, `256`, `WAV`, `SMK`,
 but no `SMK\` — the videos lived on the CD. Verified. On such an install every `Smk_Open`
 fails and every caller takes its fail arm, which ours reproduces.

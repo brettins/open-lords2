@@ -1,5 +1,5 @@
 const fs=require('fs');
-const W='F:/games/Lords of the Realm II/L2_maps.dat', DOS='F:/games/LORDS2/L2_MAPS.DAT';
+const W=require('../paths.js').game('L2_maps.dat'), DOS=require('../paths.js').dos('L2_MAPS.DAT');
 const SLOT=6*4096+65*129;
 const w=fs.readFileSync(W), d=fs.readFileSync(DOS);
 console.log('sizes',w.length,d.length,'slots',w.length/SLOT,d.length/SLOT,'SLOT',SLOT,'0x'+SLOT.toString(16));

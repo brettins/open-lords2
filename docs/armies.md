@@ -880,7 +880,7 @@ The campaign half of the fourteen siege order handlers `docs/battle-ai.md` could
 > ### There is a siege in the fixtures now, and it closes every number below.
 >
 > This section was written entirely from the decompiler because no saved game held a castle
-> under siege. `E:\dev\lords2-fixtures` now holds **five snapshots of one**, and
+> under siege. `$LORDS2_FIXTURES` now holds **five snapshots of one**, and
 > `crates/l2-kingdom/tests/siege/main.rs` asserts this section against them.
 >
 > The position: county 4 has a **palisade** (`castleType` 1) garrisoned by an AI army of

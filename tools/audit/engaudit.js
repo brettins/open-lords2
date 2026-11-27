@@ -15,8 +15,8 @@ function l2(p){const b=fs.readFileSync(p);
   'strings',strings,'empty groups',empty,'4th byte nonzero slots',fourth.length,'control bytes',ctrl,'problems',bad);
  return {groups,off,N,b};
 }
-const win=l2('F:/games/Lords of the Realm II/L2.eng');
-const dos=l2('F:/games/LORDS2/L2.ENG');
+const win=l2(require('../paths.js').game('L2.eng'));
+const dos=l2(require('../paths.js').dos('L2.ENG'));
 console.log('\ngroup 101 count:',win.groups[101].length);
 console.log(win.groups[101].map((s,i)=>i+':'+s).join(' | '));
 console.log('\ngroup 100 count:',win.groups[100].length);
@@ -30,18 +30,18 @@ for(let g=1;g<dos.N;g++){const a=win.groups[g]||[],c=dos.groups[g]||[];if(JSON.s
 console.log('\nshared group ids',dos.N-1,'identical:',ident,'differing:',diff.length,diff.slice(0,30));
 console.log('windows extra group ids:',dos.N,'..',win.N-1,'=',win.N-dos.N);
 // BATTLES.ENG
-{const b=fs.readFileSync('F:/games/Lords of the Realm II/BATTLES.ENG');
+{const b=fs.readFileSync(require('../paths.js').game('BATTLES.ENG'));
  const t=Buffer.from(b);for(let i=0;i<t.length;i++)if(t[i]<0x20)t[i]=0;
  const f=t.toString('latin1').split('\0').filter(s=>s.length>0);
  console.log('\nBATTLES.ENG size',b.length,'non-empty fields',f.length,'records',f.length/3);
  console.log(' first triple:',f.slice(0,3),'\n records 35,36:',f.slice(105,111),'\n last:',f.slice(-3));}
 // TROOPS
 for(const n of ['TROOPS.ENG','TROOPS2.ENG','TROOPS3.ENG']){
- const s=fs.readFileSync('F:/games/Lords of the Realm II/'+n,'latin1');
+ const s=fs.readFileSync(require('../paths.js').game()+'/'+n,'latin1');
  const i=s.indexOf('*'); const rest=s.slice(i);
  const nums=rest.match(/\d+/g)||[]; const stars=(rest.match(/\*/g)||[]).length;
  // clamp check on cols 7-10
  const v=nums.map(Number); let over=0;
  for(let r=0;r<35;r++)for(let g=0;g<5;g++)for(let sd=0;sd<2;sd++)for(let c=0;c<11;c++){
    const idx=r*111+1+ (g*2+sd)*11 + c; if(c>=7&&v[idx]>9)over++;}
- console.log(n,'size',fs.statSync('F:/games/Lords of the Realm II/'+n).size,'numbers after first *:',nums.length,'stars:',stars,'siege cols >9:',over);}
+ console.log(n,'size',fs.statSync(require('../paths.js').game()+'/'+n).size,'numbers after first *:',nums.length,'stars:',stars,'siege cols >9:',over);}

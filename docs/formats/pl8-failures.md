@@ -5,8 +5,8 @@ installs satisfies the end-offset invariant:
 
 | Corpus | Files | Frames | Failing |
 |--------|-------|--------|---------|
-| `F:\games\Lords of the Realm II` (GOG, Windows) | **291 / 291** | **21,344 / 21,344** | 0 |
-| `F:\games\LORDS2\PL8` (older DOS install) | **222 / 222** | **14,648 / 14,648** | 0 |
+| `$LORDS2_DIR` (GOG, Windows) | **291 / 291** | **21,344 / 21,344** | 0 |
+| `$LORDS2_DOS_DIR\PL8` (older DOS install) | **222 / 222** | **14,648 / 14,648** | 0 |
 
 Previously: 268 / 291 files, 19,606 / 21,344 frames. Nothing that passed before
 changes classification — the model is strictly additive.
@@ -14,8 +14,8 @@ changes classification — the model is strictly additive.
 Reproduce:
 
 ```bash
-node tools/pl8fail/final.js "F:/games/Lords of the Realm II"
-node tools/pl8fail/final.js "F:/games/LORDS2/PL8"
+node tools/pl8fail/final.js "$LORDS2_DIR"
+node tools/pl8fail/final.js "$LORDS2_DOS_DIR/PL8"
 ```
 
 Scripts live in `tools/pl8fail/`. They are throwaway analysis tools, not a decoder.

@@ -9,7 +9,7 @@ You review one branch of lords2 against the oracle, `Lords2.exe`. You change not
 your record file (step 6): no edits, no commits, no worktree changes. Budget: 25 tool
 calls. Output: mismatches only.
 
-The repo is E:\dev\lords2. The branch name is in your prompt. Never run anything that
+The repo is the working directory you were started in. The branch name is in your prompt. Never run anything that
 writes: no `cargo`, no `git checkout`, no `git merge`. `git diff main...<branch>` and
 `git show` are how you read the delivery.
 

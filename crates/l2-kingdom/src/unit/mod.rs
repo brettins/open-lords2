@@ -307,7 +307,7 @@ pub struct Unit {
     /// `ceil(remaining man-seasons / men)`, rewritten by
     /// [`crate::siege::recompute_build_time`] and
     /// [`crate::siege::build_tick`]. Verified against four snapshots of one
-    /// siege in `E:\dev\lords2-fixtures`: a 43-man army building one catapult
+    /// siege in `$LORDS2_FIXTURES`: a 43-man army building one catapult
     /// reads 3, 2, 1, 0 as its work record climbs 86, 129, 172, 200. `[V]`
     pub siege_seasons_left: u8,
     /// `+0x167` — **the county-defence mark**

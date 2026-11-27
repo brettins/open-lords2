@@ -9,9 +9,9 @@ invent. The work is therefore not decoding but deciding what to depend on.
 Analysis script:
 
 ```bash
-node tools/media/wavinfo.js "F:/games/Lords of the Realm II"            # summary + validation
-node tools/media/wavinfo.js "F:/games/Lords of the Realm II" --csv      # per-file fields
-node tools/media/wavinfo.js "F:/games/LORDS2" --recurse                 # the DOS install
+node tools/media/wavinfo.js "$LORDS2_DIR"            # summary + validation
+node tools/media/wavinfo.js "$LORDS2_DIR" --csv      # per-file fields
+node tools/media/wavinfo.js "$LORDS2_DOS_DIR" --recurse                 # the DOS install
 ```
 
 It walks the chunk list by seeking, so a 168 MB file costs the same as a 700-byte one.
@@ -87,7 +87,7 @@ without failing**, because the original does.
 
 ### The DOS install is the same corpus
 
-`F:\games\LORDS2\WAV\` plus three files in the root: 770 files, 74,506,144 bytes, 89.1
+`$LORDS2_DOS_DIR\WAV\` plus three files in the root: 770 files, 74,506,144 bytes, 89.1
 minutes, 0 problems, the same configurations (739 mono / 30 stereo / 1 at 44.1 kHz) and
 no `PUMKIN`. Useful as a second corpus for the same validator.
 

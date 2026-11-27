@@ -1,4 +1,4 @@
-const fs=require('fs');const b=fs.readFileSync('F:/games/Lords of the Realm II/L2.eng');
+const fs=require('fs');const b=fs.readFileSync(require('../paths.js').game('L2.eng'));
 const off=g=>b[8+g*4]|(b[9+g*4]<<8)|(b[10+g*4]<<16);
 const N=(off(1)-8)/4;
 const G=g=>{const s=off(g),e=(g+1<N)?off(g+1):b.length;if(e<=s)return[];const p=b.subarray(s,e).toString('latin1').split('\0');p.pop();return p;};

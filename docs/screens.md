@@ -1045,7 +1045,7 @@ second half is the more interesting one: it names the axis the game switches on.
 ### 9.1 The twelve `Cursor*.cur` files are not read by anything  **[V]**
 
 `Cursor1.cur` … `Cursor12.cur` sit in both installs — the GOG Windows one and the older
-`F:\games\LORDS2` — twelve files of **326 bytes each**, byte-for-byte identical between the
+`$LORDS2_DOS_DIR` — twelve files of **326 bytes each**, byte-for-byte identical between the
 two. They are installed because `INSTALL.HST`, the installer's own manifest, lists them; they
 are read by nothing.
 

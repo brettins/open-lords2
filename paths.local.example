@@ -1,0 +1,22 @@
+# Copy to paths.local (gitignored) and fill in your own folders.
+# KEY=path, one per line. A key may repeat: the first path that exists wins, so a
+# checkout shared by two operating systems can list both spellings.
+# An environment variable of the same name beats this file.
+
+# The Windows (GOG/Steam) install: Lords2.exe, L2.eng, L2_maps.dat, the art. Read only.
+LORDS2_DIR=C:\GOG Games\Lords of the Realm II
+LORDS2_DIR=/home/you/games/Lords of the Realm II
+
+# Optional: the older DOS install, for the few checks that diff against it.
+LORDS2_DOS_DIR=C:\SIERRA\LORDS2
+
+# Optional: preserved saves the fixture tests read (docs/environment.md).
+LORDS2_FIXTURES=C:\lords2-fixtures
+
+# Optional, Windows tooling only: Ghidra headless and its project folder.
+GHIDRA_HEADLESS=C:\tools\ghidra\support\analyzeHeadless.bat
+GHIDRA_PROJECTS=C:\ghidra-projects
+
+# Optional: a folder for writable copies of the game that the oracle tools create
+# (rule 2: the real install is never written to).
+LORDS2_SCRATCH=C:\lords2-scratch

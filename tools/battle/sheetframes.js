@@ -1,7 +1,7 @@
 // sheetframes.js - the frame count of every a2 and a3 troop sheet, and whether
 // the identities docs/battle.md 13.5 and 14.4 claim actually hold.
 //
-//   node tools/battle/sheetframes.js "F:/games/Lords of the Realm II"
+//   node tools/battle/sheetframes.js "$LORDS2_DIR"
 //
 // This is the check that makes the a2/a3 story evidence rather than a story.
 // Twelve animation handlers pair up six-and-six, each a3 twin being the same

@@ -11,7 +11,7 @@ param(
   [int]$ProcId    = 0,
   [string]$Addr   = '0x400000',
   [int]$Length    = 64,
-  [string]$Exe    = 'F:\games\Lords of the Realm II\Lords2.exe'
+  [string]$Exe    = (Join-Path (& { . "$PSScriptRoot\paths.ps1"; Get-L2Path LORDS2_DIR }) 'Lords2.exe')
 )
 
 Add-Type @'

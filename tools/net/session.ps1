@@ -36,7 +36,7 @@ param(
   [string]$Provider = 'TCP/IP',
   [string]$SessionName = 'l2probe',
   [string]$Address = '127.0.0.1',
-  [string]$Root = 'F:\games',
+  [string]$Root = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_SCRATCH }),
   [switch]$KeepLogs
 )
 

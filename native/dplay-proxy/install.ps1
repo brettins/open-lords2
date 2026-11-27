@@ -18,7 +18,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Source   = "F:\games\Lords of the Realm II",
+  [string]$Source   = (& { . "$PSScriptRoot\..\..\tools\paths.ps1"; Get-L2Path LORDS2_DIR }),
   [string]$Dest     = "",
   [string]$Instance = "",
   [switch]$WithDDraw,
@@ -26,7 +26,7 @@ param(
 )
 
 if (-not $Dest) {
-  $Dest = if ($Instance) { "F:\games\lords2-net-$Instance" } else { "F:\games\lords2-net" }
+  $Dest = if ($Instance) { (Join-Path (& { . "$PSScriptRoot\..\..\tools\paths.ps1"; Get-L2Path LORDS2_SCRATCH }) "lords2-net-$Instance") } else { (Join-Path (& { . "$PSScriptRoot\..\..\tools\paths.ps1"; Get-L2Path LORDS2_SCRATCH }) 'lords2-net') }
 }
 
 if (-not (Test-Path $Source)) { Write-Host "source not found: $Source"; exit 1 }

@@ -10295,7 +10295,7 @@
       "section": "ui",
       "confidence": "verified",
       "signature": "void Options_Save(void)",
-      "comment": "Writes the whole g_options block to the preferences file: __open(\"lords2.inf\", 0x8301, 0x180) then __write(fd, &g_options, 0x468). [V] - the shipped F:\\games\\Lords of the Realm II\\lords2.inf is exactly 0x468 bytes, matching the length operand byte for byte, and the file name string appears twice in.data (0x004DF154 here, 0x004DF170 in Options_Load). ONE call site, 0x0049767D, itself reached only from 0x0040EBFE after the message loop ends - so a crash loses every setting changed that session. docs/decisions.md C62."
+      "comment": "Writes the whole g_options block to the preferences file: __open(\"lords2.inf\", 0x8301, 0x180) then __write(fd, &g_options, 0x468). [V] - the shipped $LORDS2_DIR\\lords2.inf is exactly 0x468 bytes, matching the length operand byte for byte, and the file name string appears twice in.data (0x004DF154 here, 0x004DF170 in Options_Load). ONE call site, 0x0049767D, itself reached only from 0x0040EBFE after the message loop ends - so a crash loses every setting changed that session. docs/decisions.md C62."
     },
     {
       "addr": "0x004AE1B8",

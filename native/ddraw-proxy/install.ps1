@@ -10,8 +10,8 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Source = "F:\games\Lords of the Realm II",
-  [string]$Dest   = "F:\games\lords2-instrumented",
+  [string]$Source = (& { . "$PSScriptRoot\..\..\tools\paths.ps1"; Get-L2Path LORDS2_DIR }),
+  [string]$Dest   = (Join-Path (& { . "$PSScriptRoot\..\..\tools\paths.ps1"; Get-L2Path LORDS2_SCRATCH }) 'lords2-instrumented'),
   [switch]$Clean
 )
 

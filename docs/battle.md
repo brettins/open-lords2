@@ -523,7 +523,7 @@ class (`3,2,1` of 4; `12,8,3` of 16; `768,512,192` of 1024). The melee column is
 figures.
 
 ```
-$ node tools/battle/armysim.js skr "F:/games/Lords of the Realm II/USER.SKR"
+$ node tools/battle/armysim.js skr "$LORDS2_DIR/USER.SKR"
 map  0    600 vs   450 men  class 2    16 men/figure  units  8+ 6  figures 41+33 =  74
 map  1    150 vs   150 men  class 0     4 men/figure  units  6+ 6  figures 39+39 =  78
 ...
@@ -1185,12 +1185,12 @@ Which side is the *attacker* remains open. §4.3.
 
 ```bash
 # figure allocation model vs the shipped data
-node tools/battle/armysim.js troops "F:/games/Lords of the Realm II"
-node tools/battle/armysim.js skr    "F:/games/Lords of the Realm II/USER.SKR"
+node tools/battle/armysim.js troops "$LORDS2_DIR"
+node tools/battle/armysim.js skr    "$LORDS2_DIR/USER.SKR"
 node tools/battle/armysim.js one 200 25 100 75 25 150 25 -- 100 50 50 50 100 100 0
 
 # locate a UI string's (group, index) in L2.eng
-node tools/battle/engfind.js "F:/games/Lords of the Realm II/L2.eng" Morale "Heavy Infantry"
+node tools/battle/engfind.js "$LORDS2_DIR/L2.eng" Morale "Heavy Infantry"
 ```
 
 ```powershell
@@ -1767,10 +1767,10 @@ powershell -File tools/view/ghraw.ps1 -postScript VBDump   t.txt bytes 4d7540 10
 
 ```bash
 # every check in 13.2 - 13.6, headless, no window and no process
-LORDS2_DIR="F:\games\Lords of the Realm II" cargo test -p l2-view
+LORDS2_DIR="$LORDS2_DIR" cargo test -p l2-view
 
 # watch one
-cargo run -p l2-view -- --battle "F:\games\Lords of the Realm II" 1
+cargo run -p l2-view -- --battle "$LORDS2_DIR" 1
 ```
 
 Ghidra scripts live in `ghidra_scripts_view/` (`VBDecomp`, `VBRefs`, `VBDump`,
@@ -2038,7 +2038,7 @@ argument set — and parks figure 0 on the cell as a stand-in target. `Missile_S
 sets surface 15 alight from `+0x44` (on any cell for an AI shooter, on that cell only
 for a human's) and zeroes `targetCell` and figure 0's owner. That is fire.
 
-**What the no-orders pair says.** `E:\dev\lords2-fixtures\noorders-start.sav` is the
+**What the no-orders pair says.** `$LORDS2_FIXTURES\noorders-start.sav` is the
 battle screen the frame it opened and `noorders-end.sav` the campaign map after it: the
 player's 52 men (2 peasants, 25 swordsmen, 25 archers, `g_units` slot 5 `+0x168`) against
 a county levy of 129 (69 peasants, 60 archers, slot 6), and **the player gave no order at
@@ -2359,12 +2359,12 @@ name that happened to agree with it: the original ships commands, not state
 
 ```bash
 # every dispatch table in this section, straight out of the PE
-node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9140 12
-node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9170 18
-node tools/battle/petable.js "F:/games/Lords of the Realm II/Lords2.exe" 4d9a00 50
+node tools/battle/petable.js "$LORDS2_DIR/Lords2.exe" 4d9140 12
+node tools/battle/petable.js "$LORDS2_DIR/Lords2.exe" 4d9170 18
+node tools/battle/petable.js "$LORDS2_DIR/Lords2.exe" 4d9a00 50
 
 # the a2/a3 frame identity, from the shipped art
-node tools/battle/sheetframes.js "F:/games/Lords of the Realm II"
+node tools/battle/sheetframes.js "$LORDS2_DIR"
 ```
 
 ---

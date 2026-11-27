@@ -1,21 +1,21 @@
 <#
   chain.ps1 - record a chain of the original's End Turns, one save per turn.
 
-  HOW TO RECORD A CHAIN (rule 2: never point this at F:\games - it writes saves)
+  HOW TO RECORD A CHAIN (rule 2: never point this at <LORDS2_DIR> - it writes saves)
 
     1. Copy the install once:
-         robocopy "F:\games\Lords of the Realm II" E:\games\l2-oracle /E
+         robocopy <LORDS2_DIR> <LORDS2_ORACLE_DIR> /E
     2. Start the watcher, which launches the game from the copy:
          powershell -File tools\oracle\chain.ps1 -Launch
-       (or start E:\games\l2-oracle\Lords2.exe yourself and run it without -Launch)
+       (or start <LORDS2_ORACLE_DIR>\Lords2.exe yourself and run it without -Launch)
     3. Start or load a game. Give your orders, press End Turn; repeat N times.
        Each End Turn prints one "chain-NNN.sav" line.
     4. Quit the game. The watcher exits when Lords2 does (or press Ctrl+C).
     5. Measure it:
-         $env:LORDS2_CHAIN='E:\dev\lords2-fixtures\chain'
+         $env:LORDS2_CHAIN='<LORDS2_FIXTURES>\chain'
          cargo test -p l2-game --test differential chain -- --nocapture
 
-  WHAT IT WRITES, in -Out (default E:\dev\lords2-fixtures\chain, outside the repo)
+  WHAT IT WRITES, in -Out (default <LORDS2_FIXTURES>\chain, outside the repo)
 
     chain-NNN.sav      a copy of lastturn.sav each time the game rewrites it.
                        Save_RotateAndWrite runs inside Turn_Tick phase 7, so this is
@@ -33,8 +33,8 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Dir = 'E:\games\l2-oracle',
-  [string]$Out = 'E:\dev\lords2-fixtures\chain',
+  [string]$Dir = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_ORACLE_DIR }),
+  [string]$Out = (Join-Path (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_FIXTURES }) 'chain'),
   [int]$PollMs = 200,
   [switch]$Launch,
   # Hand the game the foreground every poll: it quits when not active (runtime.ps1).
@@ -43,7 +43,8 @@ param(
   [int]$Count = 0
 )
 $ErrorActionPreference = 'Stop'
-if ($Dir -like 'F:\games*') { throw "rule 2: $Dir is a read-only install; copy it (see the header)" }
+. "$PSScriptRoot\..\paths.ps1"
+if ($Dir.TrimEnd('\') -eq (Get-L2Path LORDS2_DIR -Optional)) { throw "rule 2: $Dir is a read-only install; copy it (see the header)" }
 $exe = Join-Path $Dir 'Lords2.exe'
 if (-not (Test-Path $exe)) { throw "no Lords2.exe in $Dir" }
 New-Item -ItemType Directory -Force $Out | Out-Null

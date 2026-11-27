@@ -13,10 +13,10 @@ and/or the shipped binaries; **[I]** = inferred.
 
 | File | Size | Notes |
 |---|---:|---|
-| `F:\games\Lords of the Realm II\USER.SKR` | 133,748 | 29 May 1997; the only one |
-| `F:\games\LORDS2\` | — | the DOS install ships no `.skr` at all |
+| `$LORDS2_DIR\USER.SKR` | 133,748 | 29 May 1997; the only one |
+| `$LORDS2_DOS_DIR\` | — | the DOS install ships no `.skr` at all |
 
-A recursive search of `F:\games`, `E:\` and the user profile found no others.
+A recursive search of every game folder, the dev drive and the user profile found no others.
 So every "checked over every file" claim below is a claim over **one** file —
 write it, and why the strongest single check is different: **19 of `USER.SKR`'s
 20 maps are byte-identical to the blank map that `mapl2.exe` writes**, so the
@@ -285,9 +285,9 @@ settings struct. Relevant because it holds the grid dimensions.
 ## Validation and reproduction
 
 ```powershell
-node E:/dev/lords2/tools/skr/skr.js validate "F:/games/Lords of the Realm II/USER.SKR"
-node E:/dev/lords2/tools/skr/skr.js render   "F:/games/Lords of the Realm II/USER.SKR" 0
-node E:/dev/lords2/tools/skr/skr.js dump     "F:/games/Lords of the Realm II/USER.SKR"
+node tools/skr/skr.js validate "$LORDS2_DIR/USER.SKR"
+node tools/skr/skr.js render   "$LORDS2_DIR/USER.SKR" 0
+node tools/skr/skr.js dump     "$LORDS2_DIR/USER.SKR"
 ```
 
 `validate` output:
@@ -323,13 +323,13 @@ and the river, the two bridges and the hill masses are obvious at the right one.
 ## Ghidra addresses
 
 `mapl2.exe` and `Lords2.exe` are both in the **`mapl2`** Ghidra project
-(`E:\dev\ghidra-projects`); scripts in `E:\dev\lords2\ghidra_scripts_skr\`.
+(`$GHIDRA_PROJECTS`); scripts in `ghidra_scripts_skr\`.
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" mapl2 -process mapl2.exe -noanalysis `
-    -scriptPath "E:\dev\lords2\ghidra_scripts_skr" `
+& "$GHIDRA_HEADLESS" `
+    "$GHIDRA_PROJECTS" mapl2 -process mapl2.exe -noanalysis `
+    -scriptPath "ghidra_scripts_skr" `
     -postScript DecompileFunc.java 0041bd67 0041a054 0041a240 0041a411
 ```
 

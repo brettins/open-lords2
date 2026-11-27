@@ -7,7 +7,7 @@ frames + 4 non-image "grid" tables).
 Derived by reading `Lords2.exe` in Ghidra, then validated against the file bytes.
 Independently corroborated by prior art (see *Prior art* at the end).
 
-Verified against the GOG Windows release, `F:\games\Lords of the Realm II`.
+Verified against the GOG Windows release, `$LORDS2_DIR`.
 
 ---
 
@@ -280,7 +280,7 @@ Invariant: `p` ends exactly at the next frame's `dataOffset` (or EOF).
 Run over the whole game directory:
 
 ```
-node tools/pl8mode2check.js "F:/games/Lords of the Realm II"
+node tools/pl8mode2check.js "$LORDS2_DIR"
 ```
 
 Result:
@@ -322,9 +322,9 @@ Two independent checks, both passing on all 2,502 frames:
 
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-$GH = "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat"
-$A = @("E:\dev\ghidra-projects", "lords2", "-process", "Lords2.exe",
-       "-noanalysis", "-scriptPath", "E:\dev\lords2\ghidra_scripts")
+$GH = "$GHIDRA_HEADLESS"
+$A = @("$GHIDRA_PROJECTS", "lords2", "-process", "Lords2.exe",
+       "-noanalysis", "-scriptPath", "ghidra_scripts")
 
 # the map-tile draw dispatcher: proves overhang starts at dataOffset + height^2
 & $GH @A -postScript DecompSlice.java 00406673 0 99999

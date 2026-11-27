@@ -1,6 +1,6 @@
 'use strict';
 const { parse, spans, consume, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 const only = process.argv.slice(3);
 
 const FAIL = ['Base2a','Castle1a','Castle1b','Castle1c','Castle1d','Castle2a','Castle2b',

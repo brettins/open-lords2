@@ -10,8 +10,8 @@
 // slots (index 1..80), and BattleMan_Create returns 0 - i.e. the army is
 // silently truncated - the moment allocation runs past it.
 //
-//   node tools/battle/armysim.js troops "F:/games/Lords of the Realm II"
-//   node tools/battle/armysim.js skr    "F:/games/Lords of the Realm II/USER.SKR"
+//   node tools/battle/armysim.js troops "$LORDS2_DIR"
+//   node tools/battle/armysim.js skr    "$LORDS2_DIR/USER.SKR"
 //   node tools/battle/armysim.js one 200 25 100 75 25 150 25 -- 100 50 50 50 100 100 0
 
 const fs = require('fs');

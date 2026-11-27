@@ -1,7 +1,7 @@
 'use strict';
 // Compare the four 108-glyph font files frame-by-frame.
 const { parse, spans, loadAll } = require('./pl8lib');
-const DIR = 'F:/games/Lords of the Realm II';
+const DIR = require('../paths.js').game();
 const files = process.argv.slice(2);
 const all = loadAll(DIR);
 const ps = files.map(n => {

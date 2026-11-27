@@ -1,9 +1,9 @@
 // Render one L2_maps.dat slot with the real isometric tile sets. File-only.
 // usage: node render_map.js <slot> [season a|b|c|d] [scale]
 const fs=require('fs');
-const {png}=require('E:/dev/lords2/tools/maps/png.js');
-const {open,frame,pal}=require('E:/dev/lords2/tools/maps/pl8.js');
-const D='F:/games/Lords of the Realm II/';
+const {png}=require('./png.js');
+const {open,frame,pal}=require('./pl8.js');
+const D=require('../paths.js').game()+'/';
 const slot=+(process.argv[2]||0), S=(process.argv[3]||'a');
 const b=fs.readFileSync(D+'L2_maps.dat');
 const REC=32961,PL=4096,LW=65,LH=129;
@@ -44,6 +44,6 @@ for(let row=0;row<LH;row++)for(let col=0;col<LW;col++){
   }
 }
 console.log('tiles drawn',drawn,'missing',missing);
-const out='E:/dev/lords2/tools/maps/out/render_slot'+slot+'_'+S+'.png';
-fs.mkdirSync('E:/dev/lords2/tools/maps/out',{recursive:true});
+const out=require('path').join(require('../paths.js').ROOT, 'tools/maps/out/render_slot')+slot+'_'+S+'.png';
+fs.mkdirSync(require('path').join(require('../paths.js').ROOT, 'tools/maps/out'),{recursive:true});
 fs.writeFileSync(out,png(W,H,rgb));console.log('wrote',out,W+'x'+H);

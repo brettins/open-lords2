@@ -7,7 +7,7 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Install = 'E:\games\l2-trace',
+  [string]$Install = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_TRACE_DIR }),
   [switch]$Demo,
   [int]$Step = 1,
   [string]$Dump = '',

@@ -1,7 +1,7 @@
 'use strict';
 // Dump the head and tail of the span of specified frames.
 const { parse, spans, loadAll } = require('./pl8lib');
-const DIR = 'F:/games/Lords of the Realm II';
+const DIR = require('../paths.js').game();
 const file = process.argv[2];
 const idxs = process.argv.slice(3).map(Number);
 const mode = process.env.MODE || 'tail';

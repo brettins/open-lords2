@@ -80,7 +80,7 @@ inferred.
 ### The invariant that closes it
 
 ```
-$ node tools/kingdom/savedump.js layout "F:/games/Lords of the Realm II"
+$ node tools/kingdom/savedump.js layout "$LORDS2_DIR"
 225 blocks, 267028 bytes
 + castles.dat 16 x 12800 = 471828
   OK   lastturn.sav is 471828 bytes
@@ -1039,7 +1039,7 @@ record), clears `+0x1B0`, and then re-runs `Labour_Allocate`, `Ration_Apply`,
 as a neutral one. Any garrison is handed to `FUN_00437535`.
 
 **This has no data-side oracle and that is worth saying.** Every realm in every fixture in
-`E:\dev\lords2-fixtures` owns exactly **one** county, so the connectivity invariant the pass
+`$LORDS2_FIXTURES` owns exactly **one** county, so the connectivity invariant the pass
 maintains — each realm's counties form one connected component of the neighbour graph —
 holds trivially in all six saves and proves nothing. What the fixtures *did* establish is
 that the neighbour lists this pass runs on are read correctly: the England turn-one
@@ -2252,7 +2252,7 @@ any global inside a `.sav`. Run against the `lastturn.sav` in the install — a 
 autosave of the England map:
 
 ```
-$ node tools/kingdom/savedump.js globals "F:/games/Lords of the Realm II"
+$ node tools/kingdom/savedump.js globals "$LORDS2_DIR"
 g_countyCount       14      g_season            4        g_turnCount     1
 g_scenarioIndex     0       g_seasonNext        1        g_turnPhase     1
 g_localPlayer       1       g_year              1268     g_merchantCount 6
@@ -2506,13 +2506,13 @@ reproduced, for the reason each line gives.
 
 ```bash
 2491: # the save-block table, and the size invariant that validates it
-node tools/kingdom/savedump.js layout  "F:/games/Lords of the Realm II"
+node tools/kingdom/savedump.js layout  "$LORDS2_DIR"
 
 # every county and realm record in a save, decoded with the field map above
-node tools/kingdom/savedump.js county  "F:/games/Lords of the Realm II"
-node tools/kingdom/savedump.js realm   "F:/games/Lords of the Realm II"
-node tools/kingdom/savedump.js globals "F:/games/Lords of the Realm II"
-node tools/kingdom/savedump.js raw     "F:/games/Lords of the Realm II" 53f9b0 768
+node tools/kingdom/savedump.js county  "$LORDS2_DIR"
+node tools/kingdom/savedump.js realm   "$LORDS2_DIR"
+node tools/kingdom/savedump.js globals "$LORDS2_DIR"
+node tools/kingdom/savedump.js raw     "$LORDS2_DIR" 53f9b0 768
 
 # push the kingdom names into docs/symbols.json, then regenerate the tables
 node tools/kingdom/addsymbols.js
@@ -2535,7 +2535,7 @@ the game binary. The names are pushed into the Ghidra database with
 `ghidra_scripts/ApplySymbols.java` as described in [`symbols.md`](symbols.md).
 
 `tools/kingdom2/` is a second copy of the same five scripts against its own Ghidra project
-(`E:\dev\ghidra-projects-kingdom2`, project `l2k2`), created so the work in this revision
+(`$GHIDRA_PROJECTS-kingdom2`, project `l2k2`), created so the work in this revision
 could run without holding the shared `lords2` project. Either will do; use whichever is
 free.
 

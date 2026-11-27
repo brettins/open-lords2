@@ -19,9 +19,9 @@
 [CmdletBinding()]
 param(
   [Parameter(Mandatory)][string[]]$Scenario,
-  [string]$Install = 'E:\games\l2-trace',
+  [string]$Install = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_TRACE_DIR }),
   [string]$Out = 'C:\Temp\l2-trace-out',
-  [string]$Fixtures = 'E:\dev\lords2-fixtures',
+  [string]$Fixtures = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_FIXTURES }),
   [string]$Dlls = 'C:\Temp\l2-trace-build',
   [int]$Runs = 2,
   [string]$Dump = '',

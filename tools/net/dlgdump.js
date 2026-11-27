@@ -1,6 +1,6 @@
 // Dump the DIALOG resources of a PE32 image.
 //
-//   node tools/net/dlgdump.js "F:/games/Lords of the Realm II/Lords2.exe" [id]
+//   node tools/net/dlgdump.js "$LORDS2_DIR/Lords2.exe" [id]
 //
 // Lords2's entire multiplayer setup UI is standard Win32 dialogs called through
 // DialogBoxParamA - not the game's own DirectDraw UI. That is what makes the

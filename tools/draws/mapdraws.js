@@ -64,7 +64,7 @@ function corpus() {
   }
   // A worktree under .claude/worktrees/<name> - the corpus is gitignored and
   // lives only in the main checkout.
-  const main = 'E:/dev/lords2/tools/oracle/decomp';
+  const main = require('path').join(require('../paths.js').ROOT, 'tools/oracle/decomp');
   if (fs.existsSync(main)) return main;
   return null;
 }

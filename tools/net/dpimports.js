@@ -1,7 +1,7 @@
 // Dump the DPLAYX.dll import thunks of a PE32 image: ordinal or name, the IAT
 // slot address the loader patches, and the call sites that use it.
 //
-//   node tools/net/dpimports.js "F:/games/Lords of the Realm II/Lords2.exe" [DLLNAME]
+//   node tools/net/dpimports.js "$LORDS2_DIR/Lords2.exe" [DLLNAME]
 //
 // Verifies the claim in docs/symbols.md that the game's entire network entry
 // surface is two ordinal imports.

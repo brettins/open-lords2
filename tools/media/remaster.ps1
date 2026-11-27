@@ -25,8 +25,8 @@ param(
   [ValidateSet('all', 'extract', 'upscale', 'encode', 'probe')]
   [string]$Stage = 'all',
 
-  [string]$Source = 'F:\games\Lords of the Realm II',
-  [string]$Work   = 'F:\games\lords2-video',
+  [string]$Source = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_DIR }),
+  [string]$Work   = (Join-Path (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_SCRATCH }) 'lords2-video'),
 
   # Restrict to one file, e.g. -Only Intro.smk
   [string]$Only,
@@ -43,7 +43,7 @@ param(
   [int]$TargetFps = 48,
 
   [int]$Crf = 18,
-  [string]$FFmpeg    = 'F:\ffmpeg\bin\ffmpeg.exe',
+  [string]$FFmpeg    = 'ffmpeg',
   [string]$Esrgan    = '',   # realesrgan-ncnn-vulkan.exe
   [string]$Rife      = ''    # rife-ncnn-vulkan.exe
 )

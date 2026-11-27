@@ -2,7 +2,7 @@
 //! `docs/kingdom.md` §6.1 and [`l2_kingdom::territory`].
 //!
 //! This mechanic has **no data-side oracle**. Every realm in every fixture in
-//! `E:\dev\lords2-fixtures` owns exactly one county, so the invariant the pass
+//! `$LORDS2_FIXTURES` owns exactly one county, so the invariant the pass
 //! maintains holds trivially in all six saves. What holds it up is the code,
 //! the two `L2.eng` strings that name it, and a **player's recollection that
 //! cut-off counties do secede in play**. Corroboration, not reproduction.

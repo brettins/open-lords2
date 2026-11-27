@@ -1,10 +1,10 @@
 // Read a Lords of the Realm II save file using the save-block table the game
 // itself carries at 0x004DE960 in Lords2.exe.
 //
-//   node tools/kingdom/savedump.js layout  "F:/games/Lords of the Realm II"
-//   node tools/kingdom/savedump.js county  "F:/games/Lords of the Realm II" [lastturn.sav]
-//   node tools/kingdom/savedump.js realm   "F:/games/Lords of the Realm II"
-//   node tools/kingdom/savedump.js raw     "F:/games/Lords of the Realm II" <va> <len>
+//   node tools/kingdom/savedump.js layout  "$LORDS2_DIR"
+//   node tools/kingdom/savedump.js county  "$LORDS2_DIR" [lastturn.sav]
+//   node tools/kingdom/savedump.js realm   "$LORDS2_DIR"
+//   node tools/kingdom/savedump.js raw     "$LORDS2_DIR" <va> <len>
 //
 // The table is 8-byte {u32 address, u32 length} records terminated by length 0.
 // Lords2.exe writes those blocks back to back and then appends castles.dat

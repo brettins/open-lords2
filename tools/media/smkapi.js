@@ -7,8 +7,8 @@
 // (which does carry names) and counts call sites for each, giving the exact API
 // surface our engine has to reproduce.
 //
-//   node tools/media/smkapi.js "F:/games/Lords of the Realm II/Lords2.exe" \
-//                              "F:/games/Lords of the Realm II/Smackw32.dll" smack
+//   node tools/media/smkapi.js "$LORDS2_DIR/Lords2.exe" \
+//                              "$LORDS2_DIR/Smackw32.dll" smack
 
 const fs = require('fs');
 

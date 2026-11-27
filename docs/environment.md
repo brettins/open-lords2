@@ -4,25 +4,36 @@ Everything here has cost real time at least once.
 
 ## Paths
 
-| What | Where |
-|------|-------|
-| Repo | `E:\dev\lords2` |
-| Game (GOG, Windows build) | `F:\games\Lords of the Realm II` — **read only** |
-| Game (older DOS install) | `F:\games\LORDS2` — **read only**, useful for diffing |
-| **Test fixtures** | `E:\dev\lords2-fixtures` — preserved saves, **outside every install** |
-| **Our own saved games** | `%APPDATA%\open-lords2\saves` — §"Where our saves go" below |
-| Ghidra | `E:\dev\tools\ghidra_12.1.3_PUBLIC` |
-| Ghidra projects | `E:\dev\ghidra-projects` |
-| JDK 21 | `C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot` |
-| Rust | `~/.cargo/bin` (not on PATH by default) |
+No path to anyone's disk is written in this repository. Every tool asks for a
+**name**, and each machine says where that name lives in `paths.local` at the repo root
+(gitignored; copy `paths.local.example`). An environment variable of the same name
+beats the file. A key may repeat and the first existing folder wins, so one checkout
+shared by Windows and Linux lists both spellings.
+
+| name | what | read by |
+|---|---|---|
+| `LORDS2_DIR` | the Windows (GOG/Steam) install — **read only** | tests, every tool |
+| `LORDS2_DOS_DIR` | the older DOS install — **read only**, useful for diffing | a few tests and audits |
+| `LORDS2_FIXTURES` | preserved saves, **outside every install** | fixture tests |
+| `GHIDRA_HEADLESS` | `analyzeHeadless.bat` | `ghraw.ps1`, `decompile-all.ps1` |
+| `GHIDRA_PROJECTS` | the folder holding the `lords2` Ghidra project | the same |
+| `LORDS2_SCRATCH` | where writable copies of the game go (proxies, net sessions, video) | `native/`, `tools/net`, `tools/media` |
+| `LORDS2_ORACLE_DIR` | a writable copy of the install the oracle tools may run | `tools/oracle/chain.ps1`, `trace-install.ps1` |
+| `LORDS2_TRACE_DIR` | the traced copy `trace-install.ps1` builds | `tools/oracle/trace*.ps1` |
+
+Readers: `crates/l2-testkit` (Rust), `tools/paths.js` (Node), `tools/paths.ps1`
+(PowerShell). Docs write these names as `$LORDS2_DIR` and so on.
+
+Our own saved games live in `%APPDATA%\open-lords2\saves` — §"Where our saves go" below.
+Rust lives in `~/.cargo/bin` (not on PATH by default).
 
 ## The test suite's three inputs
 
-| variable | default | holds |
-|---|---|---|
-| `LORDS2_DIR` | `F:\games\Lords of the Realm II` | the install: `Lords2.exe`, the art, `USER.SKR`, `L2_maps.dat` |
-| `LORDS2_FIXTURES` | `E:\dev\lords2-fixtures` | preserved `.sav` files that nothing rewrites |
-| `LORDS2_DOS_DIR` | `F:\games\LORDS2` | the older DOS install, for the two tests that diff against it |
+| name | holds |
+|---|---|
+| `LORDS2_DIR` | the install: `Lords2.exe`, the art, `USER.SKR`, `L2_maps.dat` |
+| `LORDS2_FIXTURES` | preserved `.sav` files that nothing rewrites |
+| `LORDS2_DOS_DIR` | the older DOS install, for the two tests that diff against it |
 
 All three are resolved in **one place**, `crates/l2-testkit`, and a test in that
 crate fails if a game directory is spelled out anywhere else. Thirteen files used
@@ -118,9 +129,8 @@ export PATH="$HOME/.cargo/bin:$PATH"
 # many the current environment satisfies.
 cargo test --workspace
 
-# Everything
-LORDS2_DIR="F:\games\Lords of the Realm II" \
-LORDS2_FIXTURES="E:\dev\lords2-fixtures" cargo test --workspace
+# Everything: the same command with paths.local filled in
+cargo test --workspace
 
 # What this run asserted
 cargo test -p l2-testkit --test census -- --nocapture
@@ -146,10 +156,10 @@ error: failed to remove file `…\target\debug\l2-game.exe`
 ```
 
 ```powershell
-tools\run\play.cmd "F:\games\Lords of the Realm II"              # debug build, then play
-tools\run\play.cmd -Release "F:\games\Lords of the Realm II"     # release build, then play
-tools\run\play.cmd -NoBuild "F:\games\Lords of the Realm II"     # play what is there, no build
-tools\run\play.cmd "F:\games\Lords of the Realm II" --no-sound   # any l2-game flag passes through
+tools\run\play.cmd "$LORDS2_DIR"              # debug build, then play
+tools\run\play.cmd -Release "$LORDS2_DIR"     # release build, then play
+tools\run\play.cmd -NoBuild "$LORDS2_DIR"     # play what is there, no build
+tools\run\play.cmd "$LORDS2_DIR" --no-sound   # any l2-game flag passes through
 ```
 
 It makes two promises
@@ -172,8 +182,8 @@ taken by the launcher (`-n` becomes `-NoBuild`). None of `l2-game`'s own flags i
 
 | field | value |
 |---|---|
-| Target | `E:\dev\lords2\tools\run\play.cmd "F:\games\Lords of the Realm II"` |
-| Start in | `E:\dev\lords2` |
+| Target | `<repo>\tools\run\play.cmd "<LORDS2_DIR>"` |
+| Start in | `<repo>` |
 
 A console window shows the build, then the game opens. `Start in` is not load-bearing —
 the script finds the repository from its own location
@@ -213,41 +223,33 @@ Ghidra headless. The `lords2` project is **already imported and analysed** — r
 don't re-import:
 
 ```powershell
-$env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-& "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat" `
-    "E:\dev\ghidra-projects" lords2 -process Lords2.exe -noanalysis `
-    -scriptPath "E:\dev\lords2\ghidra_scripts" `
+. tools\paths.ps1
+& (Get-L2Path GHIDRA_HEADLESS) `
+    (Get-L2Path GHIDRA_PROJECTS) lords2 -process Lords2.exe -noanalysis `
+    -scriptPath "$PWD\ghidra_scripts" `
     -postScript DecompileFunc.java 0040a21a
 ```
 
 `DecompileFunc.java` takes any number of hex addresses as script arguments.
 
-### On Linux (the same machine, booted into CachyOS)
+### On Linux
 
-The Windows drives are NTFS mounts and the game is where F: was:
-
-| Windows | Linux |
-|---|---|
-| `E:\dev\lords2` | `/mnt/e/dev/lords2` |
-| `F:\games\Lords of the Realm II` | `/mnt/bigfast/games/Lords of the Realm II` |
-| `F:\games\LORDS2` | `/mnt/bigfast/games/LORDS2` |
-| `E:\dev\lords2-fixtures` | `/mnt/e/dev/lords2-fixtures` |
+`paths.local` takes Linux paths as well; list both spellings if the checkout is shared
+with a Windows boot.
 
 Rust comes from rustup into `~/.cargo/bin`. `l2-game` builds and runs as is
 (winit on Wayland, cpal on ALSA; `os.rs` has the non-Windows shim, so no message
 box, no folder picker, no registry: pass the game dir on the command line or in
 `LORDS2_DIR`). Build into a separate Linux target - the 22 GB `target/` is the Windows
 build and sharing it forces full rebuilds on every switch. `play.sh` and the post-commit
-hook default to `~/.cache/lords2-target`, a symlink to `/mnt/bigfast/lords2-target-linux`:
-`/home` is 86 GB and a debug build fills it. Spell the path out; an unexpanded `~` builds
+hook default to `~/.cache/lords2-target`; make that a symlink to a large disk if `/home`
+is small, since a debug build is tens of GB. Spell the path out; an unexpanded `~` builds
 into a `~/` folder inside the repo:
 
 ```bash
-export CARGO_TARGET_DIR=/mnt/bigfast/lords2-target-linux
-tools/run/play.sh --release "/mnt/bigfast/games/Lords of the Realm II"   # build, then play
-LORDS2_DIR="/mnt/bigfast/games/Lords of the Realm II" \
-LORDS2_FIXTURES=/mnt/e/dev/lords2-fixtures \
-LORDS2_DOS_DIR=/mnt/bigfast/games/LORDS2 cargo test --workspace
+export CARGO_TARGET_DIR="$HOME/.cache/lords2-target"
+tools/run/play.sh --release "$LORDS2_DIR"   # build, then play
+cargo test --workspace                       # paths.local supplies the install
 ```
 
 What stays on Windows: everything that runs or reads the original *live* -
@@ -273,9 +275,9 @@ warning that a file of the install is missing, which a complete install never sh
 ## Gotchas
 
 - **Backslashes are eaten** by the shell layer inside `sed`, `awk` and inline `node -e`.
-  A Windows path written as `F:\games\...` arrives as `F:games...`. Use forward slashes,
+  A Windows path written as `C:\games\...` arrives as `C:games...`. Use forward slashes,
   or a placeholder character piped through `tr`.
-- **Node needs forward slashes** on Windows: `F:/games/...`. It does not understand Git
+- **Node needs forward slashes** on Windows: `C:/games/...`. It does not understand Git
   Bash's `/f/...` mapping and silently resolves it to `C:\f\...`.
 - **Ghidra 12 has no Python here** — PyGhidra isn't installed and there's no Python 3 on
   the machine. Write Ghidra scripts in **Java**; the class name must match the filename.

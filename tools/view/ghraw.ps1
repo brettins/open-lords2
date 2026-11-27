@@ -10,9 +10,9 @@ param(
   [Parameter(ValueFromRemainingArguments = $true)][string[]]$Rest
 )
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"
-$hl = "E:\dev\tools\ghidra_12.1.3_PUBLIC\support\analyzeHeadless.bat"
+$hl = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path GHIDRA_HEADLESS })
 $out = Join-Path $PSScriptRoot 'out'
 if (-not (Test-Path $out)) { New-Item -ItemType Directory $out | Out-Null }
-$a = @("E:\dev\ghidra-projects", $Project, "-process", "Lords2.exe", "-noanalysis",
-       "-scriptPath", "E:\dev\lords2\ghidra_scripts_view") + $Rest
+$a = @((& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path GHIDRA_PROJECTS }), $Project, "-process", "Lords2.exe", "-noanalysis",
+       "-scriptPath", (Join-Path $PSScriptRoot '..\..\ghidra_scripts_view')) + $Rest
 & $hl $a

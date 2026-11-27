@@ -294,7 +294,7 @@ crates/l2-kingdom/src/tables/mod.rs	C11	a3890fb4bf2b	07dfad15821c
 crates/l2-kingdom/src/tax/calc.rs	C149	a454b3137189	138117948441
 crates/l2-kingdom/src/tax/calc.rs	C26	03649751764a	e8179d1f76a8
 crates/l2-kingdom/src/tax/calc.rs	C26	893ce530d8e9	e8179d1f76a8
-crates/l2-kingdom/src/territory/mod.rs	C34	d22433886d87	be3b535841d7
+crates/l2-kingdom/src/territory/mod.rs	C34	c66596437ca5	be3b535841d7
 crates/l2-kingdom/src/trade/engine.rs	C149	8e38e2fb84cc	138117948441
 crates/l2-kingdom/src/trade/tests_part.rs	C149	52ef2e7ef000	138117948441
 crates/l2-kingdom/src/unit/mod.rs	C134	fd68bb3094c3	d12cd2f96f79
@@ -1000,7 +1000,7 @@ docs/draws-map.md	C172	030caf16c71b	0bbb117a9f49
 docs/draws-map.md	C30	40a6a7104696	50fdf5e17ba0
 docs/draws-map.md	C72	230aae5fabd7	e2bb936cf01c
 docs/draws-map.md	C77	cfea9c21de5f	94789f222b99
-docs/environment.md	C154	1e497db3bbd6	4f820bfd08c8
+docs/environment.md	C154	e8a2d2950d38	4f820bfd08c8
 docs/features.json	C123	feb2147250bb	3a5cc2fec37d
 docs/formats/eng.md	C3	f56e526bf0e2	35bf3a86555f
 docs/formats/eng.md	C61	4cbf794a0efc	60611046b40d

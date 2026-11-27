@@ -2,7 +2,7 @@
 // Every family-1 file: header bytes, shape distribution, and whether each frame
 // fits RLE, raw, or both.
 const { parse, spans, rleConsume, loadAll } = require('./pl8lib');
-const DIR = 'F:/games/Lords of the Realm II';
+const DIR = require('../paths.js').game();
 for (const { name, buf } of loadAll(DIR)) {
   const p = parse(buf);
   if (p.family !== (process.env.FAM ? +process.env.FAM : 1)) continue;

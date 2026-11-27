@@ -1,4 +1,4 @@
-const fs=require('fs');const D='F:/games/Lords of the Realm II/';
+const fs=require('fs');const D=require('../paths.js').game()+'/';
 const N=['TROOPS.ENG','TROOPS2.ENG','TROOPS3.ENG'];
 const V={};
 for(const n of N){const s=fs.readFileSync(D+n,'latin1');const v=(s.slice(s.indexOf('*')).match(/\d+/g)||[]).map(Number);V[n]=v;

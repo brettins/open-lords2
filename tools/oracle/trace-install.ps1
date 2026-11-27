@@ -6,8 +6,8 @@
 #>
 [CmdletBinding()]
 param(
-  [string]$Source = 'E:\games\l2-oracle',
-  [string]$Dest = 'E:\games\l2-trace',
+  [string]$Source = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_ORACLE_DIR }),
+  [string]$Dest = (& { . "$PSScriptRoot\..\paths.ps1"; Get-L2Path LORDS2_TRACE_DIR }),
   [string]$Dlls = 'C:\Temp\l2-trace-build'
 )
 $ErrorActionPreference = 'Stop'

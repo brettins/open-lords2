@@ -5,7 +5,7 @@
 //          shape = shape byte dispatches for every family
 //          full  = shape + trailing RLE rows for shape 0
 const { parse, spans, rleConsume, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 const MODEL = process.argv[3] || 'full';
 const VERBOSE = !!process.env.VERBOSE;
 

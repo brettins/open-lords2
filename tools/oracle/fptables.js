@@ -60,7 +60,7 @@ for (const f of fs.readdirSync(corpus).filter((f) => f.endsWith(".c"))) {
 
 const exe = process.env.LORDS2_DIR
   ? path.join(process.env.LORDS2_DIR, "Lords2.exe")
-  : "F:/games/Lords of the Realm II/Lords2.exe";
+  : require('../paths.js').game('Lords2.exe');
 const b = fs.readFileSync(exe);
 const pe = b.readUInt32LE(0x3c);
 const nsec = b.readUInt16LE(pe + 6),

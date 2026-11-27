@@ -1,4 +1,4 @@
-const fs=require('fs');const b=fs.readFileSync('F:/games/Lords of the Realm II/mapl2.exe');
+const fs=require('fs');const b=fs.readFileSync(require('../paths.js').game('mapl2.exe'));
 const pe=b.readUInt32LE(0x3c),nsec=b.readUInt16LE(pe+6),optOff=pe+24,optSize=b.readUInt16LE(pe+20);
 const base=b.readUInt32LE(optOff+28);const secs=[];
 for(let i=0;i<nsec;i++){const o=optOff+optSize+i*40;secs.push({name:b.subarray(o,o+8).toString().replace(/\0/g,''),va:b.readUInt32LE(o+12),vsize:b.readUInt32LE(o+8),rsize:b.readUInt32LE(o+16),roff:b.readUInt32LE(o+20)});}

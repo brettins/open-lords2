@@ -40,7 +40,7 @@
 //! `docs/decisions.md` C34.
 //!
 //! Every realm in every fixture
-//! in `E:\dev\lords2-fixtures` owns exactly one county, so "each realm's
+//! in `$LORDS2_FIXTURES` owns exactly one county, so "each realm's
 //! counties form one connected component" holds trivially in all six saves and
 //! proves nothing. What holds it up is the code above, the two `L2.eng` strings,
 //! and **a player's recollection that cut-off counties do secede in play**. That

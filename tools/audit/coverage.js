@@ -8,7 +8,7 @@
 // era that ended when tools/oracle/decompile-all.ps1 landed. This measures how
 // much of the docs' "unread code" is in fact sitting in tools/oracle/decomp/.
 const fs = require('fs'), path = require('path');
-const ROOT = 'E:/dev/lords2';
+const ROOT = require('../paths.js').ROOT;
 const idx = fs.readFileSync(path.join(ROOT, 'tools/oracle/decomp/index.txt'), 'utf8')
   .split('\n').filter(l => l && !l.startsWith('#'));
 const byAddr = new Map(), names = new Map();

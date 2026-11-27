@@ -1,7 +1,7 @@
 'use strict';
 // Header bytes + content classification for every file matching a name pattern.
 const { parse, spans, loadAll } = require('./pl8lib');
-const DIR = process.argv[2] || 'F:/games/Lords of the Realm II';
+const DIR = process.argv[2] || require('../paths.js').game();
 const re = new RegExp(process.argv[3] || '.', 'i');
 for (const { name, buf } of loadAll(DIR)) {
   if (!re.test(name)) continue;

@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const root = path.join(__dirname, '..', '..');
-const exe = fs.readFileSync(process.argv[2] || 'E:/games/l2-trace/Lords2.exe');
+const exe = fs.readFileSync(process.argv[2] || require('path').join(require('../../tools/paths.js').need('LORDS2_TRACE_DIR'), 'Lords2.exe'));
 const syms = JSON.parse(fs.readFileSync(path.join(root, 'docs', 'symbols.json'), 'utf8')).functions;
 const byName = new Map(syms.map((f) => [f.name.toLowerCase(), f]));
 
@@ -68,7 +68,7 @@ const GLOBALS = { AI_RunTurnStep: [0x0057c944], Turn_Tick: [0x00569584] };
 for (const t of [...TILE, ...BLIT]) { ARGS[t] = BLIT.includes(t) ? 'k' : 'kiii'; GLOBALS[t] = [0x005c9288, 0x00591524, 0x00591528]; }
 // Byte lengths from the decompilation headers, so trace-shape.js drops a blit made inside a hooked primitive.
 const sizes = new Map();
-const decomp = process.argv[3] || 'E:/dev/lords2/tools/oracle/decomp';
+const decomp = process.argv[3] || require('path').join(require('../../tools/paths.js').ROOT, 'tools/oracle/decomp');
 for (const f of fs.existsSync(decomp) ? fs.readdirSync(decomp) : []) {
   for (const m of fs.readFileSync(path.join(decomp, f), 'utf8').matchAll(/^\/\/ ==== ([0-9a-f]{8}) .*bytes=(\d+)/gm)) sizes.set(parseInt(m[1], 16), +m[2]);
 }

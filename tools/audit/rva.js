@@ -13,7 +13,7 @@
 //
 // Env LORDS2_EXE overrides the path.
 const fs = require('fs');
-const EXE = process.env.LORDS2_EXE || 'F:/games/Lords of the Realm II/Lords2.exe';
+const EXE = process.env.LORDS2_EXE || require('../paths.js').game('Lords2.exe');
 const b = fs.readFileSync(EXE);
 const pe = b.readUInt32LE(0x3c);
 const nsec = b.readUInt16LE(pe + 6), optOff = pe + 24, optSize = b.readUInt16LE(pe + 20);
