@@ -70,9 +70,10 @@ function fromCargo() {
   delete env.LORDS2_DIR;
   delete env.LORDS2_FIXTURES;
 
-  const run = args => {
+  const run = (args, log) => {
     let out;
-    try {
+    if (log) out = fs.readFileSync(log, 'utf8');
+    else try {
       out = execFileSync('cargo', args, { cwd: repo, env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], maxBuffer: 64 << 20 });
     } catch (e) {
       // A failing suite still prints its results; a missing cargo does not.
@@ -87,7 +88,7 @@ function fromCargo() {
     return { passed, failed };
   };
 
-  const all = run(['test', '--workspace']);
+  const all = run(['test', '--workspace'], process.env.FIGURES_TEST_LOG);
   if (all.failed) fail(`the suite is red (${all.failed} failing) - fix that before regenerating figures`);
   const kingdom = run(['test', '-p', 'l2-kingdom']);
   return { tests: all.passed, testsKingdom: kingdom.passed };

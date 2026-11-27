@@ -51,7 +51,8 @@ prints how many of the gated tests your setup satisfies.
   [`docs/netcode.md`](docs/netcode.md) has the details.
 - **MIT, clean room.** The useful prior art for this game is GPL-3. Facts about file
   formats are free to use; that code is not. Don't copy or translate it.
-- Keep pull requests small, with tests, and CI green.
+- Keep pull requests small, with tests, and CI green. If you add tests, run
+  `node tools/figures/figures.js` once: the README quotes the test count, and CI checks it.
 
 ### Where to read
 

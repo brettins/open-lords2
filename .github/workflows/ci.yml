@@ -71,9 +71,11 @@ jobs:
       # drifted: README said 958 tests against 1,221, status.html said 230
       # functions named against 465. A document quoting a measurement that
       # nothing checks is a test that cannot fail, so these are generated and
-      # checked here. `figures.js` re-runs the suite against the warm target
-      # directory, which costs a few seconds.
+      # checked here. The workspace count is read from the Test step's log;
+      # re-running the suite here cost three minutes.
       - name: Documented figures are current
+        env:
+          FIGURES_TEST_LOG: test.log
         run: node tools/figures/figures.js --check
 
       # symbols.md is generated from symbols.json the same way, and for the same

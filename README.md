@@ -72,7 +72,7 @@ On Linux, install the audio and windowing headers first (Debian/Ubuntu names):
 `Lords2.exe` is an oracle, not a target: we read the original binary to answer what the game
 does, and where it disagrees with us it is right. Of its
 <!--fig:binary-functions-->2,452<!--/fig--> functions we have named
-**<!--fig:functions-->1,464<!--/fig-->**, and **<!--fig:tests-->3,401<!--/fig--> tests pass**.
+**<!--fig:functions-->1,464<!--/fig-->**, and **<!--fig:tests-->3,402<!--/fig--> tests pass**.
 
 ## Contributing
 
