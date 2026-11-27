@@ -66,6 +66,7 @@ function fromSymbols() {
 // Deliberately scrubbed of LORDS2_DIR and LORDS2_FIXTURES: the figure quoted is
 // what a reader with no copy of the game gets, which is also what CI gets.
 function fromCargo() {
+  if (process.env.FIGURES_SKIP_TESTS) return { tests: null, testsKingdom: null };
   const env = { ...process.env };
   delete env.LORDS2_DIR;
   delete env.LORDS2_FIXTURES;
@@ -241,8 +242,8 @@ function figures() {
   const shells = fromShells();
   const pct = Math.round((sym.functions / BINARY_FUNCTIONS) * 100);
   return {
-    tests: group(cargo.tests),
-    'tests-l2-kingdom': group(cargo.testsKingdom),
+    tests: cargo.tests === null ? SKIPPED : group(cargo.tests),
+    'tests-l2-kingdom': cargo.testsKingdom === null ? SKIPPED : group(cargo.testsKingdom),
     functions: group(sym.functions),
     globals: group(sym.globals),
     'functions-pct': String(pct),
@@ -315,6 +316,7 @@ if (require.main !== module) {
   return;
 }
 
+const SKIPPED = 'skipped';
 const values = figures();
 let stale = [];
 let counted = 0;
@@ -334,6 +336,7 @@ for (const rel of TARGETS) {
     used.add(name);
     if (!(name in values)) fail(`${rel} marks an unknown figure "${name}" - known: ${Object.keys(values).join(', ')}`);
     const want = values[name];
+    if (want === SKIPPED) return whole;
     // `updated` is the clock's date, so --check failed every later day and in UTC
     // after 18:00 MDT (CI run 38196561820); regeneration still stamps it.
     if (current !== want && !(check && name === 'updated')) stale.push({ rel, name, current, want });
