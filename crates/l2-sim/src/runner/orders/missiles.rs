@@ -163,15 +163,18 @@ impl BattleRunner {
                 m.blocked = true;
             }
         }
-        if self.blocked[cell] {
+        // Missile_Step 0x00492C8B 00490000.c:1240 `flags & 0x80` sets blocked, :1242 `local_2c = 99` [V]
+        let mut freed_at = elevation;
+        if self.field.cells[cell].flags & crate::terrain::flag::BLOCKED != 0 {
             self.missiles.get_mut(slot).blocked = true;
+            freed_at = 99;
         }
         {
             let m = self.missiles.get_mut(slot);
             let weapon_class = m.class < 3;
             if m.blocked && weapon_class {
                 m.blocked_ticks = m.blocked_ticks.saturating_add(1);
-                if m.blocked_ticks > missile::BLOCKED_LIMIT || m.launch_elevation == elevation {
+                if m.blocked_ticks > missile::BLOCKED_LIMIT || m.launch_elevation == freed_at {
                     // `:1247` and `:1253`, a shot the ground stopped.
                     self.shots_wasted(slot, crate::unit::SHOTS_WASTED_BLOCKED);
                     self.mark_shooter_engaged(slot);

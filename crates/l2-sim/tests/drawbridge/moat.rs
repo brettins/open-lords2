@@ -49,7 +49,9 @@ fn a_man_ordered_onto_the_moat_shovels_it_full_over_four_loads() {
     assert_eq!(loads, 4, "the counter starts at the water id, 11, and runs to 15");
 
     let attacker = [(Troop::Peasants, 200u32)];
-    let defender = [(Troop::Archers, 40u32)];
+    // Swordsmen, not archers: a garrison that shoots kills the diggers, and
+    // this test measures the digging.
+    let defender = [(Troop::Swordsmen, 40u32)];
     let mut r = BattleRunner::deploy_siege(
         siege::our_castle(2),
         17,

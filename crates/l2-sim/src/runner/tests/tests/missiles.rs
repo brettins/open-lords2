@@ -6,7 +6,7 @@ use super::ai_runs::*;
 use super::super::*;
 use crate::ai::Action;
 
-fn firing_line(shooter: Troop, target: Troop, gap: u8) -> BattleRunner {
+pub(super) fn firing_line(shooter: Troop, target: Troop, gap: u8) -> BattleRunner {
     let mut r = BattleRunner::empty(blank_field(), DEFAULT_SEED);
     let a = r.sim.add(shooter, SIDE_A, 4).unwrap();
     let b = r.sim.add(target, SIDE_B, 4).unwrap();
