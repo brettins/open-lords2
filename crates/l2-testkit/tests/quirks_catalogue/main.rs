@@ -46,6 +46,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B11a", Switchable(Behavioural)),
     ("B109", Switchable(Behavioural)),
     ("B274", Switchable(Behavioural)),
+    ("B275", Unwired("crates/l2-kingdom/src/land/fertility.rs")),
     ("B12", Retracted),
     ("B13", Unwired("crates/l2-kingdom/src/levy/mod.rs")),
     ("B14", Unwired("crates/l2-kingdom/src/industry/mod.rs")),
@@ -130,6 +131,8 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B52", Switchable(Behavioural)),
     ("B53", Switchable(Behavioural)),
     ("B267", Switchable(Behavioural)),
+    ("B277", Unwired("crates/l2-sim/src/runner/orders/targeting.rs")),
+    ("B278", Unwired("crates/l2-sim/src/runner/modern_order_tests.rs")),
     ("B54", Unwired("crates/l2-kingdom/src/conquest/mod.rs and its caller")),
     ("B55", Unswitchable("invisible: a wrapping subtraction on a message variant; bugs.md §6.4")),
     (
@@ -158,6 +161,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B59", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
     ("B60", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
     ("B61", Unwired("crates/l2-kingdom/src/siege/mod.rs")),
+    ("B276", Unwired("crates/l2-kingdom/src/conquest/castle.rs")),
     (
         "B62",
         Unswitchable("not yet applicable: there is no post-battle fanfare, because there is no battle screen"),
