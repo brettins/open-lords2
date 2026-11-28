@@ -5,7 +5,7 @@ use crate::kingdom::Kingdom;
 use crate::map::{flags, CampaignMap, MAP_DIM, MAP_TILES};
 use crate::movement;
 use crate::unit::{Unit, UnitKind};
-use crate::units_tick::{Posted, OWNERLESS};
+use crate::units_tick::{Encounter, Posted, OWNERLESS};
 use crate::Options;
 
 fn kingdom(happiness: i32) -> Kingdom {
@@ -35,6 +35,10 @@ fn kingdom(happiness: i32) -> Kingdom {
 }
 
 fn walk(k: &mut Kingdom, kind: UnitKind, owner: u8) -> Vec<Posted> {
+    walk_with_sorties(k, kind, owner).0
+}
+
+fn walk_with_sorties(k: &mut Kingdom, kind: UnitKind, owner: u8) -> (Vec<Posted>, Vec<Encounter>) {
     let mut u = Unit::new(kind, owner, 30, 10);
     u.men = 100;
     u.troops[0] = 100;
@@ -48,11 +52,13 @@ fn walk(k: &mut Kingdom, kind: UnitKind, owner: u8) -> Vec<Posted> {
         movement::Routing::Direct,
     )
     .expect("a road path");
-    let mut posted = Vec::new();
+    let (mut posted, mut sorties) = (Vec::new(), Vec::new());
     for _ in 0..80 {
-        posted.extend(k.tick_units().posted);
+        let out = k.tick_units();
+        posted.extend(out.posted);
+        sorties.extend(out.sorties);
     }
-    posted
+    (posted, sorties)
 }
 
 #[test]
@@ -102,4 +108,21 @@ fn an_army_and_a_merchant_crossing_the_same_border_say_none_of_this() {
         assert!(mob_letters.is_empty(), "{kind:?}: {posted:?}");
         assert_eq!(k.counties[2].happiness, 70, "{kind:?} took nothing");
     }
+}
+
+/// `County_RaiseRevolt` ends in `County_MakeIndependent` (`0x004AC3C6`), whose tail sends a
+/// besieged garrison out onto its besieger.
+#[test]
+fn a_revolt_that_a_mob_raises_hands_up_the_sortie_of_a_besieged_garrison() {
+    let mut k = kingdom(4);
+    k.counties[2].unrest = 3;
+    let g = k.campaign.units.spawn(Unit::new(UnitKind::Army, 2, 50, 10)).unwrap();
+    let b = k.campaign.units.spawn(Unit::new(UnitKind::Army, 1, 51, 10)).unwrap();
+    k.counties[2].garrison_unit = g;
+    let u = k.campaign.units.get_mut(g).unwrap();
+    (u.garrison_county, u.besieged_by) = (2, b as u8);
+    k.campaign.units.get_mut(b).unwrap().besieging_county = 2;
+    let (_, sorties) = walk_with_sorties(&mut k, UnitKind::PeasantMob, OWNERLESS);
+    assert_eq!(k.counties[2].owner, 0);
+    assert_eq!(sorties, vec![Encounter { mover: g, occupant: b, county: 2 }]);
 }

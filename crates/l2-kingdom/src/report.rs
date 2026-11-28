@@ -84,6 +84,9 @@ pub struct SeasonReport {
     pub passes: Vec<Pass>,
     pub messages: Vec<Message>,
     pub revolts: Vec<u8>,
+    /// Sorties that `County_MakeIndependent` (`0x004AC3C6`) starts in this pass. The tick that
+    /// makes one raises it at once, so the save codec does not carry the field.
+    pub sorties: Vec<crate::units_tick::Encounter>,
 }
 
 impl SeasonReport {

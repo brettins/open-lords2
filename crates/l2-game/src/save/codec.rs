@@ -337,7 +337,7 @@ pub(crate) fn decode_report(input: &mut Reader<'_>) -> Result<Result<SeasonRepor
         }
     }
     let revolts = input.bytes()?.to_vec();
-    Ok(Ok(SeasonReport { passes: collected, messages: kept, revolts }))
+    Ok(Ok(SeasonReport { passes: collected, messages: kept, revolts, sorties: Vec::new() }))
 }
 
 fn encode_message(out: &mut Canonical, message: &Message) {
