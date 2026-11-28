@@ -615,10 +615,31 @@ Rust cannot `#![forbid(float)]`, so enforcement is structural plus mechanical:
 
 The session tick is the game's own tick, **16 ms** (`TICK_MS`, C193), not a separate
 network clock. Each due game tick calls `Live::pump` once, and one pump runs up to
-`CATCH_UP` = 4 session ticks (`net/live.rs:26`) when a peer has fallen behind. One
-session tick is one `step_game` (`net/sim.rs:54`): that tick's commands, then `frame`,
-which advances the turn clock and either the battle in progress or turn resolution. The
-same session carries the overworld and every battle (§5).
+`CATCH_UP` = 4 session ticks (`net/live.rs:26`). One session tick is one `step_game`
+(`net/sim.rs:54`): that tick's commands, then `frame`, which advances the turn clock and
+either the battle in progress or turn resolution. The same session carries the overworld
+and every battle (§5).
+
+**Nothing holds the session to the clock**, so the network sets the game's speed
+(measured 2026-11-28). Two real `Live` seats over loopback TCP, pumped every 16 ms, ran
+**1004 session ticks in 251 frames: 4× real time**, every pump stepping its full
+`CATCH_UP`. `crates/l2-net/tests/latency.rs` replays `Live::pump` over a simulated star
+network and agrees at 0 ms (400 %); across one-way latency it gives:
+
+| one-way | 2 seats | 5 seats (joiner→joiner is two hops) |
+|---|---|---|
+| 0 ms | 400 % | 300 % |
+| 16 ms | 200 % | 100 % |
+| 32 ms | 120 % | 60 % |
+| 50 ms | 86 % | 40 % |
+| 100 ms | 46 % | 22 % |
+| 150 ms | 30 % | 15 % |
+
+Speed is real time only by accident, near 40 ms one-way for two seats and 16 ms for five;
+10 ms of jitter takes another 5–30 points off. Faster than 100 % means the overworld's turn
+clock and every battle run fast; slower means they crawl. The table is the session logic
+on a model network (`cargo test -p l2-net --test latency -- --ignored --nocapture`); only
+its 0 ms row is checked against real sockets.
 
 ### Input delay, not rollback
 
@@ -626,10 +647,9 @@ A command issued during tick `N` executes on tick `N + 2` (`Config::battle()`,
 `input_delay: 2`). Every peer therefore has every seat's commands for tick `N + 2`
 before it needs to run it, and no peer ever has to un-run anything.
 
-The cost is a fixed 32 ms between click and response. `[I]` from the code, not
-measured: a seat seals tick `N + 2` only once it has run tick `N`, so a one-way
-latency above about 32 ms holds every seat waiting each tick, and the game runs
-slower than real time rather than faster than the network. The alternative —
+The cost is two session ticks between click and response, 32 ms at real-time speed. A
+seat seals tick `N + 2` only once it has run tick `N`, which is why latency past about
+32 ms slows every seat (the table above). The alternative —
 rollback with speculative execution and re-simulation — buys responsiveness at
 the price of making every piece of simulation state rewindable, which is a large
 tax on every future feature. For a game whose battle units are formations of
