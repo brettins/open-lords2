@@ -180,7 +180,8 @@ whose patch is unchanged keeps its review. Only committed records count. Order o
 3. Text for GitHub: write it to a file, have it read cold, then
    `node tools/review/mark.js copy <file> --summary "<what changed>"`, post with `--body-file`.
 
-Markers live in `.git/l2-reviews/`, local and never committed. A commit that needs no
+Run `mark.js` in its own call: the hook reads the command before any of it runs, so
+`mark.js … && git push` is still blocked. Markers live in `.git/l2-reviews/`, local and never committed. A commit that needs no
 review (a pure move, a revert) carries `Oracle-check: skip <reason>` or `Code-review: skip
 <reason>` in its message, which keeps the exception in the public history.
 
