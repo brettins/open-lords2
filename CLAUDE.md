@@ -60,6 +60,7 @@ agent, so it stays short. Read the linked document before working in that area.
 | add or change a rule, or anything a mod overrides | `docs/modding.md` |
 | revisit an architectural choice | `docs/decisions.md` — grep by C-number; never read whole |
 | spawn or coordinate agents | `docs/agents.md` — *Briefing an agent* and *Ablate the line* sections |
+| push, or post to GitHub | `docs/agents.md` *Before a push*: two hooks block it until the reviews are recorded |
 | ask what state the project is in | `docs/status.html` |
 | wonder what we are building, or argue with the order | `docs/plan.md` |
 | wonder what is left or in flight | `docs/work.json`; `node tools/pm/work.js --status` / `--check` / `--html`. The lead is its only writer |

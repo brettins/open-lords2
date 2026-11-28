@@ -9,13 +9,15 @@ You review one branch of lords2 against the oracle, `Lords2.exe`. You change not
 your record file (step 6): no edits, no commits, no worktree changes. Budget: 25 tool
 calls. Output: mismatches only.
 
-The repo is the working directory you were started in. The branch name is in your prompt. Never run anything that
-writes: no `cargo`, no `git checkout`, no `git merge`. `git diff main...<branch>` and
-`git show` are how you read the delivery.
+The repo is the working directory you were started in. The branch name is in your prompt,
+and so is the base when it is not `main` (a push gate check names the commit the push
+starts from); read `<base>` below as that. Never run anything that writes: no `cargo`, no
+`git checkout`, no `git merge`. `git diff <base>...<branch>` and `git show` are how you
+read the delivery.
 
 ## Procedure
 
-1. `git diff main...<branch> --stat`, then the diff of every non-test `.rs` file. Skip
+1. `git diff <base>...<branch> --stat`, then the diff of every non-test `.rs` file. Skip
    test files, fixtures, docs and pure moves.
 2. List every behaviour the diff adds or changes: a rule, an order of operations, a
    guard, a constant, a state transition, a draw position, a string source. One line

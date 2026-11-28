@@ -161,6 +161,29 @@ record's `reviewed` commit) and unchecked; `--json` feeds the one header line of
 The eight records dated 2026-09-14 carry `"source": "seeded from the conversation, not the
 report"`: verdict level only, taken from the branch diffs, nothing re-read (C234).
 
+## Before a push
+
+Two hooks enforce the reviews; neither trusts memory.
+
+| hook | when | needs |
+|---|---|---|
+| `.claude/hooks/push-gate.js` | `git push` | each pushed commit touching non-test `crates/*/src` is covered by an oracle-check record (`docs/oracle-checks/*.json`, `reviewed` among the pushed commits); each touching any source file is covered by a code-review marker |
+| `.claude/hooks/copy-gate.js` | `gh issue`/`pr` create, comment, edit, review, close; `gh release` create/edit | the body comes from a file whose exact bytes carry a copy-review marker |
+
+A record or marker at commit R covers R and everything before it; after a rebase, a commit
+whose patch is unchanged keeps its review. Only committed records count. Order of work:
+
+1. Oracle check: point `refs/heads/check/<name>` at HEAD and run the `oracle-check` agent
+   with that branch and the base the hook names. Fix or file each mismatch, commit the record.
+2. `/code-review` over the same commits. Fix or file the findings, then
+   `node tools/review/mark.js code --findings <n> --summary "<what you did>"`.
+3. Text for GitHub: write it to a file, have it read cold, then
+   `node tools/review/mark.js copy <file> --summary "<what changed>"`, post with `--body-file`.
+
+Markers live in `.git/l2-reviews/`, local and never committed. A commit that needs no
+review (a pure move, a revert) carries `Oracle-check: skip <reason>` or `Code-review: skip
+<reason>` in its message, which keeps the exception in the public history.
+
 ## The prose pass
 
 The player's rule, 2026-09-13: the plainest listing of facts, and losing a clause is the
