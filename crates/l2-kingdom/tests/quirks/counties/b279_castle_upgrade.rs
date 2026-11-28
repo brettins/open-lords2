@@ -48,6 +48,18 @@ fn b279_fixed_still_refunds_a_finished_castle() {
     assert_eq!((r.wood, r.stone), (600, 10_000 - 920));
 }
 
+/// A besieged upgrade still owes its unpaid bill when fixed (00470000.c:3550).
+/// Ablation: `castle_bill` testing `castle_degraded == 1`.
+#[test]
+fn b279_fixed_carries_a_besieged_builds_debt() {
+    let (_, fixed) = pair(Quirk::UpgradeForgivesUnpaidCastle);
+    let (mut c, mut r) = (owned(), Realm::new());
+    assert!(order_castle(T, &mut c, &mut r, 4, fixed));
+    c.castle_degraded = l2_kingdom::siege::CASTLE_DEGRADED_DAMAGED;
+    assert!(order_castle(T, &mut c, &mut r, 5, fixed));
+    assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (800, 3_000), "the royal bill");
+}
+
 #[test]
 fn b279_is_always_fixed_online() {
     assert!(Quirk::UpgradeForgivesUnpaidCastle.fixed_online());

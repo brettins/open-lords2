@@ -112,7 +112,9 @@ pub fn order_castle(
 ///
 /// B279: `castleType` moves at the order, so the credit is the full bill of a
 /// castle still owing, and the overwrite of `+0x1D0`/`+0x1D4` forgives the
-/// rest. Fixed, the unpaid remainder joins the new bill. Issue #21.
+/// rest. Fixed, the unpaid remainder joins the new bill. Issue #21. Also at
+/// `castleDegraded == 2`: `Siege_RecordCastleDamage` 00470000.c:3550/3561 adds
+/// the repair to a build's unpaid bill, so gating on 1 alone reopens B279. `[V]`
 pub fn castle_bill(t: &Tables, county: &County, castle_type: u8, quirks: Quirks) -> (i32, i32) {
     let (mut wood, mut stone) = castle_cost(t, castle_type);
     if county.castle_type != 0 {
