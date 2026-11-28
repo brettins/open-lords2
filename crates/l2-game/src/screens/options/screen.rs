@@ -290,7 +290,8 @@ impl OptionsScreen {
             let reproduced = quirk_reproduced(*row, ctx.game);
             check_box(canvas, QUIRK_BOX_X, y, u8::from(reproduced), ink, self.hover == Some(i));
             let colour = if reproduced { font::TEXT } else { font::DISABLED };
-            let line = format!("{}  {}", row.entry, summary_of(*row));
+            let lock = if quirk_locked(*row, ctx.game) { "  (always fixed online)" } else { "" };
+            let line = format!("{}  {}{lock}", row.entry, summary_of(*row));
             pen.body(canvas, QUIRK_LIST_X, y - 2, &line, colour);
         }
 

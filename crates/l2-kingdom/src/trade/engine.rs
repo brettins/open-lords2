@@ -119,7 +119,7 @@ fn settle(kingdom: &mut Kingdom, county: usize) {
     // own: it ends at `Merchant_Trade(0,qty,good,…)`, so every AI stall call
     // site inherits `g_season` here, unlike `Ai_SetRations`
     // (`004a0000.c:1794/1805/1816`), which passes `g_seasonNext`. `[V]`
-    let sowing = crate::ration::Sowing::from_index(kingdom.season, kingdom.options.advanced_farming);
+    let sowing = kingdom.sowing();
     let Kingdom { counties, campaign, .. } = kingdom;
     settle_county(&t, &mut counties[county], &mut campaign.map, armies_eat, season_next, sowing);
 }

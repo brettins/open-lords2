@@ -51,7 +51,7 @@ pub fn new_game(
         detail: "the host's setup did not decode".into(),
     })?;
     let seats = seats(start);
-    let settings = setup.settings(seats.len(), quirks);
+    let settings = setup.settings(seats.len(), quirks.online());
     let mut people = [0u8; MAX_REALMS];
     for (p, &(_, realm)) in start.roster.players.iter().zip(&seats) {
         people[realm as usize] = p.shield;

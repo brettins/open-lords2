@@ -33,7 +33,7 @@ pub fn lay_out(
         &mut counties[id],
         search,
         env.armies_eat,
-        crate::ration::Sowing::new(env.season_next, env.advanced_farming),
+        crate::ration::Sowing::new(env.season_next, env.advanced_farming).with_quirks(env.quirks),
     );
 
     let winter = env.season == Season::Winter;

@@ -144,6 +144,10 @@ impl Order for ToggleOption {
 impl Order for SetQuirk {
     type Reply = ();
     fn run(self, game: &mut Game) {
+        // Issue #15: no peer turns an exploit back on mid-game.
+        if game.net.lockstep && self.reproduced && self.quirk.fixed_online() {
+            return;
+        }
         game.kingdom.options.quirks.set_reproduced(self.quirk, self.reproduced);
     }
 }

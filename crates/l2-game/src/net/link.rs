@@ -136,7 +136,7 @@ pub fn service(
     let seat_peers = driver.as_ref()?.lobby().seats().to_vec();
     match built {
         Ok(mut world) => {
-            let quirks = game.kingdom.options.quirks;
+            let quirks = game.kingdom.options.quirks.online();
             let origin = Some(Box::new(super::replay::Origin { start, quirks }));
             world.net = Link { phase: Phase::Started, requests: Vec::new(), origin, seat_peers, ..game.net.clone() };
             world.prefs = game.prefs;
@@ -180,7 +180,8 @@ pub fn lobby(
     tables: Tables,
 ) -> Option<Start> {
     let link = &mut game.net;
-    let quirks = game.kingdom.options.quirks;
+    // Issue #15: Hello carries what `start::new_game` will play.
+    let quirks = game.kingdom.options.quirks.online();
     for request in std::mem::take(&mut link.requests) {
         let result = match (request, driver.as_mut(), link.identity.clone()) {
             (Request::Host { addr }, None, Some(id)) => {

@@ -230,3 +230,19 @@ fn a_command_with_an_unknown_verb_does_not_decode_and_every_verb_has_its_own_tag
         .collect();
     assert_eq!(tags, (0..7).collect::<Vec<u8>>());
 }
+
+/// Issue #15. Ablation: the `fixed_online` guard in `SetQuirk::run`.
+#[test]
+fn a_lockstep_game_cannot_turn_an_online_fix_back_off() {
+    let exploit = Quirk::SplitShortfallGoesUneaten;
+    let mut g = Game::new(7);
+    g.kingdom.options.quirks = g.kingdom.options.quirks.online();
+    g.net.lockstep = true;
+    SetQuirk { quirk: exploit, reproduced: true }.run(&mut g);
+    assert!(g.kingdom.options.quirks.is_fixed(exploit), "refused online");
+    SetQuirk { quirk: Quirk::HarvestIgnoresLabourCap, reproduced: false }.run(&mut g);
+    assert!(g.kingdom.options.quirks.is_fixed(Quirk::HarvestIgnoresLabourCap), "others still move");
+    g.net.lockstep = false;
+    SetQuirk { quirk: exploit, reproduced: true }.run(&mut g);
+    assert!(g.kingdom.options.quirks.reproduces(exploit), "single player keeps the toggle");
+}

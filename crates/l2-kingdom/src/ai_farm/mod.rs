@@ -102,11 +102,13 @@ pub struct FarmEnv {
     pub season_next: Season,
     pub advanced_farming: bool,
     pub armies_eat: bool,
+    pub quirks: l2_net::Quirks,
 }
 
 impl FarmEnv {
     pub fn new(season: Season, season_next: Season) -> FarmEnv {
-        FarmEnv { season, season_next, advanced_farming: true, armies_eat: true }
+        let quirks = l2_net::Quirks::FAITHFUL;
+        FarmEnv { season, season_next, advanced_farming: true, armies_eat: true, quirks }
     }
 }
 

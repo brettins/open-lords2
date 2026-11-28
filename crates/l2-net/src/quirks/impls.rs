@@ -19,6 +19,7 @@ impl Quirk {
         Quirk::DeadHumanCanStillWin,
         Quirk::MutualDestructionIsAWin,
         Quirk::DeadArcherKeepsShooting,
+        Quirk::SplitShortfallGoesUneaten,
     ];
 
     pub const fn bit(self) -> u32 {
@@ -41,6 +42,7 @@ impl Quirk {
             Quirk::DeadHumanCanStillWin => "B52",
             Quirk::MutualDestructionIsAWin => "B53",
             Quirk::DeadArcherKeepsShooting => "B267",
+            Quirk::SplitShortfallGoesUneaten => "B109",
         }
     }
 
@@ -64,6 +66,7 @@ impl Quirk {
             Quirk::DeadHumanCanStillWin => "DeadHumanCanStillWin",
             Quirk::MutualDestructionIsAWin => "MutualDestructionIsAWin",
             Quirk::DeadArcherKeepsShooting => "DeadArcherKeepsShooting",
+            Quirk::SplitShortfallGoesUneaten => "SplitShortfallGoesUneaten",
         }
     }
 
@@ -103,7 +106,16 @@ impl Quirk {
             Quirk::DeadHumanCanStillWin => "You can win a game you died in",
             Quirk::MutualDestructionIsAWin => "Mutual destruction counts as a win",
             Quirk::DeadArcherKeepsShooting => "An archer who has just died can still be ordered to fire",
+            Quirk::SplitShortfallGoesUneaten => {
+                "Pointing the ration split at an empty store eats less food"
+            }
         }
+    }
+
+    /// Exploits a player can use against another player. Fixed in every
+    /// lockstep game whatever the host chose; issue #15.
+    pub const fn fixed_online(self) -> bool {
+        matches!(self, Quirk::SplitShortfallGoesUneaten)
     }
 }
 
@@ -121,6 +133,23 @@ impl Quirks {
         }
         m
     };
+
+    pub(crate) const ONLINE: u64 = {
+        let mut m = 0u64;
+        let mut i = 0;
+        while i < Quirk::ALL.len() {
+            if Quirk::ALL[i].fixed_online() {
+                m |= 1u64 << (Quirk::ALL[i] as u32);
+            }
+            i += 1;
+        }
+        m
+    };
+
+    /// This set as a network game plays it: every [`Quirk::fixed_online`] fixed.
+    pub const fn online(self) -> Quirks {
+        Quirks { bits: self.bits | Quirks::ONLINE }
+    }
 
     pub const fn from_bits(bits: u64) -> Quirks {
         Quirks { bits: bits & Quirks::MASK }

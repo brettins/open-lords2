@@ -52,7 +52,7 @@ impl Kingdom {
             // `g_season`. The gate is season 4, so the spending pass reserves
             // the seed on the turn `Grain_SeasonTick` sows — Spring.
             let season = if preview { self.season } else { self.season_prev };
-            let sowing = ration::Sowing::from_index(season, self.options.advanced_farming);
+            let sowing = ration::Sowing::from_index(season, self.options.advanced_farming).with_quirks(self.options.quirks);
             if preview {
                 ration::preview(&self.tables, &mut self.counties[id], self.options.armies_eat, sowing);
             } else {
@@ -181,7 +181,7 @@ impl Kingdom {
         let season_next = Season::from_index(self.season_next).unwrap_or(Season::Spring);
         let advanced = self.options.advanced_farming;
         let armies_eat = self.options.armies_eat;
-        let sowing = ration::Sowing::from_index(self.season, advanced);
+        let sowing = ration::Sowing::from_index(self.season, advanced).with_quirks(self.options.quirks);
         for id in 1..=self.county_count {
             ration::preview(&self.tables, &mut self.counties[id], armies_eat, sowing);
             if let Some(grain) =

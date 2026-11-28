@@ -202,7 +202,15 @@ pub fn quirk_reproduced(row: QuirkRow, game: &crate::Game) -> bool {
     }
 }
 
+/// Issue #15: a network game plays these fixed, whatever the host chose.
+pub fn quirk_locked(row: QuirkRow, game: &crate::Game) -> bool {
+    matches!(row.home, Home::Behavioural(q) if q.fixed_online() && game.net.lockstep)
+}
+
 pub fn set_quirk(row: QuirkRow, reproduced: bool, game: &mut crate::Game) {
+    if quirk_locked(row, game) {
+        return;
+    }
     match row.home {
         Home::Behavioural(q) => game.issue(crate::command::SetQuirk { quirk: q, reproduced }),
         Home::Presentation(field) => game.presentation_quirks.set_fixed(field, !reproduced),

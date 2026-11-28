@@ -45,6 +45,7 @@ pub fn build(start: &Start, me: PlayerSlot, tables: Tables) -> Result<Game, Erro
     let missing = |detail: String| Error::Missing { name: "the host's save".into(), detail };
     let mut game = crate::save::decode(&start.save, tables).map_err(|e| missing(e.to_string()))?;
     crate::save::resume(&mut game);
+    game.kingdom.options.quirks = game.kingdom.options.quirks.online();
     let seats = seats(start);
     let seated = |r: u8| seats.iter().any(|&(_, s)| s == r);
     for (r, realm) in game.kingdom.realms.iter_mut().enumerate() {

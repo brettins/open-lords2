@@ -185,6 +185,11 @@ pub enum Quirk {
     /// **B267** — `Order_ShootAtUnit` (`0x0048C974`) tests
     /// `owner != 0` only, so a body still counting down stands up and shoots.
     DeadArcherKeepsShooting = 14,
+
+    /// **B109** — a ration split aimed at an empty store eats less food.
+    /// `Ration_Apply` (`0x0044DF5F`) caps each side of the split at its store and
+    /// moves no shortfall across. Always fixed online ([`Quirk::fixed_online`]).
+    SplitShortfallGoesUneaten = 15,
 }
 
 /// **Which of the original's defects this game reproduces.**
@@ -261,6 +266,19 @@ mod tests {
         assert_eq!(Quirk::DeadHumanCanStillWin.bit(), 12);
         assert_eq!(Quirk::MutualDestructionIsAWin.bit(), 13);
         assert_eq!(Quirk::DeadArcherKeepsShooting.bit(), 14);
+        assert_eq!(Quirk::SplitShortfallGoesUneaten.bit(), 15);
+    }
+
+    /// Ablation: `online` returning `self` unchanged.
+    #[test]
+    fn online_fixes_the_enforced_quirks_and_leaves_the_rest() {
+        let online = Quirks::FAITHFUL.online();
+        for q in Quirk::ALL {
+            assert_eq!(online.is_fixed(*q), q.fixed_online(), "{}", q.name());
+        }
+        assert!(online.is_fixed(Quirk::SplitShortfallGoesUneaten));
+        assert_eq!(Quirks::FIXED.online(), Quirks::FIXED);
+        assert_eq!(online.online(), online);
     }
 
     /// `ALL` is the enum, not a hand-kept copy of it that drifts. Rust cannot

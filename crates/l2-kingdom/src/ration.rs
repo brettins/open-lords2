@@ -12,6 +12,7 @@
 use crate::county::County;
 use crate::math::{div_ceil, pct};
 use crate::tables::{Season, Tables, RATION_LEVEL_COUNT};
+use l2_net::{Quirk, Quirks};
 
 /// Every call in the binary passes `g_season` except `Ration_ApplyAll`
 /// (`0x0044BF04`), which passes `g_seasonPrev` — so the season here is the one
@@ -20,17 +21,24 @@ use crate::tables::{Season, Tables, RATION_LEVEL_COUNT};
 pub struct Sowing {
     pub season: Option<Season>,
     pub advanced_farming: bool,
+    /// B109: [`Quirk::SplitShortfallGoesUneaten`] is read off this.
+    pub quirks: Quirks,
 }
 
 impl Sowing {
-    pub const NONE: Sowing = Sowing { season: None, advanced_farming: false };
+    pub const NONE: Sowing =
+        Sowing { season: None, advanced_farming: false, quirks: Quirks::FAITHFUL };
 
     pub fn new(season: Season, advanced_farming: bool) -> Sowing {
-        Sowing { season: Some(season), advanced_farming }
+        Sowing { season: Some(season), advanced_farming, quirks: Quirks::FAITHFUL }
     }
 
     pub fn from_index(season: u8, advanced_farming: bool) -> Sowing {
-        Sowing { season: Season::from_index(season), advanced_farming }
+        Sowing { season: Season::from_index(season), advanced_farming, quirks: Quirks::FAITHFUL }
+    }
+
+    pub fn with_quirks(self, quirks: Quirks) -> Sowing {
+        Sowing { quirks, ..self }
     }
 }
 
@@ -242,6 +250,31 @@ fn choose_within(t: &Tables, county: &County, armies_eat: bool, seed: i32) -> Pl
     split_plan(t, level, demand(t, county, level, armies_eat), county.herd, split)
 }
 
+/// B109 fixed (issue #15): the level [`choose_within`] chose, paid in full.
+/// `Ration_Apply` (`0x0044DF5F`)'s last split caps each side at its store, so the
+/// split's share of an empty store goes uneaten. The first descent passed this
+/// level or a higher one against the whole larder, so the other store covers it.
+fn pay_in_full(t: &Tables, county: &County, p: Plan, seed: i32) -> Plan {
+    let (herd, grain) = (county.herd, county.grain - seed);
+    let (heads, sacks) = (p.heads.min(herd), p.sacks.min(grain));
+    let fed = food_from_dairy(t, herd) as i64
+        + heads.max(0) as i64 * t.food.food_per_head as i64
+        + sacks.max(0) as i64 * t.food.food_per_sack as i64;
+    let mut short = (p.requirement as i64 - fed).max(0) as i32;
+    let more_sacks = sacks_for_people(t, short).min((grain - sacks).max(0));
+    short = (short - more_sacks * t.food.food_per_sack).max(0);
+    let more_heads = heads_for_people(t, short).min((herd - heads).max(0));
+    Plan { heads: heads + more_heads, sacks: sacks + more_sacks, ..p }
+}
+
+fn settle(t: &Tables, county: &County, armies_eat: bool, seed: i32, quirks: Quirks) -> Plan {
+    let p = choose_within(t, county, armies_eat, seed);
+    if quirks.reproduces(Quirk::SplitShortfallGoesUneaten) {
+        return p;
+    }
+    pay_in_full(t, county, p, seed)
+}
+
 /// `Ration_Apply` (`0x0044DF5F`) proper — everything the original's function
 /// writes. Shared by [`apply`] and [`preview`]; the only difference between
 /// them is whether the shadow pair is written after it.
@@ -267,7 +300,7 @@ fn record(t: &Tables, county: &mut County, p: Plan, seed: i32) {
 /// unowned county stores `herdEaten` 13 against a shadow of 0.
 pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
     let seed = seed_reserved(t, county, sowing);
-    let p = choose_within(t, county, armies_eat, seed);
+    let p = settle(t, county, armies_eat, seed, sowing.quirks);
     record(t, county, p, seed);
     county.grain_eaten_shadow = county.grain_eaten;
     county.herd_eaten_shadow = county.herd_eaten;
@@ -276,7 +309,7 @@ pub fn apply(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) 
 
 pub fn preview(t: &Tables, county: &mut County, armies_eat: bool, sowing: Sowing) -> Plan {
     let seed = seed_reserved(t, county, sowing);
-    let p = choose_within(t, county, armies_eat, seed);
+    let p = settle(t, county, armies_eat, seed, sowing.quirks);
     record(t, county, p, seed);
     p
 }

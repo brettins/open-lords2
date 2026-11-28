@@ -25,9 +25,15 @@ use crate::weather;
 use l2_net::Pcg32;
 
 impl Kingdom {
+    /// What every `Ration_Apply` (`0x0044DF5F`) handed `g_season` reads.
+    pub fn sowing(&self) -> crate::ration::Sowing {
+        crate::ration::Sowing::from_index(self.season, self.options.advanced_farming)
+            .with_quirks(self.options.quirks)
+    }
+
     pub fn restore(&self) -> crate::conquest::Restore {
         crate::conquest::Restore {
-            sowing: crate::ration::Sowing::from_index(self.season, self.options.advanced_farming),
+            sowing: self.sowing(),
             season_next: Season::from_index(self.season_next).unwrap_or(Season::Spring),
             advanced_farming: self.options.advanced_farming,
             armies_eat: self.options.armies_eat,

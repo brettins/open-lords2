@@ -118,3 +118,16 @@ fn a_quirks_mismatch_is_refused() {
     assert!(matches!(why[..], [Mismatch::Quirks { .. }]), "{why:?}");
     assert!(client.is_none());
 }
+
+/// Issue #15: a network world plays B109 fixed though both lobbies sent faithful.
+/// Ablation: `quirks.online()` in `net::new_game`.
+#[test]
+fn a_network_world_plays_the_online_fixes() {
+    let Some(mut assets) = assets() else { l2_testkit::skip!("no install") };
+    let (a, b) = two_worlds(&mut assets);
+    for g in [&a, &b] {
+        let q = g.kingdom.options.quirks;
+        assert_eq!(q, Quirks::FAITHFUL.online());
+        assert!(q.is_fixed(l2_net::Quirk::SplitShortfallGoesUneaten));
+    }
+}

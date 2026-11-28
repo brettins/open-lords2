@@ -55,6 +55,7 @@ impl Kingdom {
         crate::land::reclaim_preview(&self.tables, &mut self.counties[county], &self.campaign.map);
 
         crate::labour::allocate(&mut self.counties[county]);
-        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, crate::ration::Sowing::from_index(self.season, self.options.advanced_farming));
+        let sowing = self.sowing();
+        crate::ration::preview(&self.tables, &mut self.counties[county], armies_eat, sowing);
     }
 }
