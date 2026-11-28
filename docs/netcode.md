@@ -139,8 +139,11 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >    full-state snapshot is the per-tick whole-world cost §2 chose lockstep to avoid, and
 >    it is unnecessary — the dump carries seed, initial state and commands, so the agreed
 >    state is a replay away. Only the diverged state is unrecoverable.
-> 6. **§5 is the same session with `input_delay = 0`; the
->    end-turn button *is* `next_packet()`. Host relaying is transport topology, invisible
+> 6. **§5 is the same session as §4, not a second one.** The game runs one session for the
+>    whole game with `Config::battle()` (`net/live.rs:91`, `net/live/seats.rs:30`); End Turn
+>    is an ordinary command and every overworld order ticks like a battle order (§5 now says
+>    so). `Config::kingdom()` (`input_delay = 0`) is in `l2-net` and nothing in the game uses
+>    it. Host relaying is transport topology, invisible
 >    above the trait. Verified with five players through the identical code path.
 > 7. **§7's `Transport` trait needs `peers()`.** Otherwise the caller keeps its own
 >    connection list, it drifts from the transport's, and one player silently stops
@@ -232,7 +235,7 @@ kind. `Sigs_MonitorThread` (`0x004B7052`) goes further and calls `ShowWindow`,
 >
 > **Still unverified:** anything past loopback — real loss, NAT, MTU, cross-machine. TCP's
 > head-of-line blocking under genuine packet loss is §7's central argument for TCP and
-> remains reasoned. Hashing cost at 10 Hz is still unmeasured.
+> remains reasoned. Hashing cost at one hash per 16 ms tick is still unmeasured.
 
 This document is written *before* the network layer exists, and deliberately so.
 Almost everything in it is a constraint on the **simulation**, not on the network
@@ -263,8 +266,8 @@ nothing in common as networking problems.
 |---|---|---|
 | Model | Turn-based, phase machine | Continuous, real-time |
 | Participants | up to 5 | 2 |
-| Latency budget | seconds | ~100–200 ms |
-| Sync frequency | once per turn | ~10 per second |
+| Input delay | 32 ms (2 ticks) | 32 ms (2 ticks) |
+| Sync frequency | every 16 ms tick | every 16 ms tick |
 | State size | whole world | one 80×80 field |
 | Entity count | ~150 units, 1–17 counties | up to thousands of soldiers |
 
@@ -282,9 +285,10 @@ Where those numbers come from:
 - Tick rate and latency budget are **ours to choose**. We have not measured the
   original's battle tick rate and do not need to.
 
-The two layers get the *same mechanism* (deterministic lockstep) with very
-different parameters. One mechanism is worth a lot: one determinism contract,
-one desync detector, one replay format, one test harness.
+The two layers get the *same mechanism* (deterministic lockstep), and in the code the
+same parameters too: one session runs the whole game, overworld and battles alike, on
+`Config::battle()` (`net/live.rs:91`). One mechanism is worth a lot: one determinism
+contract, one desync detector, one replay format, one test harness.
 
 ---
 
@@ -335,8 +339,9 @@ already does.
 - **One divergence anywhere breaks the whole game**, and the symptom appears
   arbitrarily far from the cause. This is the genuine risk of the design, and
   §6 exists entirely to manage it.
-- **Late join needs a full state snapshot**, not a command stream. Cheap on the
-  kingdom layer (once per turn), not attempted mid-battle.
+- **Late join needs a full state snapshot**, not a command stream. A seat that
+  rejoins takes the host's world in one message and checks its digest
+  (`Live::rejoin`, `net/live/seats.rs:21`, C260).
 - **Every peer knows everything**, so a modified client can see through fog of
   war. See §8.
 
@@ -608,25 +613,23 @@ Rust cannot `#![forbid(float)]`, so enforcement is structural plus mechanical:
 
 ### Tick model
 
-Two clocks, deliberately separate:
-
-- a **command tick** at a fixed 10 Hz — the unit of simulation and of network
-  exchange;
-- a **render frame** at whatever the display does, interpolating between the
-  last two simulation states.
-
-10 Hz is a starting recommendation, not a measurement. It is the rate at which
-90s RTS games of this scale ran, it makes a 200 ms input delay two ticks, and it
-keeps the exchanged volume trivially small. If play testing wants 15 or 20 Hz,
-the number is a constant; nothing else in the design changes.
+The session tick is the game's own tick, **16 ms** (`TICK_MS`, C193), not a separate
+network clock. Each due game tick calls `Live::pump` once, and one pump runs up to
+`CATCH_UP` = 4 session ticks (`net/live.rs:26`) when a peer has fallen behind. One
+session tick is one `step_game` (`net/sim.rs:54`): that tick's commands, then `frame`,
+which advances the turn clock and either the battle in progress or turn resolution. The
+same session carries the overworld and every battle (§5).
 
 ### Input delay, not rollback
 
-A command issued during tick `N` executes on tick `N + 2`. Every peer therefore
-has both peers' commands for tick `N + 2` before it needs to run it, and no peer
-ever has to un-run anything.
+A command issued during tick `N` executes on tick `N + 2` (`Config::battle()`,
+`input_delay: 2`). Every peer therefore has every seat's commands for tick `N + 2`
+before it needs to run it, and no peer ever has to un-run anything.
 
-The cost is a fixed ~200 ms between click and response. The alternative —
+The cost is a fixed 32 ms between click and response. `[I]` from the code, not
+measured: a seat seals tick `N + 2` only once it has run tick `N`, so a one-way
+latency above about 32 ms holds every seat waiting each tick, and the game runs
+slower than real time rather than faster than the network. The alternative —
 rollback with speculative execution and re-simulation — buys responsiveness at
 the price of making every piece of simulation state rewindable, which is a large
 tax on every future feature. For a game whose battle units are formations of
@@ -640,13 +643,12 @@ empty packet is what tells the other side it may advance; without it "no input"
 and "player disconnected" are indistinguishable.
 
 ```
-tick_packet {
-  u32  tick                 // the tick these commands execute on
-  u16  command_count
-  [Command; command_count]  // canonical encoding, D-10
-  u32  ack_tick             // last tick this peer has fully simulated
-  u64  state_hash           // hash of state after ack_tick (§6)
-}
+TickPacket {                // l2-net/src/packet.rs
+  tick: Tick                // the tick these commands execute on
+  from: PlayerSlot          // the sending seat; the host relays (§8)
+  commands: Vec<Command>    // canonical encoding, D-10; each carries slot and seq
+  acks: Vec<Ack>            // (tick, state_hash) for each tick simulated since the
+}                           //   last packet, up to MAX_ACKS (§6)
 ```
 
 ### Ordering within a tick
@@ -660,27 +662,31 @@ arrival order. Arrival order is the network's opinion and it differs per peer.
 If tick `N`'s packet from the other peer has not arrived when it is needed, the
 simulation blocks and the UI says so after a short grace period. It does not
 extrapolate, and it does not proceed with a guess: proceeding is a desync, and a
-desync is worse than a pause. A peer that stays silent past a timeout ends the
-battle.
+desync is worse than a pause. A seat silent for `QUIET` (5 s) is named on screen; one
+silent for `TIMEOUT` (60 s, `net/live.rs:24`) is §8's *A seat that goes* (C260).
 
 ---
 
 ## 5. Kingdom layer
 
-The turn layer needs no per-frame anything. Its shape:
+The overworld has no session of its own: it runs on §4's ticks. (This section once
+planned a turn-at-a-time exchange, one command list per End Turn; the code does not
+do that, and `Config::kingdom()` in `l2-net` is unused.)
 
-1. Each player plans a whole turn locally. Nothing is sent while planning, and
-   nothing local is applied — planning builds a command list, it does not mutate
-   the world.
-2. On "end turn", the player's command list is sent to the host.
-3. When the host has every player's list (or a player's timeout expires), it
-   concatenates them **in player-slot order** and broadcasts the resulting turn
-   packet.
-4. Every peer, host included, applies that identical list and then runs the turn
-   resolution phase machine.
+1. Every overworld order — a tax rate, a ration, a levy, an army's move — is a
+   `GameCommand`. `Game::issue` (`command/mod.rs`) puts it in the outbox, and it
+   runs on every peer on tick `N + 2`, in slot order, through `Game::apply` with the
+   issuer's realm as `player`. The screen shows the result at once by running the
+   same order on a scratch copy of the world; the world itself changes only on the tick.
+2. End Turn is a command too (`EndTurn`, `command/turn.rs:9`). In a seated game it
+   marks the seat done (`ai_step = AI_STEP_DONE`), and the turn ends only when
+   `every_seat_ready`, or when the turn clock runs out for every seat at once
+   (`time_up`, from `Turn_End`'s `0x0049A010` expiry).
+3. Turn resolution then winds forward inside `frame` (`net/sim.rs:30`), a step per
+   tick, on every peer alike; a battle it starts runs in the same session.
 
-Latency is irrelevant here: one round trip per turn, against a turn that takes a
-human minutes.
+So the overworld is checksummed every tick like a battle (§6), and an order is on
+the wire within a tick or two of the click, not at End Turn.
 
 ### A letter between seats (C244)
 
@@ -715,9 +721,13 @@ order of operations, and D-7 depends on it being fixed.
 
 ### Snapshots
 
-A whole-world snapshot once per turn is cheap at this scale and buys three
-things at once: late join, crash recovery, and a place to stand when a desync
-has to be diagnosed. Take it after resolution, alongside the turn's state hash.
+There is no per-turn snapshot exchange. What the code keeps instead:
+
+- **The host's autosave** at the end of each turn's resolution (`net/sim.rs:47`,
+  `Save_RotateAndWrite` `0x0049A453`, C257): crash recovery.
+- **The resync message** (§6, C256): the host's world sent on demand, the same
+  encoding a rejoining seat loads (`Live::rejoin`, C260): late join.
+- **The desync dump** (§6): what a divergence is diagnosed from.
 
 ---
 
@@ -806,15 +816,15 @@ instability is a feature; for state checksums it is inverted.
 
 ### Cadence
 
-- **Battle:** compute a hash every tick. Exchange it every tick — it is 8 bytes
-  in a packet we are already sending. Keep the last 256 in a ring buffer on each
-  peer.
-- **Kingdom:** compute and exchange once per turn, next to the snapshot.
+One cadence for the whole game, overworld and battle alike: a hash after every 16 ms
+tick, sent as an `Ack` in the next packet (`exchange_every: 1`), the last `HISTORY` =
+256 kept on each peer (`desync.rs:6`). Every seat compares every other seat's claim
+(`Session::check_claims`), so a divergence is seen a tick or two after it happens, plus
+the latency, wherever it happens.
 
-Hashing full state at 10 Hz for a simulation of this size is affordable. If
-profiling ever says otherwise, the fallback is to keep hashing every tick but
-exchange every fourth — the ring buffer still localises the divergence to a
-window.
+Hashing full state every tick is unmeasured. If profiling ever says it costs too much,
+the fallback is to keep hashing every tick but raise `exchange_every` — the ring buffer
+still localises the divergence to a window.
 
 ### When it diverges (C256)
 
@@ -1051,7 +1061,7 @@ anyway. The stall TCP imposes is the stall the design already has. A UDP layer
 would spend its effort delivering something out of order that we would then have
 to put back in order and wait on.
 
-**The volume is trivial.** A few commands per tick at 10 Hz between two peers.
+**The volume is trivial.** A few commands per 16 ms tick, most packets empty, among up to five peers.
 Any transport built in the last thirty years handles this.
 
 **Zero dependencies, zero build friction**, which is requirement 2 satisfied by
@@ -1089,7 +1099,7 @@ Two implementation details that are easy to get wrong and expensive to diagnose:
 
 - **`set_nodelay(true)` on every socket.** Nagle's algorithm buffers small writes
 waiting for an ACK, which is the wrong behaviour for one small
-  packet every 100 ms — it can add most of a round trip to every tick and
+  packet every 16 ms — it can add most of a round trip to every tick and
   present as "the network is slow" when it is the local stack holding the data.
 - **Sockets are read on their own thread**, handing complete messages to the
   simulation through a queue. The simulation must drain that queue at a fixed
@@ -1156,7 +1166,7 @@ has the code ABCDEF. Check it with the host."*; with no relay configured, *"No j
 service is configured. Type the host's address instead."*
 
 **What it does not do.** No hole punching and no direct connection: every byte of a code
-game crosses the relay, one hop of latency on a 10 Hz tick layer that never notices. The
+game crosses the relay, one hop of added latency on every tick, which §4's 32 ms input delay does feel (unmeasured). The
 follow-up is to try the C252 public address first and fall back to the relay. No listing of
 open games, no chat, no persistence: a relay restart drops every code and the lobby shows
 none. The relay sees the game's bytes, unencrypted, which §8 states for anyone on the path;
