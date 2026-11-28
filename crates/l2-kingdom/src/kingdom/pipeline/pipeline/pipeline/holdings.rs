@@ -7,6 +7,7 @@ use super::super::*;
 use super::super::*;
 use super::super::*;
 use crate::ai;
+use crate::conquest::LeftCastle;
 use crate::county::{County, MAX_COUNTIES, MAX_COUNTY_ID};
 use crate::event;
 use crate::happiness;
@@ -20,6 +21,7 @@ use crate::realm::{Realm, MAX_REALMS};
 use crate::report::{Message, SeasonReport};
 use crate::tables::{Commodity, Season, Tables};
 use crate::tax;
+use crate::units_tick::Encounter;
 use crate::unrest;
 use crate::weather;
 use l2_net::Pcg32;
@@ -38,14 +40,43 @@ impl Kingdom {
     /// `County_MakeIndependent` (`0x004AC3C6`) — secession, revolt, the
     /// elimination of a realm and a conquest the taker cannot reach all end
     /// here. The function is [`crate::conquest::make_independent`]; this is the
-    /// kingdom's arguments for it.
-    pub fn make_county_independent(&mut self, county: usize) {
+    /// kingdom's arguments for it. Returns the sortie of a besieged garrison,
+    /// for `l2_game::turn::raise_sortie` to fight.
+    pub fn make_county_independent(&mut self, county: usize) -> Option<Encounter> {
         if county == 0 || county > self.county_count {
-            return;
+            return None;
         }
         let r = self.restore();
         let Kingdom { counties, realms, campaign, tables, .. } = self;
         crate::conquest::make_independent(tables, counties, realms, county as u8, &campaign.map, r);
+        // `County_MakeIndependent`'s last statement, `if (garrison) FUN_00437535(garrison, county)`
+        // (`0x004AC3C6` tail).
+        self.march_garrison_out(county)
+    }
+
+    /// `FUN_00437535` (`0x00437535`) for a county that changed owner without a capture. Its tail
+    /// starts `Battle_BeginFromCampaign(garrison, besiegedBy)` when the garrison is besieged; this
+    /// crate cannot fight one, so the pair is returned for `l2_game::turn::raise_sortie`.
+    fn march_garrison_out(&mut self, county: usize) -> Option<Encounter> {
+        let garrison = self.counties[county].garrison_unit;
+        if garrison == 0 {
+            return None;
+        }
+        let Kingdom { counties, realms, campaign, .. } = self;
+        let out = crate::conquest::hand_off(
+            &campaign.map,
+            counties,
+            realms,
+            &mut campaign.units,
+            garrison,
+            county as u8,
+        );
+        match out {
+            LeftCastle::Marched { sortie: Some(besieger), .. } => {
+                Some(Encounter { mover: garrison, occupant: besieger, county: county as u8 })
+            }
+            _ => None,
+        }
     }
 
     /// The blacksmith's stockpile share ([`industry::weapon_shares`],

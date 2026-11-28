@@ -100,6 +100,30 @@ fn a_garrison_that_marches_out_onto_its_besieger_raises_the_battle_prompt() {
     );
 }
 
+/// `County_MakeIndependent` (`0x004AC3C6`) ends `if (garrison) FUN_00437535(garrison, county)`, so
+/// the besieged garrison of a county that goes independent marches out onto its besieger as
+/// `Army_LeaveCastle` does. Ablation: `raise_sorties` without its loop.
+#[test]
+fn a_besieged_garrison_whose_county_goes_independent_raises_the_sortie_prompt() {
+    let (mut g, _, _) = on_the_map();
+    let (keep, camp) = adjacent_pair(|x| x < 30);
+    g.kingdom.counties[1].castle_type = 2;
+    let garrison = army_at(&mut g, 1, 1, 200, keep);
+    g.kingdom.campaign.units.get_mut(garrison).unwrap().garrison_county = 1;
+    g.kingdom.counties[1].garrison_unit = garrison;
+    let besieger = army_at(&mut g, 2, 2, 300, camp);
+    g.kingdom.campaign.units.get_mut(besieger).unwrap().besieging_county = 1;
+    g.kingdom.campaign.units.get_mut(garrison).unwrap().besieged_by = besieger as u8;
+
+    let sortie = g.kingdom.make_county_independent(1).expect("the garrison was besieged");
+    assert!(l2_game::turn::pending_question(&g).is_none(), "the kingdom fights nothing itself");
+    l2_game::turn::raise_sorties(&mut g, &[sortie]);
+
+    let q = l2_game::turn::pending_question(&g).expect("the sortie is on the table");
+    assert_eq!((q.attacker, q.defender, q.county), (garrison, besieger, 1));
+    assert!(!q.is_siege, "a field battle, as for `Army_LeaveCastle`");
+}
+
 /// `0x004DC5A8` record 0 is `Army_LeaveCastle` (`0x004374C4`) where the field
 /// table has the move button. Ablation: make the `(0, true)` arm in the info
 /// panel's button match `(9, true)` and the garrison stays in.

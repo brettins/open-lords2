@@ -110,6 +110,8 @@ pub struct UnitsTick {
     pub offences: Vec<Offence>,
     pub incursions: Vec<Incursion>,
     pub posted: Vec<Posted>,
+    /// Sorties that `County_MakeIndependent` (`0x004AC3C6`) starts in this sweep.
+    pub sorties: Vec<Encounter>,
 }
 
 impl UnitsTick {
@@ -234,7 +236,7 @@ impl Kingdom {
                 id,
                 self.year,
             ) {
-                self.make_county_independent(id);
+                out.sorties.extend(self.make_county_independent(id));
                 self.counties[id].population -= men;
                 revolted = true;
             }

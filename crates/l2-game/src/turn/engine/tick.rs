@@ -74,6 +74,14 @@ pub(crate) fn raise_sortie(game: &mut Game, garrison: usize, besieger: usize, co
     raise_idle_battle(game, Encounter { mover: garrison, occupant: besieger, county });
 }
 
+/// One [`raise_sortie`] for each besieged garrison that `County_MakeIndependent` (`0x004AC3C6`)
+/// marched out in the tick that returned `sorties`.
+pub fn raise_sorties(game: &mut Game, sorties: &[Encounter]) {
+    for e in sorties {
+        raise_sortie(game, e.mover, e.occupant, e.county);
+    }
+}
+
 pub(super) fn run_phase_tick(game: &mut Game) {
     let phase = game.kingdom.turn.phase;
     if phase == Phase::PlayersTurn {
@@ -92,6 +100,9 @@ pub(super) fn run_phase_tick(game: &mut Game) {
     // `DAT_00553210`, the invasion tip's flag. See `crate::tip`.
     game.tips.note_incursions(&moved.incursions, game.player);
     crate::arrival::post(game, &moved.posted);
+    let sorties: Vec<Encounter> =
+        report.iter().flat_map(|r| &r.sorties).chain(&moved.sorties).copied().collect();
+    raise_sorties(game, &sorties);
     let Some(p) = game.turn.as_mut() else { return };
     p.steps += moved.stepped;
     p.stage = Stage::Tail;

@@ -221,6 +221,7 @@ pub fn tick_units_only(game: &mut Game) -> usize {
     if let Some(e) = moved.battle() {
         raise_idle_battle(game, e);
     }
+    raise_sorties(game, &moved.sorties);
     ask_combine(game, &moved.contacts);
     stepped
 }

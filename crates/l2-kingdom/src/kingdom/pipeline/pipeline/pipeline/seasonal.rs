@@ -99,7 +99,7 @@ impl Kingdom {
             ) else {
                 continue;
             };
-            self.make_county_independent(id);
+            report.sorties.extend(self.make_county_independent(id));
             self.counties[id].population -= men;
             self.counties[id].unrest = 0;
             report.message(Message::Revolt { county: id as u8 });
@@ -221,7 +221,7 @@ impl Kingdom {
         let strength: Vec<u8> = self.realms.iter().map(|r| r.strength).collect();
         for cut in crate::territory::minor_blocks(&blocks, &strength) {
             for county in &cut.counties {
-                self.make_county_independent(*county as usize);
+                report.sorties.extend(self.make_county_independent(*county as usize));
             }
             if cut.blocks > 1 {
                 report.message(if cut.counties.len() == 1 {

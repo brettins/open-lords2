@@ -2,6 +2,7 @@
 mod capture_rules;
 mod defence;
 mod change_owner;
+mod independent;
 pub(crate) use change_owner::*;
 
 use super::*;
