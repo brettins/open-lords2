@@ -67,6 +67,19 @@ fn loading_the_shipped_kingdom_document_reproduces_the_economy_table() {
     assert_eq!(loaded, Tables::DEFAULT);
 }
 
+/// C273 renamed `up_to` to `below`. Ablation: `birth_key` returning `.below` only.
+#[test]
+fn a_mod_written_with_the_old_up_to_key_still_loads() {
+    let row = "[[kingdom.population.birth_rate]]\n";
+    let old = kingdom::render_toml(&Tables::DEFAULT)
+        .replace(&format!("{row}below = "), &format!("{row}up_to = "));
+    assert!(old.contains(&format!("{row}up_to = 40")));
+    let mut rs = Ruleset::new();
+    rs.apply_str(&old, "old:rules/kingdom.toml").expect("parses");
+    let loaded = kingdom::tables(&rs).expect("up_to loads");
+    assert_eq!(loaded.population.birth_rate_ladder, Tables::DEFAULT.population.birth_rate_ladder);
+}
+
 #[test]
 fn the_castle_workforce_pair_is_still_two_copies_of_one_number() {
     for (i, (a, b)) in Tables::DEFAULT.castle.workforce.iter().enumerate() {

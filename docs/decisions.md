@@ -12892,3 +12892,21 @@ and cites this entry. Stances follow StarCraft II (Q271 `sc2`): Move and Hold ar
 original's player behaviour; idle, Stop and attack-move engage on a touch, a hit (unit `+0x0A`)
 or an enemy unit within 8 cells (foot) or 9 (melee). The battle AI is unchanged. Plan:
 `docs/battle-controls.md`.
+
+**C273 — `Table_Lookup` is strict, and a new game does not band its starting health.**
+`Table_Lookup` (`0x00404E4B`) returns the first row whose threshold is above `x`, else the
+caller's fallback (`404e8a cmp [ebp+8],eax / jge`). Our health band and birth-rate ports
+compared `<=` and dropped the fallback, so meters 10, 35, 65, 90 banded one tier low and 100
+one tier high, and a population of exactly 40, 80, 100, 250, 500, 700, 800 … 2000 got the next
+row's higher rate. The `<=` was prior art's `[I]`, promoted to `[V]` by the shipped save's
+65 → 67 (`kingdom.md` §9 item 7). That number has a second cause: `00450000.c:567` stores band
+2 at a new game without banding the meter, so the first season adds band 2's +2 whatever the
+comparison. Fixed: one `table_lookup` for both, fallbacks 3 and 1, `NEW_GAME_HEALTH_BAND` in
+both new-game paths. Found beside it, same function: `Health_UpdateAll` resets an empty AI
+county's meter to 50 (`00440000.c:8143`), which we never ported; and our event health effect
+re-banded at once, where the three handlers store the meter only (`0x44BED1` and `0x4512B9`
+are the binary's only stores to `+0x09`). Meter 100 → Good is the original's bug, B274, a quirk
+always fixed online. The mod key `birth_rate.up_to` is now `below`; `up_to` still loads.
+Reported by a player via issue #16. Process: `docs/agents.md` *A number that agrees is not a
+reading*. Tests: `health.rs` `every_threshold_belongs_to_the_band_above_it`, the B274 pair,
+`an_empty_ai_county_resets_to_fifty…`, `deck.rs` plague, `core.rs` up_to alias; each ablated.

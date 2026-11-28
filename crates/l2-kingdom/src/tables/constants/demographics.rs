@@ -61,28 +61,35 @@ pub const HEALTH_DELTA: [[i32; HEALTH_BAND_COUNT]; RATION_LEVEL_COUNT] = [
     [20, 12, 6, 3, 1],        // Triple
 ];
 
-/// `g_healthBandLadder` (`0x004D6520`) - **five `{threshold, band}` pairs**,
-/// `(10,0) (35,1) (65,2) (90,3) (100,4)`.
-///
-/// **`[V]` The pair layout is read out of the bytes, and `docs/kingdom.md`
-/// §4.2's "else 4" is wrong**: the last case is an explicit `(100, 4)` row, not
-/// a fallthrough. Two independent checks pin it. Five pairs of `int` is 40
-/// bytes and `0x004D6520 + 40` is exactly `0x004D6548`, where
-/// `g_healthHappiness` begins; and the interleaved 0,1,2,3,4 cannot be a
-/// threshold array, because thresholds do not decrease.
+/// `g_healthBandLadder` (`0x004D6520`) - five `{threshold, band}` pairs. `[V]`
+/// layout: `0x004D6520 + 40` is `g_healthHappiness`. Read by
+/// `Table_Lookup(meter, g_healthBandLadder, 5, 3)`, `Health_UpdateAll`
+/// `0x0044BD9F`: meter 100 matches no row and bands 3, B274. C273.
 pub const HEALTH_BAND_LADDER: [(i32, i32); HEALTH_BAND_COUNT] =
     [(10, 0), (35, 1), (65, 2), (90, 3), (100, 4)];
 
-#[inline]
-pub fn health_band(meter: i32) -> u8 {
+/// `Health_UpdateAll` passes `dflt = 3` to `Table_Lookup`.
+pub const HEALTH_BAND_FALLBACK: i32 = 3;
+
+/// `Init_Counties` `0x00450000.c:567`: `field_0xa = 2; healthBand = field_0xa;`.
+pub const NEW_GAME_HEALTH_BAND: u8 = 2;
+
+/// `Table_Lookup` (`0x00404E4B`): `404e8a cmp [ebp+8],eax / jge` - the first row
+/// whose threshold is strictly above `x`, else `fallback`.
+pub const fn table_lookup(x: i32, pairs: &[(i32, i32)], fallback: i32) -> i32 {
     let mut i = 0;
-    while i < HEALTH_BAND_LADDER.len() {
-        if meter <= HEALTH_BAND_LADDER[i].0 {
-            return HEALTH_BAND_LADDER[i].1 as u8;
+    while i < pairs.len() {
+        if x < pairs[i].0 {
+            return pairs[i].1;
         }
         i += 1;
     }
-    HEALTH_BAND_LADDER[HEALTH_BAND_LADDER.len() - 1].1 as u8
+    fallback
+}
+
+#[inline]
+pub const fn health_band(meter: i32) -> u8 {
+    table_lookup(meter, &HEALTH_BAND_LADDER, HEALTH_BAND_FALLBACK) as u8
 }
 
 /// `g_healthHappiness` (`0x004D6548`) - the happiness a health band is worth
@@ -121,16 +128,12 @@ pub const BIRTH_RATE_LADDER: [(i32, i32); 20] = [
     (3000, 1),
 ];
 
+/// `Population_UpdateAll` passes `dflt = 1`.
+pub const BIRTH_RATE_FALLBACK: i32 = 1;
+
 #[inline]
-pub fn birth_rate(population: i32) -> i32 {
-    let mut i = 0;
-    while i < BIRTH_RATE_LADDER.len() {
-        if population <= BIRTH_RATE_LADDER[i].0 {
-            return BIRTH_RATE_LADDER[i].1;
-        }
-        i += 1;
-    }
-    BIRTH_RATE_LADDER[BIRTH_RATE_LADDER.len() - 1].1
+pub const fn birth_rate(population: i32) -> i32 {
+    table_lookup(population, &BIRTH_RATE_LADDER, BIRTH_RATE_FALLBACK)
 }
 
 #[inline]

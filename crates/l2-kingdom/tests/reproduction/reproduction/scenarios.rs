@@ -8,6 +8,7 @@ use super::population_and_labour::*;
 use super::simulation::*;
 use l2_formats::save::Save;
 use l2_kingdom::county::County;
+use l2_kingdom::tables::NEW_GAME_HEALTH_BAND;
 use l2_kingdom::phase::SEASON_PIPELINE;
 use l2_kingdom::tables::{health_band, Season, Tables, Weather};
 use l2_scenario::{Scenario, STARTING_HEALTH_METER};
@@ -113,7 +114,7 @@ fn the_starting_position_is_the_file_rewound_by_exactly_one_season() {
         assert_eq!(a.population, b.pop_last, "county {id}");
         assert_eq!(a.happiness, b.happiness_last, "county {id}");
         assert_eq!(a.health_meter, STARTING_HEALTH_METER, "county {id}");
-        assert_eq!(a.health_band, health_band(STARTING_HEALTH_METER) as u8, "county {id}");
+        assert_eq!(a.health_band, NEW_GAME_HEALTH_BAND, "county {id}, C273");
         assert_eq!(a.owner, b.owner, "county {id}");
         assert_eq!(a.castle_type, b.castle_type, "county {id}");
 

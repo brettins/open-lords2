@@ -20,6 +20,7 @@ impl Quirk {
         Quirk::MutualDestructionIsAWin,
         Quirk::DeadArcherKeepsShooting,
         Quirk::SplitShortfallGoesUneaten,
+        Quirk::FullHealthBandsGood,
     ];
 
     pub const fn bit(self) -> u32 {
@@ -43,6 +44,7 @@ impl Quirk {
             Quirk::MutualDestructionIsAWin => "B53",
             Quirk::DeadArcherKeepsShooting => "B267",
             Quirk::SplitShortfallGoesUneaten => "B109",
+            Quirk::FullHealthBandsGood => "B274",
         }
     }
 
@@ -67,6 +69,7 @@ impl Quirk {
             Quirk::MutualDestructionIsAWin => "MutualDestructionIsAWin",
             Quirk::DeadArcherKeepsShooting => "DeadArcherKeepsShooting",
             Quirk::SplitShortfallGoesUneaten => "SplitShortfallGoesUneaten",
+            Quirk::FullHealthBandsGood => "FullHealthBandsGood",
         }
     }
 
@@ -109,13 +112,13 @@ impl Quirk {
             Quirk::SplitShortfallGoesUneaten => {
                 "Pointing the ration split at an empty store eats less food"
             }
+            Quirk::FullHealthBandsGood => "A county at full health is only Good, not Perfect",
         }
     }
 
-    /// Exploits a player can use against another player. Fixed in every
-    /// lockstep game whatever the host chose; issue #15.
+    /// Fixed in every lockstep game whatever the host chose; issues #15, #16.
     pub const fn fixed_online(self) -> bool {
-        matches!(self, Quirk::SplitShortfallGoesUneaten)
+        matches!(self, Quirk::SplitShortfallGoesUneaten | Quirk::FullHealthBandsGood)
     }
 }
 

@@ -188,8 +188,9 @@ fn apply(
         Effect::GrainPct(p) => county.event_grain_pct = p,
         Effect::HerdPct(p) => county.event_herd_pct = p,
         Effect::Health { delta, cap } => {
+            // FUN_00448F6F / FUN_004492E7 / FUN_00449575 store the meter only;
+            // the band waits for `Health_UpdateAll`, which reads the old one. C273.
             county.health_meter = (county.health_meter + delta).min(cap).max(0);
-            county.health_band = crate::tables::health_band(county.health_meter);
         }
         Effect::Happiness(d) => {
             county.happiness = crate::math::clamp(county.happiness + d, 0, 100)

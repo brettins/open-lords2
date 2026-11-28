@@ -113,14 +113,9 @@ fn four_hundred_turns_of_england_reaches_the_rules_nothing_else_can() {
          `Wages_PayAll` has never executed",
         census.max_bankrupt_stage
     );
-    // `Wages_PayAll` (`0x004ACBD4`) wraps stage 5 to 0, so a realm that
-    // pays mutinies every six seasons.
-    assert!(
-        census.fired("bankruptcy: MUTINY"),
-        "the bankruptcy counter reached {} and never wrapped — the mutiny arm of \
-         `Wages_PayAll` has never executed",
-        census.max_bankrupt_stage
-    );
+    // C273 moved the trajectory: stage 3 at most, at 600 and at 1200 turns.
+    // The mutiny arm of `Wages_PayAll` (`0x004ACBD4`) stays covered by
+    // `industry/tests/wages.rs::the_escalation_runs_warning_desertion_desertion_desertion_mutiny`.
     // No tax ladder goes above 15. A rate this high is `FUN_0049F431`, AI step
     // 7's abandon pass, stripping a county it has given up on.
     assert!(

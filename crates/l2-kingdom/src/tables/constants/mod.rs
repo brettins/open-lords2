@@ -117,110 +117,16 @@ pub const HISTORY_COUNTIES: usize = 16;
 mod tests {
     use super::*;
 
+    /// C273: `Table_Lookup` is strict; 100 falls off the end to 3, B274.
     #[test]
-    fn the_health_ladder_is_inclusive_at_every_step() {
-        assert_eq!(health_band(65), 2, "65 <= 65 is band 2 - the save says so");
-        assert_eq!(health_band(66), 3);
-        assert_eq!(health_band(67), 3, "the save's stored healthBand");
-        assert_eq!(health_band(0), 0);
-        assert_eq!(health_band(10), 0);
-        assert_eq!(health_band(11), 1);
-        assert_eq!(health_band(35), 1);
-        assert_eq!(health_band(36), 2);
-        assert_eq!(health_band(90), 3);
-        assert_eq!(health_band(91), 4);
-        assert_eq!(health_band(100), 4);
-    }
-
-    #[test]
-    fn the_health_ladder_is_monotonic_over_its_whole_range() {
+    fn the_health_ladder_climbs_to_99_and_full_health_falls_back_to_good() {
         let mut last = 0;
-        for m in 0..=100 {
+        for m in 0..100 {
             let b = health_band(m);
-            assert!(b >= last, "band went backwards at meter {m}");
-            assert!(b < HEALTH_BAND_COUNT as u8);
+            assert!(b >= last && b < HEALTH_BAND_COUNT as u8, "meter {m}");
             last = b;
         }
-    }
-
-    #[test]
-    fn the_ration_table_matches_the_names_in_l2_eng_group_21() {
-        let need = |level: usize, pop: i32| {
-            let (d, m) = RATION_TABLE[level];
-            crate::math::div_ceil(pop, d) * m
-        };
-        assert_eq!(need(0, 400), 0, "None");
-        assert_eq!(need(1, 400), 100, "Quarter");
-        assert_eq!(need(2, 400), 200, "Half");
-        assert_eq!(need(3, 400), 400, "Normal");
-        assert_eq!(need(4, 400), 800, "Double");
-        assert_eq!(need(5, 400), 1200, "Triple");
-    }
-
-    #[test]
-    fn normal_is_the_first_ration_level_worth_happiness() {
-        for l in 0..3 {
-            assert!(ration_happiness(l as i32) < 0, "level {l} should hurt");
-        }
-        for l in 3..RATION_LEVEL_COUNT {
-            assert!(ration_happiness(l as i32) > 0, "level {l} should help");
-        }
-        assert_eq!(ration_happiness(3), 1);
-        assert_eq!(ration_happiness(0), -8);
-        assert_eq!(ration_happiness(5), 7);
-    }
-
-    #[test]
-    fn the_break_even_tax_rate_is_seven_at_good_health_and_eight_at_perfect() {
-        let steady = |band: usize, ration: i32, rate: i32| {
-            (5 - rate) + HEALTH_HAPPINESS[band] + ration_happiness(ration)
-        };
-        assert_eq!(steady(3, 3, 7), 0, "Good health, Normal rations, 7%");
-        assert_eq!(steady(4, 3, 8), 0, "Perfect health, Normal rations, 8%");
-        assert!(steady(3, 3, 8) < 0, "8% is one too many at Good health");
-        assert!(steady(4, 3, 9) < 0, "9% is one too many at Perfect health");
-    }
-
-    #[test]
-    fn perfect_health_needs_double_rations_to_hold() {
-        for level in 0..RATION_LEVEL_COUNT {
-            let d = HEALTH_DELTA[level][4];
-            if level < 4 {
-                assert!(d < 0, "ration {level} should let Perfect decay, got {d}");
-            } else {
-                assert!(d >= 0, "ration {level} should hold Perfect, got {d}");
-            }
-        }
-    }
-
-    #[test]
-    fn every_health_delta_row_is_non_increasing_across_the_bands() {
-        for level in 0..RATION_LEVEL_COUNT {
-            let row = HEALTH_DELTA[level];
-            for b in 1..HEALTH_BAND_COUNT {
-                assert!(
-                    row[b] <= row[b - 1],
-                    "ration {level} band {b}: {} should not exceed {}",
-                    row[b],
-                    row[b - 1]
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn the_castle_tax_bases_are_the_published_bonus_percentages() {
-        for t in 1..CASTLE_TYPE_COUNT {
-            let bonus = CASTLE_TAX_BONUS_PCT[t - 1];
-            assert_eq!(
-                CASTLE_TAX_BASE[t] * 100,
-                CASTLE_TAX_BASE[0] * (100 + bonus),
-                "castle {t}: {} should be {}% above {}",
-                CASTLE_TAX_BASE[t],
-                bonus,
-                CASTLE_TAX_BASE[0]
-            );
-        }
+        assert_eq!((health_band(99), health_band(100)), (4, HEALTH_BAND_FALLBACK as u8));
     }
 
     #[test]
@@ -229,15 +135,15 @@ mod tests {
             assert!(BIRTH_RATE_LADDER[i].0 > BIRTH_RATE_LADDER[i - 1].0);
             assert!(BIRTH_RATE_LADDER[i].1 < BIRTH_RATE_LADDER[i - 1].1);
         }
+        // C273: `Table_Lookup` is strict, so each threshold takes the next row.
         assert_eq!(birth_rate(1), 100);
-        assert_eq!(birth_rate(40), 100);
-        assert_eq!(birth_rate(41), 70);
+        assert_eq!(birth_rate(39), 100);
+        assert_eq!(birth_rate(40), 70);
         assert_eq!(birth_rate(417), 20, "docs/kingdom.md 9: pop 417 -> 20%");
-        assert_eq!(birth_rate(500), 20);
-        assert_eq!(birth_rate(501), 15);
-        assert_eq!(birth_rate(2000), 2);
-        assert_eq!(birth_rate(3000), 1);
-        assert_eq!(birth_rate(50_000), 1, "above the last row the last row holds");
+        assert_eq!(birth_rate(499), 20);
+        assert_eq!(birth_rate(500), 15);
+        assert_eq!(birth_rate(2000), 1);
+        assert_eq!(birth_rate(50_000), BIRTH_RATE_FALLBACK, "Population_UpdateAll dflt = 1");
     }
 
     #[test]

@@ -207,89 +207,89 @@ happiness = 2
 death_rate = 0
 
 # --- population ------------------------------------------------------
-# birth_rate: the first row whose up_to is at least the county's
-# population gives the base birth rate. This is the soft population
+# birth_rate: the first row whose `below` is above the county's
+# population gives the base birth rate; 3000 or more gets 1%. This is the soft population
 # cap players describe - at 2,000 people the 2% birth rate cannot keep
 # up with winter's 8% death rate.
 
 [[kingdom.population.birth_rate]]
-up_to = 40
+below = 40
 percent = 100
 
 [[kingdom.population.birth_rate]]
-up_to = 80
+below = 80
 percent = 70
 
 [[kingdom.population.birth_rate]]
-up_to = 100
+below = 100
 percent = 50
 
 [[kingdom.population.birth_rate]]
-up_to = 250
+below = 250
 percent = 30
 
 [[kingdom.population.birth_rate]]
-up_to = 500
+below = 500
 percent = 20
 
 [[kingdom.population.birth_rate]]
-up_to = 700
+below = 700
 percent = 15
 
 [[kingdom.population.birth_rate]]
-up_to = 800
+below = 800
 percent = 14
 
 [[kingdom.population.birth_rate]]
-up_to = 900
+below = 900
 percent = 13
 
 [[kingdom.population.birth_rate]]
-up_to = 1000
+below = 1000
 percent = 12
 
 [[kingdom.population.birth_rate]]
-up_to = 1100
+below = 1100
 percent = 11
 
 [[kingdom.population.birth_rate]]
-up_to = 1200
+below = 1200
 percent = 10
 
 [[kingdom.population.birth_rate]]
-up_to = 1300
+below = 1300
 percent = 9
 
 [[kingdom.population.birth_rate]]
-up_to = 1400
+below = 1400
 percent = 8
 
 [[kingdom.population.birth_rate]]
-up_to = 1500
+below = 1500
 percent = 7
 
 [[kingdom.population.birth_rate]]
-up_to = 1600
+below = 1600
 percent = 6
 
 [[kingdom.population.birth_rate]]
-up_to = 1700
+below = 1700
 percent = 5
 
 [[kingdom.population.birth_rate]]
-up_to = 1800
+below = 1800
 percent = 4
 
 [[kingdom.population.birth_rate]]
-up_to = 1900
+below = 1900
 percent = 3
 
 [[kingdom.population.birth_rate]]
-up_to = 2000
+below = 2000
 percent = 2
 
 [[kingdom.population.birth_rate]]
-up_to = 3000
+below = 3000
 percent = 1
 
 # happiness_factor scales the birth rate. The last row is the

@@ -641,9 +641,13 @@ The meter is clamped 0 … 100 and re-banded through **`g_healthBandLadder`
 *"else 4"* is an explicit fifth row, not a fallthrough. **[V]**, by two independent checks:
 five pairs of `int` is 40 bytes and `0x004D6520 + 40` is exactly `0x004D6548`, where
 643: `g_healthHappiness` begins; and the interleaved `0,1,2,3,4` cannot be thresholds, because
-thresholds do not decrease. Nothing behaves differently — the meter is clamped before it is
-banded, so the last row is never fallen off — but a reimplementation that reads the table
-as one array reads garbage.
+thresholds do not decrease. The lookup is `Table_Lookup(meter, g_healthBandLadder, 5, 3)`,
+and `Table_Lookup` is **strict** (`x < threshold`, `404e8a cmp / jge`), so the bands are
+0–9, 10–34, 35–64, 65–89, 90–99, and **100 falls off the end to the fallback, 3**: a county
+at full health is Good, not Perfect (`docs/bugs.md` B274; C273). An earlier revision said
+the last row is never fallen off; it is, at exactly 100. The band the delta row reads is the
+one stored last season, and only `Health_UpdateAll` and new-game init (band 2 outright)
+write it. An empty AI county's meter is reset to 50 before banding (`00440000.c:8143`).
 
 The band then produces the happiness term from **`g_healthHappiness` (`0x004D6548`)**,
 which has **six** slots with the sixth zero (`0x004D6548 + 24` is `0x004D6560`, where
@@ -2284,14 +2288,14 @@ Eight independent predictions land:
    are fixed: the test now imports the save through `crates/l2-scenario` and compares
    against the stored bytes.
 6. **The tax term reproduces.** `taxRate` is 0 everywhere, and `dHapTax = 5 − 0 = 5`.
-7. **The health chain reproduces.** `healthMeter` is 67 and `healthBand` is 3, which is the
-   ladder's `≤ 90 → 3`. A published dump of the new-game presets gives a starting health of
-   **65** for a medium county — which is band **2** on the same ladder, since `65 ≤ 65` —
-   and `g_healthDeltaTable[Normal][band 2]` is **+2**, giving `65 + 2 = 67`. One number
-   2274: pins the ladder's comparison sense and the delta table's indexing at once. It was
-   **[I]**, taken from prior art, not from this binary; it is **[V]** now — the
-   starting-position table of §13.2 holds `65` in the health column of the row whose herd
-   and population the save also carries.
+7. **The health chain reproduces.** `healthMeter` is 67 and `healthBand` is 3. A published
+   dump of the new-game presets gives a starting health of **65** for a medium county, and
+   new-game init stores **band 2** without banding the meter (`00450000.c:567`), so the first
+   season adds `g_healthDeltaTable[Normal][band 2] = +2`: `65 + 2 = 67`, and 67 bands 3. This
+   pins the delta table's indexing and the stored starting band. **It does not pin the
+   ladder's comparison sense**: an earlier revision read it as `65 ≤ 65 → band 2` and so as
+   proof of `<=`, which was wrong (C273). The starting-position table of §13.2 holds `65` in
+   the health column of the row whose herd and population the save also carries.
 8. **Births and deaths reproduce exactly, on two different happiness bands.** Every county
    started at `popLast = 417`, so `g_birthRateLadder` gives 20 %:
 

@@ -117,7 +117,7 @@ impl Settings {
             county.population = self.county.population;
             county.pop_last = self.county.population;
             county.health_meter = self.county.health_meter;
-            county.health_band = l2_kingdom::tables::health_band(self.county.health_meter) as u8;
+            county.health_band = l2_kingdom::tables::NEW_GAME_HEALTH_BAND;
             county.happiness = self.county.happiness;
             county.happiness_last = self.county.happiness;
             if !owned {

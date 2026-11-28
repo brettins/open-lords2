@@ -442,7 +442,7 @@ and stays in the engine.
 | `kingdom.ration.<id>` | `none`, `quarter`, `half`, `normal`, `double`, `triple` | `index`, `divisor`, `multiplier`, `health_delta` (5 numbers) |
 | `kingdom.health` | — | `band_ladder` (5 numbers) |
 | `kingdom.health.band.<id>` | `diseased`, `sick`, `average`, `good`, `perfect` | `index`, `happiness`, `death_rate` |
-| `[[kingdom.population.birth_rate]]` | 20 | `up_to`, `percent` |
+| `[[kingdom.population.birth_rate]]` | 20 | `below`, `percent` (`up_to` still loads, and means `below`: C273) |
 | `[[kingdom.population.happiness_factor]]` | 5 | `below`, `percent` |
 | `kingdom.weather.<id>` | `frost`, `drought`, `sunny`, `cloudy`, `storms`, `flooding` | `index`, `herd_pct` |
 | `kingdom.tax` | — | `happiness_other` (51 numbers, one per tax rate — **the array's length is the tax ceiling**) |

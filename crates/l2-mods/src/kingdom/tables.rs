@@ -109,7 +109,7 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     for (i, slot) in birth_rate_ladder.iter_mut().enumerate() {
         let base = format!("kingdom.population.birth_rate.{i}");
         *slot = (
-            int(rs, &format!("{base}.up_to"), 0, i32::MAX as i64)?,
+            int(rs, &birth_key(rs, &base), 0, i32::MAX as i64)?,
             int(rs, &format!("{base}.percent"), 0, 10_000)?,
         );
     }
@@ -430,3 +430,8 @@ pub fn tables(rs: &Ruleset) -> Result<Tables, RuleError> {
     Ok(t)
 }
 
+/// C273: `Table_Lookup` is strict, so the key is `below`; `up_to` still loads.
+fn birth_key(rs: &Ruleset, base: &str) -> String {
+    let below = format!("{base}.below");
+    if rs.get(&below).is_some() { below } else { format!("{base}.up_to") }
+}

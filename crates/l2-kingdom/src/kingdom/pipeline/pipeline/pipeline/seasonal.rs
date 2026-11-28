@@ -63,7 +63,8 @@ impl Kingdom {
 
     pub(super) fn health_update(&mut self) {
         for id in 1..=self.county_count {
-            health::update(&self.tables, &mut self.counties[id]);
+            let ai = !self.owner_is_human(self.counties[id].owner);
+            health::update(&self.tables, &mut self.counties[id], ai, self.options.quirks);
         }
     }
 

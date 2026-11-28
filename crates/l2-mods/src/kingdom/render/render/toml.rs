@@ -188,15 +188,15 @@ pub fn render_toml(t: &Tables) -> String {
 
     out.push_str(
         "\n# --- population ------------------------------------------------------\n\
-         # birth_rate: the first row whose up_to is at least the county's\n\
-         # population gives the base birth rate. This is the soft population\n\
+         # birth_rate: the first row whose `below` is above the county's\n\
+         # population gives the base birth rate; 3000 or more gets 1%. This is the soft population\n\
          # cap players describe - at 2,000 people the 2% birth rate cannot keep\n\
          # up with winter's 8% death rate.\n",
     );
-    for &(up_to, percent) in &t.population.birth_rate_ladder {
+    for &(below, percent) in &t.population.birth_rate_ladder {
         let _ = write!(
             out,
-            "\n[[kingdom.population.birth_rate]]\nup_to = {up_to}\npercent = {percent}\n"
+            "\n[[kingdom.population.birth_rate]]\nbelow = {below}\npercent = {percent}\n"
         );
     }
     out.push_str(

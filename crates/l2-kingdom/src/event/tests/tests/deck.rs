@@ -177,7 +177,11 @@ fn the_plague_knocks_a_perfect_county_into_the_sick_band() {
     assert!(fire(&mut c, 1, &mut purse, EventKind::Plague, Season::Winter, Q));
     assert_eq!(c.event_population_pct, -40);
     assert_eq!(c.health_meter, 25, "clamped down to 25, not 100 - 20");
-    assert_eq!(c.health_band, 1, "Sick");
+    // C273. Ablation: re-band in `effects.rs`'s `Effect::Health` arm.
+    assert_eq!(c.health_band, 4, "FUN_00448F6F stores the meter only");
+    c.ration_achieved = 3;
+    crate::health::update(&crate::tables::Tables::DEFAULT, &mut c, false, Q);
+    assert_eq!((c.health_meter, c.health_band), (24, 1), "Perfect's -1, then Sick");
 }
 
 #[test]

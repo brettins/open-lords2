@@ -158,8 +158,8 @@ fn the_birth_ladder_caps_growth_around_two_thousand() {
 // under test. The tables it reads: death by health band 35/20/8/3/0, by
 // season Spring 4, Summer 0, Autumn 2, Winter 8.
 
-/// `FUN_00448F6F` pins the health meter at 25 as well, which is band 1 and a
-/// 20% death rate before the season's — so the deaths are
+/// `FUN_00448F6F` pins the health meter at 25 as well; `Health_UpdateAll`,
+/// which runs between, bands it 1, a 20% death rate before the season's — so the deaths are
 /// `Pct(1000, 20 + season) + 1`, and the plague takes its percentage of
 /// *those*.
 #[test]
@@ -180,22 +180,25 @@ fn a_plague_adds_a_percentage_of_the_deaths_plus_ten() {
         let mut purse = crate::event::RealmPurse::default();
         let plague = crate::event::EventKind::Plague;
         assert!(crate::event::fire(&mut c, 1, &mut purse, plague, season, Q));
-        assert_eq!(c.health_band, 1, "the handler clamps the meter to 25");
+        assert_eq!(c.health_band, 2, "the handler stores the meter only, C273");
+        crate::health::update(T, &mut c, false, Q);
+        assert_eq!(c.health_band, 1, "Health_UpdateAll bands the 25");
 
         update_one(T, &mut c, season, Q);
         assert_eq!(c.event_population_swing, swing, "{season:?}: the letter's figure");
         assert_eq!(c.deaths, after, "{season:?}: {natural} natural, plus the swing");
-        assert_eq!(c.births, 140, "{season:?}: a plague moves no births");
+        assert_eq!(c.births, 130, "{season:?}: a plague moves no births");
     }
 }
 
 #[test]
 fn a_wedding_adds_a_percentage_of_the_births_plus_ten() {
     let cases = [
-        (Season::Spring, 141, 94, 235, 120), // Pct(141, 60) = 84
-        (Season::Summer, 141, 80, 221, 80),  // Pct(141, 50) = 70
-        (Season::Autumn, 141, 66, 207, 100), // Pct(141, 40) = 56
-        (Season::Winter, 140, 52, 192, 161), // Pct(140, 30) = 42
+        // C273: 1000 is on the 1100 row, 11% scaled to 13.
+        (Season::Spring, 131, 88, 219, 120), // Pct(131, 60) = 78
+        (Season::Summer, 131, 75, 206, 80),  // Pct(131, 50) = 65
+        (Season::Autumn, 131, 62, 193, 100), // Pct(131, 40) = 52
+        (Season::Winter, 130, 49, 179, 161), // Pct(130, 30) = 39
     ];
     for (season, natural, swing, after, deaths) in cases {
         let mut c = County::new();
@@ -222,8 +225,8 @@ fn the_swing_is_capped_at_a_fifth_of_the_county_and_is_never_less_than_ten() {
     c.health_band = 4;
     c.event_population_pct = 60;
     update_one(T, &mut c, Season::Spring, Q);
-    assert_eq!(c.event_population_swing, 20, "capped at Pct(100, 20), not 46");
-    assert_eq!(c.births, 61 + 20);
+    assert_eq!(c.event_population_swing, 20, "capped at Pct(100, 20), not 32");
+    assert_eq!(c.births, 37 + 20, "C273: 100 is on the 250 row, 30% scaled to 36");
 
     let mut c = County::new();
     c.population = 1000;

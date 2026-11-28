@@ -190,6 +190,12 @@ pub enum Quirk {
     /// `Ration_Apply` (`0x0044DF5F`) caps each side of the split at its store and
     /// moves no shortfall across. Always fixed online ([`Quirk::fixed_online`]).
     SplitShortfallGoesUneaten = 15,
+
+    /// **B274** — a county at full health is banded Good, not Perfect.
+    /// `Table_Lookup(meter, g_healthBandLadder, 5, 3)` in `Health_UpdateAll`
+    /// (`0x0044BD9F`) is strict, so 100 matches no row and takes the fallback.
+    /// Always fixed online ([`Quirk::fixed_online`]).
+    FullHealthBandsGood = 16,
 }
 
 /// **Which of the original's defects this game reproduces.**
@@ -267,6 +273,7 @@ mod tests {
         assert_eq!(Quirk::MutualDestructionIsAWin.bit(), 13);
         assert_eq!(Quirk::DeadArcherKeepsShooting.bit(), 14);
         assert_eq!(Quirk::SplitShortfallGoesUneaten.bit(), 15);
+        assert_eq!(Quirk::FullHealthBandsGood.bit(), 16);
     }
 
     /// Ablation: `online` returning `self` unchanged.

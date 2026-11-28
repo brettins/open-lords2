@@ -6,21 +6,11 @@ impl Tables {
     }
 
     pub fn health_band(&self, meter: i32) -> u8 {
-        for &(up_to, band) in &self.health_band_ladder {
-            if meter <= up_to {
-                return band as u8;
-            }
-        }
-        self.health_band_ladder[self.health_band_ladder.len() - 1].1 as u8
+        table_lookup(meter, &self.health_band_ladder, HEALTH_BAND_FALLBACK) as u8
     }
 
     pub fn birth_rate(&self, population: i32) -> i32 {
-        for &(up_to, percent) in &self.population.birth_rate_ladder {
-            if population <= up_to {
-                return percent;
-            }
-        }
-        self.population.birth_rate_ladder[self.population.birth_rate_ladder.len() - 1].1
+        table_lookup(population, &self.population.birth_rate_ladder, BIRTH_RATE_FALLBACK)
     }
 
     pub fn happiness_birth_factor(&self, happiness: i32) -> i32 {

@@ -13,7 +13,7 @@ use l2_kingdom::map::MAP_TILES;
 use l2_kingdom::merchant::{MerchantRoutes, ROUTES, ROUTE_SLOTS};
 use l2_kingdom::mercenary::{Band, MercenaryBands, MERCENARY_BANDS, ROSTER};
 use l2_kingdom::realm::MAX_REALMS;
-use l2_kingdom::tables::{health_band, Tables, Weather, JOB_COUNT};
+use l2_kingdom::tables::{Tables, Weather, JOB_COUNT, NEW_GAME_HEALTH_BAND};
 use l2_kingdom::unit::{Mercenaries, TroopType, Unit, UnitKind, Units, MAX_UNITS, TROOP_TYPES};
 use l2_kingdom::{field, land, CampaignMap, Kingdom, Options};
 
@@ -392,7 +392,7 @@ impl Scenario {
             c.population = s.population_last;
             c.happiness = s.happiness_last;
             c.health_meter = STARTING_HEALTH_METER;
-            c.health_band = health_band(STARTING_HEALTH_METER) as u8;
+            c.health_band = NEW_GAME_HEALTH_BAND;
             c.ration_achieved = s.ration_wanted;
         }
         k
