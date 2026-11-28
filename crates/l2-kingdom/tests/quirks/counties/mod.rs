@@ -2,6 +2,7 @@
 
 mod b109_ration_split;
 mod b274_full_health;
+mod b279_castle_upgrade;
 mod b11a_trade;
 pub use b11a_trade::*;
 mod b12_b15_quirks;

@@ -1647,6 +1647,9 @@ under that reading and were odd under the other — `Tax_CollectAll` (§4.1) cha
 exactly *building the first castle on a bare plot — there is nothing there to besiege*; and
 `Castle_BuildTick` hands out free archers on `castleBuilding < castleType`, an upgrade.
 
+It is also an exploit, B279 (`docs/bugs.md`): a second order before the first is paid
+credits the first's full bill and overwrites what it owed. `[V]`
+
 **The materials are drawn down over seasons.** The OK
 button's only two refusals are *the castle you already have* (message `0x93`, `L2.eng` 147)
 and *anything smaller* (`0x122`, `L2.eng` 290). You may order a royal castle with an empty

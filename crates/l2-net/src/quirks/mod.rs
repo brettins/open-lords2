@@ -196,6 +196,12 @@ pub enum Quirk {
     /// (`0x0044BD9F`) is strict, so 100 matches no row and takes the fallback.
     /// Always fixed online ([`Quirk::fixed_online`]).
     FullHealthBandsGood = 16,
+
+    /// **B279** — an upgrade credits the full bill of an unfinished castle and
+    /// forgives what it still owed. `Castle_Order` (`0x00436D02`) subtracts
+    /// `g_castleMaterial[castleType-1]` and overwrites `+0x1D0`/`+0x1D4`.
+    /// Always fixed online ([`Quirk::fixed_online`]).
+    UpgradeForgivesUnpaidCastle = 17,
 }
 
 /// **Which of the original's defects this game reproduces.**
@@ -274,6 +280,7 @@ mod tests {
         assert_eq!(Quirk::DeadArcherKeepsShooting.bit(), 14);
         assert_eq!(Quirk::SplitShortfallGoesUneaten.bit(), 15);
         assert_eq!(Quirk::FullHealthBandsGood.bit(), 16);
+        assert_eq!(Quirk::UpgradeForgivesUnpaidCastle.bit(), 17);
     }
 
     /// Ablation: `online` returning `self` unchanged.

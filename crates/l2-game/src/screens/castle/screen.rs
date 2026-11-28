@@ -65,15 +65,8 @@ impl CastleScreen {
     }
 
     pub fn materials(&self, ctx: &Ctx) -> (i32, i32) {
-        let t = &ctx.game.kingdom.tables;
-        let (mut wood, mut stone) = industry::castle_cost(t, self.castle_type(ctx));
-        let standing = ctx.game.kingdom.counties[self.county as usize].castle_type;
-        if standing != 0 {
-            let (had_wood, had_stone) = industry::castle_cost(t, standing);
-            wood -= had_wood;
-            stone -= had_stone;
-        }
-        (wood, stone)
+        let k = &ctx.game.kingdom;
+        industry::castle_bill(&k.tables, &k.counties[self.county as usize], self.castle_type(ctx), k.options.quirks)
     }
 
     pub(super) fn confirm(&mut self, ctx: &mut Ctx) -> Transition {

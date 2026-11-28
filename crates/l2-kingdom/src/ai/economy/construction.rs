@@ -51,7 +51,8 @@ pub fn build_castles(
         let gold = realms[realm_id as usize].gold;
         let Some(castle_type) = largest_castle_affordable(&gold_ladder, gold) else { continue };
         let (county, realm) = (&mut counties[id], &mut realms[realm_id as usize]);
-        if crate::industry::order_castle(t, county, realm, castle_type) {
+        // `castle_type != 0` is skipped above, so B279's credit never arises.
+        if crate::industry::order_castle(t, county, realm, castle_type, l2_net::Quirks::FAITHFUL) {
             started.push(id as u8);
         }
     }

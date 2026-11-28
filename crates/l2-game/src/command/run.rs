@@ -20,9 +20,9 @@ impl Order for OrderCastle {
             return Castled::Refused(why);
         }
         let owner = county.owner as usize;
-        let Kingdom { counties, realms, campaign, .. } = &mut game.kingdom;
+        let Kingdom { counties, realms, campaign, options, .. } = &mut game.kingdom;
         let Some(realm) = realms.get_mut(owner) else { return Castled::Ownerless };
-        industry::order_castle(&t, &mut counties[self.county as usize], realm, self.castle);
+        industry::order_castle(&t, &mut counties[self.county as usize], realm, self.castle, options.quirks);
         l2_kingdom::map::stamp_castle_terrain(&mut campaign.map, self.county, self.castle);
         l2_kingdom::movement::evict_castle_plot(&campaign.move_cost, &campaign.map, &mut campaign.units, self.county);
         Castled::Ordered

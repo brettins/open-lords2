@@ -197,7 +197,7 @@ fn the_castle_ceiling_is_shut_until_the_wood_and_stone_have_arrived() {
     );
 
     let mut realm = Realm::new();
-    assert!(industry::order_castle(t, &mut c, &mut realm, 1));
+    assert!(industry::order_castle(t, &mut c, &mut realm, 1, l2_net::Quirks::FAITHFUL));
     assert_eq!((c.castle_wood_owed, c.castle_stone_owed), (400, 40), "all of it owed");
     assert_eq!(
         industry::castle_labour_estimate(t, &c).1,

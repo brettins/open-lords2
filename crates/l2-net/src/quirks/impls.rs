@@ -21,6 +21,7 @@ impl Quirk {
         Quirk::DeadArcherKeepsShooting,
         Quirk::SplitShortfallGoesUneaten,
         Quirk::FullHealthBandsGood,
+        Quirk::UpgradeForgivesUnpaidCastle,
     ];
 
     pub const fn bit(self) -> u32 {
@@ -45,6 +46,7 @@ impl Quirk {
             Quirk::DeadArcherKeepsShooting => "B267",
             Quirk::SplitShortfallGoesUneaten => "B109",
             Quirk::FullHealthBandsGood => "B274",
+            Quirk::UpgradeForgivesUnpaidCastle => "B279",
         }
     }
 
@@ -70,6 +72,7 @@ impl Quirk {
             Quirk::DeadArcherKeepsShooting => "DeadArcherKeepsShooting",
             Quirk::SplitShortfallGoesUneaten => "SplitShortfallGoesUneaten",
             Quirk::FullHealthBandsGood => "FullHealthBandsGood",
+            Quirk::UpgradeForgivesUnpaidCastle => "UpgradeForgivesUnpaidCastle",
         }
     }
 
@@ -113,12 +116,20 @@ impl Quirk {
                 "Pointing the ration split at an empty store eats less food"
             }
             Quirk::FullHealthBandsGood => "A county at full health is only Good, not Perfect",
+            Quirk::UpgradeForgivesUnpaidCastle => {
+                "Upgrading an unfinished castle forgives what it still owed"
+            }
         }
     }
 
-    /// Fixed in every lockstep game whatever the host chose; issues #15, #16.
+    /// Fixed in every lockstep game whatever the host chose; issues #15, #16, #21.
     pub const fn fixed_online(self) -> bool {
-        matches!(self, Quirk::SplitShortfallGoesUneaten | Quirk::FullHealthBandsGood)
+        matches!(
+            self,
+            Quirk::SplitShortfallGoesUneaten
+                | Quirk::FullHealthBandsGood
+                | Quirk::UpgradeForgivesUnpaidCastle
+        )
     }
 }
 

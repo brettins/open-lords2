@@ -29,7 +29,7 @@ fn ordering_a_castle_puts_builders_on_it() {
     r.stone = 10_000;
     assert_eq!(c.labour_share[JOB_CASTLE_BUILDING], 0, "nobody builds before the order");
 
-    assert!(order_castle(T, &mut c, &mut r, 3));
+    assert!(order_castle(T, &mut c, &mut r, 3, l2_net::Quirks::FAITHFUL));
     assert!(c.labour_share[JOB_CASTLE_BUILDING] > 0, "the order staffs the castle job");
     assert_eq!(industry(&c), 100, "and the industry group still sums to 100");
 
@@ -46,7 +46,7 @@ fn a_castle_can_be_ordered_with_nothing_in_the_store() {
     let mut r = Realm::new();
     r.wood = 199;
     r.stone = 0;
-    assert!(order_castle(T, &mut c, &mut r, 3), "a keep is ordered on credit");
+    assert!(order_castle(T, &mut c, &mut r, 3, l2_net::Quirks::FAITHFUL), "a keep is ordered on credit");
     assert_eq!(c.castle_type, 3, "and castleType moves at once");
     assert_eq!(c.castle_degraded, crate::siege::CASTLE_DEGRADED_BUILDING);
     assert_eq!((r.wood, r.stone), (0, 0), "everything there was is taken");
@@ -74,7 +74,7 @@ fn a_castle_may_never_be_replaced_by_a_smaller_one() {
     assert_eq!(castle_refusal(T, &c, 4), None);
     assert_eq!(castle_refusal(T, &c, 6), Some(CastleRefusal::NoSuchType));
     let mut r = Realm::new();
-    assert!(!order_castle(T, &mut c, &mut r, 2));
+    assert!(!order_castle(T, &mut c, &mut r, 2, l2_net::Quirks::FAITHFUL));
     assert_eq!(c.castle_degraded, 0, "a refusal changes nothing");
 }
 
@@ -85,7 +85,7 @@ fn upgrading_pays_the_difference_and_refunds_what_the_new_castle_needs_less_of()
     let mut r = Realm::new();
     r.wood = 0;
     r.stone = 10_000;
-    assert!(order_castle(T, &mut c, &mut r, 3));
+    assert!(order_castle(T, &mut c, &mut r, 3, l2_net::Quirks::FAITHFUL));
     assert_eq!(c.castle_building, 2, "the motte and bailey is what still stands");
     assert_eq!(c.castle_type, 3);
     assert_eq!(r.wood, 600, "600 wood came back out of the old castle");
@@ -99,7 +99,7 @@ fn a_royal_castle_takes_several_seasons_of_workers() {
     let mut r = Realm::new();
     r.wood = 10_000;
     r.stone = 10_000;
-    assert!(order_castle(T, &mut c, &mut r, 5));
+    assert!(order_castle(T, &mut c, &mut r, 5, l2_net::Quirks::FAITHFUL));
     c.labour[T.job.castle_building] = 500;
 
     let mut out = Vec::new();
@@ -122,7 +122,7 @@ fn a_castle_one_man_short_is_ninety_nine_percent_and_not_a_hundred() {
     let mut r = Realm::new();
     r.wood = 10_000;
     r.stone = 10_000;
-    assert!(order_castle(T, &mut c, &mut r, 5));
+    assert!(order_castle(T, &mut c, &mut r, 5, l2_net::Quirks::FAITHFUL));
     c.labour[T.job.castle_building] = 2_499;
     let mut out = Vec::new();
     assert!(build_tick(T, &mut c, &mut r, 1, &mut out).is_none());

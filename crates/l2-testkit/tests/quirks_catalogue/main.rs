@@ -46,6 +46,7 @@ const DISPOSITIONS: &[(&str, Disposition)] = &[
     ("B11a", Switchable(Behavioural)),
     ("B109", Switchable(Behavioural)),
     ("B274", Switchable(Behavioural)),
+    ("B279", Switchable(Behavioural)),
     ("B275", Unwired("crates/l2-kingdom/src/land/fertility.rs")),
     ("B12", Retracted),
     ("B13", Unwired("crates/l2-kingdom/src/levy/mod.rs")),

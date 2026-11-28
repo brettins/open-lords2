@@ -121,7 +121,7 @@ fn the_tile_panel_of_a_castle_under_construction_is_the_status_block() {
     k.realms[owner].wood = 0;
     let t = k.tables;
     assert!(
-        l2_kingdom::industry::order_castle(&t, &mut k.counties[id], &mut k.realms[owner], 4),
+        l2_kingdom::industry::order_castle(&t, &mut k.counties[id], &mut k.realms[owner], 4, l2_net::Quirks::FAITHFUL),
         "setup: a stone castle may be ordered over a keep"
     );
     let c = k.counties[id].clone();

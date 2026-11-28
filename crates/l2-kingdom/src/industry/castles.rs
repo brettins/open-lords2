@@ -58,16 +58,19 @@ pub fn castle_refusal(t: &Tables, county: &County, castle_type: u8) -> Option<Ca
 /// `Castle_Order` (`0x00436D02`) — **order a castle**, which is the only thing
 /// that ever sets [`County::castle_degraded`] to
 /// [`crate::siege::CASTLE_DEGRADED_BUILDING`].
-pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_type: u8) -> bool {
+pub fn order_castle(
+    t: &Tables,
+    county: &mut County,
+    realm: &mut Realm,
+    castle_type: u8,
+    quirks: Quirks,
+) -> bool {
     if castle_refusal(t, county, castle_type).is_some() {
         return false;
     }
-    let (mut wood, mut stone) = castle_cost(t, castle_type);
+    let (mut wood, mut stone) = castle_bill(t, county, castle_type, quirks);
     if county.castle_type != 0 {
         county.castle_building = county.castle_type;
-        let (had_wood, had_stone) = castle_cost(t, county.castle_type);
-        wood -= had_wood;
-        stone -= had_stone;
         if wood < 0 {
             realm.wood -= wood;
             wood = 0;
@@ -101,6 +104,27 @@ pub fn order_castle(t: &Tables, county: &mut County, realm: &mut Realm, castle_t
     county.castle_stone_owed = take_from(&mut realm.stone, stone);
     county.castle_wood_owed = take_from(&mut realm.wood, wood);
     true
+}
+
+/// `Castle_Order` (`0x00436D02`) and `Screen_CastleBuildPanel` (`0x004198AA`):
+/// the new castle's `g_castleMaterial` less the standing `castleType`'s, per
+/// column, negative where the realm is refunded.
+///
+/// B279: `castleType` moves at the order, so the credit is the full bill of a
+/// castle still owing, and the overwrite of `+0x1D0`/`+0x1D4` forgives the
+/// rest. Fixed, the unpaid remainder joins the new bill. Issue #21.
+pub fn castle_bill(t: &Tables, county: &County, castle_type: u8, quirks: Quirks) -> (i32, i32) {
+    let (mut wood, mut stone) = castle_cost(t, castle_type);
+    if county.castle_type != 0 {
+        let (had_wood, had_stone) = castle_cost(t, county.castle_type);
+        wood -= had_wood;
+        stone -= had_stone;
+    }
+    if county.castle_degraded != 0 && quirks.is_fixed(Quirk::UpgradeForgivesUnpaidCastle) {
+        wood += county.castle_wood_owed;
+        stone += county.castle_stone_owed;
+    }
+    (wood, stone)
 }
 
 fn take_from(store: &mut i32, want: i32) -> i32 {
