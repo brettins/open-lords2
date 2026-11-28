@@ -8039,7 +8039,7 @@
       "section": "battle",
       "confidence": "verified",
       "signature": "void BattleMan_LookForMelee(void)",
-      "comment": "Figure state 7. If an adjacent enemy exists, locks both figures into state 4 facing each other, one as attacker and one as defender; otherwise falls back to idle or missile search."
+      "comment": "Figure state 7. If an adjacent enemy exists, locks both figures into state 4 facing each other, one as attacker and one as defender; otherwise falls back to idle or missile search. Nothing sets state 7 (bugs.md D44): melee starts in BattleMan_Step's 999 arm."
     },
     {
       "addr": "0x00483E55",
@@ -8047,7 +8047,7 @@
       "section": "battleai",
       "confidence": "verified",
       "signature": "void BattleMan_StateChase(void)",
-      "comment": "Figure state 8: free pursuit. Re-acquires a target with Melee_ChooseChaseTarget whenever it has none or its target is dead, copies the target's position into its own tg x / tg y every tick, and walks. Siege engines are bounced to state 11 instead. This state ignores the unit's destination entirely."
+      "comment": "Figure state 8: free pursuit. Re-acquires a target with Melee_ChooseChaseTarget only when it has none or the target's owner is 0 (00480000.c:1659); a target in state 2 (dying, owner kept for 80 frames) sends it idle, state 5, instead (bugs.md B277). Copies the target's position into its own tg x / tg y every tick, and walks. Siege engines are bounced to state 11 instead. This state ignores the unit's destination entirely."
     },
     {
       "addr": "0x00483FE1",

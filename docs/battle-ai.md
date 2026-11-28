@@ -351,8 +351,9 @@ or find by proximity.
 ### 3.3 Figure picks a figure — `Melee_ChooseChaseTarget` (`0x004954DD`)
 
 **[D]** State 8 — free pursuit — is what `Order_ChargeNearest` and `BattleUnit_JoinMelee`
-put figures into, and `BattleMan_StateChase` re-acquires with this function every time its
-target dies. It is the closest thing the game has to "who does that soldier run at":
+put figures into. `BattleMan_StateChase` calls it only when the figure has no target or the
+target's slot is freed (`owner == 0`); a target that is dying (state 2) sends the figure
+idle instead, and a body keeps its owner for 80 frames (`bugs.md` B277). It is the closest thing the game has to "who does that soldier run at":
 
 ```c
 score = Dist_Chebyshev(me, enemy);

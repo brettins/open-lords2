@@ -577,11 +577,14 @@ That single constant governs melee, missiles and fire.
 
 **[V]** Melee is a *duel between two figures*, not an area effect.
 
-`BattleMan_LookForMelee` (state 7) calls `Melee_FindAdjacentEnemy`, which tests the eight
-neighbouring cells in the order N, NW, NE, W, E, SW, SE, S and returns the first live enemy
-figure — **skipping siege engines entirely, so troop types 7–10 are never melee targets**.
-Both figures then enter state 4, record each other in `+0x17E`, turn to face, and one is
-flagged attacker (`+0x185 = 1`), the other defender.
+It starts when a step runs into an enemy: `BattleMan_Step`'s 999 arm
+(`0x0048F1DD`, `00480000.c:6474–6497`) calls `BattleUnit_JoinMelee` for both units and,
+unless the other figure is dying (state 2) or the mover is troop type 10, puts both in state 4.
+`BattleMan_LookForMelee` (state 7) would do it by calling `Melee_FindAdjacentEnemy`, which
+tests the eight neighbouring cells in the order N, NW, NE, W, E, SW, SE, S and returns the
+first live enemy figure, skipping siege engines (troop types 7–10), but nothing sets
+state 7 (`bugs.md` D44). Both figures in state 4 record each other in `+0x17E`, turn to
+face, and one is flagged attacker (`+0x185 = 1`), the other defender.
 
 `Melee_Tick` (`0x00494908`), once per frame for each figure in state 4:
 
@@ -2478,8 +2481,9 @@ the armies as they walked on. **[V]**
 
 **Charge is not `Order_ChargeNearest`.** `FUN_0047A76D` walks the local player's
 figures of troop type < 7 and sets `unit.halted = 1` and `figure.state = 8`; the
-AI's `Order_ChargeNearest` (`0x0048C8AF`) also clears the withdraw flag
-figures' targets. And it is one-shot: `DAT_0055322C` is set on the first press
+AI's `Order_ChargeNearest` (`0x0048C8AF`) also clears the withdraw flag, on
+`g_curBattleUnit` rather than the unit it is given, and each figure's `onRoute`
+and `barred`, not its target (`00480000.c:5105–5113`). And it is one-shot: `DAT_0055322C` is set on the first press
 and never cleared inside a battle.
 
 ### 15.5 Selecting: the drag is a screen  **[V]**
