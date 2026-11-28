@@ -889,6 +889,34 @@ observed failing, and until it has, "it passes" is a statement about the tree an
 test. Two of the three above were written by someone careful and neither would have survived
 thirty seconds of this.
 
+## A number that agrees is not a reading
+
+C273: the health ladder's `<=` came from prior art, and one number in the shipped save
+(65 → 67) "confirmed" it, so it went from `[I]` to `[V]`. The number had another cause, a new
+game storing band 2 outright, and the decompilation saying `x < threshold` sat in the tree the
+whole time. Every boundary was wrong for two months. The rule:
+
+1. **Comparison sense, fallback/default, index base, loop bound and signedness come from the
+   instruction, never from a value that agrees.** Quote the `cmp`/`Jcc` (`objdump -d -M intel
+   --start-address=…` on the install) beside the code. Where the decompiler could have
+   reversed a comparison (`'d' < x`, signed/unsigned), the disassembly decides (C13).
+2. **A save, fixture or log number confirms a reading only if you have named every other path
+   that writes it.** Grep the decomp for every store to the field (and the raw `+0x` address)
+   and write down why none of them explains the number. One agreeing number with an unexamined
+   second writer stays `[I]`.
+3. **Test the boundary, not the middle.** For any ladder, threshold or clamp, the test
+   asserts both sides of every threshold and the fall-off-the-end value. A middle value
+   passes under both `<` and `<=`.
+4. **A port of a shared routine goes through one port of it.** `Table_Lookup` has five
+   callers; we had four hand-written loops. Port the routine once and call it with the
+   original's arguments, fallback included, so one reading is checked once.
+5. **"Never reached" and "nothing behaves differently" are claims.** Show the instruction
+   that guarantees it. Our "the meter is clamped, so the last row is never fallen off" was
+   the bug.
+
+`node tools/oracle/dossier.js <routine>` lists the callers; check each port against the
+routine, not against the doc that summarises it.
+
 ## A file that looks like data is usually a claim, and claims cannot be merged positionally
 
 Six branches landed in one evening. Nine merge defects came with them and **all nine are the same

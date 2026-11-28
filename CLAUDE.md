@@ -13,7 +13,9 @@ agent, so it stays short. Read the linked document before working in that area.
 3. **This project is MIT; the useful prior art is GPL-3.** Format *facts* are free. Never
    copy, vendor or translate their code.
 4. **Label claims verified or inferred.** A plausible story assembled from decompiler
-   output is not a finding.
+   output is not a finding, and neither is a save number that happens to agree: a
+   comparison, fallback or index base is read off the instruction (`docs/agents.md`
+   *A number that agrees is not a reading*, C273).
 5. **If we implement a feature, find its equivalent in the binary's functions**, and name
    it in the code beside the behaviour. *"We could not find it"* is a finding, not a licence
    to invent. Measured, generated not typed: we reproduce
