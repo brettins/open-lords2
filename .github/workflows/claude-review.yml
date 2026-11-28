@@ -1,0 +1,82 @@
+name: Claude review
+
+# One review comment per pull request, rewritten on every push. Advisory, never
+# a required check. Skips itself until CLAUDE_CODE_OAUTH_TOKEN is set
+# (`claude setup-token`, then `gh secret set CLAUDE_CODE_OAUTH_TOKEN`).
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: Pull request number
+        required: true
+
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number || inputs.pr }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft != true
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    env:
+      HAS_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+      PR: ${{ github.event.pull_request.number || inputs.pr }}
+    steps:
+      - name: no token, no review
+        if: env.HAS_TOKEN != 'true'
+        run: echo "::notice::CLAUDE_CODE_OAUTH_TOKEN is not set; skipping the review."
+
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          ref: ${{ github.event.pull_request.head.sha || format('refs/pull/{0}/head', inputs.pr) }}
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        if: env.HAS_TOKEN == 'true'
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ env.PR }}
+
+            Review this pull request to lords2, an open reimplementation of Lords of
+            the Realm II. CLAUDE.md is the index; read the document it names for each
+            area the diff touches before judging that area.
+
+            Look for, in this order:
+            1. Behaviour that disagrees with the original. A comment that names an
+               original function (an address like 0x0044D281) is a claim: check it
+               against docs/symbols.json and the area's document. The decompilation
+               is not in this checkout, so say which claims need it.
+            2. An original bug fixed inline. Reproduced bugs belong in docs/bugs.md,
+               and a fix goes behind a Quirk on the Bugs page, never in place.
+            3. Determinism (docs/netcode.md): floats where order matters, an
+               unseeded RNG, iteration in hash order, presentation state in the
+               digest.
+            4. CLAUDE.md's rules: game assets committed; GPL code copied or
+               translated; a claim without a [V]/[D]/[I] mark; a comment carrying
+               no evidence; a screen's words not drawn from L2.eng; files over the
+               size limits.
+            5. Ordinary correctness bugs, and a test that would pass with the line
+               it names deleted.
+
+            Report only what you can show from the code or the docs, each
+            with file and line and the evidence. Say what you could not check. Use
+            inline comments for specific lines, and one short summary. No praise,
+            no style nits the hooks already catch. If nothing survives, say so in
+            one line.
+          claude_args: |
+            --model claude-opus-5-5
+            --max-turns 40
+            --allowedTools "Read,Grep,Glob,mcp__github_inline_comment__create_inline_comment,Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr comment:*),Bash(git log:*),Bash(git show:*)"
