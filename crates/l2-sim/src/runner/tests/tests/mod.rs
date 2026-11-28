@@ -4,6 +4,7 @@ mod outcome;
 mod deploy;
 mod ai_runs;
 mod missiles;
+mod missile_terrain;
 
 mod cues;
 
